@@ -3,6 +3,7 @@ import {
 	fitTextWithEllipsis,
 	lineCount,
 	wrapByCharCount,
+	wrapSegments,
 	wrapTextToWidth,
 } from "./multilineText"
 
@@ -201,5 +202,52 @@ describe("wrapByCharCount", () => {
 	it("clamps a zero/negative target to one character", () => {
 		// target 1 → break on the earliest space each pass.
 		expect(wrapByCharCount("a b c", 0)).toEqual(["a", "b", "c"])
+	})
+})
+
+describe("wrapSegments", () => {
+	const seg = (text: string, fill: string) => ({ text, fill })
+
+	it("returns the segments untouched when the joined text fits one line", () => {
+		const segs = [seg("10 ", "#111"), seg("north", "#222")]
+		expect(wrapSegments(segs, 50)).toEqual([segs])
+	})
+
+	it("breaks lines exactly where wrapByCharCount breaks the joined text", () => {
+		const segs = [seg("32% ", "#111"), seg("the far north", "#222")]
+		const joined = segs.map((s) => s.text).join("")
+		const lines = wrapSegments(segs, 8)
+		expect(lines.map((l) => l.map((p) => p.text).join(""))).toEqual(
+			wrapByCharCount(joined, 8)
+		)
+	})
+
+	it("splits a straddling segment into pieces that keep its styling", () => {
+		// Break lands inside the second segment: its head stays on line 1,
+		// its tail opens line 2, both carrying fill #222.
+		const lines = wrapSegments([seg("32% ", "#111"), seg("far north", "#222")], 8)
+		expect(lines).toEqual([
+			[seg("32% ", "#111"), seg("far", "#222")],
+			[seg("north", "#222")],
+		])
+	})
+
+	it("drops the break space from whichever segment held it", () => {
+		// The break space is the trailing char of the FIRST segment — the
+		// second segment must come through whole, not de-prefixed.
+		const lines = wrapSegments([seg("alpha ", "#111"), seg("beta", "#222")], 5)
+		expect(lines).toEqual([[seg("alpha", "#111")], [seg("beta", "#222")]])
+	})
+
+	it("passes empty-text segments through without stalling", () => {
+		const lines = wrapSegments(
+			[seg("", "#000"), seg("one two three", "#111")],
+			5
+		)
+		expect(lines.map((l) => l.map((p) => p.text).join(""))).toEqual([
+			"one",
+			"two",
+			"three",
+		])
 	})
 })

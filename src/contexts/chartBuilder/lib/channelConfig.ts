@@ -899,6 +899,19 @@ export type ConnectionConfig = {
 	 * to the visualization's background color (or white if transparent),
 	 * which keeps dashes visually punching through to the chart bg. */
 	dashAlternateColors: Record<string, string>
+	/** Single dash-gap color override for charts with NO hue encoding (one
+	 * line color → one gap swatch in the panel). With hue mapped, per-category
+	 * overrides live in `dashAlternateColors` keyed by hue value instead.
+	 * `null` / absent = no override (palette-paired chain applies). */
+	dashGapColor?: string | null
+	/** Whether the gaps between dashes are painted (an underlay polyline in
+	 * the alternate color) so a dashed line reads as one connected two-color
+	 * line, or left empty so the line is truly dashed. `null` / absent =
+	 * AUTO: gaps are painted unless the pattern encoding maps the SAME field
+	 * as the hue encoding (there the dash restates the color split, so true
+	 * gaps are the default and painting is opt-in). See
+	 * `resolveDashGapFill` in `lib/dashPatterns.ts`. */
+	dashGapFill?: boolean | null
 	/** "Apply pattern to range": every line's dash (per-category or the
 	 * global default) draws only within [min, max] along the axis the line
 	 * runs along; outside renders solid. One GLOBAL window (a forecast
@@ -1029,6 +1042,8 @@ export const DEFAULT_CONNECTION_CONFIG: ConnectionConfig = {
 	dashPatterns: {},
 	defaultDashPattern: "solid",
 	dashAlternateColors: {},
+	dashGapColor: null,
+	dashGapFill: null,
 	fillPolygon: false,
 	lineOpacity: 1,
 	fillOpacity: 1,
@@ -1552,8 +1567,29 @@ export type DataLabelsConfig = {
 	 * the legend can be turned off. "Series" is the value of the hue field
 	 * (anchor-based renderers) or the connection field (scatter+connection
 	 * line charts). When neither is mapped, the single absolute-last label
-	 * is kept. */
+	 * is kept.
+	 *
+	 * Superseded by `labelPoints` — kept (and still read) so saved visuals
+	 * from before the selector keep their look; the panel no longer writes
+	 * it. */
 	onlyLastLabel?: boolean
+	/** Which labels render, per series. Supersedes `onlyLastLabel`; resolve
+	 * the effective value via `effectiveLabelPoints(cfg)`, which falls back
+	 * to the legacy boolean when this is unset.
+	 *  - `"all"` (default): every label.
+	 *  - `"first"` / `"last"`: only the first / last anchor per series along
+	 *    the chart's primary axis (position-ranked, like `onlyLastLabel`).
+	 *  - `"first-last"`: both ends. A single-point series renders ONE label,
+	 *    styled by the `lastLabel` overrides (direct-labeling intent). */
+	labelPoints?: LabelPointsMode
+	/** Per-endpoint overrides, consulted ONLY in `"first-last"` mode — that's
+	 * the only mode where two label populations coexist and need to differ.
+	 * The single `"first"` / `"last"` modes use the layer-wide template /
+	 * offset / alignment directly, matching the panel (which only splits the
+	 * controls into First/Last pairs when both ends are shown). Every unset
+	 * field inherits the layer-wide value. */
+	firstLabel?: EndpointLabelOverrides
+	lastLabel?: EndpointLabelOverrides
 	/** When true, the renderer detects label boxes that overlap and nudges
 	 * later labels along the y-axis to keep them readable. Best-effort —
 	 * with many labels in a small space some collisions remain — but
@@ -1622,6 +1658,37 @@ export type DataLabelsConfig = {
 	arcWrapLevels?: number[]
 }
 
+export type LabelPointsMode = "all" | "first" | "last" | "first-last"
+
+/** Overrides one endpoint's labels can apply on top of the layer-wide
+ *  Data Labels config. Deliberately limited to template + offset +
+ *  alignment — the things that legitimately differ between a line's start
+ *  and end labels. Per-endpoint fonts/colors/backgrounds are out of scope
+ *  (that shape of need is multi-layer composition, not more knobs here). */
+export type EndpointLabelOverrides = {
+	/** Multi-field mode only: alternate `{Field}` template for this
+	 *  endpoint's labels. Empty/unset = inherit `labelTemplate` (an empty
+	 *  string means "inherit", not "blank label" — hide an endpoint via
+	 *  `labelPoints` instead). Anchor-based renderers (bars/areas) pre-format
+	 *  their label text without templates, so this only affects the
+	 *  row-based path (scatter / line charts). */
+	labelTemplate?: string
+	/** REPLACE (not add to) the layer-wide xOffset/yOffset for this
+	 *  endpoint's labels. null/unset = inherit. */
+	xOffset?: number | null
+	yOffset?: number | null
+	/** Replace the layer-wide alignment. null/unset = inherit. */
+	alignment?: "left" | "center" | "right" | null
+}
+
+/** The selection `DataLabelsLayer` should apply: the new `labelPoints`
+ *  value when present, else the legacy `onlyLastLabel` boolean mapped onto
+ *  the same scale — so saved visuals keep rendering without a migration. */
+export const effectiveLabelPoints = (
+	cfg: Pick<DataLabelsConfig, "labelPoints" | "onlyLastLabel">
+): LabelPointsMode =>
+	cfg.labelPoints ?? (cfg.onlyLastLabel === true ? "last" : "all")
+
 /** Sentinel for `DataLabelsConfig.paletteId`: the user explicitly picked
  *  "None (single color)" in the Data Labels color panel. Distinct from
  *  `null` (no pick yet → inherit the chart's palette) so the layer knows
@@ -1659,6 +1726,12 @@ export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	fieldColors: {},
 	barLabelPosition: "center",
 	onlyLastLabel: false,
+	// labelPoints deliberately ABSENT from the defaults: merged configs are
+	// `{...DEFAULT, ...saved}`, and a concrete "all" here would override the
+	// legacy `onlyLastLabel: true` on saves from before the selector.
+	// `effectiveLabelPoints` owns the fallback chain instead.
+	firstLabel: {},
+	lastLabel: {},
 	avoidOverlaps: false,
 	textColorRules: [],
 	alignment: "center",

@@ -19,13 +19,19 @@ import type { MeasureAxisRendererProps } from "../../lib/chartRendererProps"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
 import { cartesian } from "../../lib/coords"
-import { dashArrayFor, resolveDashAlternateColor } from "../../lib/dashPatterns"
+import {
+	dashArrayFor,
+	dashSpecForPatternValue,
+	resolveDashGapColor,
+	resolveDashGapFill,
+} from "../../lib/dashPatterns"
 import { splitPolylineAtRange } from "../../lib/dashRange"
 import { sampleConnectionPointIndices } from "../../lib/dataLabelsLayout"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import type { PatternDefSpec } from "../../lib/patternDefs"
+import { inkPaletteForHue } from "../../lib/patterns"
 import {
 	resolveLayerColor,
 	slotOpacityResolver,
@@ -742,6 +748,33 @@ const buildAreas = ({
 	const defaultDashPattern: LineDashPattern =
 		channelConfigs.connection?.defaultDashPattern ??
 		DEFAULT_CONNECTION_CONFIG.defaultDashPattern
+	// Pattern encoding → per-layer LINE DASH, mirroring ScatterPlot's
+	// connection polylines: each layer's pattern group value resolves via
+	// the shared `dashSpecForPatternValue` (custom dasharray > swatch
+	// override > DASH_CYCLE auto-cycle by category position). In area mode
+	// the pattern channel GROUPS layers, so the value is constant per layer
+	// — no within-line runs needed here.
+	const patternField = aestheticScales.pattern?.field?.name ?? null
+	const patternDashOverrides = channelConfigs.pattern?.dashOverrides ?? {}
+	const patternCustomDashOverrides =
+		channelConfigs.pattern?.customDashOverrides ?? {}
+	const patternDomain = aestheticScales.pattern?.categories ?? []
+	// Dash-gap color inputs — the same palette-paired pattern-ink options
+	// area patterns resolve their ink from (see `resolveDashGapColor`).
+	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
+		channelConfigs,
+		aestheticScales.hue?.field?.type
+	)
+	const patternInkColors = channelConfigs.pattern?.inkColors ?? {}
+	const defaultPatternInk = channelConfigs.defaultPatternInk ?? null
+	// Whether dash gaps get the alternate-color underlay (connected
+	// two-color line) or stay empty (truly dashed). Auto unless the user
+	// chose: filled, except when pattern and hue map the same field.
+	const gapFill = resolveDashGapFill({
+		configured: channelConfigs.connection?.dashGapFill ?? null,
+		patternField,
+		hueField: aestheticScales.hue?.field?.name ?? null,
+	})
 	// "Apply pattern to range": resolve From/To to pixel boundaries on the
 	// category axis (the axis the line walks along) once — raw axis values,
 	// band scales resolve to the category's center. A value that doesn't
@@ -756,7 +789,6 @@ const buildAreas = ({
 	const rangeActive =
 		dashRange?.enabled === true && (rangeMinPx !== null || rangeMaxPx !== null)
 	const rangeAxis: "x" | "y" = aggregation.isVertical ? "x" : "y"
-	const visualizationBackground = channelConfigs.backgroundColor ?? null
 	// Point sampling — same controls that drive ScatterPlot's marker filter.
 	const pointSampling =
 		channelConfigs.connection?.pointSampling ??
@@ -993,14 +1025,36 @@ const buildAreas = ({
 			: undefined
 
 		if (fillMode === "line") {
-			// Per-layer dash pattern — falls back to the global default
-			// (also defaults to "solid"). Mirrors ScatterPlot's
+			// Per-layer dash: the pattern channel's per-category resolution
+			// when a pattern field is mapped (its group value is constant per
+			// layer), behind the legacy per-line override; falls back to the
+			// global default (also defaults to "solid"). Mirrors ScatterPlot's
 			// renderConnectionLines so the same UI controls drive both
 			// renderers.
 			const layerDashKey = hueValue ?? layerKey
-			const dashPattern: LineDashPattern =
-				dashPatterns[layerDashKey ?? ""] ?? defaultDashPattern
-			const dashArray = dashArrayFor(dashPattern)
+			const patternValue =
+				patternField && groupValues.pattern !== undefined
+					? String(groupValues.pattern)
+					: null
+			const patternSpec =
+				patternValue !== null
+					? dashSpecForPatternValue(
+							patternValue,
+							patternDashOverrides,
+							patternCustomDashOverrides,
+							patternDomain
+						)
+					: null
+			const dashArray =
+				patternSpec?.kind === "custom"
+					? patternSpec.dasharray
+					: dashArrayFor(
+							dashPatterns[layerDashKey ?? ""] ??
+								(patternSpec?.kind === "pattern"
+									? patternSpec.pattern
+									: null) ??
+								defaultDashPattern
+						)
 			// Solid → one path. Dashed → underlay (alternate color) +
 			// dashed top, so the gaps render as the alternate color
 			// instead of transparent.
@@ -1020,10 +1074,20 @@ const buildAreas = ({
 					/>
 				)
 			} else {
-				const altColor = resolveDashAlternateColor({
-					groupKey: layerDashKey ?? "",
+				const altColor = resolveDashGapColor({
+					// The hue value IS the panel's gap-swatch key; the layer key
+					// covers hue-less layers and legacy saved visuals.
+					overrideKeys: [hueValue, layerDashKey],
+					patternValue,
+					// The layer's pre-highlight stroke — the hue/palette color
+					// when the line inherits it, so the pairing lookup can hit.
+					lineColor: layerStroke,
 					overrides: dashAlternateColors,
-					visualizationBackground,
+					singleOverride: channelConfigs.connection?.dashGapColor ?? null,
+					inkColors: patternInkColors,
+					palette: inkPalette,
+					patternInks: palettePatternInks,
+					defaultInk: defaultPatternInk,
 				})
 				const lineProps = {
 					fill: "none",
@@ -1035,7 +1099,10 @@ const buildAreas = ({
 				// "Apply pattern to range": dash only within [From, To] along
 				// the category axis, solid outside (known vs forecast). The
 				// alternate-color underlay only backs the dashed segment.
-				if (rangeActive) {
+				// IGNORED when a pattern field is mapped — the pattern variable
+				// already says where each dash applies, and the two windows
+				// would conflict (the panel hides the range rows there too).
+				if (rangeActive && !patternField) {
 					const segs = splitPolylineAtRange(
 						top.map(([x, y]) => ({ x: x ?? 0, y: y ?? 0 })),
 						rangeMinPx,
@@ -1060,13 +1127,19 @@ const buildAreas = ({
 						)
 					}
 					if (segs.inside.length >= 2) {
+						// The underlay (painted gaps) is gated on `gapFill` —
+						// off = truly dashed segments with empty gaps.
+						if (gapFill) {
+							lineEls.push(
+								<path
+									key={`${layerKey || "__layer__"}__bg`}
+									d={dOf(segs.inside)}
+									stroke={altColor}
+									{...lineProps}
+								/>
+							)
+						}
 						lineEls.push(
-							<path
-								key={`${layerKey || "__layer__"}__bg`}
-								d={dOf(segs.inside)}
-								stroke={altColor}
-								{...lineProps}
-							/>,
 							<path
 								key={layerKey || "__layer__"}
 								d={dOf(segs.inside)}
@@ -1078,13 +1151,17 @@ const buildAreas = ({
 						)
 					}
 				} else {
+					if (gapFill) {
+						lineEls.push(
+							<path
+								key={`${layerKey || "__layer__"}__bg`}
+								d={topD}
+								stroke={altColor}
+								{...lineProps}
+							/>
+						)
+					}
 					lineEls.push(
-						<path
-							key={`${layerKey || "__layer__"}__bg`}
-							d={topD}
-							stroke={altColor}
-							{...lineProps}
-						/>,
 						<path
 							key={layerKey || "__layer__"}
 							d={topD}

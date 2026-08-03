@@ -5,6 +5,7 @@ import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_CHORD_AXIS_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
+	DEFAULT_DASH_RANGE,
 	DEFAULT_OPACITY_QUANTITATIVE,
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_QUANTITATIVE_HUE_CONFIG,
@@ -516,6 +517,30 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 		{ label: "default pattern", changed: differs(configs.defaultPattern, null) },
 		{ label: "default pattern ink", changed: differs(configs.defaultPatternInk, theme.patternInkColor) },
 		{ label: "pattern ink color", changed: differs(configs.patternInkColor, theme.patternInkColor) },
+		// Line-dash state the Pattern menu writes onto the CONNECTION config
+		// (the line renderers' source): the no-field default dash, the
+		// "Fill dash gaps" choice, and the "Apply pattern to range" window.
+		{
+			label: "default line dash",
+			changed: (configs.connection?.defaultDashPattern ?? "solid") !== "solid",
+		},
+		{
+			label: "dash gap fill",
+			changed: (configs.connection?.dashGapFill ?? null) !== null,
+		},
+		{
+			label: "dash gap colors",
+			changed:
+				!isEmptyConfigValue(configs.connection?.dashAlternateColors) ||
+				(configs.connection?.dashGapColor ?? null) !== null,
+		},
+		{
+			label: "dash range",
+			changed: differs(
+				{ ...DEFAULT_DASH_RANGE, ...configs.connection?.dashRange },
+				DEFAULT_DASH_RANGE
+			),
+		},
 	],
 	// Area / saturation / brightness panels show DIFFERENT controls depending on
 	// whether a field is mapped (min/max range + stacking vs a single default),

@@ -32,12 +32,15 @@ import { sampleMarkersByConnection } from "../../lib/connectionSampling"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
 import {
-	DASH_CYCLE,
 	dashArrayFor,
-	resolveDashAlternateColor,
+	dashSpecForPatternValue,
+	resolveDashGapColor,
+	resolveDashGapFill,
 	sanitizeCustomDasharray,
+	splitIntoValueRuns,
 } from "../../lib/dashPatterns"
 import { densityCurveGroupField } from "../../lib/colorSlots"
+import { inkPaletteForHue } from "../../lib/patterns"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
@@ -762,7 +765,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					xScale,
 					xType,
 					dataset,
-					drawOrderLevels
+					drawOrderLevels,
+					aestheticScales.hue?.field.type
 				)}
 				{renderMarkPaths({
 					marks: sortByDrawOrder(
@@ -1260,7 +1264,11 @@ const renderConnectionLines = (
 	dataset: DatasetView | undefined,
 	/** User-defined category order for the draw-order field (if any), so
 	 *  series rank by legend order rather than alphabetically. */
-	drawOrderLevels: readonly string[] | undefined
+	drawOrderLevels: readonly string[] | undefined,
+	/** The hue field's type — picks the palette whose paired pattern inks
+	 *  the dash-gap color resolves from (ordinal hue fields render from the
+	 *  ordinal palette; see `inkPaletteForHue`). */
+	hueType: FieldType | undefined
 ) => {
 	const connectionField = encodings.connection?.field ?? null
 	if (!connectionField) return null
@@ -1309,16 +1317,29 @@ const renderConnectionLines = (
 	const dashPatterns = cfg.dashPatterns ?? {}
 	const dashAlternateColors = cfg.dashAlternateColors ?? {}
 	const defaultDash: LineDashPattern = cfg.defaultDashPattern ?? "solid"
-	const visualizationBackground = channelConfigs.backgroundColor ?? null
-	// Pattern encoding on line charts drives the LINE DASH STYLE for
-	// each polyline. Resolution per category:
-	//   1. `pattern.dashOverrides[category]` explicit user pick wins
-	//      (a number → DASH_CYCLE[n]; PATTERN_NONE → solid).
-	//   2. Otherwise auto-cycle through DASH_CYCLE by the category's
-	//      position in its pattern field's unique-values list.
-	// Point-fill patterns are tracked SEPARATELY in `pattern.overrides`
-	// and resolved in the point render loop above; the two effects no
-	// longer share storage.
+	// Dash-gap color inputs — the same palette-paired pattern-ink options
+	// area patterns resolve their ink from (see `resolveDashGapColor`).
+	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
+		channelConfigs,
+		hueType
+	)
+	const patternInkColors = channelConfigs.pattern?.inkColors ?? {}
+	const defaultPatternInk = channelConfigs.defaultPatternInk ?? null
+	const dashGapColor = cfg.dashGapColor ?? null
+	// The panel's gap swatches key `dashAlternateColors` by HUE value (the
+	// color encoding's categories); each line samples its hue value from its
+	// first row. The connection-group key is tried second for saved visuals
+	// keyed the old way.
+	const hueField = encodings.hue?.field ?? null
+	// Pattern encoding on line charts drives the LINE DASH STYLE. When the
+	// pattern field varies WITHIN a connection group (e.g. a known-vs-
+	// projected column on a series that spans both), the polyline splits
+	// into runs of constant pattern value and each run renders with its own
+	// category's dash — see `splitIntoValueRuns`. Per-category resolution
+	// (custom dasharray > swatch override > DASH_CYCLE auto-cycle) is the
+	// shared `dashSpecForPatternValue`. Point-fill patterns are tracked
+	// SEPARATELY in `pattern.overrides` and resolved in the point render
+	// loop above; the two effects don't share storage.
 	const patternField = encodings.pattern?.field ?? null
 	const dashOverrides = channelConfigs.pattern?.dashOverrides ?? {}
 	const customDashOverrides = channelConfigs.pattern?.customDashOverrides ?? {}
@@ -1332,32 +1353,14 @@ const renderConnectionLines = (
 				),
 			]
 		: []
-	const dashFromPatternField = (groupMarks: Mark[]): LineDashPattern | null => {
-		if (!patternField) return null
-		const sample = groupMarks[0]?.row[patternField]
-		if (sample === undefined || sample === null) return null
-		const str = String(sample)
-		const override = dashOverrides[str]
-		if (override === "none") return "solid"
-		if (typeof override === "number") {
-			return DASH_CYCLE[override % DASH_CYCLE.length] ?? null
-		}
-		const idx = patternValues.indexOf(str)
-		if (idx < 0) return null
-		return DASH_CYCLE[idx % DASH_CYCLE.length] ?? null
-	}
-	/** Resolve a per-category CUSTOM dasharray (user-typed comma list).
-	 *  Returns the sanitized SVG string when one is set for the line's
-	 *  pattern-field value, otherwise `null` so the caller falls back to
-	 *  `dashFromPatternField` (built-in DASH_CYCLE). */
-	const customDashFromPatternField = (groupMarks: Mark[]): string | null => {
-		if (!patternField) return null
-		const sample = groupMarks[0]?.row[patternField]
-		if (sample === undefined || sample === null) return null
-		const raw = customDashOverrides[String(sample)]
-		if (!raw) return null
-		return sanitizeCustomDasharray(raw)
-	}
+	// Whether dash gaps get the alternate-color underlay (connected
+	// two-color line) or stay empty (truly dashed). Auto unless the user
+	// chose: filled, except when pattern and hue map the same field.
+	const gapFill = resolveDashGapFill({
+		configured: cfg.dashGapFill ?? null,
+		patternField,
+		hueField: encodings.hue?.field ?? null,
+	})
 	const groups = new Map<string, Mark[]>()
 	marks.forEach((m) => {
 		const raw = m.row[connectionField]
@@ -1413,41 +1416,6 @@ const renderConnectionLines = (
 				lineSlot,
 				slotRow: sorted[0]?.row ?? { [connectionField]: groupValue },
 			})
-			// Dash precedence: custom per-category dasharray > per-line
-			// override (legacy data) > Pattern encoding (cycles through
-			// DASH_CYCLE) > global default. The per-line override path
-			// has no UI but is kept for back-compat with visuals saved
-			// before this refactor.
-			const customDash = customDashFromPatternField(sorted)
-			const dashArray = customDash ?? dashArrayFor(
-				dashPatterns[groupValue] ??
-					dashFromPatternField(sorted) ??
-					defaultDash
-			)
-			// Solid: single line, no alternate underlay.
-			if (dashArray === null) {
-				return [
-					renderLine(`conn-${groupValue}`, ptObjs, {
-						fill: "none",
-						stroke,
-						strokeWidth: lineThickness,
-						strokeLinecap: strokeCap,
-						strokeLinejoin: "round",
-						opacity: lineOpacity,
-					}),
-				]
-			}
-			// Non-solid: stack an underlay (alternate color, solid) and a
-			// dashed top line so the gaps between dashes show as the
-			// alternate color. The underlay matches the line thickness so
-			// the two-color visual reads as proper alternating dashes
-			// instead of having solid bg-color seeping past the dashed
-			// edges.
-			const alternateColor = resolveDashAlternateColor({
-				groupKey: groupValue,
-				overrides: dashAlternateColors,
-				visualizationBackground,
-			})
 			const lineProps = {
 				fill: "none",
 				strokeWidth: lineThickness,
@@ -1455,56 +1423,118 @@ const renderConnectionLines = (
 				strokeLinejoin: "round",
 				opacity: lineOpacity,
 			} as const
+			// One segment of this group's line. Solid: a single polyline.
+			// Non-solid: a dashed top line, stacked on an underlay (the
+			// palette-paired gap color, solid, same thickness) when `gapFill`
+			// is on so the gaps between dashes show as the paired color and
+			// the line reads as one connected two-color line; with `gapFill`
+			// off the gaps stay empty (truly dashed).
+			const renderSegment = (
+				keyBase: string,
+				pts: Array<{ x: number; y: number }>,
+				dashArray: string | null,
+				patternValue: string | null = null
+			): React.ReactElement[] => {
+				if (pts.length < 2) return []
+				if (dashArray === null) {
+					return [renderLine(keyBase, pts, { stroke, ...lineProps })]
+				}
+				const els: React.ReactElement[] = []
+				if (gapFill) {
+					const hueValueRaw = hueField ? sorted[0]?.row[hueField] : null
+					els.push(
+						renderLine(`${keyBase}-bg`, pts, {
+							stroke: resolveDashGapColor({
+								overrideKeys: [
+									hueValueRaw === null || hueValueRaw === undefined
+										? null
+										: String(hueValueRaw),
+									groupValue,
+								],
+								patternValue,
+								lineColor: stroke,
+								overrides: dashAlternateColors,
+								singleOverride: dashGapColor,
+								inkColors: patternInkColors,
+								palette: inkPalette,
+								patternInks: palettePatternInks,
+								defaultInk: defaultPatternInk,
+							}),
+							...lineProps,
+						})
+					)
+				}
+				els.push(
+					renderLine(keyBase, pts, {
+						stroke,
+						strokeDasharray: dashArray,
+						...lineProps,
+					})
+				)
+				return els
+			}
+			// Pattern encoding mapped: split the line into runs of constant
+			// pattern value; each run renders with its category's dash.
+			// Dash precedence per run: per-line override (legacy data, no UI,
+			// kept for back-compat) > Pattern encoding (custom dasharray >
+			// swatch override > DASH_CYCLE auto-cycle) > global default.
+			// "Apply pattern to range" is IGNORED here — the pattern variable
+			// already says where each dash applies, and the two windows would
+			// conflict (the panel hides the range rows in this state too).
+			if (patternField) {
+				const runs = splitIntoValueRuns(sorted, (m) => {
+					const raw = m.row[patternField]
+					return raw === undefined || raw === null ? null : String(raw)
+				})
+				return runs.flatMap((run, ri) => {
+					const spec =
+						run.value !== null
+							? dashSpecForPatternValue(
+									run.value,
+									dashOverrides,
+									customDashOverrides,
+									patternValues
+								)
+							: null
+					const dashArray =
+						spec?.kind === "custom"
+							? spec.dasharray
+							: dashArrayFor(
+									dashPatterns[groupValue] ??
+										(spec?.kind === "pattern" ? spec.pattern : null) ??
+										defaultDash
+								)
+					return renderSegment(
+						runs.length === 1
+							? `conn-${groupValue}`
+							: `conn-${groupValue}-r${ri}`,
+						run.items.map((m) => ({ x: m.cx, y: m.cy })),
+						dashArray,
+						run.value
+					)
+				})
+			}
+			// No pattern encoding: one dash for the whole line (per-line
+			// override > global default).
+			const dashArray = dashArrayFor(dashPatterns[groupValue] ?? defaultDash)
 			// "Apply pattern to range": dash only within [From, To] — the
 			// parts outside render solid (known vs forecast). Boundary
 			// points are interpolated so the segments meet exactly; the
 			// alternate-color underlay only backs the dashed segment.
-			if (rangeActive) {
+			if (dashArray !== null && rangeActive) {
 				const segs = splitPolylineAtRange(
 					sorted.map((m) => ({ x: m.cx, y: m.cy })),
 					rangeMinPx,
 					rangeMaxPx,
 					"x"
 				)
-				const els: React.ReactElement[] = []
-				for (const [part, seg] of [
-					["pre", segs.before],
-					["post", segs.after],
-				] as const) {
-					if (seg.length < 2) continue
-					els.push(
-						renderLine(`conn-${groupValue}-${part}`, seg, {
-							stroke,
-							...lineProps,
-						})
-					)
-				}
-				if (segs.inside.length >= 2) {
-					els.push(
-						renderLine(`conn-${groupValue}-in-bg`, segs.inside, {
-							stroke: alternateColor,
-							...lineProps,
-						}),
-						renderLine(`conn-${groupValue}-in`, segs.inside, {
-							stroke,
-							strokeDasharray: dashArray,
-							...lineProps,
-						})
-					)
-				}
-				return els
+				return [
+					...renderSegment(`conn-${groupValue}-pre`, segs.before, null),
+					...renderSegment(`conn-${groupValue}-post`, segs.after, null),
+					...renderSegment(`conn-${groupValue}-in`, segs.inside, dashArray),
+				]
 			}
-			return [
-				renderLine(`conn-${groupValue}-bg`, ptObjs, {
-					stroke: alternateColor,
-					...lineProps,
-				}),
-				renderLine(`conn-${groupValue}`, ptObjs, {
-					stroke,
-					strokeDasharray: dashArray,
-					...lineProps,
-				}),
-			]
+			return renderSegment(`conn-${groupValue}`, ptObjs, dashArray)
 		})
 	return <g>{lines}</g>
 }

@@ -5,6 +5,7 @@ import {
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_REGRESSION_CONFIG,
 	DEFAULT_SHAPE,
+	type ConnectionConfig,
 	type DashRangeConfig,
 	type LineDashPattern,
 	type PatternConfig,
@@ -17,7 +18,11 @@ import {
 	resolveFlowEndpoints,
 } from "../../../lib/buildFlowGraph"
 import { resolveHierarchyIdField } from "../../../lib/buildHierarchy"
-import { DASH_CYCLE, dashArrayFor } from "../../../lib/dashPatterns"
+import {
+	DASH_CYCLE,
+	dashArrayFor,
+	resolveDashGapFill,
+} from "../../../lib/dashPatterns"
 import { effectiveType } from "../../../lib/fieldType"
 import {
 	hierarchyDepthLevels,
@@ -262,7 +267,7 @@ const ColorRow = ({
 )
 
 const useUniqueValuesForChannel = (
-	channel: "shape" | "pattern"
+	channel: "shape" | "pattern" | "hue"
 ): {
 	values: string[]
 	type: FieldType
@@ -503,6 +508,11 @@ export const PatternOptionsPanel = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
 	const theme = useAtomValue(themeAtom)
+	// Live theme for connection-config writes (settings edits appear
+	// immediately) — same lookup as ConnectionDashRangeRows below.
+	const allThemes = useAtomValue(themesAtom)
+	const currentThemeId = useAtomValue(currentThemeIdAtom)
+	const liveTheme = allThemes.find((t) => t.id === currentThemeId) ?? theme
 	const modeDef = useChartModeDef()
 	// Hierarchy-DERIVED sources (Top-level group / Nesting depth) count as
 	// "mapped" for both channels — they drive the same per-category rows a
@@ -520,6 +530,10 @@ export const PatternOptionsPanel = () => {
 		...configs.pattern,
 	}
 	const fieldValues = useUniqueValuesForChannel("pattern")
+	// The COLOR encoding's categories — the dash-gap swatches show one row
+	// per hue category (gap colors pair with the line colors, and line
+	// colors come from hue).
+	const hueCategoryValues = useUniqueValuesForChannel("hue")
 	const hueIsMapped = !!encodings.hue?.field || !!hueSource
 	// When pattern shares a field (or a derived source) with hue, the
 	// rendered pattern ink is hue-derived (see inkForHueColor in
@@ -585,23 +599,181 @@ export const PatternOptionsPanel = () => {
 	// Point-fill row and Color picker downstream.
 	const showFillRow = patternMode !== "dashOnly"
 
+	// Line-dash state lives on the CONNECTION config (the renderers'
+	// source): the no-field default dash, the gap-fill choice, and the
+	// dash range. Writes seed untouched fields from the live theme so the
+	// stored slice keeps matching the changed-dot baseline (mirrors
+	// ConnectionOptionsPanel's updateCfg).
+	const updateConnectionCfg = (next: Partial<ConnectionConfig>) =>
+		setConfigs((prev) => ({
+			...prev,
+			connection: {
+				...connectionConfigFromTheme(liveTheme),
+				...prev.connection,
+				...next,
+			},
+		}))
+	const connDefaultDash: LineDashPattern =
+		configs.connection?.defaultDashPattern ?? "solid"
+	// "Fill dash gaps": whether the gaps between dashes are painted (an
+	// alternate-color underlay keeps the line connected) or left empty
+	// (truly dashed). Auto default: filled, EXCEPT when pattern and hue map
+	// the same field (the dash restates the color split there, so true gaps
+	// are the default and painting is opt-in).
+	const patternFieldName = encodings.pattern?.field ?? null
+	const hueFieldName = encodings.hue?.field ?? null
+	const gapFillAuto = resolveDashGapFill({
+		configured: null,
+		patternField: patternFieldName,
+		hueField: hueFieldName,
+	})
+	const gapFillOn = resolveDashGapFill({
+		configured: configs.connection?.dashGapFill ?? null,
+		patternField: patternFieldName,
+		hueField: hueFieldName,
+	})
+	// Re-checking back to the auto value clears the stored choice so the
+	// changed dot goes back out.
+	const setGapFill = (checked: boolean) =>
+		updateConnectionCfg({ dashGapFill: checked === gapFillAuto ? null : checked })
+	// Per-category gap-color swatches, shown while "Fill dash gaps" is on.
+	// One row per COLOR-encoding category (gap colors pair with line colors,
+	// and line colors come from hue), keyed by hue value in
+	// `connection.dashAlternateColors`. Defaults show the palette-paired
+	// pattern ink each category's gaps resolve to. With no hue encoding
+	// there's one line color → a single "Gap color" swatch
+	// (`connection.dashGapColor`).
+	const dashAltColors = configs.connection?.dashAlternateColors ?? {}
+	const setGapColorOverride = (value: string, color: string) =>
+		updateConnectionCfg({
+			dashAlternateColors: { ...dashAltColors, [value]: color },
+		})
+	const resetGapColorOverride = (value: string) => {
+		const { [value]: _removed, ...rest } = dashAltColors
+		updateConnectionCfg({ dashAlternateColors: rest })
+	}
+	const defaultGapColorFor = (categoryIdx: number): string =>
+		(palettePatternInks.length > 0
+			? palettePatternInks[categoryIdx % palettePatternInks.length]
+			: null) ??
+		configs.defaultPatternInk ??
+		DEFAULT_PATTERN_INK
+	const gapColorRow = (args: {
+		key: string
+		label: string
+		/** Accessible name for the inputs; defaults to "Gap color for <label>"
+		 *  (the single no-hue row passes plain "Gap color"). */
+		ariaLabel?: string
+		override: string | null
+		fallback: string
+		onChange: (color: string | null) => void
+	}) => {
+		const aria = args.ariaLabel ?? `Gap color for ${args.label}`
+		return (
+			<div key={args.key} className="flex items-center gap-2 text-sm">
+				<span
+					className="w-24 flex-shrink-0 truncate text-stone-600 dark:text-stone-400"
+					title={args.label}
+				>
+					{args.label}
+				</span>
+				<input
+					type="text"
+					value={args.override ?? ""}
+					placeholder={args.fallback}
+					onChange={(e) =>
+						args.onChange(e.target.value === "" ? null : e.target.value)
+					}
+					aria-label={aria}
+					className="w-24 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm placeholder:text-stone-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
+				/>
+				<input
+					type="color"
+					value={args.override ?? args.fallback}
+					onChange={(e) => args.onChange(e.target.value)}
+					aria-label={`${aria} swatch`}
+					className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+				/>
+			</div>
+		)
+	}
+	const gapColorRows = !gapFillOn ? null : hueFieldName && hueCategoryValues ? (
+		<div className="flex flex-col gap-1">
+			{orderedLevels(
+				hueCategoryValues.values,
+				hueCategoryValues.type,
+				hueCategoryValues.order
+			).map(({ value: v, index: i }) =>
+				gapColorRow({
+					key: v,
+					label: hueCategoryValues.labels?.[i] ?? v,
+					override: dashAltColors[v] ?? null,
+					fallback: defaultGapColorFor(i),
+					onChange: (color) =>
+						color === null
+							? resetGapColorOverride(v)
+							: setGapColorOverride(v, color),
+				})
+			)}
+		</div>
+	) : (
+		gapColorRow({
+			key: "__single__",
+			label: "Gap color",
+			ariaLabel: "Gap color",
+			override: configs.connection?.dashGapColor ?? null,
+			fallback: defaultGapColorFor(0),
+			onChange: (color) => updateConnectionCfg({ dashGapColor: color }),
+		})
+	)
+	const gapFillRow = (
+		<div className="flex flex-col gap-2">
+			<label className="flex items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					checked={gapFillOn}
+					onChange={(e) => setGapFill(e.target.checked)}
+					className="h-3 w-3"
+				/>
+				<span className="text-stone-600 dark:text-stone-400">
+					Fill dash gaps
+				</span>
+			</label>
+			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+				Paints the gaps between dashes so the line stays connected — by
+				default in the palette&apos;s paired pattern color (the same pairing
+				area patterns use). Adjust the gap colors below. Uncheck for a
+				truly dashed line with empty gaps.
+			</p>
+			{gapColorRows}
+		</div>
+	)
+
 	// Subsection change indicators — mirror the fields each subsection's
 	// controls write, compared against the theme-seeded pattern baseline so
 	// they agree with the top-level dot (channelHasCustomization → pattern).
-	// When a field is mapped the two subsections own per-category overrides;
-	// with no field they share the single `defaultPattern` swatch selection.
 	const nonEmptyMap = (m?: Record<string, unknown>) =>
 		!!m && Object.keys(m).length > 0
-	// "Apply pattern to range" deviation — folds into every Line-dash
-	// subsection dot (the range gates where ALL the dashes apply).
-	const dashRangeChanged = valueChanged(
-		{ ...DEFAULT_DASH_RANGE, ...configs.connection?.dashRange },
-		DEFAULT_DASH_RANGE
-	)
+	// "Apply pattern to range" deviation — folds into the Line-dash
+	// subsection dot (the range gates where ALL the dashes apply). Only
+	// counted while the rows are visible: a mapped pattern variable hides
+	// them AND the renderers ignore the stored range then.
+	const dashRangeChanged =
+		!patternFieldMapped &&
+		valueChanged(
+			{ ...DEFAULT_DASH_RANGE, ...configs.connection?.dashRange },
+			DEFAULT_DASH_RANGE
+		)
+	const gapFillChanged =
+		(configs.connection?.dashGapFill ?? null) !== null ||
+		nonEmptyMap(configs.connection?.dashAlternateColors) ||
+		(configs.connection?.dashGapColor ?? null) !== null
 	const dashSubsectionChanged =
 		(patternFieldMapped
 			? nonEmptyMap(cfg.dashOverrides) || nonEmptyMap(cfg.customDashOverrides)
-			: valueChanged(configs.defaultPattern, null)) || dashRangeChanged
+			: valueChanged(connDefaultDash, "solid")) ||
+		dashRangeChanged ||
+		gapFillChanged
 	const fillSubsectionChanged = patternFieldMapped
 		? nonEmptyMap(cfg.overrides) || nonEmptyMap(cfg.inkColors)
 		: valueChanged(configs.defaultPattern, null) ||
@@ -734,6 +906,70 @@ export const PatternOptionsPanel = () => {
 			</div>
 		)
 
+		// Default LINE DASH row (no pattern variable) — writes the CONNECTION
+		// config's `defaultDashPattern`, which is what the line renderers
+		// actually read (scatter connection polylines + area line-mode
+		// edges). Deliberately NOT `configs.defaultPattern`: that's the
+		// point-fill selection, and sharing one index between the two rows
+		// made picking a dash silently pick a point fill too (and the dash
+		// itself never rendered).
+		const dashSwatchClass = (selected: boolean) =>
+			`flex h-7 items-center justify-center rounded border transition-colors ${
+				selected
+					? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
+					: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+			}`
+		const renderDefaultDashRow = (label: string | null) => {
+			const activeIdx = DASH_CYCLE.indexOf(connDefaultDash)
+			return (
+				<div className="flex flex-col gap-1 text-sm">
+					{label && (
+						<span className="text-stone-600 dark:text-stone-400">{label}</span>
+					)}
+					<div className="flex flex-wrap gap-1">
+						<button
+							type="button"
+							onClick={() =>
+								updateConnectionCfg({ defaultDashPattern: "solid" })
+							}
+							aria-pressed={activeIdx < 0}
+							aria-label="No line dash"
+							className={`${dashSwatchClass(activeIdx < 0)} px-2 text-sm`}
+						>
+							None
+						</button>
+						{DASH_CYCLE.map((style, idx) => {
+							const selected = idx === activeIdx
+							return (
+								<button
+									key={style}
+									type="button"
+									onClick={() =>
+										updateConnectionCfg({ defaultDashPattern: style })
+									}
+									aria-pressed={selected}
+									aria-label={`Line dash option ${idx + 1}`}
+									className={`${dashSwatchClass(selected)} w-7`}
+								>
+									<LineDashGlyph idx={idx} selected={selected} />
+								</button>
+							)
+						})}
+					</div>
+				</div>
+			)
+		}
+		// Nudge when the range is on but no dash is picked — the range only
+		// gates where a dash applies, so on its own it draws nothing.
+		const rangeNeedsDashHint = (configs.connection?.dashRange?.enabled ??
+			false) &&
+			connDefaultDash === "solid" && (
+				<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+					Pick a dash style above — the range only sets where the dash
+					applies.
+				</p>
+			)
+
 		// Ink + background swatches for the point fill pattern. In compound
 		// mode these live inside the "Point fill" subsection (alongside the
 		// pattern swatches they recolor); in fill mode they trail the default
@@ -785,8 +1021,10 @@ export const PatternOptionsPanel = () => {
 							changed={dashSubsectionChanged}
 						>
 							<div className="flex flex-col gap-3">
-								{renderDefaultSwatchRow(null, DASH_CYCLE, LineDashGlyph, true)}
+								{renderDefaultDashRow(null)}
+								{gapFillRow}
 								<ConnectionDashRangeRows />
+								{rangeNeedsDashHint}
 							</div>
 						</CollapsibleSubsection>
 						<CollapsibleSubsection
@@ -807,13 +1045,10 @@ export const PatternOptionsPanel = () => {
 					</>
 				) : patternMode === "dashOnly" ? (
 					<>
-						{renderDefaultSwatchRow(
-							"Line dash",
-							DASH_CYCLE,
-							LineDashGlyph,
-							true
-						)}
+						{renderDefaultDashRow("Line dash")}
+						{gapFillRow}
 						<ConnectionDashRangeRows />
+						{rangeNeedsDashHint}
 					</>
 				) : (
 					<>
@@ -833,6 +1068,22 @@ export const PatternOptionsPanel = () => {
 							...prev,
 							defaultPattern: null,
 							defaultPatternInk: theme.patternInkColor,
+							// Line-chart contexts: also clear the line-dash state this
+							// panel owns on the connection config (default dash, gap
+							// fill, range window).
+							...(patternMode === "fill"
+								? {}
+								: {
+										connection: {
+											...connectionConfigFromTheme(liveTheme),
+											...prev.connection,
+											defaultDashPattern: "solid",
+											dashGapFill: null,
+											dashGapColor: null,
+											dashAlternateColors: {},
+											dashRange: DEFAULT_DASH_RANGE,
+										},
+									}),
 						}))
 						updateCfg({ backgroundColor: theme.patternBackgroundColor })
 					}}
@@ -1148,7 +1399,11 @@ export const PatternOptionsPanel = () => {
 								).map(({ value: v, index: i }) =>
 									renderDashCategory(v, i)
 								)}
-								<ConnectionDashRangeRows />
+								{/* No "Apply pattern to range" here: with a pattern
+								 *  variable mapped, the variable itself says where each
+								 *  dash applies — the two would conflict, so the range is
+								 *  hidden and ignored. */}
+								{gapFillRow}
 							</div>
 						</CollapsibleSubsection>
 						<CollapsibleSubsection
@@ -1183,7 +1438,9 @@ export const PatternOptionsPanel = () => {
 									? renderDashCategory(v, i, fieldValues.labels?.[i])
 									: renderFillCategory(v, i, fieldValues.labels?.[i])
 							)}
-							{patternMode === "dashOnly" && <ConnectionDashRangeRows />}
+							{/* Range rows are hidden with a pattern variable mapped —
+							 *  see the compound branch above. */}
+							{patternMode === "dashOnly" && gapFillRow}
 						</div>
 					</>
 				))}

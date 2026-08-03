@@ -1,14 +1,15 @@
 import { useAtomValue } from "jotai"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
+	effectiveLabelPoints,
 	type DataLabelsConfig,
 	type HueConfig,
 } from "../../lib/channelConfig"
 import {
-	keepLastPerSeries,
 	labelHeight,
 	labelWidth,
 	nudgeOverlaps,
+	selectEndpointsPerSeries,
 	type LabelBox,
 } from "../../lib/dataLabelsLayout"
 import {
@@ -18,7 +19,11 @@ import {
 	resolveLabelSize,
 } from "../../lib/dataLabelsStyle"
 import { effectiveType } from "../../lib/fieldType"
-import { renderMultilineTspans, wrapByCharCount } from "../../lib/multilineText"
+import {
+	renderMultilineTspans,
+	wrapByCharCount,
+	wrapSegments,
+} from "../../lib/multilineText"
 import {
 	applyHueScale,
 	applyPositionScale,
@@ -106,9 +111,138 @@ type RenderableLabel = {
 	label: string
 	key: string
 	/** Per-variable colored pieces (multi-field labels with field colors).
-	 *  When present, each piece renders as its own `<tspan>` fill; the label
-	 *  draws on a single line (wrapping doesn't apply to colored segments). */
+	 *  When present, each piece renders as its own `<tspan>` fill; with
+	 *  wrapping on, pieces line-break at the plain label's wrap points via
+	 *  `wrapSegments`. */
 	segments?: { text: string; fill: string }[]
+	/** Per-box alignment override (endpoint labels). Unset → `cfg.alignment`. */
+	alignment?: "left" | "center" | "right"
+}
+
+/** Map an alignment value onto the SVG `text-anchor` it renders as. */
+const alignmentAnchor = (
+	alignment: DataLabelsConfig["alignment"]
+): "start" | "middle" | "end" =>
+	alignment === "left" ? "start" : alignment === "right" ? "end" : "middle"
+
+/** Positioning inputs the `labelPoints` pass needs beyond the layout box:
+ *  the RAW anchor coords (pre-offset), so an endpoint's offset override can
+ *  REPLACE the layer-wide offset instead of stacking on top of it. */
+type EndpointAwareBox = LabelBox & {
+	label: string
+	anchorX: number
+	anchorY: number
+	alignment?: "left" | "center" | "right"
+}
+
+/** Apply the effective `labelPoints` selection: drop unselected boxes and —
+ *  in `"first-last"` mode only — restyle the survivors from their endpoint's
+ *  override block (offset replaces, alignment replaces; unset fields inherit
+ *  the layer values the box was built with). The single `"first"` / `"last"`
+ *  modes keep the layer-wide styling untouched: only one label population
+ *  renders there, so the base controls ARE its controls (and the panel only
+ *  splits into First/Last pairs when both ends are shown). Classification
+ *  runs on the already-offset positions — the base offset is uniform, so
+ *  the per-series ranking is unaffected.
+ *
+ *  `recomposeText` (row-based path only) rebuilds a box's text when the
+ *  endpoint block carries its own template — anchor-based labels arrive
+ *  pre-formatted from their renderer and never had templates, so they skip
+ *  it by construction. */
+const applyLabelPoints = <T extends EndpointAwareBox>(
+	boxes: T[],
+	cfg: DataLabelsConfig,
+	axis: "x" | "y",
+	recomposeText?: (box: T, template: string) => T
+): T[] => {
+	const mode = effectiveLabelPoints(cfg)
+	if (mode === "all") return boxes
+	const tags = selectEndpointsPerSeries(boxes, axis)
+	const out: T[] = []
+	for (const b of boxes) {
+		const tag = tags.get(b)
+		if (!tag) continue
+		// A single-anchor series tags "both". It counts as the FIRST label
+		// only when the user asked for firsts alone; in "last" and
+		// "first-last" modes it takes the last-label styling — direct
+		// labeling is the dominant intent for those modes.
+		const end: "first" | "last" =
+			tag === "both" ? (mode === "first" ? "first" : "last") : tag
+		if (mode === "first" && end !== "first") continue
+		if (mode === "last" && end !== "last") continue
+		if (mode !== "first-last") {
+			out.push(b)
+			continue
+		}
+		const ov = (end === "first" ? cfg.firstLabel : cfg.lastLabel) ?? {}
+		let next: T = {
+			...b,
+			cx: b.anchorX + (ov.xOffset ?? cfg.xOffset),
+			cy: b.anchorY + (ov.yOffset ?? cfg.yOffset),
+			alignment: ov.alignment ?? undefined,
+		}
+		// Empty string means "inherit", not "blank label" — hiding an
+		// endpoint is `labelPoints`' job.
+		const template = ov.labelTemplate ?? ""
+		if (template !== "" && recomposeText) next = recomposeText(next, template)
+		out.push(next)
+	}
+	return out
+}
+
+/** Emit the tspans for a WRAPPED segmented (per-variable colored) label:
+ *  one entry per line, each piece carrying its own fill. Every line anchors
+ *  its FIRST tspan at the line's computed start x — estimated from the same
+ *  CHAR_WIDTH_RATIO heuristic the layout boxes use — with
+ *  `textAnchor="start"`, so center / right alignment positions the whole
+ *  line rather than just its first colored piece (an x-anchored tspan is
+ *  positioned individually by SVG; inline followers just flow after it). */
+const renderSegmentedLines = (
+	segLines: { text: string; fill: string }[][],
+	cx: number,
+	fontSize: number,
+	anchor: "start" | "middle" | "end",
+	keyBase: string
+): React.ReactNode[] => {
+	// Same vertical-centering shift as `renderMultilineTspans` — the parent
+	// `<text>` anchors with dominantBaseline="middle".
+	const firstDy = `${-0.6 * (segLines.length - 1)}em`
+	return segLines.flatMap((pieces, i) => {
+		const lineText = pieces.map((p) => p.text).join("")
+		const w = labelWidth({ text: lineText, fontSize })
+		const startX =
+			anchor === "start" ? cx : anchor === "end" ? cx - w : cx - w / 2
+		const dy = i === 0 ? firstDy : "1.2em"
+		// An empty line still contributes vertical space (same convention as
+		// renderMultilineTspans — an empty tspan would collapse).
+		if (pieces.length === 0) {
+			return [
+				<tspan
+					// Line index IS its identity.
+					// eslint-disable-next-line react/no-array-index-key
+					key={`${keyBase}-l${i}`}
+					x={startX}
+					dy={dy}
+					textAnchor="start"
+				>
+					{" "}
+				</tspan>,
+			]
+		}
+		return pieces.map((p, j) => (
+			<tspan
+				// Piece order is stable → position is its identity.
+				// eslint-disable-next-line react/no-array-index-key
+				key={`${keyBase}-l${i}-s${j}`}
+				x={j === 0 ? startX : undefined}
+				dy={j === 0 ? dy : undefined}
+				textAnchor={j === 0 ? "start" : undefined}
+				fill={p.fill}
+			>
+				{p.text}
+			</tspan>
+		))
+	})
 }
 
 /** Fallback padding (px) for the text-background rect when the config hasn't
@@ -124,12 +258,7 @@ const renderLabels = (
 	cfg: DataLabelsConfig,
 	bgColor: string
 ): React.ReactElement => {
-	const textAnchor =
-		cfg.alignment === "left"
-			? "start"
-			: cfg.alignment === "right"
-				? "end"
-				: "middle"
+	const baseAnchor = alignmentAnchor(cfg.alignment)
 	const padX = cfg.textBackgroundPadX ?? DEFAULT_BG_PAD_X
 	const padY = cfg.textBackgroundPadY ?? DEFAULT_BG_PAD_Y
 	const wrap = cfg.wrapText === true
@@ -137,16 +266,21 @@ const renderLabels = (
 	return (
 		<g aria-hidden="true" pointerEvents="none">
 			{boxes.map((b) => {
-				// Per-variable colored segments render as inline colored tspans on
-				// a single line — wrapping doesn't apply to them.
+				// Endpoint labels can carry their own alignment (first vs last
+				// labels typically hang off opposite sides of their point).
+				const textAnchor = b.alignment
+					? alignmentAnchor(b.alignment)
+					: baseAnchor
+				// Per-variable colored segments render as colored tspans; when
+				// wrapping is on they line-break at the same points the plain
+				// label would (`wrapSegments` splits straddling pieces).
 				const segs = b.segments ?? []
 				const segmented = segs.length > 0
 				// Split into lines up-front so the background rect and the
 				// `<tspan>` emission agree on the label's footprint. A short
-				// label (or wrapping off / segmented) yields a single line,
-				// keeping the non-wrapped render byte-identical to before.
-				const lines =
-					wrap && !segmented ? wrapByCharCount(b.label, wrapMaxChars) : [b.label]
+				// label (or wrapping off) yields a single line, keeping the
+				// non-wrapped render byte-identical to before.
+				const lines = wrap ? wrapByCharCount(b.label, wrapMaxChars) : [b.label]
 				const multiline = lines.length > 1
 				let rect: React.ReactElement | null = null
 				if (cfg.textBackground) {
@@ -193,16 +327,24 @@ const renderLabels = (
 							dominantBaseline="middle"
 						>
 							{segmented
-								? segs.map((s, i) => (
-										<tspan
-											// Segment order is stable → index is its identity.
-											// eslint-disable-next-line react/no-array-index-key
-											key={`${b.key}-s${i}`}
-											fill={s.fill}
-										>
-											{s.text}
-										</tspan>
-									))
+								? multiline
+									? renderSegmentedLines(
+											wrapSegments(segs, wrapMaxChars),
+											b.cx,
+											b.fontSize,
+											textAnchor,
+											b.key
+										)
+									: segs.map((s, i) => (
+											<tspan
+												// Segment order is stable → index is its identity.
+												// eslint-disable-next-line react/no-array-index-key
+												key={`${b.key}-s${i}`}
+												fill={s.fill}
+											>
+												{s.text}
+											</tspan>
+										))
 								: multiline
 									? renderMultilineTspans(lines.join("\n"), b.cx, {
 											verticallyCentered: true,
@@ -262,7 +404,7 @@ export const DataLabelsLayer = ({
 			: box
 	// Pull the main chart's connection field so the row-based path (scatter
 	// + connection = line chart) can group rows into "lines" for the
-	// `onlyLastLabel` filter. This atom is independent from the data-labels
+	// `labelPoints` filter. This atom is independent from the data-labels
 	// encodings atom; we just read it for series-grouping context.
 	const chartEncodings = useAtomValue(currentEncodingsAtom)
 	const connectionField = chartEncodings.connection?.field ?? null
@@ -347,13 +489,12 @@ export const DataLabelsLayer = ({
 					.map((a) => Number(a.sizeValue))
 					.filter((n) => Number.isFinite(n))
 			: []
-		// Build per-anchor render boxes once so the post-passes (`onlyLastLabel`
+		// Build per-anchor render boxes once so the post-passes (`labelPoints`
 		// + `avoidOverlaps`) operate on a stable shape and the downstream
 		// `<text>` map can read its already-resolved fields.
-		type RenderBox = LabelBox & {
+		type RenderBox = EndpointAwareBox & {
 			key: string
 			fill: string
-			label: string
 		}
 		const renderBoxes: RenderBox[] = anchors.flatMap((a, i) => {
 			if (a.label === null) return []
@@ -369,6 +510,8 @@ export const DataLabelsLayer = ({
 				{
 					cx: a.cx + cfg.xOffset,
 					cy: a.cy + cfg.yOffset,
+					anchorX: a.cx,
+					anchorY: a.cy,
 					text: a.label,
 					fontSize,
 					// Anchor-based renderers (bars/areas) carry the hue value as
@@ -384,7 +527,7 @@ export const DataLabelsLayer = ({
 				},
 			]
 		})
-		// Pick the primary axis for "last per series" ranking. When the
+		// Pick the primary axis for endpoint-per-series ranking. When the
 		// chart's categorical axis is x (vertical bars/areas, scatter), the
 		// "last" anchor is the rightmost (largest cx). When it's y
 		// (horizontal bars/areas), use cy. xType/yType arrive from the
@@ -392,9 +535,7 @@ export const DataLabelsLayer = ({
 		const lastAxis: "x" | "y" =
 			yType === "categorical" || yType === "ordinal" ? "y" : "x"
 		const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
-		const filtered = cfg.onlyLastLabel
-			? keepLastPerSeries(layoutBoxes, lastAxis)
-			: layoutBoxes
+		const filtered = applyLabelPoints(layoutBoxes, cfg, lastAxis)
 		const finalBoxes = cfg.avoidOverlaps ? nudgeOverlaps(filtered) : filtered
 		return renderLabels(finalBoxes, cfg, textBgColor)
 	}
@@ -434,10 +575,9 @@ export const DataLabelsLayer = ({
 				.filter((n) => Number.isFinite(n))
 		: []
 
-	type RenderBox = LabelBox & {
+	type RenderBox = EndpointAwareBox & {
 		key: string
 		fill: string
-		label: string
 		/** Per-variable colored pieces (multi-field mode with field colors).
 		 *  When set, `renderLabels` draws one `<tspan>` per segment with its
 		 *  own fill instead of the single-color `label`. */
@@ -555,6 +695,8 @@ export const DataLabelsLayer = ({
 			{
 				cx: anchorX + cfg.xOffset,
 				cy: anchorY + cfg.yOffset,
+				anchorX,
+				anchorY,
 				text: label,
 				fontSize,
 				series,
@@ -572,9 +714,38 @@ export const DataLabelsLayer = ({
 	const lastAxis: "x" | "y" =
 		yType === "categorical" || yType === "ordinal" ? "y" : "x"
 	const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
-	const filtered = cfg.onlyLastLabel
-		? keepLastPerSeries(layoutBoxes, lastAxis)
-		: layoutBoxes
+	// Endpoint template override (multi-field mode): rebuild the box's text —
+	// and its per-variable colored segments — from the endpoint's template.
+	// `index` is the box's position in `candidateRows`, so the source row is
+	// still at hand. Runs BEFORE `nudgeOverlaps` so collision boxes measure
+	// the final (often wider) text.
+	const recomposeForEndpoint = (box: RenderBox, template: string): RenderBox => {
+		if (encodings.value.multiField !== true) return box
+		const row = candidateRows[box.index]
+		if (!row) return box
+		const segs = buildLabelSegments(
+			row,
+			encodings.value,
+			{ ...cfg, labelTemplate: template },
+			xField ?? yField
+		)
+		if (!segs) return box
+		const label = segs.map((s) => s.text).join("")
+		const coloredSegs = segs.map((s) => ({
+			text: s.text,
+			fill: resolveSegmentFill(s.field, row, box.fill),
+		}))
+		const segments = coloredSegs.some((s) => s.fill !== box.fill)
+			? coloredSegs
+			: undefined
+		return wrapBoxForLayout({ ...box, label, text: label, segments })
+	}
+	const filtered = applyLabelPoints(
+		layoutBoxes,
+		cfg,
+		lastAxis,
+		recomposeForEndpoint
+	)
 	const finalBoxes = cfg.avoidOverlaps ? nudgeOverlaps(filtered) : filtered
 
 	return renderLabels(finalBoxes, cfg, textBgColor)

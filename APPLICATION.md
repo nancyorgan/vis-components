@@ -510,7 +510,19 @@ Behavior depends on chart context:
 - **Connection mapped, no shape encoded** (line chart): swatches are
   line dashes (`dashed`, `dotted`, `dash-dot` — `solid` is implicit
   via the "None" button). Patterns drive line stroke style; points
-  default to "None" until the user specifically picks a fill.
+  default to "None" until the user specifically picks a fill. With no
+  pattern variable mapped, the default Line-dash row writes
+  `connection.defaultDashPattern` (the field the line renderers read)
+  — a storage deliberately SEPARATE from the Point-fill row's
+  `defaultPattern`, so picking a dash never silently picks a point
+  fill. With a variable mapped, per-category picks resolve through
+  `pattern.dashOverrides` / `pattern.customDashOverrides`, auto-cycling
+  DASH_CYCLE by category position when unset. When the pattern field
+  varies WITHIN a line (e.g. a known-vs-projected column on a series
+  spanning both), the polyline splits into runs of constant pattern
+  value, each run rendered with its own category's dash; consecutive
+  runs share their boundary point, and the connecting span takes the
+  LATER run's styling (last-known → first-projected IS projection).
 - **Connection mapped + shape encoded** (line with distinct points):
   BOTH a "Line dash" row and a "Point fill" row appear. Each row
   writes to independent overrides so picking a dash style doesn't
@@ -531,23 +543,57 @@ for an alternating pattern). The input is placeholder-prefilled with
 a faint `2,2` to prompt the format. Per-category override only —
 custom dash isn't a built-in palette entry.
 
-**Apply pattern to range** — every Line-dash section (per-category or
-the no-field default row) ends with an "Apply pattern to range"
-checkbox plus **From** / **To** text inputs. When on, ALL line dashes
-draw only within [From, To] along the axis the line runs along;
-outside the window the line renders solid in the same stroke — the
-known-vs-forecast look (solid actuals, patterned forecast: pick a
-dash, set From to the forecast start, leave To blank). Values are raw
-axis values like value-mode annotation coordinates (numbers, dates, or
-categories); blank = unbounded; a value that doesn't parse is treated
-as unbounded; From > To swaps. One GLOBAL window per chart
+**Apply pattern to range** — the NO-VARIABLE Line-dash rows end with
+an "Apply pattern to range" checkbox plus **From** / **To** text
+inputs. When on, ALL line dashes draw only within [From, To] along
+the axis the line runs along; outside the window the line renders
+solid in the same stroke — the known-vs-forecast look (solid actuals,
+patterned forecast: pick a dash, set From to the forecast start,
+leave To blank). Values are raw axis values like value-mode
+annotation coordinates (numbers, dates, or categories); blank =
+unbounded; a value that doesn't parse is treated as unbounded;
+From > To swaps. One GLOBAL window per chart
 (`connection.dashRange`) shared by scatter connection polylines and
 area line-mode edges; the boundary points are interpolated so the
 solid and dashed segments meet exactly, and the alternate-color
-underlay only backs the dashed part. The regression line has its own
+underlay only backs the dashed part. With a pattern VARIABLE mapped
+the rows are hidden and any stored window is ignored by the
+renderers — the variable itself says where each dash applies, and
+the two windows would conflict. The regression line has its own
 independent window (`x.regression.dashRange`) with the same rows in
 its Pattern-menu subheader. Fits are per panel when faceted (same
 values, each panel's own scale).
+
+**Fill dash gaps** — every Line-dash section carries a "Fill dash
+gaps" checkbox (`connection.dashGapFill`). Checked, the gaps between
+dashes are painted by a solid underlay so a dashed line reads as one
+CONNECTED two-color line — and the section reveals editable
+**gap-color swatch rows, one per COLOR-encoding category** (gap
+colors pair with line colors, and line colors come from hue). Each
+row shows the category's current gap color as its placeholder and
+writes `connection.dashAlternateColors` keyed by HUE value;
+clearing the text input removes the override. With no hue encoding
+there's one line color, so a single "Gap color" row writes
+`connection.dashGapColor` instead. The default gap color resolves
+like AREA PATTERNS pick their ink — the palette's paired pattern-ink
+options (`resolveDashGapColor`): per-hue-category
+`dashAlternateColors` override (legacy visuals keyed by connection
+group still resolve) → the single `dashGapColor` → the pattern
+channel's per-category Color pick (`pattern.inkColors[patternValue]`)
+→ the palette-paired pattern ink for the line's drawn color
+(`inkForHueColor` against the same palette the hue scale used —
+ordinal hue fields resolve from the ordinal palette) → the default
+pattern ink (`defaultPatternInk`, theme-seeded, else built-in
+near-black). Deliberately NOT the chart background:
+background-colored gaps are indistinguishable from empty gaps.
+Unchecked, no underlay renders, the swatch rows hide, and the line is
+truly dashed with empty gaps. The stored value is tri-state: `null`
+(default) = AUTO — gaps are filled, EXCEPT when the pattern encoding
+maps the SAME field as the hue encoding (there the dash restates the
+color split, so true gaps are the default and filling is opt-in).
+Toggling the checkbox back to the auto value clears the stored choice
+so the changed dot goes back out. Applies to scatter connection
+polylines and area line-mode edges alike.
 
 ### 4.3 Shape, Saturation, Brightness, Opacity, Length, Angle, Area
 Each channel exposes scaling controls (min/max), per-value overrides
@@ -715,7 +761,10 @@ The X-axis and Y-axis panels (under Encodings) configure:
 - **Spine** — color, thickness.
 - **Tick marks** — color, thickness, length.
 - **Gridlines** — enabled toggle, color, thickness, custom count
-  (default: match tick count).
+  (default: match tick count). **Custom breaks** (continuous axes
+  only) pins extra gridlines at listed positions, drawn in addition
+  to the automatic lines (match-tick or explicit count); a break that
+  coincides with an automatic line paints once.
 - **Tick label angle**, **label stride** (every Nth).
 - **Wrap text** (Tick Labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis
@@ -956,20 +1005,67 @@ panel edge. No clear window — or text longer than ~a
 half-circumference — means no label, same convention as the rim fit
 check (`arcWrapLevels` in `DataLabelsConfig`).
 
-- **Only show last label per series** — useful for line charts.
-- **Avoid overlapping labels** — best-effort nudging when bounding
-  boxes collide.
+- **Which labels** — All labels / First per series / Last per series /
+  First and last per series. Endpoint selection is position-ranked along
+  the chart's primary axis (rightmost = last for vertical charts,
+  bottom-most for horizontal), not row-order-ranked; "series" is the hue
+  field (bars/areas) or connection field (line charts), with no mapped
+  series treated as one implicit group. A one-point series counts as
+  "last". Legacy saves with the old "Only show last label per series"
+  toggle read as "Last per series".
+  **First and last** is the only mode with two label populations, so it
+  is the only mode that splits controls — the splits live where those
+  controls normally live, not in this subsection:
+  - Under **Value** (multi-field mode), "Label text" becomes **First
+    label text** and **Last label text** (e.g. `{value}` on firsts,
+    `{value} {series}` on lasts to directly label lines). An empty box
+    inherits the shared arrangement, shown as the placeholder. There is
+    still exactly ONE "Label format" section — per-field formats are
+    shared across both ends. Endpoint templates only affect row-based
+    renderers (scatter / lines); bar and area labels are pre-formatted
+    from their slice measure and ignore them.
+  - Under **Position Adjustment and Alignment**, the Alignment control
+    and the Adjust-position X/Y inputs each become First-label /
+    Last-label pairs. Wrap text stays a single shared toggle.
+  In the single First / Last modes nothing splits: the layer-wide
+  template / offset / alignment drive the one rendered label set, and
+  any endpoint overrides left over from a first-and-last session are
+  ignored.
+- **Avoid overlapping labels** — colliding labels spread apart
+  vertically (up or down), each staying as close to its own anchor as
+  the minimum gaps allow, preserving vertical order. Stacked end-of-line
+  labels are solved exactly (least total displacement); scattered label
+  fields fall back to a best-effort downward sweep and may still collide
+  when densely packed.
 - **Bar label position** — center / inside-base / inside-end /
   outside-end (only meaningful for bars).
 - **Text color rules** — conditional overrides (e.g., white text on
   dark heatmap cells, black on light).
+- **Per-variable colors** (multi-field labels with 2+ variables) — the
+  Color panel replaces the single base color stack with one color slot
+  per label variable. An UNCONFIGURED slot inherits the label's base
+  color chain — so with a field mapped on the layer's Color channel,
+  its "Vary by" dropdown reads "Main Color mapping (field)" and the
+  variable's segments follow that mapping; picking it again after a
+  change clears the stored slot back to inheriting. Without a Color
+  mapping the default reads "Single color" (behaviorally identical
+  there). "Single color" / a mapped field store an explicit per-slot
+  config as before. Wrap text applies to colored labels too: the
+  colored pieces line-break at the same points the plain label would
+  (`wrapSegments` splits a piece that straddles a break, keeping its
+  fill), with each line's start position derived from the label's
+  alignment.
 
 When data labels are enabled, the solver reserves extra right-margin
 space if the rightmost label would extend past the plot edge. The
 amount is estimated from the longest formatted value × font size ×
 0.55 × alignment fraction (full width for left-anchored, half for
 center, none for right-anchored), minus the existing default right
-margin. Same heuristic the legend uses for its dynamic width.
+margin. Same heuristic the legend uses for its dynamic width. With an
+endpoint selection active, the reserve is computed per active endpoint
+profile (its template / offset / alignment) and the sides take the max
+— so a wide `{value} {series}` last-label template gets the right-edge
+room it actually needs.
 
 ---
 

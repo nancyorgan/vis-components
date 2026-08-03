@@ -62,6 +62,33 @@ export const keepLastPerSeries = <T extends LabelBox>(
 	axis: "x" | "y" = "x"
 ): T[] => {
 	if (boxes.length <= 1) return boxes
+	const tags = selectEndpointsPerSeries(boxes, axis)
+	return boxes.filter((b) => {
+		const tag = tags.get(b)
+		return tag === "last" || tag === "both"
+	})
+}
+
+/** Which end(s) of its series a box sits at. `"both"` = the series has a
+ *  single anchor, so its one box is simultaneously first and last. */
+export type EndpointTag = "first" | "last" | "both"
+
+/** Classify each series' extreme boxes. Only extremes appear as keys — a
+ *  box absent from the map is an interior anchor. Callers use the tags both
+ *  to filter (which labels survive a `labelPoints` selection) and to know
+ *  which per-endpoint override block applies.
+ *
+ *  Ranking matches `keepLastPerSeries` (which now delegates here): primary
+ *  position pixel along `axis`, perpendicular-axis tiebreak, then input
+ *  index — position-based, not index-based, because row order often isn't
+ *  visual order (see the rationale on `keepLastPerSeries`). "First" is the
+ *  minimum end (leftmost / topmost), "last" the maximum. Boxes with an
+ *  empty `series` form one implicit group, preserving the single-survivor
+ *  fallback for chart modes without a series concept. */
+export const selectEndpointsPerSeries = <T extends LabelBox>(
+	boxes: T[],
+	axis: "x" | "y" = "x"
+): Map<T, EndpointTag> => {
 	const cmp = (a: T, b: T): number => {
 		// Primary axis: higher = "later". For axis="x", rightmost wins.
 		// For axis="y", bottom-most (largest cy) wins. Callers in
@@ -79,53 +106,160 @@ export const keepLastPerSeries = <T extends LabelBox>(
 		// when both positions match exactly.
 		return a.index - b.index
 	}
-	const lastBySeries = new Map<string, T>()
+	const extremes = new Map<string, { first: T; last: T }>()
 	for (const b of boxes) {
-		const prev = lastBySeries.get(b.series)
-		if (!prev || cmp(b, prev) > 0) lastBySeries.set(b.series, b)
+		const prev = extremes.get(b.series)
+		if (!prev) {
+			extremes.set(b.series, { first: b, last: b })
+			continue
+		}
+		if (cmp(b, prev.first) < 0) prev.first = b
+		if (cmp(b, prev.last) > 0) prev.last = b
 	}
-	const keep = new Set<T>(lastBySeries.values())
-	return boxes.filter((b) => keep.has(b))
+	const tags = new Map<T, EndpointTag>()
+	for (const { first, last } of extremes.values()) {
+		if (first === last) tags.set(first, "both")
+		else {
+			tags.set(first, "first")
+			tags.set(last, "last")
+		}
+	}
+	return tags
 }
 
-/** Greedy overlap nudge: walks the boxes in their input order and, for any
- *  box whose bbox overlaps an already-placed box, shifts its center down by
- *  the smallest amount that resolves the collision (with the box that
- *  triggered it). Mutates a copy and returns it; callers keep the input
- *  array untouched.
+/** Gap left between two separated labels' layout boxes. Must be > 0 so the
+ *  final separation is strictly greater than the half-height sum — a
+ *  zero-clearance (tangent) landing is float-fragile: the gap can compute
+ *  to e.g. 35.19999999999999 vs a 35.2 threshold, re-triggering the strict
+ *  `<` overlap test forever. */
+export const NUDGE_CLEARANCE_PX = 1
+
+/** Isotonic regression via pool-adjacent-violators: the non-decreasing
+ *  sequence closest (least-squares) to `targets`. Equal-weight PAV: walk
+ *  left to right, pooling any block whose mean drops below its
+ *  predecessor's into a shared mean. */
+const isotonicFit = (targets: number[]): number[] => {
+	type Block = { sum: number; n: number; mean: number }
+	const blocks: Block[] = []
+	for (const t of targets) {
+		let cur: Block = { sum: t, n: 1, mean: t }
+		while (blocks.length > 0 && blocks[blocks.length - 1].mean >= cur.mean) {
+			const prev = blocks.pop() as Block
+			const sum = prev.sum + cur.sum
+			const n = prev.n + cur.n
+			cur = { sum, n, mean: sum / n }
+		}
+		blocks.push(cur)
+	}
+	return blocks.flatMap((b) => Array.from({ length: b.n }, () => b.mean))
+}
+
+/** Resolve label collisions by moving labels vertically. Mutates copies and
+ *  returns them in input order; the input array is untouched.
  *
- *  Not optimal — "shift everything later down" can compound when many
- *  labels collide — but cheap to compute and matches the user's request
- *  for "best-effort overlap avoidance" without bringing in a real
- *  force-directed layout. */
+ *  Boxes are first grouped into clusters of (transitive) horizontal
+ *  overlap — labels in different clusters can never collide, whatever
+ *  their vertical positions.
+ *
+ *  For a cluster where EVERY pair shares horizontal range — the important
+ *  case: end-of-line labels stacked at the right edge of a line chart —
+ *  the layout is a 1-D problem solved exactly: sort by anchor cy, require
+ *  a minimum gap between vertical neighbors (their half-height sum plus
+ *  clearance), and pick the positions minimizing total squared displacement
+ *  from the anchors (pool-adjacent-violators after a prefix-gap transform).
+ *  Labels move UP as well as down, keep their data's vertical order, and
+ *  stay as close to their own anchor as the gaps allow — the previous
+ *  down-only greedy sweep could ram a label whose anchor sat ABOVE its
+ *  collider's to the bottom of the pile, below labels it never touched.
+ *
+ *  Mixed-x clusters (chains of partial horizontal overlap) keep the legacy
+ *  greedy sweep: walk input order, push any box colliding with an
+ *  already-placed one down just past the collision. Enforcing neighbor
+ *  gaps there would vertically separate labels that never actually
+ *  intersect (they merely chain through a third box), which is far worse
+ *  for dense label fields than the occasional greedy cascade. */
 export const nudgeOverlaps = <T extends LabelBox>(boxes: T[]): T[] => {
 	if (boxes.length <= 1) return boxes
-	const placed: T[] = []
-	const overlap = (a: T, b: T): boolean => {
-		const aw = labelWidth(a) / 2
-		const ah = labelHeight(a) / 2
-		const bw = labelWidth(b) / 2
-		const bh = labelHeight(b) / 2
-		return Math.abs(a.cx - b.cx) < aw + bw && Math.abs(a.cy - b.cy) < ah + bh
+	const xOverlap = (a: T, b: T): boolean =>
+		Math.abs(a.cx - b.cx) < labelWidth(a) / 2 + labelWidth(b) / 2
+	const overlap = (a: T, b: T): boolean =>
+		xOverlap(a, b) &&
+		Math.abs(a.cy - b.cy) < labelHeight(a) / 2 + labelHeight(b) / 2
+	// Spread shallowly so we can mutate `cy` without touching the input.
+	const out = boxes.map((b) => ({ ...b }))
+	// Connected components under horizontal overlap (n is small — label
+	// counts — so the quadratic scan is fine).
+	const clusterOf = out.map((_, i) => i)
+	const find = (i: number): number => {
+		let r = i
+		while (clusterOf[r] !== r) r = clusterOf[r]
+		clusterOf[i] = r
+		return r
 	}
-	for (const original of boxes) {
-		// Spread shallowly so we can mutate `cy` without touching the input.
-		let candidate: T = { ...original }
-		// Bound the loop — pathological inputs (lots of overlaps) shouldn't
-		// be able to spin forever.
-		for (let safety = 0; safety < placed.length + 4; safety++) {
-			const collider = placed.find((p) => overlap(candidate, p))
-			if (!collider) break
-			// Push downward just enough to clear the overlapping edge.
-			const dy =
-				labelHeight(collider) / 2 +
-				labelHeight(candidate) / 2 -
-				(candidate.cy - collider.cy)
-			candidate = { ...candidate, cy: candidate.cy + dy }
+	for (let i = 0; i < out.length; i++) {
+		for (let j = i + 1; j < out.length; j++) {
+			if (xOverlap(out[i], out[j])) clusterOf[find(i)] = find(j)
 		}
-		placed.push(candidate)
 	}
-	return placed
+	const clusters = new Map<number, number[]>()
+	for (let i = 0; i < out.length; i++) {
+		const root = find(i)
+		clusters.set(root, [...(clusters.get(root) ?? []), i])
+	}
+	for (const members of clusters.values()) {
+		if (members.length <= 1) continue
+		const isStack = members.every((i, k) =>
+			members.slice(k + 1).every((j) => xOverlap(out[i], out[j]))
+		)
+		if (isStack) {
+			// 1-D optimal pass. Sort by anchor, then express the neighbor-gap
+			// constraints `y[k+1] - y[k] >= gap[k]` in gap-cumulative space
+			// (`z[k] = y[k] - prefix(gaps)`), where they become plain
+			// monotonicity — exactly what isotonic regression solves.
+			const order = [...members].sort(
+				(a, b) => out[a].cy - out[b].cy || out[a].index - out[b].index
+			)
+			let prefix = 0
+			const targets = order.map((idx, k) => {
+				if (k > 0) {
+					prefix +=
+						labelHeight(out[order[k - 1]]) / 2 +
+						labelHeight(out[idx]) / 2 +
+						NUDGE_CLEARANCE_PX
+				}
+				return out[idx].cy - prefix
+			})
+			const fitted = isotonicFit(targets)
+			let backPrefix = 0
+			order.forEach((idx, k) => {
+				if (k > 0) {
+					backPrefix +=
+						labelHeight(out[order[k - 1]]) / 2 +
+						labelHeight(out[idx]) / 2 +
+						NUDGE_CLEARANCE_PX
+				}
+				out[idx].cy = fitted[k] + backPrefix
+			})
+			continue
+		}
+		// Legacy greedy sweep for mixed-x clusters: input order, push down
+		// just past each collision. Bound the inner loop — movement is
+		// monotonically downward so each placed box is passed at most once.
+		const placedIdx: number[] = []
+		for (const idx of members) {
+			for (let safety = 0; safety < placedIdx.length + 4; safety++) {
+				const collider = placedIdx.find((p) => overlap(out[idx], out[p]))
+				if (collider === undefined) break
+				out[idx].cy +=
+					labelHeight(out[collider]) / 2 +
+					labelHeight(out[idx]) / 2 -
+					(out[idx].cy - out[collider].cy) +
+					NUDGE_CLEARANCE_PX
+			}
+			placedIdx.push(idx)
+		}
+	}
+	return out
 }
 
 /** Estimate how much extra plot margin a chart needs so user-driven label

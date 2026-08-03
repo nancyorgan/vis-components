@@ -275,73 +275,84 @@ export const Axis = ({
 			bandwidth?: () => number
 		}
 		// Gridline-specific custom breaks (the Gridlines section's own
-		// "Custom breaks" box) pin the lines exactly — they win over both
-		// the count and the tick-break coupling below.
-		const gridBreaks = resolveBreaks(grid.breaks)
-		if (gridBreaks) {
-			return gridBreaks.map(
+		// "Custom breaks" box) add pinned lines ON TOP of the automatic
+		// layout (match-tick or count) — merged in after `autoPositions`.
+		const gridBreakPositions =
+			resolveBreaks(grid.breaks)?.map(
 				(v) => (scale as unknown as (x: unknown) => number)(v)
-			)
-		}
-		// When the user pinned custom breaks and gridlines are set to "match
-		// tick count" (grid.count === null), draw one gridline per break so
-		// the grid lines up with the labeled ticks. An explicit grid.count
-		// still decouples the gridlines (the documented override behavior).
-		if (customBreaks && grid.count === null) {
-			return customBreaks.map(
-				(v) => (scale as unknown as (x: unknown) => number)(v)
-			)
-		}
-		if (typeof s.ticks === "function") {
-			// `null` count means "match axis ticks", i.e. one gridline per
-			// labeled tick. Specific numbers decouple gridlines from ticks.
-			const requestedGridCount = grid.count ?? tickCount
-			return s
-				.ticks(requestedGridCount)
-				.map((v) => (scale as unknown as (x: unknown) => number)(v))
-		}
-		// Categorical — derive gridline positions from the same stride logic
-		// the ticks use. The previous behavior was "one gridline per
-		// category regardless of stride/count", which made the user's
-		// "ticks every 5th category" setting paint vertical lines for
-		// every category and turned the chart into a forest. Now the
-		// gridlines either match the tick stride (default = "match tick
-		// count") or follow `grid.count` as an explicit override.
-		const halfBand = typeof s.bandwidth === "function" ? s.bandwidth() / 2 : 0
-		const domain = s.domain() as string[]
-		const tickStride = Math.max(1, config?.categoricalTickStride ?? 1)
-		// `grid.count = null` (Match tick count) means "follow whatever the
-		// tick layout chose" — so honor categoricalTickStride here too.
-		// `grid.count = N` means "show N evenly-spaced gridlines", subject
-		// to the domain length cap.
-		const visibleIndices = new Set<number>()
-		if (grid.count !== null && grid.count >= 0) {
-			if (grid.count === 0) return []
-			// Even spacing across the domain — pick `count` indices including
-			// endpoints. For count=1 just show the first; for count>=2 the
-			// stride spaces them evenly.
-			if (grid.count === 1) {
-				visibleIndices.add(0)
-			} else {
-				const denom = Math.max(1, grid.count - 1)
-				for (let i = 0; i < grid.count; i++) {
-					const idx = Math.round(((domain.length - 1) * i) / denom)
-					visibleIndices.add(Math.min(domain.length - 1, idx))
+			) ?? []
+		const autoPositions: number[] = (() => {
+			// When the user pinned custom breaks and gridlines are set to "match
+			// tick count" (grid.count === null), draw one gridline per break so
+			// the grid lines up with the labeled ticks. An explicit grid.count
+			// still decouples the gridlines (the documented override behavior).
+			if (customBreaks && grid.count === null) {
+				return customBreaks.map(
+					(v) => (scale as unknown as (x: unknown) => number)(v)
+				)
+			}
+			if (typeof s.ticks === "function") {
+				// `null` count means "match axis ticks", i.e. one gridline per
+				// labeled tick. Specific numbers decouple gridlines from ticks.
+				const requestedGridCount = grid.count ?? tickCount
+				return s
+					.ticks(requestedGridCount)
+					.map((v) => (scale as unknown as (x: unknown) => number)(v))
+			}
+			// Categorical — derive gridline positions from the same stride logic
+			// the ticks use. The previous behavior was "one gridline per
+			// category regardless of stride/count", which made the user's
+			// "ticks every 5th category" setting paint vertical lines for
+			// every category and turned the chart into a forest. Now the
+			// gridlines either match the tick stride (default = "match tick
+			// count") or follow `grid.count` as an explicit override.
+			const halfBand = typeof s.bandwidth === "function" ? s.bandwidth() / 2 : 0
+			const domain = s.domain() as string[]
+			const tickStride = Math.max(1, config?.categoricalTickStride ?? 1)
+			// `grid.count = null` (Match tick count) means "follow whatever the
+			// tick layout chose" — so honor categoricalTickStride here too.
+			// `grid.count = N` means "show N evenly-spaced gridlines", subject
+			// to the domain length cap.
+			const visibleIndices = new Set<number>()
+			if (grid.count !== null && grid.count >= 0) {
+				if (grid.count === 0) return []
+				// Even spacing across the domain — pick `count` indices including
+				// endpoints. For count=1 just show the first; for count>=2 the
+				// stride spaces them evenly.
+				if (grid.count === 1) {
+					visibleIndices.add(0)
+				} else {
+					const denom = Math.max(1, grid.count - 1)
+					for (let i = 0; i < grid.count; i++) {
+						const idx = Math.round(((domain.length - 1) * i) / denom)
+						visibleIndices.add(Math.min(domain.length - 1, idx))
+					}
 				}
+			} else if (tickStride <= 1) {
+				for (let i = 0; i < domain.length; i++) visibleIndices.add(i)
+			} else {
+				for (let i = 0; i < domain.length; i += tickStride) {
+					visibleIndices.add(i)
+				}
+				visibleIndices.add(domain.length - 1)
 			}
-		} else if (tickStride <= 1) {
-			for (let i = 0; i < domain.length; i++) visibleIndices.add(i)
-		} else {
-			for (let i = 0; i < domain.length; i += tickStride) {
-				visibleIndices.add(i)
-			}
-			visibleIndices.add(domain.length - 1)
-		}
-		return domain.flatMap((d, i) => {
-			if (!visibleIndices.has(i)) return []
-			const pos =
-				((scale as unknown as (x: unknown) => number)(d) ?? 0) + halfBand
-			return [pos]
+			return domain.flatMap((d, i) => {
+				if (!visibleIndices.has(i)) return []
+				const pos =
+					((scale as unknown as (x: unknown) => number)(d) ?? 0) + halfBand
+				return [pos]
+			})
+		})()
+		// De-dup on pixel position so a break that coincides with an auto
+		// gridline doesn't paint twice (visible with translucent strokes).
+		// Keyed on a rounded value: scale math carries float noise (e.g.
+		// 39.999999… vs 40), and sub-0.01px apart is a duplicate anyway.
+		const seen = new Set<string>()
+		return [...autoPositions, ...gridBreakPositions].filter((pos) => {
+			const key = pos.toFixed(2)
+			if (seen.has(key)) return false
+			seen.add(key)
+			return true
 		})
 	})()
 

@@ -3,8 +3,11 @@ import { useAtom, useAtomValue } from "jotai"
 import {
 	DATA_LABELS_SINGLE_COLOR_ID,
 	DEFAULT_DATA_LABELS_CONFIG,
+	effectiveLabelPoints,
 	type ColorSlotConfig,
 	type DataLabelsConfig,
+	type EndpointLabelOverrides,
+	type LabelPointsMode,
 	type PaletteName,
 	type TextColorRule,
 } from "../../lib/channelConfig"
@@ -216,6 +219,16 @@ export const DataLabelsPanel = () => {
 
 	const updateCfg = (next: Partial<DataLabelsConfig>) =>
 		setCfg({ ...merged, ...next })
+
+	// "First and last per series" splits the label-text, alignment, and
+	// position controls into First/Last pairs (the only mode where two label
+	// populations coexist). The pairs read effective values (override ?? base)
+	// and write into the endpoint override blocks.
+	const splitEndpoints = effectiveLabelPoints(merged) === "first-last"
+	const patchEndpoint = (
+		key: "firstLabel" | "lastLabel",
+		p: Partial<EndpointLabelOverrides>
+	) => updateCfg({ [key]: { ...(merged[key] ?? {}), ...p } })
 
 	const setField = (channel: DataLabelsChannel, fieldName: string) => {
 		// Reserved option values = the hierarchy-derived sources. Writing
@@ -515,16 +528,28 @@ export const DataLabelsPanel = () => {
 			{!isTreeMode && (
 			<>
 			<CollapsibleSubsection title="Label selection and overlap">
-				<Toggle
-					label="Only show last label per series"
-					checked={merged.onlyLastLabel === true}
-					onChange={(onlyLastLabel) => updateCfg({ onlyLastLabel })}
+				<SelectInput
+					label="Which labels"
+					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					value={effectiveLabelPoints(merged)}
+					options={[
+						{ value: "all", label: "All labels" },
+						{ value: "first", label: "First per series" },
+						{ value: "last", label: "Last per series" },
+						{ value: "first-last", label: "First and last per series" },
+					]}
+					onChange={(labelPoints: LabelPointsMode) =>
+						updateCfg({ labelPoints })
+					}
 				/>
-				<p className="ml-5 text-xs text-stone-600 dark:text-stone-400">
-					Drops every label except the rightmost / topmost in each series —
-					handy for directly labeling line charts and stacked bar charts so the
-					legend can be turned off. Series = hue field (bars/areas) or
-					connection field (line charts).
+				<p className="text-xs text-stone-600 dark:text-stone-400">
+					First / last keep only each series&apos; leftmost / rightmost (or
+					topmost / bottom-most) label — handy for directly labeling line
+					charts and stacked bar charts so the legend can be turned off.
+					Series = hue field (bars/areas) or connection field (line charts).
+					A one-point series counts as &quot;last&quot;. With first and last
+					shown, the label text (under Value) and the position / alignment
+					controls below split into separate first / last settings.
 				</p>
 				<Toggle
 					label="Avoid overlapping labels"
@@ -533,21 +558,55 @@ export const DataLabelsPanel = () => {
 					onChange={(avoidOverlaps) => updateCfg({ avoidOverlaps })}
 				/>
 				<p className="ml-5 text-xs text-stone-600 dark:text-stone-400">
-					When two labels&apos; bounding boxes overlap, nudges the later one down.
+					Moves colliding labels apart vertically — up or down — keeping each
+					as close to its data point as possible and preserving their order.
 					Best-effort — densely packed labels may still collide.
 				</p>
 			</CollapsibleSubsection>
 
 			<CollapsibleSubsection title="Position Adjustment and Alignment">
-				<div className="flex items-center gap-2 text-sm">
-					<span className="w-24 text-stone-600 dark:text-stone-400">
-						Alignment
-					</span>
-					<AlignmentControl
-						value={merged.alignment ?? "center"}
-						onChange={(alignment) => updateCfg({ alignment })}
-					/>
-				</div>
+				{splitEndpoints ? (
+					<div className="flex flex-col gap-2">
+						{/* First/Last alignment pair — effective value shown, writes
+						 *  land in the endpoint override blocks. */}
+						<div className="flex items-center gap-2 text-sm">
+							<span className="w-24 text-stone-600 dark:text-stone-400">
+								First label
+							</span>
+							<AlignmentControl
+								value={
+									merged.firstLabel?.alignment ?? merged.alignment ?? "center"
+								}
+								onChange={(alignment) =>
+									patchEndpoint("firstLabel", { alignment })
+								}
+							/>
+						</div>
+						<div className="flex items-center gap-2 text-sm">
+							<span className="w-24 text-stone-600 dark:text-stone-400">
+								Last label
+							</span>
+							<AlignmentControl
+								value={
+									merged.lastLabel?.alignment ?? merged.alignment ?? "center"
+								}
+								onChange={(alignment) =>
+									patchEndpoint("lastLabel", { alignment })
+								}
+							/>
+						</div>
+					</div>
+				) : (
+					<div className="flex items-center gap-2 text-sm">
+						<span className="w-24 text-stone-600 dark:text-stone-400">
+							Alignment
+						</span>
+						<AlignmentControl
+							value={merged.alignment ?? "center"}
+							onChange={(alignment) => updateCfg({ alignment })}
+						/>
+					</div>
+				)}
 				<p className="text-xs text-stone-600 dark:text-stone-400">
 					Pairs with the X offset below — e.g. <em>Left</em> + a small
 					positive X nudges the label cleanly past its data point.
@@ -637,30 +696,83 @@ export const DataLabelsPanel = () => {
 						</p>
 					</>
 				)}
-				<div className="flex flex-col gap-2 text-sm">
-					<NumberInput
-						label="X"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
-						value={merged.xOffset}
-						step={1}
-						onChange={(xOffset) => updateCfg({ xOffset })}
-						inputClassName="w-16"
-						suffix="px"
-					/>
-					<NumberInput
-						label="Y"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
-						value={merged.yOffset}
-						step={1}
-						onChange={(yOffset) => updateCfg({ yOffset })}
-						inputClassName="w-16"
-						suffix="px"
-					/>
-				</div>
+				{splitEndpoints ? (
+					<>
+						{/* First/Last offset pairs — effective values shown, writes
+						 *  land in the endpoint override blocks. */}
+						<span className="text-sm text-stone-600 dark:text-stone-400">
+							First label
+						</span>
+						<div className="ml-5 flex flex-col gap-2 text-sm">
+							<NumberInput
+								label="X"
+								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								value={merged.firstLabel?.xOffset ?? merged.xOffset}
+								step={1}
+								onChange={(xOffset) => patchEndpoint("firstLabel", { xOffset })}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+							<NumberInput
+								label="Y"
+								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								value={merged.firstLabel?.yOffset ?? merged.yOffset}
+								step={1}
+								onChange={(yOffset) => patchEndpoint("firstLabel", { yOffset })}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+						</div>
+						<span className="text-sm text-stone-600 dark:text-stone-400">
+							Last label
+						</span>
+						<div className="ml-5 flex flex-col gap-2 text-sm">
+							<NumberInput
+								label="X"
+								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								value={merged.lastLabel?.xOffset ?? merged.xOffset}
+								step={1}
+								onChange={(xOffset) => patchEndpoint("lastLabel", { xOffset })}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+							<NumberInput
+								label="Y"
+								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								value={merged.lastLabel?.yOffset ?? merged.yOffset}
+								step={1}
+								onChange={(yOffset) => patchEndpoint("lastLabel", { yOffset })}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+						</div>
+					</>
+				) : (
+					<div className="flex flex-col gap-2 text-sm">
+						<NumberInput
+							label="X"
+							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							value={merged.xOffset}
+							step={1}
+							onChange={(xOffset) => updateCfg({ xOffset })}
+							inputClassName="w-16"
+							suffix="px"
+						/>
+						<NumberInput
+							label="Y"
+							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							value={merged.yOffset}
+							step={1}
+							onChange={(yOffset) => updateCfg({ yOffset })}
+							inputClassName="w-16"
+							suffix="px"
+						/>
+					</div>
+				)}
 				<p className="text-xs text-stone-600 dark:text-stone-400">
-					Pixel offset applied to every label. Positive X pushes right, positive
-					Y pushes down. Useful for shifting labels off of the marks they&apos;re
-					annotating.
+					Pixel offset{splitEndpoints ? " per endpoint" : " applied to every label"}.
+					Positive X pushes right, positive Y pushes down. Useful for shifting
+					labels off of the marks they&apos;re annotating.
 				</p>
 			</CollapsibleSubsection>
 			</>
@@ -1240,6 +1352,23 @@ const HuePanel = ({
 								labelPrefix={name}
 								slotCfg={cfg.fieldColors?.[name]}
 								defaultColor={cfg.color}
+								// With a field mapped on the Color channel above, an
+								// unconfigured variable's segments follow that mapping
+								// (the renderer falls through to the label's base fill)
+								// — surface that as the explicit default option so the
+								// dropdown matches what actually renders. Without a
+								// mapping, base fill IS the single color, so the plain
+								// "Single color" default already tells the truth.
+								inheritLabel={
+									hueFieldMapped
+										? `Main Color mapping${hueField ? ` (${hueField})` : ""}`
+										: undefined
+								}
+								clearSlot={() => {
+									const next = { ...(cfg.fieldColors ?? {}) }
+									delete next[name]
+									onChange({ fieldColors: next })
+								}}
 								updateSlot={(partial) => {
 									const existing = cfg.fieldColors?.[name]
 									const base: ColorSlotConfig = {
@@ -1700,21 +1829,51 @@ const ValuePanel = ({
 
 			{/* Editable label text — pre-filled with the checked fields (kept in
 			 *  sync until hand-edited). Each field name in braces is replaced by
-			 *  that row's value; edit the surrounding text freely. */}
-			<label className="flex flex-col gap-1 text-sm">
-				<span className="text-stone-600 dark:text-stone-400">Label text</span>
-				<input
-					type="text"
-					value={cfg.labelTemplate ?? ""}
-					placeholder={
-						fields.length > 0
-							? defaultLabelTemplate(fields)
-							: "Check some fields above"
-					}
-					onChange={(e) => onChange({ labelTemplate: e.target.value })}
-					className={textInputClass}
-				/>
-			</label>
+			 *  that row's value; edit the surrounding text freely. With "first
+			 *  and last per series" selected, the single input splits into a
+			 *  first/last pair: each writes its endpoint's template override and
+			 *  an empty box inherits the shared arrangement (the placeholder). */}
+			{effectiveLabelPoints(cfg) === "first-last" ? (
+				(["firstLabel", "lastLabel"] as const).map((key) => (
+					<label key={key} className="flex flex-col gap-1 text-sm">
+						<span className="text-stone-600 dark:text-stone-400">
+							{key === "firstLabel" ? "First label text" : "Last label text"}
+						</span>
+						<input
+							type="text"
+							value={cfg[key]?.labelTemplate ?? ""}
+							placeholder={
+								cfg.labelTemplate ||
+								(fields.length > 0
+									? defaultLabelTemplate(fields)
+									: "Check some fields above")
+							}
+							onChange={(e) => {
+								const next = { ...(cfg[key] ?? {}) }
+								if (e.target.value === "") delete next.labelTemplate
+								else next.labelTemplate = e.target.value
+								onChange({ [key]: next })
+							}}
+							className={textInputClass}
+						/>
+					</label>
+				))
+			) : (
+				<label className="flex flex-col gap-1 text-sm">
+					<span className="text-stone-600 dark:text-stone-400">Label text</span>
+					<input
+						type="text"
+						value={cfg.labelTemplate ?? ""}
+						placeholder={
+							fields.length > 0
+								? defaultLabelTemplate(fields)
+								: "Check some fields above"
+						}
+						onChange={(e) => onChange({ labelTemplate: e.target.value })}
+						className={textInputClass}
+					/>
+				</label>
+			)}
 
 			{/* Per-field format — the same preset dropdown (+ custom spec) the
 			 *  x / y axes use, one per selected field. */}

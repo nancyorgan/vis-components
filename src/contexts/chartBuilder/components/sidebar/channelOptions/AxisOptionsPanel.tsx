@@ -1050,9 +1050,6 @@ const GridlineControls = ({
 	showBreaks: boolean
 }) => {
 	const set = (next: Partial<GridlineConfig>) => onChange({ ...grid, ...next })
-	// Pinned gridline positions make the count controls no-ops, so they hide
-	// while breaks are set (clearing the box brings them back).
-	const hasBreaks = (grid.breaks?.length ?? 0) > 0
 	// Pull per-axis theme defaults, falling back to the legacy shared
 	// fields when the user hasn't set axis-specific overrides yet. `r`
 	// is radar's radial axis (concentric rings).
@@ -1098,18 +1095,16 @@ const GridlineControls = ({
 						suffix="px"
 						changed={valueChanged(grid.thickness, themeThickness)}
 					/>
-					{!hasBreaks && (
-						<div className="flex items-center gap-2">
-							<span className="w-24 shrink-0" aria-hidden="true" />
-							<Toggle
-								label="Match tick count"
-								checked={grid.count === null}
-								onChange={(matchTicks) => set({ count: matchTicks ? null : 5 })}
-								changed={valueChanged(grid.count, null)}
-							/>
-						</div>
-					)}
-					{!hasBreaks && grid.count !== null && (
+					<div className="flex items-center gap-2">
+						<span className="w-24 shrink-0" aria-hidden="true" />
+						<Toggle
+							label="Match tick count"
+							checked={grid.count === null}
+							onChange={(matchTicks) => set({ count: matchTicks ? null : 5 })}
+							changed={valueChanged(grid.count, null)}
+						/>
+					</div>
+					{grid.count !== null && (
 						<NumberInput
 							label="Count"
 							labelClassName="w-24 text-stone-600 dark:text-stone-400"
@@ -1130,7 +1125,7 @@ const GridlineControls = ({
 								set({ breaks: breaks.length > 0 ? breaks : undefined })
 							}
 							changed={valueChanged(grid.breaks, undefined)}
-							hint="Comma-separated gridline positions. Blank = automatic (match ticks or the count above)."
+							hint="Comma-separated extra gridline positions, drawn in addition to the automatic ones above."
 						/>
 					)}
 					<button

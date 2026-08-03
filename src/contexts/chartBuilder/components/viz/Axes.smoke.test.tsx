@@ -643,10 +643,10 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 			.map((l) => l.getAttribute("y1"))
 	}
 
-	it("gridline-specific breaks pin the gridlines, independent of tick breaks", () => {
-		// Ticks pinned at 10/50/90 but gridlines pinned at 25/75 — the
-		// gridline box wins over the tick-break coupling. Domain [0,100] maps
-		// to range [400,0], so 25 → y=300 and 75 → y=100.
+	it("gridline-specific breaks add to the automatic gridlines", () => {
+		// Ticks pinned at 10/50/90 (match-tick gridlines follow them), plus
+		// gridline breaks at 25/75 drawn in addition. Domain [0,100] maps to
+		// range [400,0]: auto 10/50/90 → 360/200/40, breaks 25/75 → 300/100.
 		const ys = gridlineYs(
 			cfg([10, 50, 90], {
 				gridlines: {
@@ -658,10 +658,12 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 				},
 			})
 		)
-		expect(ys).toEqual(["300", "100"])
+		expect(ys.map((y) => Math.round(Number(y)))).toEqual([
+			360, 200, 40, 300, 100,
+		])
 	})
 
-	it("gridline breaks override an explicit count and drop out-of-domain values", () => {
+	it("gridline breaks add to an explicit count and drop out-of-domain values", () => {
 		const ys = gridlineYs(
 			cfg([], {
 				gridlines: {
@@ -673,7 +675,29 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 				},
 			})
 		)
-		expect(ys).toEqual(["200"])
+		// count=7 on [0,100] → d3 ticks at 0/20/…/100 (six lines), plus the
+		// in-domain break at 50 → y=200. 200 and -10 fall outside and drop.
+		expect(ys.map((y) => Math.round(Number(y)))).toEqual([
+			400, 320, 240, 160, 80, 0, 200,
+		])
+	})
+
+	it("a break coinciding with an auto gridline paints only once", () => {
+		const ys = gridlineYs(
+			cfg([], {
+				gridlines: {
+					enabled: true,
+					color: "#abcdef",
+					thickness: 1,
+					count: 7,
+					breaks: [40],
+				},
+			})
+		)
+		// 40 is already one of the auto ticks (0/20/40/…/100) — no duplicate.
+		expect(ys.map((y) => Math.round(Number(y)))).toEqual([
+			400, 320, 240, 160, 80, 0,
+		])
 	})
 
 	it("supports temporal axes with epoch-ms breaks (Date conversion)", () => {

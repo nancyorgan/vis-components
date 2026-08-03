@@ -148,6 +148,55 @@ export const wrapByCharCount = (text: string, maxChars: number): string[] => {
 	return out.length > 0 ? out : [""]
 }
 
+/** Wrap a run of styled text segments across lines, breaking exactly where
+ *  `wrapByCharCount` would break their concatenated text. Returns one array
+ *  of segment PIECES per line — a segment that straddles a line break is
+ *  split into two pieces carrying the same styling (spread), so callers can
+ *  emit per-piece `<tspan fill>`s without losing the wrap. Used by the Data
+ *  Labels layer for multi-variable labels with per-variable colors, which
+ *  previously rendered as one unwrappable line.
+ *
+ *  The wrapper drops one whitespace character at each break
+ *  (`wrapByCharCount` consumes the break space; paragraph splits consume
+ *  the `\n`), so the walk skips one source character between lines to stay
+ *  aligned with the segment stream. */
+export const wrapSegments = <T extends { text: string }>(
+	segments: T[],
+	maxChars: number
+): T[][] => {
+	const full = segments.map((s) => s.text).join("")
+	const lines = wrapByCharCount(full, maxChars)
+	if (lines.length <= 1) return [segments]
+	const out: T[][] = []
+	let segIdx = 0
+	// Chars of segments[segIdx] already consumed.
+	let offset = 0
+	const skipChars = (n: number) => {
+		offset += n
+		while (segIdx < segments.length && offset >= segments[segIdx].text.length) {
+			offset -= segments[segIdx].text.length
+			segIdx++
+		}
+	}
+	for (let li = 0; li < lines.length; li++) {
+		let remaining = lines[li].length
+		const pieces: T[] = []
+		while (remaining > 0 && segIdx < segments.length) {
+			const seg = segments[segIdx]
+			const take = Math.min(seg.text.length - offset, remaining)
+			if (take > 0) {
+				pieces.push({ ...seg, text: seg.text.slice(offset, offset + take) })
+				remaining -= take
+			}
+			skipChars(take)
+		}
+		out.push(pieces)
+		// Skip the separator the wrapper dropped at this break.
+		if (li < lines.length - 1) skipChars(1)
+	}
+	return out
+}
+
 /** Truncate `text` with a trailing ellipsis so its estimated rendered
  *  width fits within `maxPx`. Used by the SVG-faceted layout for long
  *  facet labels, which can't rely on CSS `text-overflow: ellipsis`

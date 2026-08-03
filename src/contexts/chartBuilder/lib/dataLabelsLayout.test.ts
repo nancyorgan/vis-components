@@ -8,6 +8,7 @@ import {
 	labelWidth,
 	nudgeOverlaps,
 	sampleConnectionPointIndices,
+	selectEndpointsPerSeries,
 	type LabelBox,
 } from "./dataLabelsLayout"
 
@@ -159,6 +160,96 @@ describe("keepLastPerSeries", () => {
 	})
 })
 
+describe("selectEndpointsPerSeries", () => {
+	it("tags each series' leftmost box 'first' and rightmost 'last' (position, not index)", () => {
+		const boxes: LabelBox[] = [
+			{ cx: 10, cy: 0, text: "a-mid", fontSize: 10, series: "A", index: 0 },
+			{ cx: 5, cy: 0, text: "b-first", fontSize: 10, series: "B", index: 1 },
+			{ cx: 30, cy: 0, text: "a-last", fontSize: 10, series: "A", index: 2 },
+			{ cx: 25, cy: 0, text: "b-last", fontSize: 10, series: "B", index: 3 },
+			// Leftmost for A despite the HIGHEST index — position drives it.
+			{ cx: 2, cy: 0, text: "a-first", fontSize: 10, series: "A", index: 4 },
+		]
+		const tags = selectEndpointsPerSeries(boxes)
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("a-first")).toBe("first")
+		expect(byText.get("a-last")).toBe("last")
+		expect(byText.get("b-first")).toBe("first")
+		expect(byText.get("b-last")).toBe("last")
+		// Interior anchors are absent from the map entirely.
+		expect(byText.has("a-mid")).toBe(false)
+	})
+
+	it("with axis='y', ranks by cy — topmost 'first', bottom-most 'last'", () => {
+		const boxes: LabelBox[] = [
+			{ cx: 100, cy: 20, text: "mid", fontSize: 10, series: "A", index: 0 },
+			{ cx: 5, cy: 10, text: "top", fontSize: 10, series: "A", index: 1 },
+			{ cx: 30, cy: 50, text: "bottom", fontSize: 10, series: "A", index: 2 },
+		]
+		const tags = selectEndpointsPerSeries(boxes, "y")
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("top")).toBe("first")
+		expect(byText.get("bottom")).toBe("last")
+	})
+
+	it("ties on the primary axis break on the perpendicular axis, then index", () => {
+		// All cx tied (stacked slices in one category): largest cy is "last",
+		// smallest is "first" — mirroring keepLastPerSeries' comparator.
+		const boxes: LabelBox[] = [
+			{ cx: 100, cy: 50, text: "bottom", fontSize: 10, series: "S", index: 0 },
+			{ cx: 100, cy: 30, text: "middle", fontSize: 10, series: "S", index: 1 },
+			{ cx: 100, cy: 10, text: "top", fontSize: 10, series: "S", index: 2 },
+		]
+		const tags = selectEndpointsPerSeries(boxes)
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("bottom")).toBe("last")
+		expect(byText.get("top")).toBe("first")
+	})
+
+	it("empty series keys form one implicit group", () => {
+		const boxes: LabelBox[] = [
+			{ cx: 5, cy: 0, text: "first", fontSize: 10, series: "", index: 0 },
+			{ cx: 30, cy: 0, text: "last", fontSize: 10, series: "", index: 1 },
+			{ cx: 15, cy: 0, text: "mid", fontSize: 10, series: "", index: 2 },
+		]
+		const tags = selectEndpointsPerSeries(boxes)
+		expect(tags.size).toBe(2)
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("first")).toBe("first")
+		expect(byText.get("last")).toBe("last")
+	})
+
+	it("a single-anchor series tags 'both'", () => {
+		const boxes: LabelBox[] = [
+			{ cx: 5, cy: 0, text: "solo", fontSize: 10, series: "A", index: 0 },
+			{ cx: 1, cy: 0, text: "b1", fontSize: 10, series: "B", index: 1 },
+			{ cx: 9, cy: 0, text: "b2", fontSize: 10, series: "B", index: 2 },
+		]
+		const tags = selectEndpointsPerSeries(boxes)
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("solo")).toBe("both")
+	})
+
+	it("keepLastPerSeries delegates: 'last' + 'both' survive, matching its old behavior", () => {
+		const boxes: LabelBox[] = [
+			{ cx: 5, cy: 0, text: "a1", fontSize: 10, series: "A", index: 0 },
+			{ cx: 30, cy: 0, text: "a2", fontSize: 10, series: "A", index: 1 },
+			{ cx: 7, cy: 0, text: "solo", fontSize: 10, series: "B", index: 2 },
+		]
+		expect(keepLastPerSeries(boxes).map((b) => b.text)).toEqual(["a2", "solo"])
+	})
+})
+
 describe("nudgeOverlaps", () => {
 	it("leaves non-overlapping boxes untouched", () => {
 		// Two labels far apart on x — no collision, no nudging.
@@ -171,18 +262,53 @@ describe("nudgeOverlaps", () => {
 		expect(out[1].cy).toBe(0)
 	})
 
-	it("shifts a colliding label down so its bbox no longer overlaps the prior one", () => {
-		// Two labels at the same position. The second should be pushed down
-		// by enough that the bboxes no longer overlap.
+	it("separates colliding labels vertically, splitting the displacement between them", () => {
+		// Two labels at the same position. They should end up at least one
+		// full label height apart (sum of the two half-heights) — and the
+		// least-displacement solve balances the pair around the shared
+		// anchor rather than making the second label absorb the whole shift.
 		const boxes: LabelBox[] = [
 			{ cx: 0, cy: 0, text: "a", fontSize: 10, series: "", index: 0 },
 			{ cx: 0, cy: 0, text: "a", fontSize: 10, series: "", index: 1 },
 		]
 		const out = nudgeOverlaps(boxes)
-		expect(out[0].cy).toBe(0)
-		// After nudging, the y separation should be at least one full label
-		// height (sum of the two half-heights).
 		expect(out[1].cy - out[0].cy).toBeGreaterThanOrEqual(labelHeight(boxes[0]))
+		expect(out[0].cy).toBeLessThan(0)
+		expect(out[1].cy).toBeGreaterThan(0)
+	})
+
+	it("moves a label UP when its anchor sits above its collider's (end-of-line stack)", () => {
+		// User-reported: line-chart end labels. Medicare Advantage's line ends
+		// ABOVE Direct Purchase's, but the old down-only sweep (input = data
+		// order, not spatial order) rammed its label below Direct Purchase —
+		// then cascaded Medicare Traditional under CHIP, two lines away from
+		// its own anchor. The stack solve must keep anchor order: labels above
+		// stay above, and a label with free space overhead moves up into it.
+		const two = "12% Medicare\nAdvantage" // 2-line wrapped label
+		const boxes: LabelBox[] = [
+			{ cx: 865, cy: 565, text: "9% Direct Purchase", fontSize: 16, series: "dp", index: 0 },
+			{ cx: 865, cy: 543, text: two, fontSize: 16, series: "ma", index: 1 },
+			{ cx: 865, cy: 566, text: "9% Medicare\nTraditional", fontSize: 16, series: "mt", index: 2 },
+			{ cx: 865, cy: 639, text: "2% CHIP", fontSize: 16, series: "chip", index: 3 },
+		]
+		const out = nudgeOverlaps(boxes)
+		const cy = (series: string): number =>
+			(out.find((b) => b.series === series) as LabelBox).cy
+		// Anchor order preserved: MA above DP above MT above CHIP.
+		expect(cy("ma")).toBeLessThan(cy("dp"))
+		expect(cy("dp")).toBeLessThan(cy("mt"))
+		expect(cy("mt")).toBeLessThan(cy("chip"))
+		// MA moved up from its anchor into the free space above the cluster.
+		expect(cy("ma")).toBeLessThan(543)
+		// CHIP had no conflict below the cluster and stays on its anchor.
+		expect(cy("chip")).toBeCloseTo(639)
+		// And nothing overlaps: neighbors sit at least their half-height sum apart.
+		const sorted = [...out].sort((a, b) => a.cy - b.cy)
+		for (let i = 1; i < sorted.length; i++) {
+			expect(sorted[i].cy - sorted[i - 1].cy).toBeGreaterThanOrEqual(
+				labelHeight(sorted[i]) / 2 + labelHeight(sorted[i - 1]) / 2
+			)
+		}
 	})
 
 	it("reserves the taller footprint for a wrapped (multi-line) label", () => {
@@ -214,6 +340,31 @@ describe("nudgeOverlaps", () => {
 		// clear each other (24/2 + 24/2 = 24 < 40).
 		const out = nudgeOverlaps(boxes)
 		expect(out[1].cy).toBe(0)
+	})
+
+	it("two labels nudged below the same collider don't stack on each other (float tangency)", () => {
+		// Regression: user's line chart had three wrapped end-of-line labels
+		// clustered near the bottom (cys from the real chart). The 2nd and 3rd
+		// each collided with the 1st and were nudged to EXACT tangency below
+		// it — but the resulting gap float-computes to 35.19999999999999
+		// (< 35.2), so the strict `<` overlap test kept re-firing against the
+		// 1st box with dy ≈ 1e-14 until the safety bound ran out. Both labels
+		// exited at the identical cy, fully overlapping each other. The
+		// clearance in the nudge makes each iteration definitively clear its
+		// collider, so the 3rd label goes on to resolve against the 2nd.
+		const wrapped = "0.0827 Medicare\nAdvantage"
+		const boxes: LabelBox[] = [
+			{ cx: 865, cy: 493.478, text: wrapped, fontSize: 16, series: "a", index: 0 },
+			{ cx: 865, cy: 500.667, text: wrapped, fontSize: 16, series: "b", index: 1 },
+			{ cx: 865, cy: 516.072, text: wrapped, fontSize: 16, series: "c", index: 2 },
+		]
+		const out = nudgeOverlaps(boxes)
+		const h = labelHeight(boxes[0])
+		for (let i = 0; i < out.length; i++) {
+			for (let j = i + 1; j < out.length; j++) {
+				expect(Math.abs(out[i].cy - out[j].cy)).toBeGreaterThanOrEqual(h)
+			}
+		}
 	})
 
 	it("preserves the input array (no mutation)", () => {

@@ -189,24 +189,42 @@ const RegressionLineStyleControls = () => {
 	)
 }
 
+/** Sentinel option value for `ColorSlotControls`' "inherit" entry — an
+ *  UNCONFIGURED slot (no stored config), which downstream renderers resolve
+ *  to their base color chain (e.g. a data-label segment following the
+ *  layer's main Color mapping). Distinct from `""` ("Single color", a stored
+ *  `field: null` config). */
+const SLOT_INHERIT_VALUE = "__inherit__"
+
 /** The uniform "None + single color | map a variable → palette → per-level /
  * gradient" control, decoupled from where the slot config is stored. Reused
  * for the mark color slots (below) AND the per-variable data-label colors, so
  * both share one mental model. `updateSlot` owns persistence (merging a
  * partial into wherever the slot lives); this component only reads `slotCfg`
  * and emits partial updates. `defaultColor` is the single-color reset target;
- * `labelPrefix` labels the per-value swatches. */
+ * `labelPrefix` labels the per-value swatches.
+ *
+ * `inheritLabel` (with `clearSlot`) adds an "inherit" option ABOVE "Single
+ * color": an undefined `slotCfg` displays as inheriting (matching how
+ * renderers treat a missing slot — they fall through to the base color
+ * chain), and picking it clears the stored slot via `clearSlot`. Callers
+ * whose base chain is just a single color shouldn't pass it — there,
+ * "Single color" already describes the fallback truthfully. */
 export const ColorSlotControls = ({
 	labelPrefix,
 	slotCfg,
 	defaultColor,
 	acceptsFieldMapping = true,
+	inheritLabel,
+	clearSlot,
 	updateSlot,
 }: {
 	labelPrefix: string
 	slotCfg: ColorSlotConfig | undefined
 	defaultColor: string
 	acceptsFieldMapping?: boolean
+	inheritLabel?: string
+	clearSlot?: () => void
 	updateSlot: (partial: Partial<ColorSlotConfig>) => void
 }) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -218,12 +236,23 @@ export const ColorSlotControls = ({
 
 	const field = slotCfg?.field ?? null
 	const singleColor = slotCfg?.singleColor ?? defaultColor
+	// An unconfigured slot inherits the caller's base color chain when the
+	// caller exposes that as an explicit option; otherwise it displays as
+	// "Single color" (the two are behaviorally identical without a scale).
+	const inheriting = inheritLabel !== undefined && slotCfg === undefined
 	const fieldOptions = [
+		...(inheritLabel !== undefined
+			? [{ value: SLOT_INHERIT_VALUE, label: inheritLabel }]
+			: []),
 		{ value: "", label: "Single color" },
 		...(dataset?.fields ?? []).map((f) => ({ value: f.name, label: f.name })),
 	]
 
 	const setField = (fieldName: string) => {
+		if (fieldName === SLOT_INHERIT_VALUE) {
+			clearSlot?.()
+			return
+		}
 		if (fieldName === "" || !dataset) {
 			updateSlot({ field: null })
 			return
@@ -257,14 +286,18 @@ export const ColorSlotControls = ({
 				<SelectInput
 					label="Vary by"
 					labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
-					value={field ?? ""}
+					value={inheriting ? SLOT_INHERIT_VALUE : (field ?? "")}
 					options={fieldOptions}
 					onChange={setField}
 					disabled={!dataset}
 					selectClassName="flex-1"
 				/>
 			) : null}
-			{field === null || !acceptsFieldMapping ? (
+			{inheriting && acceptsFieldMapping ? (
+				<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+					Follows the <strong>Color</strong> mapping above.
+				</p>
+			) : field === null || !acceptsFieldMapping ? (
 				<div className="flex items-center gap-2">
 					<ColorInput
 						label="Color"
