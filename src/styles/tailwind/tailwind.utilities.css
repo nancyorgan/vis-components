@@ -1,0 +1,509 @@
+/* Hide the native number-input spinner buttons (the up/down arrows webkit
+ * draws inside `<input type="number">`). Frees the horizontal space they
+ * consume in dense rows; arrow-key stepping still works. */
+@utility no-spinner {
+	&::-webkit-inner-spin-button,
+	&::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+@utility bg-tiles {
+	background-color: var(--tileColor2);
+	opacity: 1;
+	background-image:
+		linear-gradient(135deg, var(--tileColor1) 25%, transparent 25%),
+		linear-gradient(225deg, var(--tileColor1) 25%, transparent 25%),
+		linear-gradient(45deg, var(--tileColor1) 25%, transparent 25%),
+		linear-gradient(315deg, var(--tileColor1) 25%, var(--tileColor2) 25%);
+	background-position:
+		33px 0,
+		33px 0,
+		0 0,
+		0 0;
+	background-size: 33px 33px;
+	background-repeat: repeat;
+}
+
+@utility tabular-nums {
+	/**
+	 * DM Sans does not support tabular numbers via `font-variant-numeric`. To
+	 * solve this rendering issue, we are extending the `.tabular-nums` class to
+	 * force the font to be Inter (with less letter spacing). Inter does support
+	 * tabular numbers.
+	 *
+	 * Inter is also very similar to DM Sans, so in cases where there are
+	 * non-numeric characters inside the tabular-nums class, it should not really
+	 * be noticeable, and will be far less jarring than switching to a mono-space
+	 * font entirely.
+	 *
+	 * This extension is in the components layer so that any utility classes can
+	 * override it if necessary.
+	 */
+	@apply font-tabular tracking-tight;
+}
+
+@utility busy {
+	font-size: 15px;
+	line-height: 135%;
+
+	.h1 {
+		/* title */
+		font-size: 30px;
+		line-height: 110%;
+	}
+
+	.h2 {
+		/* subheader */
+		font-size: 19px;
+		line-height: 140%;
+	}
+
+	.h3 {
+		/* widget subheader */
+		font-size: 17px;
+		line-height: 135%;
+		text-transform: uppercase;
+	}
+
+	.h1 + .p,
+	.h2 + .p,
+	.h3 + .p {
+		@apply mt-2;
+	}
+
+	.p + .h1,
+	.p + .h2,
+	.p + .h3 {
+		@apply mt-4;
+	}
+
+	.p {
+		@apply mb-1;
+	}
+
+	.text-2nd {
+		font-size: 13px;
+		line-height: 120%;
+	}
+
+	.max-w-body {
+		width: 500px;
+	}
+
+	.text-label {
+		@apply dark:text-stone-300/70;
+		font-weight: 700;
+		text-transform: uppercase;
+		font-size: 14px;
+	}
+}
+
+@utility our-prose {
+	@apply prose dark:prose-dark;
+}
+
+@utility brand {
+	&.h1 {
+		@apply relative pb-1;
+	}
+
+	&.h1::after {
+		@apply absolute -inset-x-1 bottom-0 border-b-2 border-brand-500;
+		content: "";
+	}
+}
+
+@utility h1 {
+	&.brand {
+		@apply relative pb-1;
+	}
+
+	&.brand::after {
+		@apply absolute -inset-x-1 bottom-0 border-b-2 border-brand-500;
+		content: "";
+	}
+	font-size: 35px;
+	line-height: 100%;
+
+	& + .h2 {
+		@apply mt-6;
+	}
+
+	@media (min-width: 640px) {
+		font-size: 40px;
+		line-height: 100%;
+	}
+
+	& + .p {
+		@apply mt-3;
+	}
+
+	.p + & {
+		@apply mt-8;
+	}
+}
+
+@utility markdown {
+	& h1 {
+		font-weight: 500;
+	}
+
+	& h2 {
+		@apply text-brand-500;
+	}
+
+	& h1 {
+		font-size: 35px;
+		line-height: 100%;
+	}
+
+	& h2 {
+		font-size: 24px;
+		line-height: 125%;
+	}
+
+	& h1 + h2 {
+		@apply mt-6;
+	}
+
+	& h2 + h3 {
+		@apply mt-4;
+	}
+
+	& h3 {
+		@apply mt-6;
+	}
+
+	& h3 {
+		@apply uppercase opacity-80;
+		font-size: 18px;
+		line-height: 125%;
+	}
+
+	@media (min-width: 640px) {
+		& h1 {
+			font-size: 40px;
+			line-height: 100%;
+		}
+
+		& h2 {
+			font-size: 26px;
+			line-height: 130%;
+		}
+
+		& h3 {
+			@apply uppercase opacity-80;
+			font-size: 21px;
+			line-height: 130%;
+		}
+	}
+
+	& h1 + p {
+		@apply mt-3;
+	}
+
+	& h2 + p {
+		@apply mt-3;
+	}
+
+	& h3 + p {
+		@apply mt-3;
+	}
+
+	& h3 + p {
+		@apply mt-1;
+	}
+
+	& p + h1 {
+		@apply mt-8;
+	}
+
+	& p + h2 {
+		@apply mt-8;
+	}
+
+	& p + h3 {
+		@apply mt-8;
+	}
+
+	& p {
+		@apply mb-3;
+	}
+
+	& b {
+		@apply text-stone-800/80 dark:text-stone-300/90;
+		font-weight: 700;
+	}
+
+	& a {
+		@apply text-brand-600 underline dark:text-brand-500;
+	}
+
+	& ol {
+		counter-reset: li;
+	}
+
+	& ol li {
+		@apply flex gap-2;
+		counter-increment: li;
+	}
+
+	& ol li::before {
+		@apply inline-block shrink-0 tabular-nums;
+		content: counter(li) ".";
+	}
+
+	& ul li {
+		@apply flex gap-2;
+	}
+
+	& ul li::before {
+		@apply inline-block shrink-0 text-3xl leading-[26px];
+		content: "\2022";
+	}
+
+	& ol {
+		@apply pl-8;
+	}
+
+	& ul {
+		@apply pl-8;
+	}
+
+	& ol {
+		@apply list-none;
+	}
+
+	& ul {
+		@apply list-none;
+	}
+
+	& code {
+		@apply rounded-md border border-th-electric-indigo-500/40 bg-th-electric-indigo-100 px-1 py-px dark:bg-th-electric-indigo-950;
+	}
+
+	& pre {
+		@apply rounded-md p-3 text-info-50;
+		color: hsl(207deg 100% 80%);
+		background-color: hsl(202deg 58% 17%);
+	}
+	img {
+		@apply mx-auto my-4;
+	}
+
+	blockquote {
+		@apply my-6 border-l-4 pl-4;
+		quotes: '"' '"' "'" "'";
+	}
+
+	ol,
+	ul {
+		@apply mb-6;
+	}
+
+	table {
+		@apply my-4;
+	}
+
+	thead {
+		@apply b;
+	}
+
+	th {
+		@apply text-left;
+	}
+
+	th,
+	td {
+		@apply px-4 py-1;
+	}
+}
+
+@utility full-h2 {
+	font-size: 24px;
+	line-height: 125%;
+
+	@media (min-width: 640px) {
+		font-size: 26px;
+		line-height: 130%;
+	}
+}
+
+@utility h2 {
+	font-size: 24px;
+	line-height: 125%;
+
+	.h1 + & {
+		@apply mt-6;
+	}
+
+	& + .h3 {
+		@apply mt-4;
+	}
+
+	@media (min-width: 640px) {
+		font-size: 26px;
+		line-height: 130%;
+	}
+
+	& + .p {
+		@apply mt-3;
+	}
+
+	.p + & {
+		@apply mt-8;
+	}
+}
+
+@utility h3 {
+	.h2 + & {
+		@apply mt-4;
+	}
+	@apply uppercase opacity-80;
+	font-size: 18px;
+	line-height: 125%;
+
+	@media (min-width: 640px) {
+		@apply uppercase opacity-80;
+		font-size: 21px;
+		line-height: 130%;
+	}
+
+	& + .p {
+		@apply mt-3;
+	}
+
+	& + .p {
+		@apply mt-1;
+	}
+
+	.p + & {
+		@apply mt-8;
+	}
+}
+
+@utility p {
+	.h1 + & {
+		@apply mt-3;
+	}
+
+	.h2 + & {
+		@apply mt-3;
+	}
+
+	.h3 + & {
+		@apply mt-3;
+	}
+
+	.h3 + & {
+		@apply mt-1;
+	}
+
+	& + .h1 {
+		@apply mt-8;
+	}
+
+	& + .h2 {
+		@apply mt-8;
+	}
+
+	& + .h3 {
+		@apply mt-8;
+	}
+	@apply mb-3;
+}
+
+@utility b {
+	@apply text-stone-800/80 dark:text-stone-300/90;
+	font-weight: 700;
+}
+
+@utility text-body {
+	font-size: 18px;
+	line-height: 140%;
+}
+
+@utility text-2nd {
+	font-size: 16px;
+	line-height: 120%;
+}
+
+@utility max-w-body {
+	width: 600px;
+}
+
+@utility text-label {
+	@apply tracking-widest dark:text-stone-300/70;
+	font-weight: 700;
+	text-transform: uppercase;
+	font-size: 15px;
+}
+
+@utility ol {
+	counter-reset: li;
+
+	& li {
+		@apply flex gap-2;
+		counter-increment: li;
+	}
+
+	& li::before {
+		@apply inline-block shrink-0 tabular-nums;
+		content: counter(li) ".";
+	}
+}
+
+@utility ul {
+	& li {
+		@apply flex gap-2;
+	}
+
+	& li::before {
+		@apply inline-block shrink-0 text-3xl leading-[26px];
+		content: "\2022";
+	}
+}
+
+@utility code {
+	@apply rounded-md border border-th-electric-indigo-500/40 bg-th-electric-indigo-100 px-1 py-px dark:bg-th-electric-indigo-950;
+}
+
+@utility pre {
+	@apply rounded-md p-3 text-info-50;
+	color: hsl(207deg 100% 80%);
+	background-color: hsl(202deg 58% 17%);
+}
+
+@utility font-sans-uppercase {
+	@apply font-sans tracking-wide uppercase;
+}
+
+/*
+ * Typography inspired by Erik Kennedy
+ *
+ * Title
+ * Subheader
+ * Widget Subheader (all caps)
+ * Body
+ * Secondary
+ * Label
+ *
+ * All of the above then have a second variant to account for "busy" pages. Busy
+ * applies to more than just the text, including padding, margins, borders, etc.
+ * too.
+ */
+
+@layer utilities {
+	ol,
+	ul {
+		@apply p-0;
+	}
+
+	textarea {
+		display: block;
+	}
+}

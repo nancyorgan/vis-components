@@ -1,0 +1,113 @@
+/* -----------------------------------------------------------------------------
+ * vis-components project-local styles.
+ *
+ * Layered on top of the shared @th/react-app Tailwind config (imported first
+ * in global.css). Anything here is scoped to vis-components; once a token or
+ * utility stabilizes, consider promoting it into the shared tailwind.theme.css
+ * in packages/react-app/src/tailwind/ so the rest of the monorepo can use it.
+ *
+ * Tailwind v4 syntax:
+ *   @theme    → design tokens that become utilities (text-<name>, bg-<name>, …)
+ *   @layer base       → element-level defaults (html, body, focus rings)
+ *   @layer components → reusable multi-class styles (.vc-card, .vc-pill)
+ *   @layer utilities  → one-off utilities Tailwind doesn't cover
+ * -------------------------------------------------------------------------- */
+
+/* -----------------------------------------------------------------------------
+ * Design tokens
+ * -------------------------------------------------------------------------- */
+@theme {
+	/* Typography — Google Fonts loaded in index.html.
+	 *   body  → DM Sans (overrides the shared --font-sans default)
+	 *   heads → DM Sans (--font-heading token → `font-heading` utility)
+	 * Currently both point at DM Sans (neutral baseline while we decide on a
+	 * display face); the Google Fonts link + --font-heading token stay wired
+	 * up so we can swap in a header/body pairing later without replumbing.
+	 * Overriding --font-sans here (imported after the vendored theme) keeps
+	 * the change project-local without editing tailwind.theme.css. */
+	--font-sans:
+		"DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	--font-heading: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+
+	/* Project accent — used by primary interactive surfaces. Pick one brand
+	 * color to expand Tailwind's vc-accent utilities (text-vc-accent,
+	 * bg-vc-accent, border-vc-accent, etc.) across vis-components. */
+	--color-vc-accent: #4f8eda;
+	--color-vc-accent-soft: #e8f0fb;
+
+	/* Subtle surface tint used by modals and popovers. Keeps chrome stable
+	 * across light/dark without reaching for Tailwind's stone palette. */
+	--color-vc-surface: #ffffff;
+	--color-vc-surface-muted: #f8f8f7;
+
+	/* Editor sidebar (the column with Encodings, Base font, etc.) */
+	--color-vc-sidebar: #fafafa; /* soft gray */
+
+	/* Sidebar section headers (Fields, Encodings, Base font, …) */
+	--color-vc-section-header: #4530e3; /* dark purple */
+
+	/* Shaded panel behind each option group (Hue, Opacity, Axis, …).
+	 * Consumed by the .vc-option-panel component class below. */
+	--color-vc-option-panel: #f5f5f4; /* light: stone-100 */
+	--color-vc-option-panel-dark: rgb(41 37 36 / 0.5); /* dark: stone-800 @ 50% */
+
+	/* Add more project-local tokens below as they emerge. Candidates to
+	 * promote into the shared theme (tailwind.theme.css) once stable:
+	 *   --color-vc-warn
+	 *   --font-vc-display
+	 *   --radius-vc-card
+	 */
+}
+
+/* -----------------------------------------------------------------------------
+ * Base layer — global element defaults
+ * -------------------------------------------------------------------------- */
+@layer base {
+	/* Headings render in the --font-heading face (currently DM Sans). Covers
+	 * the sidebar section headers too — AsideSection renders them as <h3>. Use
+	 * the `font-heading` utility for header-like elements that aren't <h1>–<h6>. */
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		font-family: var(--font-heading);
+	}
+
+	/* Keep the embed route truly chromeless: scrollbars inside the iframe
+	 * body would crop the chart by a few pixels on some platforms. */
+	body:has([data-vc-embed]) {
+		overflow: hidden;
+	}
+}
+
+/* -----------------------------------------------------------------------------
+ * Component layer — reusable multi-class styles
+ * -------------------------------------------------------------------------- */
+@layer components {
+	/* Shaded background used behind every per-encoding option group in the
+	 * sidebar (Hue, Opacity, Axis, Angle/Length, Shape, Pattern, Base Font
+	 * subgroups, etc.). Change the two tokens above to restyle all 19 panels
+	 * at once. */
+	.vc-option-panel {
+		border-radius: 0.375rem; /* matches rounded-md */
+		padding: 0.5rem; /* matches p-2 */
+		/* background-color: var(--color-vc-option-panel); */
+		background-color: #e9e6ff;
+	}
+	.dark .vc-option-panel {
+		background-color: var(--color-vc-option-panel-dark);
+	}
+}
+
+/* -----------------------------------------------------------------------------
+ * Utility layer — one-offs that Tailwind doesn't cover
+ * -------------------------------------------------------------------------- */
+@layer utilities {
+	/* Example pattern — uncomment if you need it:
+	 *
+	 * .text-balance { text-wrap: balance; }
+	 */
+}

@@ -1,0 +1,226 @@
+/* Brand under white */
+.bg-brand-text-aa {
+	@apply border-y border-t-brand-400 border-b-brand-600 bg-brand-500 text-white;
+}
+
+.bg-brand-text-aa:hover {
+	background-color: color-mix(in srgb, var(--color-brand-500), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-brand-400), black 10%);
+}
+
+.bg-brand-text-aa:active {
+	background-color: color-mix(in srgb, var(--color-brand-500), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-brand-400), black 20%);
+}
+
+:global(.dark) {
+	/* Brand under stone-300 */
+
+	.bg-brand-text-aa {
+		@apply border-y border-t-brand-500 border-b-brand-700 bg-brand-600 text-stone-300;
+	}
+
+	.bg-brand-text-aa:hover {
+		background-color: color-mix(in srgb, var(--color-brand-600), black 10%);
+		border-top-color: color-mix(in srgb, var(--color-brand-500), black 10%);
+	}
+
+	.bg-brand-text-aa:active {
+		background-color: color-mix(in srgb, var(--color-brand-600), black 20%);
+		border-top-color: color-mix(in srgb, var(--color-brand-500), black 20%);
+	}
+}
+
+/* Success under white */
+.bg-success-text-aa {
+	@apply border-y border-t-success-600 border-b-success-800 bg-success-700 text-white;
+}
+
+.bg-success-text-aa:hover {
+	background-color: color-mix(in srgb, var(--color-success-700), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-success-600), black 10%);
+}
+
+.bg-success-text-aa:active {
+	background-color: color-mix(in srgb, var(--color-success-700), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-success-600), black 20%);
+}
+
+:global(.dark) {
+	/* Success under stone-300 */
+
+	.bg-success-text-aa {
+		@apply border-y border-t-success-700 border-b-success-900 bg-success-800 text-stone-300;
+	}
+
+	.bg-success-text-aa:hover {
+		background-color: color-mix(in srgb, var(--color-success-800), black 10%);
+		border-top-color: color-mix(in srgb, var(--color-success-700), black 10%);
+	}
+
+	.bg-success-text-aa:active {
+		background-color: color-mix(in srgb, var(--color-success-800), black 20%);
+		border-top-color: color-mix(in srgb, var(--color-success-700), black 20%);
+	}
+}
+
+/* Error under white */
+.bg-error-text-aa {
+	@apply border-y border-t-error-500 border-b-error-700 bg-error-600 text-white;
+}
+
+.bg-error-text-aa:hover {
+	background-color: color-mix(in srgb, var(--color-error-600), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-error-500), black 10%);
+}
+
+.bg-error-text-aa:active {
+	background-color: color-mix(in srgb, var(--color-error-600), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-error-500), black 20%);
+}
+
+:global(.dark) {
+	/* Error under stone-300 (stone-300 IS AA on top of this error color, but stone-200 looks better) */
+
+	.bg-error-text-aa {
+		@apply border-y border-t-error-700 border-b-error-900 bg-error-800 text-stone-200;
+	}
+
+	.bg-error-text-aa:hover {
+		background-color: color-mix(in srgb, var(--color-error-800), black 10%);
+		border-top-color: color-mix(in srgb, var(--color-error-700), black 10%);
+	}
+
+	.bg-error-text-aa:active {
+		background-color: color-mix(in srgb, var(--color-error-800), black 20%);
+		border-top-color: color-mix(in srgb, var(--color-error-700), black 20%);
+	}
+}
+
+/* Warning under white */
+.bg-warning-text-aa {
+	@apply border-y border-t-warning-300 border-b-warning-500 bg-warning-400 text-stone-700;
+}
+
+.bg-warning-text-aa:hover {
+	background-color: color-mix(in srgb, var(--color-warning-400), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-warning-300), black 10%);
+}
+
+.bg-warning-text-aa:active {
+	background-color: color-mix(in srgb, var(--color-warning-400), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-warning-300), black 20%);
+}
+
+:global(.dark) {
+	/* Warning under stone-300 */
+
+	.bg-warning-text-aa {
+		@apply border-y border-t-warning-700 border-b-warning-900 bg-warning-800 text-stone-300;
+	}
+
+	.bg-warning-text-aa:hover {
+		background-color: color-mix(in srgb, var(--color-warning-800), black 10%);
+		border-top-color: color-mix(in srgb, var(--color-warning-700), black 10%);
+	}
+
+	.bg-warning-text-aa:active {
+		background-color: color-mix(in srgb, var(--color-warning-800), black 20%);
+		border-top-color: color-mix(in srgb, var(--color-warning-700), black 20%);
+	}
+}
+
+/* Info under white */
+.bg-info-text-aa {
+	@apply border-y border-t-info-500 border-b-info-700 bg-info-600 text-white;
+}
+
+.bg-info-text-aa:hover {
+	background-color: color-mix(in srgb, var(--color-info-600), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-info-500), black 10%);
+}
+
+.bg-info-text-aa:active {
+	background-color: color-mix(in srgb, var(--color-info-600), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-info-500), black 20%);
+}
+
+:global(.dark) {
+	/* Info under stone-300 */
+
+	.bg-info-text-aa {
+		@apply border-y border-t-info-700 border-b-info-900 bg-info-800 text-white;
+	}
+
+	.bg-info-text-aa:hover {
+		background-color: color-mix(in srgb, var(--color-info-800), black 10%);
+		border-top-color: color-mix(in srgb, var(--color-info-700), black 10%);
+	}
+
+	.bg-info-text-aa:active {
+		background-color: color-mix(in srgb, var(--color-info-800), black 20%);
+		border-top-color: color-mix(in srgb, var(--color-info-700), black 20%);
+	}
+}
+
+.bg-info-text-aa:disabled:active,
+.bg-info-text-aa[aria-disabled]:active,
+.bg-info-text-aa:disabled:hover,
+.bg-info-text-aa[aria-disabled]:hover,
+.bg-info-text-aa:disabled,
+.bg-info-text-aa[aria-disabled],
+.bg-warning-text-aa:disabled:active,
+.bg-warning-text-aa[aria-disabled]:active,
+.bg-warning-text-aa:disabled:hover,
+.bg-warning-text-aa[aria-disabled]:hover,
+.bg-warning-text-aa:disabled,
+.bg-warning-text-aa[aria-disabled],
+.bg-error-text-aa:disabled:active,
+.bg-error-text-aa[aria-disabled]:active,
+.bg-error-text-aa:disabled:hover,
+.bg-error-text-aa[aria-disabled]:hover,
+.bg-error-text-aa:disabled,
+.bg-error-text-aa[aria-disabled],
+.bg-success-text-aa:disabled:active,
+.bg-success-text-aa[aria-disabled]:active,
+.bg-success-text-aa:disabled:hover,
+.bg-success-text-aa[aria-disabled]:hover,
+.bg-success-text-aa:disabled,
+.bg-success-text-aa[aria-disabled],
+.bg-brand-text-aa:disabled:active,
+.bg-brand-text-aa[aria-disabled]:active,
+.bg-brand-text-aa:disabled:hover,
+.bg-brand-text-aa[aria-disabled]:hover,
+.bg-brand-text-aa:disabled,
+.bg-brand-text-aa[aria-disabled] {
+	@apply border-[#767676] bg-[#767676] text-white;
+}
+
+:global(.dark) {
+	.bg-info-text-aa:disabled:active,
+	.bg-info-text-aa[aria-disabled]:active,
+	.bg-info-text-aa:disabled:hover,
+	.bg-info-text-aa[aria-disabled]:hover,
+	.bg-info-text-aa:disabled,
+	.bg-info-text-aa[aria-disabled],
+	.bg-warning-text-aa:disabled:active,
+	.bg-warning-text-aa[aria-disabled]:active,
+	.bg-warning-text-aa:disabled:hover,
+	.bg-warning-text-aa[aria-disabled]:hover,
+	.bg-warning-text-aa:disabled,
+	.bg-warning-text-aa[aria-disabled],
+	.bg-error-text-aa:disabled:active,
+	.bg-error-text-aa[aria-disabled]:active,
+	.bg-error-text-aa:disabled:hover,
+	.bg-error-text-aa[aria-disabled]:hover,
+	.bg-error-text-aa:disabled,
+	.bg-error-text-aa[aria-disabled],
+	.bg-brand-text-aa:disabled:active,
+	.bg-brand-text-aa[aria-disabled]:active,
+	.bg-brand-text-aa:disabled:hover,
+	.bg-brand-text-aa[aria-disabled]:hover,
+	.bg-brand-text-aa:disabled,
+	.bg-brand-text-aa[aria-disabled] {
+		@apply border-metal-700 bg-metal-700 text-stone-300;
+	}
+}

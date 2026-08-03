@@ -1,0 +1,39 @@
+.claude
+.playwright-mcp
+coverage
+dist
+node_modules
+.DS_Store
+*.log
+e2e/screenshots
+test-results
+playwright-report
+*.csv
+# …except the checked-in e2e geo fixtures, which the suite needs
+!e2e/fixtures/*.csv
+
+CLAUDE.md
+TODOS.md
+
+# Internal planning docs, audits, and screenshots — local-only
+docs/
+
+# Local datasets — never commit
+testdata/
+
+# Private example library — a developer's local seed, shared with colleagues
+# out-of-band. The committed src/seed/examples.json is the public seed and
+# wins only when this override is absent (see src/main.tsx).
+src/seed/examples.local.json
+
+# Environment files — anyone wiring up their own backend keeps secrets here
+.env
+.env.*
+
+# Editor/IDE local settings
+.vscode/
+.idea/
+
+# Tool caches
+*.tsbuildinfo
+.eslintcache

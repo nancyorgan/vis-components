@@ -1,0 +1,581 @@
+import { useAtomValue } from "jotai"
+import {
+	DEFAULT_DATA_LABELS_CONFIG,
+	type DataLabelsConfig,
+	type HueConfig,
+} from "../../lib/channelConfig"
+import {
+	keepLastPerSeries,
+	labelHeight,
+	labelWidth,
+	nudgeOverlaps,
+	type LabelBox,
+} from "../../lib/dataLabelsLayout"
+import {
+	buildLabelSegments,
+	labelHueScaleParts,
+	resolveLabelFill,
+	resolveLabelSize,
+} from "../../lib/dataLabelsStyle"
+import { effectiveType } from "../../lib/fieldType"
+import { renderMultilineTspans, wrapByCharCount } from "../../lib/multilineText"
+import {
+	applyHueScale,
+	applyPositionScale,
+	makeHueScale,
+	type HueScale,
+	type PositionScale,
+} from "../../lib/scales"
+import {
+	emptyDataLabelsEncodings,
+	type DataLabelsEncodings,
+	type FieldType,
+} from "../../lib/types"
+import {
+	currentChannelConfigsAtom,
+	currentDataLabelsConfigAtom,
+	currentDataLabelsEncodingsAtom,
+	currentEncodingsAtom,
+	currentFieldOverridesAtom,
+} from "../../store/atoms"
+import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+
+/** A pre-computed label position. Renderers like BarPlot / AreaPlot
+ * compute these from their aggregation slices so labels sit at slice
+ * centers (respecting stack / group / overlay layout) instead of being
+ * placed at every raw row's (x, y) — which would clump labels into a
+ * single category band. */
+export type DataLabelAnchor = {
+	cx: number
+	cy: number
+	/** Stable key for React reconciliation. */
+	key: string
+	/** Pre-formatted label text. When `null`, the layer skips this anchor.
+	 * Bar / area renderers format the slice's measure (or the user's value
+	 * field) into a string up-front. */
+	label: string | null
+	/** Raw value used when the user has mapped a hue field — looked up
+	 * against the layer's hue scale. `undefined` when no hue is involved
+	 * (e.g. position-only labels). */
+	hueValue?: unknown
+	/** Raw value used when the user has mapped a size field. */
+	sizeValue?: unknown
+	/** Raw numeric value backing the label, when known. Feeds the
+	 * conditional text-color rules — the formatted `label` string isn't
+	 * sufficient because rules compare against the underlying number, not
+	 * its rounded/decimaled display form. */
+	labelValue?: unknown
+}
+
+type Props = {
+	/** Raw dataset rows. Used when `anchors` is omitted — one label per
+	 * row at (xScale(row[xField]), yScale(row[yField])). */
+	rows: ReadonlyArray<Record<string, unknown>>
+	xScale: PositionScale | null
+	yScale: PositionScale | null
+	xType: FieldType | null
+	yType: FieldType | null
+	/** Optional row filter — used by faceted panels so each panel only
+	 * draws its own subset of labels. Ignored when `anchors` is set. */
+	rowFilter?: (row: Record<string, unknown>) => boolean
+	/** Pre-computed label positions. When provided, the layer iterates
+	 * `anchors` instead of `rows` — used by aggregating renderers (bars,
+	 * areas) so labels sit at slice centers and respect stack / group
+	 * layout instead of clumping at raw row positions. */
+	anchors?: readonly DataLabelAnchor[]
+	/** Which position channels gate the layer on. `"xy"` (default) wants
+	 * `x` + `y` mapped; `"polar"` (pies) wants `angle` + `r` mapped — though
+	 * legacy `x` + `y` still satisfy it so saved pie visuals keep working. */
+	positionGate?: "xy" | "polar"
+}
+
+// Text formatting, size interpolation, hue-scale assembly, and the fill
+// precedence chain live in `lib/dataLabelsStyle.ts` — shared with the
+// hierarchy renderers, whose labels are placed by their layouts but
+// styled by the same Data Labels options.
+
+/** A render-ready label box: a positioned, colored, formatted label. Both
+ * the anchor-based and row-based paths build this shape so they can share
+ * the SVG emission below. */
+type RenderableLabel = {
+	cx: number
+	cy: number
+	text: string
+	fontSize: number
+	fill: string
+	label: string
+	key: string
+	/** Per-variable colored pieces (multi-field labels with field colors).
+	 *  When present, each piece renders as its own `<tspan>` fill; the label
+	 *  draws on a single line (wrapping doesn't apply to colored segments). */
+	segments?: { text: string; fill: string }[]
+}
+
+/** Fallback padding (px) for the text-background rect when the config hasn't
+ * set explicit values — matches the historical baked-in look. */
+const DEFAULT_BG_PAD_X = 3
+const DEFAULT_BG_PAD_Y = 1.5
+
+/** Emit the `<text>` elements (plus optional background rects) for a list of
+ * resolved label boxes. Shared by the anchor-based and row-based paths so the
+ * text-background, alignment, and font handling stay in one place. */
+const renderLabels = (
+	boxes: RenderableLabel[],
+	cfg: DataLabelsConfig,
+	bgColor: string
+): React.ReactElement => {
+	const textAnchor =
+		cfg.alignment === "left"
+			? "start"
+			: cfg.alignment === "right"
+				? "end"
+				: "middle"
+	const padX = cfg.textBackgroundPadX ?? DEFAULT_BG_PAD_X
+	const padY = cfg.textBackgroundPadY ?? DEFAULT_BG_PAD_Y
+	const wrap = cfg.wrapText === true
+	const wrapMaxChars = cfg.wrapMaxChars ?? DEFAULT_DATA_LABELS_CONFIG.wrapMaxChars ?? 20
+	return (
+		<g aria-hidden="true" pointerEvents="none">
+			{boxes.map((b) => {
+				// Per-variable colored segments render as inline colored tspans on
+				// a single line — wrapping doesn't apply to them.
+				const segs = b.segments ?? []
+				const segmented = segs.length > 0
+				// Split into lines up-front so the background rect and the
+				// `<tspan>` emission agree on the label's footprint. A short
+				// label (or wrapping off / segmented) yields a single line,
+				// keeping the non-wrapped render byte-identical to before.
+				const lines =
+					wrap && !segmented ? wrapByCharCount(b.label, wrapMaxChars) : [b.label]
+				const multiline = lines.length > 1
+				let rect: React.ReactElement | null = null
+				if (cfg.textBackground) {
+					// Size to the widest wrapped line; height grows per line at
+					// the same 1.2em step `renderMultilineTspans` uses.
+					const w =
+						Math.max(...lines.map((l) => labelWidth({ text: l, fontSize: b.fontSize }))) +
+						padX * 2
+					const h =
+						(multiline ? lines.length * b.fontSize * 1.2 : labelHeight(b)) + padY * 2
+					// Align the rect's left edge to the text's start the same way
+					// the text-anchor positions the glyphs, so the box hugs the
+					// label regardless of alignment.
+					const rx =
+						textAnchor === "start"
+							? b.cx - padX
+							: textAnchor === "end"
+								? b.cx - w + padX
+								: b.cx - w / 2
+					rect = (
+						<rect
+							x={rx}
+							y={b.cy - h / 2}
+							width={w}
+							height={h}
+							rx={cfg.textBackgroundRadius ?? 0}
+							fill={bgColor}
+						/>
+					)
+				}
+				return (
+					<g key={b.key}>
+						{rect}
+						<text
+							x={b.cx}
+							y={b.cy}
+							fill={b.fill}
+							fontFamily={cfg.fontFamily}
+							fontSize={b.fontSize}
+							fontWeight={cfg.fontWeight}
+							fontStyle={cfg.italic ? "italic" : undefined}
+							textDecoration={cfg.underline ? "underline" : undefined}
+							textAnchor={textAnchor}
+							dominantBaseline="middle"
+						>
+							{segmented
+								? segs.map((s, i) => (
+										<tspan
+											// Segment order is stable → index is its identity.
+											// eslint-disable-next-line react/no-array-index-key
+											key={`${b.key}-s${i}`}
+											fill={s.fill}
+										>
+											{s.text}
+										</tspan>
+									))
+								: multiline
+									? renderMultilineTspans(lines.join("\n"), b.cx, {
+											verticallyCentered: true,
+											lineAnchor: textAnchor,
+										})
+									: b.label}
+						</text>
+					</g>
+				)
+			})}
+		</g>
+	)
+}
+
+/** Renders a layer of `<text>` elements on top of the main visualization
+ * marks. Operates in one of two modes:
+ *   - Row-based (default): one label per row in `rows`, positioned via
+ *     `xScale`/`yScale` from the row's mapped fields. Used by
+ *     ScatterPlot and any chart whose label anchors are raw points.
+ *   - Anchor-based: caller pre-computes `anchors` (slice centers, layer
+ *     centroids, etc.) and the layer just renders them. Used by bars
+ *     and areas so labels respect stack / group / overlay layout. */
+export const DataLabelsLayer = ({
+	rows,
+	xScale,
+	yScale,
+	xType,
+	yType,
+	rowFilter,
+	anchors,
+	positionGate = "xy",
+}: Props) => {
+	const encodings: DataLabelsEncodings = {
+		...emptyDataLabelsEncodings(),
+		...useAtomValue(currentDataLabelsEncodingsAtom),
+	}
+	const cfg: DataLabelsConfig = {
+		...DEFAULT_DATA_LABELS_CONFIG,
+		...useAtomValue(currentDataLabelsConfigAtom),
+	}
+	const overrides = useAtomValue(currentFieldOverridesAtom)
+	const dataset = useCurrentDatasetView()
+	// When wrapping is on, the overlap pass (`nudgeOverlaps`) must reserve
+	// each label's WRAPPED footprint — narrower and taller than the raw
+	// single-line string — or it would collide-check a phantom one-line box.
+	// Encode the wrapped lines into `text` (newline-joined); labelWidth /
+	// labelHeight treat `\n` as line breaks. `label` stays the raw string —
+	// `renderLabels` re-wraps it for the actual `<tspan>` emission, so the
+	// layout box and the drawn text agree.
+	const layoutWrapMaxChars =
+		cfg.wrapMaxChars ?? DEFAULT_DATA_LABELS_CONFIG.wrapMaxChars ?? 20
+	const wrapBoxForLayout = <T extends { text: string; label: string }>(
+		box: T
+	): T =>
+		cfg.wrapText === true
+			? { ...box, text: wrapByCharCount(box.label, layoutWrapMaxChars).join("\n") }
+			: box
+	// Pull the main chart's connection field so the row-based path (scatter
+	// + connection = line chart) can group rows into "lines" for the
+	// `onlyLastLabel` filter. This atom is independent from the data-labels
+	// encodings atom; we just read it for series-grouping context.
+	const chartEncodings = useAtomValue(currentEncodingsAtom)
+	const connectionField = chartEncodings.connection?.field ?? null
+	// Read the chart's channel configs so we can FALL BACK to the chart's
+	// categorical palette when the user maps DataLabels.hue but hasn't
+	// picked a separate palette in the Data Labels panel. The user
+	// reported "I added a categorical hue to data labels but it didn't
+	// apply" — root cause was `cfg.palette.length === 0` causing
+	// `buildLabelHueConfig` to return null. Falling back here means the
+	// labels inherit the chart's hue colors automatically.
+	const chartChannelConfigs = useAtomValue(currentChannelConfigsAtom)
+	// Text-background fill: an explicit override wins, else inherit the
+	// visualization's own background (white when that's transparent) so the
+	// rect masks gridlines by blending into the chart canvas.
+	const textBgColor =
+		cfg.textBackgroundColor ?? chartChannelConfigs.backgroundColor ?? "#ffffff"
+
+	const xField = encodings.x.field
+	const yField = encodings.y.field
+	const angleField = encodings.angle.field
+	const valueField = encodings.value.field
+	const hueField = encodings.hue.field
+	const sizeField = encodings.size.field
+	// Hue field's effective type drives whether labels color through a
+	// categorical palette or a quantitative gradient.
+	const hueFieldType: FieldType =
+		dataset && hueField
+			? effectiveType(dataset, hueField, overrides)
+			: "categorical"
+	const isHueQuant =
+		hueFieldType === "quantitative" || hueFieldType === "temporal"
+	// Palette / gradient assembly + the inherit-chart-palette fallback
+	// (and its "None (single color)" suppression) live in
+	// `labelHueScaleParts` — shared with the hierarchy renderers.
+	const { hueConfig: partsHueConfig, customPalette } = labelHueScaleParts(
+		cfg,
+		hueFieldType,
+		chartChannelConfigs
+	)
+	const hueConfig: HueConfig | null = hueField ? partsHueConfig : null
+
+	// Gate: data labels only render when the user has explicitly mapped
+	// the position field(s) AND the value field. Without this, labels would
+	// "guess" a value from the position field — appearing the moment one
+	// encoding is set, which is confusing during chart setup. Polar charts
+	// (pies) gate on `angle` alone — `r` is optional (unmapped → labels sit
+	// on the pie's border). Legacy `x` + `y` still satisfy it so saved pie
+	// visuals from before the polar channels keep rendering.
+	const positionMapped =
+		positionGate === "polar"
+			? Boolean(angleField) || (Boolean(xField) && Boolean(yField))
+			: Boolean(xField) && Boolean(yField)
+	// "Value" is satisfied by a single mapped field OR multi-field mode with
+	// at least one field checked (multi-field mode leaves `value.field` null).
+	const valueMapped =
+		Boolean(valueField) ||
+		(encodings.value.multiField === true &&
+			(encodings.value.fields?.length ?? 0) > 0)
+	if (!positionMapped || !valueMapped) return null
+
+	// --- Anchor-based path (bars/areas). --------------------------------
+	if (anchors) {
+		if (anchors.length === 0) return null
+		// The hue field's effective type decides whether the scale is
+		// categorical (using `cfg.palette`) or quantitative (using
+		// `cfg.gradient*`). The DOMAIN comes from the full dataset (not the
+		// anchor list) so the category → color assignment matches the chart's
+		// own hue scale and legend: anchors iterate stacks/slices in layout
+		// order, which can differ from dataset row order — building the
+		// ordinal domain from them shuffled label colors relative to the
+		// marks. Falls back to the anchors' values when the dataset view
+		// isn't available.
+		let hueScale: HueScale | null = null
+		if (hueField && hueConfig) {
+			const values = dataset?.rows
+				? dataset.rows.map((r) => r[hueField])
+				: anchors.map((a) => a.hueValue)
+			hueScale = makeHueScale(values, hueFieldType, hueConfig, customPalette)
+		}
+		const sizeValues = sizeField
+			? anchors
+					.map((a) => Number(a.sizeValue))
+					.filter((n) => Number.isFinite(n))
+			: []
+		// Build per-anchor render boxes once so the post-passes (`onlyLastLabel`
+		// + `avoidOverlaps`) operate on a stable shape and the downstream
+		// `<text>` map can read its already-resolved fields.
+		type RenderBox = LabelBox & {
+			key: string
+			fill: string
+			label: string
+		}
+		const renderBoxes: RenderBox[] = anchors.flatMap((a, i) => {
+			if (a.label === null) return []
+			const hueColor =
+				hueScale && a.hueValue !== undefined
+					? (applyHueScale(hueScale, a.hueValue, hueFieldType) ?? null)
+					: null
+			const fill = resolveLabelFill(cfg, a.hueValue, hueColor, a.labelValue)
+			const fontSize = sizeField
+				? resolveLabelSize(a.sizeValue, cfg, sizeValues)
+				: cfg.fontSize
+			return [
+				{
+					cx: a.cx + cfg.xOffset,
+					cy: a.cy + cfg.yOffset,
+					text: a.label,
+					fontSize,
+					// Anchor-based renderers (bars/areas) carry the hue value as
+					// the de-facto "series" identity — every slice in the same
+					// stack/layer shares the same hue. Falls back to "" when
+					// no hue is mapped, which `keepLastPerSeries` interprets as
+					// "all anchors are one big group" (single-survivor fallback).
+					series: a.hueValue === undefined ? "" : String(a.hueValue ?? ""),
+					index: i,
+					key: a.key,
+					fill,
+					label: a.label,
+				},
+			]
+		})
+		// Pick the primary axis for "last per series" ranking. When the
+		// chart's categorical axis is x (vertical bars/areas, scatter), the
+		// "last" anchor is the rightmost (largest cx). When it's y
+		// (horizontal bars/areas), use cy. xType/yType arrive from the
+		// caller via props so we don't need to know the chart mode here.
+		const lastAxis: "x" | "y" =
+			yType === "categorical" || yType === "ordinal" ? "y" : "x"
+		const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
+		const filtered = cfg.onlyLastLabel
+			? keepLastPerSeries(layoutBoxes, lastAxis)
+			: layoutBoxes
+		const finalBoxes = cfg.avoidOverlaps ? nudgeOverlaps(filtered) : filtered
+		return renderLabels(finalBoxes, cfg, textBgColor)
+	}
+
+	// --- Row-based path (scatter / fallback). ---------------------------
+	// At least one position field must be mapped — without that, there's
+	// nothing to anchor labels to. The label content falls back to the
+	// position field's value when no explicit value field is mapped.
+	if (!xField && !yField) return null
+	if ((xField && (!xScale || !xType)) || (yField && (!yScale || !yType))) {
+		return null
+	}
+
+	const candidateRows = rowFilter ? rows.filter(rowFilter) : rows
+
+	let hueScale: HueScale | null = null
+	if (hueField && hueConfig) {
+		// Build the hue domain from the FULL dataset, not the (possibly
+		// faceted / filtered) rows we're about to draw. This mirrors the
+		// load-bearing invariant the marks' hue scale relies on (see
+		// useAestheticScales): a chart faceted by — or otherwise narrowed to —
+		// a single hue value would give each panel a one-entry domain,
+		// collapsing every label to the palette's first color while the marks
+		// stayed correctly varied. Falls back to the panel rows when the full
+		// dataset view isn't available.
+		const hueValues = (dataset?.rows ?? candidateRows).map((r) => r[hueField])
+		hueScale = makeHueScale(
+			hueValues,
+			hueFieldType,
+			hueConfig,
+			!isHueQuant && cfg.palette.length > 0 ? cfg.palette : undefined
+		)
+	}
+	const sizeValues: number[] = sizeField
+		? candidateRows
+				.map((r) => Number(r[sizeField]))
+				.filter((n) => Number.isFinite(n))
+		: []
+
+	type RenderBox = LabelBox & {
+		key: string
+		fill: string
+		label: string
+		/** Per-variable colored pieces (multi-field mode with field colors).
+		 *  When set, `renderLabels` draws one `<tspan>` per segment with its
+		 *  own fill instead of the single-color `label`. */
+		segments?: { text: string; fill: string }[]
+	}
+
+	// Per-variable label color (multi-field): one color slot per shown field
+	// (`cfg.fieldColors[field]`), mirroring the mark color slots. A slot with
+	// no field → its single color; a slot varying by a field → a hue scale
+	// over that field. Prebuild each slot's scale once (few slots), then look
+	// up per row. No slot for a field → that segment uses the label's base fill.
+	const fieldColorScales = new Map<
+		string,
+		{ scale: HueScale; field: string; type: FieldType }
+	>()
+	for (const [fieldName, slotCfg] of Object.entries(cfg.fieldColors ?? {})) {
+		const varyField = slotCfg?.field
+		if (!varyField) continue
+		const t: FieldType = dataset
+			? effectiveType(dataset, varyField, overrides)
+			: "categorical"
+		const values = (dataset?.rows ?? candidateRows).map((r) => r[varyField])
+		fieldColorScales.set(fieldName, {
+			scale: makeHueScale(
+				values,
+				t,
+				slotCfg.hue,
+				slotCfg.palette && slotCfg.palette.length > 0
+					? slotCfg.palette
+					: undefined
+			),
+			field: varyField,
+			type: t,
+		})
+	}
+	// One label segment's fill. Literal (fieldless) segments and unconfigured
+	// fields use the label's base fill; a configured slot uses its scale (vary
+	// by a field) or its single color.
+	const resolveSegmentFill = (
+		field: string | null,
+		row: Record<string, unknown>,
+		baseFill: string
+	): string => {
+		if (!field) return baseFill
+		const slotCfg = cfg.fieldColors?.[field]
+		if (!slotCfg) return baseFill
+		if (slotCfg.field) {
+			const s = fieldColorScales.get(field)
+			const c = s ? applyHueScale(s.scale, row[s.field], s.type) : null
+			return c ?? slotCfg.singleColor ?? baseFill
+		}
+		return slotCfg.singleColor ?? baseFill
+	}
+
+	// Build the row-based render boxes through the same shape the anchor path
+	// uses, so the same `keepLastPerSeries` / `nudgeOverlaps` passes apply.
+	// Series identity for line charts comes from the connection field —
+	// each connection group is one polyline, so its "last label" sits at
+	// the rightmost data point of that line.
+	const renderBoxes: RenderBox[] = candidateRows.flatMap((row, i) => {
+		const cx =
+			xField && xScale && xType
+				? applyPositionScale(xScale, row[xField], xType)
+				: null
+		const cy =
+			yField && yScale && yType
+				? applyPositionScale(yScale, row[yField], yType)
+				: null
+		if (cx === null && cy === null) return []
+		const anchorX = cx ?? 0
+		const anchorY = cy ?? 0
+		// Text: single-field formats one field's value; multi-field composes
+		// several from the template. `buildLabelSegments` returns the ordered
+		// pieces (value segments carry their field name; literals don't) so we
+		// can color each variable independently. Fall back to the position
+		// field when no value field is mapped.
+		const segs = buildLabelSegments(row, encodings.value, cfg, xField ?? yField)
+		if (!segs) return []
+		const label = segs.map((s) => s.text).join("")
+		// Numeric backing for the label-level text-color rules: the value field
+		// (or, in multi-field mode, the first selected field) — rules compare
+		// against a number, not the composed string.
+		const primaryField = encodings.value.multiField
+			? (encodings.value.fields?.[0] ?? null)
+			: (valueField ?? xField ?? yField)
+		const labelValue = primaryField ? row[primaryField] : undefined
+		const hueColor =
+			hueScale && hueField
+				? (applyHueScale(hueScale, row[hueField], hueFieldType) ?? null)
+				: null
+		const fill = resolveLabelFill(
+			cfg,
+			hueField ? row[hueField] : undefined,
+			hueColor,
+			labelValue
+		)
+		// Resolve each segment's color; only carry `segments` when at least one
+		// differs from the base fill, so single-color labels keep the plain
+		// (wrappable) render path.
+		const coloredSegs = segs.map((s) => ({
+			text: s.text,
+			fill: resolveSegmentFill(s.field, row, fill),
+		}))
+		const segments = coloredSegs.some((s) => s.fill !== fill)
+			? coloredSegs
+			: undefined
+		const fontSize = sizeField
+			? resolveLabelSize(row[sizeField], cfg, sizeValues)
+			: cfg.fontSize
+		// Connection field → series for line charts; fall back to hue when
+		// connection isn't mapped (multi-line scatter could be hue-grouped).
+		const seriesField = connectionField ?? hueField
+		const series = seriesField ? String(row[seriesField] ?? "") : ""
+		return [
+			{
+				cx: anchorX + cfg.xOffset,
+				cy: anchorY + cfg.yOffset,
+				text: label,
+				fontSize,
+				series,
+				index: i,
+				// Rows lack a stable id, so the existing renderer keys by index
+				// (which was already eslint-disabled below). We carry that
+				// through here.
+				key: `row-${i}`,
+				fill,
+				label,
+				segments,
+			},
+		]
+	})
+	const lastAxis: "x" | "y" =
+		yType === "categorical" || yType === "ordinal" ? "y" : "x"
+	const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
+	const filtered = cfg.onlyLastLabel
+		? keepLastPerSeries(layoutBoxes, lastAxis)
+		: layoutBoxes
+	const finalBoxes = cfg.avoidOverlaps ? nudgeOverlaps(filtered) : filtered
+
+	return renderLabels(finalBoxes, cfg, textBgColor)
+}

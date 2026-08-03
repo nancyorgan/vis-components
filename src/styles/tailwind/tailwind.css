@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* Provide overrides/additions for the various Tailwind layers. */
+@import "./tailwind.theme.css";
+@import "./tailwind.base.css";
+@import "./tailwind.components.css";
+@import "./tailwind.utilities.css";
+@import "./Button.css";
+
+/* JS config is deprecated so don't add anything new. This is only here
+ * to support the typography plugin configuration.
+ */
+@config "./tailwind.config.js";
+
+/* Include class name detection for all of vis-components/src */
+@source "../../";
+
+@plugin "@tailwindcss/typography";
+
+/* https://tailwindcss.com/docs/dark-mode#toggling-dark-mode-manually */
+@custom-variant dark (&:where(.dark, .dark *));
