@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useAtom, useAtomValue } from "jotai"
+import { SectionChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
@@ -79,6 +80,59 @@ const ResetLink = ({ onClick }: { onClick: () => void }) => (
 	>
 		reset
 	</button>
+)
+
+/** Shared collapsible shell for one annotation's editor. The header row —
+ *  expand/collapse chevron, name box, remove link — is always visible so a
+ *  long list of annotations stays scannable; the body (position, style,
+ *  layer controls) renders only while expanded. Collapse state lives in the
+ *  parent so a freshly added annotation starts open while existing ones
+ *  stay collapsed. */
+const AnnotationCard = ({
+	name,
+	namePlaceholder,
+	onNameChange,
+	onRemove,
+	open,
+	onToggle,
+	children,
+}: {
+	name: string
+	namePlaceholder?: string
+	onNameChange: (name: string) => void
+	onRemove: () => void
+	open: boolean
+	onToggle: () => void
+	children: ReactNode
+}) => (
+	<div className="vc-option-panel">
+		<div className="flex items-center gap-2">
+			<button
+				type="button"
+				onClick={onToggle}
+				aria-expanded={open}
+				aria-label={open ? "Collapse annotation" : "Expand annotation"}
+				className="flex h-6 w-4 flex-shrink-0 items-center justify-center text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+			>
+				<SectionChevron open={open} />
+			</button>
+			<input
+				type="text"
+				value={name}
+				placeholder={namePlaceholder}
+				onChange={(e) => onNameChange(e.target.value)}
+				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+			/>
+			<button
+				type="button"
+				onClick={onRemove}
+				className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+			>
+				remove
+			</button>
+		</div>
+		{open && children}
+	</div>
 )
 
 /** Round `n` to a short, human-readable representation. Strips trailing
@@ -371,6 +425,20 @@ export const AnnotationsPanel = () => {
 	const xAxis = resolveAxis("x")
 	const yAxis = resolveAxis("y")
 
+	// Which annotation editors are expanded. Everything starts collapsed so a
+	// long list reads as a compact set of name rows; adding a new annotation
+	// expands it for immediate editing. Local state (resets on unmount), same
+	// trade-off CollapsibleSubsection makes.
+	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+	const setExpanded = (id: string, open: boolean) =>
+		setExpandedIds((prev) => {
+			if (prev.has(id) === open) return prev
+			const next = new Set(prev)
+			if (open) next.add(id)
+			else next.delete(id)
+			return next
+		})
+
 	const update = (next: AnnotationsConfig) => setCfg(next)
 	// Older saved configs (pre-circle) may lack `circles` until migrated;
 	// treat a missing list as empty so the panel never reads `undefined`.
@@ -383,6 +451,7 @@ export const AnnotationsPanel = () => {
 			.toString(36)
 			.slice(2, 6)}`
 		update({ ...cfg, rectangles: [...cfg.rectangles, newRectangle(id)] })
+		setExpanded(id, true)
 	}
 
 	const updateRect = (id: string, patch: Partial<RectangleAnnotation>) => {
@@ -396,6 +465,7 @@ export const AnnotationsPanel = () => {
 
 	const removeRect = (id: string) => {
 		update({ ...cfg, rectangles: cfg.rectangles.filter((r) => r.id !== id) })
+		setExpanded(id, false)
 	}
 
 	const addCircle = () => {
@@ -403,6 +473,7 @@ export const AnnotationsPanel = () => {
 			.toString(36)
 			.slice(2, 6)}`
 		update({ ...cfg, circles: [...circles, newCircle(id)] })
+		setExpanded(id, true)
 	}
 
 	const updateCircle = (id: string, patch: Partial<CircleAnnotation>) => {
@@ -414,6 +485,7 @@ export const AnnotationsPanel = () => {
 
 	const removeCircle = (id: string) => {
 		update({ ...cfg, circles: circles.filter((c) => c.id !== id) })
+		setExpanded(id, false)
 	}
 
 	const addLineSegment = () => {
@@ -421,6 +493,7 @@ export const AnnotationsPanel = () => {
 			.toString(36)
 			.slice(2, 6)}`
 		update({ ...cfg, lineSegments: [...lineSegments, newLineSegment(id)] })
+		setExpanded(id, true)
 	}
 
 	const updateLine = (id: string, patch: Partial<LineSegmentAnnotation>) => {
@@ -434,6 +507,7 @@ export const AnnotationsPanel = () => {
 
 	const removeLine = (id: string) => {
 		update({ ...cfg, lineSegments: lineSegments.filter((l) => l.id !== id) })
+		setExpanded(id, false)
 	}
 
 	return (
@@ -475,6 +549,8 @@ export const AnnotationsPanel = () => {
 					rect={rect}
 					onChange={(patch) => updateRect(rect.id, patch)}
 					onRemove={() => removeRect(rect.id)}
+					open={expandedIds.has(rect.id)}
+					onToggle={() => setExpanded(rect.id, !expandedIds.has(rect.id))}
 					xAxis={xAxis}
 					yAxis={yAxis}
 					disableValues={isPolar}
@@ -496,6 +572,8 @@ export const AnnotationsPanel = () => {
 					circle={circle}
 					onChange={(patch) => updateCircle(circle.id, patch)}
 					onRemove={() => removeCircle(circle.id)}
+					open={expandedIds.has(circle.id)}
+					onToggle={() => setExpanded(circle.id, !expandedIds.has(circle.id))}
 					xAxis={xAxis}
 					yAxis={yAxis}
 					isRadar={isRadar}
@@ -518,6 +596,8 @@ export const AnnotationsPanel = () => {
 					line={line}
 					onChange={(patch) => updateLine(line.id, patch)}
 					onRemove={() => removeLine(line.id)}
+					open={expandedIds.has(line.id)}
+					onToggle={() => setExpanded(line.id, !expandedIds.has(line.id))}
 					xAxis={xAxis}
 					yAxis={yAxis}
 					disableValues={isPolar}
@@ -545,6 +625,8 @@ const LineSegmentEditor = ({
 	line,
 	onChange,
 	onRemove,
+	open,
+	onToggle,
 	xAxis,
 	yAxis,
 	disableValues,
@@ -554,6 +636,9 @@ const LineSegmentEditor = ({
 	line: LineSegmentAnnotation
 	onChange: (patch: Partial<LineSegmentAnnotation>) => void
 	onRemove: () => void
+	/** Whether the editor body is expanded; the name row always shows. */
+	open: boolean
+	onToggle: () => void
 	xAxis: AxisInfo
 	yAxis: AxisInfo
 	/** Gray out "Values (data units)" on polar charts (radar / pie), which
@@ -565,24 +650,14 @@ const LineSegmentEditor = ({
 	facetScope?: ReactNode
 }) => {
 	return (
-		<div className="vc-option-panel">
-			<div className="flex items-center justify-between gap-2">
-				<input
-					type="text"
-					value={line.name}
-					placeholder={namePlaceholder}
-					onChange={(e) => onChange({ name: e.target.value })}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-				/>
-				<button
-					type="button"
-					onClick={onRemove}
-					className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					remove
-				</button>
-			</div>
-
+		<AnnotationCard
+			name={line.name}
+			namePlaceholder={namePlaceholder}
+			onNameChange={(name) => onChange({ name })}
+			onRemove={onRemove}
+			open={open}
+			onToggle={onToggle}
+		>
 			{facetScope}
 
 			<CollapsibleSubsection title="Position">
@@ -789,7 +864,7 @@ const LineSegmentEditor = ({
 					</button>
 				</div>
 			</div>
-		</div>
+		</AnnotationCard>
 	)
 }
 
@@ -797,6 +872,8 @@ const RectangleEditor = ({
 	rect,
 	onChange,
 	onRemove,
+	open,
+	onToggle,
 	xAxis,
 	yAxis,
 	disableValues,
@@ -806,6 +883,9 @@ const RectangleEditor = ({
 	rect: RectangleAnnotation
 	onChange: (patch: Partial<RectangleAnnotation>) => void
 	onRemove: () => void
+	/** Whether the editor body is expanded; the name row always shows. */
+	open: boolean
+	onToggle: () => void
 	xAxis: AxisInfo
 	yAxis: AxisInfo
 	/** Gray out the "Values (data units)" option — used on polar charts
@@ -817,24 +897,14 @@ const RectangleEditor = ({
 	facetScope?: ReactNode
 }) => {
 	return (
-		<div className="vc-option-panel">
-			<div className="flex items-center justify-between gap-2">
-				<input
-					type="text"
-					value={rect.name}
-					placeholder={namePlaceholder}
-					onChange={(e) => onChange({ name: e.target.value })}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-				/>
-				<button
-					type="button"
-					onClick={onRemove}
-					className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					remove
-				</button>
-			</div>
-
+		<AnnotationCard
+			name={rect.name}
+			namePlaceholder={namePlaceholder}
+			onNameChange={(name) => onChange({ name })}
+			onRemove={onRemove}
+			open={open}
+			onToggle={onToggle}
+		>
 			{facetScope}
 
 			<CollapsibleSubsection title="Position">
@@ -1201,7 +1271,7 @@ const RectangleEditor = ({
 					</button>
 				</div>
 			</div>
-		</div>
+		</AnnotationCard>
 	)
 }
 
@@ -1230,6 +1300,8 @@ const CircleEditor = ({
 	circle,
 	onChange,
 	onRemove,
+	open,
+	onToggle,
 	xAxis,
 	yAxis,
 	isRadar,
@@ -1240,6 +1312,9 @@ const CircleEditor = ({
 	circle: CircleAnnotation
 	onChange: (patch: Partial<CircleAnnotation>) => void
 	onRemove: () => void
+	/** Whether the editor body is expanded; the name row always shows. */
+	open: boolean
+	onToggle: () => void
 	xAxis: AxisInfo
 	yAxis: AxisInfo
 	/** Radar: value-mode center is polar — x=angle, y=r — and the radius is
@@ -1261,24 +1336,14 @@ const CircleEditor = ({
 			? xAxis
 			: yAxis
 	return (
-		<div className="vc-option-panel">
-			<div className="flex items-center justify-between gap-2">
-				<input
-					type="text"
-					value={circle.name}
-					placeholder={namePlaceholder}
-					onChange={(e) => onChange({ name: e.target.value })}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-				/>
-				<button
-					type="button"
-					onClick={onRemove}
-					className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					remove
-				</button>
-			</div>
-
+		<AnnotationCard
+			name={circle.name}
+			namePlaceholder={namePlaceholder}
+			onNameChange={(name) => onChange({ name })}
+			onRemove={onRemove}
+			open={open}
+			onToggle={onToggle}
+		>
 			{facetScope}
 
 			<CollapsibleSubsection title="Position">
@@ -1563,6 +1628,6 @@ const CircleEditor = ({
 					</button>
 				</div>
 			</div>
-		</div>
+		</AnnotationCard>
 	)
 }

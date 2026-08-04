@@ -165,6 +165,18 @@ describe("genuine edits light the dot; reverting clears it", () => {
 		expect(dot("hue", c)).toBe(true)
 	})
 
+	it("bar gap (Length): setting dots as its OWN control, clearing to null clears", () => {
+		const changed = { ...fresh, length: { ...fresh.length!, barGapPx: 30 } }
+		expect(dot("length", changed)).toBe(true)
+		// Its own diagnostic label — a set gap must not read as a range edit.
+		expect(explainChannelCustomization("length", changed, STUB_THEME, true)).toEqual([
+			"bar gap",
+		])
+		// Cleared back to auto (null) — the dot goes out.
+		const cleared = { ...fresh, length: { ...fresh.length!, barGapPx: null } }
+		expect(dot("length", cleared)).toBe(false)
+	})
+
 	it("default opacity / radius / shape / angle: change dots, default value clears", () => {
 		expect(dot("opacity", { ...fresh, defaultOpacity: 0.3 })).toBe(true)
 		expect(dot("area", { ...fresh, defaultRadius: 99 })).toBe(true)

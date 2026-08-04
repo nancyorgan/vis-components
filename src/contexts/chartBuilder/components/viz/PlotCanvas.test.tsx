@@ -74,7 +74,7 @@ const installInMemoryLocalStorage = (): Map<string, string> => {
 	return store
 }
 
-const seed = (opts: { faceted: boolean }) => {
+const seed = (opts: { faceted: boolean; labels?: Partial<LabelsConfig> }) => {
 	const store = installInMemoryLocalStorage()
 	const ds = buildFacetDataset()
 	/* eslint-disable @th/use-wrapped-json-functions */
@@ -98,7 +98,10 @@ const seed = (opts: { faceted: boolean }) => {
 	)
 	store.set(
 		"vis-components:currentLabels",
-		JSON.stringify({ _v: 1, data: DEFAULT_LABELS_CONFIG })
+		JSON.stringify({
+			_v: 1,
+			data: { ...DEFAULT_LABELS_CONFIG, ...(opts.labels ?? {}) },
+		})
 	)
 	/* eslint-enable @th/use-wrapped-json-functions */
 }
@@ -199,7 +202,7 @@ const buildGridDataset = (): Dataset => ({
 	createdAt: 0,
 })
 
-const seedGrid = () => {
+const seedGrid = (opts?: { labels?: Partial<LabelsConfig> }) => {
 	const store = installInMemoryLocalStorage()
 	const ds = buildGridDataset()
 	/* eslint-disable @th/use-wrapped-json-functions */
@@ -224,7 +227,10 @@ const seedGrid = () => {
 	)
 	store.set(
 		"vis-components:currentLabels",
-		JSON.stringify({ _v: 1, data: DEFAULT_LABELS_CONFIG })
+		JSON.stringify({
+			_v: 1,
+			data: { ...DEFAULT_LABELS_CONFIG, ...(opts?.labels ?? {}) },
+		})
 	)
 	/* eslint-enable @th/use-wrapped-json-functions */
 }
@@ -599,6 +605,61 @@ describe("PlotCanvas — grid mode (facetRow + facetCol)", () => {
 		expect(labelTexts.length).toBe(4)
 		for (const t of labelTexts) {
 			expect(t.getAttribute("fill")).toBe("#00ff00")
+		}
+	})
+})
+
+/** Facet-title Orientation (labels.titleAngles) — a paint-time rotation
+ *  about each title's anchor point. Wrap panel labels and the grid header
+ *  strips all honor the shared `facetTitle` angle. */
+describe("PlotCanvas — facet-title orientation", () => {
+	it("wrap mode: titleAngles.facetTitle rotates each per-panel facet label about its anchor", () => {
+		seed({ faceted: true, labels: { titleAngles: { facetTitle: 90 } } })
+		const { container } = mountChartCanvas()
+		const labelTexts = [
+			...container.querySelectorAll("[data-facet-label] text"),
+		]
+		expect(labelTexts.length).toBe(3)
+		for (const t of labelTexts) {
+			expect(t.getAttribute("transform")).toMatch(/^rotate\(90, /)
+		}
+	})
+
+	it("wrap mode: no transform when no angle is set (default upright)", () => {
+		seed({ faceted: true })
+		const { container } = mountChartCanvas()
+		const labelTexts = [
+			...container.querySelectorAll("[data-facet-label] text"),
+		]
+		expect(labelTexts.length).toBe(3)
+		for (const t of labelTexts) {
+			expect(t.getAttribute("transform")).toBeNull()
+		}
+	})
+
+	it("grid mode: the shared facetTitle angle rotates both header strips (layering fallback)", () => {
+		seedGrid({ labels: { titleAngles: { facetTitle: -45 } } })
+		const { container } = mountChartCanvas()
+		const headers = [
+			...container.querySelectorAll("[data-column-header]"),
+			...container.querySelectorAll("[data-row-header]"),
+		]
+		expect(headers.length).toBe(5) // 3 col values + 2 row values
+		for (const h of headers) {
+			expect(h.getAttribute("transform")).toMatch(/^rotate\(-45, /)
+		}
+	})
+
+	it("grid mode: per-strip angles win over the shared facetTitle angle", () => {
+		seedGrid({
+			labels: { titleAngles: { facetTitle: -45, facetColTitle: 90 } },
+		})
+		const { container } = mountChartCanvas()
+		for (const h of container.querySelectorAll("[data-column-header]")) {
+			expect(h.getAttribute("transform")).toMatch(/^rotate\(90, /)
+		}
+		for (const h of container.querySelectorAll("[data-row-header]")) {
+			expect(h.getAttribute("transform")).toMatch(/^rotate\(-45, /)
 		}
 	})
 })

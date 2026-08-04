@@ -738,11 +738,26 @@ export const DEFAULT_PATTERN_CONFIG: PatternConfig = {
 	stackMode: "stack",
 }
 
-export type LengthConfig = { minLength: number; maxLength: number }
+export type LengthConfig = {
+	minLength: number
+	maxLength: number
+	/** Bar charts: fixed gap between bars in PIXELS — bar width is whatever
+	 * remains of each category slot, so one knob controls both. BarPlot
+	 * converts it to the band-padding fraction per panel, which keeps the
+	 * pixel gap uniform across facet panels of different widths. null/absent
+	 * = auto (the proportional 15%-of-slot gap). Histograms ignore it: their
+	 * bars always abut. */
+	barGapPx?: number | null
+}
 export const DEFAULT_LENGTH_CONFIG: LengthConfig = {
 	minLength: 4,
 	maxLength: 40,
 }
+
+/** The auto band-gap for categorical bars when `LengthConfig.barGapPx` is
+ * unset, as a fraction of each category slot — mirrors the 0.15 band
+ * padding BarPlot has always used. */
+export const AUTO_BAR_GAP_FRACTION = 0.15
 
 export type AngleConfig = {
 	minAngle: number

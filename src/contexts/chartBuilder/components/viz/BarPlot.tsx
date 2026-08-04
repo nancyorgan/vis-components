@@ -8,6 +8,7 @@ import {
 	stacksToGroupValues,
 } from "../../lib/buildPatternDefs"
 import {
+	AUTO_BAR_GAP_FRACTION,
 	DEFAULT_TEXT_CONFIG,
 	type ChannelConfigs,
 	type ColorSlotConfig,
@@ -42,6 +43,7 @@ import {
 	resolveStackModes,
 	type StackModeEntry,
 } from "../../lib/stackMode"
+import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import { formatTextValue } from "../../lib/textEncoding"
 import type { Encodings, FieldType } from "../../lib/types"
 import {
@@ -130,6 +132,11 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 	const dataLabels = useAtomValue(currentDataLabelsEncodingsAtom)
 	const dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
 	const dataLabelsDecimals = dataLabelsCfg?.decimals ?? null
+	// The mapped value field's Label format spec — slice labels show that
+	// field's aggregate (textValue), so its per-field format applies.
+	const dataLabelsFormatSpec = dataLabels?.value?.field
+		? (dataLabelsCfg?.fieldFormats?.[dataLabels.value.field] ?? null)
+		: null
 	// Live theme — the density curve's pre-slot default color (slate stroke)
 	// follows Settings edits, matching how ScatterPlot resolves single colors.
 	const storedTheme = useAtomValue(themeAtom)
@@ -485,11 +492,31 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 				? "Density"
 				: "Count"
 			: lengthField
+		// Gap between bars: the Length panel's "Bar gap" pixels when set, else
+		// the proportional 15%-of-slot auto. d3's band padding is a FRACTION of
+		// the category step, so a pixel gap g converts per panel: with n
+		// categories in a span of `range` px and `.padding()` setting inner and
+		// outer alike, step·(n + p) = range and gap = step·p = g, giving
+		// p = g·n / (range − g). Per-panel conversion keeps the pixel gap
+		// uniform across facet panels of different widths. Clamped defensively —
+		// a padding ≥ 1 would collapse every bar to zero width.
+		const barGapPx = channelConfigs.length?.barGapPx ?? null
+		const bandRange = Math.abs(
+			isVertical ? inner.x1 - inner.x0 : inner.y1 - inner.y0
+		)
+		const barGapFraction =
+			barGapPx === null || scaleCategories.length === 0
+				? AUTO_BAR_GAP_FRACTION
+				: Math.min(
+						(Math.max(barGapPx, 0) * scaleCategories.length) /
+							Math.max(bandRange - Math.max(barGapPx, 0), 1),
+						0.95
+					)
 		const categoryScale = scaleBand<string>()
 			.domain(scaleCategories)
 			.range(isVertical ? [inner.x0, inner.x1] : [inner.y0, inner.y1])
 			// Histogram bars abut (no gaps); categorical bars keep their gap.
-			.padding(aggregation.isHistogram ? 0 : 0.15)
+			.padding(aggregation.isHistogram ? 0 : barGapFraction)
 		const measureScale = scaleLinear<number, number>()
 			.domain([measureMin, measureMax])
 			.range(isVertical ? [inner.y1, inner.y0] : [inner.x0, inner.x1])
@@ -729,6 +756,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 							measureScale,
 							modes,
 							decimals: dataLabelsDecimals,
+							formatSpec: dataLabelsFormatSpec,
 							position: dataLabelsCfg?.barLabelPosition ?? "center",
 							sizeField: dataLabels?.size?.field ?? null,
 							encodings,
@@ -1310,6 +1338,7 @@ export const buildBarAnchors = ({
 	measureScale,
 	modes,
 	decimals,
+	formatSpec,
 	position,
 	outsideOffsetPx,
 	sizeField,
@@ -1321,6 +1350,9 @@ export const buildBarAnchors = ({
 	measureScale: ReturnType<typeof scaleLinear<number, number>>
 	modes: StackModeEntry[]
 	decimals: number | null
+	/** The mapped value field's Label format spec (from
+	 *  `DataLabelsConfig.fieldFormats`); wins over `decimals` when set. */
+	formatSpec?: string | null
 	/** Where the label sits on the slice's measure axis. Defaults to "center". */
 	position?: "center" | "inside-base" | "inside-end" | "outside-end"
 	/** Pixel pad pushing "inside-base" / "inside-end" / "outside-end" off the
@@ -1368,7 +1400,7 @@ export const buildBarAnchors = ({
 			})()
 
 			const labelValue = slice.textValue ?? slice.value
-			const formatted = formatTextValue(labelValue, decimals)
+			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			// `groupValues` carries the slice's hue (when hue is mapped) so
 			// stacked / grouped bars colored by hue get matching label fills.
 			const hueValue = slice.groupValues.hue

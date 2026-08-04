@@ -440,8 +440,13 @@ wouldn't land on anything these renderers draw.
 channel is mapped, OR (b) the channel could meaningfully affect the
 current chart type AND has a configurable default. Examples:
 
-- Bar chart `x + length + hue`: shape, area, angle, connection panels
-  hidden (bars don't render glyphs / no per-row position).
+- Bar chart `x + length + hue`: area, angle, connection panels hidden
+  (bars don't render glyphs / no per-row position). The Shape row and
+  panel stay LIVE despite the length↔shape conflict: bar borders read
+  the Shape panel's outline width (and the Color menu's Outline color),
+  so bar modes are exempt from the conflict de-emphasis. The panel
+  hides the Default-shape glyph picker there (no glyphs to apply it
+  to); mapping a field to Shape still pops the conflict dialog.
 - Scatter / violin / box: connection panel hidden when no connection
   encoding is mapped.
 - Area chart: angle, shape panels hidden when those channels aren't
@@ -600,6 +605,16 @@ Each channel exposes scaling controls (min/max), per-value overrides
 where it makes sense, and any channel-specific knobs (e.g., shape
 outline width). Theme defaults seed the ranges so new charts come up
 with sensible visuals.
+
+In bar modes the **Length** panel swaps its inert px min/max range for
+a **Bar gap** control (`LengthConfig.barGapPx`): the gap between bars
+in PIXELS. Bar width is whatever remains of each category slot, so the
+one value sets width and gap together. BarPlot converts the pixel gap
+to d3's band-padding fraction per panel (p = g·n / (range − g), with
+inner and outer padding alike), which keeps the gap uniform across
+facet panels of different widths. Auto (stored as null, cleared via
+the empty input or reset) is the proportional 15%-of-slot gap.
+Histograms ignore it — their bars always abut.
 
 The **Area** panel additionally carries a **Scale by** choice
 (`AreaConfig.sizeBy`) that applies everywhere the channel sizes marks
@@ -955,6 +970,17 @@ mark per row.
 A single `TITLE_LABEL_GAP_PX` constant (currently 25) controls the
 default distance between any axis title and its tick labels.
 
+**Y-offset sign convention (all offset inputs):** every sidebar input
+that nudges something vertically — title/facet/legend-title offsets,
+data-label X/Y offsets (including first/last endpoint overrides), the
+caption Y offset — reads positive = up, negative = down (math
+convention, friendlier for non-web users). Stored config values remain
+in screen coordinates (positive = down); the sign flips only at the
+input boundary, so saved charts are unaffected. Exceptions that keep
+their own semantics: the axis Position "Offset" (positive = away from
+the plot) and the inside-legend X/Y (fractional coordinates, not a
+nudge).
+
 User-set per-title offsets (`xAxisTitle`, `yAxisTitle`, `title`,
 `subtitle`) shift the title in pixels with **asymmetric** auto-grow
 behavior:
@@ -1005,6 +1031,22 @@ panel edge. No clear window — or text longer than ~a
 half-circumference — means no label, same convention as the rim fit
 check (`arcWrapLevels` in `DataLabelsConfig`).
 
+- **Label format** — every mapped Value takes a per-field format (the
+  same preset dropdown + custom d3 spec the axes use), stored in
+  `DataLabelsConfig.fieldFormats` keyed by field name. A single mapped
+  field shows one format control under the Value row's disclosure;
+  "Multiple variables…" shows one per selected field. A set format wins
+  over the shared `decimals` fallback, and — because both modes share
+  the same store — a format set in one mode carries over to the other.
+  The format applies everywhere that field's label renders: row-based
+  labels (scatter / lines), aggregated slice labels (bars / areas /
+  pies / tile cells), and hierarchy leaf labels. Missing values still
+  skip the label entirely (a null measure never renders as "0%").
+- **Size** — the Default size input always shows; the Min / Max
+  pixel-range inputs appear only when a size source is mapped (a field,
+  or the tree layouts' derived "Nesting depth"), since the range only
+  takes effect then. Default size still applies to values the mapped
+  source can't size (non-numeric).
 - **Which labels** — All labels / First per series / Last per series /
   First and last per series. Endpoint selection is position-ranked along
   the chart's primary axis (rightmost = last for vertical charts,
@@ -1078,7 +1120,8 @@ title, and facet/legend titles. Each title has:
   map; user overrides stick).
 - An alignment control (Left / Center / Right glyph buttons).
 - Font override (collapsed disclosure with family / size / color).
-- Position offset (X / Y in px) — see §6.4 for the auto-grow rule.
+- Position offset (X / Y in px) — see §6.4 for the auto-grow rule and
+  the Y sign convention (positive = up).
 - Y-axis title only: a "Read horizontally" toggle that un-rotates the
   title from -90°.
 
@@ -1091,9 +1134,9 @@ titles** row, see §4.5a; otherwise the single Facet title row), and
 **Legend titles** (present only when legend channels are active).
 Each subsection header carries the standard changed dot (§4.6) when
 any row inside deviates in STYLING — a font override, a non-center
-alignment, a position offset, or the y-axis "Read horizontally"
-toggle. Typed title TEXT is content, not styling, and never lights a
-dot.
+alignment, a non-zero orientation, a position offset, or the y-axis
+"Read horizontally" toggle. Typed title TEXT is content, not styling,
+and never lights a dot.
 
 Facet **row** titles (the left-strip labels — the grid-split Row
 titles row, and the single Facet title row when only the facet-row
@@ -1109,6 +1152,22 @@ rows of differing heights line their titles up as chosen. A non-middle
 value lights the changed dot like any other styling deviation. Column
 and panel titles sit in thin bands where top/bottom is meaningless, so
 they keep the single "Align" control only.
+
+Every facet-title row additionally exposes an **Orientation** number
+input (degrees, clamped to -180…180, default 0, "°" suffix) directly
+below the alignment control(s). It rotates the facet titles about
+their anchor point — e.g. 90° reads a wrap panel's title vertically so
+it can label the panel's side — and applies to wrap panel titles, grid
+column / row header strips, and compact-grid panel titles alike. In a
+grid split the per-strip / per-panel rows layer over the shared facet
+angle exactly like alignment (a per-strip value wins; unset falls back
+to the shared facet-title angle). The rotation is paint-time only: the
+layout solver's title band does NOT grow for the rotated extent, so
+steep angles are typically paired with a position offset to place the
+title where it should sit (same contract as facet-title offsets). A
+non-zero orientation lights the changed dot. Non-facet titles do not
+offer the control (the y-axis title keeps its dedicated "Read
+horizontally" toggle instead).
 
 ---
 
@@ -1171,7 +1230,12 @@ textarea for styling the container.
 
 A top-level "Annotations" section in the sidebar. Users can add
 **rectangle**, **circle**, and **line-segment** annotations to
-highlight regions of the chart. Each rectangle has:
+highlight regions of the chart. Each annotation's editor is
+individually collapsible: a chevron in its header row toggles the
+body, while the name box and remove link stay visible so a long list
+remains scannable. Existing annotations start collapsed when the
+panel mounts; a freshly added annotation starts expanded. Each
+rectangle has:
 
 - A name (free text, shown in the panel list).
 - **Adjust by** dropdown — Percent (0–100) or Values (data units).

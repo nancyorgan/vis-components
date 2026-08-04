@@ -446,10 +446,11 @@ export const DataLabelsPanel = () => {
 					{ value: DATA_LABELS_MULTI_VALUE, label: "Multiple variables…" },
 				]}
 			>
-				{/* Single-field Value now has nothing to configure (formatting
-				 *  moved to the per-field specs in multi-field mode), so only the
-				 *  multi-field panel gets a disclosure — single mode is a plain
-				 *  dropdown. `null` (not `false`) keeps the row chevron-less. */}
+				{/* Multi-field mode gets the full arrangement panel; a mapped
+				 *  single field gets just its Label format (same per-field
+				 *  spec store, so a format survives switching modes). Unmapped
+				 *  single mode still has nothing to configure — `null` (not
+				 *  `false`) keeps that row chevron-less. */}
 				{encodings.value.multiField ? (
 					<ValuePanel
 						cfg={merged}
@@ -457,6 +458,12 @@ export const DataLabelsPanel = () => {
 						fields={encodings.value.fields ?? []}
 						allFields={allEligible.map((f) => f.name)}
 						onFieldsChange={setValueFields}
+					/>
+				) : encodings.value.field ? (
+					<SingleValuePanel
+						field={encodings.value.field}
+						cfg={merged}
+						onChange={updateCfg}
 					/>
 				) : null}
 			</DataLabelChannelRow>
@@ -499,7 +506,12 @@ export const DataLabelsPanel = () => {
 				eligible={allEligible}
 				derivedOptions={labelDerivedSizeOptions}
 			>
-				<SizePanel cfg={merged} onChange={updateCfg} depthNote={sizeByDepth} />
+				<SizePanel
+					cfg={merged}
+					onChange={updateCfg}
+					sizeMapped={sizeByDepth || Boolean(encodings.size.field)}
+					depthNote={sizeByDepth}
+				/>
 			</DataLabelChannelRow>
 
 			{/* One purple panel wraps the layer-wide fine-tuning so it reads as
@@ -706,9 +718,9 @@ export const DataLabelsPanel = () => {
 							<NumberInput
 								label="Y"
 								labelClassName={LABEL_COL_NESTED}
-								value={merged.firstLabel?.yOffset ?? merged.yOffset}
+								value={-(merged.firstLabel?.yOffset ?? merged.yOffset)}
 								step={1}
-								onChange={(yOffset) => patchEndpoint("firstLabel", { yOffset })}
+								onChange={(n) => patchEndpoint("firstLabel", { yOffset: -n })}
 								inputClassName="w-16"
 								suffix="px"
 							/>
@@ -729,9 +741,9 @@ export const DataLabelsPanel = () => {
 							<NumberInput
 								label="Y"
 								labelClassName={LABEL_COL_NESTED}
-								value={merged.lastLabel?.yOffset ?? merged.yOffset}
+								value={-(merged.lastLabel?.yOffset ?? merged.yOffset)}
 								step={1}
-								onChange={(yOffset) => patchEndpoint("lastLabel", { yOffset })}
+								onChange={(n) => patchEndpoint("lastLabel", { yOffset: -n })}
 								inputClassName="w-16"
 								suffix="px"
 							/>
@@ -751,9 +763,9 @@ export const DataLabelsPanel = () => {
 						<NumberInput
 							label="Y"
 							labelClassName={LABEL_COL}
-							value={merged.yOffset}
+							value={-merged.yOffset}
 							step={1}
-							onChange={(yOffset) => updateCfg({ yOffset })}
+							onChange={(n) => updateCfg({ yOffset: -n })}
 							inputClassName="w-16"
 							suffix="px"
 						/>
@@ -761,7 +773,7 @@ export const DataLabelsPanel = () => {
 				)}
 				<p className="vc-help">
 					Pixel offset{splitEndpoints ? " per endpoint" : " applied to every label"}.
-					Positive X pushes right, positive Y pushes down. Useful for shifting
+					Positive X pushes right, positive Y pushes up. Useful for shifting
 					labels off of the marks they&apos;re annotating.
 				</p>
 				</div>
@@ -1194,7 +1206,10 @@ const XYPositionPanel = ({
 	onChange: (patch: Partial<DataLabelsConfig>) => void
 }) => {
 	const offsetKey: keyof DataLabelsConfig = axis === "x" ? "xOffset" : "yOffset"
-	const offsetValue = (cfg[offsetKey] as number) ?? 0
+	// The y input shows math convention (positive = up); stored values stay in
+	// screen coords (positive = down), so the sign flips at this boundary.
+	const flip = axis === "y" ? -1 : 1
+	const offsetValue = flip * ((cfg[offsetKey] as number) ?? 0)
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex items-center gap-2">
@@ -1215,13 +1230,13 @@ const XYPositionPanel = ({
 				labelClassName={LABEL_COL}
 				value={offsetValue}
 				step={1}
-				onChange={(v) => onChange({ [offsetKey]: v })}
+				onChange={(v) => onChange({ [offsetKey]: flip * v })}
 				inputClassName="w-16"
 				suffix="px"
 			/>
 			<p className="vc-help">
 				Nudges the label by this many pixels along the {axis} axis. Positive
-				values push {axis === "x" ? "right" : "down"}.
+				values push {axis === "x" ? "right" : "up"}.
 			</p>
 		</div>
 	)
@@ -1681,16 +1696,22 @@ const GradientRow = ({
 }
 
 // ---------------------------------------------------------------------------
-// Size panel — min/max font size used when a size field is mapped, plus a
-// fallback fixed font size for unmapped charts.
+// Size panel — a fixed default font size, plus the min/max pixel range the
+// labels lerp across when a size field is mapped. Min / Max only render
+// with a mapped size source (field or derived depth) — without one they'd
+// be inert knobs.
 // ---------------------------------------------------------------------------
 const SizePanel = ({
 	cfg,
 	onChange,
+	sizeMapped = false,
 	depthNote = false,
 }: {
 	cfg: DataLabelsConfig
 	onChange: (patch: Partial<DataLabelsConfig>) => void
+	/** True when the Size dropdown has a source (a field or the derived
+	 *  "Nesting depth") — gates the Min / Max range inputs. */
+	sizeMapped?: boolean
 	/** True when Size varies by "Nesting depth" — explains the direction
 	 *  (top level = Max), since it inverts the usual min→max reading. */
 	depthNote?: boolean
@@ -1722,50 +1743,55 @@ const SizePanel = ({
 				/>
 			)}
 		</div>
-		<div className="flex items-center gap-2">
-			<NumberInput
-				label="Min"
-				labelClassName={LABEL_COL}
-				value={cfg.sizeMin}
-				min={4}
-				max={64}
-				step={1}
-				onChange={(sizeMin) => onChange({ sizeMin })}
-				inputClassName="w-16"
-				suffix="px"
-			/>
-			{cfg.sizeMin !== DEFAULT_DATA_LABELS_CONFIG.sizeMin && (
-				<ResetLink
-					onClick={() =>
-						onChange({ sizeMin: DEFAULT_DATA_LABELS_CONFIG.sizeMin })
-					}
-				/>
-			)}
-		</div>
-		<div className="flex items-center gap-2">
-			<NumberInput
-				label="Max"
-				labelClassName={LABEL_COL}
-				value={cfg.sizeMax}
-				min={4}
-				max={128}
-				step={1}
-				onChange={(sizeMax) => onChange({ sizeMax })}
-				inputClassName="w-16"
-				suffix="px"
-			/>
-			{cfg.sizeMax !== DEFAULT_DATA_LABELS_CONFIG.sizeMax && (
-				<ResetLink
-					onClick={() =>
-						onChange({ sizeMax: DEFAULT_DATA_LABELS_CONFIG.sizeMax })
-					}
-				/>
-			)}
-		</div>
-		<p className="vc-help">
-			Default size applies when no size field is mapped. Min / max set the pixel
-			range when a numeric field drives the label size.
-		</p>
+		{sizeMapped && (
+			<>
+				<div className="flex items-center gap-2">
+					<NumberInput
+						label="Min"
+						labelClassName={LABEL_COL}
+						value={cfg.sizeMin}
+						min={4}
+						max={64}
+						step={1}
+						onChange={(sizeMin) => onChange({ sizeMin })}
+						inputClassName="w-16"
+						suffix="px"
+					/>
+					{cfg.sizeMin !== DEFAULT_DATA_LABELS_CONFIG.sizeMin && (
+						<ResetLink
+							onClick={() =>
+								onChange({ sizeMin: DEFAULT_DATA_LABELS_CONFIG.sizeMin })
+							}
+						/>
+					)}
+				</div>
+				<div className="flex items-center gap-2">
+					<NumberInput
+						label="Max"
+						labelClassName={LABEL_COL}
+						value={cfg.sizeMax}
+						min={4}
+						max={128}
+						step={1}
+						onChange={(sizeMax) => onChange({ sizeMax })}
+						inputClassName="w-16"
+						suffix="px"
+					/>
+					{cfg.sizeMax !== DEFAULT_DATA_LABELS_CONFIG.sizeMax && (
+						<ResetLink
+							onClick={() =>
+								onChange({ sizeMax: DEFAULT_DATA_LABELS_CONFIG.sizeMax })
+							}
+						/>
+					)}
+				</div>
+				<p className="vc-help">
+					Min / max set the pixel range the mapped size source scales
+					labels across; the default size applies to values it can&apos;t
+					size (non-numeric).
+				</p>
+			</>
+		)}
 	</div>
 )
 
@@ -1774,8 +1800,6 @@ const SizePanel = ({
 // fields to combine, arrange them in the editable label text, and give each a
 // d3 number format (so e.g. a category can sit next to "32%"). Per-variable
 // COLOR lives under the Color dropdown (one slot per variable), not here.
-// Single-field Value has no settings, so the parent renders this only in
-// multi mode.
 // ---------------------------------------------------------------------------
 const ValuePanel = ({
 	cfg,
@@ -1901,3 +1925,36 @@ const ValuePanel = ({
 		</div>
 	)
 }
+
+// ---------------------------------------------------------------------------
+// Value panel — single-field mode: just the mapped field's label format,
+// stored under the field's name in the same `fieldFormats` map multi mode
+// uses (so a format set here carries over to "Multiple variables…" and back).
+// ---------------------------------------------------------------------------
+const SingleValuePanel = ({
+	field,
+	cfg,
+	onChange,
+}: {
+	field: string
+	cfg: DataLabelsConfig
+	onChange: (patch: Partial<DataLabelsConfig>) => void
+}) => (
+	<div className="flex flex-col gap-1">
+		<span className="vc-group-header">Label format</span>
+		<TickFormatControl
+			label={field}
+			value={cfg.fieldFormats?.[field] ?? ""}
+			changed={(cfg.fieldFormats?.[field] ?? "") !== ""}
+			onChange={(spec) => {
+				const next = { ...(cfg.fieldFormats ?? {}) }
+				if (spec === "") delete next[field]
+				else next[field] = spec
+				onChange({ fieldFormats: next })
+			}}
+		/>
+		<p className="vc-help">
+			Same options as the axes — pick a preset or type a d3 format code.
+		</p>
+	</div>
+)

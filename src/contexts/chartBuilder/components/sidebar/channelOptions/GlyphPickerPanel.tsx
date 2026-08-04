@@ -377,6 +377,11 @@ export const ShapeOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const theme = useAtomValue(themeAtom)
 	const fieldMapped = !!encodings.shape?.field
+	// Bar charts open this panel for the outline width (bar borders read it),
+	// but draw no point glyphs — the Default shape picker would be inert
+	// there, so it's hidden in bar modes.
+	const modeId = useChartModeDef().id
+	const glyphsInert = modeId === "bars-x" || modeId === "bars-y"
 	// Same defensive merge: older visualizations may be missing outlineColor /
 	// outlineWidth / overrides when the config was first introduced.
 	const cfg: ShapeConfig = {
@@ -423,7 +428,7 @@ export const ShapeOptionsPanel = () => {
 				Set outline color under the <strong>Color</strong> menu →{" "}
 				<strong>Outline</strong>.
 			</p>
-			{!fieldMapped && (
+			{!fieldMapped && !glyphsInert && (
 				<>
 					<hr className="border-stone-200 dark:border-stone-700" />
 					<div className="flex flex-col gap-1 text-sm">

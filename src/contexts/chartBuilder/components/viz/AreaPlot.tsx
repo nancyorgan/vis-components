@@ -42,7 +42,7 @@ import {
 	type PositionScale,
 } from "../../lib/scales"
 import { resolveStackMode } from "../../lib/stackMode"
-import { formatTextValue } from "../../lib/textEncoding"
+import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import type { DatasetView, Encodings, FieldType } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -121,6 +121,11 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 	const dataLabels = useAtomValue(currentDataLabelsEncodingsAtom)
 	const dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
 	const dataLabelsDecimals = dataLabelsCfg?.decimals ?? null
+	// The mapped value field's Label format spec — layer labels show that
+	// field's aggregate (textValue), so its per-field format applies.
+	const dataLabelsFormatSpec = dataLabels?.value?.field
+		? (dataLabelsCfg?.fieldFormats?.[dataLabels.value.field] ?? null)
+		: null
 	const anyDataLabelsMapped = Boolean(
 		dataLabels?.x?.field ||
 		dataLabels?.y?.field ||
@@ -500,6 +505,7 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 							measureScale,
 							stackMode,
 							decimals: dataLabelsDecimals,
+							formatSpec: dataLabelsFormatSpec,
 							sizeField: dataLabels?.size?.field ?? null,
 							encodings,
 							rows: rowsForChart,
@@ -1269,6 +1275,7 @@ export const buildAreaAnchors = ({
 	measureScale,
 	stackMode,
 	decimals,
+	formatSpec,
 	sizeField,
 	encodings,
 	rows,
@@ -1278,6 +1285,9 @@ export const buildAreaAnchors = ({
 	measureScale: ReturnType<typeof scaleLinear<number, number>>
 	stackMode: StackMode
 	decimals: number | null
+	/** The mapped value field's Label format spec (from
+	 *  `DataLabelsConfig.fieldFormats`); wins over `decimals` when set. */
+	formatSpec?: string | null
 	/** When mapped, aggregates the size field across rows in each (stack,
 	 *  layer) cell and surfaces the sum as the anchor's `sizeValue` so
 	 *  DataLabelsLayer can render the label at the right font size. */
@@ -1344,7 +1354,7 @@ export const buildAreaAnchors = ({
 			// this stack — that's where the user sees the layer "is".
 			const measurePoint = measureScale(top)
 			const labelValue = sv.byKeyText.get(layerKey) ?? value
-			const formatted = formatTextValue(labelValue, decimals)
+			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			// Sum the size field for rows in this (stack, layer) cell so
 			// DataLabelsLayer can size the label per the user's encoding.
 			// Same shape as the bar-anchor aggregation in BarPlot.

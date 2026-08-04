@@ -123,6 +123,15 @@ export const ConnectionOptionsPanel = () => {
 	// line — the gate for the Structure section and the line-styling
 	// stand-down.
 	const isStructureMode = isStructureModeId(modeId)
+	// Connection lines are only DRAWN by the scatter (incl. line charts),
+	// area, and radar renderers. In every other mode — bars, pies, tile,
+	// hexbin, geo — the channel is either unmapped by construction (mapping
+	// connection on a bar chart flips detection to areas) or a join/region
+	// key, so every line-styling control would be inert and stands down.
+	const drawsConnectionLines = isScatterMode || isAreaMode || isRadarMode
+	// The scatter/area subset — the modes whose line styling this panel
+	// renders directly (radar's lives in its own Polygon subsection below).
+	const isLineOrAreaMode = isScatterMode || isAreaMode
 	// What "Auto" currently resolves to, for the option label. Mirrors the
 	// renderer's resolution exactly (full dataset rows; parent + area
 	// columns excluded as candidates).
@@ -162,10 +171,10 @@ export const ConnectionOptionsPanel = () => {
 	)
 	const axisStem = cfg.axisStem ?? "none"
 
-	// Point-sampling controls show whenever connection is mapped — it
-	// applies to both scatter (renderConnectionLines) and areas-line
-	// mode (the per-row markers AreaPlot adds in line mode).
-	const showPointSampling = !!connectionFieldName && !isStructureMode
+	// Point-sampling controls show whenever connection is mapped in a mode
+	// that draws lines — scatter (renderConnectionLines), areas-line mode
+	// (the per-row markers AreaPlot adds in line mode), and radar polygons.
+	const showPointSampling = !!connectionFieldName && drawsConnectionLines
 
 	// Line-thickness "Vary by" state. Only scatter connection lines and radar
 	// polygons group by the connection value (area layers group by hue), so
@@ -715,7 +724,7 @@ export const ConnectionOptionsPanel = () => {
 					)}
 				</>
 			)}
-			{!!connectionFieldName && !isRadarMode && !isStructureMode ? (
+			{isLineOrAreaMode && !!connectionFieldName ? (
 				<CollapsibleSubsection title="Polygon" changed={ch.thickness || ch.fill}>
 					<div className="flex flex-col gap-2">
 						{lineThicknessRow}
@@ -754,10 +763,9 @@ export const ConnectionOptionsPanel = () => {
 					</div>
 				</CollapsibleSubsection>
 			) : (
-				!isRadarMode &&
-				!isStructureMode && <div className="px-2">{lineThicknessRow}</div>
+				isLineOrAreaMode && <div className="px-2">{lineThicknessRow}</div>
 			)}
-			{!isRadarMode && !isStructureMode && (
+			{isLineOrAreaMode && (
 				<CollapsibleSubsection
 					title="Line properties"
 					changed={ch.lineCap || ch.smoothing}
@@ -967,11 +975,18 @@ export const ConnectionOptionsPanel = () => {
 					</div>
 				</CollapsibleSubsection>
 			)}
-			{!isRadarMode && !isStructureMode && (
+			{isLineOrAreaMode && (
 				<p className="border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
 					Per-line colors live in the Hue panel. Per-line dash patterns live in
 					the Pattern panel. Map the corresponding encoding to a field to
 					customize.
+				</p>
+			)}
+			{!drawsConnectionLines && !isStructureMode && (
+				<p className="vc-help">
+					Connection joins points that share a value into a line. This chart
+					type doesn&apos;t draw connection lines, so there are no line options
+					here.
 				</p>
 			)}
 		</div>

@@ -13,6 +13,7 @@ import type { FieldType } from "../../lib/types"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import { applyHueScale, type PositionScale } from "../../lib/scales"
 import { applyLevelOrder } from "../../lib/smartSort"
+import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import { formatTextValue, resolveTextColor } from "../../lib/textEncoding"
 import {
 	currentChannelConfigsAtom,
@@ -161,6 +162,11 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 	const dataLabels = useAtomValue(currentDataLabelsEncodingsAtom)
 	const dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
 	const dataLabelsDecimals = dataLabelsCfg?.decimals ?? null
+	// The mapped value field's Label format spec — cell labels show that
+	// field's per-cell aggregate, so its per-field format applies.
+	const dataLabelsFormatSpec = dataLabels?.value?.field
+		? (dataLabelsCfg?.fieldFormats?.[dataLabels.value.field] ?? null)
+		: null
 	// Tile labels are cell-keyed (every label sits at the center of its
 	// (chart.x, chart.y) cell), so the x/y/hue/size encodings carry no new
 	// information until the user picks a value field. Rendering the layer
@@ -309,6 +315,7 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 		cellW,
 		cellH,
 		decimals,
+		formatSpec,
 		valueField,
 		rows,
 		xField,
@@ -320,6 +327,9 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 		cellW: number
 		cellH: number
 		decimals: number | null
+		/** The mapped value field's Label format spec (from
+		 *  `DataLabelsConfig.fieldFormats`); wins over `decimals` when set. */
+		formatSpec?: string | null
 		valueField: string | null
 		rows: ReadonlyArray<Record<string, unknown>>
 		xField: string
@@ -378,7 +388,7 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 			const labelSource = valueField
 				? (valueByCell.get(cellKey) ?? null)
 				: cell.textValue
-			const label = formatTextValue(labelSource, decimals)
+			const label = formatSingleLabel(labelSource, formatSpec, decimals)
 			anchors.push({
 				cx: cx + cellW / 2,
 				cy: cy + cellH / 2,
@@ -491,6 +501,7 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 							cellW,
 							cellH,
 							decimals: dataLabelsDecimals,
+							formatSpec: dataLabelsFormatSpec,
 							valueField: dataLabels?.value?.field ?? null,
 							rows: rowsForChart,
 							xField: xField as string,

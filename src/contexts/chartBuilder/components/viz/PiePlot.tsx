@@ -22,7 +22,7 @@ import {
 } from "../../lib/resolveLayerColor"
 import { type PositionScale } from "../../lib/scales"
 import type { FieldType } from "../../lib/types"
-import { formatTextValue } from "../../lib/textEncoding"
+import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import type { Encodings } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -108,6 +108,11 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 	const dataLabels = useAtomValue(currentDataLabelsEncodingsAtom)
 	const dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
 	const dataLabelsDecimals = dataLabelsCfg?.decimals ?? null
+	// The mapped value field's Label format spec — wedge labels show that
+	// field's aggregate (textValue), so its per-field format applies.
+	const dataLabelsFormatSpec = dataLabels?.value?.field
+		? (dataLabelsCfg?.fieldFormats?.[dataLabels.value.field] ?? null)
+		: null
 	// Radial placement of labels — the Distance % knob always drives it.
 	// Its default is 100 % (the pie's border), so labels read cleanly with
 	// no tuning; lower values pull them inside the wedge.
@@ -482,6 +487,7 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 								measureField: aggregation.measureField,
 								categoryField: aggregation.categoryField,
 								decimals: dataLabelsDecimals,
+								formatSpec: dataLabelsFormatSpec,
 								sizeField: dataLabels?.size?.field ?? null,
 								encodings,
 								rows: rowsForChart,
@@ -559,6 +565,7 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 							measureField: aggregation.measureField,
 							categoryField: aggregation.categoryField,
 							decimals: dataLabelsDecimals,
+							formatSpec: dataLabelsFormatSpec,
 							sizeField: dataLabels?.size?.field ?? null,
 							encodings,
 							rows: rowsForChart,
@@ -696,6 +703,7 @@ export const buildPieAnchors = ({
 	measureField,
 	categoryField,
 	decimals,
+	formatSpec,
 	sizeField,
 	encodings,
 	rows,
@@ -713,6 +721,9 @@ export const buildPieAnchors = ({
 	measureField: string
 	categoryField: string | null
 	decimals: number | null
+	/** The mapped value field's Label format spec (from
+	 *  `DataLabelsConfig.fieldFormats`); wins over `decimals` when set. */
+	formatSpec?: string | null
 	sizeField?: string | null
 	encodings?: Encodings
 	rows?: ReadonlyArray<Record<string, unknown>>
@@ -752,7 +763,7 @@ export const buildPieAnchors = ({
 			const cx = center.cx + Math.sin(midAngle) * midRadius
 			const cy = center.cy - Math.cos(midAngle) * midRadius
 			const labelValue = slice.textValue ?? slice.value
-			const formatted = formatTextValue(labelValue, decimals)
+			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			const hueValue = slice.groupValues.hue
 			// Aggregate the size field across rows in this slice (matching
 			// category + groupValues). Same shape as `buildBarAnchors`.

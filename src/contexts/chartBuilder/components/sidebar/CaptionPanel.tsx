@@ -245,11 +245,14 @@ export const CaptionPanel = () => {
 								onValue={(v) => update({ offsetX: v })}
 								onUnit={(u) => update({ offsetXUnit: u })}
 							/>
+							{/* Y shows math convention (positive = up); the stored value
+							 * stays in screen coords (positive = down), so the sign flips
+							 * here in both directions. */}
 							<OffsetField
 								label="Y offset"
-								value={merged.offsetY}
+								value={-merged.offsetY}
 								unit={merged.offsetYUnit}
-								onValue={(v) => update({ offsetY: v })}
+								onValue={(v) => update({ offsetY: -v })}
 								onUnit={(u) => update({ offsetYUnit: u })}
 							/>
 						</div>

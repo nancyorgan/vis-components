@@ -352,7 +352,15 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// field, visually de-emphasize the row to signal it's being shadowed. The
 	// dropdown stays clickable so the user can still pick a new value (which
 	// pops the confirmation dialog) or remain at "— none —".
-	const blockedByConflict = hasConflictBlock && !value
+	// Exception: bar charts honor the Shape panel's outline width on their
+	// bar borders (BarPlot reads configs.shape.outlineWidth/outlineColor), so
+	// despite the length↔shape conflict the shape row and its options stay
+	// live there — the conflict dialog still guards mapping a field.
+	const shapeAppliesDespiteConflict =
+		channel === "shape" &&
+		(modeDef.id === "bars-x" || modeDef.id === "bars-y")
+	const blockedByConflict =
+		hasConflictBlock && !value && !shapeAppliesDespiteConflict
 	const rowOpacity = blockedByConflict ? "opacity-50" : ""
 
 	const row = (

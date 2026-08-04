@@ -561,8 +561,17 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 	length: ({ configs, theme }) => [
 		{
 			label: "length range",
-			changed: differs(configs.length, { minLength: theme.lengthMin, maxLength: theme.lengthMax }),
+			// barGapPx is excluded — it has its own entry below, so a set gap
+			// doesn't masquerade as a range edit in the changed-dot diagnostics.
+			changed: differs(
+				configs.length && {
+					minLength: configs.length.minLength,
+					maxLength: configs.length.maxLength,
+				},
+				{ minLength: theme.lengthMin, maxLength: theme.lengthMax }
+			),
 		},
+		{ label: "bar gap", changed: (configs.length?.barGapPx ?? null) !== null },
 		{ label: "default length", changed: differs(configs.defaultLength, null) },
 	],
 	angle: ({ configs, theme }) => [

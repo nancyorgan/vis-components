@@ -1,5 +1,6 @@
 import { useAtom, useAtomValue } from "jotai"
 import {
+	AUTO_BAR_GAP_FRACTION,
 	DEFAULT_ANGLE,
 	DEFAULT_ANGLE_CONFIG,
 	DEFAULT_DONUT_HOLE_RADIUS,
@@ -375,6 +376,57 @@ const SpineControls = ({
 	)
 }
 
+/** Bar charts' gap-between-bars knob, in PIXELS; bar width is whatever
+ *  remains of each category slot, so one input controls both. Auto (null)
+ *  is the proportional 15%-of-slot gap — not a fixed px value — so this is
+ *  a clear-to-null raw input (NumberInput can't emit null), mirroring the
+ *  panel's default-length input below. */
+const BarGapControl = ({
+	barGapPx,
+	onChange,
+}: {
+	barGapPx: number | null
+	onChange: (next: number | null) => void
+}) => (
+	<>
+		<div className="flex items-center gap-2">
+			<label className="flex items-center gap-2 text-sm">
+				<span className={LABEL_COL}>Bar gap</span>
+				<input
+					type="number"
+					min={0}
+					step={1}
+					value={barGapPx ?? ""}
+					placeholder="auto"
+					onChange={(e) =>
+						onChange(
+							e.target.value === ""
+								? null
+								: Math.max(0, Number(e.target.value))
+						)
+					}
+					className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+				/>
+				<span className="text-sm text-stone-600">px</span>
+			</label>
+			{barGapPx !== null && (
+				<button
+					type="button"
+					onClick={() => onChange(null)}
+					className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				>
+					reset
+				</button>
+			)}
+		</div>
+		<p className="vc-help">
+			Gap between bars in pixels — the bars split what&apos;s left, so this
+			sets bar width and gap together. Clear for the automatic gap (
+			{AUTO_BAR_GAP_FRACTION * 100}% of each category slot).
+		</p>
+	</>
+)
+
 // ---------------------------------------------------------------------------
 // Length
 // ---------------------------------------------------------------------------
@@ -385,6 +437,43 @@ export const LengthOptionsPanel = () => {
 
 	const currentLength = configs.defaultLength ?? null
 	const cfg = configs.length ?? DEFAULT_LENGTH_CONFIG
+
+	// In bar-family (and geo) modes the mapped variable IS the mark length —
+	// it goes through the position scale, not the px min/max range — so the
+	// range inputs are inert. Same per-mode flag the legend uses to suppress
+	// the length ramp.
+	const modeDef = useChartModeDef()
+	const rangeInert = modeDef.legend.hideLengthInThisMode
+	// Bar charts get the band-gap knob instead: percent of each category slot
+	// left as gap between bars (bar width is the remainder, so one value
+	// controls both). Bars only — the other range-inert modes (areas, geo)
+	// have no band scale to pad.
+	const isBarMode = modeDef.id === "bars-x" || modeDef.id === "bars-y"
+
+	if (fieldMapped && rangeInert) {
+		return (
+			<div className="vc-option-panel">
+				{isBarMode && (
+					<BarGapControl
+						barGapPx={configs.length?.barGapPx ?? null}
+						onChange={(barGapPx) =>
+							setConfigs((prev) => ({
+								...prev,
+								length: {
+									...(prev.length ?? DEFAULT_LENGTH_CONFIG),
+									barGapPx,
+								},
+							}))
+						}
+					/>
+				)}
+				<div className="vc-help">
+					In this chart type, length comes straight from the mapped variable
+					via the axis scale — there is no separate length range to set.
+				</div>
+			</div>
+		)
+	}
 
 	if (fieldMapped) {
 		return (

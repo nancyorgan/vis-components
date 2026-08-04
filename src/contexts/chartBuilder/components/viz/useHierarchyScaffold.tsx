@@ -17,7 +17,7 @@ import {
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import { cartesian } from "../../lib/coords"
 import {
-	formatLabel,
+	formatSingleLabel,
 	labelHueScaleParts,
 	resolveLabelFill,
 	resolveLabelSize,
@@ -299,13 +299,18 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 	const labelStyle = {
 		cfg: dataLabelsCfg,
 		/** A node's label text. Leaves show the mapped value field's row
-		 * value (formatted per the decimals option), defaulting to the
-		 * node's name; containers always name themselves. `null` = no
-		 * label (blank value / anonymous leaf with nothing mapped). */
+		 * value (formatted per the field's Label format spec, falling back
+		 * to the decimals option), defaulting to the node's name;
+		 * containers always name themselves. `null` = no label (blank
+		 * value / anonymous leaf with nothing mapped). */
 		textFor: (node: HierarchyLayoutNode, isLeaf: boolean): string | null => {
 			const d = node.data
 			if (isLeaf && labelValueField && d.row) {
-				return formatLabel(d.row[labelValueField], dataLabelsCfg.decimals)
+				return formatSingleLabel(
+					d.row[labelValueField],
+					dataLabelsCfg.fieldFormats?.[labelValueField],
+					dataLabelsCfg.decimals
+				)
 			}
 			return d.label || null
 		},

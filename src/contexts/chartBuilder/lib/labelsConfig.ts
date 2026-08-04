@@ -593,6 +593,14 @@ export type LabelsConfig = {
 	 * each row's title to the top / center / bottom of that row's plot rect,
 	 * so rows of different heights line their titles up as chosen. */
 	titleVerticalAlignments?: Partial<Record<LabelFontKey, VerticalAlignment>>
+	/** Rotation per title slot, in degrees (-180…180, positive = clockwise),
+	 * applied about the title's anchor point. Missing / 0 entries mean
+	 * upright (the writes stay sparse — 0 is deleted). Only the facet-title
+	 * slots consume this today (wrap panel titles, grid column / row header
+	 * strips, compact-grid panel titles): it lets facet labels read
+	 * vertically beside their panels, typically paired with an offset since
+	 * the solver's band reserve doesn't grow for the rotated extent. */
+	titleAngles?: Partial<Record<LabelFontKey, number>>
 	/** When true, the y-axis title is drawn upright (0°) instead of rotated
 	 * -90°. Pairs with the auto-margin logic so a long horizontal title can
 	 * push the plot rightward to fit. */
@@ -633,6 +641,7 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	fontOverrides: {},
 	titleAlignments: {},
 	titleVerticalAlignments: {},
+	titleAngles: {},
 	yAxisTitleHorizontal: false,
 	titleOffsets: {},
 }
@@ -642,6 +651,10 @@ export const titleAlignmentOf = (
 	labels: LabelsConfig,
 	key: LabelFontKey
 ): LabelAlignment => labels.titleAlignments?.[key] ?? "center"
+
+/** Resolve a stored rotation (degrees) for a title slot, defaulting to 0. */
+export const titleAngleOf = (labels: LabelsConfig, key: LabelFontKey): number =>
+	labels.titleAngles?.[key] ?? 0
 
 /** Map an alignment to an SVG `text-anchor` value. */
 export const textAnchorFromAlignment = (

@@ -104,6 +104,19 @@ export const LabelsPanel = () => {
 			return { ...prev, titleVerticalAlignments: next }
 		})
 	}
+	const setAngle = (key: LabelFontKey, value: number) => {
+		setLabels((prev) => {
+			const next = { ...prev.titleAngles }
+			// Drop the entry at the upright default so the persisted map stays
+			// sparse (mirrors setAlignment's center handling).
+			if (value === 0) {
+				delete next[key]
+			} else {
+				next[key] = value
+			}
+			return { ...prev, titleAngles: next }
+		})
+	}
 	const setYAxisHorizontal = (value: boolean) => {
 		setLabels((prev) => ({ ...prev, yAxisTitleHorizontal: value }))
 	}
@@ -200,6 +213,8 @@ export const LabelsPanel = () => {
 
 	const titleVerticalAlignments = labels.titleVerticalAlignments ?? {}
 
+	const titleAngles = labels.titleAngles ?? {}
+
 	// The facet-title control(s) only render when the visual is actually
 	// faceted — wrap (`facet`) or grid (`facetRow` / `facetCol`). There are no
 	// facet titles to style otherwise, so the control would be dead UI.
@@ -233,6 +248,7 @@ export const LabelsPanel = () => {
 		(titleAlignments[key] !== undefined && titleAlignments[key] !== "center") ||
 		(titleVerticalAlignments[key] !== undefined &&
 			titleVerticalAlignments[key] !== "middle") ||
+		!!titleAngles[key] ||
 		!!labels.titleOffsets?.[key]
 	const primaryChanged = keyChanged("title") || keyChanged("subtitle")
 	const axisChanged =
@@ -371,6 +387,7 @@ export const LabelsPanel = () => {
 				<CollapsibleSubsection title="Node titles" changed={nodeTitlesChanged}>
 					<div className="flex flex-col gap-2">
 						<LabelStyleControls
+							bare
 							override={overrides.nodeTitle}
 							onOverride={(patch) => setOverride("nodeTitle", patch)}
 							alignment={titleAlignments.nodeTitle}
@@ -421,6 +438,8 @@ export const LabelsPanel = () => {
 						onOverride={(patch) => setOverride("facetColTitle", patch)}
 						alignment={titleAlignments.facetColTitle}
 						onAlignment={(a) => setAlignment("facetColTitle", a)}
+						angle={titleAngles.facetColTitle}
+						onAngle={(deg) => setAngle("facetColTitle", deg)}
 						baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
 						extraActive={!!labels.titleOffsets?.facetColTitle}
 						extraControls={
@@ -442,6 +461,8 @@ export const LabelsPanel = () => {
 						onAlignment={(a) => setAlignment("facetRowTitle", a)}
 						verticalAlignment={titleVerticalAlignments.facetRowTitle}
 						onVerticalAlignment={(a) => setVerticalAlignment("facetRowTitle", a)}
+						angle={titleAngles.facetRowTitle}
+						onAngle={(deg) => setAngle("facetRowTitle", deg)}
 						baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
 						extraActive={!!labels.titleOffsets?.facetRowTitle}
 						extraControls={
@@ -462,6 +483,8 @@ export const LabelsPanel = () => {
 							onOverride={(patch) => setOverride("facetPanelTitle", patch)}
 							alignment={titleAlignments.facetPanelTitle}
 							onAlignment={(a) => setAlignment("facetPanelTitle", a)}
+							angle={titleAngles.facetPanelTitle}
+							onAngle={(deg) => setAngle("facetPanelTitle", deg)}
 							baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
 							extraActive={!!labels.titleOffsets?.facetPanelTitle}
 							extraControls={
@@ -478,6 +501,7 @@ export const LabelsPanel = () => {
 					// type, so the styling options are shown inline the moment the
 					// subsection opens instead of behind a second "Auto"-row chevron.
 					<LabelStyleControls
+					bare
 					override={overrides.facetTitle}
 					onOverride={(patch) => setOverride("facetTitle", patch)}
 					alignment={titleAlignments.facetTitle}
@@ -490,6 +514,8 @@ export const LabelsPanel = () => {
 							? (a) => setVerticalAlignment("facetTitle", a)
 							: undefined
 					}
+					angle={titleAngles.facetTitle}
+					onAngle={(deg) => setAngle("facetTitle", deg)}
 					baseColor={labels.baseFont.titles.color}
 					extraControls={
 						<OffsetControl
@@ -567,6 +593,8 @@ type LabelRowProps = {
 	onAlignment?: (a: LabelAlignment) => void
 	verticalAlignment?: VerticalAlignment
 	onVerticalAlignment?: (a: VerticalAlignment) => void
+	angle?: number
+	onAngle?: (deg: number) => void
 	placeholder?: string
 	/** Fallback color used by the font editor's color swatch when no override
 	 * is set, so the preview reflects what the label will actually render as. */
@@ -729,7 +757,12 @@ const VerticalAlignmentControl = ({
  *  natural anchor point. For chart/axis titles the solver grows the relevant
  *  outer reserve by `abs(offset)` so they never clip; facet-title and
  *  panel-title offsets shift the rendered rect only, so a large offset can
- *  push those past their band. */
+ *  push those past their band.
+ *
+ *  The y input uses math convention (positive = up, negative = down) —
+ *  casual users don't expect screen coordinates. Stored config values stay
+ *  in screen coords (positive = down), so the sign flips at this boundary
+ *  in both directions. */
 const OffsetControl = ({
 	value,
 	onChange,
@@ -745,17 +778,20 @@ const OffsetControl = ({
 }) => {
 	// One row per axis: each label doubles as the w-24 left column so the
 	// inputs line up with the Align / Family / Color controls above.
-	const row = (axis: "x" | "y" | "distance", labelText: string) => (
-		<NumberInput
-			label={labelText}
-			labelClassName={LABEL_COL}
-			value={value[axis] ?? 0}
-			step={1}
-			onChange={(n) => onChange(axis, n)}
-			inputClassName="w-16"
-			suffix="px"
-		/>
-	)
+	const row = (axis: "x" | "y" | "distance", labelText: string) => {
+		const flip = axis === "y" ? -1 : 1
+		return (
+			<NumberInput
+				label={labelText}
+				labelClassName={LABEL_COL}
+				value={flip * (value[axis] ?? 0)}
+				step={1}
+				onChange={(n) => onChange(axis, flip * n)}
+				inputClassName="w-16"
+				suffix="px"
+			/>
+		)
+	}
 	return (
 		<div className="flex flex-col gap-2">
 			{row("x", "Offset x")}
@@ -780,8 +816,19 @@ type LabelStyleControlsProps = {
 	 * alignment" to disambiguate. Only wired for the facet row-title slot. */
 	verticalAlignment?: VerticalAlignment
 	onVerticalAlignment?: (a: VerticalAlignment) => void
+	/** When provided, an "Orientation" row (degrees, -180…180) is shown below
+	 * the alignment row(s). Only wired for the facet-title slots — the only
+	 * renderers that honor `titleAngles` today. */
+	angle?: number
+	onAngle?: (deg: number) => void
 	baseColor: string
 	extraControls?: React.ReactNode
+	/** Skip the purple `.vc-option-panel` wrapper (keeping its column layout).
+	 *  Pass when the controls render directly inside a boxed subsection —
+	 *  they're the subsection's whole body, so the extra box reads as
+	 *  box-in-box. Rows that expand into these controls (LabelRow) keep the
+	 *  wrapper. */
+	bare?: boolean
 }
 
 const LabelStyleControls = ({
@@ -791,12 +838,15 @@ const LabelStyleControls = ({
 	onAlignment,
 	verticalAlignment,
 	onVerticalAlignment,
+	angle,
+	onAngle,
 	baseColor,
 	extraControls,
+	bare = false,
 }: LabelStyleControlsProps) => {
 	const hasOverride = override !== undefined && Object.keys(override).length > 0
 	return (
-		<div className="vc-option-panel">
+		<div className={bare ? "flex flex-col gap-2" : "vc-option-panel"}>
 			{onAlignment && (
 				/* div, not label: AlignmentControl is a button group, not a form control */
 				<div className="flex items-center gap-2 text-sm">
@@ -816,6 +866,20 @@ const LabelStyleControls = ({
 						onChange={onVerticalAlignment}
 					/>
 				</div>
+			)}
+			{onAngle && (
+				<NumberInput
+					label="Orientation"
+					labelClassName={LABEL_COL}
+					value={angle ?? 0}
+					min={-180}
+					max={180}
+					step={1}
+					clamp
+					onChange={onAngle}
+					inputClassName="w-16"
+					suffix="°"
+				/>
 			)}
 			<FontEditor
 				value={override ?? {}}
@@ -839,6 +903,8 @@ const LabelRow = ({
 	onAlignment,
 	verticalAlignment,
 	onVerticalAlignment,
+	angle,
+	onAngle,
 	placeholder,
 	baseColor,
 	extraControls,
@@ -849,6 +915,7 @@ const LabelRow = ({
 	const hasAlignment = onAlignment && alignment && alignment !== "center"
 	const hasVerticalAlignment =
 		onVerticalAlignment && verticalAlignment && verticalAlignment !== "middle"
+	const hasAngle = onAngle && !!angle
 	const isMultiline = value.includes("\n")
 	return (
 		<Disclosure as="div" className="flex flex-col gap-1">
@@ -886,6 +953,7 @@ const LabelRow = ({
 							{(hasOverride ||
 								hasAlignment ||
 								hasVerticalAlignment ||
+								hasAngle ||
 								extraActive) && (
 								<span
 									className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-stone-900 dark:bg-white"
@@ -902,6 +970,8 @@ const LabelRow = ({
 							onAlignment={onAlignment}
 							verticalAlignment={verticalAlignment}
 							onVerticalAlignment={onVerticalAlignment}
+							angle={angle}
+							onAngle={onAngle}
 							baseColor={baseColor}
 							extraControls={extraControls}
 						/>

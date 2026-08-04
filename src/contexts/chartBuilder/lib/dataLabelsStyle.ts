@@ -53,6 +53,21 @@ export const formatField = (
 	return formatLabel(raw, decimals) ?? ""
 }
 
+/** Format a single-field label value: the field's `fieldFormats` spec wins,
+ * falling back to `decimals`. Returns null (skip the label) for missing /
+ * empty values — spec formatting only applies to present values, so a null
+ * measure never renders as "0%". Shared by the single-field segment path
+ * and the aggregating renderers' pre-formatted slice anchors. */
+export const formatSingleLabel = (
+	raw: unknown,
+	spec: string | undefined | null,
+	decimals: number | null
+): string | null => {
+	if (raw === undefined || raw === null) return null
+	const text = formatField(raw, spec ?? undefined, decimals)
+	return text === "" ? null : text
+}
+
 /** Matches `{Field}` tokens; captures the inner field name (no braces). */
 const TOKEN_RE = /\{([^{}]+)\}/g
 
@@ -67,7 +82,9 @@ export type LabelSegment = { text: string; field: string | null }
  * when nothing renders.
  *
  * Single mode: one segment for `value.field` (or `fallbackField` when
- * unmapped), formatted by `decimals`.
+ * unmapped), formatted via `cfg.fieldFormats[field]` (falling back to
+ * `decimals`) — the same per-field spec store multi mode uses, so a
+ * format set in one mode carries over to the other.
  *
  * Multi mode (`value.multiField`): the template (empty = fields comma-joined)
  * split into literal runs and `{Field}` tokens. A token naming a selected
@@ -112,7 +129,11 @@ export const buildLabelSegments = (
 	}
 	const field = value.field ?? fallbackField
 	if (!field) return null
-	const text = formatLabel(row[field], cfg.decimals)
+	const text = formatSingleLabel(
+		row[field],
+		cfg.fieldFormats?.[field],
+		cfg.decimals
+	)
 	if (text === null) return null
 	return [{ text, field }]
 }

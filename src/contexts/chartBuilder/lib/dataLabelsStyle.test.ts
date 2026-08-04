@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { buildLabelSegments, buildLabelText, formatField } from "./dataLabelsStyle"
+import {
+	buildLabelSegments,
+	buildLabelText,
+	formatField,
+	formatSingleLabel,
+} from "./dataLabelsStyle"
 import type { DataLabelsEncodings } from "./types"
 
 type Cfg = Parameters<typeof buildLabelText>[2]
@@ -40,7 +45,7 @@ describe("formatField", () => {
 	})
 })
 
-describe("buildLabelText — single-field (unchanged behavior)", () => {
+describe("buildLabelText — single-field", () => {
 	it("formats the mapped field with decimals", () => {
 		expect(buildLabelText({ v: 3.14159 }, single("v"), cfg({ decimals: 1 }))).toBe(
 			"3.1"
@@ -51,6 +56,51 @@ describe("buildLabelText — single-field (unchanged behavior)", () => {
 	})
 	it("returns null when nothing is mapped", () => {
 		expect(buildLabelText({ x: 1 }, single(null), cfg())).toBeNull()
+	})
+	it("applies the field's Label format spec", () => {
+		expect(
+			buildLabelText({ v: 0.324 }, single("v"), cfg({
+				fieldFormats: { v: ".1%" },
+			}))
+		).toBe("32.4%")
+	})
+	it("format spec wins over decimals", () => {
+		expect(
+			buildLabelText({ v: 1200 }, single("v"), cfg({
+				decimals: 2,
+				fieldFormats: { v: "$,.0f" },
+			}))
+		).toBe("$1,200")
+	})
+	it("applies a spec keyed on the fallback position field", () => {
+		expect(
+			buildLabelText({ x: 0.5 }, single(null), cfg({
+				fieldFormats: { x: ".0%" },
+			}), "x")
+		).toBe("50%")
+	})
+	it("still skips missing values when a spec is set", () => {
+		expect(
+			buildLabelText({ v: null }, single("v"), cfg({
+				fieldFormats: { v: ".1%" },
+			}))
+		).toBeNull()
+	})
+})
+
+describe("formatSingleLabel", () => {
+	it("spec wins over decimals", () => {
+		expect(formatSingleLabel(0.324, ".1%", 2)).toBe("32.4%")
+	})
+	it("falls back to decimals without a spec", () => {
+		expect(formatSingleLabel(3.14159, null, 2)).toBe("3.14")
+	})
+	it("returns null for missing values even with a spec", () => {
+		expect(formatSingleLabel(null, ".1%", null)).toBeNull()
+		expect(formatSingleLabel(undefined, ".1%", null)).toBeNull()
+	})
+	it("returns null for empty strings", () => {
+		expect(formatSingleLabel("", null, null)).toBeNull()
 	})
 })
 

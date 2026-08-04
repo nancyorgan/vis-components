@@ -624,6 +624,29 @@ export const PlotCanvas = () => {
 					0,
 			}
 		: facetTitleOffset
+	// Facet-title rotation (degrees, about the anchor point). Mirrors the
+	// alignment / offset resolution: per-strip and per-panel slots layer over
+	// the shared `facetTitle` angle in a both-axes grid; otherwise the lone
+	// strip / wrap panel titles read `facetTitle` directly. The rotation is a
+	// paint-time transform only — the solver's band reserve doesn't grow for
+	// the rotated extent, so steep angles pair with an offset (same contract
+	// as facet-title offsets).
+	const facetTitleAngle = labels.titleAngles?.facetTitle ?? 0
+	const facetColTitleAngle = facetGridSplit
+		? (labels.titleAngles?.facetColTitle ??
+			labels.titleAngles?.facetTitle ??
+			0)
+		: facetTitleAngle
+	const facetRowTitleAngle = facetGridSplit
+		? (labels.titleAngles?.facetRowTitle ??
+			labels.titleAngles?.facetTitle ??
+			0)
+		: facetTitleAngle
+	const facetPanelTitleAngle = facetGridSplit
+		? (labels.titleAngles?.facetPanelTitle ??
+			labels.titleAngles?.facetTitle ??
+			0)
+		: facetTitleAngle
 	const tickFont = resolveTextFont(labels.baseFont)
 
 	const bgStyle: React.CSSProperties | undefined = channelConfigs.backgroundColor
@@ -1951,6 +1974,11 @@ export const PlotCanvas = () => {
 					x={h.x}
 					y={h.y}
 					textAnchor={h.textAnchor}
+					transform={
+						facetColTitleAngle
+							? `rotate(${facetColTitleAngle}, ${h.x}, ${h.y})`
+							: undefined
+					}
 					fontFamily={facetColTitleFont.family}
 					fontSize={facetColTitleFont.size}
 					fontWeight={facetColTitleFont.weight ?? 500}
@@ -1970,6 +1998,11 @@ export const PlotCanvas = () => {
 					x={h.x}
 					y={h.y}
 					textAnchor={h.textAnchor}
+					transform={
+						facetRowTitleAngle
+							? `rotate(${facetRowTitleAngle}, ${h.x}, ${h.y})`
+							: undefined
+					}
 					fontFamily={facetRowTitleFont.family}
 					fontSize={facetRowTitleFont.size}
 					fontWeight={facetRowTitleFont.weight ?? 500}
@@ -2354,6 +2387,9 @@ export const PlotCanvas = () => {
 				const panelLabelOffset = isCompactPanelLabel
 					? facetPanelTitleOffset
 					: facetTitleOffset
+				const panelLabelAngle = isCompactPanelLabel
+					? facetPanelTitleAngle
+					: facetTitleAngle
 				return (
 					<g
 						key={p.key}
@@ -2382,6 +2418,7 @@ export const PlotCanvas = () => {
 									weight={panelLabelFont.weight}
 									italic={panelLabelFont.italic}
 									underline={panelLabelFont.underline}
+									angleDeg={panelLabelAngle}
 								/>
 							</g>
 						)}
@@ -2470,6 +2507,7 @@ const SharedText = ({
 	weight,
 	italic,
 	underline,
+	angleDeg,
 }: {
 	rect: TextRect
 	text: string
@@ -2483,11 +2521,17 @@ const SharedText = ({
 	weight?: number
 	italic?: boolean
 	underline?: boolean
+	/** User-chosen rotation in degrees about the anchor point (facet-title
+	 * Orientation). Ignored when the rect carries its own structural
+	 * `rotation` (the -90 rotated y-title). */
+	angleDeg?: number
 }) => {
 	const transform =
 		rect.rotation === -90
 			? `rotate(-90, ${rect.x}, ${rect.y})`
-			: undefined
+			: angleDeg
+				? `rotate(${angleDeg}, ${rect.x}, ${rect.y})`
+				: undefined
 	return (
 		<text
 			x={rect.x}
