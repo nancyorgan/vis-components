@@ -44,8 +44,14 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { Disclosure } from "@headlessui/react"
 
+import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import {
+	LABEL_COL,
+	LABEL_COL_NESTED,
+	LabelSpacer,
+} from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
@@ -92,25 +98,6 @@ const ResetLink = ({ onClick }: { onClick: () => void }) => (
 	>
 		reset
 	</button>
-)
-
-const Chevron = ({ open }: { open: boolean }) => (
-	<svg
-		viewBox="0 0 12 12"
-		width={10}
-		height={10}
-		aria-hidden="true"
-		className={`flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-	>
-		<path
-			d="M3 4.5l3 3 3-3"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.5}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
 )
 
 type DataLabelsChannel = keyof DataLabelsEncodings
@@ -378,8 +365,8 @@ export const DataLabelsPanel = () => {
 	})()
 
 	return (
-		<div className="flex flex-col gap-3">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+		<div className="flex flex-col gap-2">
+			<p className="vc-help">
 				Draw a layer of text labels on top of the visualization. Map fields to
 				position, color, size, and text content — labels inherit faceting from
 				the main chart.
@@ -394,7 +381,7 @@ export const DataLabelsPanel = () => {
 			{/* Tree layouts have no position rows at all — placement comes from
 			 *  the pack / treemap / partition layout. */}
 			{isTreeMode && (
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Labels are placed by the layout (leaf centers, container rims).
 					Value, Color, and Size apply — Value defaults to each row&apos;s
 					name from the ID column.
@@ -517,7 +504,7 @@ export const DataLabelsPanel = () => {
 
 			{/* One purple panel wraps the layer-wide fine-tuning so it reads as
 			 *  a single group, distinct from the per-channel mappings above. */}
-			<div className="vc-option-panel flex flex-col gap-3">
+			<div className="vc-option-panel">
 			{/* Layer-wide toggles: which labels to keep and how to handle
 			 *  collisions. Grouped under their own subsection so they read as
 			 *  a distinct concern from the per-channel mappings above. */}
@@ -528,9 +515,10 @@ export const DataLabelsPanel = () => {
 			{!isTreeMode && (
 			<>
 			<CollapsibleSubsection title="Label selection and overlap">
+				<div className="flex flex-col gap-2">
 				<SelectInput
 					label="Which labels"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={effectiveLabelPoints(merged)}
 					options={[
 						{ value: "all", label: "All labels" },
@@ -542,7 +530,7 @@ export const DataLabelsPanel = () => {
 						updateCfg({ labelPoints })
 					}
 				/>
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					First / last keep only each series&apos; leftmost / rightmost (or
 					topmost / bottom-most) label — handy for directly labeling line
 					charts and stacked bar charts so the legend can be turned off.
@@ -553,24 +541,26 @@ export const DataLabelsPanel = () => {
 				</p>
 				<Toggle
 					label="Avoid overlapping labels"
-					className="mt-3"
+					className="mt-1"
 					checked={merged.avoidOverlaps === true}
 					onChange={(avoidOverlaps) => updateCfg({ avoidOverlaps })}
 				/>
-				<p className="ml-5 text-xs text-stone-600 dark:text-stone-400">
+				<p className="ml-6 vc-help">
 					Moves colliding labels apart vertically — up or down — keeping each
 					as close to its data point as possible and preserving their order.
 					Best-effort — densely packed labels may still collide.
 				</p>
+				</div>
 			</CollapsibleSubsection>
 
 			<CollapsibleSubsection title="Position Adjustment and Alignment">
+				<div className="flex flex-col gap-2">
 				{splitEndpoints ? (
 					<div className="flex flex-col gap-2">
 						{/* First/Last alignment pair — effective value shown, writes
 						 *  land in the endpoint override blocks. */}
 						<div className="flex items-center gap-2 text-sm">
-							<span className="w-24 text-stone-600 dark:text-stone-400">
+							<span className={LABEL_COL}>
 								First label
 							</span>
 							<AlignmentControl
@@ -583,7 +573,7 @@ export const DataLabelsPanel = () => {
 							/>
 						</div>
 						<div className="flex items-center gap-2 text-sm">
-							<span className="w-24 text-stone-600 dark:text-stone-400">
+							<span className={LABEL_COL}>
 								Last label
 							</span>
 							<AlignmentControl
@@ -598,7 +588,7 @@ export const DataLabelsPanel = () => {
 					</div>
 				) : (
 					<div className="flex items-center gap-2 text-sm">
-						<span className="w-24 text-stone-600 dark:text-stone-400">
+						<span className={LABEL_COL}>
 							Alignment
 						</span>
 						<AlignmentControl
@@ -607,21 +597,21 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Pairs with the X offset below — e.g. <em>Left</em> + a small
 					positive X nudges the label cleanly past its data point.
 				</p>
-				<hr className="my-2 border-stone-200 dark:border-stone-700" />
+				<hr className="border-stone-200 dark:border-stone-700" />
 				<Toggle
 					label="Wrap text"
 					checked={merged.wrapText === true}
 					onChange={(wrapText) => updateCfg({ wrapText })}
 				/>
 				{merged.wrapText === true && (
-					<div className="ml-5 flex items-center gap-2 text-sm">
+					<div className="ml-6 flex items-center gap-2 text-sm">
 						<NumberInput
 							label="Characters"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL_NESTED}
 							value={merged.wrapMaxChars ?? 20}
 							min={1}
 							step={1}
@@ -630,7 +620,7 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
-				<p className="ml-5 text-xs text-stone-600 dark:text-stone-400">
+				<p className="ml-6 vc-help">
 					Wraps long labels onto multiple lines, targeting this many characters
 					per line and breaking on the nearest space so words stay whole.
 				</p>
@@ -638,7 +628,7 @@ export const DataLabelsPanel = () => {
 					<>
 						<SelectInput
 							label="Bar position"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={
 								(merged.barLabelPosition ?? "center") as NonNullable<
 									DataLabelsConfig["barLabelPosition"]
@@ -652,12 +642,12 @@ export const DataLabelsPanel = () => {
 							]}
 							onChange={(barLabelPosition) => updateCfg({ barLabelPosition })}
 						/>
-						<p className="text-xs text-stone-600 dark:text-stone-400">
+						<p className="vc-help">
 							Where labels sit along the bar&apos;s measure axis.
 						</p>
 					</>
 				)}
-				<hr className="my-2 border-stone-200 dark:border-stone-700" />
+				<hr className="border-stone-200 dark:border-stone-700" />
 				<span className="text-sm text-stone-600 dark:text-stone-400">
 					Adjust position
 				</span>
@@ -688,7 +678,7 @@ export const DataLabelsPanel = () => {
 								suffix="%"
 							/>
 						</div>
-						<p className="text-xs text-stone-600 dark:text-stone-400">
+						<p className="vc-help">
 							Angle rotates every label off its slice&apos;s midpoint (positive =
 							clockwise). R is the distance from each pie&apos;s center as a percent
 							of its radius — 100% is the border, lower pulls labels inside the
@@ -703,10 +693,10 @@ export const DataLabelsPanel = () => {
 						<span className="text-sm text-stone-600 dark:text-stone-400">
 							First label
 						</span>
-						<div className="ml-5 flex flex-col gap-2 text-sm">
+						<div className="ml-6 flex flex-col gap-2 text-sm">
 							<NumberInput
 								label="X"
-								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL_NESTED}
 								value={merged.firstLabel?.xOffset ?? merged.xOffset}
 								step={1}
 								onChange={(xOffset) => patchEndpoint("firstLabel", { xOffset })}
@@ -715,7 +705,7 @@ export const DataLabelsPanel = () => {
 							/>
 							<NumberInput
 								label="Y"
-								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL_NESTED}
 								value={merged.firstLabel?.yOffset ?? merged.yOffset}
 								step={1}
 								onChange={(yOffset) => patchEndpoint("firstLabel", { yOffset })}
@@ -726,10 +716,10 @@ export const DataLabelsPanel = () => {
 						<span className="text-sm text-stone-600 dark:text-stone-400">
 							Last label
 						</span>
-						<div className="ml-5 flex flex-col gap-2 text-sm">
+						<div className="ml-6 flex flex-col gap-2 text-sm">
 							<NumberInput
 								label="X"
-								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL_NESTED}
 								value={merged.lastLabel?.xOffset ?? merged.xOffset}
 								step={1}
 								onChange={(xOffset) => patchEndpoint("lastLabel", { xOffset })}
@@ -738,7 +728,7 @@ export const DataLabelsPanel = () => {
 							/>
 							<NumberInput
 								label="Y"
-								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL_NESTED}
 								value={merged.lastLabel?.yOffset ?? merged.yOffset}
 								step={1}
 								onChange={(yOffset) => patchEndpoint("lastLabel", { yOffset })}
@@ -751,7 +741,7 @@ export const DataLabelsPanel = () => {
 					<div className="flex flex-col gap-2 text-sm">
 						<NumberInput
 							label="X"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={merged.xOffset}
 							step={1}
 							onChange={(xOffset) => updateCfg({ xOffset })}
@@ -760,7 +750,7 @@ export const DataLabelsPanel = () => {
 						/>
 						<NumberInput
 							label="Y"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={merged.yOffset}
 							step={1}
 							onChange={(yOffset) => updateCfg({ yOffset })}
@@ -769,11 +759,12 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Pixel offset{splitEndpoints ? " per endpoint" : " applied to every label"}.
 					Positive X pushes right, positive Y pushes down. Useful for shifting
 					labels off of the marks they&apos;re annotating.
 				</p>
+				</div>
 			</CollapsibleSubsection>
 			</>
 			)}
@@ -835,7 +826,7 @@ const TextBackgroundPanel = ({
 				checked={enabled}
 				onChange={(textBackground) => onChange({ textBackground })}
 			/>
-			<p className="text-xs text-stone-600 dark:text-stone-400">
+			<p className="vc-help">
 				Draws a filled rectangle behind each label so text reads cleanly over
 				gridlines instead of colliding with them.
 			</p>
@@ -843,19 +834,19 @@ const TextBackgroundPanel = ({
 				<>
 					<ColorInput
 						label="Background"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={colorValue}
 						onChange={(textBackgroundColor) =>
 							onChange({ textBackgroundColor })
 						}
 					/>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Defaults to the visualization&apos;s background color.
 					</p>
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Corner radius"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={cfg.textBackgroundRadius ?? 0}
 							min={0}
 							max={32}
@@ -881,7 +872,7 @@ const TextBackgroundPanel = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Horizontal padding"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={cfg.textBackgroundPadX ?? 0}
 							min={0}
 							max={32}
@@ -907,7 +898,7 @@ const TextBackgroundPanel = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Vertical padding"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={cfg.textBackgroundPadY ?? 0}
 							min={0}
 							max={32}
@@ -982,7 +973,7 @@ const DataLabelChannelRow = ({
 		<div className="flex min-w-0 flex-1 items-center gap-2">
 			<label
 				htmlFor={selectId}
-				className="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-300"
+				className={`${LABEL_COL} shrink-0 text-sm`}
 			>
 				{label}
 			</label>
@@ -1013,21 +1004,23 @@ const DataLabelChannelRow = ({
 	)
 
 	// No per-channel options → plain dropdown row, no disclosure chrome.
+	// px-2 matches the padding of the subsection cards / purple boxes below,
+	// so the label column and dropdowns line up with the boxed rows.
 	if (children == null) {
-		return <div className="flex items-center gap-1">{fieldSelect}</div>
+		return <div className="flex items-center gap-1 px-2">{fieldSelect}</div>
 	}
 
 	return (
 		<Disclosure as="div" className="flex flex-col gap-1">
 			{({ open }) => (
 				<>
-					<div className="flex items-center gap-1">
+					<div className="flex items-center gap-1 px-2">
 						{fieldSelect}
 						<Disclosure.Button
 							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
 							aria-label={`Toggle settings for ${label}`}
 						>
-							<Chevron open={open} />
+							<DisclosureChevron open={open} />
 						</Disclosure.Button>
 					</div>
 					<Disclosure.Panel>
@@ -1076,7 +1069,7 @@ const TextPositionPanel = ({
 		})
 	if (levels.length === 0) {
 		return (
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Labels can wrap around grouping circles once the chart has them —
 				map a categorical field to the connection channel first.
 			</p>
@@ -1095,7 +1088,7 @@ const TextPositionPanel = ({
 					onChange={(on) => toggle(level, on)}
 				/>
 			))}
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Checked levels draw the group name on an arc around the outside of
 				the circle; unchecked levels keep it inside the top rim.
 			</p>
@@ -1119,7 +1112,7 @@ const TextPropertiesPanel = ({
 		<div className="flex items-center gap-2">
 			<SelectInput
 				label="Family"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={cfg.fontFamily}
 				options={FONT_FAMILY_OPTIONS.map((opt) => ({
 					value: opt.value,
@@ -1139,7 +1132,7 @@ const TextPropertiesPanel = ({
 		<div className="flex items-center gap-2">
 			<SelectInput
 				label="Weight"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={String(cfg.fontWeight) as "400" | "500" | "600" | "700"}
 				options={FONT_WEIGHTS.map((w) => ({
 					value: String(w.value) as "400" | "500" | "600" | "700",
@@ -1161,7 +1154,7 @@ const TextPropertiesPanel = ({
 			)}
 		</div>
 		<div className="flex items-center gap-1.5">
-			<span className="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400">
+			<span className={`${LABEL_COL} shrink-0 text-sm`}>
 				Style
 			</span>
 			<StyleButton
@@ -1207,7 +1200,7 @@ const XYPositionPanel = ({
 			<div className="flex items-center gap-2">
 				<ColorInput
 					label="Color"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={cfg.color}
 					onChange={(color) => onChange({ color })}
 				/>
@@ -1219,14 +1212,14 @@ const XYPositionPanel = ({
 			</div>
 			<NumberInput
 				label={`Adjust (${axis})`}
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={offsetValue}
 				step={1}
 				onChange={(v) => onChange({ [offsetKey]: v })}
 				inputClassName="w-16"
 				suffix="px"
 			/>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Nudges the label by this many pixels along the {axis} axis. Positive
 				values push {axis === "x" ? "right" : "down"}.
 			</p>
@@ -1296,7 +1289,7 @@ const HuePanel = ({
 			{!perVariableColor && (
 				<>
 					{!hueFieldMapped && (
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							Map a field to <strong>Color</strong> above to drive label colors
 							by that field&apos;s values. The fallback color below is used
 							until then.
@@ -1331,7 +1324,7 @@ const HuePanel = ({
 									? "Fallback"
 									: "Color"
 						}
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={cfg.color}
 						onChange={(color) => onChange({ color })}
 					/>
@@ -1499,7 +1492,7 @@ const TextColorRulesRow = ({
 				>
 					{/* Empty leading column so the condition box lines up under the
 					 *  w-24-labeled text boxes above (Palette / Gradient, Color). */}
-					<span className="w-24 flex-shrink-0" aria-hidden="true" />
+					<LabelSpacer />
 					<input
 						type="text"
 						value={rule.condition}
@@ -1534,7 +1527,7 @@ const TextColorRulesRow = ({
 			>
 				+ Add rule
 			</button>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				First matching rule wins. Use <code>{">"}</code>, <code>{"<"}</code>,{" "}
 				<code>{">="}</code>, <code>{"<="}</code>, <code>==</code>, or{" "}
 				<code>!=</code> followed by a number.
@@ -1584,7 +1577,7 @@ const CategoricalPaletteRow = ({
 	return (
 		<>
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Palette</span>
+				<span className={LABEL_COL}>Palette</span>
 				<select
 					value={currentSelection}
 					onChange={(e) => onPickPalette(e.target.value)}
@@ -1601,7 +1594,7 @@ const CategoricalPaletteRow = ({
 					))}
 				</select>
 			</label>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				<em>Match chart colors</em> inherits the chart&apos;s palette so labels
 				match their marks. <em>None (single color)</em> paints every label
 				with the color below. Either way, the swatches under the dropdown
@@ -1650,7 +1643,7 @@ const GradientRow = ({
 	const currentSelection: string = cfg.gradientId ?? "__none__"
 	return (
 		<label className="flex items-center gap-2 text-sm">
-			<span className="w-24 text-stone-600 dark:text-stone-400">Gradient</span>
+			<span className={LABEL_COL}>Gradient</span>
 			<select
 				value={currentSelection}
 				onChange={(e) => onPickGradient(e.target.value)}
@@ -1704,7 +1697,7 @@ const SizePanel = ({
 }) => (
 	<div className="flex flex-col gap-2">
 		{depthNote && (
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				The TOP level uses the Max size and the deepest level the Min —
 				big group titles, small leaf labels. Swap Min and Max to invert.
 			</p>
@@ -1712,7 +1705,7 @@ const SizePanel = ({
 		<div className="flex items-center gap-2">
 			<NumberInput
 				label="Default size"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={cfg.fontSize}
 				min={6}
 				max={64}
@@ -1732,7 +1725,7 @@ const SizePanel = ({
 		<div className="flex items-center gap-2">
 			<NumberInput
 				label="Min"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={cfg.sizeMin}
 				min={4}
 				max={64}
@@ -1752,7 +1745,7 @@ const SizePanel = ({
 		<div className="flex items-center gap-2">
 			<NumberInput
 				label="Max"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={cfg.sizeMax}
 				min={4}
 				max={128}
@@ -1769,7 +1762,7 @@ const SizePanel = ({
 				/>
 			)}
 		</div>
-		<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+		<p className="vc-help">
 			Default size applies when no size field is mapped. Min / max set the pixel
 			range when a numeric field drives the label size.
 		</p>
@@ -1806,11 +1799,11 @@ const ValuePanel = ({
 		<div className="flex flex-col gap-3">
 			{/* Which fields to include — check order sets the pre-filled order. */}
 			<div className="flex flex-col gap-1">
-				<span className="text-sm font-semibold text-vc-section-header">
+				<span className="vc-group-header">
 					Fields to include
 				</span>
 				{allFields.length === 0 ? (
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="vc-help">
 						No dataset fields.
 					</p>
 				) : (
@@ -1879,7 +1872,7 @@ const ValuePanel = ({
 			 *  x / y axes use, one per selected field. */}
 			{fields.length > 0 && (
 				<div className="flex flex-col gap-1">
-					<span className="text-sm font-semibold text-vc-section-header">
+					<span className="vc-group-header">
 						Label format
 					</span>
 					{fields.map((name) => (
@@ -1899,7 +1892,7 @@ const ValuePanel = ({
 				</div>
 			)}
 
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Edit the label text above — a field name in braces (e.g.{" "}
 				<code>{"{Region}"}</code>) shows that row&apos;s value; type any text
 				around it. Each field takes a format (same options as the axes); set

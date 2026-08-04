@@ -8,6 +8,7 @@ import {
 	DEFAULT_SHAPE_CONFIG,
 	type LineDashPattern,
 } from "../../lib/channelConfig"
+import { LEGEND_SWATCH_OUTLINE } from "../../lib/previewInk"
 import type { ColorSlotKey } from "../../lib/channelConfig"
 import {
 	densityCurveGroupField,
@@ -3224,7 +3225,7 @@ const PatternLegend = ({
 									width={20}
 									height={14}
 									fill={bgColor}
-									stroke="#cbd5e1"
+									stroke={LEGEND_SWATCH_OUTLINE}
 									strokeWidth={0.5}
 								/>
 							</svg>
@@ -3270,7 +3271,7 @@ const PatternLegend = ({
 								width={20}
 								height={14}
 								fill={`url(#${patId})`}
-								stroke="#cbd5e1"
+								stroke={LEGEND_SWATCH_OUTLINE}
 								strokeWidth={0.5}
 							/>
 						</svg>

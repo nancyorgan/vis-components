@@ -29,6 +29,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
+import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { CategoricalSwatchList, QuantitativePanel } from "./HueOptionsPanel"
 
@@ -84,7 +85,7 @@ export const OutlineHueFieldDropdown = () => {
 	return (
 		<SelectInput
 			label="Vary outline by"
-			labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={value ?? ""}
 			options={fieldOptions}
 			onChange={onChange}
@@ -133,7 +134,7 @@ export const OutlineColorRow = () => {
 		<div className="flex flex-col gap-2">
 			<SelectInput
 				label="Vary by"
-				labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={value ?? ""}
 				options={varyByOptions}
 				onChange={onChange}
@@ -144,7 +145,7 @@ export const OutlineColorRow = () => {
 				<div className="flex items-center gap-2">
 					<ColorInput
 						label="Color"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={cfg.outlineColor}
 						onChange={(outlineColor) => updateShape({ outlineColor })}
 						changed={cfg.outlineColor !== defaultColor}
@@ -212,7 +213,7 @@ const OutlineColorRulesRow = ({
 						{/* Empty label-column spacer so the condition box + swatch
 						 *  line up with the Fill controls (which sit after a w-24
 						 *  label), matching the gradient/swatch rows above. */}
-						<span className="w-24 flex-shrink-0" aria-hidden="true" />
+						<LabelSpacer />
 						<input
 							type="text"
 							value={rule.condition}
@@ -246,7 +247,7 @@ const OutlineColorRulesRow = ({
 				>
 					+ Add rule
 				</button>
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Tested against the outline variable&apos;s value; first match wins and
 					overrides the palette. Use <code>{">"}</code>, <code>{"<"}</code>,{" "}
 					<code>{">="}</code>, <code>{"<="}</code>, <code>==</code>, or{" "}
@@ -389,7 +390,7 @@ const OutlineCategoricalControls = ({
 			{palettesForType.length > 1 && (
 				<SelectInput
 					label="Palette"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={currentPaletteId}
 					options={palettesForType.map((p) => ({
 						value: p.id,
@@ -418,7 +419,7 @@ const OutlineCategoricalControls = ({
  *  is rarely shown — but the registry requires a total mapping, and this
  *  keeps the channel self-sufficient (dropdown + scale controls) if it is. */
 export const OutlineHueOptionsPanel = () => (
-	<div className="vc-option-panel flex flex-col gap-3">
+	<div className="vc-option-panel">
 		<OutlineHueFieldDropdown />
 		<OutlineHueScaleControls />
 	</div>

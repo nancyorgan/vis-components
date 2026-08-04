@@ -13,10 +13,9 @@ import {
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { ColorInput } from "../../../../../components/ui/ColorInput"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
-
-const ROW_LABEL = "w-24 text-stone-600 dark:text-stone-400"
 
 /** Inline "reset" link — renders only when a value differs from its theme
  *  default; clicking restores the default via the caller's update fn. */
@@ -126,11 +125,11 @@ export const TextOptionsPanel = () => {
 	]
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			<div className="flex items-center gap-2">
 				<SelectInput
 					label="Font family"
-					labelClassName={ROW_LABEL}
+					labelClassName={LABEL_COL}
 					value={cfg.fontFamily}
 					options={FAMILY_OPTIONS}
 					onChange={(fontFamily) => updateCfg({ fontFamily })}
@@ -145,7 +144,7 @@ export const TextOptionsPanel = () => {
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Size"
-					labelClassName={ROW_LABEL}
+					labelClassName={LABEL_COL}
 					value={cfg.fontSize}
 					min={6}
 					max={48}
@@ -163,7 +162,7 @@ export const TextOptionsPanel = () => {
 			<div className="flex items-center gap-2">
 				<SelectInput
 					label="Weight"
-					labelClassName={ROW_LABEL}
+					labelClassName={LABEL_COL}
 					value={String(cfg.fontWeight) as WeightOptionValue}
 					options={WEIGHT_OPTIONS}
 					onChange={(w) =>
@@ -183,7 +182,7 @@ export const TextOptionsPanel = () => {
 				<div className="flex items-center gap-2">
 					<NumberInput
 						label="Decimals"
-						labelClassName={ROW_LABEL}
+						labelClassName={LABEL_COL}
 						value={cfg.decimals ?? 0}
 						min={0}
 						max={6}
@@ -202,7 +201,7 @@ export const TextOptionsPanel = () => {
 			{isDiscrete && categories.length > 0 && (
 				<SelectInput
 					label="Palette"
-					labelClassName={ROW_LABEL}
+					labelClassName={LABEL_COL}
 					value={paletteSelectValue}
 					options={paletteOptions}
 					onChange={(next) => {
@@ -219,7 +218,7 @@ export const TextOptionsPanel = () => {
 			<div className="flex items-center gap-2">
 				<ColorInput
 					label={cfg.palette.length > 0 ? "Fallback" : "Color"}
-					labelClassName={ROW_LABEL}
+					labelClassName={LABEL_COL}
 					value={cfg.color}
 					onChange={(color) => updateCfg({ color })}
 				/>

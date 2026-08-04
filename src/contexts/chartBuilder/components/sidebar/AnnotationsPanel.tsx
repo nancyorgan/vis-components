@@ -3,6 +3,7 @@ import { useMemo } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import {
@@ -21,6 +22,7 @@ import {
 	type LineDashPattern,
 } from "../../lib/channelConfig"
 import { FONT_FAMILY_OPTIONS } from "../../lib/labelsConfig"
+import { AlignmentControl } from "./LabelsPanel"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveFacetPanels } from "../../lib/resolveFacetPanels"
@@ -58,18 +60,6 @@ const WEIGHT_OPTIONS = [
 	{ value: "700", label: "Bold" },
 ] as const
 type WeightOptionValue = (typeof WEIGHT_OPTIONS)[number]["value"]
-
-const TEXT_ALIGN_OPTIONS = [
-	{ value: "left", label: "Left" },
-	{ value: "center", label: "Center" },
-	{ value: "right", label: "Right" },
-] as const
-type TextAlignValue = (typeof TEXT_ALIGN_OPTIONS)[number]["value"]
-
-/** Shared label-column class for every labeled control in this panel, so
- *  the inputs line up on a single vertical edge — matching the fixed
- *  `w-24` label column the encoding option panels use. */
-const FIELD_LABEL = "w-24 text-stone-600 dark:text-stone-400"
 
 /** Seed values the `new*` factories write, so each style control can offer a
  *  "reset" link that only shows when the current value differs from the
@@ -244,7 +234,9 @@ const FacetScopeControl = ({
 }) => {
 	const applyAll = facetKeys == null
 	return (
-		<div className="flex flex-col gap-1.5">
+		/* px-2: this control renders as a bare sibling of the boxed subsections
+		 * inside each editor's purple panel, so pad it to their content edge. */
+		<div className="flex flex-col gap-1.5 px-2">
 			<label className="flex items-center gap-2 text-sm">
 				<input
 					type="checkbox"
@@ -445,7 +437,7 @@ export const AnnotationsPanel = () => {
 	}
 
 	return (
-		<div className="flex flex-col gap-3">
+		<div className="flex flex-col gap-2">
 			<div className="flex flex-wrap gap-2">
 				<button
 					type="button"
@@ -472,7 +464,7 @@ export const AnnotationsPanel = () => {
 			{cfg.rectangles.length === 0 &&
 				circles.length === 0 &&
 				lineSegments.length === 0 && (
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Position is set as a percent of the plot area (0 = bottom-left
 						of the spines, 1 = top-right).
 					</p>
@@ -573,7 +565,7 @@ const LineSegmentEditor = ({
 	facetScope?: ReactNode
 }) => {
 	return (
-		<div className="vc-option-panel flex flex-col gap-2 rounded border border-stone-200 p-2 dark:border-stone-700">
+		<div className="vc-option-panel">
 			<div className="flex items-center justify-between gap-2">
 				<input
 					type="text"
@@ -597,7 +589,7 @@ const LineSegmentEditor = ({
 				<div className="flex flex-col gap-2">
 					<SelectInput
 						label="Adjust by"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={line.coordSystem}
 						options={[
 							{ value: "percent", label: "Percent (0–100)" },
@@ -633,7 +625,7 @@ const LineSegmentEditor = ({
 						<div className="flex flex-col gap-2">
 							<NumberInput
 								label="start x %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.xMin) * 100)}
 								step={1}
 								onChange={(v) => onChange({ xMin: v / 100 })}
@@ -641,7 +633,7 @@ const LineSegmentEditor = ({
 							/>
 							<NumberInput
 								label="start y %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.yMin) * 100)}
 								step={1}
 								onChange={(v) => onChange({ yMin: v / 100 })}
@@ -649,7 +641,7 @@ const LineSegmentEditor = ({
 							/>
 							<NumberInput
 								label="end x %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.xMax) * 100)}
 								step={1}
 								onChange={(v) => onChange({ xMax: v / 100 })}
@@ -657,7 +649,7 @@ const LineSegmentEditor = ({
 							/>
 							<NumberInput
 								label="end y %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.yMax) * 100)}
 								step={1}
 								onChange={(v) => onChange({ yMax: v / 100 })}
@@ -668,28 +660,28 @@ const LineSegmentEditor = ({
 						<div className="flex flex-col gap-2">
 							<AxisValueInput
 								label="start x"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={line.xMin}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMin: v })}
 							/>
 							<AxisValueInput
 								label="start y"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={line.yMin}
 								axis={yAxis}
 								onChange={(v) => onChange({ yMin: v })}
 							/>
 							<AxisValueInput
 								label="end x"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={line.xMax}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMax: v })}
 							/>
 							<AxisValueInput
 								label="end y"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={line.yMax}
 								axis={yAxis}
 								onChange={(v) => onChange({ yMax: v })}
@@ -704,7 +696,7 @@ const LineSegmentEditor = ({
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Line"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={line.lineColor}
 							onChange={(c) => onChange({ lineColor: c })}
 						/>
@@ -719,7 +711,7 @@ const LineSegmentEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Thickness"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={line.lineThickness}
 							step={0.5}
 							min={0}
@@ -737,7 +729,7 @@ const LineSegmentEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Opacity"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={line.lineOpacity}
 							step={0.05}
 							min={0}
@@ -754,7 +746,7 @@ const LineSegmentEditor = ({
 					</div>
 					<SelectInput
 						label="Dash"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={line.lineDash}
 						options={DASH_OPTIONS.map((d) => ({ value: d, label: d }))}
 						onChange={(v) => onChange({ lineDash: v as LineDashPattern })}
@@ -762,8 +754,10 @@ const LineSegmentEditor = ({
 				</div>
 			</CollapsibleSubsection>
 
-			<div className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Layer</span>
+			{/* px-2 keeps this bare row's label/control column aligned with the
+			 * rows inside the p-2 subsection cards above. */}
+			<div className="flex items-center gap-2 px-2 text-sm">
+				<span className={LABEL_COL}>Layer</span>
 				<div
 					role="group"
 					aria-label="Layer order"
@@ -823,7 +817,7 @@ const RectangleEditor = ({
 	facetScope?: ReactNode
 }) => {
 	return (
-		<div className="vc-option-panel flex flex-col gap-2 rounded border border-stone-200 p-2 dark:border-stone-700">
+		<div className="vc-option-panel">
 			<div className="flex items-center justify-between gap-2">
 				<input
 					type="text"
@@ -847,7 +841,7 @@ const RectangleEditor = ({
 				<div className="flex flex-col gap-2">
 					<SelectInput
 						label="Adjust by"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={rect.coordSystem}
 						options={[
 							{ value: "percent", label: "Percent (0–100)" },
@@ -885,7 +879,7 @@ const RectangleEditor = ({
 						<div className="flex flex-col gap-2">
 							<NumberInput
 								label="x min %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.xMin) * 100)}
 								step={1}
 								onChange={(v) => onChange({ xMin: v / 100 })}
@@ -893,7 +887,7 @@ const RectangleEditor = ({
 							/>
 							<NumberInput
 								label="x max %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.xMax) * 100)}
 								step={1}
 								onChange={(v) => onChange({ xMax: v / 100 })}
@@ -901,7 +895,7 @@ const RectangleEditor = ({
 							/>
 							<NumberInput
 								label="y min %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.yMin) * 100)}
 								step={1}
 								onChange={(v) => onChange({ yMin: v / 100 })}
@@ -909,7 +903,7 @@ const RectangleEditor = ({
 							/>
 							<NumberInput
 								label="y max %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.yMax) * 100)}
 								step={1}
 								onChange={(v) => onChange({ yMax: v / 100 })}
@@ -920,28 +914,28 @@ const RectangleEditor = ({
 						<div className="flex flex-col gap-2">
 							<AxisValueInput
 								label="x min"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={rect.xMin}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMin: v })}
 							/>
 							<AxisValueInput
 								label="x max"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={rect.xMax}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMax: v })}
 							/>
 							<AxisValueInput
 								label="y min"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={rect.yMin}
 								axis={yAxis}
 								onChange={(v) => onChange({ yMin: v })}
 							/>
 							<AxisValueInput
 								label="y max"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={rect.yMax}
 								axis={yAxis}
 								onChange={(v) => onChange({ yMax: v })}
@@ -956,7 +950,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Fill"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.backgroundColor}
 							onChange={(c) => onChange({ backgroundColor: c })}
 						/>
@@ -973,7 +967,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Fill opacity"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.backgroundOpacity}
 							step={0.05}
 							min={0}
@@ -999,7 +993,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Color"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.borderColor}
 							onChange={(c) => onChange({ borderColor: c })}
 						/>
@@ -1014,7 +1008,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Thickness"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.borderThickness}
 							step={0.5}
 							min={0}
@@ -1034,7 +1028,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Opacity"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.borderOpacity}
 							step={0.05}
 							min={0}
@@ -1051,7 +1045,7 @@ const RectangleEditor = ({
 					</div>
 					<SelectInput
 						label="Dash"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={rect.borderDash}
 						options={DASH_OPTIONS.map((d) => ({ value: d, label: d }))}
 						onChange={(v) => onChange({ borderDash: v as LineDashPattern })}
@@ -1072,13 +1066,13 @@ const RectangleEditor = ({
 							rows={2}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="text-xs text-stone-600 dark:text-stone-500">
+						<span className="vc-help">
 							Press Enter for a manual line break.
 						</span>
 					</label>
 					<SelectInput
 						label="Font"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={rect.textFontFamily ?? DEFAULT_RECTANGLE_TEXT.textFontFamily}
 						options={FAMILY_OPTIONS}
 						onChange={(textFontFamily) => onChange({ textFontFamily })}
@@ -1087,7 +1081,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Size"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize}
 							min={1}
 							step={1}
@@ -1106,7 +1100,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Color"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.textColor ?? DEFAULT_RECTANGLE_TEXT.textColor}
 							onChange={(c) => onChange({ textColor: c })}
 						/>
@@ -1122,7 +1116,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2">
 						<SelectInput<WeightOptionValue>
 							label="Weight"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={
 								String(
 									rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight,
@@ -1142,17 +1136,18 @@ const RectangleEditor = ({
 							/>
 						)}
 					</div>
-					<SelectInput<TextAlignValue>
-						label="Alignment"
-						labelClassName={FIELD_LABEL}
-						value={rect.textAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign}
-						options={TEXT_ALIGN_OPTIONS}
-						onChange={(v) => onChange({ textAlign: v })}
-					/>
+					{/* div, not label: AlignmentControl is a button group, not a form control */}
+					<div className="flex items-center gap-2 text-sm">
+						<span className={LABEL_COL}>Alignment</span>
+						<AlignmentControl
+							value={rect.textAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign}
+							onChange={(textAlign) => onChange({ textAlign })}
+						/>
+					</div>
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Padding"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={rect.textPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding}
 							min={0}
 							step={1}
@@ -1171,8 +1166,10 @@ const RectangleEditor = ({
 				</div>
 			</CollapsibleSubsection>
 
-			<div className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Layer</span>
+			{/* px-2 keeps this bare row's label/control column aligned with the
+			 * rows inside the p-2 subsection cards above. */}
+			<div className="flex items-center gap-2 px-2 text-sm">
+				<span className={LABEL_COL}>Layer</span>
 				<div
 					role="group"
 					aria-label="Layer order"
@@ -1264,7 +1261,7 @@ const CircleEditor = ({
 			? xAxis
 			: yAxis
 	return (
-		<div className="vc-option-panel flex flex-col gap-2 rounded border border-stone-200 p-2 dark:border-stone-700">
+		<div className="vc-option-panel">
 			<div className="flex items-center justify-between gap-2">
 				<input
 					type="text"
@@ -1288,7 +1285,7 @@ const CircleEditor = ({
 				<div className="flex flex-col gap-2">
 					<SelectInput
 						label="Adjust by"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={circle.coordSystem}
 						options={[
 							{ value: "percent", label: "Percent (0–100)" },
@@ -1326,7 +1323,7 @@ const CircleEditor = ({
 						<div className="flex flex-col gap-2">
 							<NumberInput
 								label="center x %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(circle.centerX) * 100)}
 								step={1}
 								onChange={(v) => onChange({ centerX: v / 100 })}
@@ -1334,7 +1331,7 @@ const CircleEditor = ({
 							/>
 							<NumberInput
 								label="center y %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(circle.centerY) * 100)}
 								step={1}
 								onChange={(v) => onChange({ centerY: v / 100 })}
@@ -1342,7 +1339,7 @@ const CircleEditor = ({
 							/>
 							<NumberInput
 								label="radius %"
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(circle.radius) * 100)}
 								step={1}
 								min={0}
@@ -1354,21 +1351,21 @@ const CircleEditor = ({
 						<div className="flex flex-col gap-2">
 							<AxisValueInput
 								label={isRadar ? "center angle" : "center x"}
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={circle.centerX}
 								axis={xAxis}
 								onChange={(v) => onChange({ centerX: v })}
 							/>
 							<AxisValueInput
 								label={isRadar ? "center r" : "center y"}
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={circle.centerY}
 								axis={yAxis}
 								onChange={(v) => onChange({ centerY: v })}
 							/>
 							<NumberInput
 								label={isRadar ? "radius (r)" : `radius (${circle.radiusAxis})`}
-								labelClassName={FIELD_LABEL}
+								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(circle.radius))}
 								step={1}
 								min={0}
@@ -1381,7 +1378,7 @@ const CircleEditor = ({
 					    radius-axis choice is meaningless there — hide it. */}
 					{!isRadar && (
 						<div className="flex items-center gap-2 text-sm">
-							<span className="w-24 text-stone-600 dark:text-stone-400">
+							<span className={LABEL_COL}>
 								Radius axis
 							</span>
 							<div
@@ -1424,7 +1421,7 @@ const CircleEditor = ({
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Fill"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={circle.backgroundColor}
 							onChange={(c) => onChange({ backgroundColor: c })}
 						/>
@@ -1442,7 +1439,7 @@ const CircleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Fill opacity"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={circle.backgroundOpacity}
 							step={0.05}
 							min={0}
@@ -1468,7 +1465,7 @@ const CircleEditor = ({
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Color"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={circle.borderColor}
 							onChange={(c) => onChange({ borderColor: c })}
 						/>
@@ -1483,7 +1480,7 @@ const CircleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Thickness"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={circle.borderThickness}
 							step={0.5}
 							min={0}
@@ -1504,7 +1501,7 @@ const CircleEditor = ({
 					<div className="flex items-center gap-2">
 						<NumberInput
 							label="Opacity"
-							labelClassName={FIELD_LABEL}
+							labelClassName={LABEL_COL}
 							value={circle.borderOpacity}
 							step={0.05}
 							min={0}
@@ -1523,7 +1520,7 @@ const CircleEditor = ({
 					</div>
 					<SelectInput
 						label="Dash"
-						labelClassName={FIELD_LABEL}
+						labelClassName={LABEL_COL}
 						value={circle.borderDash}
 						options={DASH_OPTIONS.map((d) => ({ value: d, label: d }))}
 						onChange={(v) => onChange({ borderDash: v as LineDashPattern })}
@@ -1531,8 +1528,10 @@ const CircleEditor = ({
 				</div>
 			</CollapsibleSubsection>
 
-			<div className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Layer</span>
+			{/* px-2 keeps this bare row's label/control column aligned with the
+			 * rows inside the p-2 subsection cards above. */}
+			<div className="flex items-center gap-2 px-2 text-sm">
+				<span className={LABEL_COL}>Layer</span>
 				<div
 					role="group"
 					aria-label="Layer order"

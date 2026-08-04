@@ -56,7 +56,7 @@ export const Sidebar = () => {
 			</AsideSection>
 			<hr className="mx-3 border-stone-200 dark:border-stone-700" />
 			<AsideSection title="Aesthetics & Theme">
-				<div className="vc-option-panel flex flex-col gap-3">
+				<div className="vc-option-panel">
 					<ThemePanel />
 					<AestheticsPanel />
 				</div>

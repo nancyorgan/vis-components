@@ -32,6 +32,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
+import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../../components/ui/Toggle"
@@ -282,7 +283,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		<div className="flex items-center gap-2 text-sm">
 			<NumberInput
 				label="Label every"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={config.categoricalTickStride ?? 1}
 				min={1}
 				max={Math.max(1, histogram.binCount)}
@@ -313,7 +314,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		<div className="flex items-center gap-2 text-sm">
 			<NumberInput
 				label="Tick every"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={config.categoricalTickStride ?? 1}
 				min={1}
 				max={Math.max(1, maxTicks)}
@@ -345,7 +346,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		<div className="flex items-center gap-2 text-sm">
 			<NumberInput
 				label="Count"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={Math.min(config.tickCount, maxTicks)}
 				min={0}
 				max={maxTicks}
@@ -369,7 +370,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	)
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			{showDistribution && (
 				<Section title="Distribution" changed={sectionChanged.Distribution}>
 					<div className="flex flex-col gap-2">
@@ -450,7 +451,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				<div className="mb-1.5 mt-1.5 flex items-center gap-2">
 					<NumberInput
 						label="Angle"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={config.tickLabelAngle ?? 0}
 						min={-90}
 						max={90}
@@ -478,7 +479,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						onChange={(wrapTickLabels) => update({ wrapTickLabels })}
 						changed={ch.wrapTickLabels}
 					/>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Break long labels onto multiple lines to fit the available width.
 						Words split only when a whole word won&apos;t fit.
 					</p>
@@ -603,7 +604,7 @@ export const TickFormatControl = ({
 			</select>
 		</label>
 		<div className="flex items-center gap-2">
-			<span className="w-24 shrink-0" aria-hidden />
+			<LabelSpacer />
 			<input
 				type="text"
 				value={value}
@@ -654,7 +655,7 @@ const AxisOffsetControl = ({
 		<div className="flex items-center gap-2">
 			<NumberInput
 				label="Offset"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={value}
 				step={1}
 				onChange={onChange}
@@ -672,7 +673,7 @@ const AxisOffsetControl = ({
 				</button>
 			)}
 		</div>
-		<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+		<p className="vc-help">
 			{channel === "x"
 				? "Moves the axis up or down. Positive pushes it below the plot (farther away); negative raises it toward the plot."
 				: "Moves the axis left or right. Positive pushes it left of the plot (farther away); negative moves it toward the plot."}
@@ -693,7 +694,7 @@ const HistogramSubOptions = ({
 }) => (
 	<div className="flex flex-col gap-2">
 		<label className="flex items-center gap-2 text-sm">
-			<span className="w-24 text-stone-600 dark:text-stone-400">Show</span>
+			<span className={LABEL_COL}>Show</span>
 			<select
 				value={histogram.mode}
 				onChange={(e) =>
@@ -710,7 +711,7 @@ const HistogramSubOptions = ({
 		</label>
 		<NumberInput
 			label="Bins"
-			labelClassName="w-24 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={histogram.binCount}
 			min={1}
 			max={100}
@@ -719,12 +720,12 @@ const HistogramSubOptions = ({
 			onChange={(binCount) => onChange({ ...histogram, binCount })}
 			inputClassName="w-20"
 		/>
-		<span className="text-xs text-stone-600 dark:text-stone-400">
+		<span className="vc-help">
 			Target bin count — edges snap to round numbers, so the actual number of
 			bins may differ.
 		</span>
 		<label className="flex items-center gap-2 text-sm">
-			<span className="w-24 text-stone-600 dark:text-stone-400">Bin labels</span>
+			<span className={LABEL_COL}>Bin labels</span>
 			<select
 				value={histogram.labelMode}
 				onChange={(e) =>
@@ -838,7 +839,7 @@ const ScaleRangeControls = ({
 			<span className="text-sm text-stone-600 dark:text-stone-400">
 				Scale range
 			</span>
-			<div className="text-xs text-stone-600 dark:text-stone-400">
+			<div className="vc-help">
 				{rangeHint ??
 					"Blank = auto-fit from the data. Set a bound to pin the axis (e.g. min = 0)."}
 			</div>
@@ -968,8 +969,8 @@ const BreaksField = ({
 				/>
 			</label>
 			<div className="flex gap-2">
-				<span className="w-24 shrink-0" aria-hidden />
-				<span className="min-w-0 flex-1 text-xs text-stone-600 dark:text-stone-400">
+				<LabelSpacer />
+				<span className="min-w-0 flex-1 vc-help">
 					{hint}
 				</span>
 			</div>
@@ -994,14 +995,14 @@ export const SpineControls = ({
 		<div className="flex flex-col gap-2">
 			<ColorInput
 				label="Color"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={spine.color}
 				onChange={(color) => set({ color })}
 				changed={valueChanged(spine.color, theme.spineColor)}
 			/>
 			<NumberInput
 				label="Thickness"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={spine.thickness}
 				min={0}
 				max={5}
@@ -1078,14 +1079,14 @@ const GridlineControls = ({
 				<>
 					<ColorInput
 						label="Color"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={grid.color}
 						onChange={(color) => set({ color })}
 						changed={valueChanged(grid.color, themeColor)}
 					/>
 					<NumberInput
 						label="Thickness"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={grid.thickness}
 						min={0.5}
 						max={5}
@@ -1096,7 +1097,7 @@ const GridlineControls = ({
 						changed={valueChanged(grid.thickness, themeThickness)}
 					/>
 					<div className="flex items-center gap-2">
-						<span className="w-24 shrink-0" aria-hidden="true" />
+						<LabelSpacer />
 						<Toggle
 							label="Match tick count"
 							checked={grid.count === null}
@@ -1107,7 +1108,7 @@ const GridlineControls = ({
 					{grid.count !== null && (
 						<NumberInput
 							label="Count"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={grid.count}
 							min={2}
 							max={20}
@@ -1181,14 +1182,14 @@ export const TickmarkControls = ({
 			)}
 			<ColorInput
 				label="Color"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={tick.color}
 				onChange={(color) => set({ color })}
 				changed={valueChanged(tick.color, theme.tickmarkColor)}
 			/>
 			<NumberInput
 				label="Thickness"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={tick.thickness}
 				min={0.5}
 				max={5}
@@ -1200,7 +1201,7 @@ export const TickmarkControls = ({
 			/>
 			<NumberInput
 				label="Length"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={tick.length}
 				min={0}
 				max={20}
@@ -1339,7 +1340,7 @@ const JitterControl = ({
 				beeswarm ? "opacity-40" : ""
 			}`}
 		>
-			<span className="w-24 text-stone-600 dark:text-stone-400">Jitter</span>
+			<span className={LABEL_COL}>Jitter</span>
 			<input
 				type="range"
 				min={0}
@@ -1386,7 +1387,7 @@ const RugControls = ({
 			<>
 				<NumberInput
 					label="Tassel length"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={histogram.rugTickLength ?? 10}
 					min={1}
 					max={100}
@@ -1399,7 +1400,7 @@ const RugControls = ({
 				/>
 				<NumberInput
 					label="Tassel width"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={histogram.rugTickThickness ?? 1}
 					min={0.5}
 					max={20}
@@ -1410,7 +1411,7 @@ const RugControls = ({
 					}
 					inputClassName="w-20"
 				/>
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Ticks are centered on the axis (length splits evenly above and
 					below). Set the rug color under the <strong>Color</strong> menu →{" "}
 					<strong>Rug</strong> and its opacity under the{" "}
@@ -1438,7 +1439,7 @@ const DensityCurveControls = ({
 	<>
 		<NumberInput
 			label="Smoothing"
-			labelClassName="w-24 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={bandwidthScale}
 			min={0.1}
 			max={5}
@@ -1448,7 +1449,7 @@ const DensityCurveControls = ({
 			inputClassName="w-20"
 		/>
 		<div className="flex items-center gap-2 text-sm">
-			<span className="w-24 shrink-0" aria-hidden="true" />
+			<LabelSpacer />
 			<label className="flex items-center gap-2">
 				<input
 					type="checkbox"
@@ -1459,7 +1460,7 @@ const DensityCurveControls = ({
 				<span className="text-stone-600 dark:text-stone-400">Fill under curve</span>
 			</label>
 		</div>
-		<p className="text-xs text-stone-600 dark:text-stone-400">
+		<p className="vc-help">
 			Smoothing scales the kernel bandwidth — higher is smoother. Set the curve
 			color under the <strong>Color</strong> menu → <strong>Density Curve</strong>.
 		</p>
@@ -1645,7 +1646,7 @@ const DistributionTypeControls = ({
 					</label>
 					{selected === "box" && (
 						<label className="flex items-center gap-2 text-sm">
-							<span className="w-24 text-stone-600 dark:text-stone-400">
+							<span className={LABEL_COL}>
 								{boxSizeLabel}
 							</span>
 							<input
@@ -1664,7 +1665,7 @@ const DistributionTypeControls = ({
 							</span>
 						</label>
 					)}
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Set violin / box colors under the <strong>Color</strong> menu →{" "}
 						<strong>Violin / Box Fill</strong> and{" "}
 						<strong>Violin / Box Outline</strong>.
@@ -1753,7 +1754,7 @@ const RegressionControls = ({
 			{regression.enabled && (
 				<>
 					<div className="flex items-center gap-2 text-sm">
-						<span className="w-24 flex-shrink-0 text-stone-600 dark:text-stone-400">
+						<span className={`shrink-0 ${LABEL_COL}`}>
 							Type
 						</span>
 						<SegmentedRadioRow
@@ -1769,7 +1770,7 @@ const RegressionControls = ({
 					{regression.kind === "polynomial" && (
 						<NumberInput
 							label="Degree"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={regression.degree}
 							min={2}
 							max={6}
@@ -1779,7 +1780,7 @@ const RegressionControls = ({
 						/>
 					)}
 					<div className="flex items-center gap-2 text-sm">
-						<span className="w-24 flex-shrink-0 text-stone-600 dark:text-stone-400">
+						<span className={`shrink-0 ${LABEL_COL}`}>
 							Position
 						</span>
 						<SegmentedRadioRow
@@ -1819,7 +1820,7 @@ const RegressionControls = ({
 						{regression.perGroup && (
 							<SelectInput
 								label="Group by"
-								labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL}
 								value={regression.groupField ?? ""}
 								options={groupOptions}
 								onChange={(groupField) =>
@@ -1844,7 +1845,7 @@ const RegressionControls = ({
 						{regression.showCi && (
 							<NumberInput
 								label="Level %"
-								labelClassName="w-24 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL}
 								value={regression.ciLevel}
 								min={50}
 								max={99.9}
@@ -1854,7 +1855,7 @@ const RegressionControls = ({
 							/>
 						)}
 					</div>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Style the line and band under the <strong>Color</strong> and{" "}
 						<strong>Opacity</strong> menus → <strong>Regression line</strong>{" "}
 						and <strong>Confidence interval</strong>; set the line&apos;s dash

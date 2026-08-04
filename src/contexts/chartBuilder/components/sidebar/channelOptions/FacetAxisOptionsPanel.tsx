@@ -243,7 +243,7 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 	// isn't mapped yet. Mirror the wrap panel's "map a field" hint copy.
 	if (!ownField) {
 		return (
-			<div className="vc-option-panel text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-option-panel vc-help">
 				{spec.emptyHint}
 			</div>
 		)
@@ -254,8 +254,8 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 	// a brief hint so the empty space isn't confusing.
 	if (axisChannel === null) {
 		return (
-			<div className="vc-option-panel flex flex-col gap-3">
-				<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-option-panel">
+				<div className="vc-help">
 					{spec.noAxisHint}
 				</div>
 				<GapInput
@@ -338,7 +338,7 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 			: share
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			<CollapsibleSubsection title={spec.subsectionTitle}>
 				<ShareAxisRow
 					label={`Share ${axisLabelLower}`}

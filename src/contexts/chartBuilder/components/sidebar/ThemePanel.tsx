@@ -156,7 +156,7 @@ export const ThemePanel = () => {
 						Make this my default theme
 					</button>
 				)}
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Picking a theme re-skins this visualization with the theme&apos;s palette,
 					fonts, and gridline colors. Edits to a saved theme don&apos;t retroactively
 					update visualizations using it — re-pick the theme to refresh.

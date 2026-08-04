@@ -2,6 +2,7 @@ import type { PropsWithChildren } from "react"
 import { useAtom } from "jotai"
 import { sidebarCollapsedAtom } from "../../contexts/chartBuilder/store/atoms"
 import { combine as c } from "../../lib/cls"
+import { SectionChevron } from "./Chevron"
 
 // Local mirror of external-ui's ExplorerSuiteAsideSection. Wraps a sidebar
 // section with a consistent h3 header and content area. Collapsible by default
@@ -16,25 +17,6 @@ type Props = PropsWithChildren<{
 	 * Ignored on subsequent visits — the user's last toggle wins. */
 	defaultCollapsed?: boolean
 }>
-
-const Chevron = ({ open }: { open: boolean }) => (
-	<svg
-		viewBox="0 0 12 12"
-		width={10}
-		height={10}
-		aria-hidden="true"
-		className={c("flex-shrink-0 transition-transform", open ? "rotate-90" : "")}
-	>
-		<path
-			d="M3.5 2l4 4-4 4"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.5}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
-)
 
 export const AsideSection = ({
 	title,
@@ -52,7 +34,7 @@ export const AsideSection = ({
 
 	const headerContent = (
 		<h3 className="text-vc-section-header flex items-center gap-1.5 text-base font-semibold tracking-wider uppercase">
-			{collapsible && <Chevron open={!collapsed} />}
+			{collapsible && <SectionChevron open={!collapsed} />}
 			{title}
 		</h3>
 	)

@@ -123,7 +123,10 @@ const setMultiDragImage = (dt: DataTransfer, count: number) => {
 	badge.textContent = `${count} items`
 	badge.style.cssText =
 		"position:fixed;top:-100px;left:-100px;padding:2px 8px;" +
-		"background:#1d4ed8;color:#fff;border-radius:4px;" +
+		// Brand purple (white text passes AA on it; the lighter vc-accent
+		// doesn't). The badge is in the document when snapshotted, so the
+		// custom property resolves.
+		"background:var(--color-vc-section-header);color:#fff;border-radius:4px;" +
 		"font-size:12px;font-family:sans-serif;"
 	document.body.appendChild(badge)
 	dt.setDragImage(badge, 12, 12)

@@ -1,6 +1,7 @@
 import { useAtom, useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import type { AspectRatioConfig } from "../../lib/channelConfig"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
@@ -69,7 +70,7 @@ export const AestheticsPanel = () => {
 					{current !== null && current !== themeDefault && (
 						<ColorInput
 							label="Color"
-							labelClassName="w-24 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={current}
 							onChange={setBg}
 						/>
@@ -89,7 +90,7 @@ export const AestheticsPanel = () => {
 						/>
 						Allow scrolling for tall/wide charts
 					</label>
-					<p className="ml-6 text-xs text-stone-600 dark:text-stone-400">
+					<p className="ml-6 vc-help">
 						Off (default): the chart shrinks to fit the available space —
 						panels and category labels may compress when there are many of
 						them. On: each panel keeps a ~200px minimum and each categorical
@@ -120,7 +121,7 @@ export const AestheticsPanel = () => {
 						<>
 							<NumberInput
 								label="Length"
-								labelClassName="w-24 shrink-0 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL}
 								value={aspect.length}
 								onChange={(length) => setAspect({ ...aspect, length })}
 								min={0.1}
@@ -129,7 +130,7 @@ export const AestheticsPanel = () => {
 							/>
 							<NumberInput
 								label="Width"
-								labelClassName="w-24 shrink-0 text-stone-600 dark:text-stone-400"
+								labelClassName={LABEL_COL}
 								value={aspect.width}
 								onChange={(width) => setAspect({ ...aspect, width })}
 								min={0.1}
@@ -138,7 +139,7 @@ export const AestheticsPanel = () => {
 							/>
 						</>
 					)}
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Keeps every panel&apos;s plot area at this Length : Width shape
 						no matter the viewport size — 1 : 1 makes the axes equal length
 						(hexbin cells render as true hexagons). Faceted charts apply the
@@ -151,7 +152,7 @@ export const AestheticsPanel = () => {
 			<CollapsibleSubsection title="Draw order">
 				<div className="flex flex-col gap-2">
 					<label className="flex items-center gap-2 text-sm">
-						<span className="w-24 shrink-0 text-stone-600 dark:text-stone-400">
+						<span className={`shrink-0 ${LABEL_COL}`}>
 							Sort by
 						</span>
 						<select
@@ -181,7 +182,7 @@ export const AestheticsPanel = () => {
 					</label>
 					{drawOrder !== null && (
 						<label className="flex items-center gap-2 text-sm">
-							<span className="w-24 shrink-0 text-stone-600 dark:text-stone-400">
+							<span className={`shrink-0 ${LABEL_COL}`}>
 								Direction
 							</span>
 							<select
@@ -199,7 +200,7 @@ export const AestheticsPanel = () => {
 							</select>
 						</label>
 					)}
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Which overlapping points paint on top (scatter, dot map, bubble
 						map). Dataset order draws later rows on top — maps default to
 						largest-circle-first so small bubbles stay visible. Sorting by a

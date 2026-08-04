@@ -17,6 +17,7 @@ import {
 } from "../../../store/atoms"
 import type { Theme } from "../../../lib/types"
 
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 
 // ---------------------------------------------------------------------------
@@ -67,7 +68,7 @@ export const AngleOptionsPanel = () => {
 
 	if (fieldMapped) {
 		return (
-			<div className="vc-option-panel flex flex-col gap-2">
+			<div className="vc-option-panel">
 				{isPieMode && (
 					<PieDonutControls
 						isDonut={isDonut}
@@ -78,7 +79,7 @@ export const AngleOptionsPanel = () => {
 				<div className="flex items-center gap-2">
 					<NumberInput
 						label="Min"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={cfg.minAngle}
 						min={-360}
 						max={360}
@@ -100,7 +101,7 @@ export const AngleOptionsPanel = () => {
 				<div className="flex items-center gap-2">
 					<NumberInput
 						label="Max"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={cfg.maxAngle}
 						min={-360}
 						max={360}
@@ -119,7 +120,7 @@ export const AngleOptionsPanel = () => {
 						</button>
 					)}
 				</div>
-				<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+				<div className="vc-help">
 					{isRadarMode
 						? "Sweep around the dial. Defaults: 0° → 360° (full circle starting at 12 o'clock)."
 						: isPieMode
@@ -138,11 +139,11 @@ export const AngleOptionsPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Angle"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={currentAngle}
 					min={-360}
 					max={360}
@@ -171,7 +172,7 @@ export const AngleOptionsPanel = () => {
 					</button>
 				)}
 			</div>
-			<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-help">
 				Rotates shapes (e.g. triangles) or line segments.
 			</div>
 		</div>
@@ -199,7 +200,7 @@ const PieDonutControls = ({
 	return (
 		<>
 			<div className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Chart type</span>
+				<span className={LABEL_COL}>Chart type</span>
 				<div
 					role="group"
 					aria-label="Chart type"
@@ -228,7 +229,7 @@ const PieDonutControls = ({
 			{isDonut && (
 				<NumberInput
 					label="Hole radius"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={holeRadius}
 					min={5}
 					max={90}
@@ -262,13 +263,13 @@ const RadarAxisControls = ({
 
 	return (
 		<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
-			<div className="text-sm font-medium text-stone-700 dark:text-stone-300">
+			<div className="text-sm text-stone-700 dark:text-stone-300">
 				Spokes
 			</div>
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Spokes"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={tickCount}
 					min={2}
 					max={36}
@@ -289,14 +290,14 @@ const RadarAxisControls = ({
 					</button>
 				)}
 			</div>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Quantitative / temporal angle only. Categorical angle always shows one
 				spoke per category.
 			</p>
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Label angle"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={tickLabelAngle}
 					min={-90}
 					max={90}
@@ -343,13 +344,13 @@ const SpineControls = ({
 	return (
 		<div className="flex flex-col gap-2">
 			<span className="text-sm text-stone-600 dark:text-stone-400">Spokes</span>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Set spoke color under the <strong>Color</strong> menu →{" "}
 				<strong>Radar Spine</strong>.
 			</p>
 			<NumberInput
 				label="Thickness"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={spine.thickness}
 				min={0}
 				max={5}
@@ -387,11 +388,11 @@ export const LengthOptionsPanel = () => {
 
 	if (fieldMapped) {
 		return (
-			<div className="vc-option-panel flex flex-col gap-2">
+			<div className="vc-option-panel">
 				<div className="flex items-center gap-2">
 					<NumberInput
 						label="Min"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={cfg.minLength}
 						min={1}
 						max={200}
@@ -429,7 +430,7 @@ export const LengthOptionsPanel = () => {
 				<div className="flex items-center gap-2">
 					<NumberInput
 						label="Max"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={cfg.maxLength}
 						min={1}
 						max={200}
@@ -473,9 +474,9 @@ export const LengthOptionsPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Length</span>
+				<span className={LABEL_COL}>Length</span>
 				<input
 					type="number"
 					min={2}
@@ -494,7 +495,7 @@ export const LengthOptionsPanel = () => {
 				/>
 				<span className="text-sm text-stone-600">px</span>
 			</label>
-			<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-help">
 				Set a length to render all marks as line segments. Clear to use shapes.
 			</div>
 			<button

@@ -7,6 +7,7 @@
 import type { KeyboardEvent } from "react"
 import { useEffect, useMemo } from "react"
 
+import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 
 /** Segmented control for one axis's share mode. Three options:
@@ -147,8 +148,8 @@ export const PolarShareAxisPicker = ({
 
 /* ────────────────────────────────────────────────────────────────────
  * Shared layout pieces. Each takes an optional `className` appended to
- * the root so the wrap panel can add its `pl-1` indent (and margins)
- * without the row / col panels inheriting it.
+ * the root so a caller can add margins without the other panels
+ * inheriting them.
  * ──────────────────────────────────────────────────────────────────── */
 
 const cls = (base: string, extra?: string) =>
@@ -173,7 +174,7 @@ export const ShareAxisRow = ({
 			className,
 		)}
 	>
-		<span className="w-24 shrink-0 pt-1 text-stone-600 dark:text-stone-400">
+		<span className={`shrink-0 pt-1 ${LABEL_COL}`}>
 			{label}
 		</span>
 		<div>
@@ -197,7 +198,7 @@ export const SizeByCheckboxRow = ({
 	className?: string
 }) => (
 	<div className={cls("mt-2 flex items-center gap-2 text-sm", className)}>
-		<span className="w-24 shrink-0" aria-hidden="true" />
+		<LabelSpacer />
 		<label className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
 			<input
 				type="checkbox"
@@ -242,16 +243,16 @@ export const AxisRangeSection = ({
 			className,
 		)}
 	>
-		<div className="text-sm font-medium text-stone-700 dark:text-stone-300">
+		<div className="text-sm text-stone-700 dark:text-stone-300">
 			{title}
 		</div>
-		<div className="text-xs text-stone-600 dark:text-stone-400">{help}</div>
+		<div className="vc-help">{help}</div>
 		<div className="flex flex-col gap-2">
 			{entries.map((entry) => (
 				<div key={entry.key} className="flex flex-col gap-1 text-sm">
 					{entry.label !== undefined && (
 						<span
-							className="truncate font-medium text-stone-700 dark:text-stone-300"
+							className="truncate text-stone-700 dark:text-stone-300"
 							title={entry.label}
 						>
 							{entry.label}
@@ -259,7 +260,7 @@ export const AxisRangeSection = ({
 					)}
 					<div className="flex flex-col gap-1">
 						<label className="flex items-center gap-2">
-							<span className="w-24 text-stone-600 dark:text-stone-400">
+							<span className={LABEL_COL}>
 								min
 							</span>
 							<input
@@ -270,7 +271,7 @@ export const AxisRangeSection = ({
 							/>
 						</label>
 						<label className="flex items-center gap-2">
-							<span className="w-24 text-stone-600 dark:text-stone-400">
+							<span className={LABEL_COL}>
 								max
 							</span>
 							<input
@@ -306,7 +307,7 @@ export const GapInput = ({
 	<div className={cls("flex items-center gap-2 text-sm", className)}>
 		<NumberInput
 			label={label}
-			labelClassName="w-24 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={value}
 			step={1}
 			onChange={onChange}
@@ -366,7 +367,7 @@ export const PanelDimInput = ({
 	}
 	return (
 		<label className={cls("mt-2 flex items-center gap-2 text-sm", className)}>
-			<span className="w-24 text-stone-600 dark:text-stone-400">{label}</span>
+			<span className={LABEL_COL}>{label}</span>
 			<input
 				type="number"
 				min={1}

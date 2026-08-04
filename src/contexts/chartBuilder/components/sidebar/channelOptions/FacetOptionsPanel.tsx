@@ -9,6 +9,7 @@ import {
 	type FacetConfig,
 	type PanelAxisOverride,
 } from "../../../lib/channelConfig"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { facetAxisMapping } from "../../../lib/facetAxisMapping"
@@ -335,7 +336,7 @@ export const FacetOptionsPanel = () => {
 	// or conflict with whichever facet channel is actually mapped.
 	if (!fieldName) {
 		return (
-			<div className="vc-option-panel text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-option-panel vc-help">
 				Map a categorical field to Facet (wrap) to split the chart into
 				panels.
 			</div>
@@ -343,11 +344,11 @@ export const FacetOptionsPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			{/* ─── Dimension ───────────────────────────────────────────── */}
 			<CollapsibleSubsection title="Dimension">
-				<label className="flex items-center gap-2 pl-1 text-sm">
-					<span className="w-24 text-stone-600 dark:text-stone-400">Rows</span>
+				<label className="flex items-center gap-2 text-sm">
+					<span className={LABEL_COL}>Rows</span>
 					<input
 						type="number"
 						min={1}
@@ -362,8 +363,8 @@ export const FacetOptionsPanel = () => {
 						className="w-20 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
 					/>
 				</label>
-				<label className="mt-2 flex items-center gap-2 pl-1 text-sm">
-					<span className="w-24 text-stone-600 dark:text-stone-400">Columns</span>
+				<label className="mt-2 flex items-center gap-2 text-sm">
+					<span className={LABEL_COL}>Columns</span>
 					<input
 						type="number"
 						min={1}
@@ -388,8 +389,8 @@ export const FacetOptionsPanel = () => {
 			 *  `isPolar`. */}
 			{isPolar && !isPie && (
 				<CollapsibleSubsection title="R axis">
-					<div className="flex items-start gap-2 pl-1 text-sm">
-						<span className="w-24 shrink-0 pt-1 text-stone-600 dark:text-stone-400">
+					<div className="flex items-start gap-2 text-sm">
+						<span className={`shrink-0 pt-1 ${LABEL_COL}`}>
 							Share R axis
 						</span>
 						<div>
@@ -414,7 +415,6 @@ export const FacetOptionsPanel = () => {
 					 *  global max, so the toggle would be a no-op. */}
 					{shareR !== "all" && (
 						<SizeByCheckboxRow
-							className="pl-1"
 							label="Size panels by unit"
 							checked={cfg.proportionalPanelSizing === true}
 							onChange={(checked) =>
@@ -427,7 +427,6 @@ export const FacetOptionsPanel = () => {
 					 *  the active share mode. Surfaces under continuous R only. */}
 					{rowAxisIsContinuous && shareR === "all" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="R axis range"
 							help="Blank = auto-fit. Set a bound to pin the shared R axis (e.g. min = 0)."
 							entries={[
@@ -446,7 +445,6 @@ export const FacetOptionsPanel = () => {
 						shareR === "perRow" &&
 						perRowAvailable && (
 							<AxisRangeSection
-								className="pl-1"
 								title="R axis range per row"
 								help="Blank = auto from each row's data."
 								entries={Array.from({ length: grid.rows }, (_, r) => ({
@@ -464,7 +462,6 @@ export const FacetOptionsPanel = () => {
 						shareR === "perCol" &&
 						perColAvailable && (
 							<AxisRangeSection
-								className="pl-1"
 								title="R axis range per column"
 								help="Blank = auto from each column's data."
 								entries={Array.from({ length: grid.cols }, (_, c) => ({
@@ -483,7 +480,6 @@ export const FacetOptionsPanel = () => {
 						fieldName &&
 						values.length > 0 && (
 							<AxisRangeSection
-								className="pl-1"
 								title="R axis range per panel"
 								help="Blank = auto from each panel's data."
 								entries={values.map((v) => ({
@@ -505,8 +501,8 @@ export const FacetOptionsPanel = () => {
 			 *  radar and pies — the angle channel exists in both. */}
 			{isPolar && (
 				<CollapsibleSubsection title="Angle axis">
-					<div className="flex items-start gap-2 pl-1 text-sm">
-						<span className="w-24 shrink-0 pt-1 text-stone-600 dark:text-stone-400">
+					<div className="flex items-start gap-2 text-sm">
+						<span className={`shrink-0 pt-1 ${LABEL_COL}`}>
 							Share angle axis
 						</span>
 						<div>
@@ -530,7 +526,6 @@ export const FacetOptionsPanel = () => {
 					 *  lives here under the angle axis. */}
 					{isPie && (
 						<SizeByCheckboxRow
-							className="pl-1"
 							label="Size panels by unit"
 							checked={cfg.proportionalPanelSizing === true}
 							onChange={(checked) =>
@@ -546,7 +541,6 @@ export const FacetOptionsPanel = () => {
 				<CollapsibleSubsection title="Rows">
 
 					<ShareAxisRow
-						className="pl-1"
 						label={`Share ${axisMap.rowAxisLabel}`}
 						ariaLabel={`Share ${axisMap.rowAxisLabel}`}
 						value={
@@ -569,7 +563,6 @@ export const FacetOptionsPanel = () => {
 
 					{showRowSizing && rowAxisIsCategorical && (
 						<SizeByCheckboxRow
-							className="pl-1"
 							label="Size rows by category count"
 							checked={sizeY === "categoryCount"}
 							onChange={(checked) =>
@@ -586,7 +579,6 @@ export const FacetOptionsPanel = () => {
 					)}
 					{showRowSizing && rowAxisIsContinuous && (
 						<SizeByCheckboxRow
-							className="pl-1"
 							label="Size rows by unit range"
 							checked={sizeY === "unit"}
 							onChange={(checked) =>
@@ -600,7 +592,6 @@ export const FacetOptionsPanel = () => {
 
 					{yRangeKind === "overall" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="Y axis range"
 							help="Blank = auto-fit. Set a bound to pin the shared Y axis (e.g. min = 0)."
 							entries={[
@@ -617,7 +608,6 @@ export const FacetOptionsPanel = () => {
 
 					{yRangeKind === "row" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="Y axis range per row"
 							help="Blank = auto from each row's data."
 							entries={Array.from({ length: grid.rows }, (_, r) => ({
@@ -633,7 +623,6 @@ export const FacetOptionsPanel = () => {
 
 					{yRangeKind === "panel" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="Y axis range per panel"
 							help="Blank = auto from each panel's data."
 							entries={values.map((v) => ({
@@ -654,7 +643,6 @@ export const FacetOptionsPanel = () => {
 				<CollapsibleSubsection title="Columns">
 
 					<ShareAxisRow
-						className="pl-1"
 						label={`Share ${axisMap.colAxisLabel}`}
 						ariaLabel={`Share ${axisMap.colAxisLabel}`}
 						value={
@@ -677,7 +665,6 @@ export const FacetOptionsPanel = () => {
 
 					{showColSizing && colAxisIsCategorical && (
 						<SizeByCheckboxRow
-							className="pl-1"
 							label="Size columns by category count"
 							checked={sizeX === "categoryCount"}
 							onChange={(checked) =>
@@ -692,7 +679,6 @@ export const FacetOptionsPanel = () => {
 					)}
 					{showColSizing && colAxisIsContinuous && (
 						<SizeByCheckboxRow
-							className="pl-1"
 							label="Size columns by unit range"
 							checked={sizeX === "unit"}
 							onChange={(checked) =>
@@ -706,7 +692,6 @@ export const FacetOptionsPanel = () => {
 
 					{xRangeKind === "overall" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="X axis range"
 							help="Blank = auto-fit. Set a bound to pin the shared X axis (e.g. min = 0)."
 							entries={[
@@ -723,7 +708,6 @@ export const FacetOptionsPanel = () => {
 
 					{xRangeKind === "col" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="X axis range per column"
 							help="Blank = auto from each column's data."
 							entries={Array.from({ length: grid.cols }, (_, c) => ({
@@ -739,7 +723,6 @@ export const FacetOptionsPanel = () => {
 
 					{xRangeKind === "panel" && (
 						<AxisRangeSection
-							className="pl-1"
 							title="X axis range per panel"
 							help="Blank = auto from each panel's data."
 							entries={values.map((v) => ({
@@ -758,14 +741,13 @@ export const FacetOptionsPanel = () => {
 			{/* ─── Custom sizing ──────────────────────────────────────── */}
 			<CollapsibleSubsection title="Custom sizing">
 				<GapInput
-					className="pl-1"
 					label="Gap X"
 					value={cfg.gapX}
 					defaultValue={DEFAULT_FACET_CONFIG.gapX}
 					onChange={(n) => updateCfg({ gapX: n })}
 				/>
 				<GapInput
-					className="mt-2 pl-1"
+					className="mt-2"
 					label="Gap Y"
 					value={cfg.gapY}
 					defaultValue={DEFAULT_FACET_CONFIG.gapY}
@@ -786,7 +768,6 @@ export const FacetOptionsPanel = () => {
 							<>
 								{showWidth && (
 									<PanelDimInput
-										className="pl-1"
 										label="Panel width"
 										value={cfg.panelWidth}
 										autoPx={renderedPanelDims?.widthPx}
@@ -795,14 +776,13 @@ export const FacetOptionsPanel = () => {
 								)}
 								{showHeight && (
 									<PanelDimInput
-										className="pl-1"
 										label="Panel height"
 										value={cfg.panelHeight}
 										autoPx={renderedPanelDims?.heightPx}
 										onCommit={(next) => updateCfg({ panelHeight: next })}
 									/>
 								)}
-								<p className="pl-1 text-xs text-stone-600 dark:text-stone-400">
+								<p className="vc-help">
 									Leave blank to auto-size by Rows / Cols / proportional
 									settings. When set, the canvas grows and scrolls if needed to
 									honor the exact pixel dimensions.

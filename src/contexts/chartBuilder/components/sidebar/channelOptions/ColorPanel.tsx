@@ -34,6 +34,7 @@ import {
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 
@@ -97,7 +98,7 @@ export const ColorPanel = () => {
 		).length > 0
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			<CollapsibleSubsection title="Fill" defaultOpen changed={fillChanged}>
 				<HueOptionsPanel hideVaryBy={useLinkedOutline} />
 			</CollapsibleSubsection>
@@ -173,7 +174,7 @@ const RegressionLineStyleControls = () => {
 		<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
 			<NumberInput
 				label="Width"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={regression.strokeWidth}
 				min={0.5}
 				max={12}
@@ -181,7 +182,7 @@ const RegressionLineStyleControls = () => {
 				clamp
 				onChange={(strokeWidth) => update({ strokeWidth })}
 			/>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Set the dash pattern under the <strong>Pattern</strong> menu →{" "}
 				<strong>Regression line</strong>.
 			</p>
@@ -285,7 +286,7 @@ export const ColorSlotControls = ({
 			{acceptsFieldMapping ? (
 				<SelectInput
 					label="Vary by"
-					labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={inheriting ? SLOT_INHERIT_VALUE : (field ?? "")}
 					options={fieldOptions}
 					onChange={setField}
@@ -294,14 +295,14 @@ export const ColorSlotControls = ({
 				/>
 			) : null}
 			{inheriting && acceptsFieldMapping ? (
-				<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+				<p className="vc-help">
 					Follows the <strong>Color</strong> mapping above.
 				</p>
 			) : field === null || !acceptsFieldMapping ? (
 				<div className="flex items-center gap-2">
 					<ColorInput
 						label="Color"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={singleColor}
 						onChange={(c) => updateSlot({ singleColor: c })}
 					/>
@@ -463,7 +464,7 @@ const SlotCategoricalControls = ({
 			{palettes.length > 1 && (
 				<SelectInput
 					label="Palette"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={slotCfg?.paletteId ?? palettes[0]?.id ?? ""}
 					options={palettes.map((p) => ({ value: p.id, label: p.name }))}
 					onChange={changePalette}

@@ -1,4 +1,5 @@
 import { useAtom, useAtomValue } from "jotai"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import {
 	DEFAULT_BRIGHTNESS_CONFIG,
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
@@ -35,7 +36,16 @@ export const shouldShowStackToggle = (
  *  `channel` isn't mapped OR when the chart mode doesn't support stacking
  *  (scatter, pie, tile) — each panel can drop in `<StackModeRow channel="hue"
  *  />` without gating the call site. */
-export const StackModeRow = ({ channel }: { channel: StackChannel }) => {
+export const StackModeRow = ({
+	channel,
+	className,
+}: {
+	channel: StackChannel
+	/** Extra classes on the row wrapper — e.g. `px-2` when the row sits as a
+	 *  bare sibling of boxed subsections so its columns stay on the shared
+	 *  alignment grid. Applied only when the row actually renders. */
+	className?: string
+}) => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	// useChartModeDef (not bare getChartModeDef): config-gated modes —
@@ -69,8 +79,10 @@ export const StackModeRow = ({ channel }: { channel: StackChannel }) => {
 	]
 
 	return (
-		<div className="flex items-center gap-2 text-sm">
-			<span className="w-24 flex-shrink-0 text-stone-600 dark:text-stone-400">
+		<div
+			className={`flex items-center gap-2 text-sm${className ? ` ${className}` : ""}`}
+		>
+			<span className={`shrink-0 ${LABEL_COL}`}>
 				{rowLabel}
 			</span>
 			<div
@@ -88,8 +100,8 @@ export const StackModeRow = ({ channel }: { channel: StackChannel }) => {
 							aria-pressed={active}
 							className={
 								active
-									? "flex-1 bg-brand-500 px-1.5 py-1 text-xs text-white"
-									: "flex-1 bg-white px-1.5 py-1 text-xs text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+									? "flex-1 bg-brand-500 px-1.5 py-1 text-sm text-white"
+									: "flex-1 bg-white px-1.5 py-1 text-sm text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
 							}
 						>
 							{opt.label}

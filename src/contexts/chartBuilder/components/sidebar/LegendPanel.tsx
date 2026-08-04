@@ -5,6 +5,7 @@ import {
 	densityCurveGroupField,
 	densityCurveOn,
 } from "../../lib/colorSlots"
+import { CHIP_INK } from "../../lib/previewInk"
 import { effectiveType } from "../../lib/fieldType"
 import { histogramMeasureDomain } from "../../lib/histogramBins"
 import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
@@ -51,12 +52,20 @@ import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import {
+	LABEL_COL,
+	LABEL_COL_NESTED,
+	LabelSpacerNested,
+} from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { RadioGroup } from "../../../../components/ui/RadioGroup"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 
-const ROW_LABEL = "w-24 text-stone-600 dark:text-stone-400"
+/** Fallbacks when neither the legend config nor the theme provides a swatch
+ *  color — one definition so the aux and shape pickers can't drift. */
+const DEFAULT_SWATCH_FILL = "#4f8eda"
+const DEFAULT_SWATCH_STROKE = "#ffffff"
 
 const POSITION_OPTIONS = [
 	{ value: "right", label: "Right (outside)" },
@@ -149,91 +158,96 @@ const QuantLegendChannelControls = ({
 	const dataHint = extent ? `data range ${extent[0]} — ${extent[1]}` : null
 
 	return (
-		<div className="flex flex-col gap-1.5 pl-2">
+		<div className="flex flex-col gap-2">
 			<span className="text-xs text-stone-600 dark:text-stone-400">
 				{sectionLabel}
 				{dataHint && ` · ${dataHint}`}
 			</span>
-			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">
-					Label format
-				</span>
-				<select
-					value=""
-					onChange={(e) => {
-						const v = e.target.value
-						if (v === "__auto__") onChange({ ...cfg, format: "" })
-						else if (v) onChange({ ...cfg, format: v })
-					}}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-				>
-					<option value="">— Pick a preset —</option>
-					<option value="__auto__">Auto (default)</option>
-					<optgroup label="Numeric">
-						<option value=",">Thousands separator (1,234)</option>
-						<option value=",.0f">Whole numbers (1,234)</option>
-						<option value=".2f">Two decimals (12.34)</option>
-						<option value=".0%">Percent (12%)</option>
-						<option value=".1%">Percent · 1 decimal (12.3%)</option>
-						<option value=".2e">Scientific (1.23e+4)</option>
-						<option value="$,.0f">Currency · whole ($1,234)</option>
-						<option value="$,.2f">Currency · 2dp ($1,234.56)</option>
-						<option value=".3s">SI prefix (1.23k)</option>
-					</optgroup>
-					<optgroup label="Temporal">
-						<option value="%Y-%m-%d">ISO date (2026-05-20)</option>
-						<option value="%b %Y">Month + year (May 2026)</option>
-						<option value="%Y">Year (2026)</option>
-					</optgroup>
-				</select>
-			</label>
-			<div className="flex items-center gap-2">
-				<span className="w-24 shrink-0" aria-hidden />
-				<input
-					type="text"
-					value={cfg.format}
-					onChange={(e) => onChange({ ...cfg, format: e.target.value })}
-					placeholder="Auto"
-					aria-label="Custom label format string"
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-				/>
-			</div>
-			<div className="flex items-center gap-2 text-sm">
-				<NumberInput
-					label="Breaks"
-					labelClassName={ROW_LABEL}
-					value={cfg.breakCount}
-					min={2}
-					max={12}
-					step={1}
-					clamp
-					onChange={(n) => populateFromCount(n)}
-					inputClassName="w-16"
-				/>
-			</div>
-			<label className="flex items-center gap-2 text-sm">
-				<span className={ROW_LABEL}>Custom breaks</span>
-				<input
-					type="text"
-					value={breaksText}
-					onChange={(e) => setBreaksText(e.target.value)}
-					onBlur={() => commit(breaksText)}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") {
-							commit(breaksText)
-							e.currentTarget.blur()
-						}
-					}}
-					placeholder="e.g. 0, 50, 100, 150, 200"
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-				/>
-			</label>
-			<div className="flex gap-2">
-				<span className="w-24 shrink-0" aria-hidden />
-				<span className="min-w-0 flex-1 text-xs text-stone-600 dark:text-stone-400">
-					Comma- or space-separated. Min and max define the gradient extent;
-					the chart&apos;s color/size mapping uses this range too.
-				</span>
+			{/* Rows subordinate to the section label indent by ml-6; the narrower
+			 * LABEL_COL_NESTED keeps their controls on the shared 104px column
+			 * (24px indent + 72px label + 8px gap). */}
+			<div className="ml-6 flex flex-col gap-2">
+				<label className="flex items-center gap-2 text-sm">
+					<span className={LABEL_COL_NESTED}>
+						Label format
+					</span>
+					<select
+						value=""
+						onChange={(e) => {
+							const v = e.target.value
+							if (v === "__auto__") onChange({ ...cfg, format: "" })
+							else if (v) onChange({ ...cfg, format: v })
+						}}
+						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					>
+						<option value="">— Pick a preset —</option>
+						<option value="__auto__">Auto (default)</option>
+						<optgroup label="Numeric">
+							<option value=",">Thousands separator (1,234)</option>
+							<option value=",.0f">Whole numbers (1,234)</option>
+							<option value=".2f">Two decimals (12.34)</option>
+							<option value=".0%">Percent (12%)</option>
+							<option value=".1%">Percent · 1 decimal (12.3%)</option>
+							<option value=".2e">Scientific (1.23e+4)</option>
+							<option value="$,.0f">Currency · whole ($1,234)</option>
+							<option value="$,.2f">Currency · 2dp ($1,234.56)</option>
+							<option value=".3s">SI prefix (1.23k)</option>
+						</optgroup>
+						<optgroup label="Temporal">
+							<option value="%Y-%m-%d">ISO date (2026-05-20)</option>
+							<option value="%b %Y">Month + year (May 2026)</option>
+							<option value="%Y">Year (2026)</option>
+						</optgroup>
+					</select>
+				</label>
+				<div className="flex items-center gap-2">
+					<LabelSpacerNested />
+					<input
+						type="text"
+						value={cfg.format}
+						onChange={(e) => onChange({ ...cfg, format: e.target.value })}
+						placeholder="Auto"
+						aria-label="Custom label format string"
+						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					/>
+				</div>
+				<div className="flex items-center gap-2 text-sm">
+					<NumberInput
+						label="Breaks"
+						labelClassName={LABEL_COL_NESTED}
+						value={cfg.breakCount}
+						min={2}
+						max={12}
+						step={1}
+						clamp
+						onChange={(n) => populateFromCount(n)}
+						inputClassName="w-16"
+					/>
+				</div>
+				<label className="flex items-center gap-2 text-sm">
+					<span className={LABEL_COL_NESTED}>Custom breaks</span>
+					<input
+						type="text"
+						value={breaksText}
+						onChange={(e) => setBreaksText(e.target.value)}
+						onBlur={() => commit(breaksText)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								commit(breaksText)
+								e.currentTarget.blur()
+							}
+						}}
+						placeholder="e.g. 0, 50, 100, 150, 200"
+						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					/>
+				</label>
+				<div className="flex gap-2">
+					<LabelSpacerNested />
+					<span className="min-w-0 flex-1 vc-help">
+						Comma- or space-separated. Min and max define the gradient extent;
+						the chart&apos;s color/size mapping uses this range too.
+					</span>
+				</div>
 			</div>
 		</div>
 	)
@@ -521,14 +535,14 @@ export const LegendPanel = () => {
 		.map((ch) => LEGEND_FRIENDLY_NAME[ch])
 		.join(" · ")
 	const resolvedAuxSwatchColor =
-		merged.auxLegendSwatchColor ?? theme.legendSwatchColor ?? "#4f8eda"
+		merged.auxLegendSwatchColor ?? theme.legendSwatchColor ?? DEFAULT_SWATCH_FILL
 	// The swatch border only applies to the area (size) legend — its swatch
 	// is a filled circle. Length / angle swatches are lines and opacity
 	// swatches are borderless, so only surface the border control when the
 	// area channel is among the active aux swatches.
 	const showAuxSwatchStroke = auxSwatchDisplayChannels.includes("area")
 	const resolvedAuxSwatchStroke =
-		merged.auxLegendSwatchStroke ?? theme.legendSwatchStroke ?? "#ffffff"
+		merged.auxLegendSwatchStroke ?? theme.legendSwatchStroke ?? DEFAULT_SWATCH_STROKE
 	// Header for the shape swatch subsection: when a same-field aux channel
 	// (e.g. Size) merged in, name both — "Size · Shape" — so it's clear this
 	// one control drives the combined legend's swatch.
@@ -566,7 +580,7 @@ export const LegendPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			{/* "Legends shown" comes first — every other control on the
 			 *  panel is downstream of which channels are visible. Hiding all
 			 *  channels here is also how the user disables the legend now
@@ -614,7 +628,7 @@ export const LegendPanel = () => {
 									update({ combineSameVariable })
 								}
 							/>
-							<p className="text-xs text-stone-600 dark:text-stone-400">
+							<p className="vc-help">
 								When more than one encoding maps to the same field, show one
 								merged legend (a combined swatch and title) instead of a
 								separate legend for each.
@@ -636,7 +650,7 @@ export const LegendPanel = () => {
 					<div className="flex flex-col gap-2">
 						<SelectInput
 							label="Position"
-							labelClassName={ROW_LABEL}
+							labelClassName={LABEL_COL}
 							value={merged.position}
 							options={POSITION_OPTIONS}
 							onChange={(position) => update({ position })}
@@ -646,7 +660,7 @@ export const LegendPanel = () => {
 							<>
 								<NumberInput
 									label="X"
-									labelClassName={ROW_LABEL}
+									labelClassName={LABEL_COL}
 									value={merged.insideX}
 									onChange={(insideX) => update({ insideX })}
 									step={0.02}
@@ -654,7 +668,7 @@ export const LegendPanel = () => {
 								/>
 								<NumberInput
 									label="Y"
-									labelClassName={ROW_LABEL}
+									labelClassName={LABEL_COL}
 									value={merged.insideY}
 									onChange={(insideY) => update({ insideY })}
 									step={0.02}
@@ -684,7 +698,7 @@ export const LegendPanel = () => {
 								<div className="flex items-center gap-2">
 									<ColorInput
 										label="Color"
-										labelClassName={ROW_LABEL}
+										labelClassName={LABEL_COL}
 										value={merged.borderColor}
 										onChange={(borderColor) => update({ borderColor })}
 									/>
@@ -703,7 +717,7 @@ export const LegendPanel = () => {
 								<div className="flex items-center gap-2">
 									<NumberInput
 										label="Radius"
-										labelClassName={ROW_LABEL}
+										labelClassName={LABEL_COL}
 										value={merged.borderRadius}
 										min={0}
 										step={1}
@@ -773,7 +787,7 @@ export const LegendPanel = () => {
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend columns"
-								labelClassName={ROW_LABEL}
+								labelClassName={LABEL_COL}
 								value={merged.columns ?? 1}
 								min={1}
 								max={6}
@@ -794,7 +808,7 @@ export const LegendPanel = () => {
 								</button>
 							)}
 						</div>
-						<p className="text-xs text-th-electric-indigo-700">
+						<p className="vc-help">
 							Splits several legends into their own columns, or wraps a
 							single legend&apos;s entries across columns.
 						</p>
@@ -802,7 +816,7 @@ export const LegendPanel = () => {
 							<div className="flex items-center gap-2">
 								<NumberInput
 									label="Column gap"
-									labelClassName={ROW_LABEL}
+									labelClassName={LABEL_COL}
 									value={merged.columnGap ?? DEFAULT_LEGEND_CONFIG.columnGap ?? 24}
 									min={-48}
 									max={96}
@@ -910,7 +924,7 @@ export const LegendPanel = () => {
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Swatch color"
-							labelClassName={ROW_LABEL}
+							labelClassName={LABEL_COL}
 							value={resolvedAuxSwatchColor}
 							onChange={(auxLegendSwatchColor) =>
 								update({ auxLegendSwatchColor })
@@ -932,7 +946,7 @@ export const LegendPanel = () => {
 						<div className="mt-2 flex items-center gap-2">
 							<ColorInput
 								label="Swatch border"
-								labelClassName={ROW_LABEL}
+								labelClassName={LABEL_COL}
 								value={resolvedAuxSwatchStroke}
 								onChange={(auxLegendSwatchStroke) =>
 									update({ auxLegendSwatchStroke })
@@ -951,7 +965,7 @@ export const LegendPanel = () => {
 								)}
 						</div>
 					)}
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Color used for these legend swatches when they render alongside
 						the gradient (no hue color to inherit). Resets to the theme&apos;s
 						default.
@@ -975,7 +989,7 @@ export const LegendPanel = () => {
 						return (
 							<div key={ch} className="flex flex-col gap-1 text-sm">
 								{swatchShapeSections.length > 1 && (
-									<span className="font-medium text-stone-700 dark:text-stone-300">
+									<span className="vc-group-header">
 										{LEGEND_FRIENDLY_NAME[ch]}
 									</span>
 								)}
@@ -1017,7 +1031,7 @@ export const LegendPanel = () => {
 								{current != null && (
 									<NumberInput
 										label="Swatch size"
-										labelClassName={ROW_LABEL}
+										labelClassName={LABEL_COL}
 										value={legendSwatchSize(merged, ch) ?? 5}
 										min={3}
 										max={20}
@@ -1030,7 +1044,7 @@ export const LegendPanel = () => {
 							</div>
 						)
 					})}
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Shape drawn for each color swatch in the legend. Each swatch keeps
 						its own color.
 					</p>
@@ -1046,11 +1060,11 @@ export const LegendPanel = () => {
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Fill"
-							labelClassName={ROW_LABEL}
+							labelClassName={LABEL_COL}
 							value={
 								merged.shapeLegendFillColor ??
 								theme.legendSwatchColor ??
-								"#4f8eda"
+								DEFAULT_SWATCH_FILL
 							}
 							onChange={(shapeLegendFillColor) =>
 								update({ shapeLegendFillColor })
@@ -1071,11 +1085,11 @@ export const LegendPanel = () => {
 					<div className="flex items-center gap-2">
 						<ColorInput
 							label="Stroke"
-							labelClassName={ROW_LABEL}
+							labelClassName={LABEL_COL}
 							value={
 								merged.shapeLegendStrokeColor ??
 								theme.outlineColor ??
-								"#ffffff"
+								DEFAULT_SWATCH_STROKE
 							}
 							onChange={(shapeLegendStrokeColor) =>
 								update({ shapeLegendStrokeColor })
@@ -1093,7 +1107,7 @@ export const LegendPanel = () => {
 								</button>
 							)}
 					</div>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Default fill / stroke for shape swatches in the legend. Per-shape
 						overrides set in the Shape panel (including
 						<code> none</code> for outline-only) win when present.
@@ -1117,7 +1131,7 @@ const SwatchShapeGlyph = ({
 	idx: LegendSwatchShape
 	selected: boolean
 }) => {
-	const fill = selected ? "currentColor" : "#64748b"
+	const fill = selected ? "currentColor" : CHIP_INK
 	if (idx === null) {
 		return (
 			<svg

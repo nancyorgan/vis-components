@@ -18,6 +18,7 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import { LABEL_COL_NESTED } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 
 /** Sidebar panel for the tooltip subsystem. Drives `TooltipConfig` —
@@ -98,7 +99,7 @@ export const TooltipPanel = () => {
 	const hoverFadePercent = Math.round((merged.hoverFadeAmount ?? 0.85) * 100)
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			<CollapsibleSubsection title="Tooltips" defaultOpen>
 			<div className="flex flex-col gap-2">
 			<label className="flex items-center gap-2 text-sm">
@@ -158,7 +159,7 @@ export const TooltipPanel = () => {
 							Use custom HTML template
 						</span>
 					</label>
-					<p className="ml-5 text-xs text-th-electric-indigo-700 dark:text-stone-400">
+					<p className="ml-6 vc-help">
 						Off (default): the tooltip uses the &ldquo;Fields shown&rdquo;
 						checkboxes above. On: the textarea below replaces the tooltip
 						content. &ldquo;Load default&rdquo; fills the textarea as a
@@ -188,7 +189,7 @@ export const TooltipPanel = () => {
 							rows={6}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="text-sm text-th-electric-indigo-700 dark:text-stone-500">
+						<span className="vc-help">
 							Use <code>{`{{fieldName}}`}</code> placeholders. Data values are
 							HTML-escaped automatically. Toggle &ldquo;Use custom HTML
 							template&rdquo; above to activate.
@@ -214,7 +215,7 @@ export const TooltipPanel = () => {
 							rows={6}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="text-sm text-th-electric-indigo-700 dark:text-stone-500">
+						<span className="vc-help">
 							Applied to the <code>.vc-tooltip</code> container.
 						</span>
 					</label>
@@ -264,10 +265,10 @@ export const TooltipPanel = () => {
 								</span>
 							</label>
 							{hoverRecolor && (
-								<div className="ml-5">
+								<div className="ml-6">
 									<ColorInput
 										label="Recolor color"
-										labelClassName="w-28"
+										labelClassName={LABEL_COL_NESTED}
 										value={hoverHighlightColor}
 										onChange={(c) => update({ hoverHighlightColor: c })}
 									/>
@@ -287,16 +288,16 @@ export const TooltipPanel = () => {
 								</span>
 							</label>
 							{hoverOutline && (
-								<div className="ml-5 flex flex-col gap-2">
+								<div className="ml-6 flex flex-col gap-2">
 									<ColorInput
 										label="Outline color"
-										labelClassName="w-28"
+										labelClassName={LABEL_COL_NESTED}
 										value={hoverOutlineColor}
 										onChange={(c) => update({ hoverOutlineColor: c })}
 									/>
 									<NumberInput
 										label="Outline width"
-										labelClassName="w-28"
+										labelClassName={LABEL_COL_NESTED}
 										value={hoverOutlineWidth}
 										min={0}
 										max={20}
@@ -321,10 +322,10 @@ export const TooltipPanel = () => {
 								</span>
 							</label>
 							{hoverFade && (
-								<div className="ml-5">
+								<div className="ml-6">
 									<NumberInput
 										label="Fade amount"
-										labelClassName="w-28"
+										labelClassName={LABEL_COL_NESTED}
 										value={hoverFadePercent}
 										min={0}
 										max={100}

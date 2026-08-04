@@ -466,14 +466,14 @@ export const QuickStartIconBar = () => {
 						<button
 							type="button"
 							onClick={confirmPending}
-							className="rounded bg-stone-800 px-3 py-1 text-xs font-medium text-white hover:bg-stone-700 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300"
+							className="rounded bg-stone-800 px-3 py-1 text-sm font-medium text-white hover:bg-stone-700 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300"
 						>
 							Replace
 						</button>
 						<button
 							type="button"
 							onClick={cancelPending}
-							className="rounded border border-stone-300 px-3 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
+							className="rounded border border-stone-300 px-3 py-1 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
 						>
 							Keep current
 						</button>

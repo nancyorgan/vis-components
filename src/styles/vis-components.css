@@ -49,7 +49,7 @@
 
 	/* Shaded panel behind each option group (Hue, Opacity, Axis, …).
 	 * Consumed by the .vc-option-panel component class below. */
-	--color-vc-option-panel: #f5f5f4; /* light: stone-100 */
+	--color-vc-option-panel: #e9e6ff; /* light: soft lavender */
 	--color-vc-option-panel-dark: rgb(41 37 36 / 0.5); /* dark: stone-800 @ 50% */
 
 	/* Add more project-local tokens below as they emerge. Candidates to
@@ -94,11 +94,39 @@
 	.vc-option-panel {
 		border-radius: 0.375rem; /* matches rounded-md */
 		padding: 0.5rem; /* matches p-2 */
-		/* background-color: var(--color-vc-option-panel); */
-		background-color: #e9e6ff;
+		/* Every option panel is a vertical stack of control rows with one
+		 * canonical rhythm. Baked in here (rather than repeated as
+		 * `flex flex-col gap-2` at every call site) so panels can't drift
+		 * apart; a call site can still override with its own gap-* utility. */
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem; /* matches gap-2 */
+		background-color: var(--color-vc-option-panel);
 	}
 	.dark .vc-option-panel {
 		background-color: var(--color-vc-option-panel-dark);
+	}
+
+	/* Helper / explanatory prose inside sidebar panels. Indigo (not stone)
+	 * so it passes AA on the purple .vc-option-panel background — one class
+	 * so every panel's helper text matches. */
+	.vc-help {
+		font-size: 0.75rem; /* matches text-xs */
+		line-height: 1rem;
+		color: var(--color-th-electric-indigo-700);
+	}
+	.dark .vc-help {
+		color: var(--color-stone-400);
+	}
+
+	/* Inline group header: titles a run of related control rows inside a
+	 * panel without being a collapsible subsection. Sits visually between
+	 * CollapsibleSubsection's uppercase text-xs header and a plain row label. */
+	.vc-group-header {
+		font-size: 0.875rem; /* matches text-sm */
+		line-height: 1.25rem;
+		font-weight: 600;
+		color: var(--color-vc-section-header);
 	}
 }
 

@@ -63,6 +63,7 @@ import { orderedLevels } from "../../../lib/smartSort"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { ColorInput } from "../../../../../components/ui/ColorInput"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 
@@ -146,7 +147,7 @@ export const PalettePickerButton = ({
 					aria-hidden="true"
 					fill="none"
 					stroke="currentColor"
-					strokeWidth={2}
+					strokeWidth={2.4}
 					strokeLinecap="round"
 					strokeLinejoin="round"
 				>
@@ -451,7 +452,7 @@ export const HueOptionsPanel = ({
 	const varyBy = (
 		<SelectInput
 			label="Vary by"
-			labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={
 				histSource
 					? MEASURE_OPTION_VALUE[histSource]
@@ -477,7 +478,7 @@ export const HueOptionsPanel = ({
 				<div className="flex items-center gap-2">
 					<ColorInput
 						label="Color"
-						labelClassName="w-24 text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={currentFill}
 						onChange={(defaultFill) =>
 							setConfigs((prev) => ({ ...prev, defaultFill }))
@@ -527,7 +528,7 @@ export const HueOptionsPanel = ({
 					/>
 					<NumberInput
 						label="Bins"
-						labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+						labelClassName={LABEL_COL}
 						value={configs.hexbin?.binCount ?? DEFAULT_HEXBIN_BIN_COUNT}
 						onChange={(binCount) =>
 							setConfigs((prev) => ({
@@ -544,7 +545,7 @@ export const HueOptionsPanel = ({
 							configs.hexbin.binCount !== DEFAULT_HEXBIN_BIN_COUNT
 						}
 					/>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Each hexagon is colored by the number of points inside it.
 					</p>
 				</>
@@ -555,7 +556,7 @@ export const HueOptionsPanel = ({
 						theme={theme}
 						update={update}
 					/>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Each bin is colored by its{" "}
 						{histSource === "density" ? "density" : "count"}.
 					</p>
@@ -583,7 +584,7 @@ export const HueOptionsPanel = ({
 						setConfigs={setConfigs}
 						update={update}
 					/>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Circles are colored by nesting level (1 = outermost) through
 						the ordinal palette — derived from the hierarchy, no extra
 						column needed.
@@ -612,7 +613,7 @@ export const HueOptionsPanel = ({
 						setConfigs={setConfigs}
 						update={update}
 					/>
-					<p className="text-xs text-stone-600 dark:text-stone-400">
+					<p className="vc-help">
 						Every circle takes its outermost group&apos;s color — derived
 						from the hierarchy, no extra column needed. Vary Saturation,
 						Brightness, or Opacity by Nesting depth to distinguish levels.
@@ -752,7 +753,7 @@ const CategoricalPanel = ({
 	const FillPaletteDropdown = palettesForType.length > 1 && (
 		<SelectInput
 			label="Palette"
-			labelClassName="w-24 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={currentPaletteId}
 			options={palettesForType.map((p) => ({
 				value: p.id,
@@ -851,7 +852,7 @@ export const AreaRadarOutlinePanel = () => {
 			<div className="flex items-center gap-2">
 				<ColorInput
 					label="Color"
-					labelClassName="w-24 text-stone-600 dark:text-stone-400"
+					labelClassName={LABEL_COL}
 					value={strokeColor ?? defaultFill}
 					onChange={(c) => setStrokeColor(c)}
 				/>
@@ -925,7 +926,7 @@ export const AreaRadarOutlinePanel = () => {
 		<div className="flex flex-col gap-1.5">
 			<SelectInput
 				label="Palette"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={configs.connection?.linePaletteId ?? ""}
 				options={linePaletteOptions}
 				onChange={(id) =>
@@ -1168,7 +1169,7 @@ export const QuantitativePanel = ({
 	return (
 		<div className="flex flex-col gap-2">
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Palette</span>
+				<span className={LABEL_COL}>Palette</span>
 				<select
 					value={activeGradientId}
 					onChange={(e) => onPaletteChange(e.target.value)}
@@ -1248,7 +1249,7 @@ export const QuantitativePanel = ({
 							}}
 						/>
 					))}
-					<div className="text-xs text-stone-600 dark:text-stone-400">
+					<div className="vc-help">
 						Editing transitions to a custom gradient with all{" "}
 						{linearPresetStops.length} stops in place.
 					</div>
@@ -1326,7 +1327,7 @@ export const QuantitativePanel = ({
 							})
 						}
 					/>
-					<div className="text-xs text-stone-600 dark:text-stone-400">
+					<div className="vc-help">
 						Editing endpoints switches to a custom diverging gradient.
 					</div>
 				</>
@@ -1350,7 +1351,7 @@ export const QuantitativePanel = ({
 						onColor={(c) => updateQ({ highColor: c })}
 						onValue={(v) => updateQ({ highValue: v })}
 					/>
-					<div className="text-xs text-stone-600 dark:text-stone-400">
+					<div className="vc-help">
 						Empty value = use data {`{`}min|max{`}`}.
 					</div>
 				</>
@@ -1382,7 +1383,7 @@ export const QuantitativePanel = ({
 						onColor={(c) => updateQ({ highColor: c })}
 						onValue={(v) => updateQ({ highValue: v })}
 					/>
-					<div className="text-xs text-stone-600 dark:text-stone-400">
+					<div className="vc-help">
 						Empty value = use data {`{`}min|mid|max{`}`}.
 					</div>
 				</>
@@ -1483,9 +1484,9 @@ const CustomStopsList = ({
 				onClick={addStop}
 				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
 			>
-				+ add a new step
+				+ Add a new step
 			</button>
-			<div className="text-xs text-stone-600 dark:text-stone-400">
+			<div className="vc-help">
 				Empty value = auto-position evenly between the anchor stops.
 			</div>
 		</>
@@ -1519,7 +1520,7 @@ const CustomStopRow = ({
 			 *  input, and swatch sit directly in this row's flex flow. */}
 			<ColorInput
 				label={label}
-				labelClassName="w-24 flex-shrink-0 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={color}
 				onChange={onColor}
 				className="contents"

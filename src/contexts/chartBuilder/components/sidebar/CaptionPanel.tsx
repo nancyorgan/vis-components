@@ -2,6 +2,7 @@ import { useId } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import { LABEL_COL, LabelSpacer } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
@@ -17,7 +18,6 @@ import {
 	currentRenderedCaptionBoxAtom,
 } from "../../store/atoms"
 
-const LABEL_CLASS = "w-24 text-stone-600 dark:text-stone-400"
 
 /** Small inline "reset" link, rendered only when a control differs from its
  *  default. Matches the LabelsPanel / OpacityOptionsPanel idiom. */
@@ -67,7 +67,7 @@ const OffsetField = ({
 }) => (
 	<NumberInput
 		label={label}
-		labelClassName={LABEL_CLASS}
+		labelClassName={LABEL_COL}
 		value={value}
 		onChange={onValue}
 		step={1}
@@ -147,7 +147,7 @@ export const CaptionPanel = () => {
 		}
 		return (
 			<div className="flex items-center gap-2 text-sm">
-				<label htmlFor={`${dimIdBase}-${dim}`} className={LABEL_CLASS}>
+				<label htmlFor={`${dimIdBase}-${dim}`} className={LABEL_COL}>
 					{label}
 				</label>
 				<input
@@ -200,8 +200,10 @@ export const CaptionPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
-			<label className="flex items-center gap-2 text-sm">
+		<div className="vc-option-panel">
+			{/* px-2 keeps this bare row aligned with the rows inside the p-2
+			 * subsection cards below. */}
+			<label className="flex items-center gap-2 px-2 text-sm">
 				<input
 					type="checkbox"
 					checked={merged.enabled}
@@ -224,7 +226,7 @@ export const CaptionPanel = () => {
 							rows={4}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="text-xs text-th-electric-indigo-700 dark:text-stone-500">
+						<span className="vc-help">
 							Long text wraps to the box width. Press Enter for a manual line
 							break.
 						</span>
@@ -232,7 +234,7 @@ export const CaptionPanel = () => {
 
 					<CollapsibleSubsection title="Position">
 						<div className="flex flex-col gap-2">
-							<p className="text-xs text-stone-600 dark:text-stone-500">
+							<p className="vc-help">
 								Nudges the caption from its default spot (centered, below the
 								chart). 0 = default.
 							</p>
@@ -257,7 +259,7 @@ export const CaptionPanel = () => {
 						<div className="flex flex-col gap-2">
 							{renderDimField("width", "Width")}
 							{renderDimField("height", "Height")}
-							<p className="text-xs text-stone-600 dark:text-stone-500">
+							<p className="vc-help">
 								Blank = auto (width spans the chart; height fits the text).
 								Arrows step from the current size.
 							</p>
@@ -268,7 +270,7 @@ export const CaptionPanel = () => {
 						<div className="flex flex-col gap-2">
 							<SelectInput
 								label="Font family"
-								labelClassName={LABEL_CLASS}
+								labelClassName={LABEL_COL}
 								value={merged.fontFamily}
 								options={FAMILY_OPTIONS}
 								onChange={(fontFamily) => update({ fontFamily })}
@@ -277,7 +279,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<NumberInput
 									label="Font size"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={merged.fontSize}
 									onChange={(v) => update({ fontSize: v })}
 									min={1}
@@ -295,7 +297,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<SelectInput<WeightOptionValue>
 									label="Font weight"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={String(merged.fontWeight) as WeightOptionValue}
 									options={WEIGHT_OPTIONS}
 									onChange={(w) => update({ fontWeight: Number(w) })}
@@ -310,7 +312,7 @@ export const CaptionPanel = () => {
 							</div>
 							{/* div, not label: AlignmentControl is a button group, not a form control */}
 							<div className="flex items-center gap-2 text-sm">
-								<span className={LABEL_CLASS}>Align</span>
+								<span className={LABEL_COL}>Align</span>
 								<AlignmentControl
 									value={merged.align}
 									onChange={(align) => update({ align })}
@@ -319,7 +321,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<ColorInput
 									label="Text color"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={merged.textColor}
 									onChange={(c) => update({ textColor: c })}
 								/>
@@ -334,7 +336,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<NumberInput
 									label="Padding"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={merged.padding}
 									onChange={(v) => update({ padding: v })}
 									min={0}
@@ -357,7 +359,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<ColorInput
 									label="Background"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={merged.backgroundColor}
 									onChange={(c) => update({ backgroundColor: c })}
 								/>
@@ -376,7 +378,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<NumberInput
 									label="Opacity"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={merged.backgroundOpacity}
 									onChange={(v) => update({ backgroundOpacity: v })}
 									min={0}
@@ -399,7 +401,7 @@ export const CaptionPanel = () => {
 							<div className="flex items-center gap-2">
 								<NumberInput
 									label="Border radius"
-									labelClassName={LABEL_CLASS}
+									labelClassName={LABEL_COL}
 									value={merged.borderRadius}
 									onChange={(v) => update({ borderRadius: v })}
 									min={0}
@@ -418,7 +420,7 @@ export const CaptionPanel = () => {
 								)}
 							</div>
 							<div className="flex items-center gap-2">
-								<span className="w-24 shrink-0" aria-hidden="true" />
+								<LabelSpacer />
 								<Toggle
 									label="Border"
 									checked={merged.borderEnabled}
@@ -430,7 +432,7 @@ export const CaptionPanel = () => {
 									<div className="flex items-center gap-2">
 										<ColorInput
 											label="Border color"
-											labelClassName={LABEL_CLASS}
+											labelClassName={LABEL_COL}
 											value={merged.borderColor}
 											onChange={(c) => update({ borderColor: c })}
 										/>
@@ -449,7 +451,7 @@ export const CaptionPanel = () => {
 									<div className="flex items-center gap-2">
 										<NumberInput
 											label="Border width"
-											labelClassName={LABEL_CLASS}
+											labelClassName={LABEL_COL}
 											value={merged.borderWidth}
 											onChange={(v) => update({ borderWidth: v })}
 											min={0}
@@ -470,7 +472,7 @@ export const CaptionPanel = () => {
 									</div>
 								</>
 							)}
-							<p className="text-xs text-stone-600 dark:text-stone-500">
+							<p className="vc-help">
 								Background opacity 0 = transparent.
 							</p>
 						</div>

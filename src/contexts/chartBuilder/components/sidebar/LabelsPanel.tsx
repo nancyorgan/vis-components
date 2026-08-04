@@ -22,7 +22,9 @@ import {
 } from "../../store/atoms"
 import { Disclosure } from "@headlessui/react"
 
+import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
+import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 
@@ -261,10 +263,10 @@ export const LabelsPanel = () => {
 		/* Purple option-panel wrapper + gap-3 so the subsection headers here
 		 * match every other panel's boxed subheaders (Legend, Data Labels,
 		 * Aesthetics all wrap their CollapsibleSubsections the same way). */
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			<CollapsibleSubsection title="Primary titles" changed={primaryChanged}>
 				<div className="flex flex-col gap-2">
-			<p className="text-xs text-stone-600 dark:text-stone-400">
+			<p className="vc-help">
 				Press Shift+Enter or paste a literal newline to break a title onto a
 				second line.
 			</p>
@@ -382,7 +384,7 @@ export const LabelsPanel = () => {
 								/>
 							}
 						/>
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							Styles the node names drawn beside each mark. Center alignment
 							keeps the automatic anchoring away from the figure; distance
 							moves every label further from the figure (or closer, when
@@ -746,7 +748,7 @@ const OffsetControl = ({
 	const row = (axis: "x" | "y" | "distance", labelText: string) => (
 		<NumberInput
 			label={labelText}
-			labelClassName="w-24 flex-shrink-0 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={value[axis] ?? 0}
 			step={1}
 			onChange={(n) => onChange(axis, n)}
@@ -762,25 +764,6 @@ const OffsetControl = ({
 		</div>
 	)
 }
-
-const Chevron = ({ open }: { open: boolean }) => (
-	<svg
-		viewBox="0 0 12 12"
-		width={10}
-		height={10}
-		aria-hidden="true"
-		className={`flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-	>
-		<path
-			d="M3 4.5l3 3 3-3"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.5}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
-)
 
 /** The Align + Font + extra-controls block shared by every title control.
  *  Rendered inside a LabelRow's disclosure for typed titles, and inline
@@ -813,11 +796,11 @@ const LabelStyleControls = ({
 }: LabelStyleControlsProps) => {
 	const hasOverride = override !== undefined && Object.keys(override).length > 0
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			{onAlignment && (
 				/* div, not label: AlignmentControl is a button group, not a form control */
 				<div className="flex items-center gap-2 text-sm">
-					<span className="w-24 text-stone-600 dark:text-stone-400">
+					<span className={LABEL_COL}>
 						{onVerticalAlignment ? "Horizontal alignment" : "Align"}
 					</span>
 					<AlignmentControl value={alignment ?? "center"} onChange={onAlignment} />
@@ -825,7 +808,7 @@ const LabelStyleControls = ({
 			)}
 			{onVerticalAlignment && (
 				<div className="flex items-center gap-2 text-sm">
-					<span className="w-24 text-stone-600 dark:text-stone-400">
+					<span className={LABEL_COL}>
 						Vertical alignment
 					</span>
 					<VerticalAlignmentControl
@@ -883,7 +866,7 @@ const LabelRow = ({
 							</span>
 						) : (
 							<label className="flex min-w-0 flex-1 items-start gap-2 text-sm">
-								<span className="mt-1 w-24 flex-shrink-0 text-stone-600 dark:text-stone-400">
+								<span className={`mt-1 shrink-0 ${LABEL_COL}`}>
 									{label}
 								</span>
 								<textarea
@@ -899,7 +882,7 @@ const LabelRow = ({
 							className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white`}
 							aria-label={`Toggle font settings for ${label}`}
 						>
-							<Chevron open={open} />
+							<DisclosureChevron open={open} />
 							{(hasOverride ||
 								hasAlignment ||
 								hasVerticalAlignment ||
@@ -960,7 +943,7 @@ export const FontEditor = ({
 	return (
 		<div className="flex flex-col gap-2">
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Family</span>
+				<span className={LABEL_COL}>Family</span>
 				<select
 					value={value.family ?? ""}
 					onChange={(e) =>
@@ -984,7 +967,7 @@ export const FontEditor = ({
 				)}
 			</label>
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Color</span>
+				<span className={LABEL_COL}>Color</span>
 				<input
 					type="text"
 					value={value.color ?? ""}
@@ -1009,7 +992,7 @@ export const FontEditor = ({
 				)}
 			</label>
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Size</span>
+				<span className={LABEL_COL}>Size</span>
 				<input
 					type="number"
 					min={6}
@@ -1033,7 +1016,7 @@ export const FontEditor = ({
 				)}
 			</label>
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">Weight</span>
+				<span className={LABEL_COL}>Weight</span>
 				<select
 					value={value.weight ?? ""}
 					onChange={(e) =>
@@ -1056,7 +1039,7 @@ export const FontEditor = ({
 				)}
 			</label>
 			<div className="flex items-center gap-1.5">
-				<span className="w-24 text-sm text-stone-600 dark:text-stone-400">
+				<span className={`${LABEL_COL} shrink-0 text-sm`}>
 					Style
 				</span>
 				<StyleButton

@@ -37,6 +37,8 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { Disclosure } from "@headlessui/react"
 
+import { DisclosureChevron } from "../../../../components/ui/Chevron"
+import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { ChannelOptionsPanel } from "./channelOptions/ChannelOptionsPanel"
 
@@ -49,25 +51,6 @@ type Props = {
 // other channels always show the disclosure so the user can configure
 // defaults (fill, shape, radius, etc.) even before mapping a variable.
 const FIELD_REQUIRED_CHANNELS = new Set<EncodingChannel>(["x", "y", "r"])
-
-const Chevron = ({ open }: { open: boolean }) => (
-	<svg
-		viewBox="0 0 12 12"
-		width={10}
-		height={10}
-		aria-hidden="true"
-		className={`flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-	>
-		<path
-			d="M3 4.5l3 3 3-3"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.5}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
-)
 
 export const EncodingShelf = ({ channel }: Props) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -376,7 +359,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 		<div className={`flex flex-col gap-1 ${rowOpacity}`}>
 			<SelectInput
 				label={ENCODING_CHANNEL_LABELS[channel]}
-				labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-300"
+				labelClassName={LABEL_COL}
 				value={
 					derivedSource
 						? PACKED_MEASURE_OPTION_VALUE[derivedSource]
@@ -427,7 +410,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
 							aria-label={`Toggle options for ${ENCODING_CHANNEL_LABELS[channel]}`}
 						>
-							<Chevron open={open} />
+							<DisclosureChevron open={open} />
 							{hasCustomization && (
 								<span
 									className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-stone-900 dark:bg-white"

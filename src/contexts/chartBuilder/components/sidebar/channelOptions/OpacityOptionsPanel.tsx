@@ -39,12 +39,10 @@ import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { StackModeRow } from "./StackModeRow"
-
-
-const OPACITY_LABEL = "w-24 text-stone-600 dark:text-stone-400"
 
 /** The unified Opacity menu. Mirrors the Color panel: one subheader per mark
  * part, each in a white card. Fill is the overall mark opacity (it reuses the
@@ -83,7 +81,7 @@ export const OpacityOptionsPanel = () => {
 	const hideFill = isFlowModeId(mode)
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			{!hideFill && (
 				<CollapsibleSubsection title="Fill" defaultOpen changed={fillChanged}>
 					<div className="flex flex-col gap-2">
@@ -200,7 +198,7 @@ const FillOpacityControls = ({
 	const varyBy = (
 		<SelectInput
 			label="Vary by"
-			labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={
 				histSource
 					? MEASURE_OPTION_VALUE[histSource]
@@ -262,7 +260,7 @@ const FillOpacityControls = ({
 						update({ kind: "categorical", overrides: rest })
 					}}
 				/>
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					{packedSource === "rootGroup"
 						? "Each circle takes its outermost group's opacity — derived from the hierarchy, no extra column needed."
 						: "One opacity per nesting level (1 = outermost). Unset levels spread evenly."}
@@ -284,7 +282,7 @@ const FillOpacityControls = ({
 					cfg={cfg}
 					onChange={(opacity) => setConfigs((prev) => ({ ...prev, opacity }))}
 				/>
-				<p className="text-xs text-stone-600 dark:text-stone-400">
+				<p className="vc-help">
 					Each bin&apos;s opacity scales with its{" "}
 					{measureSource === "density" ? "density" : "count"}.
 				</p>
@@ -432,7 +430,7 @@ const OpacitySlotSubsection = ({
 				{def.acceptsFieldMapping && !hideVaryBy ? (
 						<SelectInput
 							label="Vary by"
-							labelClassName="w-24 flex-shrink-0 text-sm text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							value={field ?? ""}
 							options={fieldOptions}
 							onChange={setField}
@@ -531,7 +529,7 @@ const QuantOpacityRange = ({
 	<div className="flex flex-col gap-2">
 		<NumberInput
 			label="Min"
-			labelClassName={OPACITY_LABEL}
+			labelClassName={LABEL_COL}
 			value={cfg.min}
 			min={0}
 			max={1}
@@ -541,7 +539,7 @@ const QuantOpacityRange = ({
 		/>
 		<NumberInput
 			label="Max"
-			labelClassName={OPACITY_LABEL}
+			labelClassName={LABEL_COL}
 			value={cfg.max}
 			min={0}
 			max={1}
@@ -569,7 +567,7 @@ const OpacityLevelInput = ({
 	<div className="flex items-center gap-2">
 		<NumberInput
 			label="Opacity"
-			labelClassName="w-24 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={value}
 			min={0}
 			max={1}

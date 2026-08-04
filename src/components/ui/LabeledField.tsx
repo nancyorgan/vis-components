@@ -1,6 +1,28 @@
 import type { ReactNode } from "react"
 import { combine as c } from "../../lib/cls"
 
+/** Canonical sidebar label column, passed as `labelClassName`: a fixed w-24
+ *  column so every row's control starts on the same vertical edge, in the
+ *  muted label color. One shared constant (rather than per-file copies) so
+ *  the column width and shade can't drift between panels. */
+export const LABEL_COL = "w-24 text-stone-600 dark:text-stone-400"
+
+/** Label column for rows nested inside an `ml-6` sub-block (controls
+ *  subordinate to a toggle/group header): 1.5rem narrower than LABEL_COL so
+ *  indent + label + gap still lands the control on the shared column. */
+export const LABEL_COL_NESTED = "w-18 text-stone-600 dark:text-stone-400"
+
+/** Empty stand-in for the label column: indents a secondary control (one
+ *  with no label of its own) so it aligns under the value column of
+ *  LABEL_COL rows. */
+export const LabelSpacer = () => <span className="w-24 shrink-0" aria-hidden />
+
+/** LabelSpacer's counterpart for rows inside an `ml-6` sub-block — matches
+ *  LABEL_COL_NESTED's width so the spaced control lands on the shared column. */
+export const LabelSpacerNested = () => (
+	<span className="w-18 shrink-0" aria-hidden />
+)
+
 /** Wraps a form control with its visual label. Used internally by every
  *  labeled primitive (`NumberInput`, `ColorInput`, `SelectInput`,
  *  `Toggle`) so they all produce consistent markup with a proper

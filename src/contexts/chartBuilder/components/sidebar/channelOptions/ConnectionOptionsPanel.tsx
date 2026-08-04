@@ -48,6 +48,7 @@ import {
 import { effectiveType } from "../../../lib/fieldType"
 import { parseValue } from "../../../lib/scales"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
+import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../../components/ui/Toggle"
@@ -287,7 +288,7 @@ export const ConnectionOptionsPanel = () => {
 		<div className="flex items-center gap-2 text-sm">
 			<NumberInput
 				label="Line thickness"
-				labelClassName="w-24 shrink-0 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				changed={ch.thickness}
 				value={cfg.thickness}
 				min={0.5}
@@ -322,7 +323,7 @@ export const ConnectionOptionsPanel = () => {
 		<div className="flex flex-col gap-2">
 			<SelectInput
 				label="Vary by"
-				labelClassName="w-24 shrink-0 text-sm text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				changed={thicknessVarying}
 				value={thicknessVarying ? "field" : "single"}
 				options={[
@@ -368,7 +369,7 @@ export const ConnectionOptionsPanel = () => {
 						)
 					})}
 					{connectionValues.length === 0 && (
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							No {connectionFieldName} values in the data yet.
 						</p>
 					)}
@@ -420,7 +421,7 @@ export const ConnectionOptionsPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			{isStructureMode && (
 				<CollapsibleSubsection
 					title="Structure"
@@ -505,7 +506,7 @@ export const ConnectionOptionsPanel = () => {
 											))}
 									</select>
 								</div>
-								<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+								<p className="vc-help">
 									The column naming each row. A {connectionFieldName} value
 									that matches another row&apos;s ID nests that circle inside
 									it, so circles can nest to any depth. Auto picks the column
@@ -514,7 +515,7 @@ export const ConnectionOptionsPanel = () => {
 							</>
 						)}
 						{isPackedMode && !connectionFieldName && (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Map Connection to a parent column to nest circles inside
 								groups.
 							</p>
@@ -558,7 +559,7 @@ export const ConnectionOptionsPanel = () => {
 									</select>
 								</div>
 								<div className="flex items-center gap-2 text-sm">
-									<span className="w-24 shrink-0" aria-hidden="true" />
+									<LabelSpacer />
 									<button
 										type="button"
 										onClick={swapFlowDirection}
@@ -576,7 +577,7 @@ export const ConnectionOptionsPanel = () => {
 										⇄ Swap direction
 									</button>
 								</div>
-								<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+								<p className="vc-help">
 									Each row is a flow from {connectionFieldName} to this
 									column, sized by the Area field. Auto picks the column whose
 									values overlap {connectionFieldName}&apos;s.
@@ -584,7 +585,7 @@ export const ConnectionOptionsPanel = () => {
 							</>
 						)}
 						{isFlowMode && !connectionFieldName && (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Map Connection to a source column to draw flows from its
 								values.
 							</p>
@@ -600,6 +601,7 @@ export const ConnectionOptionsPanel = () => {
 				<>
 					<Toggle
 						label="Show axis"
+						className="px-2"
 						checked={axis.enabled}
 						onChange={(enabled) => updateAxis({ enabled })}
 						changed={axisCh.enabled}
@@ -621,7 +623,7 @@ export const ConnectionOptionsPanel = () => {
 									<div className="flex items-center gap-2 text-sm">
 										<NumberInput
 											label="Count"
-											labelClassName="w-24 text-stone-600 dark:text-stone-400"
+											labelClassName={LABEL_COL}
 											value={axis.tickCount}
 											min={2}
 											max={500}
@@ -644,8 +646,8 @@ export const ConnectionOptionsPanel = () => {
 										)}
 									</div>
 									<div className="flex gap-2">
-										<span className="w-24 shrink-0" aria-hidden />
-										<span className="min-w-0 flex-1 text-xs text-stone-600 dark:text-stone-400">
+										<LabelSpacer />
+										<span className="min-w-0 flex-1 vc-help">
 											Approximate tick marks around the full ring — the
 											step snaps to a round value and each node gets a
 											share proportional to its total.
@@ -665,7 +667,7 @@ export const ConnectionOptionsPanel = () => {
 								<div className="mb-1.5 flex items-center gap-2 text-sm">
 									<NumberInput
 										label="Label every"
-										labelClassName="w-24 text-stone-600 dark:text-stone-400"
+										labelClassName={LABEL_COL}
 										value={axis.labelEvery}
 										min={1}
 										step={1}
@@ -718,7 +720,7 @@ export const ConnectionOptionsPanel = () => {
 					<div className="flex flex-col gap-2">
 						{lineThicknessRow}
 						<div className="flex items-center gap-2 text-sm">
-							<span className="w-24 shrink-0" aria-hidden="true" />
+							<LabelSpacer />
 							<label className="flex items-center gap-2">
 								<input
 									type="checkbox"
@@ -746,13 +748,14 @@ export const ConnectionOptionsPanel = () => {
 								setConfigs={setConfigs}
 							/>
 						)}
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							Filling the polygon turns the line into an area chart.
 						</p>
 					</div>
 				</CollapsibleSubsection>
 			) : (
-				!isRadarMode && !isStructureMode && lineThicknessRow
+				!isRadarMode &&
+				!isStructureMode && <div className="px-2">{lineThicknessRow}</div>
 			)}
 			{!isRadarMode && !isStructureMode && (
 				<CollapsibleSubsection
@@ -784,7 +787,7 @@ export const ConnectionOptionsPanel = () => {
 						</label>
 						{ch.smoothing && (
 							<label className="flex items-center gap-2 text-sm">
-								<span className="w-24 text-stone-600 dark:text-stone-400">
+								<span className={LABEL_COL}>
 									Amount
 								</span>
 								<input
@@ -803,7 +806,7 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						)}
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							Rounds the corners of connecting lines so they curve through
 							the points instead of meeting at sharp angles.
 						</p>
@@ -836,7 +839,7 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						))}
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							How line ends and dash segments terminate: rounded or squared
 							off.
 						</p>
@@ -867,12 +870,12 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						))}
-						<p className="text-xs text-stone-600 dark:text-stone-400">
+						<p className="vc-help">
 							Draws a stem from each point to the axis (lollipop charts). Stems
 							use the line thickness above.
 						</p>
 						{axisStem !== "none" && (
-							<p className="mt-1 border-t border-stone-200 pt-2 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-400">
+							<p className="mt-1 border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
 								Set stem color under the <strong>Color</strong> menu →{" "}
 								<strong>Stem</strong>.
 							</p>
@@ -885,7 +888,7 @@ export const ConnectionOptionsPanel = () => {
 					<div className="flex flex-col gap-2">
 						{lineThicknessRow}
 						<div className="flex items-center gap-2 text-sm">
-							<span className="w-24 shrink-0" aria-hidden="true" />
+							<LabelSpacer />
 							<label className="flex items-center gap-2">
 								<input
 									type="checkbox"
@@ -904,10 +907,10 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						</div>
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							Adjust line and fill opacity in the Opacity panel.
 						</p>
-						<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+						<p className="vc-help">
 							Per-line colors live in the Hue panel. Per-line dash patterns live
 							in the Pattern panel. Map the corresponding encoding to a field to
 							customize.
@@ -957,7 +960,7 @@ export const ConnectionOptionsPanel = () => {
 								inputClassName="w-16"
 							/>
 						)}
-						<p className="text-xs text-stone-600 dark:text-stone-400">
+						<p className="vc-help">
 							Filters which points along the line render markers. The line itself
 							always passes through every data point.
 						</p>
@@ -965,7 +968,7 @@ export const ConnectionOptionsPanel = () => {
 				</CollapsibleSubsection>
 			)}
 			{!isRadarMode && !isStructureMode && (
-				<p className="border-t border-stone-200 pt-2 text-xs text-th-electric-indigo-700 dark:border-stone-700 dark:text-stone-400">
+				<p className="border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
 					Per-line colors live in the Hue panel. Per-line dash patterns live in
 					the Pattern panel. Map the corresponding encoding to a field to
 					customize.
@@ -1007,7 +1010,7 @@ const StackingRow = ({
 
 	return (
 		<div className="flex items-center gap-2 text-sm">
-			<span className="w-24 text-stone-600 dark:text-stone-400">Stacking</span>
+			<span className={LABEL_COL}>Stacking</span>
 			<div
 				role="group"
 				aria-label="Stacking"

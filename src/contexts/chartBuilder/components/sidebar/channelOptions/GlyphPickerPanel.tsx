@@ -12,6 +12,13 @@ import {
 	type RegressionConfig,
 	type ShapeConfig,
 } from "../../../lib/channelConfig"
+import {
+	CHIP_BG,
+	CHIP_INK,
+	CHIP_INK_SELECTED,
+	CHIP_STROKE,
+	CHIP_STROKE_SELECTED,
+} from "../../../lib/previewInk"
 import { regressionOn } from "../../../lib/colorSlots"
 import {
 	flowNodeNames,
@@ -70,6 +77,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 
 const PREVIEW_SIZE = 20
@@ -83,7 +91,7 @@ const ShapeGlyph = ({ idx, selected }: { idx: number; selected: boolean }) => (
 	>
 		<path
 			d={symbolPath(idx, 5)}
-			fill={selected ? "currentColor" : "#64748b"}
+			fill={selected ? "currentColor" : CHIP_INK}
 			fillOpacity={0.9}
 		/>
 	</svg>
@@ -101,7 +109,7 @@ const LineDashGlyph = ({
 	const pattern = DASH_CYCLE[idx % DASH_CYCLE.length] ?? "solid"
 	const strokeDashArray = dashArrayFor(pattern) ?? undefined
 	// Dashes preview neutral — line color is owned by hue, not ink.
-	const strokeColor = selected ? "#0f172a" : "#64748b"
+	const strokeColor = selected ? CHIP_INK_SELECTED : CHIP_INK
 	return (
 		<svg
 			width={PREVIEW_SIZE}
@@ -127,7 +135,7 @@ const PatternGlyph = ({
 	idx,
 	selected,
 	inkColor: inkColorProp,
-	bgColor = "#e2e8f0",
+	bgColor = CHIP_BG,
 }: {
 	idx: number
 	selected: boolean
@@ -135,7 +143,7 @@ const PatternGlyph = ({
 	bgColor?: string
 }) => {
 	const def = PATTERN_PALETTE[idx % PATTERN_PALETTE.length]
-	const inkColor = inkColorProp ?? (selected ? "#0f172a" : "#64748b")
+	const inkColor = inkColorProp ?? (selected ? CHIP_INK_SELECTED : CHIP_INK)
 	const uniqueId = `glyph-${def.id}-${selected ? "sel" : "off"}-${inkColor.replaceAll(/[^a-zA-Z0-9]/g, "")}`
 	return (
 		<svg width={PREVIEW_SIZE} height={PREVIEW_SIZE} aria-hidden="true">
@@ -156,7 +164,7 @@ const PatternGlyph = ({
 				width={PREVIEW_SIZE}
 				height={PREVIEW_SIZE}
 				fill={`url(#${uniqueId})`}
-				stroke={selected ? "#1e293b" : "#94a3b8"}
+				stroke={selected ? CHIP_STROKE_SELECTED : CHIP_STROKE}
 				strokeWidth={0.5}
 			/>
 		</svg>
@@ -238,6 +246,7 @@ const ColorRow = ({
 	onChange,
 	onClear,
 	clearLabel = "clear",
+	className,
 }: {
 	label: string
 	value: string | null
@@ -245,11 +254,14 @@ const ColorRow = ({
 	onClear?: () => void
 	clearLabel?: string
 	placeholder?: string
+	className?: string
 }) => (
-	<div className="flex items-center gap-2 text-sm">
+	<div
+		className={`flex items-center gap-2 text-sm${className ? ` ${className}` : ""}`}
+	>
 		<ColorInput
 			label={label}
-			labelClassName="w-24 text-stone-600 dark:text-stone-400"
+			labelClassName={LABEL_COL}
 			value={value ?? "#000000"}
 			onChange={onChange}
 			className="contents"
@@ -392,10 +404,10 @@ export const ShapeOptionsPanel = () => {
 	const defaultShapeIdx = configs.defaultShape ?? DEFAULT_SHAPE
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			<NumberInput
 				label="Outline width"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={cfg.outlineWidth}
 				min={0}
 				max={10}
@@ -407,7 +419,7 @@ export const ShapeOptionsPanel = () => {
 			/>
 			{/* Outline COLOR now lives in the unified Color menu (Outline
 			 *  subheader) — only outline WIDTH remains here. */}
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Set outline color under the <strong>Color</strong> menu →{" "}
 				<strong>Outline</strong>.
 			</p>
@@ -739,7 +751,7 @@ export const PatternOptionsPanel = () => {
 					Fill dash gaps
 				</span>
 			</label>
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Paints the gaps between dashes so the line stays connected — by
 				default in the palette&apos;s paired pattern color (the same pairing
 				area patterns use). Adjust the gap colors below. Uncheck for a
@@ -964,7 +976,7 @@ export const PatternOptionsPanel = () => {
 		const rangeNeedsDashHint = (configs.connection?.dashRange?.enabled ??
 			false) &&
 			connDefaultDash === "solid" && (
-				<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+				<p className="vc-help">
 					Pick a dash style above — the range only sets where the dash
 					applies.
 				</p>
@@ -1012,7 +1024,7 @@ export const PatternOptionsPanel = () => {
 		)
 
 		return (
-			<div className="vc-option-panel flex flex-col gap-3">
+			<div className="vc-option-panel">
 				{patternMode === "compound" ? (
 					<>
 						<CollapsibleSubsection
@@ -1045,20 +1057,29 @@ export const PatternOptionsPanel = () => {
 					</>
 				) : patternMode === "dashOnly" ? (
 					<>
-						{renderDefaultDashRow("Line dash")}
-						{gapFillRow}
-						<ConnectionDashRangeRows />
+						{/* Bare rows here sit beside the "Regression line" card when
+						 *  it renders — px-2 keeps their label/control columns on the
+						 *  card rows' shared column. */}
+						<div className="px-2">{renderDefaultDashRow("Line dash")}</div>
+						<div className="px-2">{gapFillRow}</div>
+						<div className="px-2">
+							<ConnectionDashRangeRows />
+						</div>
 						{rangeNeedsDashHint}
 					</>
 				) : (
 					<>
-						{renderDefaultSwatchRow(
-							"Default pattern",
-							activePalette,
-							PatternSwatch,
-							true
-						)}
-						{fillColorRows}
+						<div className="px-2">
+							{renderDefaultSwatchRow(
+								"Default pattern",
+								activePalette,
+								PatternSwatch,
+								true
+							)}
+						</div>
+						<div className="flex flex-col gap-2 px-2 empty:hidden">
+							{fillColorRows}
+						</div>
 					</>
 				)}
 				<button
@@ -1358,17 +1379,18 @@ export const PatternOptionsPanel = () => {
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
-			<StackModeRow channel="pattern" />
+		<div className="vc-option-panel">
+			<StackModeRow channel="pattern" className="px-2" />
 			{showFillRow &&
 				(hueIsMapped ? (
-					<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+					<div className="vc-help">
 						Background follows hue encoding. Adjust the pattern line/dot color
 						per category below.
 					</div>
 				) : (
 					<ColorRow
 						label="Background"
+						className="px-2"
 						value={cfg.backgroundColor}
 						onChange={(c) => updateCfg({ backgroundColor: c })}
 						onClear={() =>
@@ -1428,7 +1450,7 @@ export const PatternOptionsPanel = () => {
 					// subsection header would be redundant.
 					<>
 						<hr className="border-stone-200 dark:border-stone-700" />
-						<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-4 px-2">
 							{orderedLevels(
 								fieldValues.values,
 								fieldValues.type,
@@ -1600,7 +1622,7 @@ const DashRangeRows = ({
 					] as const
 				).map(([key, label]) => (
 					<div key={key} className="flex items-center gap-2 text-sm">
-						<span className="w-24 flex-shrink-0 text-stone-600 dark:text-stone-400">
+						<span className={`shrink-0 ${LABEL_COL}`}>
 							{label}
 						</span>
 						<input
@@ -1616,7 +1638,7 @@ const DashRangeRows = ({
 						/>
 					</div>
 				))}
-				<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+				<p className="vc-help">
 					The pattern draws only between From and To (axis values — numbers
 					or dates); outside the range the line is solid. Leave a side blank
 					for unbounded — e.g. set only From to the forecast start.

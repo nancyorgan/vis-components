@@ -2,6 +2,10 @@ import { useState } from "react"
 import { useAtom } from "jotai"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import {
+	LABEL_COL,
+	LabelSpacer,
+} from "../../../../components/ui/LabeledField"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 import {
@@ -25,7 +29,6 @@ import { currentMapConfigAtom } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { useGeoResolution } from "../../store/useGeoResolution"
 
-const LABEL_COL = "w-24 text-stone-600 dark:text-stone-400"
 
 const PROJECTION_LABELS: Record<ProjectionName, string> = {
 	albersUsa: "Albers USA",
@@ -132,21 +135,21 @@ const MatchStatus = () => {
 
 	if (loading) {
 		return (
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Checking matches…
 			</p>
 		)
 	}
 	if (total === 0) {
 		return (
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Map a region field to the Connection channel to see match status.
 			</p>
 		)
 	}
 	return (
 		<div className="flex flex-col gap-1">
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				{matchedCount} of {total} matched
 				{unmatched.length > 0 && (
 					<>
@@ -163,7 +166,7 @@ const MatchStatus = () => {
 				)}
 			</p>
 			{showList && unmatched.length > 0 && (
-				<ul className="list-inside list-disc text-xs text-th-electric-indigo-700 dark:text-stone-400">
+				<ul className="list-inside list-disc vc-help">
 					{unmatched.map((v) => (
 						<li key={v}>{v}</li>
 					))}
@@ -264,7 +267,7 @@ export const MapsSection = () => {
 	const showCountryNameHint = effectiveLevel === "countries"
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-3">
+		<div className="vc-option-panel">
 			<CollapsibleSubsection title="Coordinate system" defaultOpen>
 				<CoordSystemToggle
 					value={mapConfig.coordSystem}
@@ -284,7 +287,7 @@ export const MapsSection = () => {
 							selectClassName="min-w-0 flex-1"
 						/>
 						{showUsTinyNote && (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Natural Earth and Mercator are world projections, best
 								suited to country maps. US geographies render best with
 								Albers USA (Auto) — other projections fit the US to its
@@ -292,7 +295,7 @@ export const MapsSection = () => {
 							</p>
 						)}
 						{showLonLatHint && (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								On point maps, X = longitude and Y = latitude.
 							</p>
 						)}
@@ -305,7 +308,7 @@ export const MapsSection = () => {
 							selectClassName="min-w-0 flex-1"
 						/>
 						{isUnimplementedLevel && (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Only US states are available so far — more geographies are
 								coming.
 							</p>
@@ -319,7 +322,7 @@ export const MapsSection = () => {
 							selectClassName="min-w-0 flex-1"
 						/>
 						{mapConfig.focusRegion === "custom" ? (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Drag the map to pan; scroll or pinch to zoom (or Ctrl +
 								↑/↓); arrow keys also pan.{" "}
 								<button
@@ -331,7 +334,7 @@ export const MapsSection = () => {
 								</button>
 							</p>
 						) : mapConfig.focusRegion !== "auto" ? (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Centers the map on{" "}
 								{FOCUS_REGION_LABELS[mapConfig.focusRegion]}. Drag or
 								scroll to fine-tune the view. Uses a world projection
@@ -348,14 +351,14 @@ export const MapsSection = () => {
 						/>
 						<MatchStatus />
 						{showCountryNameHint && (
-							<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+							<p className="vc-help">
 								Country names must match our spelling exactly (e.g. &quot;Dem.
 								Rep. Congo&quot;). ISO codes (USA, FR, 840) join most reliably.
 							</p>
 						)}
 						{showBasemapToggle && (
 							<div className="flex items-start gap-2">
-								<span className={`${LABEL_COL} shrink-0`} aria-hidden />
+								<LabelSpacer />
 								<div className="flex min-w-0 flex-1 flex-col gap-1">
 									<Toggle
 										label="Show basemap"
@@ -364,7 +367,7 @@ export const MapsSection = () => {
 											update({ showBasemap })
 										}
 									/>
-									<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+									<p className="vc-help">
 										Draw the geography outlines behind the marks.
 									</p>
 								</div>
@@ -372,10 +375,7 @@ export const MapsSection = () => {
 						)}
 						{showFillNoDataToggle && (
 							<div className="flex items-start gap-2">
-								<span
-									className={`${LABEL_COL} shrink-0`}
-									aria-hidden
-								/>
+								<LabelSpacer />
 								<div className="flex min-w-0 flex-1 flex-col gap-1">
 									<Toggle
 										label="Fill regions with no data"
@@ -384,7 +384,7 @@ export const MapsSection = () => {
 											update({ showNoDataRegions })
 										}
 									/>
-									<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+									<p className="vc-help">
 										When on, regions with no matching data are filled
 										with the no-data color; when off, only regions
 										with data are drawn.

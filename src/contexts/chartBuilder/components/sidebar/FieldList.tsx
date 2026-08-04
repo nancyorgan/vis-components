@@ -9,6 +9,7 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { Disclosure } from "@headlessui/react"
 
+import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 
 const TYPE_OPTIONS: ReadonlyArray<{ value: FieldType; label: FieldType }> = [
@@ -35,25 +36,6 @@ const TYPE_ABBR: Record<FieldType, string> = {
 	temporal: "T",
 	ordinal: "O",
 }
-
-const Chevron = ({ open }: { open: boolean }) => (
-	<svg
-		viewBox="0 0 12 12"
-		width={10}
-		height={10}
-		aria-hidden="true"
-		className={`flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-	>
-		<path
-			d="M3 4.5l3 3 3-3"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.5}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
-)
 
 export const FieldList = () => {
 	const [overrides, setOverrides] = useAtom(currentFieldOverridesAtom)
@@ -116,7 +98,7 @@ export const FieldList = () => {
 												aria-label={`Reorder levels of ${field.name}`}
 												title="Reorder levels"
 											>
-												<Chevron open={open} />
+												<DisclosureChevron open={open} />
 											</Disclosure.Button>
 										)}
 									</div>

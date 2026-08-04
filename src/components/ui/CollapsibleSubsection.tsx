@@ -1,28 +1,6 @@
 import { useState } from "react"
 
-import { combine as c } from "../../lib/cls"
-
-/** Chevron that points right when collapsed, down (rotated) when open —
- *  mirrors AsideSection's chevron so sidebar sections and their inner
- *  subsections share one visual language. */
-const Chevron = ({ open }: { open: boolean }) => (
-	<svg
-		viewBox="0 0 12 12"
-		width={9}
-		height={9}
-		aria-hidden="true"
-		className={c("flex-shrink-0 transition-transform", open ? "rotate-90" : "")}
-	>
-		<path
-			d="M3.5 2l4 4-4 4"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.5}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
-)
+import { SectionChevron } from "./Chevron"
 
 /** A collapsible subsection inside an option panel ("purple box"). Renders
  *  the existing uppercase subheader text with a leading chevron; clicking the
@@ -74,7 +52,7 @@ export const CollapsibleSubsection = ({
 					aria-expanded={open}
 					className="font-heading text-vc-section-header flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wider uppercase hover:opacity-80"
 				>
-					<Chevron open={open} />
+					<SectionChevron open={open} />
 					{title}
 					{changed && (
 						<span

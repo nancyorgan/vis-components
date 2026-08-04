@@ -23,6 +23,7 @@ import { applyAreaScale, makeAreaScale, parseValue } from "../../../lib/scales"
 import { orderedLevels } from "../../../lib/smartSort"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { StackModeRow } from "./StackModeRow"
 
@@ -121,7 +122,7 @@ export const AreaOptionsPanel = () => {
 	// range is inert there — only the Scale-by choice applies.
 	if (modeId === "packed-circles")
 		return (
-			<div className="vc-option-panel flex flex-col gap-2">
+			<div className="vc-option-panel">
 				<ScaleByRow />
 			</div>
 		)
@@ -131,8 +132,8 @@ export const AreaOptionsPanel = () => {
 	// panel just says so.
 	if (isHierarchyModeId(modeId) || isFlowModeId(modeId))
 		return (
-			<div className="vc-option-panel flex flex-col gap-2">
-				<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-option-panel">
+				<p className="vc-help">
 					{modeId === "treemap"
 						? "Rectangle areas are computed by the treemap layout, proportional to each row's value."
 						: modeId === "chord"
@@ -148,7 +149,7 @@ export const AreaOptionsPanel = () => {
 	// (both would be no-ops). Show only the per-category size editor.
 	if (ordinalCategories)
 		return (
-			<div className="vc-option-panel flex flex-col gap-2">
+			<div className="vc-option-panel">
 				<AreaOrdinalLevels categories={ordinalCategories} />
 			</div>
 		)
@@ -206,7 +207,7 @@ const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
 
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="text-sm font-semibold !text-vc-section-header">
+			<span className="vc-group-header">
 				Size per category
 			</span>
 			{orderedLevels(categories, "ordinal", levelOrder).map(({ value }) => {
@@ -216,7 +217,7 @@ const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
 					<div key={value} className="flex items-center gap-2 text-sm">
 						<NumberInput
 							label={value}
-							labelClassName="w-24 shrink-0 truncate text-stone-600 dark:text-stone-400"
+							labelClassName={`${LABEL_COL} truncate`}
 							changed={overridden}
 							value={current}
 							min={1}
@@ -240,7 +241,7 @@ const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
 					</div>
 				)
 			})}
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Each category gets an evenly-spaced size ({min}–{max}px) in the order
 				it appears in the data. Edit any value to set an exact size.
 			</p>
@@ -295,7 +296,7 @@ const ScaleByRow = () => {
 					<span className="text-stone-600 dark:text-stone-400">{label}</span>
 				</label>
 			))}
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Area keeps circle areas proportional to values (a doubled value
 				doubles the ink); Diameter grows the radius linearly instead, which
 				reads more dramatically when values span a narrow range. In packed
@@ -435,7 +436,7 @@ const DerivedLevelsPanel = ({
 		})
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			{values.map((value, idx) => {
 				const overridden = overrides[value] !== undefined
 				const current = overrides[value] ?? spreadFor(idx)
@@ -443,7 +444,7 @@ const DerivedLevelsPanel = ({
 					<div key={value} className="flex items-center gap-2 text-sm">
 						<NumberInput
 							label={source === "depth" ? `Level ${value}` : value}
-							labelClassName="w-24 shrink-0 text-stone-600 dark:text-stone-400"
+							labelClassName={LABEL_COL}
 							changed={overridden}
 							value={current}
 							min={0}
@@ -470,7 +471,7 @@ const DerivedLevelsPanel = ({
 					</div>
 				)
 			})}
-			<p className="text-xs text-th-electric-indigo-700 dark:text-stone-400">
+			<p className="vc-help">
 				Varying by {PACKED_DERIVED_LABELS[source].toLowerCase()}. Unset
 				values spread evenly from {min} to {max}
 				{source === "depth" ? " (outermost → deepest)" : ""}.
@@ -525,11 +526,11 @@ const RangePanel = ({
 	}
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			{header}
 			<NumberInput
 				label="Min"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={currentMin}
 				min={variant.hardMin}
 				max={variant.hardMax}
@@ -540,7 +541,7 @@ const RangePanel = ({
 			/>
 			<NumberInput
 				label="Max"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={currentMax}
 				min={variant.hardMin}
 				max={variant.hardMax}
@@ -549,7 +550,7 @@ const RangePanel = ({
 				inputClassName="w-20"
 				suffix={variant.suffix || undefined}
 			/>
-			<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-help">
 				Defaults: {variant.min}
 				{variant.suffix} – {variant.max}
 				{variant.suffix}
@@ -583,10 +584,10 @@ const AreaDefaultPanel = () => {
 	const currentRadius = configs.defaultRadius ?? theme.defaultRadius
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			<NumberInput
 				label="Point size"
-				labelClassName="w-24 text-stone-600 dark:text-stone-400"
+				labelClassName={LABEL_COL}
 				value={currentRadius}
 				min={1}
 				max={200}
@@ -597,7 +598,7 @@ const AreaDefaultPanel = () => {
 				inputClassName="w-20"
 				suffix="px"
 			/>
-			<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-help">
 				Your default: {theme.defaultRadius}px
 			</div>
 			<button
@@ -637,10 +638,10 @@ const ModulationDefaultPanel = ({
 	const currentValue = stored ?? startValue
 
 	return (
-		<div className="vc-option-panel flex flex-col gap-2">
+		<div className="vc-option-panel">
 			{header}
 			<label className="flex items-center gap-2 text-sm">
-				<span className="w-24 text-stone-600 dark:text-stone-400">{label}</span>
+				<span className={LABEL_COL}>{label}</span>
 				<input
 					type="range"
 					min={0}
@@ -660,7 +661,7 @@ const ModulationDefaultPanel = ({
 					{enabled ? currentValue.toFixed(2) : "—"}
 				</span>
 			</label>
-			<div className="text-sm text-th-electric-indigo-700 dark:text-stone-400">
+			<div className="vc-help">
 				{enabled
 					? `Forces every mark's ${label.toLowerCase()} to this HSL value, overriding the palette.`
 					: `Off — marks use their palette colors as-is.`}
