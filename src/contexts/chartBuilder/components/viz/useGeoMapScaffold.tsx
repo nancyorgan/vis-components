@@ -28,6 +28,7 @@ import {
 	type AestheticScales,
 } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
 import { useGeoJoin } from "../../store/useGeoJoin"
 import { useGeometry } from "../../store/useGeometry"
 
@@ -181,17 +182,21 @@ export const useGeoMapScaffold = (
 		setHovered(null)
 	}, [pan.viewport])
 
-	// "auto" geography resolves to states; every explicit level (incl.
-	// "countries") flows straight through to loadGeometry.
-	const level: GeographyLevel =
-		mapConfig.geographyLevel === "auto" ? "states" : mapConfig.geographyLevel
+	// The shared auto-detection hook resolves "auto" from the connection
+	// values (null while detecting — beginMarks shows the loading placeholder
+	// then, exactly like geometry that hasn't arrived).
+	const level: GeographyLevel | null = useEffectiveGeographyLevel()
 	const { bundle, loading } = useGeometry(level)
+	// Projection/backdrop decisions need a concrete level while detection is
+	// in flight; states (the legacy "auto") is harmless — no marks draw until
+	// the detected level's geometry lands anyway.
+	const levelForProjection = level ?? "states"
 
 	// Resolve the concrete projection BEFORE building the coord (see
 	// resolveGeoProjection: albersUsa clips non-US points, so "auto" picks a
 	// world projection for the countries level).
 	const resolvedProjection = resolveGeoProjection(
-		level,
+		levelForProjection,
 		mapConfig.projection,
 		mapConfig.focusRegion
 	)
@@ -203,7 +208,7 @@ export const useGeoMapScaffold = (
 	// albersUsa clips the world to nothing, so we only load the backdrop for
 	// world-capable projections; the "countries" level already IS the world.
 	const needsWorldBackdrop =
-		resolvedProjection !== "albersUsa" && level !== "countries"
+		resolvedProjection !== "albersUsa" && levelForProjection !== "countries"
 	const { bundle: worldBundle } = useGeometry(
 		needsWorldBackdrop ? "countries" : null
 	)

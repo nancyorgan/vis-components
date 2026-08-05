@@ -4,8 +4,11 @@ import type { Feature, FeatureCollection } from "geojson"
 import { feature } from "topojson-client"
 import type { GeometryCollection, Topology } from "topojson-specification"
 // Statically bundled so the states map needs no network fetch (per the design;
-// the file is ~100KB). counties/zcta are loaded in a later phase and
-// intentionally not imported here. countries (~110KB) ships statically too.
+// the file is ~100KB). countries (~110KB) ships statically too. counties
+// (~842KB) is a DYNAMIC import inside buildCountiesBundle — lazy in dev, and
+// vite-plugin-singlefile inlines it into the shareable dist/index.html (a
+// runtime /public fetch would break the offline single-file build). zcta is
+// still unimplemented.
 import statesTopology from "us-atlas/states-10m.json"
 import countriesTopology from "world-atlas/countries-110m.json"
 import type { GeographyLevel } from "../mapConfig"
@@ -29,8 +32,12 @@ export type GeometryBundle = {
 // Normalize a us-atlas feature id (FIPS) to a zero-padded 2-char string so it
 // joins against `stateLookup.byFips` (e.g. 6 / "6" -> "06"). us-atlas
 // states-10m gives string ids already, but be defensive about numeric ones.
-// TODO(phase4): county FIPS need 5-digit-aware padding.
 const normalizeFips = (id: unknown): string => String(id ?? "").padStart(2, "0")
+
+// County FIPS are 5-digit (2-digit state + 3-digit county). counties-10m ids
+// are 5-char strings already; the pad is the same defensiveness as above.
+const normalizeCountyFips = (id: unknown): string =>
+	String(id ?? "").padStart(5, "0")
 
 // Zero-pad an ISO 3166-1 numeric code to 3 chars so a feature id of "4" or 4
 // joins against the isoCountries `numeric` field ("004"). Width 3 — distinct
@@ -158,6 +165,66 @@ const buildCountriesBundle = (): GeometryBundle => {
 	return { features, table, centroids }
 }
 
+// Census county codes 510-899 are independent cities (41 features: 38 in VA
+// plus St. Louis 29510, Baltimore 24510, Carson City 32510).
+const isIndependentCity = (countyFips: string): boolean => {
+	const countyCode = Number(countyFips.slice(2))
+	return countyCode >= 510 && countyCode <= 899
+}
+
+const buildCountiesBundle = async (): Promise<GeometryBundle> => {
+	// Dynamic import: the 842KB TopoJSON only loads (dev) / parses when a
+	// counties map is actually opened. See the import note at the top.
+	const mod = await import("us-atlas/counties-10m.json")
+	const countiesTopo = mod.default as unknown as Topology<{
+		counties: GeometryCollection
+	}>
+	const fc = feature(
+		countiesTopo,
+		countiesTopo.objects.counties,
+	) as FeatureCollection
+	const features = fc.features
+
+	const path = geoPath()
+
+	const table: GeoLookupRow[] = []
+	const centroids = new Map<string, [number, number]>()
+
+	for (const f of features) {
+		const id = normalizeCountyFips(f.id)
+		f.id = id
+
+		// counties-10m names are bare ("Baltimore", "Tangipahoa") — no
+		// "County"/"Parish" designator. Independent cities carry the SAME bare
+		// name as their sibling county (Baltimore city 24510 vs Baltimore
+		// County 24005 — all 6 within-state duplicate names are such pairs), so
+		// suffix them " city" the way real data labels them. That makes every
+		// state-qualified composite name unique. Carson/Charles/James City
+		// already end in "City" and keep their name as-is.
+		const rawName = (f.properties as { name?: string } | null)?.name ?? ""
+		const name =
+			isIndependentCity(id) && !/\bcity$/i.test(rawName)
+				? `${rawName} city`
+				: rawName
+
+		// No abbrev key: a county row carrying its state's USPS code would let a
+		// state-abbrev column join the county table and mis-map. stateFips (the
+		// 2-digit prefix) instead powers the composite name keys — see
+		// resolveGeography's buildIndex.
+		table.push({
+			featureId: id,
+			keys: {
+				fips: id,
+				name: name || undefined,
+				stateFips: id.slice(0, 2),
+			},
+		})
+		centroids.set(id, path.centroid(f) as [number, number])
+	}
+
+	return { features, table, centroids }
+}
+
 // Memoize one decode promise per level so repeat calls share work and identity
 // (`loadGeometry("states") === loadGeometry("states")`).
 const cache = new Map<GeographyLevel, Promise<GeometryBundle>>()
@@ -165,9 +232,9 @@ const cache = new Map<GeographyLevel, Promise<GeometryBundle>>()
 /**
  * Load (and cache) the decoded geometry bundle for a geography level.
  *
- * Implements `"states"` (Phase 1) and `"countries"` (Phase 2); other levels
- * reject with a NotImplemented-style error. async so unimplemented levels reject
- * (rather than throw synchronously) while still returning a cacheable promise.
+ * Implements `"states"`, `"countries"` and `"counties"`; zcta rejects with a
+ * NotImplemented-style error. async so unimplemented levels reject (rather
+ * than throw synchronously) while still returning a cacheable promise.
  */
 export const loadGeometry = (level: GeographyLevel): Promise<GeometryBundle> => {
 	const cached = cache.get(level)
@@ -176,6 +243,7 @@ export const loadGeometry = (level: GeographyLevel): Promise<GeometryBundle> => 
 	const promise = (async (): Promise<GeometryBundle> => {
 		if (level === "states") return buildStatesBundle()
 		if (level === "countries") return buildCountriesBundle()
+		if (level === "counties") return buildCountiesBundle()
 		throw new Error(`loadGeometry: level "${level}" not implemented yet`)
 	})()
 

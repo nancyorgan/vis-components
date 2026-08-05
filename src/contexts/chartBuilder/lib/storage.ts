@@ -126,6 +126,7 @@ const KEY_THEME = "vis-components:theme"
 const KEY_THEMES = "vis-components:themes"
 const KEY_USER_DEFAULT_THEME_ID = "vis-components:userDefaultThemeId"
 const KEY_EXAMPLE_SEED_APPLIED = "vis-components:exampleSeedApplied"
+const KEY_DATASET_CLEANUP_DONE = "vis-components:datasetCleanupDone"
 
 // Legacy keys — read once on first load, then rewritten under new keys.
 // Pre-rename, the entity was called "Project". Old localStorage data is
@@ -479,6 +480,14 @@ export const loadExampleSeedApplied = (): string | null =>
 	safeGet<string | null>(KEY_EXAMPLE_SEED_APPLIED, null)
 export const saveExampleSeedApplied = (stamp: string): void =>
 	safeSet(KEY_EXAMPLE_SEED_APPLIED, stamp)
+
+/** Version of the one-shot dataset-store cleanup (duplicate collapse +
+ * orphan removal) that has already run in this browser. Bump the version
+ * passed by the runner to re-run a future, stricter cleanup once. */
+export const loadDatasetCleanupDone = (): number =>
+	safeGet<number>(KEY_DATASET_CLEANUP_DONE, 0)
+export const saveDatasetCleanupDone = (version: number): void =>
+	safeSet(KEY_DATASET_CLEANUP_DONE, version)
 
 /** Synchronous localStorage write of datasets — ONLY for environments
  * without IndexedDB (the example-seed bootstrap falls back to this so

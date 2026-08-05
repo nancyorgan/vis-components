@@ -1,4 +1,5 @@
 import type { RegionKeyType } from "../mapConfig"
+import { stateLookup, type UsStateRow } from "./usStates"
 
 /**
  * One row of a geometry lookup table: a feature plus whatever keys we know
@@ -18,6 +19,12 @@ export type GeoLookupRow = {
 		iso3?: string
 		isoNumeric?: string
 		name?: string
+		/** Owning state's 2-digit FIPS, for sub-state geographies (counties).
+		 *  When present, the name index ALSO maps the composite key
+		 *  `"{name}|{stateFips}"` so state-qualified inputs ("Washington
+		 *  County, TX") disambiguate the ~444 county names that repeat across
+		 *  states. States/countries rows leave it unset. */
+		stateFips?: string
 	}
 }
 
@@ -36,20 +43,30 @@ export type GeoResolution = {
 /**
  * Normalize a place name for fuzzy joining:
  * - lowercase + trim
+ * - fold diacritics ("Doña Ana" matches "Dona Ana")
  * - strip periods/commas
  * - "St." / "St " -> "Saint " (word boundary)
- * - drop a trailing " County" / " Parish"
+ * - drop a trailing census designator ("County", "Parish", "Borough",
+ *   "Census Area", "Municipality", "City and Borough") — but NOT a trailing
+ *   "city", which distinguishes independent cities from their same-named
+ *   counties (Baltimore city 24510 vs Baltimore County 24005)
  * - collapse runs of whitespace
  */
 export const normalizeName = (raw: string): string => {
 	let s = raw.toLowerCase().trim()
+	// Fold diacritics: decompose, then drop the combining marks.
+	s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 	// "st." or "st " at a word boundary -> "saint ". Do this before stripping
 	// punctuation so the period that signals the abbreviation is still present.
 	s = s.replace(/\bst\.?\s+/g, "saint ")
 	// Strip punctuation (periods, commas).
 	s = s.replace(/[.,]/g, "")
-	// Drop a trailing county/parish designator.
-	s = s.replace(/\s+(county|parish)$/i, "")
+	// Drop a trailing designator. Longest alternatives first so "city and
+	// borough" wins over the bare "borough".
+	s = s.replace(
+		/\s+(city and borough|census area|municipality|borough|county|parish)$/i,
+		""
+	)
 	// Collapse internal whitespace and re-trim.
 	s = s.replace(/\s+/g, " ").trim()
 	return s
@@ -63,12 +80,22 @@ const KEY_TYPE_PRIORITY: RegionKeyType[] = ["fips", "abbrev", "iso", "name"]
 
 // Pad a numeric-looking fips value to at least 2 digits so an unpadded "6"
 // joins against a stored "06". Non-numeric values pass through unchanged.
-// STATES-only assumption: this pads to width 2. County FIPS are 5-digit
-// zero-padded ("06037"), so a future phase must make the pad width
-// geography-aware (2 for states, 5 for counties).
-// TODO(phase4): county FIPS need 5-digit-aware padding
+// This is the INDEX-side canonicalization: state tables store 2-digit codes
+// ("6" -> "06") and county tables store 5-digit codes (already >= 5 chars, so
+// the pad is a no-op). The INPUT side additionally tries a 5-digit pad — see
+// `inputKeys` — so an unpadded county fips like "6037" still joins "06037".
 const padFips = (s: string): string =>
 	/^\d+$/.test(s) ? s.padStart(2, "0") : s
+
+// Resolve the state-qualifier tail of a comma-qualified place name ("…, TX" /
+// "…, Texas" / "…, 48") to its US_STATES row, or undefined if it isn't one.
+const resolveStateQualifier = (raw: string): UsStateRow | undefined => {
+	const v = raw.trim()
+	if (v === "") return undefined
+	if (/^\d{1,2}$/.test(v)) return stateLookup.byFips.get(v.padStart(2, "0"))
+	if (v.length === 2) return stateLookup.byAbbrev.get(v.toUpperCase())
+	return stateLookup.byName.get(v.toLowerCase())
+}
 
 // Pad a numeric-looking ISO-3166 numeric code to 3 digits so an unpadded "84"
 // joins against a stored "084" and "840" stays "840". SEPARATE from padFips:
@@ -78,16 +105,27 @@ const padIsoNumeric = (s: string): string =>
 	/^\d+$/.test(s) ? s.padStart(3, "0") : s
 
 // Produce the comparison key(s) for a raw input value under a given key type.
-// fips also yields a zero-padded variant so "6" can match "06". iso yields the
-// value uppercased+trimmed (matches alpha-2/alpha-3/legacy iso) AND the value
-// padded to a 3-digit numeric (matches isoNumeric), so country codes in any of
-// their three ISO-3166 forms resolve under the single "iso" keyType.
+// fips also yields zero-padded variants — width 2 (states) AND width 5
+// (counties) — so "6" can match "06" and "6037" can match "06037"; each table
+// only indexes its own canonical width, so the extra candidate just misses.
+// iso yields the value uppercased+trimmed (matches alpha-2/alpha-3/legacy iso)
+// AND the value padded to a 3-digit numeric (matches isoNumeric), so country
+// codes in any of their three ISO-3166 forms resolve under the single "iso"
+// keyType. name additionally yields a composite `"{name}|{stateFips}"` when
+// the value carries a comma state qualifier ("Washington County, TX"),
+// matching the composite keys county tables index (see buildIndex).
 const inputKeys = (keyType: RegionKeyType, raw: string): string[] => {
 	const v = raw.trim()
 	if (v === "") return []
 	switch (keyType) {
-		case "fips":
-			return v === padFips(v) ? [v] : [v, padFips(v)]
+		case "fips": {
+			if (!/^\d+$/.test(v)) return [v]
+			const keys = [v]
+			for (const p of [v.padStart(2, "0"), v.padStart(5, "0")]) {
+				if (!keys.includes(p)) keys.push(p)
+			}
+			return keys
+		}
 		case "abbrev":
 			return [v.toUpperCase()]
 		case "iso": {
@@ -95,8 +133,19 @@ const inputKeys = (keyType: RegionKeyType, raw: string): string[] => {
 			const numeric = padIsoNumeric(v)
 			return numeric === upper ? [upper] : [upper, numeric]
 		}
-		case "name":
-			return [normalizeName(v)]
+		case "name": {
+			const keys = [normalizeName(v)]
+			// A comma may qualify the name with a state ("Los Angeles County,
+			// CA"). Split at the LAST comma so an embedded comma stays with the
+			// name; if the tail resolves as a state, try the composite key.
+			const comma = v.lastIndexOf(",")
+			if (comma > 0) {
+				const state = resolveStateQualifier(v.slice(comma + 1))
+				const head = normalizeName(v.slice(0, comma))
+				if (state && head !== "") keys.push(`${head}|${state.fips}`)
+			}
+			return keys
+		}
 		default: {
 			const _exhaustive: never = keyType
 			return _exhaustive
@@ -110,13 +159,23 @@ const buildIndex = (
 	table: GeoLookupRow[],
 ): Map<string, string> => {
 	const index = new Map<string, string>()
-	// First writer wins; lookup tables are expected to be unique per key.
-	// Duplicate keys collapse silently to the first table row — fine for
-	// states (unique names), but Phase 4 has ~30 "Washington" counties, so
-	// name-only county joins will silently mis-map.
-	// TODO(phase4): duplicate region names (counties) need disambiguation
+	// A key claimed by two DIFFERENT features is ambiguous and indexes nothing
+	// — better unmatched (surfaced in the match status) than silently mapped
+	// to an arbitrary region. This is what keeps bare county names honest:
+	// "washington" (31 counties) matches nothing, while the composite
+	// "washington|48" and the unique bare names still join. States/countries
+	// keys are unique, so this changes nothing for them. Re-adding a key from
+	// the SAME feature (e.g. a row whose iso fields repeat) stays fine.
+	const ambiguous = new Set<string>()
 	const add = (key: string, featureId: string): void => {
-		if (key !== "" && !index.has(key)) index.set(key, featureId)
+		if (key === "" || ambiguous.has(key)) return
+		const existing = index.get(key)
+		if (existing === undefined) {
+			index.set(key, featureId)
+		} else if (existing !== featureId) {
+			index.delete(key)
+			ambiguous.add(key)
+		}
 	}
 	for (const row of table) {
 		// The "iso" keyType draws from EVERY ISO-ish field present on the row —
@@ -146,6 +205,12 @@ const buildIndex = (
 				break
 			case "name":
 				key = normalizeName(v)
+				// Sub-state rows (counties) also index the state-qualified
+				// composite so "Washington County, TX" resolves even though the
+				// bare "washington" is ambiguous.
+				if (row.keys.stateFips) {
+					add(`${key}|${row.keys.stateFips}`, row.featureId)
+				}
 				break
 			default: {
 				const _exhaustive: never = keyType

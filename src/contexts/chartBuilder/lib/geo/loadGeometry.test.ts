@@ -35,8 +35,71 @@ describe("loadGeometry(states)", () => {
 		const ca = b.features.find((f) => featureId(f) === "06")
 		expect(ca).toBeDefined()
 	})
-	it("rejects for unimplemented levels (counties)", async () => {
-		await expect(loadGeometry("counties")).rejects.toThrow(/not implemented/)
+	it("rejects for unimplemented levels (zcta)", async () => {
+		await expect(loadGeometry("zcta")).rejects.toThrow(/not implemented/)
+	})
+})
+
+describe("loadGeometry(counties)", () => {
+	it("decodes all county features with 5-digit FIPS ids agreeing with the table", async () => {
+		const b = await loadGeometry("counties")
+		// counties-10m ships 3231 features (counties + territory equivalents).
+		expect(b.features.length).toBe(3231)
+		expect(b.table.length).toBe(b.features.length)
+		const tableIds = new Set(b.table.map((r) => r.featureId))
+		expect(tableIds.size).toBe(b.table.length)
+		for (const f of b.features) {
+			const id = featureId(f)
+			expect(id).toMatch(/^\d{5}$/)
+			expect(tableIds.has(id)).toBe(true)
+		}
+	})
+	it("memoizes (same promise on repeat)", () => {
+		expect(loadGeometry("counties")).toBe(loadGeometry("counties"))
+	})
+	it("keys rows on fips + name + stateFips, never abbrev", async () => {
+		const b = await loadGeometry("counties")
+		const la = b.table.find((r) => r.featureId === "06037")
+		expect(la).toBeDefined()
+		expect(la!.keys.fips).toBe("06037")
+		expect(la!.keys.name).toBe("Los Angeles")
+		expect(la!.keys.stateFips).toBe("06")
+		// No abbrev key — a state-abbrev column must not join the county table.
+		expect(b.table.every((r) => r.keys.abbrev === undefined)).toBe(true)
+	})
+	it("suffixes independent cities ' city' so city/county name pairs split", async () => {
+		const b = await loadGeometry("counties")
+		expect(b.table.find((r) => r.featureId === "24510")?.keys.name).toBe(
+			"Baltimore city"
+		)
+		expect(b.table.find((r) => r.featureId === "24005")?.keys.name).toBe(
+			"Baltimore"
+		)
+		// Names already ending in "City" keep their name (Carson City 32510 is
+		// an independent city; Charles City 51036 is an ordinary county).
+		expect(b.table.find((r) => r.featureId === "32510")?.keys.name).toBe(
+			"Carson City"
+		)
+		expect(b.table.find((r) => r.featureId === "51036")?.keys.name).toBe(
+			"Charles City"
+		)
+		// The aliasing makes every within-state (name, stateFips) pair unique.
+		const seen = new Set<string>()
+		for (const r of b.table) {
+			const key = `${r.keys.name?.toLowerCase()}|${r.keys.stateFips}`
+			expect(seen.has(key)).toBe(false)
+			seen.add(key)
+		}
+	})
+	it("computes a centroid for every county with finite coords", async () => {
+		const b = await loadGeometry("counties")
+		expect(b.centroids.size).toBe(b.features.length)
+		for (const row of b.table) {
+			const c = b.centroids.get(row.featureId)
+			expect(c).toBeDefined()
+			expect(Number.isFinite(c![0])).toBe(true)
+			expect(Number.isFinite(c![1])).toBe(true)
+		}
 	})
 })
 

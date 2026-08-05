@@ -49,7 +49,12 @@ export const SharingPage = () => {
 		}
 	}
 
-	const datasetCount = Object.keys(datasets).length
+	// Count what the export will actually contain: datasets some visual
+	// references. The store also holds orphans (uploads whose visuals were
+	// deleted or never saved) that buildSeedBundle filters out.
+	const datasetCount = new Set(
+		visuals.map((v) => v.datasetId).filter((id) => id != null && id in datasets)
+	).size
 
 	return (
 		<div className="mx-auto max-w-5xl px-8 py-8">

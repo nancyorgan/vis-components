@@ -1,7 +1,5 @@
 import { useState } from "react"
-import { useSetAtom } from "jotai"
-import { removeInstancesForVisual } from "../../chartBuilder/lib/embedInstances"
-import { embedInstancesAtom, visualsAtom } from "../../chartBuilder/store/atoms"
+import { useDeleteVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 import { Button } from "../../../components/ui/Button"
 import { Modal } from "../../../components/ui/Modal"
@@ -31,14 +29,12 @@ export const DeleteVisualButton = ({
 	variant = "icon",
 }: Props) => {
 	const [open, setOpen] = useState(false)
-	const setVisuals = useSetAtom(visualsAtom)
-	const setEmbedInstances = useSetAtom(embedInstancesAtom)
+	// Cascades: embed instances for this visual, and its dataset when no
+	// other visual references it (see useDeleteVisuals).
+	const deleteVisuals = useDeleteVisuals()
 
 	const onConfirm = () => {
-		setVisuals((prev) => prev.filter((v) => v.id !== visualId))
-		// Cascade: drop every embed instance belonging to this visual so the
-		// landing page doesn't keep referring to a now-missing id.
-		setEmbedInstances((prev) => removeInstancesForVisual(prev, visualId))
+		deleteVisuals([visualId])
 		setOpen(false)
 	}
 

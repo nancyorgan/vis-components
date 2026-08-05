@@ -27,6 +27,7 @@ import {
 } from "../../lib/mapConfig"
 import { currentMapConfigAtom } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
+import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
 import { useGeoResolution } from "../../store/useGeoResolution"
 
 
@@ -229,16 +230,31 @@ export const MapsSection = () => {
 	const showNoDataFillColor =
 		showFillNoDataToggle || (showBasemapToggle && mapConfig.showBasemap)
 
-	// Effective geography level — "auto" resolves to states (mirrors the
-	// renderer). Used to gate the geography-aware helper notes below.
-	const effectiveLevel: GeographyLevel =
-		mapConfig.geographyLevel === "auto" ? "states" : mapConfig.geographyLevel
+	// Effective geography level — the shared hook resolves "auto" by scoring
+	// the connection values against each level (null while detecting). Gates
+	// the geography-aware helper notes below; while detection is in flight,
+	// fall back to states so the notes don't flash a wrong level.
+	const detectedLevel = useEffectiveGeographyLevel()
+	const effectiveLevel: GeographyLevel = detectedLevel ?? "states"
 
-	// States + countries are implemented; "auto" resolves to states, so it's
-	// fine. Counties / zcta still render a blank map today, so warn instead of
-	// silently blanking.
-	const isUnimplementedLevel =
-		effectiveLevel === "counties" || effectiveLevel === "zcta"
+	// Surface what Auto resolved to right in the dropdown ("Auto (US
+	// Counties)") so an auto-detected level is never a mystery.
+	const levelOptions =
+		mapConfig.geographyLevel === "auto" && detectedLevel
+			? geographyLevelOptions.map((o) =>
+					o.value === "auto"
+						? {
+								...o,
+								label: `Auto (${GEOGRAPHY_LEVEL_LABELS[detectedLevel]})`,
+							}
+						: o
+				)
+			: geographyLevelOptions
+
+	// States, counties and countries are implemented; "auto" resolves to
+	// states, so it's fine. zcta still renders a blank map today, so warn
+	// instead of silently blanking.
+	const isUnimplementedLevel = effectiveLevel === "zcta"
 
 	// Natural Earth and Mercator are *world* projections; fitting them to the US
 	// (Alaska crosses the antimeridian, plus far-flung Pacific/Caribbean
@@ -265,6 +281,11 @@ export const MapsSection = () => {
 	// "Bosnia and Herz."), so joining by full country name often misses. Steer
 	// users toward ISO codes, which join reliably.
 	const showCountryNameHint = effectiveLevel === "countries"
+
+	// County names repeat across states ("Washington" ×31), so a bare-name
+	// join can't resolve them. Steer users toward 5-digit FIPS codes or
+	// state-qualified names, which do.
+	const showCountyNameHint = effectiveLevel === "counties"
 
 	return (
 		<div className="vc-option-panel">
@@ -303,14 +324,14 @@ export const MapsSection = () => {
 							label="Geography level"
 							labelClassName={LABEL_COL}
 							value={mapConfig.geographyLevel}
-							options={geographyLevelOptions}
+							options={levelOptions}
 							onChange={(geographyLevel) => update({ geographyLevel })}
 							selectClassName="min-w-0 flex-1"
 						/>
 						{isUnimplementedLevel && (
 							<p className="vc-help">
-								Only US states are available so far — more geographies are
-								coming.
+								US ZIP/ZCTA isn&apos;t available yet — coming in a future
+								release.
 							</p>
 						)}
 						<SelectInput
@@ -354,6 +375,14 @@ export const MapsSection = () => {
 							<p className="vc-help">
 								Country names must match our spelling exactly (e.g. &quot;Dem.
 								Rep. Congo&quot;). ISO codes (USA, FR, 840) join most reliably.
+							</p>
+						)}
+						{showCountyNameHint && (
+							<p className="vc-help">
+								County names repeat across states, so bare names like
+								&quot;Washington&quot; stay unmatched. 5-digit FIPS codes
+								(48477) join most reliably; state-qualified names
+								(&quot;Washington County, TX&quot;) also work.
 							</p>
 						)}
 						{showBasemapToggle && (

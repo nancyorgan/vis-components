@@ -174,20 +174,125 @@ describe("resolveGeography", () => {
 		expect(r.matched.get("840")).toBe("840")
 	})
 
-	it("collapses duplicate table keys to the first row (first writer wins)", () => {
+	it("drops keys claimed by two different features (ambiguous -> unmatched)", () => {
+		// ~444 county names repeat across states; silently first-writer-winning
+		// would mis-map, so an ambiguous key matches nothing.
 		const table = [
 			{ featureId: "53061", keys: { name: "Washington" } },
 			{ featureId: "53063", keys: { name: "Washington" } },
 		]
 		const r = resolveGeography(["Washington"], table, "name")
-		expect(r.matched.get("Washington")).toBe("53061")
+		expect(r.matched.size).toBe(0)
+		expect(r.unmatched).toEqual(["Washington"])
+	})
+
+	it("re-adding a key from the SAME feature is not ambiguous", () => {
+		// A row whose iso fields repeat the same code must keep its key.
+		const table = [
+			{ featureId: "840", keys: { iso: "USA", iso3: "USA" } },
+		]
+		const r = resolveGeography(["USA"], table, "iso")
+		expect(r.matched.get("USA")).toBe("840")
 	})
 
 	it("normalizeName variants", () => {
 		expect(normalizeName("  California  ")).toBe("california")
 		expect(normalizeName("St. Louis County")).toBe("saint louis")
 		expect(normalizeName("St Charles Parish")).toBe("saint charles")
-		expect(normalizeName("Doña Ana, NM")).toBe("doña ana nm")
+		// Diacritics fold so "Dona Ana" data joins the "Doña Ana" geometry.
+		expect(normalizeName("Doña Ana, NM")).toBe("dona ana nm")
 		expect(normalizeName("De  Soto")).toBe("de soto")
+		// Census designators strip; a trailing "city" does NOT (it separates
+		// independent cities from their same-named counties).
+		expect(normalizeName("Yukon-Koyukuk Census Area")).toBe("yukon-koyukuk")
+		expect(normalizeName("Anchorage Municipality")).toBe("anchorage")
+		expect(normalizeName("Juneau City and Borough")).toBe("juneau")
+		expect(normalizeName("Matanuska-Susitna Borough")).toBe(
+			"matanuska-susitna"
+		)
+		expect(normalizeName("Baltimore city")).toBe("baltimore city")
+	})
+
+	// --- counties (5-digit fips + state-qualified names) ---
+
+	const COUNTY_TABLE = [
+		{
+			featureId: "48477",
+			keys: { fips: "48477", name: "Washington", stateFips: "48" },
+		},
+		{
+			featureId: "53061",
+			keys: { fips: "53061", name: "Snohomish", stateFips: "53" },
+		},
+		{
+			featureId: "24005",
+			keys: { fips: "24005", name: "Baltimore", stateFips: "24" },
+		},
+		{
+			featureId: "24510",
+			keys: { fips: "24510", name: "Baltimore city", stateFips: "24" },
+		},
+		{
+			featureId: "31177",
+			keys: { fips: "31177", name: "Washington", stateFips: "31" },
+		},
+	]
+
+	it("matches unpadded county fips ('6037'-style, 4 digits -> 5)", () => {
+		const r = resolveGeography(["48477", "8477"], [
+			...COUNTY_TABLE,
+			{
+				featureId: "08477",
+				keys: { fips: "08477", name: "Fake", stateFips: "08" },
+			},
+		])
+		expect(r.keyType).toBe("fips")
+		expect(r.matched.get("48477")).toBe("48477")
+		expect(r.matched.get("8477")).toBe("08477")
+	})
+
+	it("joins state-qualified county names via abbrev, full name, and fips qualifiers", () => {
+		const r = resolveGeography(
+			[
+				"Washington County, TX",
+				"Washington, Nebraska",
+				"Snohomish County, 53",
+			],
+			COUNTY_TABLE,
+			"name"
+		)
+		expect(r.matched.get("Washington County, TX")).toBe("48477")
+		expect(r.matched.get("Washington, Nebraska")).toBe("31177")
+		expect(r.matched.get("Snohomish County, 53")).toBe("53061")
+		expect(r.unmatched).toEqual([])
+	})
+
+	it("bare duplicated county names stay unmatched; unique bare names join", () => {
+		const r = resolveGeography(
+			["Washington", "Snohomish County"],
+			COUNTY_TABLE,
+			"name"
+		)
+		expect(r.matched.get("Snohomish County")).toBe("53061")
+		expect(r.unmatched).toEqual(["Washington"])
+	})
+
+	it("splits independent-city / county pairs on the ' city' suffix", () => {
+		const r = resolveGeography(
+			["Baltimore County, MD", "Baltimore city, MD"],
+			COUNTY_TABLE,
+			"name"
+		)
+		expect(r.matched.get("Baltimore County, MD")).toBe("24005")
+		expect(r.matched.get("Baltimore city, MD")).toBe("24510")
+	})
+
+	it("auto-detects name over fips for qualified county name columns", () => {
+		const r = resolveGeography(
+			["Washington County, TX", "Baltimore County, MD"],
+			COUNTY_TABLE
+		)
+		expect(r.keyType).toBe("name")
+		expect(r.matched.size).toBe(2)
 	})
 })

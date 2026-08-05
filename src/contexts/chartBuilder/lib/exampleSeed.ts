@@ -14,6 +14,7 @@
 import {
 	idbAvailable,
 } from "./storage/idb"
+import { dedupeDatasetStores } from "./datasetDedupe"
 import {
 	loadDatasetsAsync,
 	loadExampleSeedApplied,
@@ -48,15 +49,30 @@ export type SeedBundle = {
 /** Serialize the current library into a seed bundle. Thumbnails are merged
  *  in from the IndexedDB side-table so recipients get previews without
  *  needing the (file://-hostile) offscreen regeneration path. System themes
- *  are excluded — every build ships them already. */
+ *  are excluded — every build ships them already.
+ *
+ *  Datasets are collapsed (byte-identical duplicates merge, visuals repoint
+ *  to the canonical copy) and then filtered to those a visual actually
+ *  references — the store accumulates orphans (uploads whose visuals were
+ *  deleted or never saved) that would otherwise bloat the single-file build
+ *  with rows no example can reach. */
 export const buildSeedBundle = async (): Promise<SeedBundle> => {
-	const [thumbnails, datasets] = await Promise.all([
+	const [thumbnails, allDatasets] = await Promise.all([
 		loadThumbnailsAsync(),
 		loadDatasetsAsync(),
 	])
+	const deduped = dedupeDatasetStores({
+		datasets: allDatasets,
+		visuals: mergeThumbnails(loadVisuals(), thumbnails),
+		embeds: {}, // embeds aren't exported; recipients get no embed history
+	})
+	const referenced = new Set(deduped.visuals.map((v) => v.datasetId))
+	const datasets = Object.fromEntries(
+		Object.entries(deduped.datasets).filter(([id]) => referenced.has(id))
+	)
 	return {
 		exportedAt: new Date().toISOString(),
-		visuals: mergeThumbnails(loadVisuals(), thumbnails),
+		visuals: deduped.visuals,
 		folders: loadFolders(),
 		datasets,
 		themes: (loadThemes() ?? []).filter((t) => !t.isSystem),

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import {
 	datasetsAtom,
 	embedInstancesAtom,
@@ -13,7 +13,7 @@ import {
 	loadLibrarySelectedFolderId,
 	saveLibrarySelectedFolderId,
 } from "../../chartBuilder/lib/storage"
-import { removeInstancesForVisual } from "../../chartBuilder/lib/embedInstances"
+import { useDeleteVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 import { Button } from "../../../components/ui/Button"
 import { Input } from "../../../components/ui/Input"
@@ -61,7 +61,7 @@ export const LibraryPage = () => {
 	const embedInstances = useAtomValue(embedInstancesAtom)
 	const folders = useAtomValue(foldersAtom)
 	const [, setVisuals] = useAtom(visualsAtom)
-	const setEmbedInstances = useSetAtom(embedInstancesAtom)
+	const deleteVisuals = useDeleteVisuals()
 	const search = useSearch({ from: "/" })
 	const navigate = useNavigate({ from: "/" })
 
@@ -277,14 +277,8 @@ export const LibraryPage = () => {
 	}
 
 	const onBulkDelete = () => {
-		setVisuals((prev) => prev.filter((v) => !selectedVisualIds.has(v.id)))
-		setEmbedInstances((prev) => {
-			let next = prev
-			for (const id of selectedVisualIds) {
-				next = removeInstancesForVisual(next, id)
-			}
-			return next
-		})
+		// Cascades embeds and now-orphaned datasets (see useDeleteVisuals).
+		deleteVisuals(selectedVisualIds)
 		setBulkDeleteOpen(false)
 		clearSelection()
 	}

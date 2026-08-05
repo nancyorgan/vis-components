@@ -145,6 +145,19 @@ channels); geographic rendering is gated by the chart-wide MapConfig
 (`coordSystem: "geographic"`), set via the "Maps" sidebar section.
 When no MapConfig is active the geo modes never fire.
 
+Geography levels: US States, US Counties, and World Countries are
+implemented (US ZIP/ZCTA is not yet). The level's `"auto"` setting
+detects the best-matching level by scoring the connection field's
+values against each level's lookup table (ties and no-match fall back
+to states; the dot map, which has no connection field, always
+auto-resolves to states). The Geography level dropdown shows what Auto
+resolved to ("Auto (US Counties)"); an explicit pick always wins.
+County joins accept 5-digit FIPS codes (unpadded tolerated) and
+state-qualified names ("Washington County, TX"); bare county names
+that repeat across states — or the six within-state city/county name
+pairs, unless suffixed "city" — deliberately stay unmatched rather
+than guessing.
+
 Geo marks support the **pattern** channel with the same semantics as
 the cartesian renderers (per-category palette cycling, per-value
 overrides / "None", hue-paired inks): choropleth region fills, dot-map

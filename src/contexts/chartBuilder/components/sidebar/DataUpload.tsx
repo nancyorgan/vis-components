@@ -7,6 +7,7 @@ import {
 	diffFields,
 	isCompatible,
 } from "../../lib/datasetCompat"
+import { findDuplicateDataset } from "../../lib/datasetDedupe"
 import { nameCollides } from "../../lib/nameUniqueness"
 import type { Dataset, DatasetVersion } from "../../lib/types"
 import {
@@ -130,8 +131,30 @@ const UploadPromptModal = () => {
 			? diffFields(currentDataset.fields, pending.fields)
 			: null
 	const compatible = diff ? isCompatible(diff) : true
+	// An upload identical to an existing dataset (same exact name AND content)
+	// is not a collision: confirming reuses that dataset rather than storing a
+	// second copy (`useCreateNewDataset` dedupes on the same key). Cheap in
+	// practice — `datasetsEqual` compares names before touching content, so
+	// only same-named datasets are ever deep-compared.
+	const reusableDatasetId =
+		mode === "newVisualization" && pending
+			? findDuplicateDataset(datasets, {
+					name: newName.trim() || pending.filename,
+					fields: pending.fields,
+					versions: [
+						{
+							id: "candidate",
+							filename: pending.filename,
+							rows: pending.rows,
+							createdAt: 0,
+						},
+					],
+				})
+			: null
 	const newNameCollides =
-		mode === "newVisualization" && nameCollides(newName, datasetList)
+		mode === "newVisualization" &&
+		reusableDatasetId === null &&
+		nameCollides(newName, datasetList)
 
 	const appendVersion = (parsed: NonNullable<typeof pending>) => {
 		if (!currentDataset) return
@@ -287,6 +310,13 @@ const UploadPromptModal = () => {
 										<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
 											A data set named &ldquo;{newName.trim()}&rdquo; already
 											exists. Pick a different name.
+										</div>
+									)}
+									{reusableDatasetId !== null && (
+										<div className="rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-1 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+											This upload matches the existing data set &ldquo;
+											{newName.trim()}&rdquo; exactly — it will be reused, not
+											duplicated.
 										</div>
 									)}
 								</div>

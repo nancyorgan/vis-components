@@ -1,9 +1,10 @@
 import { useMemo } from "react"
 import { useAtomValue } from "jotai"
 import { resolveGeography } from "../lib/geo/resolveGeography"
-import type { GeographyLevel, RegionKeyType } from "../lib/mapConfig"
+import type { RegionKeyType } from "../lib/mapConfig"
 import { currentEncodingsAtom, currentMapConfigAtom } from "./atoms"
 import { useCurrentDatasetView } from "./useCurrentDatasetView"
+import { useEffectiveGeographyLevel } from "./useEffectiveGeographyLevel"
 import { useGeometry } from "./useGeometry"
 
 /** What the Maps section's match-status UI needs to render:
@@ -38,19 +39,19 @@ export const useGeoResolution = (): GeoResolutionStatus => {
 	const mapConfig = useAtomValue(currentMapConfigAtom)
 	const dataset = useCurrentDatasetView()
 
-	// Phase 1 implements states only; "auto" resolves to states (mirrors the
-	// renderer's choice in GeoChoroplethPlot).
-	const level: GeographyLevel =
-		mapConfig.geographyLevel === "auto" ? "states" : mapConfig.geographyLevel
-
+	// Shared auto-detection hook (same one the renderers use, so the match
+	// status always describes the level actually on screen). Null while
+	// detection is in flight — report loading until it lands.
+	const level = useEffectiveGeographyLevel()
 	const { bundle, loading } = useGeometry(level)
+	const detecting = level === null
 
 	const regionField = encodings.connection.field
 	const keyTypeOverride: RegionKeyType | undefined =
 		mapConfig.keyType === "auto" ? undefined : mapConfig.keyType
 
 	return useMemo<GeoResolutionStatus>(() => {
-		if (loading) return EMPTY
+		if (loading || detecting) return EMPTY
 		if (!bundle || !regionField || !dataset) return { ...EMPTY, loading: false }
 		const values = dataset.rows.map((r) => String(r[regionField] ?? ""))
 		const { keyType, matched, unmatched } = resolveGeography(
@@ -66,5 +67,5 @@ export const useGeoResolution = (): GeoResolutionStatus => {
 			total: matched.size + unmatched.length,
 			loading: false,
 		}
-	}, [loading, bundle, regionField, dataset, keyTypeOverride])
+	}, [loading, detecting, bundle, regionField, dataset, keyTypeOverride])
 }

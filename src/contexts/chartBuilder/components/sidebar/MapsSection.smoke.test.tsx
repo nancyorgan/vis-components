@@ -153,7 +153,7 @@ describe("MapsSection", () => {
 	it("omits the coming-soon note for countries (implemented)", () => {
 		seed("geographic", { geographyLevel: "countries" })
 		mount()
-		expect(screen.queryByText(/available so far/i)).toBeNull()
+		expect(screen.queryByText(/isn't available yet/i)).toBeNull()
 	})
 
 	it("shows the country-name hint for countries, not for US states", () => {
@@ -166,14 +166,26 @@ describe("MapsSection", () => {
 		expect(screen.queryByText(/ISO codes/i)).toBeNull()
 	})
 
-	it("still shows the coming-soon note for counties and zcta", () => {
-		seed("geographic", { geographyLevel: "counties" })
-		mount()
-		expect(screen.getByText(/available so far/i)).toBeTruthy()
-		cleanup()
+	it("still shows the coming-soon note for zcta, but not counties (implemented)", () => {
 		seed("geographic", { geographyLevel: "zcta" })
 		mount()
-		expect(screen.getByText(/available so far/i)).toBeTruthy()
+		expect(screen.getByText(/isn't available yet/i)).toBeTruthy()
+		cleanup()
+		seed("geographic", { geographyLevel: "counties" })
+		mount()
+		expect(screen.queryByText(/isn't available yet/i)).toBeNull()
+	})
+
+	it("shows the county-name hint for counties, not for US states", () => {
+		seed("geographic", { geographyLevel: "counties" })
+		mount()
+		expect(screen.getByText(/County names repeat across states/i)).toBeTruthy()
+		cleanup()
+		seed("geographic", { geographyLevel: "states" })
+		mount()
+		expect(
+			screen.queryByText(/County names repeat across states/i)
+		).toBeNull()
 	})
 
 	it("reveals the fill-regions-with-no-data toggle in choropleth mode, default off", () => {

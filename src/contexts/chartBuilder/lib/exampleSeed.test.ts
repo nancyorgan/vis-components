@@ -33,7 +33,7 @@ vi.mock("./storage/idb", () => ({
 	idbDelete: idb.idbDelete,
 }))
 
-import { applyExampleSeed, type SeedBundle } from "./exampleSeed"
+import { applyExampleSeed, buildSeedBundle, type SeedBundle } from "./exampleSeed"
 import {
 	loadDatasets,
 	loadDatasetsAsync,
@@ -41,6 +41,7 @@ import {
 	loadThemes,
 	loadThumbnailsAsync,
 	loadVisuals,
+	saveDatasetsAsync,
 	saveThemes,
 	saveVisuals,
 } from "./storage"
@@ -75,11 +76,15 @@ const installInMemoryLocalStorage = (): Map<string, string> => {
 	return store
 }
 
-const makeVisual = (id: string, thumbnail: string | null = null): Visual => ({
+const makeVisual = (
+	id: string,
+	thumbnail: string | null = null,
+	datasetId = "ds-1"
+): Visual => ({
 	id,
 	name: `Visual ${id}`,
 	folderId: null,
-	datasetId: "ds-1",
+	datasetId,
 	createdAtVersionId: null,
 	fieldTypeOverrides: {},
 	encodings: emptyEncodings(),
@@ -90,15 +95,18 @@ const makeVisual = (id: string, thumbnail: string | null = null): Visual => ({
 	updatedAt: 0,
 })
 
-const makeDataset = (id: string): Dataset => ({
+const makeDataset = (
+	id: string,
+	{ name = id, createdAt = 0 }: { name?: string; createdAt?: number } = {}
+): Dataset => ({
 	id,
-	name: id,
+	name,
 	fields: [{ name: "a", inferredType: "quantitative" }],
 	versions: [
-		{ id: "v1", filename: `${id}.csv`, rows: [{ a: "1" }], createdAt: 0 },
+		{ id: `${id}-v1`, filename: `${name}.csv`, rows: [{ a: "1" }], createdAt },
 	],
-	latestVersionId: "v1",
-	createdAt: 0,
+	latestVersionId: `${id}-v1`,
+	createdAt,
 })
 
 const makeSeed = (overrides: Partial<SeedBundle> = {}): SeedBundle => ({
@@ -109,6 +117,44 @@ const makeSeed = (overrides: Partial<SeedBundle> = {}): SeedBundle => ({
 	themes: [],
 	userDefaultThemeId: null,
 	...overrides,
+})
+
+describe("buildSeedBundle", () => {
+	beforeEach(() => {
+		installInMemoryLocalStorage()
+		idb.store.clear()
+		idb.setAvailable(true)
+	})
+
+	it("exports only datasets referenced by a visual (orphans excluded)", async () => {
+		await saveVisuals([makeVisual("vis-1", null, "ds-used")])
+		await saveDatasetsAsync({
+			"ds-used": makeDataset("ds-used"),
+			"ds-orphan": makeDataset("ds-orphan"),
+		})
+
+		const bundle = await buildSeedBundle()
+		expect(Object.keys(bundle.datasets)).toEqual(["ds-used"])
+		expect(bundle.visuals.map((v) => v.id)).toEqual(["vis-1"])
+	})
+
+	it("collapses byte-identical duplicates and repoints visuals to the canonical copy", async () => {
+		await saveVisuals([
+			makeVisual("vis-a", null, "ds-early"),
+			makeVisual("vis-b", null, "ds-late"),
+		])
+		await saveDatasetsAsync({
+			"ds-early": makeDataset("ds-early", { name: "shared" }),
+			"ds-late": makeDataset("ds-late", { name: "shared", createdAt: 5 }),
+		})
+
+		const bundle = await buildSeedBundle()
+		expect(Object.keys(bundle.datasets)).toEqual(["ds-early"])
+		expect(bundle.visuals.map((v) => v.datasetId)).toEqual([
+			"ds-early",
+			"ds-early",
+		])
+	})
 })
 
 describe("applyExampleSeed", () => {

@@ -7,6 +7,7 @@ import {
 	applyExampleSeed,
 	type SeedBundle,
 } from "./contexts/chartBuilder/lib/exampleSeed"
+import { runDatasetStoreCleanup } from "./contexts/chartBuilder/lib/datasetSweep"
 import publicSeed from "./seed/examples.json"
 
 import "./global.css"
@@ -36,12 +37,19 @@ if (!root) throw new Error("Root element #root not found")
 // Cast through unknown: the storage layer tolerates (and migrates) loose
 // visual shapes at runtime, so a hand-tweaked or older seed export must not
 // fail the build on a structural mismatch.
-void applyExampleSeed(seed as unknown as SeedBundle).finally(() => {
-	createRoot(root).render(
-		<StrictMode>
-			<Provider>
-				<App />
-			</Provider>
-		</StrictMode>
-	)
-})
+// The one-shot dataset cleanup (duplicate collapse + orphan removal) also
+// runs pre-mount: the datasets atom's onMount load must see the post-cleanup
+// store, or its in-memory copy would resurrect removed datasets on the next
+// save. Ordered after the seed so seeded datasets are judged against the
+// seeded visuals that reference them. Both swallow their own errors.
+void applyExampleSeed(seed as unknown as SeedBundle)
+	.then(() => runDatasetStoreCleanup())
+	.finally(() => {
+		createRoot(root).render(
+			<StrictMode>
+				<Provider>
+					<App />
+				</Provider>
+			</StrictMode>
+		)
+	})
