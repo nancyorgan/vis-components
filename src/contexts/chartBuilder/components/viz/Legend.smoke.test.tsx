@@ -101,6 +101,47 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		expect(allText).toContain("100.00")
 	})
 
+	it("swatch outline: quant swatches draw the user's border; absent by default", () => {
+		// User-reported: a diverging gradient's white midpoint swatch is
+		// invisible against the legend background. The Legend panel's
+		// "Swatch outline" (color + width) borders every color swatch.
+		const outlined = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="quantitative"
+				values={numericValues}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				gradientLegendStyle="swatches"
+				swatchOutline={{ color: "#ff0000", width: 2 }}
+			/>
+		)
+		const borderedSpans = [
+			...outlined.container.querySelectorAll("span"),
+		].filter((s) => (s as HTMLElement).style.borderColor !== "")
+		// Six break stops (data extent 1..100 nices to 0..100 step 20) →
+		// six bordered rectangle swatches.
+		expect(borderedSpans.length).toBe(6)
+		const first = borderedSpans[0] as HTMLElement
+		expect(d3Rgb(first.style.borderColor).formatHex()).toBe("#ff0000")
+		expect(first.style.borderWidth).toBe("2px")
+		// Without the prop, swatches stay borderless (the historical look).
+		const plain = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="quantitative"
+				values={numericValues}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				gradientLegendStyle="swatches"
+			/>
+		)
+		const plainBordered = [
+			...plain.container.querySelectorAll("span"),
+		].filter((s) => (s as HTMLElement).style.borderColor !== "")
+		expect(plainBordered.length).toBe(0)
+	})
+
 	it("hue + shape combined: emits shape glyphs colored by hue (one section, not two)", () => {
 		// User-reported: when hue and shape are mapped to the SAME field,
 		// the legend shows two parallel sections. This test mounts the
@@ -338,6 +379,76 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 			return m ? Number(m[1]) : -1
 		}
 		expect(pctOf(hiSpan)).toBeGreaterThan(pctOf(loSpan))
+	})
+
+	it("gradient bar honors the barStyle options: length, radius, ticks, label alignment", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="quantitative"
+				values={numericValues}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				gradientLegendStyle="bar"
+				orientation="horizontal"
+				gradientBarStyle={{
+					length: 200,
+					radius: 0,
+					tickLength: 6,
+					tickThickness: 2,
+					tickColor: "#ff0000",
+					labelAlign: "left",
+				}}
+			/>
+		)
+		const strip = container.querySelector(
+			'div[style*="linear-gradient"]'
+		) as HTMLElement | null
+		expect(strip).not.toBeNull()
+		// Radius 0 = square corners.
+		expect(strip?.style.borderRadius).toBe("0px")
+		// Length pins the OUTER wrapper's width (bar + tick row + labels all
+		// track it) instead of the auto full-width layout.
+		const wrapper = strip?.parentElement as HTMLElement
+		expect(wrapper.style.width).toBe("200px")
+		// One tick per break stop (6 breaks for the 0..100 extent), each a
+		// tickThickness × tickLength div in the tick color.
+		const ticks = [
+			...container.querySelectorAll('div[style*="#ff0000"]'),
+		] as HTMLElement[]
+		expect(ticks.length).toBe(6)
+		expect(ticks[0]?.style.width).toBe("2px")
+		expect(ticks[0]?.style.height).toBe("6px")
+		// labelAlign "left" anchors each label's LEFT edge at its stop — no
+		// centering transform on the label spans.
+		const label = [...container.querySelectorAll("span")].find(
+			(s) => s.textContent === "0.00"
+		)
+		expect(label?.className ?? "").not.toContain("-translate-x-1/2")
+	})
+
+	it("gradient bar defaults keep the historical look: rounded, no ticks, centered labels", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="quantitative"
+				values={numericValues}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				gradientLegendStyle="bar"
+				orientation="horizontal"
+			/>
+		)
+		const strip = container.querySelector(
+			'div[style*="linear-gradient"]'
+		) as HTMLElement | null
+		// rounded-sm equivalent (2px) now comes from the style, not a class.
+		expect(strip?.style.borderRadius).toBe("2px")
+		// No barStyle prop → no ticks rendered.
+		const label = [...container.querySelectorAll("span")].find(
+			(s) => s.textContent === "0.00"
+		)
+		expect(label?.className ?? "").toContain("-translate-x-1/2")
 	})
 })
 

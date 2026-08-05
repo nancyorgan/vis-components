@@ -43,6 +43,7 @@ import {
 	CategoricalSwatchList,
 	HueOptionsPanel,
 	QuantitativePanel,
+	useQuantFieldExtent,
 } from "./HueOptionsPanel"
 import { OutlineColorRow } from "./OutlineHuePanel"
 
@@ -280,6 +281,7 @@ export const ColorSlotControls = ({
 
 	const fieldType = dataset && field ? effectiveType(dataset, field, overrides) : null
 	const isQuant = fieldType === "quantitative" || fieldType === "temporal"
+	const dataExtent = useQuantFieldExtent(dataset?.rows, field, fieldType)
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -321,6 +323,7 @@ export const ColorSlotControls = ({
 					hueConfig={slotCfg?.hue}
 					theme={theme}
 					update={(next) => updateSlot({ hue: next })}
+					dataExtent={dataExtent}
 				/>
 			) : (
 				<SlotCategoricalControls

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
 	buildLegendFormatter,
-	decorateOpenTopLabel,
+	decorateOpenEndLabel,
 	formatBreaksInput,
 	legendDataExtent,
 	parseBreaksInput,
@@ -149,34 +149,60 @@ describe("buildLegendFormatter", () => {
 	})
 })
 
-describe("decorateOpenTopLabel", () => {
+describe("decorateOpenEndLabel", () => {
 	const breaks = [0, 1000, 2000, 3000, 5000]
 
 	it("appends '+' to the top break label when top break < data max", () => {
 		// User's example: breaks top out at 5000 but data max is 18000.
 		expect(
-			decorateOpenTopLabel("5,000", 4, breaks, [0, 18000]),
+			decorateOpenEndLabel("5,000", 4, breaks, [0, 18000]),
 		).toBe("5,000+")
 	})
 
 	it("leaves intermediate break labels unchanged", () => {
-		expect(decorateOpenTopLabel("3,000", 3, breaks, [0, 18000])).toBe("3,000")
-		expect(decorateOpenTopLabel("0", 0, breaks, [0, 18000])).toBe("0")
+		expect(decorateOpenEndLabel("3,000", 3, breaks, [0, 18000])).toBe("3,000")
+		expect(decorateOpenEndLabel("0", 0, breaks, [0, 18000])).toBe("0")
 	})
 
 	it("does not append '+' when top break >= data max (auto-pretty case)", () => {
 		// Auto-pretty breaks extend OUTWARD so top break is typically >=
 		// data max — no "+" needed.
-		expect(decorateOpenTopLabel("5,000", 4, breaks, [0, 4500])).toBe("5,000")
-		expect(decorateOpenTopLabel("5,000", 4, breaks, [0, 5000])).toBe("5,000")
+		expect(decorateOpenEndLabel("5,000", 4, breaks, [0, 4500])).toBe("5,000")
+		expect(decorateOpenEndLabel("5,000", 4, breaks, [0, 5000])).toBe("5,000")
 	})
 
 	it("is a no-op when extent is null", () => {
-		expect(decorateOpenTopLabel("5,000", 4, breaks, null)).toBe("5,000")
+		expect(decorateOpenEndLabel("5,000", 4, breaks, null)).toBe("5,000")
 	})
 
-	it("works on a single-element break list (degenerate case)", () => {
-		expect(decorateOpenTopLabel("5", 0, [5], [5, 100])).toBe("5+")
+	it("appends '-' to the bottom break label when bottom break > data min", () => {
+		// Bottom break at 0 but data dips to -400.
+		expect(decorateOpenEndLabel("0", 0, breaks, [-400, 18000])).toBe("0-")
+	})
+
+	it("appends '-' to a negative bottom break label", () => {
+		expect(
+			decorateOpenEndLabel("-5", 0, [-5, 0, 5], [-20, 20]),
+		).toBe("-5-")
+	})
+
+	it("does not append '-' when bottom break <= data min (auto-pretty case)", () => {
+		expect(decorateOpenEndLabel("0", 0, breaks, [0, 18000])).toBe("0")
+		expect(decorateOpenEndLabel("0", 0, breaks, [200, 18000])).toBe("0")
+	})
+
+	it("decorates both ends independently when both are clamped", () => {
+		expect(decorateOpenEndLabel("1,000", 0, [1000, 2000], [0, 5000])).toBe(
+			"1,000-",
+		)
+		expect(decorateOpenEndLabel("2,000", 1, [1000, 2000], [0, 5000])).toBe(
+			"2,000+",
+		)
+	})
+
+	it("works on a single-element break list (degenerate case — '+' wins)", () => {
+		expect(decorateOpenEndLabel("5", 0, [5], [5, 100])).toBe("5+")
+		expect(decorateOpenEndLabel("5", 0, [5], [0, 100])).toBe("5+")
 	})
 })
 

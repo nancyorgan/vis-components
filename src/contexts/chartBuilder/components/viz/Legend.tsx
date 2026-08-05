@@ -1,5 +1,6 @@
 import { rgb as d3Rgb } from "d3-color"
 import { scalePow } from "d3-scale"
+import { useEffect, useRef } from "react"
 import { useAtomValue, useSetAtom } from "jotai"
 import {
 	DEFAULT_AREA_CONFIG,
@@ -34,11 +35,13 @@ import {
 	resolveTextFont,
 	resolveTitleFont,
 	type FontConfig,
+	type GradientBarStyle,
 	type LegendChannel,
 	type LegendChannelConfig,
 	type LegendConfig,
 	QUANTITATIVE_LEGEND_CHANNELS,
 	type QuantitativeLegendChannel,
+	resolveGradientBarStyle,
 	resolveLegendHidden,
 } from "../../lib/labelsConfig"
 import { histogramMeasureDomain } from "../../lib/histogramBins"
@@ -50,7 +53,7 @@ import {
 import { HEXBIN_COUNT_LABEL, hexbinEligible } from "../../lib/hexbinMeasure"
 import {
 	buildLegendFormatter,
-	decorateOpenTopLabel,
+	decorateOpenEndLabel,
 	legendDataExtent,
 	resolveLegendBreaks,
 	resolveLegendChannelConfig,
@@ -86,6 +89,7 @@ import {
 	parseValue,
 	symbolPath,
 } from "../../lib/scales"
+import type { HueScale } from "../../lib/scales"
 import { applyLevelOrder } from "../../lib/smartSort"
 import type { EncodingChannel, FieldType } from "../../lib/types"
 import {
@@ -95,6 +99,7 @@ import {
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
+	currentRenderedGradientBarLengthAtom,
 	currentThemeIdAtom,
 	currentTooltipConfigAtom,
 	hoveredLegendEntryAtom,
@@ -780,7 +785,7 @@ export const Legend = ({
 			const fmt = customFmt ?? fallbackFmt
 			const dataExt = legendDataExtent(s.values, s.type)
 			breaks.forEach((b, i) => {
-				uniques.add(decorateOpenTopLabel(fmt(b), i, breaks, dataExt))
+				uniques.add(decorateOpenEndLabel(fmt(b), i, breaks, dataExt))
 			})
 		}
 		const localMax = [...uniques].reduce(
@@ -1210,6 +1215,7 @@ export const Legend = ({
 								reverseCategorical={reverseCategorical}
 								orientation={columnsApply ? "vertical" : legendCfg.orientation}
 								gradientLegendStyle={legendCfg.gradientLegendStyle ?? "bar"}
+								gradientBarStyle={resolveGradientBarStyle(legendCfg)}
 								legendFillColor={legendCfg.shapeLegendFillColor}
 								legendStrokeColor={legendCfg.shapeLegendStrokeColor}
 								connectionMapped={
@@ -1248,6 +1254,25 @@ export const Legend = ({
 									legendCfg,
 									keyChannel as LegendChannel
 								)}
+								swatchOutline={
+									// Width 0 / unset = no outline. The user's swatch
+									// outline also stays inert while the outline-color
+									// encoding is mapped — those strokes are a faithful
+									// key for that encoding. Color pipes from the marks'
+									// outline color (Color menu → Outline) unless the
+									// user picked one; same chain the panel displays.
+									(legendCfg.swatchOutlineWidth ?? 0) > 0 &&
+									!encodings.outlineHue?.field
+										? {
+												color:
+													legendCfg.swatchOutlineColor ??
+													configs.shape?.outlineColor ??
+													theme.outlineColor ??
+													"#cccccc",
+												width: legendCfg.swatchOutlineWidth ?? 1,
+											}
+										: null
+								}
 								defaultSwatchOpacity={defaultSwatchOpacity}
 								entryColumns={entryColumns}
 							/>
@@ -1327,6 +1352,10 @@ type LegendSectionProps = {
 	reverseCategorical: boolean
 	orientation: "vertical" | "horizontal"
 	gradientLegendStyle?: "bar" | "swatches"
+	/** Resolved gradient-bar display options (length / radius / ticks /
+	 * label alignment) from the legend config. Only consulted when a
+	 * quantitative color section renders in `"bar"` style. */
+	gradientBarStyle?: GradientBarStyle
 	legendFillColor?: string | null
 	legendStrokeColor?: string | null
 	connectionMapped?: boolean
@@ -1359,6 +1388,11 @@ type LegendSectionProps = {
 	hueSwatchShape?: LegendSwatchShape
 	/** Symbol radius (px) for hue swatch shapes. `null` / undefined → 5. */
 	hueSwatchSize?: number | null
+	/** User-chosen outline drawn around color swatches (`swatchOutlineColor` /
+	 *  `swatchOutlineWidth`). The parent resolves it to `null` when the
+	 *  outline-color encoding is mapped — the swatch strokes are then a
+	 *  faithful key for that encoding. */
+	swatchOutline?: { color: string; width: number } | null
 	/** Opacity applied to swatch graphics (not labels) so they match marks
 	 *  drawn at the global `defaultOpacity` when opacity isn't encoded. `1`
 	 *  when opacity IS encoded (the opacity legend shows the real values). */
@@ -1432,6 +1466,201 @@ const renderEntryList = (
 		<div className="flex flex-col gap-1">{rows}</div>
 	)
 
+/** Fallback style for callers (smoke tests prop-driving the sub-legends)
+ * that don't thread the legend config's gradient-bar options through. */
+const DEFAULT_GRADIENT_BAR_STYLE: GradientBarStyle =
+	resolveGradientBarStyle(DEFAULT_LEGEND_CONFIG)
+
+type GradientRampStop = {
+	/** Proportional position along the bar, 0 (lo) → 1 (hi). */
+	t: number
+	color: string
+	label: string
+	key: number
+}
+
+/** Densely-sampled stops for the bar's CSS gradient. CSS blends between
+ * `linear-gradient` stops in sRGB, so emitting a stop only at each break
+ * misdraws any scale that doesn't blend in sRGB between breaks — custom
+ * gradients set to HSB/OKLCH interpolation, preset ramps like viridis,
+ * pinned custom stops sitting between breaks. 32 samples make the CSS
+ * approximation visually indistinguishable from the true ramp. Ticks and
+ * labels keep rendering from the break stops. */
+const sampleRampCssStops = (
+	scale: HueScale,
+	lo: number,
+	hi: number,
+	type: FieldType,
+): { t: number; color: string }[] =>
+	Array.from({ length: 32 }, (_, i) => {
+		const t = i / 31
+		return {
+			t,
+			color: applyHueScale(scale, lo + (hi - lo) * t, type) ?? "#888",
+		}
+	})
+
+/** The quantitative color legend's gradient strip: the bar itself, optional
+ * tick marks at each break stop, and the break labels. Shared by the
+ * hue-only combined section and HueLegend so the two bar render paths can't
+ * drift. Vertical bars run hi-on-top (`to top`) so reading top-to-bottom
+ * matches a y-axis; horizontal bars run lo-on-left. */
+const GradientBarRamp = ({
+	stops,
+	cssStops,
+	orientation,
+	barStyle,
+}: {
+	stops: GradientRampStop[]
+	/** Optional denser sampling for the CSS gradient only (see
+	 * `sampleRampCssStops`); ticks/labels always render from `stops`. */
+	cssStops?: { t: number; color: string }[]
+	orientation: "vertical" | "horizontal"
+	barStyle: GradientBarStyle
+}) => {
+	const { length, radius, tickLength, tickThickness, tickColor } = barStyle
+	const hasTicks = tickLength > 0 && tickThickness > 0
+	const isVertical = orientation === "vertical"
+	// Publish the rendered length (px along the bar's axis) after every
+	// render so the Legend panel's "Bar length" input can placeholder the
+	// auto size and step from it ([[auto-input-step-from-displayed]])
+	// instead of jumping to 0 on the first spinner press. Last ramp wins
+	// when several render — they share the legend's orientation + config,
+	// so their lengths agree in practice.
+	const barRef = useRef<HTMLDivElement | null>(null)
+	const setRenderedLength = useSetAtom(currentRenderedGradientBarLengthAtom)
+	useEffect(() => {
+		const el = barRef.current
+		if (!el) return
+		const px = isVertical ? el.offsetHeight : el.offsetWidth
+		if (px > 0) setRenderedLength(Math.round(px))
+	})
+	const gradientDirection = isVertical ? "to top" : "to right"
+	const gradientCss = `linear-gradient(${gradientDirection}, ${(
+		cssStops ?? stops
+	)
+		.map((s) => `${s.color} ${s.t * 100}%`)
+		.join(", ")})`
+	if (isVertical) {
+		const align = barStyle.labelAlign ?? "left"
+		// A fixed length pins the bar (and the label column tracking it);
+		// auto keeps the historical stretch-with-siblings minimum.
+		const sizing =
+			length !== null
+				? { height: `${length}px` }
+				: { minHeight: "8rem" as const }
+		return (
+			<div className="flex flex-row items-stretch">
+				<div
+					ref={barRef}
+					className="w-3 flex-shrink-0"
+					style={{ background: gradientCss, borderRadius: radius, ...sizing }}
+				/>
+				{hasTicks && (
+					<div
+						className="relative flex-shrink-0"
+						style={{ width: tickLength }}
+						aria-hidden="true"
+					>
+						{stops.map((s) => (
+							<div
+								key={s.key}
+								className="absolute left-0"
+								style={{
+									bottom: `calc(${s.t * 100}% - ${tickThickness / 2}px)`,
+									width: tickLength,
+									height: tickThickness,
+									background: tickColor,
+								}}
+							/>
+						))}
+					</div>
+				)}
+				<div className="relative ml-2 flex flex-col" style={sizing}>
+					{/* Invisible zero-height in-flow copies give the column the
+					 *  width of its widest label, so the absolutely-positioned
+					 *  visible labels below can align (left/center/right) within
+					 *  a real box instead of shrink-wrapping at the left edge. */}
+					{stops.map((s) => (
+						<div
+							key={s.key}
+							className="invisible h-0 overflow-hidden whitespace-nowrap"
+							aria-hidden="true"
+						>
+							{s.label}
+						</div>
+					))}
+					{/* Each label sits at its proportional break position,
+					 *  measured from the BOTTOM (hi-on-top matches the `to top`
+					 *  gradient). Edge labels ride 0.5em inward so they don't
+					 *  clip. */}
+					{stops.map((s) => (
+						<span
+							key={s.key}
+							className="absolute left-0 right-0 whitespace-nowrap"
+							style={{
+								bottom: `calc(${s.t * 100}% - 0.5em)`,
+								textAlign: align,
+							}}
+						>
+							{s.label}
+						</span>
+					))}
+				</div>
+			</div>
+		)
+	}
+	const align = barStyle.labelAlign ?? "center"
+	// Anchor each label's left edge / center / right edge at its break stop.
+	const labelTranslate =
+		align === "left" ? "" : align === "right" ? "-translate-x-full" : "-translate-x-1/2"
+	return (
+		<div
+			className={
+				length !== null ? "flex flex-col" : "flex w-full min-w-32 flex-col"
+			}
+			style={length !== null ? { width: `${length}px` } : undefined}
+		>
+			<div
+				ref={barRef}
+				className="h-3 w-full"
+				style={{ background: gradientCss, borderRadius: radius }}
+			/>
+			{hasTicks && (
+				<div
+					className="relative w-full"
+					style={{ height: tickLength }}
+					aria-hidden="true"
+				>
+					{stops.map((s) => (
+						<div
+							key={s.key}
+							className="absolute top-0"
+							style={{
+								left: `calc(${s.t * 100}% - ${tickThickness / 2}px)`,
+								width: tickThickness,
+								height: tickLength,
+								background: tickColor,
+							}}
+						/>
+					))}
+				</div>
+			)}
+			<div className="relative mt-1 h-5 w-full">
+				{stops.map((s) => (
+					<span
+						key={s.key}
+						className={`absolute whitespace-nowrap ${labelTranslate}`}
+						style={{ left: `${s.t * 100}%` }}
+					>
+						{s.label}
+					</span>
+				))}
+			</div>
+		</div>
+	)
+}
+
 const LegendSection = ({
 	section,
 	configs,
@@ -1446,6 +1675,7 @@ const LegendSection = ({
 	reverseCategorical,
 	orientation,
 	gradientLegendStyle = "bar",
+	gradientBarStyle = DEFAULT_GRADIENT_BAR_STYLE,
 	legendFillColor,
 	legendStrokeColor,
 	connectionMapped = false,
@@ -1456,6 +1686,7 @@ const LegendSection = ({
 	proportionalSizeExponent,
 	hueSwatchShape,
 	hueSwatchSize,
+	swatchOutline = null,
 	defaultSwatchOpacity = 1,
 	entryColumns,
 	highlightField,
@@ -1527,6 +1758,7 @@ const LegendSection = ({
 						pinnedOrder={pinnedOrder}
 						reverseCategorical={reverseCategorical}
 						gradientLegendStyle={gradientLegendStyle}
+						gradientBarStyle={gradientBarStyle}
 						orientation={orientation}
 						entryColumns={entryColumns}
 						highlightField={highlightField}
@@ -1546,6 +1778,7 @@ const LegendSection = ({
 						}
 						swatchShape={hueSwatchShape}
 						swatchSize={hueSwatchSize}
+						swatchOutline={swatchOutline}
 						// Area / radar: the fill (hue) and the line/outline use the
 						// same field but separate palettes, so outline each swatch in
 						// its line color. Same chain the renderer uses.
@@ -1568,12 +1801,14 @@ const LegendSection = ({
 						pinnedOrder={pinnedOrder}
 						reverseCategorical={reverseCategorical}
 						gradientLegendStyle={gradientLegendStyle}
+						gradientBarStyle={gradientBarStyle}
 						orientation={orientation}
 						entryColumns={entryColumns}
 						highlightField={highlightField}
 						channelCfg={channelLegendCfgs?.hue}
 						swatchShape={hueSwatchShape}
 						swatchSize={hueSwatchSize}
+						swatchOutline={swatchOutline}
 						defaultSwatchOpacity={defaultSwatchOpacity}
 						// Area + radar charts expose a separate line/outline
 						// palette in the Hue panel. When non-null, HueLegend
@@ -1655,11 +1890,13 @@ const LegendSection = ({
 								pinnedOrder={pinnedOrder}
 								reverseCategorical={reverseCategorical}
 								gradientLegendStyle={gradientLegendStyle}
+								gradientBarStyle={gradientBarStyle}
 								orientation={orientation}
 								entryColumns={entryColumns}
 								channelCfg={undefined}
 								swatchShape={hueSwatchShape}
 								swatchSize={hueSwatchSize}
+								swatchOutline={swatchOutline}
 								defaultSwatchOpacity={defaultSwatchOpacity}
 								splitOutline={splitOutline}
 							/>
@@ -1788,6 +2025,7 @@ type ReversibleLegendProps = LegendProps & { reverseCategorical: boolean }
 const Swatch = ({
 	color,
 	strokeColor,
+	strokeWidth,
 	shape,
 	size,
 	children,
@@ -1801,6 +2039,9 @@ const Swatch = ({
 	 *  with Y" at a glance. Omit (or pass null) for the default no-
 	 *  border swatch. */
 	strokeColor?: string | null
+	/** Border width (px) for `strokeColor`. Defaults to 1.5 (the historical
+	 *  split-outline width); the user's Swatch outline setting passes its own. */
+	strokeWidth?: number | null
 	/** Optional swatch glyph: a `SHAPE_PALETTE` index draws that symbol
 	 *  (filled with `color`), `"line"` draws a short line segment, `null` keeps
 	 *  the default rounded rectangle. */
@@ -1833,7 +2074,7 @@ const Swatch = ({
 						? {
 								borderColor: strokeColor,
 								borderStyle: "solid",
-								borderWidth: 1.5,
+								borderWidth: strokeWidth ?? 1.5,
 							}
 						: undefined),
 				}}
@@ -1866,7 +2107,7 @@ const Swatch = ({
 								d={symbolPath(shape, r)}
 								fill={color}
 								stroke={strokeColor ?? undefined}
-								strokeWidth={strokeColor ? 1.5 : undefined}
+								strokeWidth={strokeColor ? (strokeWidth ?? 1.5) : undefined}
 							/>
 						)}
 					</svg>
@@ -1900,6 +2141,7 @@ const ComposedSwatch = ({
 	swatchShape,
 	swatchSize,
 	outlineStroke,
+	outlineWidth,
 }: {
 	color: string
 	opacity: number
@@ -1930,6 +2172,9 @@ const ComposedSwatch = ({
 	/** Border color drawn around the swatch — the area/radar line color when it
 	 *  differs from the fill. `null` / undefined → no border. */
 	outlineStroke?: string | null
+	/** Border width (px) for `outlineStroke`. Defaults to 1.5 (the historical
+	 *  split-outline width); the user's Swatch outline setting passes its own. */
+	outlineWidth?: number | null
 }) => {
 	const w = 18
 	const h = 12
@@ -2102,7 +2347,7 @@ const ComposedSwatch = ({
 						d={symbolPath(swatchShape, r)}
 						fill={fill}
 						stroke={outlineStroke ?? undefined}
-						strokeWidth={outlineStroke ? 1.5 : undefined}
+						strokeWidth={outlineStroke ? (outlineWidth ?? 1.5) : undefined}
 					/>
 				)}
 			</svg>
@@ -2146,7 +2391,7 @@ const ComposedSwatch = ({
 					? {
 							borderColor: outlineStroke,
 							borderStyle: "solid",
-							borderWidth: 1.5,
+							borderWidth: outlineWidth ?? 1.5,
 						}
 					: undefined),
 			}}
@@ -2174,6 +2419,9 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	 * fires for hue-only quantitative encodings (hue is a group channel,
 	 * so it always routes through the combined branch). */
 	gradientLegendStyle?: "bar" | "swatches"
+	/** Resolved gradient-bar display options (length / radius / ticks /
+	 * label alignment). Only consulted when the bar branch fires. */
+	gradientBarStyle?: GradientBarStyle
 	/** Drives the gradient bar's orientation: `vertical` lays the bar
 	 * top-to-bottom (hi-on-top) so it visually matches stacked swatches;
 	 * `horizontal` lays it left-to-right. Mirrors the swatch flow direction
@@ -2223,6 +2471,11 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 		lineColors: Record<string, string>
 		strokeOverride: string | null
 	} | null
+	/** User-chosen outline drawn around every color swatch (the Legend panel's
+	 *  "Swatch outline" controls). Applies only where no encoded stroke — a
+	 *  shape/outline descriptor or the area/radar `splitOutline` — already
+	 *  claims the border. `null` = none. */
+	swatchOutline?: { color: string; width: number } | null
 }
 
 // Exported so smoke tests can prop-drive the component without spinning
@@ -2235,6 +2488,7 @@ export const CombinedGroupLegend = ({
 	pinnedOrder,
 	reverseCategorical,
 	gradientLegendStyle = "bar",
+	gradientBarStyle = DEFAULT_GRADIENT_BAR_STYLE,
 	orientation = "vertical",
 	connectionMapped = false,
 	channelCfg,
@@ -2246,6 +2500,7 @@ export const CombinedGroupLegend = ({
 	shapeLegendStrokeColor = null,
 	defaultSwatchOpacity = 1,
 	splitOutline = null,
+	swatchOutline = null,
 	entryColumns,
 	highlightField,
 }: CombinedGroupLegendProps) => {
@@ -2491,9 +2746,13 @@ export const CombinedGroupLegend = ({
 		}
 		// Area / radar line color → swatch border. Only when there's no per-mark
 		// `shape` descriptor (that already carries its own stroke); for the
-		// rectangle / swatch-shape glyph the border shows the line color.
-		const outlineStroke = shape ? null : splitOutlineStrokeFor(v, color)
-		return { color, opacity, pattern, shape, dash, outlineStroke }
+		// rectangle / swatch-shape glyph the border shows the line color. The
+		// user's Swatch outline fills in when no encoded stroke claims the border.
+		const splitStroke = shape ? null : splitOutlineStrokeFor(v, color)
+		const outlineStroke =
+			splitStroke ?? (shape ? null : (swatchOutline?.color ?? null))
+		const outlineWidth = splitStroke ? null : (swatchOutline?.width ?? null)
+		return { color, opacity, pattern, shape, dash, outlineStroke, outlineWidth }
 	}
 
 	const hasLength = channels.includes("length")
@@ -2521,7 +2780,7 @@ export const CombinedGroupLegend = ({
 		const fallbackFmt = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "")
 		const rawFmt = customFmt ?? fallbackFmt
 		const fmt = (v: number, i: number) =>
-			decorateOpenTopLabel(rawFmt(v), i, stops, dataExt)
+			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		const domainOverride =
 			resolveLegendDomain(values, type, channelCfg) ?? undefined
 		const areaScale = hasArea
@@ -2638,7 +2897,7 @@ export const CombinedGroupLegend = ({
 		const fallbackFmt = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "")
 		const rawFmt = customFmt ?? fallbackFmt
 		const fmt = (v: number, i: number) =>
-			decorateOpenTopLabel(rawFmt(v), i, stops, dataExt)
+			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		const domainOverride =
 			resolveLegendDomain(values, type, channelCfg) ?? undefined
 		const lengthScale = hasLength
@@ -2728,7 +2987,7 @@ export const CombinedGroupLegend = ({
 					: String(n)
 		const rawFmt = customFmt ?? fallbackFmt
 		const fmt = (v: number, i: number) =>
-			decorateOpenTopLabel(rawFmt(v), i, stops, dataExt)
+			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		// Gradient bar mode is only meaningful when hue is the ONLY mapped
 		// group channel — once saturation / brightness / pattern / opacity
 		// pile on, the per-stop visual differs in more than just hue and a
@@ -2739,57 +2998,35 @@ export const CombinedGroupLegend = ({
 			colorScale !== null
 		if (gradientLegendStyle === "bar" && onlyColor && colorScale) {
 			const gradientStops = stops.map((val, i) => ({
-				val,
 				t: (val - lo) / (hi - lo || 1),
 				color: applyHueScale(colorScale, val, type) ?? "#888",
-				i,
+				label: fmt(val, i),
+				key: i,
 			}))
-			const isVertical = orientation === "vertical"
-			// Vertical bars run hi-on-top via `to top`, so reading the bar
-			// top-to-bottom matches reading values high-to-low (the same axis
-			// convention as a y-axis). Horizontal bars run lo-on-left.
-			const gradientDirection = isVertical ? "to top" : "to right"
-			const gradientCss = `linear-gradient(${gradientDirection}, ${gradientStops
-				.map((s) => `${s.color} ${s.t * 100}%`)
-				.join(", ")})`
-			if (isVertical) {
-				return (
-					<div className="flex flex-row items-stretch gap-2">
-						<div
-							className="w-3 rounded-sm"
-							style={{ background: gradientCss, minHeight: "8rem" }}
-						/>
-						<div className="relative flex flex-col" style={{ minHeight: "8rem" }}>
-							{gradientStops.map((s) => (
-								<span
-									key={s.i}
-									className="absolute"
-									style={{ bottom: `calc(${s.t * 100}% - 0.5em)` }}
-								>
-									{fmt(s.val, s.i)}
-								</span>
-							))}
-						</div>
-					</div>
-				)
-			}
 			return (
-				<div className="flex w-full flex-col gap-1">
-					<div
-						className="h-3 w-full min-w-32 rounded-sm"
-						style={{ background: gradientCss }}
-					/>
-					<div className="relative h-5 w-full">
-						{gradientStops.map((s) => (
-							<span
-								key={s.i}
-								className="absolute -translate-x-1/2"
-								style={{ left: `${s.t * 100}%` }}
+				<GradientBarRamp
+					stops={gradientStops}
+					cssStops={sampleRampCssStops(colorScale, lo, hi, type)}
+					orientation={orientation}
+					barStyle={gradientBarStyle}
+				/>
+			)
+		}
+		if (orientation === "horizontal") {
+			return (
+				<div className="flex flex-row flex-nowrap items-center gap-3">
+					{stops.map((s, i) => {
+						const entry = buildEntry(String(s))
+						return (
+							<div
+								key={s}
+								className="flex flex-shrink-0 flex-row items-center gap-1.5"
 							>
-								{fmt(s.val, s.i)}
-							</span>
-						))}
-					</div>
+								<ComposedSwatch {...entry} swatchShape={swatchShape} swatchSize={swatchSize} />
+								<span className="whitespace-nowrap">{fmt(s, i)}</span>
+							</div>
+						)
+					})}
 				</div>
 			)
 		}
@@ -2875,17 +3112,26 @@ const HueLegend = ({
 	pinnedOrder,
 	reverseCategorical,
 	gradientLegendStyle = "bar",
+	gradientBarStyle = DEFAULT_GRADIENT_BAR_STYLE,
 	orientation = "vertical",
 	channelCfg,
 	splitOutline,
 	swatchShape,
 	swatchSize,
+	swatchOutline = null,
 	defaultSwatchOpacity = 1,
 	entryColumns,
 	highlightField,
 }: ReversibleLegendProps & {
 	gradientLegendStyle?: "bar" | "swatches"
+	/** Resolved gradient-bar display options (length / radius / ticks /
+	 * label alignment). Only consulted when the bar branch fires. */
+	gradientBarStyle?: GradientBarStyle
 	orientation?: "vertical" | "horizontal"
+	/** User-chosen outline drawn around every color swatch (the Legend panel's
+	 *  "Swatch outline" controls). Applies only where no encoded stroke (the
+	 *  area/radar `splitOutline`) already claims the border. `null` = none. */
+	swatchOutline?: { color: string; width: number } | null
 	/** Opacity for swatch graphics, matching marks at the global default
 	 *  opacity when opacity isn't encoded. */
 	defaultSwatchOpacity?: number
@@ -2952,12 +3198,13 @@ const HueLegend = ({
 				<div className="flex flex-row flex-nowrap items-center gap-3">
 					{unique.map((v, i) => {
 						const c = applyHueScale(scale, v, type) ?? "#888"
-						const s = strokeFor(v, i, c)
+						const split = strokeFor(v, i, c)
 						return (
 							<EntryHoverWrap key={v} field={highlightField} value={v}>
 								<Swatch
 									color={c}
-									strokeColor={s}
+									strokeColor={split ?? swatchOutline?.color}
+									strokeWidth={split ? undefined : swatchOutline?.width}
 									shape={swatchShape}
 									size={swatchSize}
 									opacity={defaultSwatchOpacity}
@@ -2974,12 +3221,13 @@ const HueLegend = ({
 		return renderEntryList(
 			unique.map((v, i) => {
 				const c = applyHueScale(scale, v, type) ?? "#888"
-				const s = strokeFor(v, i, c)
+				const split = strokeFor(v, i, c)
 				return (
 					<EntryHoverWrap key={v} field={highlightField} value={v}>
 						<Swatch
 							color={c}
-							strokeColor={s}
+							strokeColor={split ?? swatchOutline?.color}
+							strokeWidth={split ? undefined : swatchOutline?.width}
 							shape={swatchShape}
 							size={swatchSize}
 							opacity={defaultSwatchOpacity}
@@ -3012,14 +3260,36 @@ const HueLegend = ({
 	// "+" to that label — signals "this value or higher, all the same
 	// color" (matches the clamp-out-of-range behavior).
 	const labelAt = (v: number, i: number) =>
-		decorateOpenTopLabel(fmt(v), i, breaks, dataExt)
+		decorateOpenEndLabel(fmt(v), i, breaks, dataExt)
 	if (gradientLegendStyle === "swatches") {
+		if (orientation === "horizontal") {
+			return (
+				<div className="flex flex-row flex-nowrap items-center gap-3">
+					{breaks.map((v, i) => (
+						<Swatch
+							key={v}
+							color={applyHueScale(scale, v, type) ?? "#888"}
+							strokeColor={swatchOutline?.color}
+							strokeWidth={swatchOutline?.width}
+							shape={swatchShape}
+							size={swatchSize}
+							opacity={defaultSwatchOpacity}
+							horizontal
+						>
+							{labelAt(v, i)}
+						</Swatch>
+					))}
+				</div>
+			)
+		}
 		return (
 			<div className="flex flex-col gap-1">
 				{breaks.map((v, i) => (
 					<Swatch
 						key={v}
 						color={applyHueScale(scale, v, type) ?? "#888"}
+						strokeColor={swatchOutline?.color}
+						strokeWidth={swatchOutline?.width}
 						shape={swatchShape}
 						size={swatchSize}
 						opacity={defaultSwatchOpacity}
@@ -3035,63 +3305,19 @@ const HueLegend = ({
 	// breaks aren't — matches the user's mental model of "this band of
 	// color spans from break N to break N+1"). Labels render at the same
 	// proportional positions as the break stops.
-	const isVertical = orientation === "vertical"
-	const gradientDirection = isVertical ? "to top" : "to right"
-	const gradientStops = breaks.map((v, i) => {
-		const t = (v - lo) / (hi - lo || 1)
-		return {
-			t,
-			color: applyHueScale(scale, v, type) ?? "#888",
-			label: labelAt(v, i),
-			i,
-		}
-	})
-	const gradientCss = `linear-gradient(${gradientDirection}, ${gradientStops
-		.map((s) => `${s.color} ${s.t * 100}%`)
-		.join(", ")})`
-	if (isVertical) {
-		return (
-			<div className="flex flex-row items-stretch gap-2">
-				<div
-					className="w-3 rounded-sm"
-					style={{ background: gradientCss, minHeight: "8rem" }}
-				/>
-				<div className="relative flex flex-col" style={{ minHeight: "8rem" }}>
-					{/* Position each label at its proportional break position,
-					 *  measured from the BOTTOM (so high values sit at the top
-					 *  to match `to top` gradient direction). Top/bottom edge
-					 *  labels are offset slightly inward so they don't clip. */}
-					{gradientStops.map((s) => (
-						<span
-							key={s.i}
-							className="absolute"
-							style={{ bottom: `calc(${s.t * 100}% - 0.5em)` }}
-						>
-							{s.label}
-						</span>
-					))}
-				</div>
-			</div>
-		)
-	}
+	const gradientStops = breaks.map((v, i) => ({
+		t: (v - lo) / (hi - lo || 1),
+		color: applyHueScale(scale, v, type) ?? "#888",
+		label: labelAt(v, i),
+		key: i,
+	}))
 	return (
-		<div className="flex w-full flex-col gap-1">
-			<div
-				className="h-3 w-full min-w-32 rounded-sm"
-				style={{ background: gradientCss }}
-			/>
-			<div className="relative h-5 w-full">
-				{gradientStops.map((s) => (
-					<span
-						key={s.i}
-						className="absolute -translate-x-1/2"
-						style={{ left: `${s.t * 100}%` }}
-					>
-						{s.label}
-					</span>
-				))}
-			</div>
-		</div>
+		<GradientBarRamp
+			stops={gradientStops}
+			cssStops={sampleRampCssStops(scale, lo, hi, type)}
+			orientation={orientation}
+			barStyle={gradientBarStyle}
+		/>
 	)
 }
 
@@ -3353,7 +3579,7 @@ export const AreaLegend = ({
 			customFmt ?? ((n: number) => (Number.isFinite(n) ? n.toFixed(2) : ""))
 		entries = breaks.map((s, i) => ({
 			key: String(s),
-			label: decorateOpenTopLabel(fmt(s), i, breaks, dataExt),
+			label: decorateOpenEndLabel(fmt(s), i, breaks, dataExt),
 			r: applyAreaScale(scale, s, type) ?? 4,
 		}))
 	}
@@ -3480,7 +3706,7 @@ const OpacityLegend = ({
 		return {
 			t,
 			opacity: scale(v) ?? 1,
-			label: decorateOpenTopLabel(fmt(v), i, breaks, dataExt),
+			label: decorateOpenEndLabel(fmt(v), i, breaks, dataExt),
 			i,
 		}
 	})
@@ -3587,7 +3813,7 @@ const LengthLegend = ({
 									strokeLinecap="round"
 								/>
 							</svg>
-							<span>{decorateOpenTopLabel(fmt(s), i, breaks, dataExt)}</span>
+							<span>{decorateOpenEndLabel(fmt(s), i, breaks, dataExt)}</span>
 						</div>
 					)
 				})}
@@ -3618,7 +3844,7 @@ const LengthLegend = ({
 							/>
 						</svg>
 						<span className="min-w-0 truncate">
-							{decorateOpenTopLabel(fmt(s), i, breaks, dataExt)}
+							{decorateOpenEndLabel(fmt(s), i, breaks, dataExt)}
 						</span>
 					</div>
 				)
@@ -3700,7 +3926,7 @@ const AngleLegend = ({
 			<div className="flex flex-row flex-nowrap items-end gap-3">
 				{breaks.map((s, i) => {
 					const { dx, dy, rawLabel } = angleSvgFor(s)
-					const label = decorateOpenTopLabel(rawLabel, i, breaks, dataExt)
+					const label = decorateOpenEndLabel(rawLabel, i, breaks, dataExt)
 					return (
 						<div
 							key={s}
@@ -3728,7 +3954,7 @@ const AngleLegend = ({
 		<div className="flex flex-col gap-1">
 			{breaks.map((s, i) => {
 				const { dx, dy, rawLabel } = angleSvgFor(s)
-				const label = decorateOpenTopLabel(rawLabel, i, breaks, dataExt)
+				const label = decorateOpenEndLabel(rawLabel, i, breaks, dataExt)
 				return (
 					<div key={s} className="flex items-center gap-2">
 						<svg

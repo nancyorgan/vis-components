@@ -1,8 +1,12 @@
+import { interpolateRdBu } from "d3-scale-chromatic"
 import { describe, expect, it } from "vitest"
 
+import { DEFAULT_QUANTITATIVE_HUE_CONFIG } from "./channelConfig"
 import {
 	CATEGORICAL_HUE_PALETTE,
 	applyAreaScale,
+	applyHueScale,
+	autoDivergingMid,
 	makeAreaScale,
 	makeHueScale,
 	makePositionScale,
@@ -41,6 +45,123 @@ describe("makeHueScale (categorical)", () => {
 		expect(fullHs.scale("B")).not.toBe(filteredHs.scale("B"))
 		expect(fullHs.scale("B")).toBe(CATEGORICAL_HUE_PALETTE[1])
 		expect(filteredHs.scale("B")).toBe(CATEGORICAL_HUE_PALETTE[0])
+	})
+})
+
+describe("autoDivergingMid", () => {
+	it("returns 0 when the domain spans 0", () => {
+		expect(autoDivergingMid(-10, 30)).toBe(0)
+	})
+	it("returns the domain midpoint when the data is one-signed", () => {
+		expect(autoDivergingMid(10, 30)).toBe(20)
+		expect(autoDivergingMid(-30, -10)).toBe(-20)
+	})
+})
+
+describe("makeHueScale (quantitative diverging)", () => {
+	const divergingCfg = {
+		...DEFAULT_QUANTITATIVE_HUE_CONFIG,
+		palette: "customDiverging" as const,
+		lowColor: "#0000ff",
+		midColor: "#ffffff",
+		highColor: "#ff0000",
+	}
+
+	it("customDiverging: auto mid sits at 0 when the data spans 0", () => {
+		const hs = makeHueScale([-10, 30], "quantitative", divergingCfg)
+		expect(applyHueScale(hs, 0, "quantitative")).toBe("rgb(255, 255, 255)")
+		// The domain midpoint (10) is no longer the neutral center.
+		expect(applyHueScale(hs, 10, "quantitative")).not.toBe(
+			"rgb(255, 255, 255)",
+		)
+	})
+
+	it("customDiverging: auto mid falls back to the domain midpoint for one-signed data", () => {
+		const hs = makeHueScale([10, 30], "quantitative", divergingCfg)
+		expect(applyHueScale(hs, 20, "quantitative")).toBe("rgb(255, 255, 255)")
+	})
+
+	it("customDiverging: an explicit midValue wins over the 0 default", () => {
+		const hs = makeHueScale([-10, 30], "quantitative", {
+			...divergingCfg,
+			midValue: 5,
+		})
+		expect(applyHueScale(hs, 5, "quantitative")).toBe("rgb(255, 255, 255)")
+	})
+
+	it("diverging presets center on 0 when the data spans it", () => {
+		const hs = makeHueScale([-10, 30], "quantitative", {
+			...DEFAULT_QUANTITATIVE_HUE_CONFIG,
+			palette: "RdBu" as const,
+		})
+		expect(hs.kind).toBe("diverging")
+		expect(applyHueScale(hs, 0, "quantitative")).toBe(interpolateRdBu(0.5))
+	})
+
+	it("diverging presets stay sequential over one-signed data", () => {
+		const hs = makeHueScale([10, 30], "quantitative", {
+			...DEFAULT_QUANTITATIVE_HUE_CONFIG,
+			palette: "RdBu" as const,
+		})
+		expect(hs.kind).toBe("sequential")
+	})
+
+	it("linear presets never divert, even over sign-spanning data", () => {
+		const hs = makeHueScale([-10, 30], "quantitative", {
+			...DEFAULT_QUANTITATIVE_HUE_CONFIG,
+			palette: "viridis" as const,
+		})
+		expect(hs.kind).toBe("sequential")
+	})
+})
+
+describe("makeHueScale — custom gradient interpolation", () => {
+	const linearCfg = {
+		...DEFAULT_QUANTITATIVE_HUE_CONFIG,
+		palette: "customLinear" as const,
+		lowColor: "#ff0000",
+		highColor: "#0000ff",
+	}
+
+	it("defaults to rgb — absent field keeps the historical midpoint", () => {
+		const hs = makeHueScale([0, 10], "quantitative", linearCfg)
+		// d3 interpolateRgb midpoint of red→blue: the dark sRGB purple.
+		expect(applyHueScale(hs, 5, "quantitative")).toBe("rgb(128, 0, 128)")
+	})
+
+	it("oklch blends perceptually — midpoint differs from the sRGB purple", () => {
+		const hs = makeHueScale([0, 10], "quantitative", {
+			...linearCfg,
+			interpolation: "oklch" as const,
+		})
+		const mid = applyHueScale(hs, 5, "quantitative")
+		expect(mid).not.toBe("rgb(128, 0, 128)")
+		expect(mid).toMatch(/^#[0-9a-f]{6}$/)
+		// Endpoints still resolve to the configured stop colors.
+		expect(applyHueScale(hs, 0, "quantitative")).toBe("#ff0000")
+		expect(applyHueScale(hs, 10, "quantitative")).toBe("#0000ff")
+	})
+
+	it("hsb rotates through hue — red→yellow midpoint is orange", () => {
+		const hs = makeHueScale([0, 10], "quantitative", {
+			...linearCfg,
+			highColor: "#ffff00",
+			interpolation: "hsb" as const,
+		})
+		expect(applyHueScale(hs, 5, "quantitative")).toBe("#ff8000")
+	})
+
+	it("interpolation applies to manual customStops gradients too", () => {
+		const hs = makeHueScale([0, 10], "quantitative", {
+			...DEFAULT_QUANTITATIVE_HUE_CONFIG,
+			palette: "custom" as const,
+			customStops: [
+				{ color: "#ff0000", value: null },
+				{ color: "#ffff00", value: null },
+			],
+			interpolation: "hsb" as const,
+		})
+		expect(applyHueScale(hs, 5, "quantitative")).toBe("#ff8000")
 	})
 })
 

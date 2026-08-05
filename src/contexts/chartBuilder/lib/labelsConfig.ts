@@ -312,6 +312,30 @@ export type LegendConfig = {
 	 * least one hue legend is quantitative — the sidebar control gates
 	 * itself on that. */
 	gradientLegendStyle?: "bar" | "swatches"
+	/** Gradient bar length in pixels — the bar's height when the legend is
+	 * vertical, its width when horizontal. `null` / absent = auto (the
+	 * historical sizing: 8rem minimum height vertical, full legend width
+	 * horizontal). Only consulted when `gradientLegendStyle` is `"bar"`. */
+	gradientBarLength?: number | null
+	/** Gradient bar corner radius in pixels. `null` / absent = 2 (the
+	 * historical `rounded-sm` look); `0` = square corners. */
+	gradientBarRadius?: number | null
+	/** Length in pixels of the tick marks drawn at each break stop, extending
+	 * outward from the bar toward its labels. `null` / absent / `0` = no
+	 * ticks (the historical look). */
+	gradientBarTickLength?: number | null
+	/** Tick stroke thickness in pixels. `null` / absent = 1. Ignored when
+	 * `gradientBarTickLength` doesn't enable ticks. */
+	gradientBarTickThickness?: number | null
+	/** Tick color. `null` / absent = a neutral stone gray that reads on both
+	 * light and dark legend backgrounds. */
+	gradientBarTickColor?: string | null
+	/** How the gradient bar's break labels align. Horizontal bar: each label
+	 * anchors its left edge / center / right edge at its break position.
+	 * Vertical bar: text alignment within the label column beside the bar.
+	 * `null` / absent = the historical default (center under a horizontal
+	 * bar, left beside a vertical one). */
+	gradientBarLabelAlign?: LabelAlignment | null
 	/** Default fill color for shape legend swatches when the shape and
 	 *  hue encodings are different fields (so there's no single hue color
 	 *  to inherit). Per-category `shape.fillOverrides[value]` takes
@@ -346,6 +370,20 @@ export type LegendConfig = {
 	swatchShapes?: Partial<Record<LegendChannel, LegendSwatchShape>>
 	/** Per-section swatch radius (px), paired with `swatchShapes`. */
 	swatchSizes?: Partial<Record<LegendChannel, number>>
+	/** Outline drawn around each COLOR swatch in the legend (hue / rug /
+	 *  combined color sections). Keeps pale swatches — e.g. the white midpoint
+	 *  of a diverging gradient — visible against the legend background.
+	 *  `null` / absent pipes in the marks' outline color
+	 *  (`configs.shape.outlineColor`, the Color menu's Outline setting),
+	 *  falling back to `#cccccc`. Whether an outline draws AT ALL is
+	 *  `swatchOutlineWidth`'s job. Ignored when the outline-color
+	 *  (`outlineHue`) encoding is mapped: the swatch strokes are then a
+	 *  faithful key for that encoding and must not be overpainted. */
+	swatchOutlineColor?: string | null
+	/** Stroke width (px) for the swatch outline. `null` / absent / `0` = no
+	 *  outline (the historical look and the default — no separate on/off
+	 *  toggle, the width IS the switch). */
+	swatchOutlineWidth?: number | null
 	/** Color used for length / angle / area / opacity legend swatches
 	 * when they render as a STANDALONE section (no hue gradient to
 	 * inherit from). `null` falls back to the historical `#4f8eda`. The
@@ -399,10 +437,18 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	borderRadius: 6,
 	backgroundColor: "#ffffff",
 	gradientLegendStyle: "bar",
+	gradientBarLength: null,
+	gradientBarRadius: null,
+	gradientBarTickLength: null,
+	gradientBarTickThickness: null,
+	gradientBarTickColor: null,
+	gradientBarLabelAlign: null,
 	shapeLegendFillColor: null,
 	shapeLegendStrokeColor: null,
 	hueLegendSwatchShape: null,
 	hueLegendSwatchSize: null,
+	swatchOutlineColor: null,
+	swatchOutlineWidth: null,
 	auxLegendSwatchColor: null,
 	auxLegendSwatchStroke: null,
 	channels: {},
@@ -410,6 +456,37 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	columnGap: 24,
 	combineSameVariable: true,
 }
+
+/** Default gradient-bar tick color — stone-500, legible on both the light
+ * and dark legend backgrounds. */
+export const DEFAULT_GRADIENT_BAR_TICK_COLOR = "#78716c"
+
+/** Historical gradient-bar corner radius (`rounded-sm` = 2px). */
+export const DEFAULT_GRADIENT_BAR_RADIUS = 2
+
+/** The gradient bar's fully-resolved display options — the sparse
+ * `gradientBar*` fields on `LegendConfig` with defaults applied, in the
+ * shape the legend renderer consumes. */
+export type GradientBarStyle = {
+	/** Bar length in px; `null` = auto (historical sizing). */
+	length: number | null
+	radius: number
+	/** `0` = no ticks. */
+	tickLength: number
+	tickThickness: number
+	tickColor: string
+	/** `null` = orientation default (center horizontal, left vertical). */
+	labelAlign: LabelAlignment | null
+}
+
+export const resolveGradientBarStyle = (cfg: LegendConfig): GradientBarStyle => ({
+	length: cfg.gradientBarLength ?? null,
+	radius: cfg.gradientBarRadius ?? DEFAULT_GRADIENT_BAR_RADIUS,
+	tickLength: cfg.gradientBarTickLength ?? 0,
+	tickThickness: cfg.gradientBarTickThickness ?? 1,
+	tickColor: cfg.gradientBarTickColor ?? DEFAULT_GRADIENT_BAR_TICK_COLOR,
+	labelAlign: cfg.gradientBarLabelAlign ?? null,
+})
 
 // ---------------------------------------------------------------------------
 // Tooltip config

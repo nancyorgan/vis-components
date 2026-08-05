@@ -24,6 +24,7 @@ import {
 	dashSpecForPatternValue,
 	resolveDashGapColor,
 	resolveDashGapFill,
+	sanitizeCustomDasharray,
 } from "../../lib/dashPatterns"
 import { splitPolylineAtRange } from "../../lib/dashRange"
 import { sampleConnectionPointIndices } from "../../lib/dataLabelsLayout"
@@ -754,6 +755,13 @@ const buildAreas = ({
 	const defaultDashPattern: LineDashPattern =
 		channelConfigs.connection?.defaultDashPattern ??
 		DEFAULT_CONNECTION_CONFIG.defaultDashPattern
+	// The panel's "Custom" default dash: a user-typed dasharray that wins
+	// over the swatch pick when it parses; per-layer `dashPatterns`
+	// overrides still win over both. Mirrors ScatterPlot.
+	const customDashPattern = channelConfigs.connection?.customDashPattern ?? null
+	const defaultDashArray =
+		(customDashPattern ? sanitizeCustomDasharray(customDashPattern) : null) ??
+		dashArrayFor(defaultDashPattern)
 	// Pattern encoding → per-layer LINE DASH, mirroring ScatterPlot's
 	// connection polylines: each layer's pattern group value resolves via
 	// the shared `dashSpecForPatternValue` (custom dasharray > swatch
@@ -1054,13 +1062,11 @@ const buildAreas = ({
 			const dashArray =
 				patternSpec?.kind === "custom"
 					? patternSpec.dasharray
-					: dashArrayFor(
-							dashPatterns[layerDashKey ?? ""] ??
-								(patternSpec?.kind === "pattern"
-									? patternSpec.pattern
-									: null) ??
-								defaultDashPattern
-						)
+					: dashPatterns[layerDashKey ?? ""] !== undefined
+						? dashArrayFor(dashPatterns[layerDashKey ?? ""] ?? "solid")
+						: patternSpec?.kind === "pattern"
+							? dashArrayFor(patternSpec.pattern)
+							: defaultDashArray
 			// Solid → one path. Dashed → underlay (alternate color) +
 			// dashed top, so the gaps render as the alternate color
 			// instead of transparent.

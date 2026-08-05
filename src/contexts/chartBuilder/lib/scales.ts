@@ -1,8 +1,8 @@
 import { extent } from "d3-array"
 import { hsl } from "d3-color"
-import { interpolateRgb } from "d3-interpolate"
 import {
 	type scaleBand,
+	scaleDiverging,
 	scaleLinear,
 	scaleOrdinal,
 	scalePoint,
@@ -67,6 +67,7 @@ import {
 	DEFAULT_OPACITY_QUANTITATIVE,
 	DEFAULT_SATURATION_CONFIG,
 } from "./channelConfig"
+import { gradientInterpolator } from "./colorInterpolate"
 import { applyLevelOrder } from "./smartSort"
 import type { FieldType } from "./types"
 
@@ -84,6 +85,24 @@ export const PALETTE_INTERPOLATORS: Record<PaletteName, (t: number) => string> =
 	RdYlBu: interpolateRdYlBu,
 	Spectral: interpolateSpectral,
 }
+
+/** Diverging d3 presets — three-anchor palettes whose midpoint is a
+ * meaningful neutral. When the data spans 0 these center at 0 (via
+ * scaleDiverging); the hue panel renders them with Low/Mid/High rows. */
+export const DIVERGING_PRESET_PALETTES: readonly PaletteName[] = [
+	"BrBG",
+	"PiYG",
+	"PRGn",
+	"PuOr",
+	"RdBu",
+	"RdYlBu",
+	"Spectral",
+]
+
+/** Auto midpoint for a diverging scale over [lo, hi]: 0 when the data
+ * spans it (the conventional diverging center), else the domain midpoint. */
+export const autoDivergingMid = (lo: number, hi: number): number =>
+	lo < 0 && hi > 0 ? 0 : (lo + hi) / 2
 
 export type ParsedValue = number | Date | string | null
 
@@ -414,6 +433,10 @@ export type HueScale =
 			scale: ReturnType<typeof scaleSequential<string>>
 	  }
 	| {
+			kind: "diverging"
+			scale: ReturnType<typeof scaleDiverging<string>>
+	  }
+	| {
 			kind: "linear"
 			scale: ReturnType<typeof scaleLinear<string, string>>
 	  }
@@ -518,7 +541,7 @@ export const makeHueScale = (
 				scale: scaleLinear<string, string>()
 					.domain(domain)
 					.range(range)
-					.interpolate(interpolateRgb as never)
+					.interpolate(gradientInterpolator(config.interpolation) as never)
 					.clamp(clamp),
 			}
 		}
@@ -530,7 +553,7 @@ export const makeHueScale = (
 		) {
 			const lo = config.lowValue ?? dataLo
 			const hi = config.highValue ?? dataHi
-			const midV = config.midValue ?? (lo + hi) / 2
+			const midV = config.midValue ?? autoDivergingMid(lo, hi)
 			const hasMid = config.midColor !== null
 			const domain = hasMid ? [lo, midV, hi] : [lo, hi]
 			const range = hasMid
@@ -541,7 +564,7 @@ export const makeHueScale = (
 				scale: scaleLinear<string, string>()
 					.domain(domain)
 					.range(range)
-					.interpolate(interpolateRgb as never)
+					.interpolate(gradientInterpolator(config.interpolation) as never)
 					.clamp(clamp),
 			}
 		}
@@ -551,6 +574,18 @@ export const makeHueScale = (
 				: "viridis"
 		const interpolator =
 			PALETTE_INTERPOLATORS[paletteName] ?? interpolateViridis
+		// Diverging presets center on 0 when the data spans it — the palette's
+		// neutral midpoint then marks the sign change, not the domain midpoint.
+		if (
+			DIVERGING_PRESET_PALETTES.includes(paletteName) &&
+			dataLo < 0 &&
+			dataHi > 0
+		) {
+			const divScale = scaleDiverging(interpolator)
+				.domain([dataLo, 0, dataHi])
+				.clamp(clamp)
+			return { kind: "diverging", scale: divScale }
+		}
 		const seqScale = scaleSequential(interpolator).domain([dataLo, dataHi])
 		// scaleSequential normalizes internally; `clamp(false)` lets t escape
 		// [0,1] and produces extrapolated/out-of-gamut colors. Default keeps
@@ -591,7 +626,7 @@ export const applyHueScale = (
 ): string | null => {
 	const v = parseValue(raw, type)
 	if (v === null) return null
-	if (hs.kind === "sequential" || hs.kind === "linear") {
+	if (hs.kind === "sequential" || hs.kind === "diverging" || hs.kind === "linear") {
 		const n = v instanceof Date ? v.getTime() : typeof v === "number" ? v : null
 		return n === null ? null : hs.scale(n)
 	}

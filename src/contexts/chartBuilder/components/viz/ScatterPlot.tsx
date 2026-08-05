@@ -1317,6 +1317,13 @@ const renderConnectionLines = (
 	const dashPatterns = cfg.dashPatterns ?? {}
 	const dashAlternateColors = cfg.dashAlternateColors ?? {}
 	const defaultDash: LineDashPattern = cfg.defaultDashPattern ?? "solid"
+	// The panel's "Custom" default dash: a user-typed dasharray that wins
+	// over the swatch pick when it parses; per-group `dashPatterns`
+	// overrides still win over both.
+	const defaultDashArray =
+		(cfg.customDashPattern
+			? sanitizeCustomDasharray(cfg.customDashPattern)
+			: null) ?? dashArrayFor(defaultDash)
 	// Dash-gap color inputs — the same palette-paired pattern-ink options
 	// area patterns resolve their ink from (see `resolveDashGapColor`).
 	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
@@ -1499,11 +1506,11 @@ const renderConnectionLines = (
 					const dashArray =
 						spec?.kind === "custom"
 							? spec.dasharray
-							: dashArrayFor(
-									dashPatterns[groupValue] ??
-										(spec?.kind === "pattern" ? spec.pattern : null) ??
-										defaultDash
-								)
+							: dashPatterns[groupValue] !== undefined
+								? dashArrayFor(dashPatterns[groupValue] ?? "solid")
+								: spec?.kind === "pattern"
+									? dashArrayFor(spec.pattern)
+									: defaultDashArray
 					return renderSegment(
 						runs.length === 1
 							? `conn-${groupValue}`
@@ -1515,8 +1522,11 @@ const renderConnectionLines = (
 				})
 			}
 			// No pattern encoding: one dash for the whole line (per-line
-			// override > global default).
-			const dashArray = dashArrayFor(dashPatterns[groupValue] ?? defaultDash)
+			// override > global default, custom dasharray included).
+			const dashArray =
+				dashPatterns[groupValue] !== undefined
+					? dashArrayFor(dashPatterns[groupValue] ?? "solid")
+					: defaultDashArray
 			// "Apply pattern to range": dash only within [From, To] — the
 			// parts outside render solid (known vs forecast). Boundary
 			// points are interpolated so the segments meet exactly; the

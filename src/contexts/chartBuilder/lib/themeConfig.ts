@@ -411,6 +411,7 @@ const hueScaleEdited = (hue: HueConfig | undefined): boolean => {
 	return (
 		hue.palette === "custom" ||
 		(hue.customStops?.length ?? 0) > 0 ||
+		(hue.interpolation != null && hue.interpolation !== "rgb") ||
 		hue.stackMode !== DEFAULT_QUANTITATIVE_HUE_CONFIG.stackMode
 	)
 }
@@ -522,7 +523,9 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 		// "Fill dash gaps" choice, and the "Apply pattern to range" window.
 		{
 			label: "default line dash",
-			changed: (configs.connection?.defaultDashPattern ?? "solid") !== "solid",
+			changed:
+				(configs.connection?.defaultDashPattern ?? "solid") !== "solid" ||
+				(configs.connection?.customDashPattern ?? null) !== null,
 		},
 		{
 			label: "dash gap fill",
@@ -777,7 +780,31 @@ export const explainLegendCustomization = (
 			group: "gradient",
 			changed: differs(cfg.gradientLegendStyle, base.gradientLegendStyle),
 		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarLength, base.gradientBarLength),
+		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarRadius, base.gradientBarRadius),
+		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarTickLength, base.gradientBarTickLength),
+		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarTickThickness, base.gradientBarTickThickness),
+		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarTickColor, base.gradientBarTickColor),
+		},
 		{ group: "formatting", changed: !isEmptyConfigValue(cfg.channels) },
+		{
+			group: "formatting",
+			changed: differs(cfg.gradientBarLabelAlign, base.gradientBarLabelAlign),
+		},
 		{
 			group: "auxSwatch",
 			changed: differs(cfg.auxLegendSwatchColor, base.auxLegendSwatchColor),
@@ -796,6 +823,14 @@ export const explainLegendCustomization = (
 		},
 		{ group: "colorSwatchShape", changed: !isEmptyConfigValue(cfg.swatchShapes) },
 		{ group: "colorSwatchShape", changed: !isEmptyConfigValue(cfg.swatchSizes) },
+		{
+			group: "colorSwatchShape",
+			changed: differs(cfg.swatchOutlineColor, base.swatchOutlineColor),
+		},
+		{
+			group: "colorSwatchShape",
+			changed: differs(cfg.swatchOutlineWidth, base.swatchOutlineWidth),
+		},
 		{
 			group: "shapeSwatch",
 			changed: differs(cfg.shapeLegendFillColor, base.shapeLegendFillColor),

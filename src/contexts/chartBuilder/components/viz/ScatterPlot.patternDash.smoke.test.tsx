@@ -359,6 +359,41 @@ describe("Pattern channel drives connection-line dash (scatter/line chart)", () 
 		expect(lines.length).toBe(4)
 		expect(lines.filter((p) => dashOf(p) === "8,4").length).toBe(2)
 	})
+
+	it("no pattern field: connection.customDashPattern (the no-field 'Custom' pick) wins over the swatch pick", () => {
+		const container = mount({
+			connection: { defaultDashPattern: "dashed", customDashPattern: "1 5 9" },
+		})
+		const lines = polylines(container)
+		expect(lines.length).toBe(4)
+		// Normalized to comma-separated; no line keeps the swatch's 8,4.
+		expect(lines.filter((p) => dashOf(p) === "1,5,9").length).toBe(2)
+		expect(lines.filter((p) => dashOf(p) === "8,4").length).toBe(0)
+	})
+
+	it("an unparseable customDashPattern falls back to the swatch pick", () => {
+		const container = mount({
+			connection: { defaultDashPattern: "dotted", customDashPattern: "abc" },
+		})
+		expect(
+			polylines(container).filter((p) => dashOf(p) === "2,3").length
+		).toBe(2)
+	})
+
+	it("'Apply pattern to range' gates the custom dasharray too (custom inside, solid outside)", () => {
+		const container = mount({
+			connection: {
+				customDashPattern: "1,5",
+				dashRange: { enabled: true, min: "2", max: null },
+			},
+		})
+		const lines = polylines(container)
+		const dashed = lines.filter((p) => dashOf(p) === "1,5")
+		expect(dashed.length).toBe(2)
+		// Each line also keeps a solid pre-range segment (plus the underlay
+		// under the dashed part).
+		expect(lines.filter((p) => dashOf(p) === null).length).toBe(4)
+	})
 })
 
 describe("Pattern channel drives layer dash (areas-x line-fill mode)", () => {
@@ -404,5 +439,16 @@ describe("Pattern channel drives layer dash (areas-x line-fill mode)", () => {
 		})
 		// No range split — still one dashed path per layer.
 		expect(lineFillPaths(container).length).toBe(2)
+	})
+
+	it("no pattern field: connection.customDashPattern applies to every layer edge", () => {
+		const container = mount({
+			chart: "area",
+			hueField: "region",
+			connection: { defaultDashPattern: "dashed", customDashPattern: "1,5,9" },
+		})
+		const dashes = lineFillPaths(container).map(dashOf)
+		expect(dashes.filter((d) => d === "1,5,9").length).toBe(2)
+		expect(dashes).not.toContain("8,4")
 	})
 })

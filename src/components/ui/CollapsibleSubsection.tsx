@@ -10,11 +10,17 @@ import { SectionChevron } from "./Chevron"
  *  panel unmounts, e.g. switching channels), which keeps it simple and avoids
  *  cross-panel title collisions.
  *
- *  Spacing is owned entirely by the parent panel's flex `gap` so every
- *  subsection — in every panel — sits the same distance apart whether open or
- *  closed. (It deliberately adds no top border / padding of its own; that's
- *  what used to make AxisOptionsPanel's collapsed sections sit farther apart
- *  than FacetOptionsPanel's.)
+ *  Spacing between SUBSECTIONS is owned entirely by the parent panel's flex
+ *  `gap` so every subsection — in every panel — sits the same distance apart
+ *  whether open or closed. (It deliberately adds no top border / padding of
+ *  its own; that's what used to make AxisOptionsPanel's collapsed sections
+ *  sit farther apart than FacetOptionsPanel's.)
+ *
+ *  Spacing INSIDE the body is owned here: the boxed wrapper is a
+ *  `flex flex-col gap-2`, so multiple direct children (control rows, helper
+ *  prose, divider groups) always get the standard vertical rhythm without
+ *  each call site hand-rolling a wrapper — forgetting that wrapper was a
+ *  recurring source of squished-together controls.
  *
  *  Replaces the bare subheader components that used to sit above their
  *  content as siblings — callers now wrap the content as `children`. */
@@ -65,7 +71,7 @@ export const CollapsibleSubsection = ({
 			</div>
 			{open &&
 				(boxed ? (
-					<div className="rounded-md bg-white p-2 dark:bg-stone-900">
+					<div className="flex flex-col gap-2 rounded-md bg-white p-2 dark:bg-stone-900">
 						{children}
 					</div>
 				) : (

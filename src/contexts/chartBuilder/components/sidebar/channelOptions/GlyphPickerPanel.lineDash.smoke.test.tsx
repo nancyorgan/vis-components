@@ -159,6 +159,43 @@ describe("Pattern panel — no-field Line dash row (line chart)", () => {
 		const q = await mount()
 		expect(q.queryByLabelText("Apply pattern to range")).not.toBeNull()
 	})
+
+	it("'Custom' opens a dasharray box that writes connection.customDashPattern", async () => {
+		const store = seed(LINE)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Custom line dash"))
+		fireEvent.change(q.getByLabelText("Custom dash pattern"), {
+			target: { value: "1,5,9" },
+		})
+		expect(readSavedConfigs(store).connection?.customDashPattern).toBe("1,5,9")
+	})
+
+	it("picking a swatch (or None) clears the custom dasharray — the row is single-select", async () => {
+		const store = seed(LINE)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Custom line dash"))
+		fireEvent.change(q.getByLabelText("Custom dash pattern"), {
+			target: { value: "1,5" },
+		})
+		fireEvent.click(q.getByLabelText("Line dash option 1"))
+		const configs = readSavedConfigs(store)
+		expect(configs.connection?.customDashPattern ?? null).toBeNull()
+		expect(configs.connection?.defaultDashPattern).toBe("dashed")
+		expect(q.queryByLabelText("Custom dash pattern")).toBeNull()
+	})
+
+	it("a valid custom dasharray satisfies the range's pick-a-dash hint", async () => {
+		seed(LINE)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Apply pattern to range"))
+		// No dash picked yet → the nudge shows.
+		expect(q.queryByText(/Pick a dash style above/)).not.toBeNull()
+		fireEvent.click(q.getByLabelText("Custom line dash"))
+		fireEvent.change(q.getByLabelText("Custom dash pattern"), {
+			target: { value: "2,2" },
+		})
+		expect(q.queryByText(/Pick a dash style above/)).toBeNull()
+	})
 })
 
 describe("Pattern panel — pattern variable mapped (line chart)", () => {
@@ -265,6 +302,33 @@ describe("Pattern panel — gap-color swatches (shown while 'Fill dash gaps' is 
 			target: { value: "#00aa00" },
 		})
 		expect(readSavedConfigs(store).connection?.dashGapColor).toBe("#00aa00")
+	})
+
+	it("an edited gap color grows a 'reset' button that clears the override", async () => {
+		const store = seed({
+			...LINE,
+			pattern: { field: "status" },
+			hue: { field: "region" },
+		})
+		const q = await mount()
+		// Untouched → no reset affordance.
+		expect(q.queryByLabelText("Reset gap color for East")).toBeNull()
+		fireEvent.change(q.getByLabelText("Gap color for East"), {
+			target: { value: "#aa0000" },
+		})
+		fireEvent.click(q.getByLabelText("Reset gap color for East"))
+		expect(readSavedConfigs(store).connection?.dashAlternateColors).toEqual({})
+		expect(q.queryByLabelText("Reset gap color for East")).toBeNull()
+	})
+
+	it("the single no-hue 'Gap color' row resets dashGapColor to null", async () => {
+		const store = seed(LINE)
+		const q = await mount()
+		fireEvent.change(q.getByLabelText("Gap color"), {
+			target: { value: "#00aa00" },
+		})
+		fireEvent.click(q.getByLabelText("Reset gap color"))
+		expect(readSavedConfigs(store).connection?.dashGapColor).toBeNull()
 	})
 
 	it("swatches hide while 'Fill dash gaps' is unchecked", async () => {

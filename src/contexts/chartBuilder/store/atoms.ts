@@ -699,6 +699,14 @@ export const currentRenderedFigureSlackAtom = atom<{
 	y: number
 }>({ x: 0, y: 0 })
 
+/** Last rendered gradient-bar length (px along the bar's axis — height when
+ *  the legend is stacked, width when horizontal). The legend's
+ *  `GradientBarRamp` publishes it after each render so the Legend panel's
+ *  "Bar length" input can show the auto size as its placeholder and step
+ *  UP/DOWN from it instead of jumping to 0 on the first spinner press.
+ *  Null until a gradient bar has rendered. */
+export const currentRenderedGradientBarLengthAtom = atom<number | null>(null)
+
 /** Last rendered caption box dimensions (in px) plus the canvas dims they
  *  were measured against. PlotCanvas writes this after each layout pass so the
  *  Caption panel's Width / Height inputs can step UP/DOWN from the current

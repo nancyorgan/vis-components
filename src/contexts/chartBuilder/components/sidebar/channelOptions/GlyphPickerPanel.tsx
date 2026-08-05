@@ -29,6 +29,7 @@ import {
 	DASH_CYCLE,
 	dashArrayFor,
 	resolveDashGapFill,
+	sanitizeCustomDasharray,
 } from "../../../lib/dashPatterns"
 import { effectiveType } from "../../../lib/fieldType"
 import {
@@ -521,6 +522,9 @@ export const PatternOptionsPanel = () => {
 	const [customDashOpen, setCustomDashOpen] = useState<Record<string, boolean>>(
 		{}
 	)
+	// Same open-before-typed flag for the no-field default Line dash row's
+	// "Custom" option (writes `connection.customDashPattern`).
+	const [defaultCustomDashOpen, setDefaultCustomDashOpen] = useState(false)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
@@ -711,6 +715,16 @@ export const PatternOptionsPanel = () => {
 					aria-label={`${aria} swatch`}
 					className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 				/>
+				{args.override !== null && (
+					<button
+						type="button"
+						onClick={() => args.onChange(null)}
+						aria-label={`Reset ${aria.charAt(0).toLowerCase()}${aria.slice(1)}`}
+						className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+					>
+						reset
+					</button>
+				)}
 			</div>
 		)
 	}
@@ -788,7 +802,8 @@ export const PatternOptionsPanel = () => {
 	const dashSubsectionChanged =
 		(patternFieldMapped
 			? nonEmptyMap(cfg.dashOverrides) || nonEmptyMap(cfg.customDashOverrides)
-			: valueChanged(connDefaultDash, "solid")) ||
+			: valueChanged(connDefaultDash, "solid") ||
+				(configs.connection?.customDashPattern ?? null) !== null) ||
 		dashRangeChanged ||
 		gapFillChanged
 	const fillSubsectionChanged = patternFieldMapped
@@ -936,6 +951,13 @@ export const PatternOptionsPanel = () => {
 					? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
 					: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
 			}`
+		// None / a dash swatch / Custom are a single mutually-exclusive choice
+		// (same row the per-category and regression pickers render). A custom
+		// dasharray wins in the renderer, so it takes visual precedence here;
+		// picking None or a swatch clears it.
+		const hasCustomDefaultDash =
+			(configs.connection?.customDashPattern ?? null) !== null
+		const defaultCustomActive = defaultCustomDashOpen || hasCustomDefaultDash
 		const renderDefaultDashRow = (label: string | null) => {
 			const activeIdx = DASH_CYCLE.indexOf(connDefaultDash)
 			return (
@@ -946,24 +968,32 @@ export const PatternOptionsPanel = () => {
 					<div className="flex flex-wrap gap-1">
 						<button
 							type="button"
-							onClick={() =>
-								updateConnectionCfg({ defaultDashPattern: "solid" })
-							}
-							aria-pressed={activeIdx < 0}
+							onClick={() => {
+								setDefaultCustomDashOpen(false)
+								updateConnectionCfg({
+									defaultDashPattern: "solid",
+									customDashPattern: null,
+								})
+							}}
+							aria-pressed={activeIdx < 0 && !defaultCustomActive}
 							aria-label="No line dash"
-							className={`${dashSwatchClass(activeIdx < 0)} px-2 text-sm`}
+							className={`${dashSwatchClass(activeIdx < 0 && !defaultCustomActive)} px-2 text-sm`}
 						>
 							None
 						</button>
 						{DASH_CYCLE.map((style, idx) => {
-							const selected = idx === activeIdx
+							const selected = idx === activeIdx && !defaultCustomActive
 							return (
 								<button
 									key={style}
 									type="button"
-									onClick={() =>
-										updateConnectionCfg({ defaultDashPattern: style })
-									}
+									onClick={() => {
+										setDefaultCustomDashOpen(false)
+										updateConnectionCfg({
+											defaultDashPattern: style,
+											customDashPattern: null,
+										})
+									}}
 									aria-pressed={selected}
 									aria-label={`Line dash option ${idx + 1}`}
 									className={`${dashSwatchClass(selected)} w-7`}
@@ -972,15 +1002,38 @@ export const PatternOptionsPanel = () => {
 								</button>
 							)
 						})}
+						<button
+							type="button"
+							onClick={() => setDefaultCustomDashOpen(true)}
+							aria-pressed={defaultCustomActive}
+							aria-label="Custom line dash"
+							className={`${dashSwatchClass(defaultCustomActive)} px-2 text-sm`}
+						>
+							Custom
+						</button>
 					</div>
+					{defaultCustomActive && (
+						<CustomDashInput
+							value={configs.connection?.customDashPattern ?? ""}
+							onChange={(raw) =>
+								updateConnectionCfg({
+									customDashPattern: raw === "" ? null : raw,
+								})
+							}
+						/>
+					)}
 				</div>
 			)
 		}
 		// Nudge when the range is on but no dash is picked — the range only
-		// gates where a dash applies, so on its own it draws nothing.
+		// gates where a dash applies, so on its own it draws nothing. A custom
+		// dasharray counts once it parses (mirrors the renderer's fallback).
 		const rangeNeedsDashHint = (configs.connection?.dashRange?.enabled ??
 			false) &&
-			connDefaultDash === "solid" && (
+			connDefaultDash === "solid" &&
+			sanitizeCustomDasharray(
+				configs.connection?.customDashPattern ?? ""
+			) === null && (
 				<p className="vc-help">
 					Pick a dash style above — the range only sets where the dash
 					applies.
@@ -1038,10 +1091,13 @@ export const PatternOptionsPanel = () => {
 							changed={dashSubsectionChanged}
 						>
 							<div className="flex flex-col gap-3">
+								{/* Range rows directly under the dash row — the picker
+								 *  above chooses WHICH pattern, the range chooses WHERE
+								 *  it applies. */}
 								{renderDefaultDashRow(null)}
-								{gapFillRow}
 								<ConnectionDashRangeRows />
 								{rangeNeedsDashHint}
+								{gapFillRow}
 							</div>
 						</CollapsibleSubsection>
 						<CollapsibleSubsection
@@ -1066,11 +1122,11 @@ export const PatternOptionsPanel = () => {
 						 *  it renders — px-2 keeps their label/control columns on the
 						 *  card rows' shared column. */}
 						<div className="px-2">{renderDefaultDashRow("Line dash")}</div>
-						<div className="px-2">{gapFillRow}</div>
 						<div className="px-2">
 							<ConnectionDashRangeRows />
 						</div>
 						{rangeNeedsDashHint}
+						<div className="px-2">{gapFillRow}</div>
 					</>
 				) : (
 					<>
@@ -1090,6 +1146,7 @@ export const PatternOptionsPanel = () => {
 				<button
 					type="button"
 					onClick={() => {
+						setDefaultCustomDashOpen(false)
 						setConfigs((prev) => ({
 							...prev,
 							defaultPattern: null,
@@ -1104,6 +1161,7 @@ export const PatternOptionsPanel = () => {
 											...connectionConfigFromTheme(liveTheme),
 											...prev.connection,
 											defaultDashPattern: "solid",
+											customDashPattern: null,
 											dashGapFill: null,
 											dashGapColor: null,
 											dashAlternateColors: {},

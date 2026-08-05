@@ -31,7 +31,11 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
-import { CategoricalSwatchList, QuantitativePanel } from "./HueOptionsPanel"
+import {
+	CategoricalSwatchList,
+	QuantitativePanel,
+	useQuantFieldExtent,
+} from "./HueOptionsPanel"
 
 /** Field-mapping state for the `outlineHue` channel, shared by the
  *  standalone dropdown (registry panel) and the combined `OutlineColorRow`
@@ -279,9 +283,12 @@ export const OutlineHueScaleControls = () => {
 	const dataset = useCurrentDatasetView()
 
 	const fieldName = encodings.outlineHue?.field ?? null
-	if (!dataset || !fieldName) return null
+	const type =
+		dataset && fieldName ? effectiveType(dataset, fieldName, overrides) : null
+	// Hook — must run before the early return below.
+	const dataExtent = useQuantFieldExtent(dataset?.rows, fieldName, type)
+	if (!dataset || !fieldName || !type) return null
 
-	const type = effectiveType(dataset, fieldName, overrides)
 	const isQuantitative = type === "quantitative" || type === "temporal"
 
 	const update = (next: HueConfig) =>
@@ -294,6 +301,7 @@ export const OutlineHueScaleControls = () => {
 					hueConfig={configs.outlineHue}
 					theme={theme}
 					update={update}
+					dataExtent={dataExtent}
 				/>
 			</div>
 		)

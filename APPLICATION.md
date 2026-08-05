@@ -492,7 +492,34 @@ palette section branches on field type:
   "Line color" section for area charts.
 - **Quantitative** — gradient picker (viridis, plasma, etc.) plus
   custom 2-stop or 3-stop gradients with explicit low/mid/high colors
-  and optional pinned domain values.
+  and optional pinned domain values. Each stop's value box shows the
+  computed auto value as its greyed placeholder (data min / mid / data
+  max) rather than the word "auto"; typing a value pins that stop.
+  Diverging gradients (presets and saved) center their mid stop at 0
+  whenever the data spans 0 — the palette's neutral marks the sign
+  change — falling back to the domain midpoint for one-signed data.
+  The stop rows read High → Mid → Low top-to-bottom (matching a
+  vertical gradient legend, high values on top); the free-form
+  manual-stops editor keeps its ascending Step 1..N order.
+  Each High/Mid/Low row carries its own inline "reset" link, shown
+  only when that row's color or pinned value differs from the
+  palette's default; only the free-form manual-stops editor keeps a
+  whole-palette reset button (its rows have no stable per-row
+  default).
+  Custom gradients (saved linear/diverging and manual stops) also get
+  an **Interpolation** dropdown — the color space the scale blends
+  through between stops: **RGB** (default; matches CSS gradients and
+  all charts saved before the option existed), **HSB** (rotates
+  through hue), or **OKLCH** (perceptually uniform; avoids RGB's
+  muddy midpoints between distant hues). Hue-carrying spaces take the
+  shorter arc around the wheel, and an achromatic stop (grey/white/
+  black) borrows the other stop's hue so grey→blue ramps stay blue.
+  The row is hidden for presets — those are continuous baked ramps
+  with every in-between color already specified, so there is nothing
+  for the option to control (editing a preset transitions to a custom
+  gradient, at which point the row appears). The legend's gradient
+  bar samples the live scale densely for its CSS gradient, so the bar
+  tracks the chosen blend space instead of CSS's sRGB approximation.
 
 **Color slots** — every colorable mark part gets its own subheader in
 the Color panel, driven by a registry (`lib/colorSlots.ts`). Fill and
@@ -530,10 +557,11 @@ Behavior depends on chart context:
   via the "None" button). Patterns drive line stroke style; points
   default to "None" until the user specifically picks a fill. With no
   pattern variable mapped, the default Line-dash row writes
-  `connection.defaultDashPattern` (the field the line renderers read)
-  — a storage deliberately SEPARATE from the Point-fill row's
-  `defaultPattern`, so picking a dash never silently picks a point
-  fill. With a variable mapped, per-category picks resolve through
+  `connection.defaultDashPattern` (the field the line renderers read;
+  its "Custom" option writes `connection.customDashPattern`, which
+  wins when it parses) — storage deliberately SEPARATE from the
+  Point-fill row's `defaultPattern`, so picking a dash never silently
+  picks a point fill. With a variable mapped, per-category picks resolve through
   `pattern.dashOverrides` / `pattern.customDashOverrides`, auto-cycling
   DASH_CYCLE by category position when unset. When the pattern field
   varies WITHIN a line (e.g. a known-vs-projected column on a series
@@ -554,20 +582,31 @@ Behavior depends on chart context:
   the picker matches the drawn tiles (the compound form would show
   dash pickers with fills defaulting to "none").
 
-**Custom dash patterns** — alongside the built-in dash swatches, an
-editable text input lets the user type a custom dash pattern as a
-comma-separated list (e.g., `2,2` for 2px dash / 2px gap; `2,4,5,2`
-for an alternating pattern). The input is placeholder-prefilled with
-a faint `2,2` to prompt the format. Per-category override only —
-custom dash isn't a built-in palette entry.
+**Custom dash patterns** — alongside the built-in dash swatches, a
+"Custom" option opens an editable text input where the user types a
+custom dash pattern as a comma-separated list (e.g., `2,2` for 2px
+dash / 2px gap; `2,4,5,2` for an alternating pattern). The input is
+placeholder-prefilled with a faint `2,2` to prompt the format.
+Available EVERYWHERE a dash row renders: per-category rows with a
+pattern variable mapped (`pattern.customDashOverrides`), the
+no-variable default Line-dash row (`connection.customDashPattern` —
+so the full-line dash and the range window below both take custom
+patterns), and the regression-line row
+(`x.regression.customDasharray`). None / a swatch / Custom are one
+mutually-exclusive choice; a custom value that doesn't parse falls
+back to the swatch pick. Custom dash isn't a built-in palette entry.
 
-**Apply pattern to range** — the NO-VARIABLE Line-dash rows end with
-an "Apply pattern to range" checkbox plus **From** / **To** text
-inputs. When on, ALL line dashes draw only within [From, To] along
-the axis the line runs along; outside the window the line renders
-solid in the same stroke — the known-vs-forecast look (solid actuals,
-patterned forecast: pick a dash, set From to the forecast start,
-leave To blank). Values are raw axis values like value-mode
+**Apply pattern to range** — directly under the NO-VARIABLE Line-dash
+row (the dash picker chooses WHICH pattern; these rows choose WHERE
+it applies) sits an "Apply pattern to range" checkbox plus **From** /
+**To** text inputs. When on, ALL line dashes — built-in swatch or
+custom dasharray — draw only within [From, To] along the axis the
+line runs along; outside the window the line renders solid in the
+same stroke — the known-vs-forecast look (solid actuals, patterned
+forecast: pick a dash, set From to the forecast start, leave To
+blank). While the range is on with no dash picked (and no parseable
+custom value), a helper nudges the user to pick a dash style —
+alone, the range draws nothing. Values are raw axis values like value-mode
 annotation coordinates (numbers, dates, or categories); blank =
 unbounded; a value that doesn't parse is treated as unbounded;
 From > To swaps. One GLOBAL window per chart
@@ -589,8 +628,9 @@ CONNECTED two-color line — and the section reveals editable
 **gap-color swatch rows, one per COLOR-encoding category** (gap
 colors pair with line colors, and line colors come from hue). Each
 row shows the category's current gap color as its placeholder and
-writes `connection.dashAlternateColors` keyed by HUE value;
-clearing the text input removes the override. With no hue encoding
+writes `connection.dashAlternateColors` keyed by HUE value; an
+edited row grows a "reset" button that removes the override
+(clearing the text input does too). With no hue encoding
 there's one line color, so a single "Gap color" row writes
 `connection.dashGapColor` instead. The default gap color resolves
 like AREA PATTERNS pick their ink — the palette's paired pattern-ink
@@ -1212,6 +1252,45 @@ In line-chart context (combined legend with pattern in the section),
 swatches include both the shape pattern and a dash line passing
 through the shape — same as the rendered visual.
 
+The "Gradient legend style" toggle (quantitative hue only) switches
+between a gradient bar and sampled swatches; both honor the legend's
+orientation setting (horizontal swatches lay out in one no-wrap row).
+
+When "Show gradient bar" is selected, the subsection grows bar-styling
+controls:
+
+- **Bar length** (px, clear-to-auto) — the bar's height when the
+  legend is stacked, its width when horizontal. Auto keeps the
+  historical sizing (8rem minimum height vertical; full legend width
+  horizontal).
+- **Corner radius** (px, default 2) — 0 gives square corners.
+- **Tick length** (px, default 0 = no ticks) — above 0 draws a tick
+  mark at each break stop, extending outward from the bar toward its
+  labels (below a horizontal bar, right of a vertical one). **Tick
+  thickness** (default 1px) and **Tick color** (default a neutral
+  stone gray) appear only once ticks are on.
+
+The Label formatting subsection additionally offers **Label
+alignment** (left / center / right, via the shared AlignmentControl)
+whenever a gradient bar is active: under a horizontal bar each break
+label anchors its left edge / center / right edge at its stop; beside
+a vertical bar the labels align within the label column. The default
+(unset) is the historical look — centered under a horizontal bar,
+left beside a vertical one.
+
+**Swatch outline** (Color Swatch Shape subsection, below a divider):
+a color + width pair drawn as a border around every color swatch —
+keeps pale swatches (e.g. the white midpoint of a diverging gradient)
+visible against the legend background. Width is the switch: 0 (the
+default) draws no outline, so there's no separate toggle. The color
+pipes in from the marks' outline color (Color menu → Outline), falling
+back to `#cccccc`; picking a color stores an override and "reset"
+returns to the piped-in value. Both controls are always visible while
+the group shows. The group hides — and the stored setting goes inert —
+whenever the outline-color channel is encoded, because the swatch
+strokes are then a faithful key for that encoding. The area/radar
+split-outline (line-color borders) also wins over it per swatch.
+
 For **left-aligned** legend section titles, the title text indents to
 line up with the LABEL text below (past the swatch + gap), not the
 swatch's left edge.
@@ -1422,7 +1501,8 @@ These are intentional design decisions worth pinning explicitly:
    dash styles regardless.
 4. **DASH_CYCLE is 3 entries** (`dashed`, `dotted`, `dash-dot`); the
    "None" button maps to solid. Custom dash patterns extend this via
-   the editable per-category text input.
+   the "Custom" text input on every dash row (per-category, the
+   no-variable default row, and the regression line).
 5. **Tooltip Fields list always shows every dataset field** — mapped
    or not. Aggregating modes show aggregated values for mapped
    fields.

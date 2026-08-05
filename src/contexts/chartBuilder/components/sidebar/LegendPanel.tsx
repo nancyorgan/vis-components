@@ -10,6 +10,8 @@ import { effectiveType } from "../../lib/fieldType"
 import { histogramMeasureDomain } from "../../lib/histogramBins"
 import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
 import {
+	DEFAULT_GRADIENT_BAR_RADIUS,
+	DEFAULT_GRADIENT_BAR_TICK_COLOR,
 	DEFAULT_LEGEND_CHANNEL_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
 	LEGEND_CHANNELS,
@@ -44,12 +46,14 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
+	currentRenderedGradientBarLengthAtom,
 	currentThemeIdAtom,
 	themeAtom,
 	themesAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
+import { AlignmentControl } from "./LabelsPanel"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
@@ -318,6 +322,19 @@ export const LegendPanel = () => {
 			: undefined
 
 	const update = (next: Partial<LegendConfig>) => setCfg({ ...merged, ...next })
+
+	// Rendered auto length of the gradient bar, published by the legend's
+	// GradientBarRamp after each render. Placeholder + step start for the
+	// "Bar length" input; 128 (the vertical bar's 8rem minimum) covers the
+	// window before any bar has rendered.
+	const autoGradientBarLength = useAtomValue(
+		currentRenderedGradientBarLengthAtom,
+	)
+	const resolveGradientBarLengthStart = (): number =>
+		merged.gradientBarLength ??
+		(autoGradientBarLength && autoGradientBarLength > 0
+			? autoGradientBarLength
+			: 128)
 
 	const modeDef = useChartModeDef()
 	// EFFECTIVE per-channel visibility for every read below: the raw sparse
@@ -620,7 +637,7 @@ export const LegendPanel = () => {
 					 *  section + one title, instead of a legend per channel. Only
 					 *  offered when there's actually a shared field to combine. */}
 					{sharedVariableExists && (
-						<div className="mt-1 flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">
+						<div className="flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">
 							<Toggle
 								label="Combine legends with same variables"
 								checked={combineSameVariable}
@@ -678,7 +695,7 @@ export const LegendPanel = () => {
 						)}
 					</div>
 
-					<div className="mt-2 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
 						<RadioGroup
 							legend="Orientation"
 							value={merged.orientation}
@@ -687,7 +704,7 @@ export const LegendPanel = () => {
 						/>
 					</div>
 
-					<div className="mt-2 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
 						<Toggle
 							label="Border box"
 							checked={merged.showBorder}
@@ -743,7 +760,7 @@ export const LegendPanel = () => {
 						)}
 					</div>
 
-					<div className="mt-2 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
 						<RadioGroup
 							legend="Background"
 							value={bgKind}
@@ -783,7 +800,7 @@ export const LegendPanel = () => {
 						/>
 					</div>
 
-					<div className="mt-2 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend columns"
@@ -896,6 +913,28 @@ export const LegendPanel = () => {
 							/>
 						)
 					})}
+					{showGradientLegendStyle &&
+						(merged.gradientLegendStyle ?? "bar") === "bar" && (
+							<div className="flex flex-col gap-1">
+								<div className="flex items-center gap-2">
+									<span className={`${LABEL_COL} text-sm`}>Label alignment</span>
+									<AlignmentControl
+										value={
+											merged.gradientBarLabelAlign ??
+											(merged.orientation === "horizontal" ? "center" : "left")
+										}
+										onChange={(gradientBarLabelAlign) =>
+											update({ gradientBarLabelAlign })
+										}
+									/>
+								</div>
+								<p className="vc-help">
+									How the gradient bar&apos;s break labels align — against
+									each stop under a horizontal bar, within the label column
+									beside a stacked one.
+								</p>
+							</div>
+						)}
 				</CollapsibleSubsection>
 			)}
 
@@ -913,6 +952,156 @@ export const LegendPanel = () => {
 						]}
 						onChange={(gradientLegendStyle) => update({ gradientLegendStyle })}
 					/>
+					{(merged.gradientLegendStyle ?? "bar") === "bar" && (
+						<div className="flex flex-col gap-2">
+							{/* Auto (null) is orientation-dependent (8rem minimum
+							 *  vertical, full legend width horizontal) — not one fixed
+							 *  px value — so this is a clear-to-null raw input
+							 *  (NumberInput can't emit null). The placeholder shows the
+							 *  RENDERED auto length (published by GradientBarRamp) and
+							 *  the first interaction — focus, spinner click, or arrow
+							 *  key — steps from that displayed value instead of jumping
+							 *  to 0 ([[auto-input-step-from-displayed]]). */}
+							<div className="flex items-center gap-2">
+								<label className="flex items-center gap-2 text-sm">
+									<span className={LABEL_COL}>Bar length</span>
+									<input
+										type="number"
+										min={0}
+										step={1}
+										value={merged.gradientBarLength ?? ""}
+										placeholder={
+											autoGradientBarLength != null
+												? String(autoGradientBarLength)
+												: "auto"
+										}
+										onChange={(e) =>
+											update({
+												gradientBarLength:
+													e.target.value === ""
+														? null
+														: Math.max(0, Number(e.target.value)),
+											})
+										}
+										// Native spinner buttons fire no keydown — from a
+										// blank input they'd jump to min (0). Seed the auto
+										// value on focus so every interaction steps from
+										// the visible number; clearing reverts to auto.
+										onFocus={() => {
+											if (merged.gradientBarLength != null) return
+											update({
+												gradientBarLength: resolveGradientBarLengthStart(),
+											})
+										}}
+										// Belt-and-suspenders for the first arrow press
+										// racing the focus-fill.
+										onKeyDown={(e) => {
+											if (e.key !== "ArrowUp" && e.key !== "ArrowDown")
+												return
+											e.preventDefault()
+											const step = e.key === "ArrowUp" ? 1 : -1
+											update({
+												gradientBarLength: Math.max(
+													0,
+													resolveGradientBarLengthStart() + step,
+												),
+											})
+										}}
+										className="w-16 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+									/>
+									<span className="text-sm text-stone-600">px</span>
+								</label>
+								{merged.gradientBarLength != null && (
+									<button
+										type="button"
+										onClick={() => update({ gradientBarLength: null })}
+										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+									>
+										reset
+									</button>
+								)}
+							</div>
+							<div className="flex items-center gap-2">
+								<NumberInput
+									label="Corner radius"
+									labelClassName={LABEL_COL}
+									value={merged.gradientBarRadius ?? DEFAULT_GRADIENT_BAR_RADIUS}
+									min={0}
+									step={1}
+									onChange={(gradientBarRadius) => update({ gradientBarRadius })}
+									inputClassName="w-16"
+									suffix="px"
+								/>
+								{merged.gradientBarRadius != null &&
+									merged.gradientBarRadius !== DEFAULT_GRADIENT_BAR_RADIUS && (
+										<button
+											type="button"
+											onClick={() => update({ gradientBarRadius: null })}
+											className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+										>
+											reset
+										</button>
+									)}
+							</div>
+							<NumberInput
+								label="Tick length"
+								labelClassName={LABEL_COL}
+								value={merged.gradientBarTickLength ?? 0}
+								min={0}
+								step={1}
+								onChange={(gradientBarTickLength) =>
+									update({ gradientBarTickLength })
+								}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+							{(merged.gradientBarTickLength ?? 0) > 0 && (
+								<>
+									<NumberInput
+										label="Tick thickness"
+										labelClassName={LABEL_COL}
+										value={merged.gradientBarTickThickness ?? 1}
+										min={0.5}
+										step={0.5}
+										onChange={(gradientBarTickThickness) =>
+											update({ gradientBarTickThickness })
+										}
+										inputClassName="w-16"
+										suffix="px"
+									/>
+									<div className="flex items-center gap-2">
+										<ColorInput
+											label="Tick color"
+											labelClassName={LABEL_COL}
+											value={
+												merged.gradientBarTickColor ??
+												DEFAULT_GRADIENT_BAR_TICK_COLOR
+											}
+											onChange={(gradientBarTickColor) =>
+												update({ gradientBarTickColor })
+											}
+											showHexInput
+										/>
+										{merged.gradientBarTickColor != null && (
+											<button
+												type="button"
+												onClick={() => update({ gradientBarTickColor: null })}
+												className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+											>
+												reset
+											</button>
+										)}
+									</div>
+								</>
+							)}
+							<p className="vc-help">
+								Bar length is the gradient&apos;s height when the legend is
+								stacked, its width when horizontal — clear for the automatic
+								size. Tick length above 0 draws a mark at each break stop,
+								between the bar and its labels.
+							</p>
+						</div>
+					)}
 				</CollapsibleSubsection>
 			)}
 
@@ -943,7 +1132,7 @@ export const LegendPanel = () => {
 							)}
 					</div>
 					{showAuxSwatchStroke && (
-						<div className="mt-2 flex items-center gap-2">
+						<div className="flex items-center gap-2">
 							<ColorInput
 								label="Swatch border"
 								labelClassName={LABEL_COL}
@@ -1048,6 +1237,70 @@ export const LegendPanel = () => {
 						Shape drawn for each color swatch in the legend. Each swatch keeps
 						its own color.
 					</p>
+					{/* Swatch outline: only when the outline-color channel is NOT
+					 *  encoded — mapped outline colors own the swatch strokes and
+					 *  this setting is inert (the renderer ignores it too). Width 0
+					 *  (the default) draws no outline; the color seeds from the
+					 *  marks' outline color (Color menu → Outline) so the legend
+					 *  matches the chart when the user turns the width up. */}
+					{!outlineHueField && (
+						<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+							<span className="text-sm text-stone-600 dark:text-stone-400">
+								Swatch outline
+							</span>
+							<div className="flex items-center gap-2">
+								<ColorInput
+									label="Color"
+									labelClassName={LABEL_COL}
+									value={
+										merged.swatchOutlineColor ??
+										configs.shape?.outlineColor ??
+										theme.outlineColor ??
+										"#cccccc"
+									}
+									onChange={(swatchOutlineColor) =>
+										update({ swatchOutlineColor })
+									}
+									showHexInput
+								/>
+								{merged.swatchOutlineColor !== null &&
+									merged.swatchOutlineColor !== undefined && (
+										<button
+											type="button"
+											onClick={() => update({ swatchOutlineColor: null })}
+											className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+										>
+											reset
+										</button>
+									)}
+							</div>
+							<NumberInput
+								label="Width"
+								labelClassName={LABEL_COL}
+								value={merged.swatchOutlineWidth ?? 0}
+								min={0}
+								max={10}
+								step={0.5}
+								clamp
+								onChange={(swatchOutlineWidth) =>
+									// Keep the stored config sparse: 0 IS the default
+									// (no outline), so store null rather than lighting
+									// the changed dot on a visually-default value.
+									update({
+										swatchOutlineWidth:
+											swatchOutlineWidth === 0 ? null : swatchOutlineWidth,
+									})
+								}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+							<p className="vc-help">
+								Outline drawn around each color swatch so pale colors stay
+								visible against the legend background. Width 0 means no
+								outline; the color starts from the marks&apos; outline color.
+							</p>
+						</div>
+					)}
 				</CollapsibleSubsection>
 			)}
 

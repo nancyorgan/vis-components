@@ -186,25 +186,31 @@ export const parseBreaksInput = (raw: string): number[] => {
 export const formatBreaksInput = (breaks: number[]): string =>
 	breaks.map((n) => (Number.isInteger(n) ? String(n) : n.toFixed(2))).join(", ")
 
-/** Append a "+" to the topmost break label when the user's chosen top
- * break sits below the actual data max — signaling "this value or
- * higher, all the same color/size" (matches the clamp-out-of-range
- * behavior). Returns the label unchanged otherwise.
+/** Decorate an endpoint break label when the user's chosen breaks leave
+ * data outside them (matching the clamp-out-of-range behavior):
+ * - Append "+" to the topmost label when the top break sits below the
+ *   data max — "this value or higher, all the same color/size".
+ * - Append "-" to the bottommost label when the bottom break sits above
+ *   the data min — "this value or lower, all the same color/size".
+ * Returns the label unchanged otherwise.
  *
  * No-op when:
  * - There's no data extent to compare against.
- * - `breakIndex` isn't the last entry in `breaks`.
- * - The top break is at or above the data max (typical of auto-pretty
- *   breaks, which extend outward via d3.nice). */
-export const decorateOpenTopLabel = (
+ * - `breakIndex` isn't the first or last entry in `breaks`.
+ * - The endpoint break already covers the data on its side (typical of
+ *   auto-pretty breaks, which extend outward via d3.nice).
+ * A single-element break list only ever takes the "+" (top wins in the
+ * degenerate case — "5+-" would be unreadable). */
+export const decorateOpenEndLabel = (
 	label: string,
 	breakIndex: number,
 	breaks: number[],
 	dataExtent: [number, number] | null,
 ): string => {
 	if (!dataExtent || breaks.length === 0) return label
-	if (breakIndex !== breaks.length - 1) return label
-	const topBreak = breaks[breaks.length - 1]
-	if (topBreak >= dataExtent[1]) return label
-	return `${label}+`
+	const isTop = breakIndex === breaks.length - 1
+	if (isTop && breaks[breaks.length - 1] < dataExtent[1]) return `${label}+`
+	if (breakIndex === 0 && !isTop && breaks[0] > dataExtent[0])
+		return `${label}-`
+	return label
 }

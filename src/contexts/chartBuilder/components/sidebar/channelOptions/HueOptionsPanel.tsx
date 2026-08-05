@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
@@ -7,6 +7,10 @@ import {
 	type PaletteName,
 } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
+import {
+	GRADIENT_INTERPOLATIONS,
+	type GradientInterpolation,
+} from "../../../lib/colorInterpolate"
 import { effectiveType } from "../../../lib/fieldType"
 import {
 	MEASURE_OPTION_VALUE,
@@ -43,7 +47,9 @@ import { rgb as d3Rgb } from "d3-color"
 import { StackModeRow } from "./StackModeRow"
 import {
 	CATEGORICAL_HUE_PALETTE,
+	DIVERGING_PRESET_PALETTES,
 	PALETTE_INTERPOLATORS,
+	autoDivergingMid,
 	parseValue,
 } from "../../../lib/scales"
 import type { CustomHueStop } from "../../../lib/channelConfig"
@@ -78,19 +84,35 @@ const LINEAR_PRESETS: PaletteName[] = [
 ]
 
 /** Diverging d3 presets — render with Low + Mid + High swatches; edits
- * transition to `customDiverging` so the mid stop survives. */
-const DIVERGING_PRESETS: PaletteName[] = [
-	"BrBG",
-	"PiYG",
-	"PRGn",
-	"PuOr",
-	"RdBu",
-	"RdYlBu",
-	"Spectral",
-]
+ * transition to `customDiverging` so the mid stop survives. The list
+ * itself lives in lib/scales so the scale builder can center these on 0. */
+const DIVERGING_PRESETS = DIVERGING_PRESET_PALETTES
 
 const isDivergingPreset = (palette: string): boolean =>
 	(DIVERGING_PRESETS as readonly string[]).includes(palette)
+
+/** Numeric [min, max] of a quantitative field — feeds the gradient
+ * editor's stop-value placeholders so the "auto" boxes show the values
+ * the scale actually uses. Returns null for non-quantitative fields
+ * (temporal stop boxes would show raw epoch numbers) and when nothing
+ * parses. Memoized on `rows` identity (stable per dataset version). */
+export const useQuantFieldExtent = (
+	rows: readonly Record<string, unknown>[] | undefined,
+	fieldName: string | null | undefined,
+	type: FieldType | null | undefined,
+): [number, number] | null =>
+	useMemo(() => {
+		if (!rows || !fieldName || type !== "quantitative") return null
+		let lo = Infinity
+		let hi = -Infinity
+		for (const row of rows) {
+			const v = parseValue(row[fieldName], "quantitative")
+			if (typeof v !== "number") continue
+			if (v < lo) lo = v
+			if (v > hi) hi = v
+		}
+		return lo <= hi ? [lo, hi] : null
+	}, [rows, fieldName, type])
 
 const effectiveFieldType = (
 	inferred: FieldType | undefined,
@@ -364,6 +386,11 @@ export const HueOptionsPanel = ({
 		isQuantitative &&
 		configs.hue?.kind !== "quantitative"
 
+	// Data extent for the gradient editor's stop-value placeholders. Only
+	// direct quantitative field mappings — derived measures (hex/histogram
+	// counts) compute their domains at render time, so those keep "auto".
+	const hueDataExtent = useQuantFieldExtent(dataset?.rows, hueFieldName, type)
+
 	// All hooks MUST be above this line — no early returns before hooks.
 	useEffect(() => {
 		if (!needsQuantInit) return
@@ -624,6 +651,7 @@ export const HueOptionsPanel = ({
 					hueConfig={configs.hue}
 					theme={theme}
 					update={update}
+					dataExtent={hueDataExtent}
 				/>
 			) : (
 				<CategoricalPanel
@@ -1008,6 +1036,16 @@ const toHex = (rgbString: string): string => {
 	return c.formatHex()
 }
 
+/** Compact display form for an auto-computed stop value (placeholder
+ * text in the little value boxes). 4 significant digits keeps long
+ * fractions from overflowing the w-12 input. */
+const fmtStopValue = (n: number): string =>
+	Number.isFinite(n) ? String(Number(n.toPrecision(4))) : "auto"
+
+/** Shared styling for the inline "reset" links on gradient stop rows. */
+const RESET_LINK_CLASS =
+	"text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+
 /** How many swatch rows to show for each linear preset. Sequential
  * palettes like viridis/plasma/inferno pass through several distinct
  * hues — surfacing only 2 endpoint swatches hides the interior colors
@@ -1054,6 +1092,7 @@ export const QuantitativePanel = ({
 	hueConfig,
 	theme,
 	update,
+	dataExtent,
 }: {
 	/** The color-scale config this editor reads/writes. Hue passes
 	 * `configs.hue`; the outline-color channel passes `configs.outlineHue`.
@@ -1061,6 +1100,11 @@ export const QuantitativePanel = ({
 	hueConfig: HueConfig | undefined
 	theme: AtomValueType<typeof themeAtom>
 	update: (next: HueConfig) => void
+	/** Numeric [min, max] of the driving field (see `useQuantFieldExtent`).
+	 * When provided, the stop-value boxes show the computed auto values
+	 * (data min / diverging mid / data max) instead of the word "auto".
+	 * Omit when no cheap extent exists (hexbin / histogram measures). */
+	dataExtent?: [number, number] | null
 }) => {
 	const cfg =
 		hueConfig?.kind === "quantitative"
@@ -1125,12 +1169,11 @@ export const QuantitativePanel = ({
 		}
 	}
 
-	/** Restore the colors of the currently-selected palette to its
-	 * originating defaults — does NOT switch palettes. Re-resolves from
-	 * `sourcePaletteId` (the dropdown's last pick) so an edited viridis
-	 * goes back to viridis colors, an edited Brand Gradient goes back to
-	 * its saved low/high, and an edited Custom (manual stops) goes back
-	 * to the white→black baseline. */
+	/** Restore the whole palette to its originating defaults — used only
+	 * by manual-stops mode, where a per-row reset has no stable target
+	 * (stop count varies). Re-resolves from `sourcePaletteId` (the
+	 * dropdown's last pick) so an edited viridis goes back to viridis,
+	 * and a from-scratch Custom goes back to the white→black baseline. */
 	const resetColors = () => {
 		const sourceId = cfg.sourcePaletteId ?? cfg.palette
 		if (sourceId === "custom") {
@@ -1147,6 +1190,74 @@ export const QuantitativePanel = ({
 		const resolved = resolveGradientToConfig(sourceId, theme)
 		update(resolved)
 	}
+
+	// Per-row reset targets for the Low/Mid/High editors: the colors the
+	// current palette originally shipped with. Diverging d3 presets sample
+	// their interpolator; saved theme gradients re-resolve from the theme.
+	const sourceRowDefaults = ((): {
+		low: string
+		mid: string | null
+		high: string
+	} | null => {
+		if (paletteMode !== "customLinear" && paletteMode !== "customDiverging")
+			return null
+		const sourceId = cfg.sourcePaletteId ?? cfg.palette
+		const preset = presetEndpoints(sourceId)
+		if (preset) return preset
+		const resolved = resolveGradientToConfig(sourceId, theme)
+		if (
+			resolved.palette === "customLinear" ||
+			resolved.palette === "customDiverging"
+		)
+			return {
+				low: resolved.lowColor,
+				mid: resolved.midColor,
+				high: resolved.highColor,
+			}
+		return null
+	})()
+
+	/** "reset" link for one Low/Mid/High row — rendered only when that row
+	 * differs from its palette default (edited color or pinned value). */
+	const stopResetLink = (
+		row: "low" | "mid" | "high",
+		color: string,
+		value: number | null,
+	): React.ReactNode => {
+		if (!sourceRowDefaults) return undefined
+		const defColor =
+			row === "mid" ? (sourceRowDefaults.mid ?? "#ffffff") : sourceRowDefaults[row]
+		if (color.toLowerCase() === defColor.toLowerCase() && value === null)
+			return undefined
+		const patch =
+			row === "low"
+				? { lowColor: defColor, lowValue: null }
+				: row === "mid"
+					? { midColor: defColor, midValue: null }
+					: { highColor: defColor, highValue: null }
+		return (
+			<button
+				type="button"
+				onClick={() => updateQ(patch)}
+				className={RESET_LINK_CLASS}
+			>
+				reset
+			</button>
+		)
+	}
+
+	// Auto stop-value placeholders: the values the scale actually uses when
+	// a box is left empty — data min / diverging mid / data max. Mid honors
+	// explicitly pinned endpoints, mirroring makeHueScale's resolution.
+	const ext = dataExtent ?? null
+	const lowPlaceholder = ext ? fmtStopValue(ext[0]) : undefined
+	const highPlaceholder = ext ? fmtStopValue(ext[1]) : undefined
+	const effLo = cfg.lowValue ?? ext?.[0]
+	const effHi = cfg.highValue ?? ext?.[1]
+	const midPlaceholder =
+		effLo !== undefined && effHi !== undefined
+			? fmtStopValue(autoDivergingMid(effLo, effHi))
+			: undefined
 
 	// Preset endpoint colors — used to seed swatches when a preset is
 	// active. Diverging presets get Low/Mid/High (and transition to
@@ -1212,13 +1323,44 @@ export const QuantitativePanel = ({
 					</optgroup>
 				</select>
 			</label>
-			<button
-				type="button"
-				onClick={resetColors}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+			{/* Blend-space picker — the color space the scale interpolates
+			 *  through between stops. Custom gradients only: presets are
+			 *  continuous baked ramps with every in-between color already
+			 *  specified, so there's nothing for the option to control
+			 *  (editing a preset transitions to a custom gradient, at which
+			 *  point this row appears). */}
+			{paletteMode !== "preset" && (
+				<label className="flex items-center gap-2 text-sm">
+					<span className={LABEL_COL}>Interpolation</span>
+					<select
+						value={cfg.interpolation ?? "rgb"}
+						onChange={(e) =>
+							updateQ({
+								interpolation: e.target.value as GradientInterpolation,
+							})
+						}
+						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					>
+						{GRADIENT_INTERPOLATIONS.map((o) => (
+							<option key={o.id} value={o.id}>
+								{o.label}
+							</option>
+						))}
+					</select>
+				</label>
+			)}
+			{/* Manual-stops mode keeps a whole-palette reset (rows come and go,
+			 *  so there's no per-row default to restore). Every other mode gets
+			 *  per-row reset links instead; presets are pristine by definition. */}
+			{paletteMode === "custom" && (
+				<button
+					type="button"
+					onClick={resetColors}
+					className={`self-start ${RESET_LINK_CLASS}`}
+				>
+					reset
+				</button>
+			)}
 
 			{/* Linear preset mode: N rows sampled from the interpolator,
 			 *  labeled Step 1..N. Editing any color or value transitions
@@ -1233,6 +1375,15 @@ export const QuantitativePanel = ({
 							label={`Step ${i + 1}`}
 							color={c}
 							value={null}
+							placeholder={
+								ext
+									? fmtStopValue(
+											ext[0] +
+												((ext[1] - ext[0]) * i) /
+													(linearPresetStops.length - 1 || 1),
+										)
+									: undefined
+							}
 							onColor={(newColor) => {
 								const next = linearPresetStops.map((color, j) => ({
 									color: j === i ? newColor : color,
@@ -1261,25 +1412,28 @@ export const QuantitativePanel = ({
 			 *  so the mid stop survives. */}
 			{paletteMode === "preset" && presetColors && (
 				<>
+					{/* Rows read High → Low top-to-bottom, matching a vertical
+					 *  gradient legend (high values on top). */}
 					<CustomStopRow
-						label="Low"
-						color={presetColors.low}
+						label="High"
+						color={presetColors.high}
 						value={null}
+						placeholder={highPlaceholder}
 						onColor={(c) =>
 							updateQ({
 								palette: "customDiverging",
-								lowColor: c,
+								lowColor: presetColors.low,
 								midColor: presetColors.mid,
-								highColor: presetColors.high,
+								highColor: c,
 							})
 						}
 						onValue={(v) =>
 							updateQ({
 								palette: "customDiverging",
 								lowColor: presetColors.low,
-								lowValue: v,
 								midColor: presetColors.mid,
 								highColor: presetColors.high,
+								highValue: v,
 							})
 						}
 					/>
@@ -1287,6 +1441,7 @@ export const QuantitativePanel = ({
 						label="Mid"
 						color={presetColors.mid}
 						value={null}
+						placeholder={midPlaceholder}
 						onColor={(c) =>
 							updateQ({
 								palette: "customDiverging",
@@ -1306,24 +1461,25 @@ export const QuantitativePanel = ({
 						}
 					/>
 					<CustomStopRow
-						label="High"
-						color={presetColors.high}
+						label="Low"
+						color={presetColors.low}
 						value={null}
+						placeholder={lowPlaceholder}
 						onColor={(c) =>
 							updateQ({
 								palette: "customDiverging",
-								lowColor: presetColors.low,
+								lowColor: c,
 								midColor: presetColors.mid,
-								highColor: c,
+								highColor: presetColors.high,
 							})
 						}
 						onValue={(v) =>
 							updateQ({
 								palette: "customDiverging",
 								lowColor: presetColors.low,
+								lowValue: v,
 								midColor: presetColors.mid,
 								highColor: presetColors.high,
-								highValue: v,
 							})
 						}
 					/>
@@ -1337,22 +1493,27 @@ export const QuantitativePanel = ({
 			 *  button — linear gradients are 2-stop by definition. */}
 			{paletteMode === "customLinear" && (
 				<>
-					<CustomStopRow
-						label="Low"
-						color={cfg.lowColor}
-						value={cfg.lowValue}
-						onColor={(c) => updateQ({ lowColor: c })}
-						onValue={(v) => updateQ({ lowValue: v })}
-					/>
+					{/* High row first — see the diverging block above. */}
 					<CustomStopRow
 						label="High"
 						color={cfg.highColor}
 						value={cfg.highValue}
+						placeholder={highPlaceholder}
 						onColor={(c) => updateQ({ highColor: c })}
 						onValue={(v) => updateQ({ highValue: v })}
+						trailing={stopResetLink("high", cfg.highColor, cfg.highValue)}
+					/>
+					<CustomStopRow
+						label="Low"
+						color={cfg.lowColor}
+						value={cfg.lowValue}
+						placeholder={lowPlaceholder}
+						onColor={(c) => updateQ({ lowColor: c })}
+						onValue={(v) => updateQ({ lowValue: v })}
+						trailing={stopResetLink("low", cfg.lowColor, cfg.lowValue)}
 					/>
 					<div className="vc-help">
-						Empty value = use data {`{`}min|max{`}`}.
+						Grey values follow the data — type to override.
 					</div>
 				</>
 			)}
@@ -1362,29 +1523,40 @@ export const QuantitativePanel = ({
 			 *  button on the mid row. */}
 			{paletteMode === "customDiverging" && (
 				<>
+					{/* High row first — see the diverging-preset block above. */}
 					<CustomStopRow
-						label="Low"
-						color={cfg.lowColor}
-						value={cfg.lowValue}
-						onColor={(c) => updateQ({ lowColor: c })}
-						onValue={(v) => updateQ({ lowValue: v })}
+						label="High"
+						color={cfg.highColor}
+						value={cfg.highValue}
+						placeholder={highPlaceholder}
+						onColor={(c) => updateQ({ highColor: c })}
+						onValue={(v) => updateQ({ highValue: v })}
+						trailing={stopResetLink("high", cfg.highColor, cfg.highValue)}
 					/>
 					<CustomStopRow
 						label="Mid"
 						color={cfg.midColor ?? "#ffffff"}
 						value={cfg.midValue}
+						placeholder={midPlaceholder}
 						onColor={(c) => updateQ({ midColor: c })}
 						onValue={(v) => updateQ({ midValue: v })}
+						trailing={stopResetLink(
+							"mid",
+							cfg.midColor ?? "#ffffff",
+							cfg.midValue,
+						)}
 					/>
 					<CustomStopRow
-						label="High"
-						color={cfg.highColor}
-						value={cfg.highValue}
-						onColor={(c) => updateQ({ highColor: c })}
-						onValue={(v) => updateQ({ highValue: v })}
+						label="Low"
+						color={cfg.lowColor}
+						value={cfg.lowValue}
+						placeholder={lowPlaceholder}
+						onColor={(c) => updateQ({ lowColor: c })}
+						onValue={(v) => updateQ({ lowValue: v })}
+						trailing={stopResetLink("low", cfg.lowColor, cfg.lowValue)}
 					/>
 					<div className="vc-help">
-						Empty value = use data {`{`}min|mid|max{`}`}.
+						Grey values follow the data — type to override.
 					</div>
 				</>
 			)}
@@ -1393,7 +1565,7 @@ export const QuantitativePanel = ({
 			 *  white→black anchors. User adds more via `+ add a new step`.
 			 *  Stops are labeled Step 1 .. Step N in order. */}
 			{paletteMode === "custom" && (
-				<CustomStopsList cfg={cfg} updateQ={updateQ} />
+				<CustomStopsList cfg={cfg} updateQ={updateQ} dataExtent={ext} />
 			)}
 		</div>
 	)
@@ -1407,11 +1579,13 @@ export const QuantitativePanel = ({
 const CustomStopsList = ({
 	cfg,
 	updateQ,
+	dataExtent,
 }: {
 	cfg: Extract<HueConfig, { kind: "quantitative" }>
 	updateQ: (
 		patch: Partial<Extract<HueConfig, { kind: "quantitative" }>>,
 	) => void
+	dataExtent?: [number, number] | null
 }) => {
 	const stops: CustomHueStop[] =
 		cfg.customStops && cfg.customStops.length >= 2
@@ -1427,6 +1601,20 @@ const CustomStopsList = ({
 		setStops(stops.map((s, i) => (i === idx ? { ...s, ...patch } : s)))
 
 	const removeAt = (idx: number) => setStops(stops.filter((_, i) => i !== idx))
+
+	// Auto position for stop i — mirrors makeHueScale's custom-stops math:
+	// first → data min, last → data max, middles spread evenly by index.
+	const stopPlaceholder = (i: number): string | undefined => {
+		if (!dataExtent) return undefined
+		const [lo, hi] = dataExtent
+		const v =
+			i === 0
+				? lo
+				: i === stops.length - 1
+					? hi
+					: lo + ((hi - lo) * i) / (stops.length - 1)
+		return fmtStopValue(v)
+	}
 
 	const addStop = () => {
 		// Insert before the last stop so the new step lands "in the middle"
@@ -1459,6 +1647,7 @@ const CustomStopsList = ({
 					label={`Step ${i + 1}`}
 					color={s.color}
 					value={s.value}
+					placeholder={stopPlaceholder(i)}
 					onColor={(c) => updateAt(i, { color: c })}
 					onValue={(v) => updateAt(i, { value: v })}
 					trailing={
@@ -1487,7 +1676,8 @@ const CustomStopsList = ({
 				+ Add a new step
 			</button>
 			<div className="vc-help">
-				Empty value = auto-position evenly between the anchor stops.
+				Grey values auto-position evenly between the anchor stops — type
+				to override.
 			</div>
 		</>
 	)
@@ -1503,6 +1693,9 @@ type StopRowProps = {
 	value: number | null
 	onColor: (c: string) => void
 	onValue: (v: number | null) => void
+	/** Shown greyed in the value box while it's empty ("auto"). Callers
+	 * pass the computed auto value (data min/mid/max) when they know it. */
+	placeholder?: string
 	trailing?: React.ReactNode
 }
 
@@ -1512,6 +1705,7 @@ const CustomStopRow = ({
 	value,
 	onColor,
 	onValue,
+	placeholder,
 	trailing,
 }: StopRowProps) => {
 	return (
@@ -1535,7 +1729,7 @@ const CustomStopRow = ({
 				onChange={(e) =>
 					onValue(e.target.value === "" ? null : Number(e.target.value))
 				}
-				placeholder="auto"
+				placeholder={placeholder ?? "auto"}
 				aria-label={`${label} stop value`}
 				className="no-spinner w-12 min-w-0 flex-shrink rounded border border-stone-300 bg-white px-0.5 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			/>

@@ -1,6 +1,7 @@
 // Per-channel configuration for each encoding. Configs are SPARSE — if a channel
 // isn't in the map, defaults are used. Each channel's shape is independent.
 
+import type { GradientInterpolation } from "./colorInterpolate"
 import type { DrawOrderConfig } from "./drawOrder"
 import type { FontConfig, LabelAlignment } from "./labelsConfig"
 
@@ -550,6 +551,14 @@ export type HueConfig =
 			 * switching the whole palette type. Older configs without this
 			 * field fall back to color-matching against theme gradients. */
 			sourcePaletteId?: string
+			/** Color space used to blend between gradient stops — "rgb"
+			 * (matches CSS gradients), "hsb", or "oklch" (perceptually
+			 * uniform). Read only by the custom-gradient paths
+			 * (customLinear / customDiverging / manual stops); presets are
+			 * fully-specified ramps with nothing left to blend. Absent =
+			 * "rgb", so charts saved before the field existed render
+			 * unchanged. */
+			interpolation?: GradientInterpolation
 			stackMode: StackMode
 	  }
 
@@ -907,6 +916,12 @@ export type ConnectionConfig = {
 	 * per-group override. Applies in scatter+connection AND area-line
 	 * modes. */
 	defaultDashPattern: LineDashPattern
+	/** User-typed custom dasharray for the default line dash (the Pattern
+	 * panel's no-field "Custom" pick). When it parses to a valid dasharray
+	 * (see `sanitizeCustomDasharray`) it wins over `defaultDashPattern`;
+	 * per-group `dashPatterns` overrides still win over both. `null` /
+	 * absent = no custom dash (the swatch pick applies). */
+	customDashPattern?: string | null
 	/** Per-line alternating colors for non-solid patterns. The "alternate"
 	 * is the color shown in the gap between dashes; setting it makes a
 	 * dashed line read as two-color (e.g. dark green dashes on light
@@ -1056,6 +1071,7 @@ export const DEFAULT_CONNECTION_CONFIG: ConnectionConfig = {
 	pointEveryN: 5,
 	dashPatterns: {},
 	defaultDashPattern: "solid",
+	customDashPattern: null,
 	dashAlternateColors: {},
 	dashGapColor: null,
 	dashGapFill: null,
