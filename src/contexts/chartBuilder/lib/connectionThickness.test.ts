@@ -36,7 +36,11 @@ describe("resolveConnectionThickness", () => {
 
 	it("clamps a stored override below the minimum to the floor", () => {
 		expect(
-			resolveConnectionThickness({ ...base, byValue: { A: 0.1 } })
+			resolveConnectionThickness({ ...base, byValue: { A: -1 } })
 		).toBe(MIN_LINE_THICKNESS)
+	})
+
+	it("lets a zero override hide the line", () => {
+		expect(resolveConnectionThickness({ ...base, byValue: { A: 0 } })).toBe(0)
 	})
 })

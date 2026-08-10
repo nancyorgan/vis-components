@@ -1061,7 +1061,7 @@ export const LegendPanel = () => {
 										label="Tick thickness"
 										labelClassName={LABEL_COL}
 										value={merged.gradientBarTickThickness ?? 1}
-										min={0.5}
+										min={0}
 										step={0.5}
 										onChange={(gradientBarTickThickness) =>
 											update({ gradientBarTickThickness })
@@ -1233,10 +1233,6 @@ export const LegendPanel = () => {
 							</div>
 						)
 					})}
-					<p className="vc-help">
-						Shape drawn for each color swatch in the legend. Each swatch keeps
-						its own color.
-					</p>
 					{/* Swatch outline: only when the outline-color channel is NOT
 					 *  encoded — mapped outline colors own the swatch strokes and
 					 *  this setting is inert (the renderer ignores it too). Width 0
@@ -1294,11 +1290,6 @@ export const LegendPanel = () => {
 								inputClassName="w-16"
 								suffix="px"
 							/>
-							<p className="vc-help">
-								Outline drawn around each color swatch so pale colors stay
-								visible against the legend background. Width 0 means no
-								outline; the color starts from the marks&apos; outline color.
-							</p>
 						</div>
 					)}
 				</CollapsibleSubsection>

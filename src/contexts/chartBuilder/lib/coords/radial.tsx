@@ -9,6 +9,7 @@ import {
 	DEFAULT_GRIDLINE_CONFIG,
 	DEFAULT_SPINE_CONFIG,
 } from "../channelConfig"
+import { estimateLongestLineWidth } from "../estimateMargins"
 import type { FontConfig, TextFontConfig } from "../labelsConfig"
 import {
 	renderWrappedTickLabel,
@@ -156,17 +157,30 @@ export const radial = (input: RadialInput): CoordSystem => {
 							</text>
 						)
 					})}
-					{rTicks.map((t) => {
-						const x = center.cx + R_TICK_LABEL_OFFSET
-						const y = center.cy - t.radius
+					{(() => {
 						// "Wrap text" on the r-axis: fold long labels to the same
 						// fixed max width the y-axis uses (the 12 o'clock spoke has
 						// no per-tick slot). Centered on the tick radius, matching
 						// the single-line baseline-middle anchoring.
-						const label =
-							rAxisConfig?.wrapTickLabels === true
-								? wrapTickLabel(t.label, tickWrapMaxPx(rTickSize), rTickSize)
-								: t.label
+						const wrappedRTicks = rTicks.map((t) => ({
+							...t,
+							label:
+								rAxisConfig?.wrapTickLabels === true
+									? wrapTickLabel(t.label, tickWrapMaxPx(rTickSize), rTickSize)
+									: t.label,
+						}))
+						// Single-line labels align within the shared label column
+						// right of the spoke (as wide as the widest label line);
+						// wrapped blocks keep their within-block line alignment.
+						const rColumnWidth = wrappedRTicks.reduce(
+							(w, t) =>
+								Math.max(w, estimateLongestLineWidth(t.label, rTickSize)),
+							0
+						)
+						return wrappedRTicks.map((t) => {
+						const x = center.cx + R_TICK_LABEL_OFFSET
+						const y = center.cy - t.radius
+						const label = t.label
 						return (
 							<text
 								key={`rlabel-${t.label}`}
@@ -190,10 +204,12 @@ export const radial = (input: RadialInput): CoordSystem => {
 									align: rAxisConfig?.wrapTickLabelAlign,
 									fontSize: rTickSize,
 									verticallyCentered: true,
+									columnWidth: rColumnWidth,
 								})}
 							</text>
 						)
-					})}
+						})
+					})()}
 				</g>
 			)
 		},

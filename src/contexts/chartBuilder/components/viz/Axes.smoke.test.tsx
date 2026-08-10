@@ -546,9 +546,11 @@ describe("Axis wrapTickLabels (Wrap text toggle)", () => {
 })
 
 describe("Axis custom breaks (pinned tick positions)", () => {
-	// User-set "Custom breaks" box: explicit tick positions that override the
-	// auto tickCount layout. Verifies the values land exactly, out-of-domain
-	// breaks are dropped, and "Match tick count" gridlines follow the breaks.
+	// The Ticks section's "Custom breaks" box: extra pinned tick positions
+	// ADDED to the auto tickCount layout (Count 0 + breaks = fully custom).
+	// Verifies the additive merge, out-of-domain drops, coinciding-tick
+	// de-dup, and that "Match tick count" gridlines follow the AUTO ticks
+	// only (gridline breaks pin extra lines independently).
 	const yScale = scaleLinear().domain([0, 100]).range([400, 0])
 
 	const cfg = (breaks: number[], extra: Record<string, unknown> = {}) => ({
@@ -591,13 +593,38 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 			.filter((s): s is string => !!s && s !== "Y")
 	}
 
-	it("renders ticks exactly at the supplied breaks, overriding tickCount", () => {
-		// tickCount=5 would normally yield 0,20,…,100 (6 ticks). Breaks win.
-		expect(tickLabels(cfg([10, 50, 90]))).toEqual(["10", "50", "90"])
+	it("adds breaks to the automatic tickCount layout, sorted by value", () => {
+		// tickCount=5 yields 0,20,…,100 (6 ticks); breaks slot in between.
+		expect(tickLabels(cfg([10, 50, 90]))).toEqual([
+			"0",
+			"10",
+			"20",
+			"40",
+			"50",
+			"60",
+			"80",
+			"90",
+			"100",
+		])
+	})
+
+	it("tickCount 0 + breaks = fully custom ticks", () => {
+		expect(tickLabels(cfg([10, 50, 90], { tickCount: 0 }))).toEqual([
+			"10",
+			"50",
+			"90",
+		])
+	})
+
+	it("a break coinciding with an auto tick draws one tick, not two", () => {
+		expect(tickLabels(cfg([40]))).toEqual(["0", "20", "40", "60", "80", "100"])
 	})
 
 	it("drops breaks outside the scale domain, sorted ascending", () => {
-		expect(tickLabels(cfg([200, 75, 25, -20]))).toEqual(["25", "75"])
+		expect(tickLabels(cfg([200, 75, 25, -20], { tickCount: 0 }))).toEqual([
+			"25",
+			"75",
+		])
 	})
 
 	it("ignores breaks (and shows none) when all fall outside the domain", () => {
@@ -606,7 +633,7 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 		expect(tickLabels(cfg([500, 999])).length).toBe(6)
 	})
 
-	it('"Match tick count" gridlines follow the custom breaks', () => {
+	it('"Match tick count" gridlines follow the AUTO ticks, not the tick breaks', () => {
 		const { container } = render(
 			wrapInSvg(
 				<Axis
@@ -619,10 +646,13 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 				/>
 			)
 		)
+		// tickCount=5 → 6 auto gridlines (0,20,…,100); the pinned tick breaks
+		// at 10/50/90 deliberately get NO gridlines of their own (add gridline
+		// breaks in the Gridlines section to pin those).
 		const grid = [...container.querySelectorAll("line")].filter(
 			(l) => l.getAttribute("stroke") === "#abcdef"
 		)
-		expect(grid).toHaveLength(3)
+		expect(grid).toHaveLength(6)
 	})
 
 	const gridlineYs = (config: ReturnType<typeof cfg>): (string | null)[] => {
@@ -644,9 +674,10 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 	}
 
 	it("gridline-specific breaks add to the automatic gridlines", () => {
-		// Ticks pinned at 10/50/90 (match-tick gridlines follow them), plus
-		// gridline breaks at 25/75 drawn in addition. Domain [0,100] maps to
-		// range [400,0]: auto 10/50/90 → 360/200/40, breaks 25/75 → 300/100.
+		// Match-tick gridlines follow the AUTO layout (tickCount=5 → 0,20,…,100)
+		// even though ticks are also pinned at 10/50/90; gridline breaks at
+		// 25/75 draw in addition. Domain [0,100] maps to range [400,0]: auto
+		// 0/20/40/60/80/100 → 400/320/240/160/80/0, breaks 25/75 → 300/100.
 		const ys = gridlineYs(
 			cfg([10, 50, 90], {
 				gridlines: {
@@ -659,7 +690,7 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 			})
 		)
 		expect(ys.map((y) => Math.round(Number(y)))).toEqual([
-			360, 200, 40, 300, 100,
+			400, 320, 240, 160, 80, 0, 300, 100,
 		])
 	})
 
@@ -718,7 +749,8 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 					inner={inner}
 					label="T"
 					fieldType="temporal"
-					config={cfg(breaks)}
+					// tickCount 0 → the breaks alone carry the tick list.
+					config={cfg(breaks, { tickCount: 0 })}
 				/>
 			)
 		)

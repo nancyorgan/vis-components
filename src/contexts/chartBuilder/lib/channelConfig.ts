@@ -374,11 +374,13 @@ export type AxisConfig = {
 	 * (`overallYRange`, `rowAxisOverrides`, …) still win where set. */
 	min?: number | null
 	max?: number | null
-	/** Explicit tick / break positions for a continuous axis, overriding the
-	 * auto `tickCount` layout. Empty / absent = auto. Numbers are axis values
-	 * (epoch ms for temporal). Breaks outside the resolved domain are dropped
-	 * at render time. Mirrors the legend's custom break-values box, but for
-	 * an axis these are tick POSITIONS only — `min`/`max` (above) still define
+	/** Extra pinned tick positions for a continuous axis, ADDED to the auto
+	 * `tickCount` layout (set `tickCount: 0` and list breaks for fully custom
+	 * ticks). Tick labels follow the ticks — every tick gets a label. Empty /
+	 * absent = auto only. Numbers are axis values (epoch ms for temporal).
+	 * Breaks outside the resolved domain are dropped at render time, and a
+	 * break coinciding with an auto tick draws once. Mirrors the Gridlines
+	 * section's additive custom-breaks box — `min`/`max` (above) still define
 	 * the domain extent independently. Ignored on categorical / ordinal-string
 	 * axes. */
 	breaks?: number[]
@@ -391,14 +393,21 @@ export type AxisConfig = {
 	 * on the X axis config (fits are y-on-x). Optional so saved visuals load
 	 * unchanged — absent reads as disabled. */
 	regression?: RegressionConfig
-	/** Perpendicular nudge (px) that moves the axis decorations — spine, tick
-	 * marks, tick labels, and title — closer to or farther from the plot area,
-	 * WITHOUT moving the gridlines (those stay pinned to their data positions).
-	 * Positive pushes the axis AWAY from the plot; negative pulls it toward /
-	 * into the plot. Perpendicular to the axis's own direction: an x-axis moves
-	 * vertically, a y-axis moves horizontally. `0` / absent = the default (drawn
-	 * flush against the plot edge). Ignored on the radial `r` axis. */
+	/** LEGACY perpendicular nudge (px) that moves the axis decorations — spine,
+	 * tick marks, tick labels, and title — closer to or farther from the plot
+	 * area, WITHOUT moving the gridlines. Positive pushes the axis AWAY from
+	 * the plot (an x-axis moves vertically, a y-axis horizontally). Superseded
+	 * by `offsetX`/`offsetY` below — read only when those are unset; the panel
+	 * clears it on the first write of the new fields. */
 	offset?: number
+	/** "Adjust position" nudge (px, screen coords: +x right, +y down) applied
+	 * to the whole axis — spine, tick marks, tick labels, and title — WITHOUT
+	 * moving the gridlines (those stay pinned to their data positions). The
+	 * sidebar's Y input shows math convention (positive = up) and flips the
+	 * sign at the input boundary. Absent = 0. Ignored on the radial `r`
+	 * axis. */
+	offsetX?: number
+	offsetY?: number
 }
 
 export const DEFAULT_AXIS_CONFIG: AxisConfig = {

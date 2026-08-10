@@ -6,6 +6,7 @@ import {
 	DEFAULT_TICKMARK_CONFIG,
 	type AxisConfig,
 } from "../../lib/channelConfig"
+import { estimateLongestLineWidth } from "../../lib/estimateMargins"
 import { buildTickFormatter } from "../../lib/formatTick"
 import {
 	textAnchorFromAlignment,
@@ -115,15 +116,19 @@ export const Axis = ({
 	const axisLine = isX
 		? { x1: inner.x0, y1: inner.y1, x2: inner.x1, y2: inner.y1 }
 		: { x1: inner.x0, y1: inner.y0, x2: inner.x0, y2: inner.y1 }
-	// Perpendicular "Position" nudge — shifts the spine + ticks + labels +
-	// title away from (positive) or toward (negative) the plot, WITHOUT moving
-	// the gridlines (which stay pinned to their data positions). An x-axis moves
-	// vertically (down = away); a y-axis moves horizontally (left = away).
-	const axisOffset = config?.offset ?? 0
+	// "Adjust position" nudge — shifts the spine + ticks + labels + title,
+	// WITHOUT moving the gridlines (which stay pinned to their data
+	// positions). Stored in screen coords (+x right, +y down). The legacy
+	// single `offset` was perpendicular-only (x-axis: positive = down, y-axis:
+	// positive = left); it's folded in only while the new fields are unset —
+	// the panel clears it on the first write of offsetX/offsetY.
+	const legacyOffset = config?.offset ?? 0
+	const axisDx = config?.offsetX ?? (isX ? 0 : -legacyOffset)
+	const axisDy = config?.offsetY ?? (isX ? legacyOffset : 0)
 	const offsetTransform =
-		axisOffset === 0
+		axisDx === 0 && axisDy === 0
 			? undefined
-			: `translate(${isX ? 0 : -axisOffset},${isX ? axisOffset : 0})`
+			: `translate(${axisDx},${axisDy})`
 
 	const requestedCount = config?.tickCount ?? DEFAULT_TICK_COUNT
 	// Clamp to 0..maxMeaningfulTicks. `tickCount: 0` is a valid request that
@@ -157,9 +162,9 @@ export const Axis = ({
 		if (within.length === 0) return null
 		return within.map((b) => (fieldType === "temporal" ? new Date(b) : b))
 	}
-	// Tick positions from the "Custom breaks" box. Shared by both the tick
-	// list and (when gridlines are set to "match tick count") the gridline
-	// positions, so the two stay aligned.
+	// Tick positions from the Ticks section's "Custom breaks" box — extra
+	// pinned ticks ADDED to the auto `tickCount` layout (Count 0 + breaks =
+	// fully custom ticks). Labels simply follow the ticks.
 	const customBreaks = resolveBreaks(config?.breaks)
 
 	const ticks: Array<{ pos: number; label: string }> = (() => {
@@ -169,30 +174,40 @@ export const Axis = ({
 			domain: () => unknown[]
 			bandwidth?: () => number
 		}
-		// Custom breaks win over the auto tick layout (including tickCount: 0)
-		// — they're an explicit "put ticks exactly here" instruction.
-		if (customBreaks) {
-			const fallback = s.tickFormat?.(Math.max(2, tickCount || DEFAULT_TICK_COUNT))
+		if (typeof s.ticks === "function") {
+			// `tickCount: 0` is a valid "no automatic ticks" request — custom
+			// breaks (if any) then carry the whole tick list.
+			const auto = tickCount === 0 ? [] : s.ticks(tickCount)
+			const values = [...auto, ...(customBreaks ?? [])]
+			if (values.length === 0) return []
+			const fallback = s.tickFormat?.(
+				tickCount > 0 ? tickCount : Math.max(2, DEFAULT_TICK_COUNT)
+			)
 			const fmt = customFmt ?? fallback
-			return customBreaks.map((v) => ({
-				pos: (scale as unknown as (x: unknown) => number)(v),
-				label: fmt ? fmt(v) : String(v),
-			}))
+			// Sort by axis value (breaks land between the auto ticks) and de-dup
+			// on pixel position so a break that coincides with an auto tick
+			// draws one tick + label, not two.
+			const toNum = (v: unknown) =>
+				v instanceof Date ? v.getTime() : Number(v)
+			const seen = new Set<string>()
+			return values
+				.sort((a, b) => toNum(a) - toNum(b))
+				.map((v) => ({
+					pos: (scale as unknown as (x: unknown) => number)(v),
+					label: fmt ? fmt(v) : String(v),
+				}))
+				.filter((t) => {
+					const key = t.pos.toFixed(2)
+					if (seen.has(key)) return false
+					seen.add(key)
+					return true
+				})
 		}
 		// Honor the explicit "no ticks" request before doing any tick-list
-		// construction. Without this short-circuit, d3's `ticks(0)` returns
-		// an empty array but `ticks(0)` against a band scale still iterates
-		// the full domain — bypassing the user's intent.
+		// construction. Without this short-circuit, `ticks(0)` against a band
+		// scale would still iterate the full domain — bypassing the user's
+		// intent.
 		if (tickCount === 0) return []
-		if (typeof s.ticks === "function") {
-			const values = s.ticks(tickCount)
-			const fallback = s.tickFormat?.(tickCount)
-			const fmt = customFmt ?? fallback
-			return values.map((v) => ({
-				pos: (scale as unknown as (x: unknown) => number)(v),
-				label: fmt ? fmt(v) : String(v),
-			}))
-		}
 		// scalePoint / scaleBand — categorical; formatter still honored if set.
 		// scaleBand's scale(d) returns the band's left edge; scalePoint returns
 		// the point's center. Offset by bandwidth/2 so band ticks sit under the
@@ -246,6 +261,17 @@ export const Axis = ({
 			label: wrapTickLabel(t.label, slotPx, tickFontSize),
 		}))
 	})()
+	// Single-line labels honor the Alignment setting too: y labels align to
+	// a common edge of the label column (as wide as the axis's widest label
+	// line); x labels have no column — each sits at its own tick — so they
+	// pass 0 and align AT the tick (left = label starts at the tick).
+	// Wrapped blocks keep their own within-block line alignment.
+	const labelColumnWidth = isX
+		? 0
+		: wrappedTicks.reduce(
+				(w, t) => Math.max(w, estimateLongestLineWidth(t.label, tickFontSize)),
+				0
+			)
 	// Auto-rotate categorical x-axis labels when their natural width
 	// exceeds the band width — keeps long category names from overlapping
 	// their neighbors without the user having to set tickLabelAngle. The
@@ -282,18 +308,12 @@ export const Axis = ({
 				(v) => (scale as unknown as (x: unknown) => number)(v)
 			) ?? []
 		const autoPositions: number[] = (() => {
-			// When the user pinned custom breaks and gridlines are set to "match
-			// tick count" (grid.count === null), draw one gridline per break so
-			// the grid lines up with the labeled ticks. An explicit grid.count
-			// still decouples the gridlines (the documented override behavior).
-			if (customBreaks && grid.count === null) {
-				return customBreaks.map(
-					(v) => (scale as unknown as (x: unknown) => number)(v)
-				)
-			}
 			if (typeof s.ticks === "function") {
-				// `null` count means "match axis ticks", i.e. one gridline per
-				// labeled tick. Specific numbers decouple gridlines from ticks.
+				// `null` count means "match axis ticks" — the AUTOMATIC tick
+				// layout from `tickCount`, deliberately excluding the Ticks
+				// section's custom breaks (add gridline breaks above to line a
+				// gridline up with a pinned tick). Specific numbers decouple
+				// gridlines from ticks entirely.
 				const requestedGridCount = grid.count ?? tickCount
 				return s
 					.ticks(requestedGridCount)
@@ -466,6 +486,7 @@ export const Axis = ({
 											align: config?.wrapTickLabelAlign,
 											fontSize: tickFontSize,
 											verticallyCentered: !isX,
+											columnWidth: labelColumnWidth,
 										})}
 									</text>
 								</g>

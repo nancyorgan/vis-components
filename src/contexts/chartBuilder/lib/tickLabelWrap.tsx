@@ -78,19 +78,26 @@ export const naturalWrapAlignFor = (
 	return "center"
 }
 
-/** Render a (possibly wrapped) tick label with the chosen line ALIGNMENT.
+/** Render a tick label with the chosen ALIGNMENT — wrapped or not.
  *
- *  The block keeps its position relative to the tick — `x` and `blockAnchor`
- *  describe where the single-line label would sit (centered under an x tick,
- *  right edge against the y axis, left edge at the radar spoke) — and only
- *  the lines WITHIN the block move. For a non-natural alignment we estimate
- *  the block width (widest line, same 0.55-char heuristic the wrap itself
- *  uses), locate the block's edges from the anchor, and anchor every line
- *  at the chosen edge / center via a per-tspan `text-anchor`.
+ *  Wrapped (multi-line) labels: the block keeps its position relative to the
+ *  tick — `x` and `blockAnchor` describe where the single-line label would
+ *  sit (centered under an x tick, right edge against the y axis, left edge
+ *  at the radar spoke) — and only the lines WITHIN the block move. For a
+ *  non-natural alignment we estimate the block width (widest line, same
+ *  0.55-char heuristic the wrap itself uses), locate the block's edges from
+ *  the anchor, and anchor every line at the chosen edge / center via a
+ *  per-tspan `text-anchor`.
  *
- *  Single-line labels and the natural alignment short-circuit to the plain
- *  render, so the width estimate (and its ±10% error) never affects the
- *  default appearance. */
+ *  Single-line labels align within the axis's shared label COLUMN instead
+ *  (their own block is exactly one line, so within-block alignment would be
+ *  a no-op): the caller passes `columnWidth` — the widest label on the axis
+ *  — and the label anchors at the chosen edge of that column. Axes with no
+ *  column (x: each label just sits at its tick) pass 0, which degenerates
+ *  to aligning AT the anchor point — left starts the label at its tick.
+ *
+ *  The natural alignment short-circuits to the plain render, so the width
+ *  estimates (and their ±10% error) never affect the default appearance. */
 export const renderWrappedTickLabel = ({
 	label,
 	x,
@@ -98,6 +105,7 @@ export const renderWrappedTickLabel = ({
 	align,
 	fontSize,
 	verticallyCentered,
+	columnWidth,
 }: {
 	label: string
 	/** Anchor x of the single-line label (the `<text>` element's own x). */
@@ -109,22 +117,34 @@ export const renderWrappedTickLabel = ({
 	fontSize: number
 	/** See `renderMultilineTspans` — for baseline-middle callers. */
 	verticallyCentered: boolean
+	/** Shared label-column width for SINGLE-LINE alignment (widest label on
+	 *  the axis; 0 = align at the anchor point). Omitted → single-line
+	 *  labels ignore `align` (legacy wrap-only behavior). */
+	columnWidth?: number
 }): ReactNode => {
-	if (!label.includes("\n")) return label
-	const effective = align ?? naturalAlignForAnchor(blockAnchor)
-	if (effective === naturalAlignForAnchor(blockAnchor)) {
+	const naturalAlign = naturalAlignForAnchor(blockAnchor)
+	const effective = align ?? naturalAlign
+	// Anchor every line at the chosen edge / center of a `w`-wide block
+	// hanging off `x` per `blockAnchor`.
+	const alignedRender = (w: number): ReactNode => {
+		const blockLeft =
+			blockAnchor === "start" ? x : blockAnchor === "middle" ? x - w / 2 : x - w
+		const lineX =
+			effective === "left"
+				? blockLeft
+				: effective === "center"
+					? blockLeft + w / 2
+					: blockLeft + w
+		const lineAnchor =
+			effective === "left" ? "start" : effective === "center" ? "middle" : "end"
+		return renderMultilineTspans(label, lineX, { verticallyCentered, lineAnchor })
+	}
+	if (!label.includes("\n")) {
+		if (effective === naturalAlign || columnWidth === undefined) return label
+		return alignedRender(columnWidth)
+	}
+	if (effective === naturalAlign) {
 		return renderMultilineTspans(label, x, { verticallyCentered })
 	}
-	const w = estimateLongestLineWidth(label, fontSize)
-	const blockLeft =
-		blockAnchor === "start" ? x : blockAnchor === "middle" ? x - w / 2 : x - w
-	const lineX =
-		effective === "left"
-			? blockLeft
-			: effective === "center"
-				? blockLeft + w / 2
-				: blockLeft + w
-	const lineAnchor =
-		effective === "left" ? "start" : effective === "center" ? "middle" : "end"
-	return renderMultilineTspans(label, lineX, { verticallyCentered, lineAnchor })
+	return alignedRender(estimateLongestLineWidth(label, fontSize))
 }

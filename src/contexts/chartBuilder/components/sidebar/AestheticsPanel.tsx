@@ -91,9 +91,9 @@ export const AestheticsPanel = () => {
 						Allow scrolling for tall/wide charts
 					</label>
 					<p className="ml-6 vc-help">
-						Off (default): the chart shrinks to fit the available space —
-						panels and category labels may compress when there are many of
-						them. On: each panel keeps a ~200px minimum and each categorical
+						Off: the chart shrinks to fit the available space.
+						Panels and category labels may compress when there are many of
+						them. <br></br><br></br>On: each panel keeps a ~200px minimum and each categorical
 						tick keeps a ~20px slot; the chart scrolls when these floors
 						would exceed the container. Use for many-facet grids or long
 						categorical axes.
@@ -140,10 +140,9 @@ export const AestheticsPanel = () => {
 						</>
 					)}
 					<p className="vc-help">
-						Keeps every panel&apos;s plot area at this Length : Width shape
-						no matter the viewport size — 1 : 1 makes the axes equal length
-						(hexbin cells render as true hexagons). Faceted charts apply the
-						shape to each panel. While on, this overrides the Facet
+						Keeps every panel&apos;s plot area at a set Length-to-Width shape
+						no matter the viewport size. 1 : 1 makes the axes equal length. Faceted charts apply the
+						shape to each panel. Overrides the Facet
 						panel&apos;s Custom sizing, proportional panel weights, and
 						scroll-mode panel minimums.
 					</p>
@@ -201,11 +200,8 @@ export const AestheticsPanel = () => {
 						</label>
 					)}
 					<p className="vc-help">
-						Which overlapping points paint on top (scatter, dot map, bubble
-						map). Dataset order draws later rows on top — maps default to
-						largest-circle-first so small bubbles stay visible. Sorting by a
-						field draws marks in that order instead; the sort only affects
-						painting, never the data.
+						Dataset order draws later rows on top. Sorting only affects
+						the drawing order, never the data.
 					</p>
 				</div>
 			</CollapsibleSubsection>

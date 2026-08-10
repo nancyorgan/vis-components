@@ -226,20 +226,12 @@ export const CaptionPanel = () => {
 							rows={4}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="vc-help">
-							Long text wraps to the box width. Press Enter for a manual line
-							break.
-						</span>
 					</label>
 
-					<CollapsibleSubsection title="Position">
+					<CollapsibleSubsection title="Adjust position">
 						<div className="flex flex-col gap-2">
-							<p className="vc-help">
-								Nudges the caption from its default spot (centered, below the
-								chart). 0 = default.
-							</p>
 							<OffsetField
-								label="X offset"
+								label="X"
 								value={merged.offsetX}
 								unit={merged.offsetXUnit}
 								onValue={(v) => update({ offsetX: v })}
@@ -249,7 +241,7 @@ export const CaptionPanel = () => {
 							 * stays in screen coords (positive = down), so the sign flips
 							 * here in both directions. */}
 							<OffsetField
-								label="Y offset"
+								label="Y"
 								value={-merged.offsetY}
 								unit={merged.offsetYUnit}
 								onValue={(v) => update({ offsetY: -v })}
@@ -262,10 +254,6 @@ export const CaptionPanel = () => {
 						<div className="flex flex-col gap-2">
 							{renderDimField("width", "Width")}
 							{renderDimField("height", "Height")}
-							<p className="vc-help">
-								Blank = auto (width spans the chart; height fits the text).
-								Arrows step from the current size.
-							</p>
 						</div>
 					</CollapsibleSubsection>
 
@@ -475,9 +463,6 @@ export const CaptionPanel = () => {
 									</div>
 								</>
 							)}
-							<p className="vc-help">
-								Background opacity 0 = transparent.
-							</p>
 						</div>
 					</CollapsibleSubsection>
 				</>

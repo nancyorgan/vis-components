@@ -21,6 +21,18 @@ import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL_NESTED } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 
+/** Small inline "reset" link, rendered only when a control differs from its
+ *  default. Matches the LabelsPanel / CaptionPanel idiom. */
+const ResetLink = ({ onClick }: { onClick: () => void }) => (
+	<button
+		type="button"
+		onClick={onClick}
+		className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+	>
+		reset
+	</button>
+)
+
 /** Sidebar panel for the tooltip subsystem. Drives `TooltipConfig` —
  * enable toggle, per-field visibility (drawn from the dataset, including
  * fields not currently mapped to any encoding), and a CSS escape hatch for
@@ -44,6 +56,7 @@ export const TooltipPanel = () => {
 	// fields (see their hover handlers) but the checkbox is exposed
 	// for symmetry and custom-template authoring.
 	const mappedFieldNames = allFields.map((f) => f.name)
+	const defaultHtml = buildDefaultTooltipHtml(mappedFieldNames)
 	// Surface any encoding-referenced field that ISN'T in the current
 	// dataset's field list. If something's mapped that isn't a column
 	// we know about (renamed column, dataset swap, etc.), it would
@@ -152,36 +165,33 @@ export const TooltipPanel = () => {
 						<input
 							type="checkbox"
 							checked={!!merged.useCustomHtml}
-							onChange={(e) => update({ useCustomHtml: e.target.checked })}
+							onChange={(e) => {
+								const on = e.target.checked
+								// Seed empty boxes with the defaults on enable so the
+								// user starts from an editable template instead of a
+								// blank textarea; existing edits are left alone.
+								update({
+									useCustomHtml: on,
+									...(on && !merged.customHtml
+										? { customHtml: defaultHtml }
+										: {}),
+									...(on && !merged.customCss
+										? { customCss: DEFAULT_TOOLTIP_CSS }
+										: {}),
+								})
+							}}
 							className="h-3 w-3"
 						/>
 						<span className="text-stone-700 dark:text-stone-300">
 							Use custom HTML template
 						</span>
 					</label>
-					<p className="ml-6 vc-help">
-						Off (default): the tooltip uses the &ldquo;Fields shown&rdquo;
-						checkboxes above. On: the textarea below replaces the tooltip
-						content. &ldquo;Load default&rdquo; fills the textarea as a
-						starter template — it doesn&rsquo;t flip this toggle on.
-					</p>
+					{merged.useCustomHtml && (
+					<>
 					<label className="flex flex-col gap-1 text-sm">
-						<div className="flex items-center justify-between gap-2">
-							<span className="text-stone-600 dark:text-stone-400">
-								Custom HTML template
-							</span>
-							<button
-								type="button"
-								onClick={() =>
-									update({
-										customHtml: buildDefaultTooltipHtml(mappedFieldNames),
-									})
-								}
-								className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-							>
-								Load default
-							</button>
-						</div>
+						<span className="text-stone-600 dark:text-stone-400">
+							Custom HTML template
+						</span>
 						<textarea
 							value={merged.customHtml}
 							onChange={(e) => update({ customHtml: e.target.value })}
@@ -189,25 +199,18 @@ export const TooltipPanel = () => {
 							rows={6}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="vc-help">
-							Use <code>{`{{fieldName}}`}</code> placeholders. Data values are
-							HTML-escaped automatically. Toggle &ldquo;Use custom HTML
-							template&rdquo; above to activate.
-						</span>
+						<div className="flex items-start justify-between gap-2">
+							{merged.customHtml !== "" && merged.customHtml !== defaultHtml && (
+								<ResetLink
+									onClick={() => update({ customHtml: defaultHtml })}
+								/>
+							)}
+						</div>
 					</label>
 					<label className="flex flex-col gap-1 text-sm">
-						<div className="flex items-center justify-between gap-2">
-							<span className="text-stone-600 dark:text-stone-400">
-								Custom CSS
-							</span>
-							<button
-								type="button"
-								onClick={() => update({ customCss: DEFAULT_TOOLTIP_CSS })}
-								className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-							>
-								Load default
-							</button>
-						</div>
+						<span className="text-stone-600 dark:text-stone-400">
+							Custom CSS
+						</span>
 						<textarea
 							value={merged.customCss}
 							onChange={(e) => update({ customCss: e.target.value })}
@@ -215,10 +218,16 @@ export const TooltipPanel = () => {
 							rows={6}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="vc-help">
-							Applied to the <code>.vc-tooltip</code> container.
-						</span>
+						<div className="flex items-start justify-between gap-2">
+							{merged.customCss !== "" && merged.customCss !== DEFAULT_TOOLTIP_CSS && (
+								<ResetLink
+									onClick={() => update({ customCss: DEFAULT_TOOLTIP_CSS })}
+								/>
+							)}
+						</div>
 					</label>
+					</>
+					)}
 				</>
 			)}
 			</div>

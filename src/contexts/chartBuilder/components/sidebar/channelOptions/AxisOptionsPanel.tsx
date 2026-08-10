@@ -107,26 +107,31 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		jitter:
 			valueChanged(configs[channel]?.jitterAmount, themeAxis.jitterAmount) ||
 			valueChanged(configs[channel]?.beeswarm, undefined),
-		offset: valueChanged(configs[channel]?.offset, undefined),
+		offset:
+			valueChanged(configs[channel]?.offset, undefined) ||
+			valueChanged(configs[channel]?.offsetX, undefined) ||
+			valueChanged(configs[channel]?.offsetY, undefined),
 	}
 	const sectionChanged = {
-		Position: ch.offset,
 		Distribution: ch.histogram || ch.distributionOverlay || ch.jitter,
 		Regression: ch.regression,
 		// The tick density controls (count / stride) render in the Ticks section
 		// on x/y, but under Tick Labels on r (which has no Ticks section).
-		Ticks: ch.tickmarks || (channel !== "r" && (ch.tickCount || ch.stride)),
+		// Custom breaks pin extra TICKS, so they live with the density controls.
+		Ticks:
+			ch.tickmarks ||
+			(channel !== "r" && (ch.tickCount || ch.stride || ch.breaks)),
 		"Tick Labels":
 			(channel === "r" && (ch.tickCount || ch.stride)) ||
 			ch.format ||
 			ch.min ||
 			ch.max ||
-			ch.breaks ||
 			ch.tickLabelAngle ||
 			ch.tickLabelFont ||
 			ch.tickLabelColor ||
 			ch.wrapTickLabels ||
-			ch.wrapTickLabelAlign,
+			ch.wrapTickLabelAlign ||
+			(channel !== "r" && ch.offset),
 		Spine: ch.spine,
 		Gridlines: ch.gridlines,
 	}
@@ -273,6 +278,15 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	const isContinuous =
 		effectiveType === "quantitative" || effectiveType === "temporal"
 
+	// Effective "Adjust position" nudge in screen px. The legacy single
+	// `offset` was perpendicular-only (x-axis: positive = down/away, y-axis:
+	// positive = left/away); it's folded in while the new 2D fields are unset
+	// — the control clears it on its first write.
+	const effOffsetX =
+		config.offsetX ?? (channel === "y" ? -(config.offset ?? 0) : 0)
+	const effOffsetY =
+		config.offsetY ?? (channel === "x" ? (config.offset ?? 0) : 0)
+
 	// Tick density controls — how many ticks get drawn. On a histogram axis the
 	// bins are categorical bands — labeling every bin gets crowded, so expose
 	// the same stride control the categorical axis uses (label every Nth bin).
@@ -413,6 +427,21 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			{channel !== "r" && (
 				<Section title="Ticks" changed={sectionChanged.Ticks}>
 					{tickDensityControls}
+					{/* Extra pinned tick positions, ADDED to the auto layout above
+					 *  (Count 0 + breaks = fully custom ticks). Tick labels simply
+					 *  follow the ticks. Continuous axes only — a binned histogram
+					 *  axis is categorical bands. */}
+					{isContinuous && !isBinnedAxis && (
+						<BreaksField
+							isTemporal={effectiveType === "temporal"}
+							breaks={config.breaks ?? []}
+							onCommit={(breaks) =>
+								update({ breaks: breaks.length > 0 ? breaks : undefined })
+							}
+							changed={ch.breaks}
+							hint="Extra tick positions in addition to the automatic ones above. Set Count to 0 for fully custom ticks. Breaks outside the axis range aren't shown."
+						/>
+					)}
 					<TickmarkControls
 						tick={config.tickmarks ?? DEFAULT_TICKMARK_CONFIG}
 						onChange={(t) => update({ tickmarks: t })}
@@ -435,17 +464,14 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						isTemporal={effectiveType === "temporal"}
 						min={config.min ?? null}
 						max={config.max ?? null}
-						breaks={config.breaks ?? []}
 						onChange={(next) => update(next)}
-						// On a histogram axis min/max limit the binned RANGE (and
-						// breaks — continuous tick positions — don't apply).
-						showBreaks={!isBinnedAxis}
+						// On a histogram axis min/max limit the binned RANGE.
 						rangeHint={
 							isBinnedAxis
 								? "Limits the value range that gets binned (rows outside are dropped)."
 								: undefined
 						}
-						changed={{ min: ch.min, max: ch.max, breaks: ch.breaks }}
+						changed={{ min: ch.min, max: ch.max }}
 					/>
 				)}
 				<div className="mb-1.5 mt-1.5 flex items-center gap-2">
@@ -479,10 +505,6 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						onChange={(wrapTickLabels) => update({ wrapTickLabels })}
 						changed={ch.wrapTickLabels}
 					/>
-					<p className="vc-help">
-						Break long labels onto multiple lines to fit the available width.
-						Words split only when a whole word won&apos;t fit.
-					</p>
 					{config.wrapTickLabels === true && (
 						<WrapAlignmentControl
 							channel={channel}
@@ -506,6 +528,30 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						update({ tickLabelFont, tickLabelColor: undefined })
 					}
 				/>
+				{channel !== "r" && (
+					<AxisAdjustPositionControl
+						offsetX={effOffsetX}
+						offsetY={effOffsetY}
+						changed={ch.offset}
+						onChange={(next) =>
+							// Writing the new 2D fields supersedes the legacy
+							// perpendicular `offset`; clear it so the two sources
+							// can't drift out of sync.
+							update({
+								offsetX: next.offsetX ?? effOffsetX,
+								offsetY: next.offsetY ?? effOffsetY,
+								offset: undefined,
+							})
+						}
+						onReset={() =>
+							update({
+								offset: undefined,
+								offsetX: undefined,
+								offsetY: undefined,
+							})
+						}
+					/>
+				)}
 			</Section>
 
 			{channel !== "r" && (
@@ -531,17 +577,6 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				/>
 			</Section>
 
-			{channel !== "r" && (
-				<Section title="Position" changed={sectionChanged.Position}>
-					<AxisOffsetControl
-						channel={channel}
-						value={config.offset ?? 0}
-						changed={ch.offset}
-						onChange={(offset) => update({ offset })}
-						onReset={() => update({ offset: undefined })}
-					/>
-				</Section>
-			)}
 		</div>
 	)
 }
@@ -633,37 +668,30 @@ const Section = ({
 	</CollapsibleSubsection>
 )
 
-/** Perpendicular "Offset" nudge that moves the whole axis (spine + ticks +
- *  labels + title) closer to or farther from the plot area. The gridlines
- *  stay pinned to their data positions — only the axis chrome moves. An x-axis
- *  shifts vertically, a y-axis horizontally; positive pushes the axis away
- *  from the plot, negative pulls it toward / into the plot. */
-const AxisOffsetControl = ({
-	channel,
-	value,
+/** "Adjust position" X/Y nudge (data-labels style) that moves the whole axis
+ *  (spine + tick marks + labels + title). The gridlines stay pinned to their
+ *  data positions — only the axis chrome moves. Values arrive/leave in screen
+ *  coords; the Y input shows math convention (positive = up), so the sign
+ *  flips at this boundary in both directions. Renders at the end of the Tick
+ *  Labels section behind a divider. */
+const AxisAdjustPositionControl = ({
+	offsetX,
+	offsetY,
 	changed,
 	onChange,
 	onReset,
 }: {
-	channel: "x" | "y"
-	value: number
+	/** Effective nudge in screen px (legacy `offset` already folded in). */
+	offsetX: number
+	offsetY: number
 	changed: boolean
-	onChange: (offset: number) => void
+	onChange: (next: { offsetX?: number; offsetY?: number }) => void
 	onReset: () => void
 }) => (
-	<div className="flex flex-col gap-1">
+	<div className="mt-3 flex flex-col gap-2 border-t border-stone-200 pt-3 dark:border-stone-700">
 		<div className="flex items-center gap-2">
-			<NumberInput
-				label="Offset"
-				labelClassName={LABEL_COL}
-				value={value}
-				step={1}
-				onChange={onChange}
-				inputClassName="w-20"
-				suffix="px"
-				changed={changed}
-			/>
-			{value !== 0 && (
+			<span className="vc-group-header">Adjust position</span>
+			{(offsetX !== 0 || offsetY !== 0) && (
 				<button
 					type="button"
 					onClick={onReset}
@@ -673,10 +701,29 @@ const AxisOffsetControl = ({
 				</button>
 			)}
 		</div>
+		<NumberInput
+			label="X"
+			labelClassName={LABEL_COL}
+			value={offsetX}
+			step={1}
+			onChange={(n) => onChange({ offsetX: n })}
+			inputClassName="w-20"
+			suffix="px"
+			changed={changed}
+		/>
+		<NumberInput
+			label="Y"
+			labelClassName={LABEL_COL}
+			value={-offsetY}
+			step={1}
+			onChange={(n) => onChange({ offsetY: -n })}
+			inputClassName="w-20"
+			suffix="px"
+			changed={changed}
+		/>
 		<p className="vc-help">
-			{channel === "x"
-				? "Moves the axis up or down. Positive pushes it below the plot (farther away); negative raises it toward the plot."
-				: "Moves the axis left or right. Positive pushes it left of the plot (farther away); negative moves it toward the plot."}
+			Moves the whole axis — spine, tick marks, and labels — without moving
+			the gridlines. Positive X moves right; positive Y moves up.
 		</p>
 	</div>
 )
@@ -784,34 +831,28 @@ const NumericBoundField = ({
 	)
 }
 
-/** Custom domain bounds + tick/break positions for a continuous (quantitative
- * or temporal) axis. Mirrors the legend's "Break values" box but for axis
- * ticks; the min/max here pin the scale's domain (the base default applied to
- * every panel — facet-level range overrides still win where set). Bounds and
- * breaks are stored as plain numbers on the config; temporal values are epoch
- * milliseconds, surfaced/parsed as ISO dates in the inputs. */
+/** Custom domain bounds for a continuous (quantitative or temporal) axis.
+ * The min/max here pin the scale's domain (the base default applied to every
+ * panel — facet-level range overrides still win where set). Bounds are stored
+ * as plain numbers on the config; temporal values are epoch milliseconds,
+ * surfaced/parsed as ISO dates in the inputs. (Custom tick breaks live in the
+ * Ticks section, not here — tick labels simply follow the ticks.) */
 const ScaleRangeControls = ({
 	isTemporal,
 	min,
 	max,
-	breaks,
 	onChange,
-	showBreaks = true,
 	rangeHint,
 	changed,
 }: {
 	isTemporal: boolean
 	min: number | null
 	max: number | null
-	breaks: number[]
-	onChange: (next: { min?: number | null; max?: number | null; breaks?: number[] }) => void
-	/** Hide the custom-breaks box (e.g. on a histogram axis, where breaks —
-	 *  continuous tick positions — don't apply). */
-	showBreaks?: boolean
+	onChange: (next: { min?: number | null; max?: number | null }) => void
 	/** Optional override for the helper text under the min/max fields. */
 	rangeHint?: string
 	/** Per-field "changed vs default" → bold-purple that field's label. */
-	changed?: { min?: boolean; max?: boolean; breaks?: boolean }
+	changed?: { min?: boolean; max?: boolean }
 }) => {
 	const lbl = (on: boolean | undefined) =>
 		on
@@ -879,15 +920,6 @@ const ScaleRangeControls = ({
 					)}
 				</label>
 			</div>
-			{showBreaks && (
-				<BreaksField
-					isTemporal={isTemporal}
-					breaks={breaks}
-					onCommit={(next) => onChange({ breaks: next })}
-					changed={changed?.breaks}
-					hint="Comma-separated tick positions. Blank = automatic ticks. Breaks outside the min/max range aren't shown."
-				/>
-			)}
 		</div>
 	)
 }
@@ -1088,7 +1120,7 @@ const GridlineControls = ({
 						label="Thickness"
 						labelClassName={LABEL_COL}
 						value={grid.thickness}
-						min={0.5}
+						min={0}
 						max={5}
 						step={0.5}
 						onChange={(thickness) => set({ thickness })}
@@ -1191,7 +1223,7 @@ export const TickmarkControls = ({
 				label="Thickness"
 				labelClassName={LABEL_COL}
 				value={tick.thickness}
-				min={0.5}
+				min={0}
 				max={5}
 				step={0.5}
 				onChange={(thickness) => set({ thickness })}
@@ -1402,7 +1434,7 @@ const RugControls = ({
 					label="Tassel width"
 					labelClassName={LABEL_COL}
 					value={histogram.rugTickThickness ?? 1}
-					min={0.5}
+					min={0}
 					max={20}
 					step={0.5}
 					clamp

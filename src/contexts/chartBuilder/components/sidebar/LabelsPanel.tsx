@@ -282,10 +282,6 @@ export const LabelsPanel = () => {
 		<div className="vc-option-panel">
 			<CollapsibleSubsection title="Primary titles" changed={primaryChanged}>
 				<div className="flex flex-col gap-2">
-			<p className="vc-help">
-				Press Shift+Enter or paste a literal newline to break a title onto a
-				second line.
-			</p>
 			<LabelRow
 				label="Title"
 				fontKey="title"
@@ -794,8 +790,9 @@ const OffsetControl = ({
 	}
 	return (
 		<div className="flex flex-col gap-2">
-			{row("x", "Offset x")}
-			{row("y", "Offset y")}
+			<span className="vc-group-header">Adjust position</span>
+			{row("x", "X")}
+			{row("y", "Y")}
 			{showDistance && row("distance", "Distance from figure")}
 		</div>
 	)

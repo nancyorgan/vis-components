@@ -177,7 +177,7 @@ const RegressionLineStyleControls = () => {
 				label="Width"
 				labelClassName={LABEL_COL}
 				value={regression.strokeWidth}
-				min={0.5}
+				min={0}
 				max={12}
 				step={0.5}
 				clamp

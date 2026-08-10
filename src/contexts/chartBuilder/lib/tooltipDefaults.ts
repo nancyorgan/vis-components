@@ -1,9 +1,10 @@
 /** Build a starter HTML template for the tooltip's "Custom HTML" field —
  *  what the user would otherwise see rendered when they hover, but expressed
- *  as an editable template. The user clicks "Load default template" in the
- *  sidebar, sees concrete tags + their own field names, and can edit from
- *  there. Without this they were staring at an empty textarea with no idea
- *  what classes existed or what the placeholders should look like. */
+ *  as an editable template. Enabling "Use custom HTML template" seeds an
+ *  empty textarea with this, so the user sees concrete tags + their own
+ *  field names and can edit from there ("reset" below the box restores it).
+ *  Without this they were staring at an empty textarea with no idea what
+ *  classes existed or what the placeholders should look like. */
 export const buildDefaultTooltipHtml = (fields: string[]): string => {
 	if (fields.length === 0) {
 		return '<div class="vc-tooltip-row"><!-- map fields to your encodings, then click Reset to refresh this template --></div>'

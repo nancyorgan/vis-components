@@ -1395,7 +1395,7 @@ export const ThemesPage = () => {
 							label="Line thickness"
 							value={theme.connectionThickness}
 							onChange={(v) => set("connectionThickness", v)}
-							min={0.5}
+							min={0}
 							max={10}
 							step={0.5}
 							suffix="px"
@@ -1521,7 +1521,7 @@ export const ThemesPage = () => {
 							label="Thickness"
 							value={theme.xGridlineThickness ?? theme.gridlineThickness}
 							onChange={(v) => set("xGridlineThickness", v)}
-							min={0.5}
+							min={0}
 							max={5}
 							step={0.5}
 							suffix="px"
@@ -1538,7 +1538,7 @@ export const ThemesPage = () => {
 							label="Thickness"
 							value={theme.yGridlineThickness ?? theme.gridlineThickness}
 							onChange={(v) => set("yGridlineThickness", v)}
-							min={0.5}
+							min={0}
 							max={5}
 							step={0.5}
 							suffix="px"
@@ -1555,7 +1555,7 @@ export const ThemesPage = () => {
 							label="Thickness"
 							value={theme.rGridlineThickness ?? theme.gridlineThickness}
 							onChange={(v) => set("rGridlineThickness", v)}
-							min={0.5}
+							min={0}
 							max={5}
 							step={0.5}
 							suffix="px"
@@ -1578,7 +1578,7 @@ export const ThemesPage = () => {
 							label="Thickness"
 							value={theme.tickmarkThickness}
 							onChange={(v) => set("tickmarkThickness", v)}
-							min={0.5}
+							min={0}
 							max={5}
 							step={0.5}
 							suffix="px"

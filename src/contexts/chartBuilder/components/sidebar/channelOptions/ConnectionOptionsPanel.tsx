@@ -757,9 +757,6 @@ export const ConnectionOptionsPanel = () => {
 								setConfigs={setConfigs}
 							/>
 						)}
-						<p className="vc-help">
-							Filling the polygon turns the line into an area chart.
-						</p>
 					</div>
 				</CollapsibleSubsection>
 			) : (
@@ -814,10 +811,6 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						)}
-						<p className="vc-help">
-							Rounds the corners of connecting lines so they curve through
-							the points instead of meeting at sharp angles.
-						</p>
 						<span
 							className={
 								ch.lineCap
@@ -847,10 +840,6 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						))}
-						<p className="vc-help">
-							How line ends and dash segments terminate: rounded or squared
-							off.
-						</p>
 					</div>
 				</CollapsibleSubsection>
 			)}
@@ -878,10 +867,6 @@ export const ConnectionOptionsPanel = () => {
 								</span>
 							</label>
 						))}
-						<p className="vc-help">
-							Draws a stem from each point to the axis (lollipop charts). Stems
-							use the line thickness above.
-						</p>
 						{axisStem !== "none" && (
 							<p className="mt-1 border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
 								Set stem color under the <strong>Color</strong> menu →{" "}
@@ -917,11 +902,6 @@ export const ConnectionOptionsPanel = () => {
 						</div>
 						<p className="vc-help">
 							Adjust line and fill opacity in the Opacity panel.
-						</p>
-						<p className="vc-help">
-							Per-line colors live in the Hue panel. Per-line dash patterns live
-							in the Pattern panel. Map the corresponding encoding to a field to
-							customize.
 						</p>
 					</div>
 				</CollapsibleSubsection>
@@ -968,19 +948,8 @@ export const ConnectionOptionsPanel = () => {
 								inputClassName="w-16"
 							/>
 						)}
-						<p className="vc-help">
-							Filters which points along the line render markers. The line itself
-							always passes through every data point.
-						</p>
 					</div>
 				</CollapsibleSubsection>
-			)}
-			{isLineOrAreaMode && (
-				<p className="border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
-					Per-line colors live in the Hue panel. Per-line dash patterns live in
-					the Pattern panel. Map the corresponding encoding to a field to
-					customize.
-				</p>
 			)}
 			{!drawsConnectionLines && !isStructureMode && (
 				<p className="vc-help">

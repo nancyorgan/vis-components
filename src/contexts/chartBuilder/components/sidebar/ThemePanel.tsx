@@ -157,9 +157,9 @@ export const ThemePanel = () => {
 					</button>
 				)}
 				<p className="vc-help">
-					Picking a theme re-skins this visualization with the theme&apos;s palette,
-					fonts, and gridline colors. Edits to a saved theme don&apos;t retroactively
-					update visualizations using it — re-pick the theme to refresh.
+					Picking a theme re-themes this visualization with the theme&apos;s palette,
+					fonts, and gridline colors. Edits to a saved theme <b>don&apos;t</b> retroactively
+					update visualizations using it.
 				</p>
 			</div>
 		</CollapsibleSubsection>

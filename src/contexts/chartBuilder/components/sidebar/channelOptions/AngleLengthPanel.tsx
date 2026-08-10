@@ -173,9 +173,6 @@ export const AngleOptionsPanel = () => {
 					</button>
 				)}
 			</div>
-			<div className="vc-help">
-				Rotates shapes (e.g. triangles) or line segments.
-			</div>
 		</div>
 	)
 }

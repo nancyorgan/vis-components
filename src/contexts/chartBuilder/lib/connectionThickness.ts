@@ -1,7 +1,8 @@
 /** Minimum line thickness in pixels — mirrors the `min` on the
  *  ConnectionOptionsPanel thickness input so a stored per-value override can't
- *  push a line below the same floor the single-value control enforces. */
-export const MIN_LINE_THICKNESS = 0.5
+ *  push a line below the same floor the single-value control enforces.
+ *  0 is allowed and hides the line (thickness-is-the-switch). */
+export const MIN_LINE_THICKNESS = 0
 
 export type ConnectionThicknessArgs = {
 	/** Key into `byValue` for this line/layer — the connection-field value for

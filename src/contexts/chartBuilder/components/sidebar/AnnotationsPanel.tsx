@@ -536,13 +536,7 @@ export const AnnotationsPanel = () => {
 				</button>
 			</div>
 			{cfg.rectangles.length === 0 &&
-				circles.length === 0 &&
-				lineSegments.length === 0 && (
-					<p className="vc-help">
-						Position is set as a percent of the plot area (0 = bottom-left
-						of the spines, 1 = top-right).
-					</p>
-				)}
+				circles.length === 0}
 			{cfg.rectangles.map((rect, i) => (
 				<RectangleEditor
 					key={rect.id}
@@ -1136,9 +1130,6 @@ const RectangleEditor = ({
 							rows={2}
 							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
-						<span className="vc-help">
-							Press Enter for a manual line break.
-						</span>
 					</label>
 					<SelectInput
 						label="Font"

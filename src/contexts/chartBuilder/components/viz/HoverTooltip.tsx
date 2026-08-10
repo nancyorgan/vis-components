@@ -94,12 +94,14 @@ export const HoverTooltip = ({ state }: { state: TooltipState }) => {
 		...clampToViewport(state.clientX, state.clientY),
 	}
 
-	// Custom HTML is OPT-IN via `useCustomHtml`. Load Default populates
-	// the textarea as a starter template without switching modes; the
-	// user must explicitly toggle the checkbox to activate template
-	// rendering. This keeps the default checkbox-driven tooltip in
-	// charge until power users opt out.
+	// Custom HTML AND custom CSS are OPT-IN via `useCustomHtml`. Enabling
+	// the toggle seeds empty textareas with the defaults, but the checkbox
+	// state alone decides whether template rendering + container CSS are
+	// active — the sidebar hides both boxes when it's off, so nothing
+	// hidden keeps styling the tooltip. This keeps the default
+	// checkbox-driven tooltip in charge until power users opt out.
 	const customHtmlActive = !!cfg.useCustomHtml && cfg.customHtml.trim() !== ""
+	const customCssActive = !!cfg.useCustomHtml && cfg.customCss.trim() !== ""
 	const customHtml = customHtmlActive ? cfg.customHtml.trim() : ""
 	const interpolated = customHtml
 		? renderTemplate(customHtml, state.fields)
@@ -107,7 +109,7 @@ export const HoverTooltip = ({ state }: { state: TooltipState }) => {
 
 	const tooltip = (
 		<>
-			{cfg.customCss.trim() && (
+			{customCssActive && (
 				<style>{`.vc-tooltip { ${cfg.customCss} }`}</style>
 			)}
 			<div

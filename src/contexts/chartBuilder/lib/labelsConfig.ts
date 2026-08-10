@@ -498,19 +498,20 @@ export type TooltipConfig = {
 	 * present in the hovered row. */
 	visibleFields: string[]
 	/** Optional CSS rules applied to a wrapping `<div class="vc-tooltip">`.
-	 * Fully user-controlled — no sanitization, no fallback. */
+	 * Fully user-controlled — no sanitization, no fallback. Only applied
+	 * while `useCustomHtml` is true (the sidebar hides the box otherwise). */
 	customCss: string
 	/** Optional HTML template for tooltip content. When `useCustomHtml` is
 	 * true, this template replaces the default field-list layout —
 	 * `{{fieldName}}` placeholders are substituted with the hovered row's
-	 * values (HTML-escaped to prevent injection). When false, the textarea
-	 * acts as a drafting area; the tooltip uses the field-list layout
+	 * values (HTML-escaped to prevent injection). When false, the content
+	 * is retained but inert; the tooltip uses the field-list layout
 	 * filtered by `visibleFields`. */
 	customHtml: string
 	/** When true, the tooltip renders `customHtml` instead of the
-	 * checkbox-driven field list. Opt-in so "Load default" can populate
-	 * the textarea as a starter template without immediately switching
-	 * modes. Optional for back-compat with visuals saved before this
+	 * checkbox-driven field list. Enabling the toggle seeds empty
+	 * HTML/CSS textareas with the defaults as a starter template.
+	 * Optional for back-compat with visuals saved before this
 	 * field existed — `undefined` is treated as `false`. */
 	useCustomHtml?: boolean
 	/** Master toggle for pointer-hover interactions (the "Show hover"

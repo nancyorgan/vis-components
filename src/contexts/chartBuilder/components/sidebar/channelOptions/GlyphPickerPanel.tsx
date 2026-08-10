@@ -425,10 +425,6 @@ export const ShapeOptionsPanel = () => {
 			/>
 			{/* Outline COLOR now lives in the unified Color menu (Outline
 			 *  subheader) — only outline WIDTH remains here. */}
-			<p className="vc-help">
-				Set outline color under the <strong>Color</strong> menu →{" "}
-				<strong>Outline</strong>.
-			</p>
 			{!fieldMapped && !glyphsInert && (
 				<>
 					<hr className="border-stone-200 dark:border-stone-700" />
@@ -770,12 +766,6 @@ export const PatternOptionsPanel = () => {
 					Fill dash gaps
 				</span>
 			</label>
-			<p className="vc-help">
-				Paints the gaps between dashes so the line stays connected — by
-				default in the palette&apos;s paired pattern color (the same pairing
-				area patterns use). Adjust the gap colors below. Uncheck for a
-				truly dashed line with empty gaps.
-			</p>
 			{gapColorRows}
 		</div>
 	)
@@ -1701,11 +1691,6 @@ const DashRangeRows = ({
 						/>
 					</div>
 				))}
-				<p className="vc-help">
-					The pattern draws only between From and To (axis values — numbers
-					or dates); outside the range the line is solid. Leave a side blank
-					for unbounded — e.g. set only From to the forecast start.
-				</p>
 			</>
 		)}
 	</div>

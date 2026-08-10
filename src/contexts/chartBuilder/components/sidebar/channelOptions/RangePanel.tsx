@@ -598,9 +598,6 @@ const AreaDefaultPanel = () => {
 				inputClassName="w-20"
 				suffix="px"
 			/>
-			<div className="vc-help">
-				Your default: {theme.defaultRadius}px
-			</div>
 			<button
 				type="button"
 				onClick={() =>

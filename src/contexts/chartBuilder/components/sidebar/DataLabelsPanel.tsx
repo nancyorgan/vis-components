@@ -366,11 +366,6 @@ export const DataLabelsPanel = () => {
 
 	return (
 		<div className="flex flex-col gap-2">
-			<p className="vc-help">
-				Draw a layer of text labels on top of the visualization. Map fields to
-				position, color, size, and text content — labels inherit faceting from
-				the main chart.
-			</p>
 
 			{/* Channel mapping rows lead the panel and sit OUTSIDE the purple
 			 *  box — choosing what each label encodes (position, value, color,
@@ -416,9 +411,7 @@ export const DataLabelsPanel = () => {
 						value={encodings.x.field}
 						onChange={(v) => setField("x", v)}
 						eligible={xEligible}
-					>
-						<XYPositionPanel axis="x" cfg={merged} onChange={updateCfg} />
-					</DataLabelChannelRow>
+					/>
 
 					<DataLabelChannelRow
 						channel="y"
@@ -426,9 +419,7 @@ export const DataLabelsPanel = () => {
 						value={encodings.y.field}
 						onChange={(v) => setField("y", v)}
 						eligible={yEligible}
-					>
-						<XYPositionPanel axis="y" cfg={merged} onChange={updateCfg} />
-					</DataLabelChannelRow>
+					/>
 				</>
 			)}
 
@@ -542,26 +533,12 @@ export const DataLabelsPanel = () => {
 						updateCfg({ labelPoints })
 					}
 				/>
-				<p className="vc-help">
-					First / last keep only each series&apos; leftmost / rightmost (or
-					topmost / bottom-most) label — handy for directly labeling line
-					charts and stacked bar charts so the legend can be turned off.
-					Series = hue field (bars/areas) or connection field (line charts).
-					A one-point series counts as &quot;last&quot;. With first and last
-					shown, the label text (under Value) and the position / alignment
-					controls below split into separate first / last settings.
-				</p>
 				<Toggle
 					label="Avoid overlapping labels"
 					className="mt-1"
 					checked={merged.avoidOverlaps === true}
 					onChange={(avoidOverlaps) => updateCfg({ avoidOverlaps })}
 				/>
-				<p className="ml-6 vc-help">
-					Moves colliding labels apart vertically — up or down — keeping each
-					as close to its data point as possible and preserving their order.
-					Best-effort — densely packed labels may still collide.
-				</p>
 				</div>
 			</CollapsibleSubsection>
 
@@ -609,10 +586,6 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
-				<p className="vc-help">
-					Pairs with the X offset below — e.g. <em>Left</em> + a small
-					positive X nudges the label cleanly past its data point.
-				</p>
 				<hr className="border-stone-200 dark:border-stone-700" />
 				<Toggle
 					label="Wrap text"
@@ -632,10 +605,6 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
-				<p className="ml-6 vc-help">
-					Wraps long labels onto multiple lines, targeting this many characters
-					per line and breaking on the nearest space so words stay whole.
-				</p>
 				{isBarMode && (
 					<>
 						<SelectInput
@@ -660,9 +629,7 @@ export const DataLabelsPanel = () => {
 					</>
 				)}
 				<hr className="border-stone-200 dark:border-stone-700" />
-				<span className="text-sm text-stone-600 dark:text-stone-400">
-					Adjust position
-				</span>
+				<span className="vc-group-header">Adjust position</span>
 				{/* Angle / R are polar-only — they only make sense around a pie,
 				 *  so they're hidden for cartesian charts. The X/Y pixel nudge
 				 *  below applies to every chart type, pies included. */}
@@ -771,11 +738,6 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
-				<p className="vc-help">
-					Pixel offset{splitEndpoints ? " per endpoint" : " applied to every label"}.
-					Positive X pushes right, positive Y pushes up. Useful for shifting
-					labels off of the marks they&apos;re annotating.
-				</p>
 				</div>
 			</CollapsibleSubsection>
 			</>
@@ -838,10 +800,6 @@ const TextBackgroundPanel = ({
 				checked={enabled}
 				onChange={(textBackground) => onChange({ textBackground })}
 			/>
-			<p className="vc-help">
-				Draws a filled rectangle behind each label so text reads cleanly over
-				gridlines instead of colliding with them.
-			</p>
 			{enabled && (
 				<>
 					<ColorInput
@@ -1191,56 +1149,6 @@ const TextPropertiesPanel = ({
 		</div>
 	</div>
 )
-
-// ---------------------------------------------------------------------------
-// X / Y position settings — color and position adjustment. (Font weight
-// moved to the layer-wide "Text Properties" subsection.)
-// ---------------------------------------------------------------------------
-const XYPositionPanel = ({
-	axis,
-	cfg,
-	onChange,
-}: {
-	axis: "x" | "y"
-	cfg: DataLabelsConfig
-	onChange: (patch: Partial<DataLabelsConfig>) => void
-}) => {
-	const offsetKey: keyof DataLabelsConfig = axis === "x" ? "xOffset" : "yOffset"
-	// The y input shows math convention (positive = up); stored values stay in
-	// screen coords (positive = down), so the sign flips at this boundary.
-	const flip = axis === "y" ? -1 : 1
-	const offsetValue = flip * ((cfg[offsetKey] as number) ?? 0)
-	return (
-		<div className="flex flex-col gap-2">
-			<div className="flex items-center gap-2">
-				<ColorInput
-					label="Color"
-					labelClassName={LABEL_COL}
-					value={cfg.color}
-					onChange={(color) => onChange({ color })}
-				/>
-				{cfg.color !== DEFAULT_DATA_LABELS_CONFIG.color && (
-					<ResetLink
-						onClick={() => onChange({ color: DEFAULT_DATA_LABELS_CONFIG.color })}
-					/>
-				)}
-			</div>
-			<NumberInput
-				label={`Adjust (${axis})`}
-				labelClassName={LABEL_COL}
-				value={offsetValue}
-				step={1}
-				onChange={(v) => onChange({ [offsetKey]: flip * v })}
-				inputClassName="w-16"
-				suffix="px"
-			/>
-			<p className="vc-help">
-				Nudges the label by this many pixels along the {axis} axis. Positive
-				values push {axis === "x" ? "right" : "up"}.
-			</p>
-		</div>
-	)
-}
 
 // ---------------------------------------------------------------------------
 // Hue / color panel — branches on the hue field's effective type so the
@@ -1786,9 +1694,8 @@ const SizePanel = ({
 					)}
 				</div>
 				<p className="vc-help">
-					Min / max set the pixel range the mapped size source scales
-					labels across; the default size applies to values it can&apos;t
-					size (non-numeric).
+					Min / Max set the pixel range for the mapped size; the default size applies to values it can&apos;t
+					map (non-numeric).
 				</p>
 			</>
 		)}
@@ -1915,13 +1822,6 @@ const ValuePanel = ({
 					))}
 				</div>
 			)}
-
-			<p className="vc-help">
-				Edit the label text above — a field name in braces (e.g.{" "}
-				<code>{"{Region}"}</code>) shows that row&apos;s value; type any text
-				around it. Each field takes a format (same options as the axes); set
-				each variable&apos;s color under the <strong>Color</strong> menu.
-			</p>
 		</div>
 	)
 }
@@ -1953,8 +1853,5 @@ const SingleValuePanel = ({
 				onChange({ fieldFormats: next })
 			}}
 		/>
-		<p className="vc-help">
-			Same options as the axes — pick a preset or type a d3 format code.
-		</p>
 	</div>
 )

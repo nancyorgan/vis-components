@@ -828,11 +828,29 @@ The X-axis and Y-axis panels (under Encodings) configure:
 
 - **Spine** — color, thickness.
 - **Tick marks** — color, thickness, length.
+- **Ticks: count + custom breaks** — the Ticks section sets the tick
+  layout: **Count** picks the automatic tick density (0 = no automatic
+  ticks), and **Custom breaks** (continuous axes only) pins extra
+  ticks at listed positions, ADDED to the automatic layout — set Count
+  to 0 and list breaks for fully custom ticks. Breaks outside the axis
+  range are dropped, and a break coinciding with an automatic tick
+  draws once. Tick labels simply follow the ticks — every tick gets a
+  label; there is no separate label-position control.
 - **Gridlines** — enabled toggle, color, thickness, custom count
-  (default: match tick count). **Custom breaks** (continuous axes
+  (default: match tick count). "Match tick count" follows the
+  AUTOMATIC tick layout only — the Ticks section's custom breaks get
+  no gridlines of their own. **Custom breaks** here (continuous axes
   only) pins extra gridlines at listed positions, drawn in addition
   to the automatic lines (match-tick or explicit count); a break that
   coincides with an automatic line paints once.
+- **Adjust position** (end of Tick Labels, behind a divider) — X / Y
+  pixel nudge that moves the whole axis (spine, tick marks, tick
+  labels, title) without moving the gridlines, which stay pinned to
+  their data positions. Same input convention as the data-labels
+  nudge: positive X = right, positive Y = up (stored in screen
+  coords, sign flipped at the input boundary). The legacy
+  perpendicular `offset` field is read while the new `offsetX`/
+  `offsetY` are unset and cleared on their first write.
 - **Tick label angle**, **label stride** (every Nth).
 - **Wrap text** (Tick Labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis
@@ -842,13 +860,19 @@ The X-axis and Y-axis panels (under Encodings) configure:
   replaces rotation as the overflow strategy); an explicit tick label
   angle still applies. The layout solver reserves matching multi-line
   room (line count below the x-axis, widest line left of the y-axis).
-  While wrapping is on, an **Alignment** row (left / center / right
-  glyph buttons, same control as the Labels panel) aligns the lines
-  within the wrapped block; the block itself stays anchored to its
-  tick. The default is the axis's natural alignment — centered under
-  an x tick, right-aligned against the y axis, left-aligned at the
-  radar spoke. Rotated x labels flip that default with their anchor:
-  negative angles naturally right-align, positive left-align.
+- **Alignment** (Tick Labels) — a left / center / right row (same
+  glyph buttons as the Labels panel), shown while Wrap text is on.
+  Wrapped labels align their lines within the wrapped
+  block; the block itself stays anchored to its tick. Unwrapped
+  (single-line) labels align within the axis's shared label column:
+  y-axis labels align to a common edge of the column (as wide as the
+  axis's widest label), radar r labels likewise right of the spoke,
+  and x-axis labels — which have no column — anchor at their own tick
+  (left starts the label at the tick, the time-axis style). The
+  default is the axis's natural alignment — centered under an x tick,
+  right-aligned against the y axis, left-aligned at the radar spoke.
+  Rotated x labels flip that default with their anchor: negative
+  angles naturally right-align, positive left-align.
 - **Tick label format** — a dropdown of preset d3-format strings (e.g.,
   comma-separated thousands, percent, scientific, currency) that
   populates an editable text box. The user can pick a preset and then
@@ -1029,9 +1053,9 @@ data-label X/Y offsets (including first/last endpoint overrides), the
 caption Y offset — reads positive = up, negative = down (math
 convention, friendlier for non-web users). Stored config values remain
 in screen coordinates (positive = down); the sign flips only at the
-input boundary, so saved charts are unaffected. Exceptions that keep
-their own semantics: the axis Position "Offset" (positive = away from
-the plot) and the inside-legend X/Y (fractional coordinates, not a
+input boundary, so saved charts are unaffected. This includes the
+axis "Adjust position" Y input. The one exception that keeps its own
+semantics is the inside-legend X/Y (fractional coordinates, not a
 nudge).
 
 User-set per-title offsets (`xAxisTitle`, `yAxisTitle`, `title`,
@@ -1314,7 +1338,14 @@ For aggregating chart types (bars / areas / pies / tile), the tooltip
 shows the aggregated value for mapped fields when those rows are
 checked. Plus, there's a custom-HTML escape hatch with template
 syntax for users who want to write their own tooltip body, and a CSS
-textarea for styling the container.
+textarea for styling the container. Both textareas are visible only
+while "Use custom HTML template" is checked, and neither the template
+nor the CSS applies while it's unchecked (contents are retained,
+inert). Enabling the toggle seeds empty HTML/CSS textareas with the
+default template and default CSS so the user edits from a working
+starting point (boxes with existing content are left alone); a
+"reset" link below each box — shown only when its content differs
+from the default — restores that default.
 
 ---
 
