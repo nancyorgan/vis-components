@@ -34,8 +34,8 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	themeAtom,
 } from "../../../store/atoms"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
@@ -63,7 +63,7 @@ export const OpacityOptionsPanel = () => {
 	const isRadarFilled = mode === "radar" && configs.connection?.fillPolygon === true
 	const linkedOutline = isAreaMode || isRadarFilled
 
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	// Fill subsection changed = no-field default opacity moved, or the mapped
 	// opacity scale edited (same signals as the top-level Opacity dot).
 	const o = configs.opacity
@@ -118,7 +118,7 @@ const FillOpacityControls = ({
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()
 	const fieldName = encodings.opacity.field

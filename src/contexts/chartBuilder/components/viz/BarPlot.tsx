@@ -15,6 +15,7 @@ import {
 	type HistogramConfig,
 	type TextConfig,
 } from "../../lib/channelConfig"
+import { ptToPx } from "../../lib/fontUnit"
 import { getChartMode } from "../../lib/chartMode"
 import type { MeasureAxisRendererProps } from "../../lib/chartRendererProps"
 import { buildTickFormatter } from "../../lib/formatTick"
@@ -1306,7 +1307,7 @@ const buildSliceLabels = ({
 						y={measureCenter}
 						fill={color}
 						fontFamily={cfg.fontFamily}
-						fontSize={cfg.fontSize}
+						fontSize={ptToPx(cfg.fontSize)}
 						fontWeight={cfg.fontWeight}
 						textAnchor="middle"
 						dominantBaseline="middle"
@@ -1325,7 +1326,7 @@ const buildSliceLabels = ({
 						y={catCenter}
 						fill={color}
 						fontFamily={cfg.fontFamily}
-						fontSize={cfg.fontSize}
+						fontSize={ptToPx(cfg.fontSize)}
 						fontWeight={cfg.fontWeight}
 						textAnchor="middle"
 						dominantBaseline="middle"

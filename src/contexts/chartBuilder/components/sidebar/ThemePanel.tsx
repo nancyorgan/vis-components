@@ -4,11 +4,13 @@ import { useCallback } from "react"
 import { themeOf } from "../../lib/systemThemes"
 import {
 	configsFromTheme,
+	dataLabelsConfigFromTheme,
 	labelsFromTheme,
 	legendConfigFromTheme,
 } from "../../lib/themeConfig"
 import {
 	currentChannelConfigsAtom,
+	currentDataLabelsConfigAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
 	currentThemeIdAtom,
@@ -113,6 +115,18 @@ export const ThemePanel = () => {
 					return {
 						...prev,
 						backgroundColor: fromTheme.backgroundColor,
+					}
+				})
+				set(currentDataLabelsConfigAtom, (prev) => {
+					const fromTheme = dataLabelsConfigFromTheme(theme)
+					// Only the theme-driven font knobs flow through; label
+					// encodings, colors, offsets, and templates are user-driven.
+					return {
+						...prev,
+						fontSize: fromTheme.fontSize,
+						fontWeight: fromTheme.fontWeight,
+						italic: fromTheme.italic,
+						underline: fromTheme.underline,
 					}
 				})
 				set(currentThemeIdAtom, themeId)

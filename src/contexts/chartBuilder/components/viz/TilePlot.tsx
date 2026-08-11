@@ -9,6 +9,7 @@ import {
 } from "../../lib/channelConfig"
 import type { PerAxisScalesRendererProps } from "../../lib/chartRendererProps"
 import { cartesian } from "../../lib/coords"
+import { ptToPx } from "../../lib/fontUnit"
 import { effectiveType } from "../../lib/fieldType"
 import type { FieldType } from "../../lib/types"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
@@ -501,7 +502,7 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 								y={cy + cellH / 2}
 								fill={color}
 								fontFamily={textCfg.fontFamily}
-								fontSize={textCfg.fontSize}
+								fontSize={ptToPx(textCfg.fontSize)}
 								fontWeight={textCfg.fontWeight}
 								textAnchor="middle"
 								dominantBaseline="middle"

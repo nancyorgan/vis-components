@@ -1221,6 +1221,20 @@ room it actually needs.
 
 ## 7. Labels (titles)
 
+**Font sizes are points.** Every font-size number in the app — titles,
+tick labels, data labels, legends, captions, annotations, the text
+channel — is a point size, matching what Office/print tools mean by
+"size 12". Rendering converts once at the resolution boundary
+(`lib/fontUnit.ts`, 1pt = 4/3px per the CSS definition; stored configs
+are never converted — the numbers' unit is pt by definition). Combined
+with the physical export sizing + DPI stamping (§6), a chart exported
+at 6×3in with size-12 axis labels drops into a presentation with text
+exactly matching 12pt body text. Layout and measurement code stays in
+px; the pt→px conversion happens inside `resolveTitleFont` /
+`resolveTextFont` / `resolveLabelSize` (and `resolveTickFontSizePx`
+for per-axis overrides), so anything downstream of those resolvers
+never sees pt.
+
 The Labels panel covers chart title, subtitle, x-axis title, y-axis
 title, and facet/legend titles. Each title has:
 
@@ -1446,6 +1460,11 @@ Theme settings:
 - **Tickmarks, spines, background colors, text encoding font,
   distribution overlay defaults, connection thickness, scale-channel
   min/max ranges** — all theme-controlled.
+- **Data label defaults** — font size, weight, and style (italic /
+  underline) used by the Data Labels layer. Applied when a chart is
+  created or re-themed; the Data Labels panel's reset links restore
+  these theme values. Themes saved before these fields existed fall
+  back to the built-in defaults (11pt, weight 500, plain).
 
 Custom themes can be set as the user's default; new charts pick that
 up automatically. The Hue panel reads palettes from the active theme

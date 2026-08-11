@@ -369,14 +369,14 @@ describe("ChordPlot", () => {
 			'g[data-kind="chord-axis-tick"] text'
 		)
 		expect(label?.getAttribute("fill")).toBe("#00aa00")
-		expect(label?.getAttribute("font-size")).toBe("9")
+		expect(label?.getAttribute("font-size")).toBe("12") // 9pt → 12px
 	})
 
 	it("node labels honor the Node-titles font override, alignment, and offset", () => {
 		const container = mountFlow("chord", {
 			labelsExtra: {
 				fontOverrides: {
-					nodeTitle: { color: "#ff0000", size: 16, italic: true },
+					nodeTitle: { color: "#ff0000", size: 12, italic: true },
 				},
 				titleAlignments: { nodeTitle: "left" },
 				titleOffsets: { nodeTitle: { x: 10 } },
@@ -387,7 +387,7 @@ describe("ChordPlot", () => {
 		)
 		expect(label).toBeDefined()
 		expect(label?.getAttribute("fill")).toBe("#ff0000")
-		expect(label?.getAttribute("font-size")).toBe("16")
+		expect(label?.getAttribute("font-size")).toBe("16") // 12pt → 16px
 		expect(label?.getAttribute("font-style")).toBe("italic")
 		// "left" forces every label's anchor to start (auto would flip by side).
 		expect(label?.getAttribute("text-anchor")).toBe("start")
@@ -437,7 +437,7 @@ describe("SankeyPlot", () => {
 	it("node labels honor the Node-titles font override", () => {
 		const container = mountFlow("sankey", {
 			labelsExtra: {
-				fontOverrides: { nodeTitle: { color: "#ff0000", size: 16 } },
+				fontOverrides: { nodeTitle: { color: "#ff0000", size: 15 } },
 			},
 		})
 		const label = [...container.querySelectorAll("text")].find(
@@ -445,7 +445,7 @@ describe("SankeyPlot", () => {
 		)
 		expect(label).toBeDefined()
 		expect(label?.getAttribute("fill")).toBe("#ff0000")
-		expect(label?.getAttribute("font-size")).toBe("16")
+		expect(label?.getAttribute("font-size")).toBe("20") // 15pt → 20px
 	})
 
 	it("acyclic data shows no notice (and still draws the full graph)", () => {

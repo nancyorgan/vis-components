@@ -13,6 +13,7 @@ import {
 	type HueConfig,
 } from "./channelConfig"
 import { buildLabelHueConfig } from "./dataLabelsHue"
+import { ptToPx } from "./fontUnit"
 import { buildTickFormatter } from "./formatTick"
 import { resolveRuleColor } from "./textColorRules"
 import type { DataLabelsEncodings, FieldType } from "./types"
@@ -155,22 +156,24 @@ export const buildLabelText = (
 }
 
 /** Linear-interpolate a numeric raw value into the user's [sizeMin,
- * sizeMax] pixel range. Returns `cfg.fontSize` when no size encoding is
- * meaningful (no field mapped, or non-numeric value). */
+ * sizeMax] range. Returns `cfg.fontSize` when no size encoding is
+ * meaningful (no field mapped, or non-numeric value). Config sizes are
+ * POINTS; the returned size is px (see lib/fontUnit) — ready for render
+ * and measurement alike. */
 export const resolveLabelSize = (
 	raw: unknown,
 	cfg: DataLabelsConfig,
 	allValues: number[]
 ): number => {
-	if (raw === undefined) return cfg.fontSize
+	if (raw === undefined) return ptToPx(cfg.fontSize)
 	const n = typeof raw === "number" ? raw : Number(raw)
-	if (!Number.isFinite(n)) return cfg.fontSize
-	if (allValues.length === 0) return cfg.fontSize
+	if (!Number.isFinite(n)) return ptToPx(cfg.fontSize)
+	if (allValues.length === 0) return ptToPx(cfg.fontSize)
 	const lo = Math.min(...allValues)
 	const hi = Math.max(...allValues)
-	if (lo === hi) return (cfg.sizeMin + cfg.sizeMax) / 2
+	if (lo === hi) return ptToPx((cfg.sizeMin + cfg.sizeMax) / 2)
 	const t = (n - lo) / (hi - lo)
-	return cfg.sizeMin + t * (cfg.sizeMax - cfg.sizeMin)
+	return ptToPx(cfg.sizeMin + t * (cfg.sizeMax - cfg.sizeMin))
 }
 
 /** The inputs `makeHueScale` needs to color labels by the mapped hue

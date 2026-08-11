@@ -204,13 +204,15 @@ export const loadVisuals = (): Visual[] => {
 	if (legacyRaw === null) return []
 	try {
 		const parsed = JSON.parse(legacyRaw)
-		// `visualsMigrations[0]` is the v0→v1 step; the migrations array
-		// is treated as immutable so this index is stable. Guarding for
-		// undefined here would mask a misconfiguration that should fail
-		// loudly during development.
-		const firstMigration = visualsMigrations[0]
-		if (!firstMigration) return []
-		const migrated = firstMigration(parsed) as Visual[]
+		// Legacy pre-rename data is at v0 — run the FULL migration chain (not
+		// just the first step) before stamping VISUALS_VERSION, or later
+		// migrations would be silently skipped for this path.
+		const migrated = migrateVersioned<Visual[]>(
+			parsed,
+			VISUALS_VERSION,
+			visualsMigrations,
+			[]
+		)
 		saveVersioned({
 			key: KEY_VISUALS,
 			currentVersion: VISUALS_VERSION,

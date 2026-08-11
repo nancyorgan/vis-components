@@ -69,8 +69,8 @@ import {
 } from "../../lib/patterns"
 import {
 	BASE_MARGIN,
-	SUBTITLE_RESERVE,
-	TITLE_RESERVE,
+	subtitleReserve,
+	titleReserve,
 } from "../../lib/plotLayout"
 import {
 	applyAreaScale,
@@ -800,11 +800,11 @@ export const Legend = ({
 	// secondary-title font size (larger than text). Without measuring
 	// them, a long title like "silliness_score" overflows past the
 	// legend column's right edge. Walk each section's title text and
-	// estimate its pixel width at the secondary title size so the
-	// legend column grows to fit. Falls back to the field name when no
-	// override is set — same logic LegendSection itself uses.
-	const titleFontSize = labels.baseFont.titles.secondarySize
-	const longestTitleChars = sections.reduce((max, s) => {
+	// estimate its pixel width at the SAME resolved per-legend font the
+	// section renders with (base secondary size + the per-legend size
+	// override) so the legend column grows to fit. Falls back to the
+	// field name when no override is set — same logic LegendSection uses.
+	const estimatedTitlePx = sections.reduce((max, s) => {
 		const keyChannel =
 			s.kind === "single"
 				? (s.titleChannel ?? s.channel)
@@ -817,9 +817,13 @@ export const Legend = ({
 			s.kind === "slot" ? LEGEND_FRIENDLY_NAME[s.legendKey] : s.field
 		// Three-state: undefined → fallback name, "" → no header (0 width).
 		const titleText = override === undefined ? fallback : override
-		return Math.max(max, titleText.length)
+		const titleFontSize = resolveTitleFont(
+			labels.baseFont,
+			"secondary",
+			labels.fontOverrides?.[legendFontKey(keyChannel as LegendChannel)]
+		).size
+		return Math.max(max, titleText.length * titleFontSize * 0.55)
 	}, 0)
-	const estimatedTitlePx = longestTitleChars * titleFontSize * 0.55
 	// When the user picks Horizontal orientation, size-style legends
 	// (area / length / angle) lay every swatch out in one no-wrap row.
 	// Estimate the row width by summing the ACTUAL per-stop swatch
@@ -985,8 +989,21 @@ export const Legend = ({
 	const plotTopOffset =
 		CHART_PAD +
 		BASE_MARGIN.top +
-		(hasTitle ? TITLE_RESERVE : 0) +
-		(hasSubtitle ? SUBTITLE_RESERVE : 0)
+		(hasTitle
+			? titleReserve(
+					resolveTitleFont(labels.baseFont, "primary", labels.fontOverrides?.title)
+						.size
+				)
+			: 0) +
+		(hasSubtitle
+			? subtitleReserve(
+					resolveTitleFont(
+						labels.baseFont,
+						"subtitle",
+						labels.fontOverrides?.subtitle
+					).size
+				)
+			: 0)
 	const plotRightOffset = CHART_PAD + BASE_MARGIN.right
 	// The OUTER element only reserves layout space (or, for "inside" mode,
 	// anchors absolutely-positioned coords). Background, padding, and border

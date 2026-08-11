@@ -12,6 +12,7 @@ import {
 	type TextColorRule,
 } from "../../lib/channelConfig"
 import { resolveHierarchyIdField } from "../../lib/buildHierarchy"
+import { dataLabelsConfigFromTheme } from "../../lib/themeConfig"
 import { getChartMode } from "../../lib/chartMode"
 import { effectiveType } from "../../lib/fieldType"
 import {
@@ -144,6 +145,15 @@ export const DataLabelsPanel = () => {
 	}
 	const [cfg, setCfg] = useAtom(currentDataLabelsConfigAtom)
 	const merged: DataLabelsConfig = { ...DEFAULT_DATA_LABELS_CONFIG, ...cfg }
+	// Resolve the LIVE theme (same fallback chain as HuePanel below) so the
+	// font-size / weight / style reset links compare against — and reset to —
+	// the theme's data-label defaults rather than the hardcoded constants.
+	const storedTheme = useAtomValue(themeAtom)
+	const allThemes = useAtomValue(themesAtom)
+	const currentThemeId = useAtomValue(currentThemeIdAtom)
+	const themeDefaults = dataLabelsConfigFromTheme(
+		allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const chartEncodings = useAtomValue(currentEncodingsAtom)
 	const chartConfigs = useAtomValue(currentChannelConfigsAtom)
@@ -500,6 +510,7 @@ export const DataLabelsPanel = () => {
 				<SizePanel
 					cfg={merged}
 					onChange={updateCfg}
+					themeDefaults={themeDefaults}
 					sizeMapped={sizeByDepth || Boolean(encodings.size.field)}
 					depthNote={sizeByDepth}
 				/>
@@ -757,7 +768,11 @@ export const DataLabelsPanel = () => {
 			)}
 
 			<CollapsibleSubsection title="Text Properties">
-				<TextPropertiesPanel cfg={merged} onChange={updateCfg} />
+				<TextPropertiesPanel
+					cfg={merged}
+					onChange={updateCfg}
+					themeDefaults={themeDefaults}
+				/>
 			</CollapsibleSubsection>
 
 			{!isTreeMode && (
@@ -1074,9 +1089,13 @@ const TextPositionPanel = ({
 const TextPropertiesPanel = ({
 	cfg,
 	onChange,
+	themeDefaults,
 }: {
 	cfg: DataLabelsConfig
 	onChange: (patch: Partial<DataLabelsConfig>) => void
+	/** Theme-seeded baseline (`dataLabelsConfigFromTheme`) — the weight and
+	 *  style reset links compare against and restore the THEME's defaults. */
+	themeDefaults: DataLabelsConfig
 }) => (
 	<div className="flex flex-col gap-2">
 		<div className="flex items-center gap-2">
@@ -1115,11 +1134,9 @@ const TextPropertiesPanel = ({
 				}
 				selectClassName="flex-1"
 			/>
-			{cfg.fontWeight !== DEFAULT_DATA_LABELS_CONFIG.fontWeight && (
+			{cfg.fontWeight !== themeDefaults.fontWeight && (
 				<ResetLink
-					onClick={() =>
-						onChange({ fontWeight: DEFAULT_DATA_LABELS_CONFIG.fontWeight })
-					}
+					onClick={() => onChange({ fontWeight: themeDefaults.fontWeight })}
 				/>
 			)}
 		</div>
@@ -1141,9 +1158,15 @@ const TextPropertiesPanel = ({
 				ariaLabel="Underline"
 				onClick={() => onChange({ underline: !cfg.underline })}
 			/>
-			{(cfg.italic === true || cfg.underline === true) && (
+			{((cfg.italic ?? false) !== (themeDefaults.italic ?? false) ||
+				(cfg.underline ?? false) !== (themeDefaults.underline ?? false)) && (
 				<ResetLink
-					onClick={() => onChange({ italic: false, underline: false })}
+					onClick={() =>
+						onChange({
+							italic: themeDefaults.italic ?? false,
+							underline: themeDefaults.underline ?? false,
+						})
+					}
 				/>
 			)}
 		</div>
@@ -1612,11 +1635,15 @@ const GradientRow = ({
 const SizePanel = ({
 	cfg,
 	onChange,
+	themeDefaults,
 	sizeMapped = false,
 	depthNote = false,
 }: {
 	cfg: DataLabelsConfig
 	onChange: (patch: Partial<DataLabelsConfig>) => void
+	/** Theme-seeded baseline (`dataLabelsConfigFromTheme`) — the Default
+	 *  size reset link compares against and restores the THEME's size. */
+	themeDefaults: DataLabelsConfig
 	/** True when the Size dropdown has a source (a field or the derived
 	 *  "Nesting depth") — gates the Min / Max range inputs. */
 	sizeMapped?: boolean
@@ -1641,13 +1668,11 @@ const SizePanel = ({
 				step={1}
 				onChange={(fontSize) => onChange({ fontSize })}
 				inputClassName="w-16"
-				suffix="px"
+				suffix="pt"
 			/>
-			{cfg.fontSize !== DEFAULT_DATA_LABELS_CONFIG.fontSize && (
+			{cfg.fontSize !== themeDefaults.fontSize && (
 				<ResetLink
-					onClick={() =>
-						onChange({ fontSize: DEFAULT_DATA_LABELS_CONFIG.fontSize })
-					}
+					onClick={() => onChange({ fontSize: themeDefaults.fontSize })}
 				/>
 			)}
 		</div>
@@ -1663,7 +1688,7 @@ const SizePanel = ({
 						step={1}
 						onChange={(sizeMin) => onChange({ sizeMin })}
 						inputClassName="w-16"
-						suffix="px"
+						suffix="pt"
 					/>
 					{cfg.sizeMin !== DEFAULT_DATA_LABELS_CONFIG.sizeMin && (
 						<ResetLink
@@ -1683,7 +1708,7 @@ const SizePanel = ({
 						step={1}
 						onChange={(sizeMax) => onChange({ sizeMax })}
 						inputClassName="w-16"
-						suffix="px"
+						suffix="pt"
 					/>
 					{cfg.sizeMax !== DEFAULT_DATA_LABELS_CONFIG.sizeMax && (
 						<ResetLink

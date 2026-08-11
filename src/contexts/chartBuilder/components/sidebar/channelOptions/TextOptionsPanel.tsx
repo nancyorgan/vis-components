@@ -8,7 +8,9 @@ import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
+	currentThemeIdAtom,
 	themeAtom,
+	themesAtom,
 } from "../../../store/atoms"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
@@ -57,7 +59,14 @@ export const TextOptionsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
-	const theme = useAtomValue(themeAtom)
+	// Live theme first (themesAtom[currentThemeId]); the legacy `themeAtom`
+	// snapshot only as fallback — it's frozen at the last theme APPLY, so
+	// reset baselines computed from it go stale the moment the user edits
+	// the theme sheet (mirrors EncodingShelf/LegendPanel).
+	const storedTheme = useAtomValue(themeAtom)
+	const allThemes = useAtomValue(themesAtom)
+	const currentThemeId = useAtomValue(currentThemeIdAtom)
+	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
 	const dataset = useCurrentDatasetView()
 
 	// Theme-derived defaults: each top-level control resets to the value the
@@ -150,7 +159,7 @@ export const TextOptionsPanel = () => {
 					max={48}
 					step={1}
 					onChange={(fontSize) => updateCfg({ fontSize })}
-					suffix="px"
+					suffix="pt"
 					inputClassName="w-16"
 				/>
 				{cfg.fontSize !== themeCfg.fontSize && (

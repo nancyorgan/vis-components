@@ -1147,7 +1147,7 @@ const RectangleEditor = ({
 							min={1}
 							step={1}
 							onChange={(v) => onChange({ textFontSize: v })}
-							suffix="px"
+							suffix="pt"
 						/>
 						{(rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize) !==
 							DEFAULT_RECTANGLE_TEXT.textFontSize && (

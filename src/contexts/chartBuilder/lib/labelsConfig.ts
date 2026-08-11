@@ -1,3 +1,5 @@
+import { ptToPx } from "./fontUnit"
+
 // ---------------------------------------------------------------------------
 // Font types
 // ---------------------------------------------------------------------------
@@ -758,6 +760,9 @@ export const titleOffsetOf = (
  * Build the effective FontConfig for a title-like slot by combining the base
  * titles config (picking the right size for the slot) with the per-label
  * override (if any).
+ *
+ * Configured sizes are POINTS; the returned `size` is px (see lib/fontUnit).
+ * Every consumer — render sites and text measurement alike — works in px.
  */
 export const resolveTitleFont = (
 	base: BaseFontConfig,
@@ -773,7 +778,7 @@ export const resolveTitleFont = (
 	return {
 		family: override?.family ?? base.titles.family,
 		color: override?.color ?? base.titles.color,
-		size: override?.size ?? size,
+		size: ptToPx(override?.size ?? size),
 		weight: override?.weight ?? base.titles.weight,
 		italic: override?.italic ?? base.titles.italic ?? false,
 		underline: override?.underline ?? base.titles.underline ?? false,
@@ -799,10 +804,11 @@ export const layerFacetOverride = (
 	return Object.keys(out).length > 0 ? out : undefined
 }
 
-/** Build the effective text font (axis tick labels, legend swatch labels). */
+/** Build the effective text font (axis tick labels, legend swatch labels).
+ *  Configured size is POINTS; the returned `size` is px (see lib/fontUnit). */
 export const resolveTextFont = (base: BaseFontConfig): TextFontConfig => ({
 	family: base.text.family,
-	size: base.text.size,
+	size: ptToPx(base.text.size),
 	color: base.text.color,
 	weight: base.text.weight,
 	italic: base.text.italic ?? false,

@@ -7,12 +7,12 @@ import {
 } from "d3-chord"
 import { arc } from "d3-shape"
 
-import { useAtomValue } from "jotai"
 import { flowEdgeKey, type FlowEdge } from "../../lib/buildFlowGraph"
 import {
 	DEFAULT_SPINE_CONFIG,
 	DEFAULT_TICKMARK_CONFIG,
 } from "../../lib/channelConfig"
+import { resolveTickFontSizePx } from "../../lib/fontUnit"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import {
 	chordAxisStep,
@@ -22,7 +22,8 @@ import {
 } from "../../lib/chordAxis"
 import { fontStyleAttrs } from "../../lib/labelsConfig"
 import { chordAxisConfigFromTheme } from "../../lib/themeConfig"
-import { themeAtom } from "../../store/atoms"
+import {} from "../../store/atoms"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 
 import { Plot, type PlotContext } from "./Plot"
 import { useFlowScaffold } from "./useFlowScaffold"
@@ -84,7 +85,7 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 	// axes do (`chordAxisConfigFromTheme` is also the panel's fallback, so
 	// what draws and what the panel displays can't drift); unset tick-label
 	// fields inherit the base text font.
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const axisCfg = {
 		...chordAxisConfigFromTheme(theme),
 		...scaffold.channelConfigs.connection?.chordAxis,
@@ -94,7 +95,7 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 	const axisSpine = axisCfg.spine ?? DEFAULT_SPINE_CONFIG
 	const axisLabelFont = {
 		family: axisCfg.tickLabelFont?.family ?? tickFont.family,
-		size: axisCfg.tickLabelFont?.size ?? tickFont.size,
+		size: resolveTickFontSizePx(axisCfg.tickLabelFont?.size, tickFont.size),
 		color: axisCfg.tickLabelFont?.color ?? tickFont.color,
 		...fontStyleAttrs({
 			weight: axisCfg.tickLabelFont?.weight ?? tickFont.weight,

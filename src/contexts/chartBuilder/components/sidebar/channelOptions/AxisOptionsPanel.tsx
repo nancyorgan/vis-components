@@ -26,8 +26,8 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	themeAtom,
 } from "../../../store/atoms"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
@@ -67,7 +67,7 @@ export const ordinalSuffix = (n: number): string => {
 
 export const AxisOptionsPanel = ({ channel }: Props) => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const labels = useAtomValue(currentLabelsAtom)
 	const config: AxisConfig = configs[channel] ?? axisConfigFromTheme(theme, channel)
 	// The theme's axis defaults — the reference for the subsection / per-line
@@ -521,6 +521,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 					value={config.tickLabelFont}
 					legacyColor={config.tickLabelColor}
 					inheritedColor={inheritedTickLabelColor}
+					inheritedSize={labels.baseFont.text.size}
 					onChange={(tickLabelFont) =>
 						// Writing the fuller font override supersedes the legacy
 						// `tickLabelColor`; clear it so the two color sources can't
@@ -1279,11 +1280,14 @@ export const TickLabelFontControl = ({
 	value,
 	legacyColor,
 	inheritedColor,
+	inheritedSize,
 	onChange,
 }: {
 	value: Partial<FontConfig> | undefined
 	legacyColor: string | undefined
 	inheritedColor: string
+	/** Inherited size (pt) shown as the Size box's placeholder. */
+	inheritedSize: number
 	onChange: (next: Partial<FontConfig> | undefined) => void
 }) => {
 	const current: Partial<FontConfig> =
@@ -1298,6 +1302,7 @@ export const TickLabelFontControl = ({
 			onResetAll={hasOverride ? () => onChange(undefined) : undefined}
 			showResetFields
 			baseColor={inheritedColor}
+			baseSize={inheritedSize}
 		/>
 	)
 }

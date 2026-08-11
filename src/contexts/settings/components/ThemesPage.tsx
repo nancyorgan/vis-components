@@ -643,7 +643,7 @@ export const ThemesPage = () => {
 							min={8}
 							max={48}
 							step={1}
-							suffix="px"
+							suffix="pt"
 						/>
 						<NumberInput
 							label="Subtitle size"
@@ -652,7 +652,7 @@ export const ThemesPage = () => {
 							min={8}
 							max={36}
 							step={1}
-							suffix="px"
+							suffix="pt"
 						/>
 						<NumberInput
 							label="Axis title size"
@@ -661,7 +661,7 @@ export const ThemesPage = () => {
 							min={8}
 							max={36}
 							step={1}
-							suffix="px"
+							suffix="pt"
 						/>
 						<StyleToggleRow
 							bold={theme.titleFontBold ?? false}
@@ -692,7 +692,7 @@ export const ThemesPage = () => {
 							min={8}
 							max={24}
 							step={1}
-							suffix="px"
+							suffix="pt"
 						/>
 						<StyleToggleRow
 							bold={theme.textFontBold ?? false}
@@ -1318,7 +1318,7 @@ export const ThemesPage = () => {
 							min={6}
 							max={48}
 							step={1}
-							suffix="px"
+							suffix="pt"
 						/>
 						<label className="flex items-center gap-2 text-sm">
 							<span className="w-32 text-stone-600 dark:text-stone-400">
@@ -1341,6 +1341,52 @@ export const ThemesPage = () => {
 								))}
 							</select>
 						</label>
+					</Section>
+
+					<hr className="border-stone-200 dark:border-stone-700" />
+
+					{/* Data label defaults */}
+					<Section title="Data label defaults">
+						<p className="text-sm text-stone-600 dark:text-stone-400">
+							Initial font for the Data Labels layer, applied when a chart is
+							created or re-themed.
+						</p>
+						<NumberInput
+							label="Font size"
+							value={theme.dataLabelsFontSize ?? 11}
+							onChange={(v) => set("dataLabelsFontSize", v)}
+							min={6}
+							max={48}
+							step={1}
+							suffix="pt"
+						/>
+						<label className="flex items-center gap-2 text-sm">
+							<span className="w-32 text-stone-600 dark:text-stone-400">
+								Font weight
+							</span>
+							<select
+								value={theme.dataLabelsFontWeight ?? 500}
+								onChange={(e) =>
+									set(
+										"dataLabelsFontWeight",
+										Number(e.target.value) as 400 | 500 | 600 | 700
+									)
+								}
+								className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							>
+								{[400, 500, 600, 700].map((w) => (
+									<option key={w} value={w}>
+										{w}
+									</option>
+								))}
+							</select>
+						</label>
+						<StyleToggleRow
+							italic={theme.dataLabelsItalic ?? false}
+							underline={theme.dataLabelsUnderline ?? false}
+							onItalic={(v) => set("dataLabelsItalic", v)}
+							onUnderline={(v) => set("dataLabelsUnderline", v)}
+						/>
 					</Section>
 
 					<hr className="border-stone-200 dark:border-stone-700" />
@@ -1691,17 +1737,19 @@ export const ThemesPage = () => {
  * in LabelsPanel so the chart-edit and theme-edit surfaces feel like
  * the same control. */
 const StyleToggleRow = ({
-	bold,
+	bold = false,
 	italic,
 	underline,
 	onBold,
 	onItalic,
 	onUnderline,
 }: {
-	bold: boolean
+	/** Omit `onBold` to drop the B button — for sections where weight is a
+	 *  separate numeric select (data labels) rather than a bold flag. */
+	bold?: boolean
 	italic: boolean
 	underline: boolean
-	onBold: (v: boolean) => void
+	onBold?: (v: boolean) => void
 	onItalic: (v: boolean) => void
 	onUnderline: (v: boolean) => void
 }) => {
@@ -1737,13 +1785,15 @@ const StyleToggleRow = ({
 			<span className="w-16 text-sm text-stone-600 dark:text-stone-400">
 				Style
 			</span>
-			<Btn
-				on={bold}
-				label="B"
-				className="font-bold"
-				ariaLabel="Bold"
-				onClick={() => onBold(!bold)}
-			/>
+			{onBold && (
+				<Btn
+					on={bold}
+					label="B"
+					className="font-bold"
+					ariaLabel="Bold"
+					onClick={() => onBold(!bold)}
+				/>
+			)}
 			<Btn
 				on={italic}
 				label="I"

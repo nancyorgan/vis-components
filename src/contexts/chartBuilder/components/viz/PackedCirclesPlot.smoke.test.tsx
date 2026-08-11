@@ -9,6 +9,7 @@ import {
 	type ChannelConfigs,
 	type DataLabelsConfig,
 } from "../../lib/channelConfig"
+import { ptToPx } from "../../lib/fontUnit"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
 import {
 	emptyDataLabelsEncodings,
@@ -612,8 +613,9 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 		const { container } = mountPacked({
 			withConnection: true,
 			dataLabelsEncodings: { size: { field: "Value" } },
-			// Small range so every label still fits its circle.
-			dataLabelsConfig: { sizeMin: 6, sizeMax: 14 },
+			// Small range so every label still fits its circle. Config sizes
+			// are pt (4.5pt → 6px, 10.5pt → 14px).
+			dataLabelsConfig: { sizeMin: 4.5, sizeMax: 10.5 },
 		})
 		// Lemon (Value 8, the max) → 14px; Mini (Value 1, the min) → 6px.
 		expect(labelByText(container, "Lemon")?.getAttribute("font-size")).toBe(
@@ -623,7 +625,7 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 		// Containers aren't size-scaled unless row-backed — implicit Pome
 		// keeps the base font size.
 		expect(labelByText(container, "Pome")?.getAttribute("font-size")).toBe(
-			String(DEFAULT_DATA_LABELS_CONFIG.fontSize)
+			String(ptToPx(DEFAULT_DATA_LABELS_CONFIG.fontSize))
 		)
 	})
 
@@ -670,7 +672,8 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 			dataLabelsEncodings: {
 				hue: { field: null, measureSource: "depth" },
 			},
-			dataLabelsConfig: { paletteId: "custom", palette },
+			// 8.25pt → 11px: keeps the deep "Mini" label fitting its circle.
+			dataLabelsConfig: { paletteId: "custom", palette, fontSize: 8.25 },
 		})
 		expect(labelByText(container, "Pome")?.getAttribute("fill")).toBe(
 			"#101010"
@@ -689,7 +692,8 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 			dataLabelsEncodings: {
 				size: { field: null, measureSource: "depth" },
 			},
-			dataLabelsConfig: { sizeMin: 8, sizeMax: 16 },
+			// pt config: 6pt → 8px, 12pt → 16px (assertions are rendered px).
+			dataLabelsConfig: { sizeMin: 6, sizeMax: 12 },
 		})
 		expect(labelByText(container, "Pome")?.getAttribute("font-size")).toBe(
 			"16"
@@ -709,7 +713,8 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 			dataLabelsEncodings: {
 				hue: { field: null, measureSource: "rootGroup" },
 			},
-			dataLabelsConfig: { paletteId: "custom", palette },
+			// 8.25pt → 11px: keeps the deep "Mini" label fitting its circle.
+			dataLabelsConfig: { paletteId: "custom", palette, fontSize: 8.25 },
 		})
 		// Root order: Pome, Citrus, Melon. Mini nests Melon → Watermelon →
 		// Mini, so it inherits Melon's slot — as does the Watermelon

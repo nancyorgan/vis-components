@@ -25,6 +25,7 @@ import {
 	themeAtom,
 	themesAtom,
 } from "../../../store/atoms"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
@@ -47,7 +48,7 @@ const useOutlineHueField = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const [, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const dataset = useCurrentDatasetView()
 
 	const value = encodings.outlineHue?.field ?? null

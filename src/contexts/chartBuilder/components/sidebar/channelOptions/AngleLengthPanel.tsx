@@ -14,8 +14,8 @@ import { angleConfigFromTheme } from "../../../lib/themeConfig"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
-	themeAtom,
 } from "../../../store/atoms"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import type { Theme } from "../../../lib/types"
 
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
@@ -27,7 +27,7 @@ import { NumberInput } from "../../../../../components/ui/NumberInput"
 export const AngleOptionsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.angle?.field
 
 	const currentAngle = configs.defaultAngle ?? DEFAULT_ANGLE

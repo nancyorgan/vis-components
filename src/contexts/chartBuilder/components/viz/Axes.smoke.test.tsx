@@ -424,6 +424,9 @@ describe("Axis wrapTickLabels (Wrap text toggle)", () => {
 		customFormat: "",
 		tickLabelAngle: 0,
 		jitterAmount: 0,
+		// Pin the tick font to 10px (config sizes are pt; 7.5pt → 10px) so the
+		// wrap-budget geometry the assertions below encode stays put.
+		tickLabelFont: { size: 7.5 },
 		gridlines: { enabled: false, color: "#000", thickness: 1, count: null },
 		tickmarks: { color: "#000", thickness: 1, length: 5 },
 		spine: { color: "#000", thickness: 1 },

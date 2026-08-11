@@ -13,6 +13,7 @@ import {
 	type TextConfig,
 } from "../../lib/channelConfig"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
+import { ptToPx } from "../../lib/fontUnit"
 import { cartesian } from "../../lib/coords"
 import {
 	fontStyleAttrs,
@@ -195,7 +196,8 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 	const nodeTitleOverride = labels.fontOverrides?.nodeTitle
 	const nodeLabelFont = {
 		family: nodeTitleOverride?.family ?? textCfg.fontFamily,
-		size: nodeTitleOverride?.size ?? textCfg.fontSize,
+		// Config sizes are pt; rendering is px (lib/fontUnit).
+		size: ptToPx(nodeTitleOverride?.size ?? textCfg.fontSize),
 		// fontStyleAttrs supplies weight/italic/underline; weight falls back to
 		// the Text channel's weight so the pre-slot rendering is preserved.
 		...fontStyleAttrs({

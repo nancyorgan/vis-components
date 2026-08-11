@@ -14,6 +14,10 @@
 import {
 	idbAvailable,
 } from "./storage/idb"
+import {
+	resetVisualFontSizesV1ToV2,
+	themeFontSizesFromListV2,
+} from "./storage/migrations"
 import { dedupeDatasetStores } from "./datasetDedupe"
 import {
 	loadDatasetsAsync,
@@ -91,9 +95,26 @@ export const applyExampleSeed = async (seed: SeedBundle): Promise<void> => {
 		if (loadVisuals().length > 0) return
 		if (loadExampleSeedApplied() === seed.exportedAt) return
 
+		// Seed bundles carry no storage version, and this write stamps the
+		// CURRENT visuals version — so the visuals v1→v2 font-size reset
+		// (the 2026-08 px→pt switch) would never run on seeded libraries.
+		// Bundles exported before the cutover contain px-era font sizes;
+		// re-apply the same reset here using the bundle's own themes. The
+		// reset is idempotent, so a borderline re-application is harmless.
+		const FONT_PT_CUTOVER = "2026-08-12T00:00:00.000Z"
+		const seedVisuals =
+			seed.exportedAt < FONT_PT_CUTOVER
+				? (() => {
+						const themes = themeFontSizesFromListV2(seed.themes)
+						return seed.visuals.map(
+							(v) => resetVisualFontSizesV1ToV2(v, themes) as Visual
+						)
+					})()
+				: seed.visuals
+
 		// Awaited so the thumbnail side-table is populated before the
 		// visuals atom mounts and does its one-shot thumbnail merge.
-		await saveVisuals(seed.visuals)
+		await saveVisuals(seedVisuals)
 		saveFolders(seed.folders)
 
 		if (idbAvailable()) {

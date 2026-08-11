@@ -6,6 +6,7 @@ import {
 	DEFAULT_TICKMARK_CONFIG,
 	type AxisConfig,
 } from "../../lib/channelConfig"
+import { ptToPx, resolveTickFontSizePx } from "../../lib/fontUnit"
 import { estimateLongestLineWidth } from "../../lib/estimateMargins"
 import { buildTickFormatter } from "../../lib/formatTick"
 import {
@@ -97,7 +98,14 @@ export const Axis = ({
 	// it. `color` resolves through the legacy `tickLabelColor` for back-compat
 	// with visuals saved before the fuller `tickLabelFont` override existed.
 	const tickLabelFont = config?.tickLabelFont
-	const tickFontSize = tickLabelFont?.size ?? tickFont?.size ?? 10
+	// Override sizes are pt (raw config); `tickFont.size` arrives already
+	// resolved to px. The shared helper owns that unit split; the trailing
+	// fallback (no tickFont prop — standalone mounts only) is the base text
+	// default in px.
+	const tickFontSize = resolveTickFontSizePx(
+		tickLabelFont?.size,
+		tickFont?.size ?? ptToPx(12)
+	)
 	const tickFamily = tickLabelFont?.family ?? tickFont?.family
 	const tickFill =
 		tickLabelFont?.color ?? config?.tickLabelColor ?? tickFont?.color
@@ -106,7 +114,9 @@ export const Axis = ({
 	const tickUnderline = tickLabelFont?.underline ?? tickFont?.underline
 	const tickFontStyle = tickItalic ? ("italic" as const) : undefined
 	const tickDecoration = tickUnderline ? ("underline" as const) : undefined
-	const titleFontSize = titleFont?.size ?? 12
+	// `titleFont` arrives resolved (px); the fallback mirrors the secondary
+	// title default for standalone mounts.
+	const titleFontSize = titleFont?.size ?? ptToPx(13)
 	const titleFill = titleFont?.color
 	const titleFamily = titleFont?.family
 	const titleFontWeight = titleFont?.weight ?? 500

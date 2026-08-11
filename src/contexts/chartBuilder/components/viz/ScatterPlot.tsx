@@ -22,6 +22,7 @@ import {
 	type RegressionConfig,
 	type TextConfig,
 } from "../../lib/channelConfig"
+import { ptToPx } from "../../lib/fontUnit"
 import type { ScatterRendererProps } from "../../lib/chartRendererProps"
 import { cartesian } from "../../lib/coords"
 import {
@@ -989,7 +990,7 @@ const renderTextLabels = (
 						y={m.cy}
 						fill={resolveTextColor(raw, cfg, idx)}
 						fontFamily={cfg.fontFamily}
-						fontSize={cfg.fontSize}
+						fontSize={ptToPx(cfg.fontSize)}
 						fontWeight={cfg.fontWeight}
 						dominantBaseline="middle"
 						pointerEvents="none"

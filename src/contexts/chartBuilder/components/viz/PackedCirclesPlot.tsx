@@ -8,6 +8,7 @@ import {
 	type Disk,
 	type Rect,
 } from "../../lib/packArcLabels"
+import { ptToPx } from "../../lib/fontUnit"
 import { PatternDefs, type PatternDefSpec } from "../../lib/patternDefs"
 
 import { Plot, type PlotContext } from "./Plot"
@@ -69,7 +70,9 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 		// the panel edge-to-edge and the arc text would clip). Deeper wrap
 		// levels sit inside their parents, so only level 1 reserves a gutter.
 		const wrapLevels = labelCfg.arcWrapLevels ?? []
-		const labelGutter = wrapLevels.includes(1) ? labelCfg.fontSize * 1.8 : 0
+		const labelGutter = wrapLevels.includes(1)
+			? ptToPx(labelCfg.fontSize) * 1.8
+			: 0
 		const packed = pack<HierarchyNode>()
 			.size([
 				Math.max(w - 2 * labelGutter, 1),

@@ -6,6 +6,7 @@ import {
 	DEFAULT_CHORD_AXIS_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_DASH_RANGE,
+	DEFAULT_DATA_LABELS_CONFIG,
 	DEFAULT_OPACITY_QUANTITATIVE,
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_QUANTITATIVE_HUE_CONFIG,
@@ -18,6 +19,7 @@ import {
 	type ChannelConfigs,
 	type ChordAxisConfig,
 	type ConnectionConfig,
+	type DataLabelsConfig,
 	type HueConfig,
 	type OpacityConfig,
 	type PatternConfig,
@@ -189,6 +191,18 @@ export const textConfigFromTheme = (t: Theme): TextConfig => ({
 	fontFamily: t.textEncodingFontFamily,
 	fontSize: t.textEncodingFontSize,
 	fontWeight: t.textEncodingFontWeight,
+})
+
+/** Theme-seeded Data Labels config — see `shapeConfigFromTheme` for why this
+ * is a shared builder. Only the font knobs (size / weight / italic /
+ * underline) are theme-driven; the `??` fallbacks cover themes saved before
+ * these fields existed, which keep the built-in defaults. */
+export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
+	...DEFAULT_DATA_LABELS_CONFIG,
+	fontSize: t.dataLabelsFontSize ?? DEFAULT_DATA_LABELS_CONFIG.fontSize,
+	fontWeight: t.dataLabelsFontWeight ?? DEFAULT_DATA_LABELS_CONFIG.fontWeight,
+	italic: t.dataLabelsItalic ?? false,
+	underline: t.dataLabelsUnderline ?? false,
 })
 
 /** Theme-seeded `connection` slice — see `shapeConfigFromTheme` for why this

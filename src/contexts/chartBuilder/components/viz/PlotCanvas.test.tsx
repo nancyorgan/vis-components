@@ -567,7 +567,7 @@ describe("PlotCanvas — grid mode (facetRow + facetCol)", () => {
 	it("hideEmptyPanels: facetPanelTitle override styles the compact per-panel titles, NOT the strip", () => {
 		seedCompactSparse({
 			...DEFAULT_LABELS_CONFIG,
-			fontOverrides: { facetPanelTitle: { color: "#ff0000", size: 19 } },
+			fontOverrides: { facetPanelTitle: { color: "#ff0000", size: 18 } },
 		})
 		const { container } = mountChartCanvas()
 		// The four compacted panels each carry a title text styled by the
@@ -578,7 +578,7 @@ describe("PlotCanvas — grid mode (facetRow + facetCol)", () => {
 		expect(labelTexts.length).toBe(4)
 		for (const t of labelTexts) {
 			expect(t.getAttribute("fill")).toBe("#ff0000")
-			expect(t.getAttribute("font-size")).toBe("19")
+			expect(t.getAttribute("font-size")).toBe("24") // 18pt → 24px
 		}
 		// Independence: the surviving column-header strip keeps its own
 		// facetTitle/facetColTitle styling — the per-panel slot must not
@@ -589,7 +589,7 @@ describe("PlotCanvas — grid mode (facetRow + facetCol)", () => {
 		expect(colHeaders.length).toBeGreaterThan(0)
 		for (const h of colHeaders) {
 			expect(h.getAttribute("fill")).not.toBe("#ff0000")
-			expect(h.getAttribute("font-size")).not.toBe("19")
+			expect(h.getAttribute("font-size")).not.toBe("24")
 		}
 	})
 

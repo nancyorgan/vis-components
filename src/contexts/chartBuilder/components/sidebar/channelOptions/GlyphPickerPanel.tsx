@@ -73,6 +73,7 @@ import {
 	themeAtom,
 	themesAtom,
 } from "../../../store/atoms"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
@@ -376,7 +377,7 @@ const useUniqueValuesForChannel = (
 export const ShapeOptionsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.shape?.field
 	// Bar, tile (heatmap), and hexbin charts open this panel for the outline
 	// width (bar / cell borders read it), but draw no point glyphs — the
@@ -528,7 +529,7 @@ export const PatternOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	// Live theme for connection-config writes (settings edits appear
 	// immediately) — same lookup as ConnectionDashRangeRows below.
 	const allThemes = useAtomValue(themesAtom)

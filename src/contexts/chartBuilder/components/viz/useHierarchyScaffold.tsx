@@ -15,6 +15,7 @@ import {
 	type TextConfig,
 } from "../../lib/channelConfig"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
+import { ptToPx } from "../../lib/fontUnit"
 import { cartesian } from "../../lib/coords"
 import {
 	formatSingleLabel,
@@ -357,12 +358,12 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 		sizeFor: (node: HierarchyLayoutNode): number => {
 			if (labelSizeByDepth) {
 				if (labelMaxDepth <= 1) {
-					return (dataLabelsCfg.sizeMin + dataLabelsCfg.sizeMax) / 2
+					return ptToPx((dataLabelsCfg.sizeMin + dataLabelsCfg.sizeMax) / 2)
 				}
 				const t = (node.depth - 1) / (labelMaxDepth - 1)
-				return (
+				return ptToPx(
 					dataLabelsCfg.sizeMax +
-					t * (dataLabelsCfg.sizeMin - dataLabelsCfg.sizeMax)
+						t * (dataLabelsCfg.sizeMin - dataLabelsCfg.sizeMax)
 				)
 			}
 			const raw =
@@ -370,7 +371,7 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 					? node.data.row[labelSizeField]
 					: undefined
 			if (raw === undefined || String(raw ?? "").trim() === "") {
-				return dataLabelsCfg.fontSize
+				return ptToPx(dataLabelsCfg.fontSize)
 			}
 			return resolveLabelSize(raw, dataLabelsCfg, labelSizeValues)
 		},

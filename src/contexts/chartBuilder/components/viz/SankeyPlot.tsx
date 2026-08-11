@@ -3,6 +3,7 @@ import { useMemo } from "react"
 import { sankey, sankeyLinkHorizontal, type SankeyNode } from "d3-sankey"
 
 import { breakCycles, flowEdgeKey, type FlowEdge } from "../../lib/buildFlowGraph"
+import { ptToPx } from "../../lib/fontUnit"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 
 import { Plot, type PlotContext } from "./Plot"
@@ -67,7 +68,7 @@ export const SankeyPlot = (props: SankeyPlotProps = {}) => {
 				<text
 					x={inner.x0}
 					y={inner.y1 - 4}
-					fontSize={11}
+					fontSize={ptToPx(11)}
 					fill="#78716c"
 					pointerEvents="none"
 				>

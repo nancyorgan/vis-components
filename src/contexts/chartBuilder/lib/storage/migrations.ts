@@ -22,7 +22,7 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 1
+export const VISUALS_VERSION = 3
 export const DATASETS_VERSION = 1
 export const CHANNEL_CONFIGS_VERSION = 1
 export const LABELS_VERSION = 1
@@ -74,11 +74,251 @@ const migrateVisualV0ToV1 = (raw: V0Visual): Visual => {
 	return v as unknown as Visual
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Visuals v1 → v2: reset font sizes to theme defaults (px → pt switch)
+// ──────────────────────────────────────────────────────────────────────
+
+/** 2026-08-11: font-size numbers changed meaning from px to pt (see
+ *  lib/fontUnit.ts), so sizes chosen under the px regime render a third
+ *  larger. Rather than rescale every stored number (×0.75 → fractional
+ *  sizes forever), saved visuals RESET their font sizes to their theme's
+ *  defaults. The one exception: data labels whose SIZE is encoded to a
+ *  variable (field or nesting depth) keep their configured range — those
+ *  are variably sized by data, not a fixed choice.
+ *
+ *  Defaults are frozen inline per this file's conventions (they must not
+ *  drift with future edits to the live default objects). */
+
+type ThemeFontSizesV2 = {
+	titlePrimarySize: number
+	titleSubtitleSize: number
+	titleSecondarySize: number
+	textFontSize: number
+	textEncodingFontSize: number
+	dataLabelsFontSize: number
+}
+
+/** The light system theme's sizes at migration time — the fallback for
+ *  visuals whose themeId no longer resolves. */
+const V2_FALLBACK_THEME_SIZES: ThemeFontSizesV2 = {
+	titlePrimarySize: 20,
+	titleSubtitleSize: 14,
+	titleSecondarySize: 13,
+	textFontSize: 12,
+	textEncodingFontSize: 11,
+	dataLabelsFontSize: 11,
+}
+
+/** Hardcoded (non-theme-fed) default at migration time. */
+const V2_CAPTION_FONT_SIZE = 13
+
+const numOr = (v: unknown, fallback: number): number =>
+	typeof v === "number" && Number.isFinite(v) ? v : fallback
+
+/** Mirrors versioning.ts's safeStorage — null when unavailable (SSR,
+ *  privacy modes). */
+const safeLocalStorageV2 = (): Storage | null => {
+	try {
+		// eslint-disable-next-line no-restricted-globals
+		return typeof localStorage === "undefined" ? null : localStorage
+	} catch {
+		return null
+	}
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+	typeof v === "object" && v !== null && !Array.isArray(v)
+
+/** Build the id → font-sizes map from a raw themes list. Shared by the
+ *  localStorage reader below and the example-seed path (whose bundle
+ *  carries its own themes). */
+export const themeFontSizesFromListV2 = (
+	list: unknown
+): Map<string, ThemeFontSizesV2> => {
+	const out = new Map<string, ThemeFontSizesV2>()
+	if (!Array.isArray(list)) return out
+	for (const entry of list) {
+		if (!isRecord(entry) || typeof entry.id !== "string") continue
+		out.set(entry.id, {
+			titlePrimarySize: numOr(entry.titlePrimarySize, 20),
+			titleSubtitleSize: numOr(entry.titleSubtitleSize, 14),
+			titleSecondarySize: numOr(entry.titleSecondarySize, 13),
+			textFontSize: numOr(entry.textFontSize, 12),
+			textEncodingFontSize: numOr(entry.textEncodingFontSize, 11),
+			// Sparse Theme field (data-label font defaults became theme-driven
+			// the same week); absent → the built-in default.
+			dataLabelsFontSize: numOr(entry.dataLabelsFontSize, 11),
+		})
+	}
+	return out
+}
+
+/** Read the stored themes' font sizes directly from localStorage (the
+ *  migration runs inside `loadVersioned(visuals)`, which has no context
+ *  argument — and importing storage.ts here would be a module cycle).
+ *  Handles both the `{_v, data}` envelope and the bare legacy array;
+ *  anything unreadable just means every visual gets the fallback sizes.
+ *  `store` is injectable for tests (mirrors versioning.test's shims). */
+export const readThemeFontSizesV2 = (
+	store?: Pick<Storage, "getItem"> | null
+): Map<string, ThemeFontSizesV2> => {
+	try {
+		const source = store !== undefined ? store : safeLocalStorageV2()
+		const raw = source?.getItem("vis-components:themes") ?? null
+		if (raw === null) return new Map()
+		const parsed: unknown = JSON.parse(raw)
+		const list = isRecord(parsed) && Array.isArray(parsed.data)
+			? parsed.data
+			: Array.isArray(parsed)
+				? parsed
+				: []
+		return themeFontSizesFromListV2(list)
+	} catch {
+		// Unreadable themes → fallback sizes for everyone. Not fatal.
+		return new Map()
+	}
+}
+
+/** Remove `size` from a Partial<FontConfig>-shaped override, dropping the
+ *  override entirely when nothing else remains. */
+const stripOverrideSize = (
+	override: unknown
+): Record<string, unknown> | undefined => {
+	if (!isRecord(override)) return undefined
+	if (!("size" in override)) return override
+	const { size: _size, ...rest } = override
+	return Object.keys(rest).length > 0 ? rest : undefined
+}
+
+/** Strip a tickLabelFont's size in place (returns the axis config with the
+ *  override's size removed, or the input untouched when nothing applies). */
+const stripTickLabelFontSize = (axisCfg: unknown): unknown => {
+	if (!isRecord(axisCfg) || !isRecord(axisCfg.tickLabelFont)) return axisCfg
+	const stripped = stripOverrideSize(axisCfg.tickLabelFont)
+	const next = { ...axisCfg }
+	if (stripped === undefined) delete next.tickLabelFont
+	else next.tickLabelFont = stripped
+	return next
+}
+
+export const resetVisualFontSizesV1ToV2 = (
+	raw: unknown,
+	themes: Map<string, ThemeFontSizesV2>
+): unknown => {
+	if (!isRecord(raw)) return raw
+	const v = { ...raw }
+	const t =
+		(typeof v.themeId === "string" ? themes.get(v.themeId) : undefined) ??
+		V2_FALLBACK_THEME_SIZES
+
+	// Labels: base font sizes back to the theme; per-label size overrides
+	// cleared (family / color / weight / style tweaks survive).
+	if (isRecord(v.labelsConfig)) {
+		const lc = { ...v.labelsConfig }
+		if (isRecord(lc.baseFont)) {
+			const baseFont = { ...lc.baseFont }
+			if (isRecord(baseFont.titles)) {
+				baseFont.titles = {
+					...baseFont.titles,
+					primarySize: t.titlePrimarySize,
+					subtitleSize: t.titleSubtitleSize,
+					secondarySize: t.titleSecondarySize,
+				}
+			}
+			if (isRecord(baseFont.text)) {
+				baseFont.text = { ...baseFont.text, size: t.textFontSize }
+			}
+			lc.baseFont = baseFont
+		} else if (isRecord(lc.font)) {
+			// Pre-baseFont legacy shape: one flat font whose `size` seeds the
+			// load-time derivation of all title sizes (migrateLabelsConfig).
+			lc.font = { ...lc.font, size: t.textFontSize }
+		}
+		if (isRecord(lc.fontOverrides)) {
+			const overrides: Record<string, unknown> = {}
+			for (const [slot, override] of Object.entries(lc.fontOverrides)) {
+				const stripped = stripOverrideSize(override)
+				if (stripped !== undefined) overrides[slot] = stripped
+			}
+			lc.fontOverrides = overrides
+		}
+		v.labelsConfig = lc
+	}
+
+	// Channel configs: per-axis tick-label size overrides cleared; the text
+	// encoding's font size back to the theme.
+	if (isRecord(v.channelConfigs)) {
+		const cc = { ...v.channelConfigs }
+		for (const axis of ["x", "y", "r"] as const) {
+			if (isRecord(cc[axis])) cc[axis] = stripTickLabelFontSize(cc[axis])
+		}
+		if (isRecord(cc.connection) && isRecord(cc.connection.chordAxis)) {
+			cc.connection = {
+				...cc.connection,
+				chordAxis: stripTickLabelFontSize(cc.connection.chordAxis),
+			}
+		}
+		if (isRecord(cc.text)) {
+			cc.text = { ...cc.text, fontSize: t.textEncodingFontSize }
+		}
+		v.channelConfigs = cc
+	}
+
+	// Data labels: reset the fixed font size UNLESS size is encoded to a
+	// variable (field or measureSource) — then the whole size config is the
+	// user's variable mapping and stays untouched.
+	const sizeEnc = isRecord(v.dataLabelsEncodings)
+		? v.dataLabelsEncodings.size
+		: undefined
+	const sizeEncoded =
+		isRecord(sizeEnc) && (sizeEnc.field != null || sizeEnc.measureSource != null)
+	if (isRecord(v.dataLabelsConfig) && !sizeEncoded) {
+		v.dataLabelsConfig = {
+			...v.dataLabelsConfig,
+			fontSize: t.dataLabelsFontSize,
+		}
+	}
+
+	// Caption + rectangle-annotation text back to their fixed defaults.
+	if (isRecord(v.captionConfig)) {
+		v.captionConfig = { ...v.captionConfig, fontSize: V2_CAPTION_FONT_SIZE }
+	}
+	if (isRecord(v.annotationsConfig) && Array.isArray(v.annotationsConfig.rectangles)) {
+		v.annotationsConfig = {
+			...v.annotationsConfig,
+			rectangles: v.annotationsConfig.rectangles.map((r: unknown) => {
+				if (!isRecord(r) || !("textFontSize" in r)) return r
+				const { textFontSize: _tfs, ...rest } = r
+				return rest
+			}),
+		}
+	}
+
+	return v
+}
+
 export const visualsMigrations: Migration[] = [
 	// v0 -> v1: backfill versioning + scrub default sat/bri.
 	(raw) => {
 		if (!Array.isArray(raw)) return []
 		return raw.map(migrateVisualV0ToV1)
+	},
+	// v1 -> v2: reset font sizes to theme defaults after the px→pt switch.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		const themes = readThemeFontSizesV2()
+		return raw.map((v) => resetVisualFontSizesV1ToV2(v, themes))
+	},
+	// v2 -> v3: the SAME reset, re-run. The v2 pass could land before the
+	// user finished re-tuning their theme's sizes for the pt convention
+	// (the migration bakes whatever the themes store said at that boot);
+	// re-running against the now-tuned theme heals those libraries. The
+	// reset is idempotent, so libraries whose v2 pass was already right
+	// come through unchanged.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		const themes = readThemeFontSizesV2()
+		return raw.map((v) => resetVisualFontSizesV1ToV2(v, themes))
 	},
 ]
 

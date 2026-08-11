@@ -28,8 +28,8 @@ import {
 	currentFieldOverridesAtom,
 	currentMapConfigAtom,
 	quickStartStateAtom,
-	themeAtom,
 } from "../../store/atoms"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 type Pending = {
@@ -303,7 +303,7 @@ export const QuickStartIconBar = () => {
 	const setAnnotations = useSetAtom(currentAnnotationsAtom)
 	const setDataLabels = useSetAtom(currentDataLabelsEncodingsAtom)
 	const setMapConfig = useSetAtom(currentMapConfigAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const [pending, setPending] = useState<Pending | null>(null)
 
 	const fields = useMemo(() => dataset?.fields ?? [], [dataset])

@@ -3,13 +3,10 @@ import { useAtomValue } from "jotai"
 import {
 	DEFAULT_LABELS_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
+	resolveTitleFont,
 	type LegendConfig,
 } from "../../lib/labelsConfig"
-import {
-	BASE_MARGIN,
-	SUBTITLE_RESERVE,
-	TITLE_RESERVE,
-} from "../../lib/plotLayout"
+import { BASE_MARGIN, subtitleReserve, titleReserve } from "../../lib/plotLayout"
 import {
 	currentChannelConfigsAtom,
 	currentLabelsAtom,
@@ -164,8 +161,24 @@ const InsideLegendLayout = ({
 	const labels = useAtomValue(currentLabelsAtom)
 	const hasTitle = !!(labels.title ?? DEFAULT_LABELS_CONFIG.title)
 	const hasSubtitle = !!(labels.subtitle ?? DEFAULT_LABELS_CONFIG.subtitle)
+	// Font-derived, matching the solver's bands (see plotLayout.titleReserve)
+	// so the inside-legend plot mapping stays glued to the real plot top.
 	const titleReserves =
-		(hasTitle ? TITLE_RESERVE : 0) + (hasSubtitle ? SUBTITLE_RESERVE : 0)
+		(hasTitle
+			? titleReserve(
+					resolveTitleFont(labels.baseFont, "primary", labels.fontOverrides?.title)
+						.size
+				)
+			: 0) +
+		(hasSubtitle
+			? subtitleReserve(
+					resolveTitleFont(
+						labels.baseFont,
+						"subtitle",
+						labels.fontOverrides?.subtitle
+					).size
+				)
+			: 0)
 	const extras = computeInsideExtras({
 		insideX: legendCfg.insideX,
 		insideY: legendCfg.insideY,

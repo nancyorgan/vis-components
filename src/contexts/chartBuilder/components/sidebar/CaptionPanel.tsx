@@ -275,7 +275,7 @@ export const CaptionPanel = () => {
 									onChange={(v) => update({ fontSize: v })}
 									min={1}
 									step={1}
-									suffix="px"
+									suffix="pt"
 								/>
 								{merged.fontSize !== DEFAULT_CAPTION_CONFIG.fontSize && (
 									<ResetLink

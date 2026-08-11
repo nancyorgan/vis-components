@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue } from "jotai"
+import { useAtom } from "jotai"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
@@ -6,13 +6,14 @@ import { NumberInput } from "../../../../components/ui/NumberInput"
 import type { AspectRatioConfig } from "../../lib/channelConfig"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
 import { currentChannelConfigsAtom, themeAtom } from "../../store/atoms"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 /** Per-visual aesthetic settings that don't fit neatly under a single
  * encoding channel. */
 export const AestheticsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const dataset = useCurrentDatasetView()
 	const current = configs.backgroundColor ?? null
 	const themeDefault = theme.chartBackgroundColor ?? null

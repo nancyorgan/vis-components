@@ -406,6 +406,13 @@ export type Theme = {
 	textEncodingFontSize: number
 	textEncodingFontWeight: 400 | 500 | 600 | 700
 	textEncodingColor: string
+	// Data label defaults — seed the Data Labels layer's font when a chart
+	// is created or re-themed. Optional: themes saved before these fields
+	// existed fall back to the built-in defaults (11pt / 500 / plain).
+	dataLabelsFontSize?: number
+	dataLabelsFontWeight?: 400 | 500 | 600 | 700
+	dataLabelsItalic?: boolean
+	dataLabelsUnderline?: boolean
 	// Distribution overlay defaults — stroke + fill used by the violin /
 	// box-plot overlays when first enabled on a chart's value axis.
 	distributionOverlayStroke: string

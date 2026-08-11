@@ -23,8 +23,9 @@ import { lineCount } from "./multilineText"
 import {
 	BASE_MARGIN,
 	POLAR_MARGIN,
-	SUBTITLE_RESERVE,
+	subtitleReserve,
 	TITLE_RESERVE,
+	titleReserve,
 } from "./plotLayout"
 
 /** Per-side cell chrome resolved at the top of `solveFacetLayout` and
@@ -476,8 +477,12 @@ const computeOuterReserves = (
 	bottomFloor: number = 0,
 	leftFloor: number = 0,
 ) => {
-	const titleHeight = input.chartTitle ? TITLE_RESERVE : 0
-	const subtitleHeight = input.chartSubtitle ? SUBTITLE_RESERVE : 0
+	const titleHeight = input.chartTitle
+		? titleReserve(input.chartTitle.fontSize)
+		: 0
+	const subtitleHeight = input.chartSubtitle
+		? subtitleReserve(input.chartSubtitle.fontSize)
+		: 0
 	const xTitleLines = input.xTitle ? lineCount(input.xTitle.text) : 0
 	// Multiplier 1.4 matches the line-box height the browser actually
 	// paints (ascender + descender + leading). 1.2 underestimated and
@@ -964,9 +969,11 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	}
 
 	// Tick-font sizes used by both leftFloor adjustment (here) and the
-	// title-position math (later in this function).
-	const xTickFontSize = input.panels[0]?.xLabelFontSize ?? 12
-	const yTickFontSize = input.panels[0]?.yLabelFontSize ?? 12
+	// title-position math (later in this function). Inputs arrive in px
+	// (already pt→px resolved); the fallback mirrors the base text default
+	// (12pt → 16px, lib/fontUnit).
+	const xTickFontSize = input.panels[0]?.xLabelFontSize ?? 16
+	const yTickFontSize = input.panels[0]?.yLabelFontSize ?? 16
 	// The y-title sits to the left of the LEFTMOST column, so its gap to
 	// the plot is sized by that column's labels — not by a long label
 	// hiding in an interior column the title doesn't sit next to.
@@ -1608,7 +1615,8 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		? Math.max(...panels.map((p) => p.inner.y + p.inner.height))
 		: canvasH - cellMargin.bottom
 
-	// Title positions use the FIXED base reserves (TITLE_RESERVE, etc.)
+	// Title positions use the font-derived base reserves (titleReserve,
+	// etc. — the same bands computeOuterReserves reserved)
 	// for their natural y, then add `topGrow` so the title appears in
 	// the SAME on-screen spot when the user moves it AWAY from the plot
 	// (negative offsetY) — the grow shifted the plot down to give the
@@ -1635,7 +1643,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 					xForAlignment(input.chartTitle.align, plotLeft, plotRight) +
 					titleOffsetX,
 				y: clampBaselineY(
-					TITLE_RESERVE * 0.7 +
+					titleReserve(input.chartTitle.fontSize) * 0.7 +
 						titleOffsetY +
 						outerReserves.titleAwayGrow,
 					input.chartTitle.fontSize,
@@ -1653,8 +1661,13 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 					xForAlignment(input.chartSubtitle.align, plotLeft, plotRight) +
 					subOffsetX,
 				y: clampBaselineY(
-					TITLE_RESERVE +
-						SUBTITLE_RESERVE * 0.75 +
+					// The subtitle hangs below the title band — font-derived when a
+					// title is present, the fixed reserve otherwise (matching
+					// computeOuterReserves' 0-height band for a missing title).
+					(input.chartTitle
+						? titleReserve(input.chartTitle.fontSize)
+						: TITLE_RESERVE) +
+						subtitleReserve(input.chartSubtitle.fontSize) * 0.75 +
 						subOffsetY +
 						outerReserves.subtitleAwayGrow,
 					input.chartSubtitle.fontSize,

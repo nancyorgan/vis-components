@@ -7,6 +7,7 @@ import {
 	tickWrapMaxPx,
 	wrapTickLabel,
 } from "../../lib/tickLabelWrap"
+import { ptToPx, resolveTickFontSizePx } from "../../lib/fontUnit"
 import { axisFieldsFor, hasXAxis, hasYAxis } from "../../lib/axisFields"
 import {
 	DEFAULT_FACET_CONFIG,
@@ -407,9 +408,11 @@ export const PlotCanvas = () => {
 		// (sizeMax) so the canvas reserves enough room for the biggest
 		// label, not just the default font-size case.
 		const sizeMapped = !!dataLabelsEncodings.size?.field
-		const fontSizeForEstimate = sizeMapped
-			? Math.max(dataLabels.fontSize, dataLabels.sizeMax ?? dataLabels.fontSize)
-			: dataLabels.fontSize
+		const fontSizeForEstimate = ptToPx(
+			sizeMapped
+				? Math.max(dataLabels.fontSize, dataLabels.sizeMax ?? dataLabels.fontSize)
+				: dataLabels.fontSize
+		)
 		// Cap the reserve so a pathological label doesn't collapse the plot,
 		// but keep it generous enough for long series names (e.g. a full
 		// category label on the last point of a line) — 200px clipped those.
@@ -1069,8 +1072,14 @@ export const PlotCanvas = () => {
 			// a larger x-tick font needs more bottom room, a larger y-tick
 			// font more left room. Fall through to the global text font when
 			// the axis hasn't overridden the size / family.
-			const xTickSize = channelConfigs.x?.tickLabelFont?.size ?? tickFont.size
-			const yTickSize = channelConfigs.y?.tickLabelFont?.size ?? tickFont.size
+			const xTickSize = resolveTickFontSizePx(
+				channelConfigs.x?.tickLabelFont?.size,
+				tickFont.size
+			)
+			const yTickSize = resolveTickFontSizePx(
+				channelConfigs.y?.tickLabelFont?.size,
+				tickFont.size
+			)
 			const xTickFamily =
 				channelConfigs.x?.tickLabelFont?.family ?? tickFont.family
 			const yTickFamily =
@@ -2577,7 +2586,7 @@ const measureCaptionBox = (
 	heightBasis: number
 ): CaptionBox | null => {
 	if (!caption.enabled || caption.text.trim().length === 0) return null
-	const fontSize = Math.max(1, caption.fontSize)
+	const fontSize = Math.max(1, ptToPx(caption.fontSize))
 	const padding = Math.max(0, caption.padding)
 	const lineHeight = fontSize * 1.2
 
@@ -2627,7 +2636,7 @@ const positionCaptionBox = (
 	canvasH: number
 ): CaptionLayout => {
 	const padding = Math.max(0, caption.padding)
-	const fontSize = Math.max(1, caption.fontSize)
+	const fontSize = Math.max(1, ptToPx(caption.fontSize))
 
 	const defaultLeft = (canvasW - box.width) / 2
 	const defaultTop = canvasH - box.height - CAPTION_GAP
@@ -2695,7 +2704,7 @@ const CaptionOverlay = ({
 				y={layout.firstBaseline}
 				textAnchor={layout.textAnchor}
 				fontFamily={caption.fontFamily}
-				fontSize={caption.fontSize}
+				fontSize={ptToPx(caption.fontSize)}
 				fontWeight={caption.fontWeight}
 				fill={caption.textColor || undefined}
 				className={caption.textColor ? undefined : TITLE_FILL_FALLBACK}
@@ -2755,7 +2764,7 @@ const AnnotationText = ({
 }) => {
 	const text = rect.text ?? DEFAULT_RECTANGLE_TEXT.text
 	if (text.trim().length === 0) return null
-	const fontSize = rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize
+	const fontSize = ptToPx(rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize)
 	const align = rect.textAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign
 	const padding = rect.textPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding
 	const anchor =

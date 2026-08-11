@@ -17,6 +17,7 @@ import {
 	wrapTickLabel,
 } from "../tickLabelWrap"
 import type { PlotInner } from "../plotLayout"
+import { resolveTickFontSizePx } from "../fontUnit"
 import type { AxisLayer, CoordSystem, RadialScales } from "./types"
 
 export type RadialInput = {
@@ -72,7 +73,7 @@ export const radial = (input: RadialInput): CoordSystem => {
 	const rTickLabelColor =
 		rTickFont?.color ?? rAxisConfig?.tickLabelColor ?? tickFont.color
 	const rTickFamily = rTickFont?.family ?? tickFont.family
-	const rTickSize = rTickFont?.size ?? tickFont.size
+	const rTickSize = resolveTickFontSizePx(rTickFont?.size, tickFont.size)
 	const rTickWeight = rTickFont?.weight ?? tickFont.weight
 	const rTickItalic = rTickFont?.italic ?? tickFont.italic
 	const rTickUnderline = rTickFont?.underline ?? tickFont.underline

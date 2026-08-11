@@ -18,6 +18,7 @@ import {
 	resolveLabelFill,
 	resolveLabelSize,
 } from "../../lib/dataLabelsStyle"
+import { ptToPx } from "../../lib/fontUnit"
 import { effectiveType } from "../../lib/fieldType"
 import {
 	renderMultilineTspans,
@@ -505,7 +506,7 @@ export const DataLabelsLayer = ({
 			const fill = resolveLabelFill(cfg, a.hueValue, hueColor, a.labelValue)
 			const fontSize = sizeField
 				? resolveLabelSize(a.sizeValue, cfg, sizeValues)
-				: cfg.fontSize
+				: ptToPx(cfg.fontSize)
 			return [
 				{
 					cx: a.cx + cfg.xOffset,
@@ -686,7 +687,7 @@ export const DataLabelsLayer = ({
 			: undefined
 		const fontSize = sizeField
 			? resolveLabelSize(row[sizeField], cfg, sizeValues)
-			: cfg.fontSize
+			: ptToPx(cfg.fontSize)
 		// Connection field → series for line charts; fall back to hue when
 		// connection isn't mapped (multi-line scatter could be hue-grouped).
 		const seriesField = connectionField ?? hueField

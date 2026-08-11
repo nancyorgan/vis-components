@@ -15,6 +15,7 @@ import {
 import { DEFAULT_MAP_CONFIG } from "../lib/mapConfig"
 import {
 	configsFromTheme,
+	dataLabelsConfigFromTheme,
 	labelsFromTheme,
 	legendConfigFromTheme,
 } from "../lib/themeConfig"
@@ -261,7 +262,7 @@ export const useResetVisual = () => {
 			set(currentLegendConfigAtom, legendConfigFromTheme(defaultTheme))
 			set(currentTooltipConfigAtom, DEFAULT_TOOLTIP_CONFIG)
 			set(currentDataLabelsEncodingsAtom, emptyDataLabelsEncodings())
-			set(currentDataLabelsConfigAtom, DEFAULT_DATA_LABELS_CONFIG)
+			set(currentDataLabelsConfigAtom, dataLabelsConfigFromTheme(defaultTheme))
 			set(currentFieldLevelOrdersAtom, {})
 			set(currentAnnotationsAtom, DEFAULT_ANNOTATIONS_CONFIG)
 			set(currentCaptionConfigAtom, DEFAULT_CAPTION_CONFIG)

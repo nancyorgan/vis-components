@@ -41,10 +41,10 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	themeAtom,
 	type AtomValueType,
 	type SetterOrUpdater,
 } from "../../../store/atoms"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { effectiveType } from "../../../lib/fieldType"
 import { parseValue } from "../../../lib/scales"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
@@ -72,7 +72,7 @@ import {
 export const ConnectionOptionsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
-	const theme = useAtomValue(themeAtom)
+	const theme = useCurrentTheme()
 	const fieldOverrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
 	// Associates the "ID column" label with its select (htmlFor/id).
@@ -710,6 +710,7 @@ export const ConnectionOptionsPanel = () => {
 									value={axis.tickLabelFont}
 									legacyColor={undefined}
 									inheritedColor={labels.baseFont.text.color}
+									inheritedSize={labels.baseFont.text.size}
 									onChange={(tickLabelFont) => updateAxis({ tickLabelFont })}
 								/>
 							</CollapsibleSubsection>

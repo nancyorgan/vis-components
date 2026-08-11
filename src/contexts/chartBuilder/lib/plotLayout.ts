@@ -11,6 +11,18 @@ export const POLAR_MARGIN = { top: 4, right: 8, bottom: 8, left: 8 } as const
 export const TITLE_RESERVE = 36
 export const SUBTITLE_RESERVE = 22
 
+/** Height of the band reserved for the chart title / subtitle, derived from
+ *  the resolved title font size (px). The fixed reserves above were sized
+ *  around the old 20px/14px defaults; these formulas reproduce them exactly
+ *  at those sizes (20·1.4+8 = 36, ⌈14·1.4+2⌉ = 22) and only grow past the
+ *  fixed value — a small font keeps the familiar band, a big font gets room
+ *  instead of clipping. Callers without a resolved font (legacy
+ *  `computePlotLayout`) keep the constants. */
+export const titleReserve = (titleFontPx: number): number =>
+	Math.max(TITLE_RESERVE, Math.ceil(titleFontPx * 1.4 + 8))
+export const subtitleReserve = (subtitleFontPx: number): number =>
+	Math.max(SUBTITLE_RESERVE, Math.ceil(subtitleFontPx * 1.4 + 2))
+
 /** Sensible default plot rect for renderers used in isolation (e.g.,
  *  unit tests that mount BarPlot / ScatterPlot directly without going
  *  through PlotCanvas). In production, PlotCanvas always passes an

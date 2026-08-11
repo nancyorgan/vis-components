@@ -264,6 +264,8 @@ export const LabelsPanel = () => {
 	// vary individual labels — this is the swatch's best single answer).
 	const nodeTitleBaseColor =
 		channelConfigs.text?.color ?? DEFAULT_TEXT_CONFIG.color
+	const nodeTitleBaseSize =
+		channelConfigs.text?.fontSize ?? DEFAULT_TEXT_CONFIG.fontSize
 	// OR over the facet keys actually shown: grid-split renders the
 	// Column/Row (+ optional Panel) rows; wrap/single-axis renders the one
 	// unified Facet-title row.
@@ -293,6 +295,7 @@ export const LabelsPanel = () => {
 				onAlignment={(a) => setAlignment("title", a)}
 				placeholder="Untitled chart"
 				baseColor={labels.baseFont.titles.color}
+				baseSize={labels.baseFont.titles.primarySize}
 				extraActive={!!labels.titleOffsets?.title}
 				extraControls={
 					<OffsetControl
@@ -311,6 +314,7 @@ export const LabelsPanel = () => {
 				alignment={titleAlignments.subtitle}
 				onAlignment={(a) => setAlignment("subtitle", a)}
 				baseColor={labels.baseFont.titles.color}
+				baseSize={labels.baseFont.titles.subtitleSize}
 				extraActive={!!labels.titleOffsets?.subtitle}
 				extraControls={
 					<OffsetControl
@@ -334,6 +338,7 @@ export const LabelsPanel = () => {
 				onAlignment={(a) => setAlignment("xAxisTitle", a)}
 				placeholder={xTitleFallback || "field name"}
 				baseColor={labels.baseFont.titles.color}
+				baseSize={labels.baseFont.titles.secondarySize}
 				extraActive={!!labels.titleOffsets?.xAxisTitle}
 				extraControls={
 					<OffsetControl
@@ -353,6 +358,7 @@ export const LabelsPanel = () => {
 				onAlignment={(a) => setAlignment("yAxisTitle", a)}
 				placeholder={yTitleFallback || "field name"}
 				baseColor={labels.baseFont.titles.color}
+				baseSize={labels.baseFont.titles.secondarySize}
 				extraActive={
 					!!labels.yAxisTitleHorizontal ||
 					!!labels.titleOffsets?.yAxisTitle
@@ -389,6 +395,7 @@ export const LabelsPanel = () => {
 							alignment={titleAlignments.nodeTitle}
 							onAlignment={(a) => setAlignment("nodeTitle", a)}
 							baseColor={nodeTitleBaseColor}
+							baseSize={nodeTitleBaseSize}
 							extraControls={
 								<OffsetControl
 									value={labels.titleOffsets?.nodeTitle ?? {}}
@@ -437,6 +444,9 @@ export const LabelsPanel = () => {
 						angle={titleAngles.facetColTitle}
 						onAngle={(deg) => setAngle("facetColTitle", deg)}
 						baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
+						baseSize={
+							overrides.facetTitle?.size ?? labels.baseFont.titles.secondarySize
+						}
 						extraActive={!!labels.titleOffsets?.facetColTitle}
 						extraControls={
 							<OffsetControl
@@ -460,6 +470,9 @@ export const LabelsPanel = () => {
 						angle={titleAngles.facetRowTitle}
 						onAngle={(deg) => setAngle("facetRowTitle", deg)}
 						baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
+						baseSize={
+							overrides.facetTitle?.size ?? labels.baseFont.titles.secondarySize
+						}
 						extraActive={!!labels.titleOffsets?.facetRowTitle}
 						extraControls={
 							<OffsetControl
@@ -482,6 +495,9 @@ export const LabelsPanel = () => {
 							angle={titleAngles.facetPanelTitle}
 							onAngle={(deg) => setAngle("facetPanelTitle", deg)}
 							baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
+							baseSize={
+								overrides.facetTitle?.size ?? labels.baseFont.titles.secondarySize
+							}
 							extraActive={!!labels.titleOffsets?.facetPanelTitle}
 							extraControls={
 								<OffsetControl
@@ -513,6 +529,7 @@ export const LabelsPanel = () => {
 					angle={titleAngles.facetTitle}
 					onAngle={(deg) => setAngle("facetTitle", deg)}
 					baseColor={labels.baseFont.titles.color}
+					baseSize={labels.baseFont.titles.secondarySize}
 					extraControls={
 						<OffsetControl
 							value={labels.titleOffsets?.facetTitle ?? {}}
@@ -556,6 +573,7 @@ export const LabelsPanel = () => {
 								onAlignment={(a) => keys.forEach((k) => setAlignment(k, a))}
 								placeholder={encodings[group[0]].field ?? ""}
 								baseColor={labels.baseFont.titles.color}
+								baseSize={labels.baseFont.titles.secondarySize}
 								extraActive={!!labels.titleOffsets?.[oKey]}
 								extraControls={
 									<OffsetControl
@@ -595,6 +613,9 @@ type LabelRowProps = {
 	/** Fallback color used by the font editor's color swatch when no override
 	 * is set, so the preview reflects what the label will actually render as. */
 	baseColor: string
+	/** Inherited size (pt) shown as the font editor's Size placeholder when no
+	 * override is set. */
+	baseSize: number
 	/** Optional extra controls rendered inside the disclosure panel below the
 	 * alignment + font editor. Used today for the Y-axis "Read horizontally"
 	 * toggle so it lives with the rest of the y-title config instead of
@@ -819,6 +840,8 @@ type LabelStyleControlsProps = {
 	angle?: number
 	onAngle?: (deg: number) => void
 	baseColor: string
+	/** Inherited size (pt) shown as the Size box's placeholder. */
+	baseSize: number
 	extraControls?: React.ReactNode
 	/** Skip the purple `.vc-option-panel` wrapper (keeping its column layout).
 	 *  Pass when the controls render directly inside a boxed subsection —
@@ -838,6 +861,7 @@ const LabelStyleControls = ({
 	angle,
 	onAngle,
 	baseColor,
+	baseSize,
 	extraControls,
 	bare = false,
 }: LabelStyleControlsProps) => {
@@ -884,6 +908,7 @@ const LabelStyleControls = ({
 				onResetAll={hasOverride ? () => onOverride(null) : undefined}
 				showResetFields
 				baseColor={baseColor}
+				baseSize={baseSize}
 			/>
 			{extraControls}
 		</div>
@@ -904,6 +929,7 @@ const LabelRow = ({
 	onAngle,
 	placeholder,
 	baseColor,
+	baseSize,
 	extraControls,
 	extraActive = false,
 	textless = false,
@@ -970,6 +996,7 @@ const LabelRow = ({
 							angle={angle}
 							onAngle={onAngle}
 							baseColor={baseColor}
+							baseSize={baseSize}
 							extraControls={extraControls}
 						/>
 					</Disclosure.Panel>
@@ -991,6 +1018,9 @@ type FontEditorProps = {
 	showResetFields: boolean
 	/** Color previewed in the color swatch when no override is set. */
 	baseColor?: string
+	/** Size (pt) shown as the Size box's placeholder when no override is set,
+	 *  so the inherited default reads at a glance instead of "inherit". */
+	baseSize?: number
 }
 
 export const FontEditor = ({
@@ -999,6 +1029,7 @@ export const FontEditor = ({
 	onResetAll,
 	showResetFields,
 	baseColor,
+	baseSize,
 }: FontEditorProps) => {
 	const reset = (field: keyof FontConfig) => {
 		const next: Partial<FontConfig> = { ...value }
@@ -1074,10 +1105,16 @@ export const FontEditor = ({
 							onChange({ ...value, size: Number(raw) })
 						}
 					}}
-					placeholder={showResetFields ? "inherit" : ""}
+					placeholder={
+						showResetFields
+							? baseSize !== undefined
+								? String(baseSize)
+								: "inherit"
+							: ""
+					}
 					className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 				/>
-				<span className="text-sm text-stone-600">px</span>
+				<span className="text-sm text-stone-600">pt</span>
 				{showResetFields && value.size !== undefined && (
 					<ResetLink onClick={() => reset("size")} />
 				)}

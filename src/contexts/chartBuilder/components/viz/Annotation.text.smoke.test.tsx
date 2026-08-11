@@ -88,7 +88,7 @@ const seed = (withText: boolean) => {
 		zOrder: "front" as const,
 		text: withText ? "Hello\nWorld" : "",
 		textColor: "#ff0000",
-		textFontSize: 20,
+		textFontSize: 15,
 		textAlign: "right" as const,
 	}
 	set("vis-components:currentAnnotations", {
@@ -116,7 +116,7 @@ describe("rectangle annotation text", () => {
 		)
 		expect(text).not.toBeNull()
 		expect(text!.getAttribute("fill")).toBe("#ff0000")
-		expect(text!.getAttribute("font-size")).toBe("20")
+		expect(text!.getAttribute("font-size")).toBe("20") // 15pt → 20px
 		// "right" align maps to an end text-anchor.
 		expect(text!.getAttribute("text-anchor")).toBe("end")
 		// Two lines from the literal `\n` → two tspans.

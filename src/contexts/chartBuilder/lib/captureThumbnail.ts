@@ -77,7 +77,9 @@ const serializeFacetedChart = (
 		// Baseline near the visual bottom of the box.
 		text.setAttribute("y", String(r.bottom - gridRect.top - 3))
 		text.setAttribute("text-anchor", "middle")
-		text.setAttribute("font-size", style.fontSize || "12")
+		// Fallback mirrors the base text default (12pt → 16px, lib/fontUnit) —
+		// computed styles are already px and pass through unchanged.
+		text.setAttribute("font-size", style.fontSize || "16")
 		text.setAttribute(
 			"font-family",
 			style.fontFamily || "system-ui, sans-serif"
@@ -285,7 +287,7 @@ const appendLegendCapture = (
 		text.setAttribute("x", String(r.left - origin.left))
 		text.setAttribute("y", String(r.top + r.height / 2 - origin.top))
 		text.setAttribute("dominant-baseline", "central")
-		text.setAttribute("font-size", style.fontSize || "12px")
+		text.setAttribute("font-size", style.fontSize || "16px")
 		text.setAttribute(
 			"font-family",
 			style.fontFamily || "system-ui, sans-serif"
