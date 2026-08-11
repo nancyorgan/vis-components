@@ -47,13 +47,32 @@ export const renderMultilineTspans = (
 /** Number of lines in a multiline title string. */
 export const lineCount = (text: string): number => text.split("\n").length
 
+/** Split a word into fragments a line may end on: each hyphen that follows
+ *  at least one other character (and isn't the word's last char) closes a
+ *  fragment, keeping the hyphen — `"well-known"` → `["well-", "known"]`.
+ *  A leading hyphen never splits, so a minus sign (`-5`) stays glued to its
+ *  number. Words without internal hyphens come back whole. */
+const splitAfterHyphens = (word: string): string[] => {
+	const parts: string[] = []
+	let start = 0
+	for (let i = 0; i < word.length - 1; i++) {
+		if (word[i] === "-" && i > start) {
+			parts.push(word.slice(start, i + 1))
+			start = i + 1
+		}
+	}
+	parts.push(word.slice(start))
+	return parts
+}
+
 /** Word-wrap `text` to fit within `maxPx`, honoring explicit `\n` breaks.
  *
  *  Used by the caption box, which has a fixed pixel width but free-form long
  *  text. SVG `<text>` has no auto-wrap, so we pre-break into lines here using
  *  the same `fontSize * 0.55` px/char heuristic as `fitTextWithEllipsis` /
- *  `estimateMargins`. By default a single word longer than `maxPx` is left
- *  intact on its own line (we never split mid-word), so it may visually
+ *  `estimateMargins`. Lines break at spaces and after internal hyphens (the
+ *  hyphen stays at the end of the line). By default a single unbreakable word
+ *  longer than `maxPx` is left intact on its own line, so it may visually
  *  overflow — that's the caller's cue to widen the box. `breakWords: true`
  *  changes that: an over-long word is hard-broken into `maxPx`-sized chunks
  *  (used by tick-label wrapping, where the width is a hard budget). Returns
@@ -77,21 +96,27 @@ export const wrapTextToWidth = (
 		}
 		let line = ""
 		for (const word of words) {
-			const candidate = line.length === 0 ? word : `${line} ${word}`
-			const wordTooLong = opts?.breakWords === true && word.length > maxChars
-			if (!wordTooLong && (candidate.length <= maxChars || line.length === 0)) {
-				line = candidate
-				continue
+			for (const [fragIdx, frag] of splitAfterHyphens(word).entries()) {
+				// Fragments of the same word abut (the hyphen is the joint);
+				// only a new word gets a space.
+				const sep = line.length > 0 && fragIdx === 0 ? " " : ""
+				const candidate = line + sep + frag
+				const fragTooLong = opts?.breakWords === true && frag.length > maxChars
+				if (!fragTooLong && (candidate.length <= maxChars || line.length === 0)) {
+					line = candidate
+					continue
+				}
+				if (line.length > 0) out.push(line)
+				// Hard-break an over-long fragment into full lines; the tail
+				// (possibly empty) becomes the current line so following
+				// fragments/words can join it.
+				let rest = frag
+				while (fragTooLong && rest.length > maxChars) {
+					out.push(rest.slice(0, maxChars))
+					rest = rest.slice(maxChars)
+				}
+				line = rest
 			}
-			if (line.length > 0) out.push(line)
-			// Hard-break an over-long word into full lines; the tail (possibly
-			// empty) becomes the current line so following words can join it.
-			let rest = word
-			while (wordTooLong && rest.length > maxChars) {
-				out.push(rest.slice(0, maxChars))
-				rest = rest.slice(maxChars)
-			}
-			line = rest
 		}
 		if (line.length > 0) out.push(line)
 	}
@@ -99,21 +124,26 @@ export const wrapTextToWidth = (
 }
 
 /** Word-wrap `text` to roughly `maxChars` characters per line, breaking on
- *  the SPACE nearest the target width.
+ *  the space or internal hyphen nearest the target width.
  *
  *  Unlike `wrapTextToWidth` (which fills each line greedily up to a pixel
  *  budget), this targets a character count and then searches OUTWARD from
  *  that target — both earlier and later in the line — for the closest
- *  whitespace to break on. So a target of 20 in `"the quick brown fox"`
- *  breaks at whichever space sits nearest character 20, even if that means
- *  a slightly shorter or slightly longer line. This matches the Data
+ *  break point. So a target of 20 in `"the quick brown fox"` breaks at
+ *  whichever space sits nearest character 20, even if that means a
+ *  slightly shorter or slightly longer line. This matches the Data
  *  Labels "wrap text" request: pick a width, then let word boundaries win.
+ *  A break on whitespace drops the space; a break after a hyphen keeps the
+ *  hyphen at the end of the line (`"well-known"` → `"well-"` / `"known"`).
+ *  Hyphens touching whitespace or at a word's start (a minus sign, `-5`)
+ *  are not break points.
  *
  *  Explicit `\n` breaks in the input are always honored (each paragraph
  *  wraps independently). A single word longer than `maxChars` with no
- *  usable space is left intact on its own line (never split mid-word), so
- *  it may overflow — the caller's cue to raise the width. Returns at least
- *  one line so callers can map over the result unconditionally. */
+ *  usable break point is left intact on its own line (never split
+ *  mid-word), so it may overflow — the caller's cue to raise the width.
+ *  Returns at least one line so callers can map over the result
+ *  unconditionally. */
 export const wrapByCharCount = (text: string, maxChars: number): string[] => {
 	const target = Math.max(1, Math.floor(maxChars))
 	const isSpace = (ch: string): boolean => /\s/.test(ch)
@@ -121,27 +151,43 @@ export const wrapByCharCount = (text: string, maxChars: number): string[] => {
 	for (const paragraph of text.split("\n")) {
 		let rest = paragraph
 		while (rest.length > target) {
-			// Find the whitespace index closest to the target width. Spaces
-			// appear left-to-right, so distance falls then rises around the
-			// target — but we scan the whole remaining string for simplicity;
-			// these strings are short.
-			let bestSpace = -1
+			// Find the break point whose line length lands closest to the
+			// target width. Break points appear left-to-right, so distance
+			// falls then rises around the target — but we scan the whole
+			// remaining string for simplicity; these strings are short.
+			let bestEnd = -1 // the line is rest.slice(0, bestEnd)
+			let bestDrop = 0 // separator chars consumed after the line
 			let bestDist = Infinity
 			for (let i = 0; i < rest.length; i++) {
-				if (!isSpace(rest[i])) continue
-				const dist = Math.abs(i - target)
-				// `<` (not `<=`) keeps the FIRST/earliest space on a tie, which
+				let end: number
+				let drop: number
+				if (isSpace(rest[i])) {
+					end = i
+					drop = 1
+				} else if (
+					rest[i] === "-" &&
+					i > 0 &&
+					i + 1 < rest.length &&
+					!isSpace(rest[i - 1]) &&
+					!isSpace(rest[i + 1])
+				) {
+					end = i + 1 // the hyphen stays on the line
+					drop = 0
+				} else continue
+				const dist = Math.abs(end - target)
+				// `<` (not `<=`) keeps the FIRST/earliest break on a tie, which
 				// biases toward the shorter line — deterministic either way.
 				if (dist < bestDist) {
 					bestDist = dist
-					bestSpace = i
+					bestEnd = end
+					bestDrop = drop
 				}
 			}
-			// No space to break on (or only a leading one): the remaining text
+			// No break point (or only a leading space): the remaining text
 			// is a single over-long word. Leave it whole on its own line.
-			if (bestSpace <= 0) break
-			out.push(rest.slice(0, bestSpace))
-			rest = rest.slice(bestSpace + 1) // drop the break whitespace
+			if (bestEnd <= 0) break
+			out.push(rest.slice(0, bestEnd))
+			rest = rest.slice(bestEnd + bestDrop)
 		}
 		out.push(rest)
 	}
@@ -156,10 +202,11 @@ export const wrapByCharCount = (text: string, maxChars: number): string[] => {
  *  Labels layer for multi-variable labels with per-variable colors, which
  *  previously rendered as one unwrappable line.
  *
- *  The wrapper drops one whitespace character at each break
- *  (`wrapByCharCount` consumes the break space; paragraph splits consume
- *  the `\n`), so the walk skips one source character between lines to stay
- *  aligned with the segment stream. */
+ *  A break on whitespace drops one source character (`wrapByCharCount`
+ *  consumes the break space; paragraph splits consume the `\n`) while a
+ *  break after a hyphen drops none (the hyphen stays in the line), so the
+ *  walk checks the source character at each break to stay aligned with the
+ *  segment stream. */
 export const wrapSegments = <T extends { text: string }>(
 	segments: T[],
 	maxChars: number
@@ -171,7 +218,10 @@ export const wrapSegments = <T extends { text: string }>(
 	let segIdx = 0
 	// Chars of segments[segIdx] already consumed.
 	let offset = 0
+	// Chars of `full` already consumed (across all segments).
+	let pos = 0
 	const skipChars = (n: number) => {
+		pos += n
 		offset += n
 		while (segIdx < segments.length && offset >= segments[segIdx].text.length) {
 			offset -= segments[segIdx].text.length
@@ -191,8 +241,10 @@ export const wrapSegments = <T extends { text: string }>(
 			skipChars(take)
 		}
 		out.push(pieces)
-		// Skip the separator the wrapper dropped at this break.
-		if (li < lines.length - 1) skipChars(1)
+		// Skip the separator IF the wrapper dropped one at this break: a
+		// whitespace source char here was consumed (space break / paragraph
+		// `\n`); anything else means a hyphen break, which consumes nothing.
+		if (li < lines.length - 1 && /\s/.test(full[pos] ?? "")) skipChars(1)
 	}
 	return out
 }

@@ -24,44 +24,6 @@ import {
 const newFolderId = () =>
 	`fl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
-const FolderIcon = ({ open }: { open?: boolean }) => (
-	<svg
-		viewBox="0 0 16 16"
-		width={14}
-		height={14}
-		aria-hidden="true"
-		className="flex-shrink-0"
-	>
-		{open ? (
-			<path
-				d="M1 3.5A1.5 1.5 0 012.5 2h3.172a1.5 1.5 0 011.06.44l.829.828a.5.5 0 00.353.147H13.5A1.5 1.5 0 0115 4.914V5H1V3.5zM1 6h13.5a.5.5 0 01.49.598l-1.286 6.43A1.5 1.5 0 0112.23 14H3.77a1.5 1.5 0 01-1.474-1.222L1.01 6.348A.5.5 0 011 6z"
-				fill="currentColor"
-			/>
-		) : (
-			<path
-				d="M1 3.5A1.5 1.5 0 012.5 2h3.172a1.5 1.5 0 011.06.44l.829.828a.5.5 0 00.353.147H13.5A1.5 1.5 0 0115 4.914V12.5a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-9z"
-				fill="currentColor"
-			/>
-		)}
-	</svg>
-)
-
-const VisualIcon = () => (
-	<svg
-		viewBox="0 0 16 16"
-		width={14}
-		height={14}
-		aria-hidden="true"
-		className="flex-shrink-0"
-	>
-		<path
-			d="M4 1.5A1.5 1.5 0 015.5 0h4.086a1.5 1.5 0 011.06.44l2.914 2.914a1.5 1.5 0 01.44 1.06V14.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 013 14.5v-13A1.5 1.5 0 014.5 0H5.5"
-			fill="currentColor"
-			opacity={0.7}
-		/>
-	</svg>
-)
-
 /** Shared drop-target behavior for folder rows and the "All visualizations"
  *  row. Uses the enter/leave depth-counter pattern from DataDrawer so
  *  hovering child elements doesn't flicker the highlight. `accepts` is
@@ -166,7 +128,6 @@ const VisualTreeItem = ({
 		onDragEnd={() => setCurrentDrag(null)}
 	>
 		<span className="w-4 flex-shrink-0" />
-		<VisualIcon />
 		<span className="min-w-0 flex-1 truncate">{visual.name}</span>
 	</Link>
 )
@@ -273,7 +234,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onToggleExpanded(folder.id)
 						}}
-						className="flex h-4 w-4 flex-shrink-0 items-center justify-center"
+						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-th-electric-indigo-700 dark:text-th-electric-indigo-300"
 					>
 						<svg
 							viewBox="0 0 8 8"
@@ -287,7 +248,6 @@ const FolderTreeItem = ({
 				) : (
 					<span className="w-4 flex-shrink-0" />
 				)}
-				<FolderIcon open={isSelected} />
 				{editing ? (
 					<input
 						type="text"
@@ -308,7 +268,7 @@ const FolderTreeItem = ({
 					/>
 				) : (
 					<span
-						className="min-w-0 flex-1 truncate"
+						className="min-w-0 flex-1 truncate font-bold text-th-electric-indigo-700 dark:text-th-electric-indigo-300"
 						onDoubleClick={(e) => {
 							e.stopPropagation()
 							setEditing(true)
@@ -619,18 +579,6 @@ export const FolderTree = ({
 					tabIndex={0}
 				>
 					<span className="w-4 flex-shrink-0" />
-					<svg
-						viewBox="0 0 16 16"
-						width={14}
-						height={14}
-						aria-hidden="true"
-						className="flex-shrink-0"
-					>
-						<path
-							d="M2 2.5A1.5 1.5 0 013.5 1h3a1.5 1.5 0 011.5 1.5V3h4.5A1.5 1.5 0 0114 4.5v8a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5v-10z"
-							fill="currentColor"
-						/>
-					</svg>
 					<span className="flex-1">All visualizations</span>
 				</div>
 				{rootFolders.map((folder) => (

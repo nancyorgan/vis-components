@@ -592,6 +592,12 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 				),
 		},
 		{
+			label: "saturation per-category",
+			changed:
+				fieldMapped &&
+				Object.keys(configs.saturation?.overrides ?? {}).length > 0,
+		},
+		{
 			label: "saturation stacking",
 			changed: fieldMapped && (configs.saturation?.stackMode ?? "stack") !== "stack",
 		},
@@ -609,6 +615,12 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 					configs.brightness && { min: configs.brightness.min, max: configs.brightness.max },
 					{ min: theme.brightnessMin, max: theme.brightnessMax },
 				),
+		},
+		{
+			label: "brightness per-category",
+			changed:
+				fieldMapped &&
+				Object.keys(configs.brightness?.overrides ?? {}).length > 0,
 		},
 		{
 			label: "brightness stacking",

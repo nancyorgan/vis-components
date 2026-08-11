@@ -103,3 +103,46 @@ describe("buildAreaAnchors — stack vs. overlay mode positions", () => {
 		expect(stackB1).not.toBe(overlayB1)
 	})
 })
+
+describe("buildAreaAnchors — sparse value column (valueFieldMapped)", () => {
+	// A mapped value column is authoritative: layer cells where it's blank
+	// get NO label instead of falling back to the layer's measure.
+	const sparseStacks = [
+		{
+			category: "1",
+			slices: [
+				{ key: "A", groupValues: { hue: "A" }, value: 10, textValue: "note" },
+			],
+		},
+		{
+			category: "2",
+			slices: [{ key: "A", groupValues: { hue: "A" }, value: 20 }], // blank
+		},
+	]
+	const sparseAggregation = { ...aggregation, stacks: sparseStacks }
+
+	it("with valueFieldMapped, a cell without textValue gets a null label (no measure fallback)", () => {
+		const anchors = buildAreaAnchors({
+			aggregation: sparseAggregation as any,
+			categoryScale,
+			measureScale,
+			stackMode: "stack",
+			decimals: null,
+			valueFieldMapped: true,
+		})
+		expect(anchors.find((a) => a.key === "1|A")?.label).toBe("note")
+		expect(anchors.find((a) => a.key === "2|A")?.label).toBeNull()
+	})
+
+	it("without valueFieldMapped, the measure fallback still applies", () => {
+		const anchors = buildAreaAnchors({
+			aggregation: sparseAggregation as any,
+			categoryScale,
+			measureScale,
+			stackMode: "stack",
+			decimals: null,
+		})
+		expect(anchors.find((a) => a.key === "1|A")?.label).toBe("note")
+		expect(anchors.find((a) => a.key === "2|A")?.label).toBe("20")
+	})
+})

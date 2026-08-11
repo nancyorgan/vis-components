@@ -35,6 +35,7 @@ import {
 	applyHueScale,
 	makeHueScale,
 	makeOpacityScale,
+	parseNumericCell,
 	type HueScale,
 	type PositionScale,
 	type UnitScale,
@@ -568,6 +569,14 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			aggregation.isVertical ? yScale : xScale
 		) as ReturnType<typeof scaleLinear<number, number>>
 		const modes = resolveStackModes(channelConfigs, encodings)
+		// A mapped label column (distinct from the measure) is authoritative:
+		// slices where it's blank get NO label — sparse columns are the way to
+		// label a single arbitrary point, so blanks must never fall back to the
+		// measure. Mirrors the aggregator's own textValue condition.
+		const labelField = dataLabels?.value?.field ?? encodings.text?.field
+		const valueFieldMapped = Boolean(
+			labelField && labelField !== aggregation.lengthField
+		)
 		const onSliceHover = (
 			stack: Stack,
 			slice: Stack["slices"][number],
@@ -742,6 +751,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 						categoryScale,
 						measureScale,
 						modes,
+						valueFieldMapped,
 					})}
 				{anyDataLabelsMapped && (
 					<DataLabelsLayer
@@ -761,6 +771,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 							sizeField: dataLabels?.size?.field ?? null,
 							encodings,
 							rows: rowsForChart,
+							valueFieldMapped,
 						})}
 					/>
 				)}
@@ -1230,6 +1241,10 @@ type BuildSliceLabelsArgs = {
 	categoryScale: ReturnType<typeof scaleBand<string>>
 	measureScale: ReturnType<typeof scaleLinear<number, number>>
 	modes: StackModeEntry[]
+	/** True when the label field is mapped and distinct from the measure —
+	 * that field is then authoritative: slices where it's blank render no
+	 * label instead of falling back to the slice's measure. */
+	valueFieldMapped?: boolean
 }
 
 /** Render the bar's measured value as a `<text>` label centered on each
@@ -1242,6 +1257,7 @@ const buildSliceLabels = ({
 	categoryScale,
 	measureScale,
 	modes,
+	valueFieldMapped,
 }: BuildSliceLabelsArgs): React.ReactNode[] => {
 	const cfg: TextConfig = { ...DEFAULT_TEXT_CONFIG, ...channelConfigs.text }
 	const labels: React.ReactNode[] = []
@@ -1265,9 +1281,12 @@ const buildSliceLabels = ({
 
 			// When text encodes a different field than length, the aggregator
 			// stamps the per-slice `textValue` (numeric → sum; otherwise →
-			// first non-empty). Fall back to `slice.value` so the label still
-			// shows the bar's measure when text is unset / same as length.
-			const labelValue = slice.textValue ?? slice.value
+			// first non-empty) and that field is authoritative — a blank slice
+			// gets no label. The `slice.value` fallback only applies when text
+			// is unset / same as length (label shows the bar's measure).
+			const labelValue = valueFieldMapped
+				? slice.textValue
+				: (slice.textValue ?? slice.value)
 			const formatted = formatTextValue(labelValue, cfg.decimals)
 			if (formatted === null) return
 
@@ -1327,11 +1346,13 @@ const buildSliceLabels = ({
  * engine with `buildRects`/`buildSliceLabels` so legacy text-encoding labels
  * and new Data Labels sit at exactly the same positions.
  *
- * Each anchor's label content prefers the slice's pre-aggregated
- * `textValue` (which the aggregator computes when the user mapped a
- * value field to Data Labels) and falls back to the bar's measure
- * (`slice.value`). Hue inheritance pulls from the slice's groupValues so
- * stacked bars colored by hue get same-color labels. */
+ * Each anchor's label content is the slice's pre-aggregated `textValue`
+ * (which the aggregator computes when the user mapped a value field to
+ * Data Labels) — authoritative when `valueFieldMapped`, so blank slices
+ * render no label. The `slice.value` (bar measure) fallback only applies
+ * when no distinct value field is mapped. Hue inheritance pulls from the
+ * slice's groupValues so stacked bars colored by hue get same-color
+ * labels. */
 export const buildBarAnchors = ({
 	aggregation,
 	categoryScale,
@@ -1344,6 +1365,7 @@ export const buildBarAnchors = ({
 	sizeField,
 	encodings,
 	rows,
+	valueFieldMapped,
 }: {
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	categoryScale: ReturnType<typeof scaleBand<string>>
@@ -1365,6 +1387,11 @@ export const buildBarAnchors = ({
 	sizeField?: string | null
 	encodings?: Encodings
 	rows?: ReadonlyArray<Record<string, unknown>>
+	/** True when the label value field is mapped and distinct from the
+	 * measure — that field is then authoritative: slices where it's blank
+	 * render no label (sparse labeling) instead of falling back to the
+	 * bar's measure. */
+	valueFieldMapped?: boolean
 }): DataLabelAnchor[] => {
 	const anchors: DataLabelAnchor[] = []
 	const maxLeaves = countMaxLeaves(aggregation.stacks, modes)
@@ -1399,7 +1426,9 @@ export const buildBarAnchors = ({
 				return endPx + direction * pad
 			})()
 
-			const labelValue = slice.textValue ?? slice.value
+			const labelValue = valueFieldMapped
+				? slice.textValue
+				: (slice.textValue ?? slice.value)
 			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			// `groupValues` carries the slice's hue (when hue is mapped) so
 			// stacked / grouped bars colored by hue get matching label fills.
@@ -1430,11 +1459,17 @@ export const buildBarAnchors = ({
 					}
 					if (!matches) continue
 					const raw = row[sizeField]
-					const n = Number(raw)
-					if (Number.isFinite(n)) {
+					// parseNumericCell, not Number: blanks are missing data and
+					// must not enter the size sum as 0 (`Number("") === 0`).
+					const n = parseNumericCell(raw)
+					if (n !== null) {
 						sum += n
 						foundNumeric = true
-					} else if (firstNonNumeric === undefined && raw !== undefined) {
+					} else if (
+						firstNonNumeric === undefined &&
+						raw != null &&
+						String(raw).trim() !== ""
+					) {
 						firstNonNumeric = String(raw)
 					}
 				}

@@ -4,11 +4,27 @@ import {
 	describeDiff,
 	diffFields,
 	isCompatible,
+	pruneOrphanFields,
 } from "./datasetCompat"
-import type { Field } from "./types"
+import type { Dataset, DatasetVersion, Field } from "./types"
 
 const q = (name: string): Field => ({ name, inferredType: "quantitative" })
 const c = (name: string): Field => ({ name, inferredType: "categorical" })
+
+const version = (
+	id: string,
+	rows: Array<Record<string, string>>
+): DatasetVersion => ({ id, filename: `${id}.csv`, rows, createdAt: 0 })
+
+const dataset = (fields: Field[], versions: DatasetVersion[]): Dataset => ({
+	id: "ds-1",
+	name: "test",
+	fields,
+	versions,
+	// Length may be 0 in edge-case tests; a dangling pointer is fine here.
+	latestVersionId: versions.at(-1)?.id ?? "none",
+	createdAt: 0,
+})
 
 describe("diffFields", () => {
 	it("reports no changes for identical schemas", () => {
@@ -67,6 +83,61 @@ describe("describeDiff", () => {
 		const diff = diffFields([q("x"), q("y")], [q("x"), q("z")])
 		// `y` dropped (blocking), `z` added (not blocking)
 		expect(describeDiff(diff)).toBe("missing column: `y`")
+	})
+})
+
+describe("pruneOrphanFields", () => {
+	it("drops a field no version's rows carry", () => {
+		const d = dataset(
+			[q("x"), q("y")],
+			[version("v1", [{ x: "1" }, { x: "2" }])]
+		)
+		expect(pruneOrphanFields(d).fields).toEqual([q("x")])
+	})
+
+	it("keeps a field carried by any version, even a non-latest one", () => {
+		const d = dataset(
+			[q("x"), q("y")],
+			[version("v1", [{ x: "1" }]), version("v2", [{ x: "1", y: "2" }])]
+		)
+		expect(pruneOrphanFields(d)).toBe(d)
+	})
+
+	it("keeps a field present only on some rows of a version", () => {
+		// PapaParse omits trailing keys on short rows — presence anywhere counts.
+		const d = dataset(
+			[q("x"), q("y")],
+			[version("v1", [{ x: "1" }, { x: "2", y: "3" }])]
+		)
+		expect(pruneOrphanFields(d)).toBe(d)
+	})
+
+	it("drops blank-named fields left by a deleted upload with empty headers", () => {
+		const d = dataset(
+			[q("x"), c(""), c("_1")],
+			[version("v1", [{ x: "1" }])]
+		)
+		expect(pruneOrphanFields(d).fields).toEqual([q("x")])
+	})
+
+	it("returns the same reference when nothing is pruned", () => {
+		const d = dataset([q("x")], [version("v1", [{ x: "1" }])])
+		expect(pruneOrphanFields(d)).toBe(d)
+	})
+
+	it("skips pruning when any version has zero rows", () => {
+		// A row-less version's columns are unknowable from rows; never risk
+		// dropping a field it may legitimately carry.
+		const d = dataset(
+			[q("x"), q("y")],
+			[version("v1", [{ x: "1" }]), version("v2", [])]
+		)
+		expect(pruneOrphanFields(d)).toBe(d)
+	})
+
+	it("skips pruning when there are no versions at all", () => {
+		const d = dataset([q("x")], [])
+		expect(pruneOrphanFields(d)).toBe(d)
 	})
 })
 

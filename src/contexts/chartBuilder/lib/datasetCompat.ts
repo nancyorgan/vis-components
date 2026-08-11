@@ -1,4 +1,4 @@
-import type { Field } from "./types"
+import type { Dataset, Field } from "./types"
 
 export type ColumnDiff = {
 	missing: string[] // present on prior version, absent in upload
@@ -60,6 +60,30 @@ export const describeDiff = (diff: ColumnDiff): string => {
 		)
 	}
 	return parts.join("; ")
+}
+
+/** Drop fields no remaining version's rows actually carry. Additive version
+ * uploads merge net-new columns into the dataset's invariant field list, so
+ * deleting the version that introduced a column leaves its field orphaned —
+ * call this after any version removal (and in the one-shot store cleanup for
+ * historical orphans).
+ *
+ * Column presence is judged by row keys unioned across every row of every
+ * version (PapaParse omits trailing keys on short rows, so a single row isn't
+ * authoritative). A version with zero rows makes its columns unknowable from
+ * rows, so pruning is skipped entirely when any version is row-less rather
+ * than risk dropping a live field. Returns the input unchanged (same
+ * reference) when nothing is pruned. */
+export const pruneOrphanFields = (dataset: Dataset): Dataset => {
+	if (dataset.versions.length === 0) return dataset
+	if (dataset.versions.some((v) => v.rows.length === 0)) return dataset
+	const represented = new Set<string>()
+	for (const v of dataset.versions)
+		for (const row of v.rows)
+			for (const key of Object.keys(row)) represented.add(key)
+	const kept = dataset.fields.filter((f) => represented.has(f.name))
+	if (kept.length === dataset.fields.length) return dataset
+	return { ...dataset, fields: kept }
 }
 
 /** Human-readable note listing the net-new columns an additive upload adds.

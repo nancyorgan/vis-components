@@ -309,6 +309,32 @@ describe("aggregateStacks textField (data-labels value aggregation)", () => {
 		expect(S?.textValue).toBe(9)
 	})
 
+	it("skips blank cells in a numeric textField instead of counting them as 0", () => {
+		// Regression: `Number("")` is 0, so blank cells used to contribute 0
+		// to the sum — and a slice whose label-field rows were ALL blank got
+		// textValue 0, rendering a spurious "0" label.
+		const result = aggregateStacks({
+			rows: [
+				{ region: "N", sales: "10", units: "3" },
+				{ region: "N", sales: "5", units: "" },
+				{ region: "S", sales: "3", units: "" },
+				{ region: "S", sales: "2", units: "  " },
+			],
+			categoryField: "region",
+			lengthField: "sales",
+			categoryType: "categorical",
+			lengthType: "quantitative",
+			groups: [],
+			textField: "units",
+			textType: "quantitative",
+		})
+		if ("error" in result) throw new Error("unexpected error: " + result.error)
+		const N = result.stacks.find((s) => s.category === "N")?.slices[0]
+		const S = result.stacks.find((s) => s.category === "S")?.slices[0]
+		expect(N?.textValue).toBe(3) // blank skipped, not summed as 0
+		expect(S?.textValue).toBeUndefined() // all blank → no label, not "0"
+	})
+
 	it("uses the first non-empty value for non-numeric textField", () => {
 		const result = aggregateStacks({
 			rows: [

@@ -375,7 +375,7 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		expect(loSpan).toBeDefined()
 		const pctOf = (el: HTMLSpanElement | undefined): number => {
 			const style = el?.getAttribute("style") ?? ""
-			const m = style.match(/bottom:\s*calc\((\d+(?:\.\d+)?)%/)
+			const m = style.match(/bottom:\s*(\d+(?:\.\d+)?)%/)
 			return m ? Number(m[1]) : -1
 		}
 		expect(pctOf(hiSpan)).toBeGreaterThan(pctOf(loSpan))

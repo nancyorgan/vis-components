@@ -19,7 +19,14 @@ import {
 	themesAtom,
 } from "../../../store/atoms"
 import { effectiveType } from "../../../lib/fieldType"
-import { applyAreaScale, makeAreaScale, parseValue } from "../../../lib/scales"
+import {
+	applyAreaScale,
+	makeAreaScale,
+	makeBrightnessScale,
+	makeSaturationScale,
+	parseValue,
+} from "../../../lib/scales"
+import type { FieldType } from "../../../lib/types"
 import { orderedLevels } from "../../../lib/smartSort"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
@@ -312,6 +319,7 @@ export const SaturationOptionsPanel = () => {
 	const theme = useLiveTheme()
 	const fieldMapped = !!encodings.saturation?.field
 	const derived = packedSourceOf(encodings.saturation)
+	const discrete = useModulationDiscreteValues("saturation")
 	if (derived)
 		return (
 			<DerivedLevelsPanel
@@ -330,6 +338,19 @@ export const SaturationOptionsPanel = () => {
 				startValue={0.6}
 			/>
 		)
+	// Categorical / ordinal fields modulate by category, not magnitude — a
+	// continuous min/max range hides the per-category levels the user actually
+	// wants to set, so show one input per category instead (mirrors Opacity).
+	if (discrete)
+		return (
+			<ModulationLevelsPanel
+				channel="saturation"
+				label="Saturation"
+				discrete={discrete}
+				baseMin={theme.saturationMin}
+				baseMax={theme.saturationMax}
+			/>
+		)
 	return (
 		<RangePanel
 			variant={{
@@ -346,6 +367,7 @@ export const BrightnessOptionsPanel = () => {
 	const theme = useLiveTheme()
 	const fieldMapped = !!encodings.brightness?.field
 	const derived = packedSourceOf(encodings.brightness)
+	const discrete = useModulationDiscreteValues("brightness")
 	if (derived)
 		return (
 			<DerivedLevelsPanel
@@ -364,6 +386,16 @@ export const BrightnessOptionsPanel = () => {
 				startValue={0.5}
 			/>
 		)
+	if (discrete)
+		return (
+			<ModulationLevelsPanel
+				channel="brightness"
+				label="Brightness"
+				discrete={discrete}
+				baseMin={theme.brightnessMin}
+				baseMax={theme.brightnessMax}
+			/>
+		)
 	return (
 		<RangePanel
 			variant={{
@@ -372,6 +404,132 @@ export const BrightnessOptionsPanel = () => {
 				max: theme.brightnessMax,
 			}}
 		/>
+	)
+}
+
+/** Distinct categories of a categorical (or non-numeric ordinal) field mapped
+ *  to saturation / brightness, in first-seen order (matching the unit scale's
+ *  spread order). Returns null when no field is mapped, or the field is
+ *  quantitative / temporal / numeric-ordinal — those modulate continuously by
+ *  value and keep the min/max range editor (same rule as the area channel). */
+const useModulationDiscreteValues = (
+	channel: "saturation" | "brightness"
+): { values: string[]; type: FieldType } | null => {
+	const encodings = useAtomValue(currentEncodingsAtom)
+	const overrides = useAtomValue(currentFieldOverridesAtom)
+	const dataset = useCurrentDatasetView()
+	const fieldName = encodings[channel]?.field ?? null
+	if (!fieldName || !dataset) return null
+	const type = effectiveType(dataset, fieldName, overrides)
+	if (type === "quantitative" || type === "temporal") return null
+	const parsed = dataset.rows
+		.map((r) => parseValue(r[fieldName], type))
+		.filter((v) => v !== null) as Array<number | string>
+	const numericOrdinal =
+		type === "ordinal" &&
+		parsed.length > 0 &&
+		parsed.every((v) => typeof v === "number")
+	if (numericOrdinal) return null
+	return { values: [...new Set(parsed.map(String))], type }
+}
+
+/** Per-category editor for a categorical / ordinal field on saturation /
+ *  brightness: one 0–1 input per category, stored in
+ *  `configs[channel].overrides`. Each row shows the level actually applied —
+ *  the value the REAL scale resolves (override, else the even min→max spread) —
+ *  so the boxes always match the marks and the legend. Mirrors the Opacity
+ *  channel's categorical editor and the packed `DerivedLevelsPanel`. */
+const ModulationLevelsPanel = ({
+	channel,
+	label,
+	discrete,
+	baseMin,
+	baseMax,
+}: {
+	channel: "saturation" | "brightness"
+	label: string
+	discrete: { values: string[]; type: FieldType }
+	baseMin: number
+	baseMax: number
+}) => {
+	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
+	const encodings = useAtomValue(currentEncodingsAtom)
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
+	const dataset = useCurrentDatasetView()
+	const fieldName = encodings[channel]?.field ?? null
+	const cfg = configs[channel]
+	const min = cfg?.min ?? baseMin
+	const max = cfg?.max ?? baseMax
+	const overrides = cfg?.overrides ?? {}
+
+	// Resolve each row through the SAME scale the renderer builds, so an unset
+	// row shows exactly what that category draws with (numeric ordinals scale
+	// by value, everything else spreads evenly — the scale knows which).
+	const makeScale =
+		channel === "saturation" ? makeSaturationScale : makeBrightnessScale
+	const scale = makeScale(
+		dataset && fieldName ? dataset.rows.map((r) => r[fieldName]) : [],
+		discrete.type,
+		{ min, max, overrides }
+	)
+	const resolve = (value: string) =>
+		Math.round((scale(value) ?? min) * 100) / 100
+
+	const setOverride = (value: string, level: number | null) =>
+		setConfigs((prev) => {
+			const prevCfg = prev[channel] ?? { min: baseMin, max: baseMax }
+			const { [value]: _removed, ...rest } = prevCfg.overrides ?? {}
+			return {
+				...prev,
+				[channel]: {
+					...prevCfg,
+					overrides: level === null ? rest : { ...rest, [value]: level },
+				},
+			}
+		})
+
+	return (
+		<div className="vc-option-panel">
+			<span className="vc-group-header">{label} per category</span>
+			{orderedLevels(
+				discrete.values,
+				discrete.type,
+				fieldName ? levelOrders[fieldName] : undefined
+			).map(({ value }) => {
+				const overridden = overrides[value] !== undefined
+				return (
+					<div key={value} className="flex items-center gap-2 text-sm">
+						<NumberInput
+							label={value}
+							labelClassName={`${LABEL_COL} truncate`}
+							changed={overridden}
+							value={overrides[value] ?? resolve(value)}
+							min={0}
+							max={1}
+							step={0.05}
+							clamp
+							onChange={(n) => setOverride(value, n)}
+							inputClassName="w-20"
+						/>
+						{overridden && (
+							<button
+								type="button"
+								onClick={() => setOverride(value, null)}
+								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							>
+								reset
+							</button>
+						)}
+					</div>
+				)
+			})}
+			<p className="vc-help">
+				Each category gets an evenly-spaced {label.toLowerCase()} ({min}–{max})
+				in the order it appears in the data. Edit any value to set an exact
+				level.
+			</p>
+			<StackModeRow channel={channel} />
+		</div>
 	)
 }
 

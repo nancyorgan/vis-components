@@ -449,12 +449,12 @@ export type SaturationConfig = {
 	min: number
 	max: number
 	stackMode?: StackMode
-	/** Per-value overrides for the packed-circles DERIVED variables, keyed
-	 * by the derived value's string form (a depth level "1"/"2"/… or a
-	 * top-level group name). An unset value falls back to the even
-	 * min→max spread. Only the packed renderer consults these; field
-	 * mappings keep the plain range. Optional so saved configs load
-	 * unchanged. */
+	/** Per-value overrides, keyed by the value's string form: a category of
+	 * a categorical/ordinal field mapped to the channel, or a packed-circles
+	 * derived value (a depth level "1"/"2"/… or a top-level group name). An
+	 * unset value falls back to the even min→max spread. Quantitative /
+	 * temporal fields modulate continuously and ignore these. Optional so
+	 * saved configs load unchanged. */
 	overrides?: Record<string, number>
 }
 export const DEFAULT_SATURATION_CONFIG: SaturationConfig = { min: 0.2, max: 1 }
@@ -1411,6 +1411,17 @@ export type ChannelConfigs = Partial<{
 	r: AxisConfig
 	area: AreaConfig
 	hue: HueConfig
+	/** Stash of the last quantitative `hue` config, saved when the hue
+	 * encoding switches to a categorical/derived source (the live quant
+	 * config is dropped then so the renderer can't confuse the two kinds).
+	 * Restored — instead of re-seeding from the theme — when hue goes
+	 * quantitative again, so a picked gradient survives an encoding
+	 * round-trip. Never read while `hue` itself is quantitative. */
+	hueQuantStash: Extract<HueConfig, { kind: "quantitative" }>
+	/** Mirror stash for the categorical `hue` config, saved when a
+	 * quantitative field replaces it — per-value color overrides survive a
+	 * round-trip through a gradient the same way. */
+	hueCategoricalStash: Extract<HueConfig, { kind: "categorical" }>
 	/** Color scale that drives mark *outline* (stroke) color, mapped to its
 	 * own field via the `outlineHue` encoding. Reuses the `HueConfig` shape
 	 * (categorical palette or quantitative gradient). Independent of `hue`,

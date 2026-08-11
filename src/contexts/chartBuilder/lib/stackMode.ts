@@ -45,6 +45,20 @@ export const resolveStackMode = (
 	return "stack"
 }
 
+/** Carry the stored `stackMode` onto a rebuilt channel config. Option panels
+ *  often REPLACE a stack channel's config wholesale (palette change, per-value
+ *  override writes, kind switches); without this an explicit Group/Overlay
+ *  choice silently snaps back to Stack. The PREVIOUS config's stackMode always
+ *  wins — the only intentional stackMode writer is `writeStackMode`, which
+ *  patches in place and never goes through a wholesale replace. */
+export const preserveStackMode = <T extends { stackMode?: StackMode }>(
+	prev: { stackMode?: StackMode } | undefined,
+	next: T,
+): T =>
+	prev?.stackMode !== undefined && prev.stackMode !== next.stackMode
+		? { ...next, stackMode: prev.stackMode }
+		: next
+
 export type StackModeEntry = { channel: StackChannel; mode: StackMode }
 
 /** The layout mode for every MAPPED stack channel, in precedence order.

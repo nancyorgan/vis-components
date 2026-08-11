@@ -255,14 +255,13 @@ describe("LabelsPanel — collapsible subsections", () => {
 		expect(rowToggle(container, "Color legend")).toBeNull()
 	})
 
-	it("expanding 'Primary titles' reveals Title + Subtitle rows and the Shift+Enter hint", () => {
+	it("expanding 'Primary titles' reveals the Title + Subtitle rows", () => {
 		seedStorage({ encodings: fullEncodings() })
-		const { container, getByText } = renderPanel()
+		const { container } = renderPanel()
 
 		expandSection(container, "Primary titles")
 		expect(rowToggle(container, "Title")).not.toBeNull()
 		expect(rowToggle(container, "Subtitle")).not.toBeNull()
-		expect(getByText(/Press Shift\+Enter/)).toBeTruthy()
 		// Other sections stay collapsed.
 		expect(rowToggle(container, "X-axis title")).toBeNull()
 	})

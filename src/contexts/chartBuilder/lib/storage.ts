@@ -122,6 +122,7 @@ const KEY_LIBRARY_COLLAPSED_FOLDERS = "vis-components:libraryCollapsedFolders"
 const KEY_LIBRARY_SELECTED_FOLDER = "vis-components:librarySelectedFolderId"
 const KEY_SIDEBAR_COLLAPSED = "vis-components:sidebarCollapsed"
 const KEY_EXPORT_SIZES = "vis-components:exportSizes"
+const KEY_EXPORT_UNIT = "vis-components:exportUnit"
 const KEY_THEME = "vis-components:theme"
 const KEY_THEMES = "vis-components:themes"
 const KEY_USER_DEFAULT_THEME_ID = "vis-components:userDefaultThemeId"
@@ -443,6 +444,15 @@ export const loadExportSizes = (): Record<string, ExportSize> =>
 	safeGet<Record<string, ExportSize>>(KEY_EXPORT_SIZES, {})
 export const saveExportSizes = (v: Record<string, ExportSize>): void =>
 	safeSet(KEY_EXPORT_SIZES, v)
+
+/** Unit the Export modal's dimension inputs display in. Display-only — sizes
+ * are stored and exported in px regardless. Device-local UI state, like the
+ * sidebar widths. */
+export type ExportUnit = "px" | "in" | "cm"
+export const loadExportUnit = (): ExportUnit =>
+	safeGet<ExportUnit>(KEY_EXPORT_UNIT, "px")
+export const saveExportUnit = (v: ExportUnit): void =>
+	safeSet(KEY_EXPORT_UNIT, v)
 
 export const loadTheme = (): Theme | null =>
 	safeGet<Theme | null>(KEY_THEME, null)

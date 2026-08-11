@@ -33,6 +33,7 @@ import {
 	loadDrawerHeight,
 	loadEmbedInstances,
 	loadExportSizes,
+	loadExportUnit,
 	loadFolders,
 	loadLibraryCollapsedFolders,
 	loadLibrarySidebarWidth,
@@ -61,6 +62,7 @@ import {
 	saveCurrentVisualName,
 	saveDrawerHeight,
 	saveExportSizes,
+	saveExportUnit,
 	saveLibraryCollapsedFolders,
 	saveLibrarySidebarWidth,
 	savePreviewVersionId,
@@ -68,6 +70,7 @@ import {
 	saveSidebarWidth,
 	saveTheme,
 	type ExportSize,
+	type ExportUnit,
 } from "../lib/storage"
 import { idbAvailable } from "../lib/storage/idb"
 import type { StorageContentAdapter } from "../lib/storage/adapter"
@@ -286,6 +289,13 @@ export const embedInstancesAtom = contentAtom<Record<string, EmbedInstance>>(
 export const exportSizesAtom = persistedAtom<Record<string, ExportSize>>(
 	loadExportSizes,
 	saveExportSizes
+)
+
+/** Unit the Export modal's dimension inputs display in (px / in / cm).
+ * Persists on change so the picked unit is the default next export. */
+export const exportUnitAtom = persistedAtom<ExportUnit>(
+	loadExportUnit,
+	saveExportUnit
 )
 
 /** Extract the value type `T` from a Jotai atom (`Atom<T>`).

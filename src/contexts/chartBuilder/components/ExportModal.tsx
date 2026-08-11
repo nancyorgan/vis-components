@@ -1,8 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
-import { useAtomValue, useSetAtom } from "jotai"
+import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { PLOT_SVG_ID, serializeEmbedCapture } from "../lib/captureThumbnail"
 import { upsertEmbedInstance } from "../lib/embedInstances"
-import { embedInstancesAtom, exportSizesAtom } from "../store/atoms"
+import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
+import type { ExportUnit } from "../lib/storage"
+import { embedInstancesAtom, exportSizesAtom, exportUnitAtom } from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
 
 import { Button } from "../../../components/ui/Button"
@@ -28,6 +30,27 @@ const FORMAT_OPTIONS: Array<{ value: ImageFormat; label: string }> = [
 
 const RESOLUTION_OPTIONS = [1, 2, 3, 4]
 const DEFAULT_PIXEL_RATIO = 2
+
+// Display units for the size inputs. Sizes are stored, dragged, and exported
+// in px — the unit only converts what the inputs show, at the CSS-standard
+// 96 px/inch (so a chart exported at "6.5 in" embeds at true size in
+// 96 dpi-convention tools like Office and Figma).
+const UNIT_OPTIONS: ExportUnit[] = ["px", "in", "cm"]
+const PX_PER_UNIT: Record<ExportUnit, number> = {
+	px: 1,
+	in: 96,
+	cm: 96 / 2.54,
+}
+// Per-unit input step, each ≈10px so stepping feels the same in every unit.
+const UNIT_STEP: Record<ExportUnit, number> = { px: 10, in: 0.1, cm: 0.25 }
+
+/** Convert stored px to the display unit. px shows whole numbers; physical
+ *  units show 2 decimals (≈0.4px precision — below layout significance). */
+const pxToUnit = (px: number, unit: ExportUnit): number =>
+	unit === "px" ? px : Number((px / PX_PER_UNIT[unit]).toFixed(2))
+
+const unitToPx = (v: number, unit: ExportUnit): number =>
+	Math.round(v * PX_PER_UNIT[unit])
 
 // Fallback iframe dimensions for the embed snippets, used only when the
 // on-screen chart / legend can't be measured (e.g. modal opened before the
@@ -471,6 +494,8 @@ const ExportTab = ({
 }) => {
 	const view = useCurrentDatasetView()
 	const setExportSizes = useSetAtom(exportSizesAtom)
+	// Persists on change, so the unit picked here is the default next export.
+	const [unit, setUnit] = useAtom(exportUnitAtom)
 	const [format, setFormat] = useState<ImageFormat>("png")
 	const [pixelRatio, setPixelRatio] = useState(DEFAULT_PIXEL_RATIO)
 	const [busy, setBusy] = useState(false)
@@ -528,31 +553,45 @@ const ExportTab = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="grid grid-cols-2 gap-3">
+			<div className="flex gap-3">
 				<NumberInput
-					label="Width (px)"
+					label={`Width (${unit})`}
 					labelClassName="text-stone-600 dark:text-stone-400"
 					inline={false}
-					value={width}
-					min={MIN_EXPORT_DIM}
-					max={MAX_EXPORT_DIM}
-					step={10}
+					value={pxToUnit(width, unit)}
+					min={pxToUnit(MIN_EXPORT_DIM, unit)}
+					max={pxToUnit(MAX_EXPORT_DIM, unit)}
+					step={UNIT_STEP[unit]}
 					// Preserve the raw input's guard: an all-cleared / zero entry
 					// falls back to the default rather than committing 0.
-					onChange={(v) => onWidthChange(v || DEFAULT_WIDTH)}
+					onChange={(v) => onWidthChange(unitToPx(v, unit) || DEFAULT_WIDTH)}
 					inputClassName="w-40"
 				/>
 				<NumberInput
-					label="Height (px)"
+					label={`Height (${unit})`}
 					labelClassName="text-stone-600 dark:text-stone-400"
 					inline={false}
-					value={height}
-					min={MIN_EXPORT_DIM}
-					max={MAX_EXPORT_DIM}
-					step={10}
-					onChange={(v) => onHeightChange(v || DEFAULT_HEIGHT)}
+					value={pxToUnit(height, unit)}
+					min={pxToUnit(MIN_EXPORT_DIM, unit)}
+					max={pxToUnit(MAX_EXPORT_DIM, unit)}
+					step={UNIT_STEP[unit]}
+					onChange={(v) => onHeightChange(unitToPx(v, unit) || DEFAULT_HEIGHT)}
 					inputClassName="w-40"
 				/>
+				<label className="flex flex-col gap-1 text-sm">
+					<span className="text-stone-600 dark:text-stone-400">Units</span>
+					<select
+						value={unit}
+						onChange={(e) => setUnit(e.target.value as ExportUnit)}
+						className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+					>
+						{UNIT_OPTIONS.map((u) => (
+							<option key={u} value={u}>
+								{u}
+							</option>
+						))}
+					</select>
+				</label>
 			</div>
 			<div className="flex items-center gap-3 text-sm">
 				<label className="flex items-center gap-2">
@@ -601,14 +640,19 @@ const ExportTab = ({
 
 			<div className="flex flex-col gap-2">
 				<span className="text-sm text-stone-600 dark:text-stone-400">
-					Preview ({width} × {height})
-					{(format === "png" || format === "jpeg") && effectiveRatio > 1 && (
-						<span className="text-stone-400 dark:text-stone-500">
-							{" "}
-							— exports at {Math.round(width * effectiveRatio)} ×{" "}
-							{Math.round(height * effectiveRatio)} px
-						</span>
-					)}
+					Preview ({pxToUnit(width, unit)} × {pxToUnit(height, unit)}
+					{unit === "px" ? "" : ` ${unit}`})
+					{(format === "png" || format === "jpeg") &&
+						(effectiveRatio > 1 || unit !== "px") && (
+							<span className="text-stone-400 dark:text-stone-500">
+								{" "}
+								— exports at {Math.round(width * effectiveRatio)} ×{" "}
+								{Math.round(height * effectiveRatio)} px
+								{/* The file is DPI-stamped, so physical-size consumers
+								    (PowerPoint, Word) insert it at the chosen in/cm. */}
+								{unit !== "px" && ` (${Math.round(96 * effectiveRatio)} dpi)`}
+							</span>
+						)}
 					{previewScale < 1 && (
 						<span className="text-stone-400 dark:text-stone-500">
 							{" "}
@@ -998,11 +1042,20 @@ const rasterizeSvg = async (
 		pixelRatio,
 		format === "jpeg"
 	)
-	return canvasToBlob(
+	const mime = format === "png" ? "image/png" : "image/jpeg"
+	const blob = await canvasToBlob(
 		canvas,
-		format === "png" ? "image/png" : "image/jpeg",
+		mime,
 		format === "jpeg" ? 0.92 : undefined
 	)
+	// Stamp the true resolution (96 css-px/in × the export multiplier) so
+	// physical-size consumers (PowerPoint, Word, print layouts) insert the
+	// image at the inches/cm the user chose instead of guessing a DPI —
+	// without it, a 2× export lands at double size and gets shrunk-to-fit.
+	const dpi = 96 * pixelRatio
+	const bytes = new Uint8Array(await blob.arrayBuffer())
+	const stamped = format === "png" ? withPngDpi(bytes, dpi) : withJpegDpi(bytes, dpi)
+	return new Blob([stamped], { type: mime })
 }
 
 // ---------------------------------------------------------------------------

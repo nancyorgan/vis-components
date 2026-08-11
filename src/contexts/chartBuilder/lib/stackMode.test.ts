@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
-import type { ChannelConfigs } from "./channelConfig"
+import type { ChannelConfigs, OpacityConfig } from "./channelConfig"
 import type { Encodings } from "./types"
 import {
 	mappedStackChannels,
+	preserveStackMode,
 	resolveStackModes,
 } from "./stackMode"
 
@@ -59,5 +60,60 @@ describe("mappedStackChannels", () => {
 
 	it("returns empty when none mapped", () => {
 		expect(mappedStackChannels(enc({}))).toEqual([])
+	})
+})
+
+describe("preserveStackMode", () => {
+	it("carries the stored stackMode onto a rebuilt config that dropped it", () => {
+		// The repro: per-category opacity edit rebuilds the config without
+		// stackMode — the user's Group choice must survive.
+		const prev: OpacityConfig = {
+			kind: "categorical",
+			overrides: {},
+			stackMode: "group",
+		}
+		const next: OpacityConfig = { kind: "categorical", overrides: { A: 0.5 } }
+		expect(preserveStackMode(prev, next)).toEqual({
+			kind: "categorical",
+			overrides: { A: 0.5 },
+			stackMode: "group",
+		})
+	})
+
+	it("the stored stackMode wins over a stale one on the replacement (stash restore)", () => {
+		const prev: OpacityConfig = {
+			kind: "categorical",
+			overrides: {},
+			stackMode: "group",
+		}
+		const next: OpacityConfig = {
+			kind: "quantitative",
+			min: 0,
+			max: 1,
+			stackMode: "stack",
+		}
+		expect(preserveStackMode(prev, next).stackMode).toBe("group")
+	})
+
+	it("survives a kind switch (categorical stackMode onto a quantitative rebuild)", () => {
+		const prev: OpacityConfig = {
+			kind: "categorical",
+			overrides: {},
+			stackMode: "overlay",
+		}
+		const next: OpacityConfig = { kind: "quantitative", min: 0.2, max: 1 }
+		expect(preserveStackMode(prev, next)).toEqual({
+			kind: "quantitative",
+			min: 0.2,
+			max: 1,
+			stackMode: "overlay",
+		})
+	})
+
+	it("returns next unchanged when no prior stackMode exists", () => {
+		const prev: OpacityConfig = { kind: "categorical", overrides: {} }
+		const next: OpacityConfig = { kind: "categorical", overrides: {} }
+		expect(preserveStackMode(undefined, next)).toBe(next)
+		expect(preserveStackMode(prev, next)).toBe(next)
 	})
 })

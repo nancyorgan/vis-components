@@ -8,9 +8,12 @@ import {
 	applyHueScale,
 	autoDivergingMid,
 	makeAreaScale,
+	makeBrightnessScale,
 	makeHueScale,
 	makePositionScale,
+	makeSaturationScale,
 	outlinePaletteForHueType,
+	parseNumericCell,
 } from "./scales"
 
 describe("makeHueScale (categorical)", () => {
@@ -235,6 +238,53 @@ describe("makeAreaScale — non-numeric ordinal", () => {
 	})
 })
 
+describe("makeSaturationScale / makeBrightnessScale — per-value overrides", () => {
+	const values = ["low", "med", "high", "low", "high"]
+	const cfg = { min: 0.2, max: 1 }
+
+	it("categorical: spreads distinct values evenly across [min, max]", () => {
+		const scale = makeBrightnessScale(values, "categorical", cfg)
+		expect(scale("low")).toBeCloseTo(0.2)
+		expect(scale("med")).toBeCloseTo(0.6)
+		expect(scale("high")).toBeCloseTo(1)
+	})
+
+	it("categorical: an override wins for its value, others keep the spread", () => {
+		const scale = makeBrightnessScale(values, "categorical", {
+			...cfg,
+			overrides: { med: 0.33 },
+		})
+		expect(scale("med")).toBe(0.33)
+		expect(scale("low")).toBeCloseTo(0.2)
+		expect(scale("high")).toBeCloseTo(1)
+	})
+
+	it("non-numeric ordinal: overrides apply the same way", () => {
+		const scale = makeSaturationScale(values, "ordinal", {
+			...cfg,
+			overrides: { high: 0.5 },
+		})
+		expect(scale("high")).toBe(0.5)
+		expect(scale("low")).toBeCloseTo(0.2)
+	})
+
+	it("quantitative: overrides are ignored — modulation stays continuous", () => {
+		const scale = makeBrightnessScale([0, 100], "quantitative", {
+			...cfg,
+			overrides: { "50": 0.99 },
+		})
+		expect(scale(50)).toBeCloseTo(0.6)
+	})
+
+	it("returns null for a value absent from the training values, even with overrides set", () => {
+		const scale = makeBrightnessScale(values, "categorical", {
+			...cfg,
+			overrides: { med: 0.33 },
+		})
+		expect(scale("unseen")).toBeNull()
+	})
+})
+
 describe("makePositionScale — categorical with firstTickPxOffset", () => {
 	/** With `padding(0.5)` (the default), first-tick position depends on
 	 *  range size AND N — exactly the math that produces the facet
@@ -453,3 +503,30 @@ describe("outlinePaletteForHueType", () => {
 	})
 })
 
+
+describe("parseNumericCell", () => {
+	it("parses numbers and numeric strings", () => {
+		expect(parseNumericCell(5)).toBe(5)
+		expect(parseNumericCell(-1.5)).toBe(-1.5)
+		expect(parseNumericCell("42")).toBe(42)
+		expect(parseNumericCell(" 3.5 ")).toBe(3.5)
+		expect(parseNumericCell(0)).toBe(0)
+		expect(parseNumericCell("0")).toBe(0)
+	})
+
+	it("returns null for blank / missing cells (never 0)", () => {
+		// Regression guard: `Number("")`, `Number("  ")`, and `Number(null)`
+		// are all 0 — blank cells must read as missing, not zero.
+		expect(parseNumericCell("")).toBeNull()
+		expect(parseNumericCell("   ")).toBeNull()
+		expect(parseNumericCell(null)).toBeNull()
+		expect(parseNumericCell(undefined)).toBeNull()
+	})
+
+	it("returns null for non-numeric values", () => {
+		expect(parseNumericCell("abc")).toBeNull()
+		expect(parseNumericCell("12abc")).toBeNull()
+		expect(parseNumericCell(Number.NaN)).toBeNull()
+		expect(parseNumericCell(Number.POSITIVE_INFINITY)).toBeNull()
+	})
+})

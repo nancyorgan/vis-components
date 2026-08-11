@@ -39,6 +39,7 @@ import {
 } from "../../lib/resolveLayerColor"
 import {
 	makePositionScale,
+	parseNumericCell,
 	parseValue,
 	type PositionScale,
 } from "../../lib/scales"
@@ -467,6 +468,14 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 			aggregation.isVertical ? yScale : xScale
 		) as ReturnType<typeof scaleLinear<number, number>>
 		const stackMode: StackMode = resolveStackMode(channelConfigs, encodings)
+		// A mapped label column (distinct from the measure) is authoritative:
+		// layers where it's blank get NO label — sparse columns are the way to
+		// label a single arbitrary point, so blanks must never fall back to
+		// the measure. Mirrors the aggregator's own textValue condition.
+		const labelField = dataLabels?.value?.field
+		const valueFieldMapped = Boolean(
+			labelField && labelField !== aggregation.measureField
+		)
 		return (
 			<g
 				onMouseLeave={() => {
@@ -510,6 +519,7 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 							sizeField: dataLabels?.size?.field ?? null,
 							encodings,
 							rows: rowsForChart,
+							valueFieldMapped,
 						})}
 					/>
 				)}
@@ -1285,6 +1295,7 @@ export const buildAreaAnchors = ({
 	sizeField,
 	encodings,
 	rows,
+	valueFieldMapped,
 }: {
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	categoryScale: PositionScale
@@ -1300,6 +1311,11 @@ export const buildAreaAnchors = ({
 	sizeField?: string | null
 	encodings?: Encodings
 	rows?: ReadonlyArray<Record<string, unknown>>
+	/** True when the label value field is mapped and distinct from the
+	 * measure — that field is then authoritative: layers where it's blank
+	 * render no label (sparse labeling) instead of falling back to the
+	 * layer's measure. */
+	valueFieldMapped?: boolean
 }): DataLabelAnchor[] => {
 	// Areas reduce "group" → "overlay" (no meaningful side-by-side); mirrors
 	// the same coercion used in `buildAreas` so the anchor positions match
@@ -1329,7 +1345,15 @@ export const buildAreaAnchors = ({
 		const byKeyText = new Map<string, unknown>()
 		for (const slice of stack.slices) {
 			byKey.set(slice.key, slice.value)
-			byKeyText.set(slice.key, slice.textValue ?? slice.value)
+			// A mapped value field is authoritative — a blank slice stays
+			// absent from byKeyText so no label renders, rather than falling
+			// back to the layer's measure.
+			if (valueFieldMapped) {
+				if (slice.textValue !== undefined)
+					byKeyText.set(slice.key, slice.textValue)
+			} else {
+				byKeyText.set(slice.key, slice.textValue ?? slice.value)
+			}
 		}
 		return { stack, byKey, byKeyText }
 	})
@@ -1359,7 +1383,9 @@ export const buildAreaAnchors = ({
 			// Anchor at the visible TOP edge of this layer's contribution to
 			// this stack — that's where the user sees the layer "is".
 			const measurePoint = measureScale(top)
-			const labelValue = sv.byKeyText.get(layerKey) ?? value
+			const labelValue = valueFieldMapped
+				? sv.byKeyText.get(layerKey)
+				: (sv.byKeyText.get(layerKey) ?? value)
 			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			// Sum the size field for rows in this (stack, layer) cell so
 			// DataLabelsLayer can size the label per the user's encoding.
@@ -1387,11 +1413,17 @@ export const buildAreaAnchors = ({
 					}
 					if (!matches) continue
 					const raw = row[sizeField]
-					const n = Number(raw)
-					if (Number.isFinite(n)) {
+					// parseNumericCell, not Number: blanks are missing data and
+					// must not enter the size sum as 0 (`Number("") === 0`).
+					const n = parseNumericCell(raw)
+					if (n !== null) {
 						sum += n
 						foundNumeric = true
-					} else if (firstNonNumeric === undefined && raw !== undefined) {
+					} else if (
+						firstNonNumeric === undefined &&
+						raw != null &&
+						String(raw).trim() !== ""
+					) {
 						firstNonNumeric = String(raw)
 					}
 				}

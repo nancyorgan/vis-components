@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useAtom } from "jotai"
-import { nameCollides } from "../lib/nameUniqueness"
+import { pruneOrphanFields } from "../lib/datasetCompat"
 import type { Dataset } from "../lib/types"
 import { datasetsAtom, previewVersionIdAtom } from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
@@ -22,11 +22,8 @@ export const VersionBadge = () => {
 	const view = useCurrentDatasetView()
 	const [previewVersionId, setPreviewVersionId] =
 		useAtom(previewVersionIdAtom)
-	const [datasets, setDatasets] = useAtom(datasetsAtom)
+	const [, setDatasets] = useAtom(datasetsAtom)
 	const [open, setOpen] = useState(false)
-	const [editingName, setEditingName] = useState(false)
-	const [nameDraft, setNameDraft] = useState("")
-	const [renameError, setRenameError] = useState<string | null>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
@@ -55,31 +52,6 @@ export const VersionBadge = () => {
 
 	if (!view) return null
 
-	/** Commit the rename if the new name is unique; otherwise set an inline
-	 * error and keep the editor open so the user can fix it. Returns whether
-	 * the commit succeeded. */
-	const tryRenameDataset = (next: string): boolean => {
-		const trimmed = next.trim()
-		// Empty / whitespace-only names fall back to the current name (no-op).
-		if (trimmed === "") {
-			setRenameError(null)
-			return true
-		}
-		if (nameCollides(trimmed, Object.values(datasets), view.id)) {
-			setRenameError(
-				`A data set named "${trimmed}" already exists. Pick a different name.`
-			)
-			return false
-		}
-		setDatasets((prev) => {
-			const d = prev[view.id]
-			if (!d) return prev
-			return { ...prev, [view.id]: { ...d, name: trimmed } }
-		})
-		setRenameError(null)
-		return true
-	}
-
 	const deleteVersion = (versionId: string) => {
 		setDatasets((prev) => {
 			const d = prev[view.id]
@@ -91,10 +63,14 @@ export const VersionBadge = () => {
 			const fallbackLatest = remaining.at(-1)!.id
 			const latestVersionId =
 				d.latestVersionId === versionId ? fallbackLatest : d.latestVersionId
-			return {
-				...prev,
-				[view.id]: { ...d, versions: remaining, latestVersionId },
-			}
+			// The deleted version may have been the only one carrying an
+			// additively-merged column; drop fields no remaining version has.
+			const next = pruneOrphanFields({
+				...d,
+				versions: remaining,
+				latestVersionId,
+			})
+			return { ...prev, [view.id]: next }
 		})
 		// If the deleted version was being previewed, fall back to latest.
 		if (previewVersionId === versionId) setPreviewVersionId(null)
@@ -118,7 +94,7 @@ export const VersionBadge = () => {
 
 	const badgeLabel = view.isLatest
 		? `v${view.versionIndex} of ${view.totalVersions} · latest`
-		: `v${view.versionIndex} of ${view.totalVersions} · preview`
+		: `v${view.versionIndex} of ${view.totalVersions}`
 
 	return (
 		<div className="relative" ref={popoverRef}>
@@ -138,48 +114,9 @@ export const VersionBadge = () => {
 			{open && (
 				<div className="absolute top-full right-0 z-20 mt-1 w-80 rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800">
 					<div className="border-b border-stone-200 px-3 py-2 dark:border-stone-700">
-						{editingName ? (
-							<div className="flex flex-col gap-1">
-								<Input
-									// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
-									autoFocus
-									value={nameDraft}
-									onChange={(e) => setNameDraft(e.target.value)}
-									onBlur={() => {
-										if (tryRenameDataset(nameDraft)) setEditingName(false)
-									}}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" && tryRenameDataset(nameDraft))
-											setEditingName(false)
-										if (e.key === "Escape") {
-											setRenameError(null)
-											setEditingName(false)
-										}
-									}}
-								/>
-								{renameError && (
-									<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
-										{renameError}
-									</div>
-								)}
-							</div>
-						) : (
-							<div className="flex items-center justify-between gap-2">
-								<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
-									{view.name}
-								</div>
-								<button
-									type="button"
-									onClick={() => {
-										setNameDraft(view.name)
-										setEditingName(true)
-									}}
-									className="text-sm text-stone-500 underline hover:text-stone-800 dark:text-stone-400 dark:hover:text-white"
-								>
-									Rename
-								</button>
-							</div>
-						)}
+						<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+							{view.name}
+						</div>
 					</div>
 					{!view.isLatest && (
 						<button
@@ -274,7 +211,7 @@ const VersionList = ({
 										{formatTime(v.createdAt)} · {v.filename}
 									</div>
 								</button>
-								{canDelete && !isLatest && (
+								{canDelete && !isActive && (
 									<button
 										type="button"
 										onClick={() => {

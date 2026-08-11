@@ -126,6 +126,15 @@ export const parseValue = (raw: unknown, type: FieldType): ParsedValue => {
 	return s
 }
 
+/** Numeric coercion for aggregators. Returns null for missing / blank /
+ * non-numeric cells — unlike bare `Number()`, where `Number("")`,
+ * `Number("  ")`, and `Number(null)` are all 0, silently turning blank
+ * cells into legitimate-looking zeros in sums and means. */
+export const parseNumericCell = (raw: unknown): number | null => {
+	const v = parseValue(raw, "quantitative")
+	return typeof v === "number" ? v : null
+}
+
 const isNumericOrdinal = (vals: ParsedValue[]) =>
 	vals.every((v) => typeof v === "number")
 
@@ -709,17 +718,51 @@ const makeUnitScaleInner = (
 	}
 }
 
+// Per-value overrides win for categorical / ordinal fields (set in the
+// sidebar's per-category editor, and by the packed-circles derived panels);
+// an unset value keeps the even min→max spread. Quantitative / temporal
+// fields modulate continuously and ignore overrides entirely.
+const withModulationOverrides = (
+	base: UnitScale,
+	type: FieldType,
+	overrides: Record<string, number> | undefined
+): UnitScale => {
+	if (
+		!overrides ||
+		Object.keys(overrides).length === 0 ||
+		type === "quantitative" ||
+		type === "temporal"
+	)
+		return base
+	return (raw) => {
+		const v = parseValue(raw, type)
+		if (v === null) return null
+		const o = overrides[String(v)]
+		return o !== undefined ? o : base(raw)
+	}
+}
+
 export const makeSaturationScale = (
 	rawValues: unknown[],
 	type: FieldType,
 	config: SaturationConfig = DEFAULT_SATURATION_CONFIG
-): UnitScale => makeUnitScaleInner(rawValues, type, [config.min, config.max])
+): UnitScale =>
+	withModulationOverrides(
+		makeUnitScaleInner(rawValues, type, [config.min, config.max]),
+		type,
+		config.overrides
+	)
 
 export const makeBrightnessScale = (
 	rawValues: unknown[],
 	type: FieldType,
 	config: BrightnessConfig = DEFAULT_BRIGHTNESS_CONFIG
-): UnitScale => makeUnitScaleInner(rawValues, type, [config.min, config.max])
+): UnitScale =>
+	withModulationOverrides(
+		makeUnitScaleInner(rawValues, type, [config.min, config.max]),
+		type,
+		config.overrides
+	)
 
 // Opacity — quantitative scales to [min, max] (default 0.2–1); categorical /
 // ordinal reads each category's override (default 1 if unset).

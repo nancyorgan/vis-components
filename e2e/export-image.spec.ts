@@ -139,5 +139,13 @@ test.describe("Export image", () => {
 		expect(png.subarray(1, 4).toString("ascii")).toBe("PNG")
 		expect(png.readUInt32BE(16)).toBe(1300)
 		expect(png.readUInt32BE(20)).toBe(800)
+
+		// DPI stamp (pHYs, inserted right after IHDR at byte 33): the 2×
+		// multiplier exports at 192 dpi → 7559 px/meter — this is what makes
+		// PowerPoint/Word insert the image at the chosen physical size.
+		expect(png.subarray(37, 41).toString("ascii")).toBe("pHYs")
+		expect(png.readUInt32BE(41)).toBe(7559)
+		expect(png.readUInt32BE(45)).toBe(7559)
+		expect(png[49]).toBe(1) // unit: meters
 	})
 })

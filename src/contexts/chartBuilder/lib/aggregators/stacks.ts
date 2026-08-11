@@ -1,3 +1,4 @@
+import { parseNumericCell } from "../scales"
 import { applyLevelOrder } from "../smartSort"
 import type { FieldType } from "../types"
 
@@ -258,8 +259,10 @@ export const aggregateStacks = (
 			}
 			const raw = row[textField]
 			if (textAggregateNumeric) {
-				const n = Number(raw)
-				if (Number.isFinite(n)) {
+				// parseNumericCell, not Number: blank cells must stay missing
+				// (`Number("") === 0` would give all-blank slices a "0" label).
+				const n = parseNumericCell(raw)
+				if (n !== null) {
 					catTextMap.set(
 						sliceKey,
 						((catTextMap.get(sliceKey) as number) ?? 0) + n

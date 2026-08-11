@@ -465,7 +465,10 @@ current chart type AND has a configurable default. Examples:
 - Area chart: angle, shape panels hidden when those channels aren't
   mapped.
 - Tile chart: angle, connection, area, length panels hidden when those
-  channels aren't mapped.
+  channels aren't mapped. The Shape panel stays live for the outline
+  width (cell borders read it, same chain as bars) but — like bar and
+  hexbin modes — hides the Default-shape glyph picker, since these
+  modes draw no point glyphs.
 - Pie chart: length, connection, area panels hidden when those
   channels aren't mapped.
 
@@ -520,6 +523,11 @@ palette section branches on field type:
   gradient, at which point the row appears). The legend's gradient
   bar samples the live scale densely for its CSS gradient, so the bar
   tracks the chosen blend space instead of CSS's sRGB approximation.
+  The gradient config **survives encoding round-trips**: switching the
+  Color variable to a categorical field stashes the quantitative
+  config (and vice versa — categorical per-value overrides stash when
+  a gradient takes over), and mapping a matching-kind field again
+  restores the stash instead of re-seeding the theme default.
 
 **Color slots** — every colorable mark part gets its own subheader in
 the Color panel, driven by a registry (`lib/colorSlots.ts`). Fill and
@@ -658,6 +666,17 @@ Each channel exposes scaling controls (min/max), per-value overrides
 where it makes sense, and any channel-specific knobs (e.g., shape
 outline width). Theme defaults seed the ranges so new charts come up
 with sensible visuals.
+
+**Saturation / Brightness** follow the field's type, like Opacity and
+Area do: a quantitative / temporal / numeric-ordinal field modulates
+continuously and gets the min/max range editor; a categorical (or
+non-numeric ordinal) field gets a **per-category level editor** — one
+0–1 input per category, pre-filled with the even min→max spread the
+renderer applies, each row individually pinnable
+(`SaturationConfig.overrides` / `BrightnessConfig.overrides`, the same
+storage the packed-circles derived panels use). Unset categories keep
+the spread; the legend resolves through the same scale so it always
+matches the marks.
 
 In bar modes the **Length** panel swaps its inert px min/max range for
 a **Bar gap** control (`LengthConfig.barGapPx`): the gap between bars
@@ -960,7 +979,11 @@ padding so the inner rects stay aligned.
   fill toggle controls outline-only vs filled rendering, and exposes
   independent line and area colors.
 - **PiePlot** — single centered pie or grid of pies along x / y.
-- **TilePlot** — heatmap grid with hue per (x, y) cell.
+- **TilePlot** — heatmap grid with hue per (x, y) cell. Cells tile
+  FLUSH (zero band padding); like the treemap mosaic, separation comes
+  solely from the outline stroke, which follows the universal mark
+  outline (the Shape panel's width, the Color menu's Outline color) —
+  width 0 gives an entirely gapless grid.
 - **HexbinPlot** — quantitative x × y binned onto a hex lattice in
   data space (`lib/hexbins.ts`, shared with the legend), one hexagon
   path per occupied cell, filled through the quantitative hue
@@ -1119,6 +1142,14 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   labels (scatter / lines), aggregated slice labels (bars / areas /
   pies / tile cells), and hierarchy leaf labels. Missing values still
   skip the label entirely (a null measure never renders as "0%").
+  A mapped Value field is AUTHORITATIVE: on aggregating charts
+  (bars / areas / pies / tiles), slices whose Value cells are all
+  blank render NO label — they never fall back to the slice's
+  measure. Sparse Value columns are the mechanism for labeling one
+  arbitrary point (beyond first/last-per-series) without manual
+  annotations, so a blank means "no label here". The measure
+  fallback applies only when no Value field is mapped (or it equals
+  the measure field), where labels show the slice's aggregated value.
 - **Size** — the Default size input always shows; the Min / Max
   pixel-range inputs appear only when a size source is mapped (a field,
   or the tree layouts' derived "Nesting depth"), since the range only

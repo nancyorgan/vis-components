@@ -26,6 +26,7 @@ import {
 } from "../../../lib/packedMeasure"
 import { valueChanged } from "../../../lib/themeConfig"
 import { makeOpacityScale, parseValue } from "../../../lib/scales"
+import { preserveStackMode } from "../../../lib/stackMode"
 import { orderedLevels } from "../../../lib/smartSort"
 import type { FieldType } from "../../../lib/types"
 import {
@@ -240,7 +241,10 @@ const FillOpacityControls = ({
 			packedSource === "depth" ? values.map((v) => `Level ${v}`) : values
 		const scale = makeOpacityScale(values, "categorical", cfg)
 		const update = (opacity: OpacityConfig) =>
-			setConfigs((prev) => ({ ...prev, opacity }))
+			setConfigs((prev) => ({
+				...prev,
+				opacity: preserveStackMode(prev.opacity, opacity),
+			}))
 		return (
 			<div className="flex flex-col gap-2">
 				{!hideVaryBy && varyBy}
@@ -280,7 +284,12 @@ const FillOpacityControls = ({
 				{!hideVaryBy && varyBy}
 				<QuantOpacityRange
 					cfg={cfg}
-					onChange={(opacity) => setConfigs((prev) => ({ ...prev, opacity }))}
+					onChange={(opacity) =>
+						setConfigs((prev) => ({
+							...prev,
+							opacity: preserveStackMode(prev.opacity, opacity),
+						}))
+					}
 				/>
 				<p className="vc-help">
 					Each bin&apos;s opacity scales with its{" "}
@@ -313,7 +322,10 @@ const FillOpacityControls = ({
 	const type = effectiveType(dataset, fieldName, overrides)
 	const isQuantitative = type === "quantitative" || type === "temporal"
 	const update = (opacity: OpacityConfig) =>
-		setConfigs((prev) => ({ ...prev, opacity }))
+		setConfigs((prev) => ({
+			...prev,
+			opacity: preserveStackMode(prev.opacity, opacity),
+		}))
 
 	if (isQuantitative) {
 		const cfg =

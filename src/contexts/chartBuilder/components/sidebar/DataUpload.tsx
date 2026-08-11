@@ -43,9 +43,8 @@ export const DataUpload = () => {
 		<div className="flex flex-col gap-2">
 			<Button
 				compact
-				outline
 				onClick={() => inputRef.current?.click()}
-				className="w-full bg-white text-stone-800 hover:bg-stone-100 hover:text-stone-900 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
+				className="w-full"
 			>
 				{currentDataset ? "Upload data…" : "Upload CSV…"}
 			</Button>

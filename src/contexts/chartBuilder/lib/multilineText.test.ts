@@ -99,6 +99,28 @@ describe("wrapTextToWidth", () => {
 		const narrow = wrapTextToWidth(text, 60, 12)
 		expect(narrow.length).toBeGreaterThan(wide.length)
 	})
+
+	it("breaks after a hyphen, keeping it at the end of the line", () => {
+		// 14px → ~7.7px/char, 70px → 9 chars/line. "state-of-the-art" alone
+		// can't fit, but hyphen fragments can.
+		expect(wrapTextToWidth("state-of-the-art", 70, 14)).toEqual([
+			"state-of-",
+			"the-art",
+		])
+	})
+
+	it("keeps a hyphenated word whole when it fits the line", () => {
+		// 12 chars/line: "a well-known" fills the line exactly.
+		expect(wrapTextToWidth("a well-known fox", 100, 14)).toEqual([
+			"a well-known",
+			"fox",
+		])
+	})
+
+	it("does not split a leading minus sign from its number", () => {
+		// 5 chars/line: "-1234" must stay whole, not break after "-".
+		expect(wrapTextToWidth("ab -1234", 40, 14)).toEqual(["ab", "-1234"])
+	})
 })
 
 describe("wrapTextToWidth with breakWords", () => {
@@ -203,6 +225,24 @@ describe("wrapByCharCount", () => {
 		// target 1 → break on the earliest space each pass.
 		expect(wrapByCharCount("a b c", 0)).toEqual(["a", "b", "c"])
 	})
+
+	it("breaks after a hyphen, keeping it at the end of the line", () => {
+		expect(wrapByCharCount("well-known", 6)).toEqual(["well-", "known"])
+	})
+
+	it("picks the hyphen when it lands nearer the target than a space", () => {
+		// target 12; space breaks give lines of 3 or 20 chars, the hyphen
+		// after "state-of-" gives 13 — closest wins.
+		expect(wrapByCharCount("the state-of-the-art fox", 12)).toEqual([
+			"the state-of-",
+			"the-art fox",
+		])
+	})
+
+	it("never breaks after a minus sign", () => {
+		// The hyphen in "-12" follows a space, so it's not a break point.
+		expect(wrapByCharCount("temp -12 deg", 6)).toEqual(["temp", "-12", "deg"])
+	})
 })
 
 describe("wrapSegments", () => {
@@ -237,6 +277,17 @@ describe("wrapSegments", () => {
 		// second segment must come through whole, not de-prefixed.
 		const lines = wrapSegments([seg("alpha ", "#111"), seg("beta", "#222")], 5)
 		expect(lines).toEqual([[seg("alpha", "#111")], [seg("beta", "#222")]])
+	})
+
+	it("stays aligned across a hyphen break, which drops no source char", () => {
+		// "well-known fox" breaks after the hyphen (kept) then at the space
+		// (dropped) — mixed drop widths must not shift later pieces.
+		const lines = wrapSegments([seg("well-", "#111"), seg("known fox", "#222")], 6)
+		expect(lines).toEqual([
+			[seg("well-", "#111")],
+			[seg("known", "#222")],
+			[seg("fox", "#222")],
+		])
 	})
 
 	it("passes empty-text segments through without stalling", () => {

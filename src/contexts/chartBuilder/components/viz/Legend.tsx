@@ -1592,14 +1592,14 @@ const GradientBarRamp = ({
 					))}
 					{/* Each label sits at its proportional break position,
 					 *  measured from the BOTTOM (hi-on-top matches the `to top`
-					 *  gradient). Edge labels ride 0.5em inward so they don't
-					 *  clip. */}
+					 *  gradient). translate-y-1/2 drops the label by half its own
+					 *  height so its vertical center lands exactly on the tick. */}
 					{stops.map((s) => (
 						<span
 							key={s.key}
-							className="absolute left-0 right-0 whitespace-nowrap"
+							className="absolute left-0 right-0 translate-y-1/2 whitespace-nowrap"
 							style={{
-								bottom: `calc(${s.t * 100}% - 0.5em)`,
+								bottom: `${s.t * 100}%`,
 								textAlign: align,
 							}}
 						>

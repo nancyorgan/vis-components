@@ -148,11 +148,17 @@ export const EncodingShelf = ({ channel }: Props) => {
 			// Hue: both derived sources color through the palette machinery
 			// (Top-level group = categorical, Nesting depth = ordinal), so a
 			// leftover quantitative gradient config must be dropped (mirrors
-			// the categorical-field branch below).
+			// the categorical-field branch below). Stash it first — remapping
+			// a quantitative source later restores the user's gradient instead
+			// of re-seeding from the theme.
 			if (channel === "hue") {
 				setConfigs((prev) =>
 					prev.hue?.kind === "quantitative"
-						? { ...prev, hue: undefined }
+						? {
+								...prev,
+								hue: prev.hueCategoricalStash,
+								hueQuantStash: prev.hue,
+							}
 						: prev
 				)
 			}
@@ -166,15 +172,22 @@ export const EncodingShelf = ({ channel }: Props) => {
 				[channel]: { field: null, measureSource: hexbin },
 			}))
 			clearScaffoldFlag()
-			// Point count is QUANTITATIVE: seed the theme-default gradient so
-			// the chart doesn't render viridis until the Color panel lazy-inits
-			// (mirrors the quantitative-field branch below). Opposite of the
-			// packed branch above, which DROPS the quant config.
+			// Point count is QUANTITATIVE: restore a stashed gradient (or seed
+			// the theme default) so the chart doesn't render viridis until the
+			// Color panel lazy-inits (mirrors the quantitative-field branch
+			// below). Opposite of the packed branch above, which DROPS the
+			// quant config.
 			if (channel === "hue") {
 				setConfigs((prev) =>
 					prev.hue?.kind === "quantitative"
 						? prev
-						: { ...prev, hue: buildQuantHueConfigFromTheme(theme) }
+						: {
+								...prev,
+								hue: prev.hueQuantStash ?? buildQuantHueConfigFromTheme(theme),
+								...(prev.hue?.kind === "categorical"
+									? { hueCategoricalStash: prev.hue }
+									: {}),
+							}
 				)
 			}
 			return
@@ -203,7 +216,10 @@ export const EncodingShelf = ({ channel }: Props) => {
 		// this, the chart renders viridis until the user expands the Hue
 		// options panel (which lazy-init'd the config). Switching back to a
 		// categorical/ordinal field also has to drop the quant config so the
-		// renderer doesn't confuse the two.
+		// renderer doesn't confuse the two. Each kind switch STASHES the
+		// outgoing config and restores a matching stash on the way back, so a
+		// picked gradient (or categorical color overrides) survives an
+		// encoding round-trip instead of re-seeding from the theme.
 		if (channel === "hue" && newField && dataset) {
 			const t = effectiveType(dataset, newField, overrides)
 			const isQuant = t === "quantitative" || t === "temporal"
@@ -211,11 +227,23 @@ export const EncodingShelf = ({ channel }: Props) => {
 				if (isQuant) {
 					return prev.hue?.kind === "quantitative"
 						? prev
-						: { ...prev, hue: buildQuantHueConfigFromTheme(theme) }
+						: {
+								...prev,
+								hue: prev.hueQuantStash ?? buildQuantHueConfigFromTheme(theme),
+								...(prev.hue?.kind === "categorical"
+									? { hueCategoricalStash: prev.hue }
+									: {}),
+							}
 				}
 				return prev.hue?.kind === "categorical"
 					? prev
-					: { ...prev, hue: undefined }
+					: {
+							...prev,
+							hue: prev.hueCategoricalStash,
+							...(prev.hue?.kind === "quantitative"
+								? { hueQuantStash: prev.hue }
+								: {}),
+						}
 			})
 		}
 	}

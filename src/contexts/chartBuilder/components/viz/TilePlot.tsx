@@ -3,6 +3,7 @@ import { scaleBand } from "d3-scale"
 import { useAtomValue } from "jotai"
 import {
 	DEFAULT_FILL,
+	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
 	type TextConfig,
 } from "../../lib/channelConfig"
@@ -11,7 +12,11 @@ import { cartesian } from "../../lib/coords"
 import { effectiveType } from "../../lib/fieldType"
 import type { FieldType } from "../../lib/types"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
-import { applyHueScale, type PositionScale } from "../../lib/scales"
+import {
+	applyHueScale,
+	parseNumericCell,
+	type PositionScale,
+} from "../../lib/scales"
 import { applyLevelOrder } from "../../lib/smartSort"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import { formatTextValue, resolveTextColor } from "../../lib/textEncoding"
@@ -122,8 +127,10 @@ const aggregateCells = (
 				let sum = 0
 				let n = 0
 				for (const r of bucket) {
-					const v = Number(r[hueField])
-					if (Number.isFinite(v)) {
+					// parseNumericCell, not Number: blanks are missing data and
+					// must not enter the mean as 0 (`Number("") === 0`).
+					const v = parseNumericCell(r[hueField])
+					if (v !== null) {
 						sum += v
 						n += 1
 					}
@@ -254,19 +261,20 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 	)
 
 	const coord: CoordFactory = (inner) => {
+		// Zero band padding — cells tile flush, and separation comes solely
+		// from the outline stroke (the Shape panel's width; 0 = no visible
+		// gaps at all). Same convention as the treemap mosaic.
 		const xScale =
 			xCategories.length > 0
 				? (scaleBand<string>()
 						.domain(xCategories)
-						.range([inner.x0, inner.x1])
-						.padding(0.05) as unknown as PositionScale)
+						.range([inner.x0, inner.x1]) as unknown as PositionScale)
 				: null
 		const yScale =
 			yCategories.length > 0
 				? (scaleBand<string>()
 						.domain(yCategories)
-						.range([inner.y1, inner.y0])
-						.padding(0.05) as unknown as PositionScale)
+						.range([inner.y1, inner.y0]) as unknown as PositionScale)
 				: null
 		return cartesian({
 			xScale,
@@ -351,15 +359,24 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 				grouped.set(key, list)
 			}
 			for (const [key, vals] of grouped) {
-				const numeric = vals.map(Number).filter((n) => Number.isFinite(n))
-				if (numeric.length > 0 && numeric.length === vals.length) {
+				// Blank cells are missing data, not zeros — drop them before
+				// deciding numeric-vs-mode so they neither drag means toward 0
+				// (`Number("") === 0`) nor win the mode as "". An all-blank
+				// cell falls through to null and renders no label.
+				const present = vals.filter(
+					(v) => v != null && String(v).trim() !== ""
+				)
+				const numeric = present
+					.map((v) => parseNumericCell(v))
+					.filter((n): n is number => n !== null)
+				if (numeric.length > 0 && numeric.length === present.length) {
 					valueByCell.set(
 						key,
 						numeric.reduce((a, b) => a + b, 0) / numeric.length
 					)
 					continue
 				}
-				const strings = vals.filter((v) => v != null).map(String)
+				const strings = present.map(String)
 				if (strings.length === 0) {
 					valueByCell.set(key, null)
 					continue
@@ -403,6 +420,13 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 
 	const textCfg: TextConfig = { ...DEFAULT_TEXT_CONFIG, ...channelConfigs.text }
 	const defaultFill = channelConfigs.defaultFill ?? DEFAULT_FILL
+	// Cell borders follow the universal mark outline (the Shape panel's
+	// color/width, seeded from the theme; width 0 hides) — same chain
+	// HexbinPlot and BarPlot use.
+	const outlineColor =
+		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
+	const outlineWidth =
+		channelConfigs.shape?.outlineWidth ?? DEFAULT_SHAPE_CONFIG.outlineWidth
 
 	const tooltip = hovered ? <HoverTooltip state={hovered} /> : null
 
@@ -453,8 +477,8 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 							width={cellW}
 							height={cellH}
 							fill={fill}
-							stroke="#ffffff"
-							strokeWidth={1}
+							stroke={outlineWidth > 0 ? outlineColor : "none"}
+							strokeWidth={outlineWidth}
 							onMouseEnter={onEnter}
 						/>
 					)

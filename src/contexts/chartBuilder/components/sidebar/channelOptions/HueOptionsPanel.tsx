@@ -45,6 +45,7 @@ import {
 } from "../../../lib/hueDefaults"
 import { rgb as d3Rgb } from "d3-color"
 import { StackModeRow } from "./StackModeRow"
+import { preserveStackMode } from "../../../lib/stackMode"
 import {
 	CATEGORICAL_HUE_PALETTE,
 	DIVERGING_PRESET_PALETTES,
@@ -395,11 +396,24 @@ export const HueOptionsPanel = ({
 	useEffect(() => {
 		if (!needsQuantInit) return
 		const initCfg = buildQuantConfigFromTheme(theme)
-		setConfigs((prev) => ({ ...prev, hue: initCfg }))
+		// Prefer a stashed gradient over the theme default (the stash holds the
+		// user's last quantitative config, saved when the encoding switched to
+		// a categorical field — see EncodingShelf), and stash an outgoing
+		// categorical config the same way so its overrides survive too.
+		setConfigs((prev) => ({
+			...prev,
+			hue: preserveStackMode(prev.hue, prev.hueQuantStash ?? initCfg),
+			...(prev.hue?.kind === "categorical"
+				? { hueCategoricalStash: prev.hue }
+				: {}),
+		}))
 	}, [needsQuantInit]) // eslint-disable-line react-hooks/exhaustive-deps
 
 	const update = (next: HueConfig) => {
-		setConfigs((prev) => ({ ...prev, hue: next }))
+		setConfigs((prev) => ({
+			...prev,
+			hue: preserveStackMode(prev.hue, next),
+		}))
 	}
 
 	// "Vary by" selector — two-way bound to the TOP-LEVEL `hue` encoding (the
@@ -763,7 +777,10 @@ const CategoricalPanel = ({
 		if (isOrdinal) {
 			setConfigs((prev) => ({
 				...prev,
-				hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG, colors: {} },
+				hue: preserveStackMode(prev.hue, {
+					...DEFAULT_CATEGORICAL_HUE_CONFIG,
+					colors: {},
+				}),
 				ordinalPaletteId: paletteId,
 				ordinalPalette: [...(pal?.colors ?? CATEGORICAL_HUE_PALETTE)],
 				ordinalPalettePatternInks: inksFor(pal, CATEGORICAL_HUE_PALETTE),
@@ -771,7 +788,10 @@ const CategoricalPanel = ({
 		} else {
 			setConfigs((prev) => ({
 				...prev,
-				hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG, colors: {} },
+				hue: preserveStackMode(prev.hue, {
+					...DEFAULT_CATEGORICAL_HUE_CONFIG,
+					colors: {},
+				}),
 				categoricalPaletteId: paletteId,
 				categoricalPalette: [...(pal?.colors ?? CATEGORICAL_HUE_PALETTE)],
 				categoricalPalettePatternInks: inksFor(pal, CATEGORICAL_HUE_PALETTE),

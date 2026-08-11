@@ -13,6 +13,7 @@
  *    orphaned (see docs/plans/2026-08-05-orphan-dataset-cleanup-design.md,
  *    kept outside the repo). */
 
+import { pruneOrphanFields } from "./datasetCompat"
 import { dedupeDatasetStores } from "./datasetDedupe"
 import {
 	idbAvailable,
@@ -35,8 +36,9 @@ import {
 import type { Dataset, Visual } from "./types"
 
 /** Bump to make {@link runDatasetStoreCleanup} run once more in browsers
- *  that already completed an earlier version. */
-const CLEANUP_VERSION = 1
+ *  that already completed an earlier version.
+ *  v2: prune orphaned fields left behind by deleted additive versions. */
+const CLEANUP_VERSION = 2
 
 export type SweepInput = {
 	datasets: Record<string, Dataset>
@@ -108,6 +110,17 @@ export const runDatasetStoreCleanup = async (): Promise<void> => {
 			protectedIds: [currentRemapped],
 		})
 
+		// Historical orphaned fields: version deletion now prunes fields no
+		// remaining version carries, but datasets touched before that fix can
+		// still hold them.
+		let fieldsPruned = 0
+		const finalDatasets: Record<string, Dataset> = {}
+		for (const [id, d] of Object.entries(swept.datasets)) {
+			const pruned = pruneOrphanFields(d)
+			fieldsPruned += d.fields.length - pruned.fields.length
+			finalDatasets[id] = pruned
+		}
+
 		if (deduped.changed) {
 			// Awaited for the same reason as the seed apply: the visuals
 			// atom's one-shot thumbnail merge must see the final store.
@@ -118,20 +131,21 @@ export const runDatasetStoreCleanup = async (): Promise<void> => {
 			if (previewRemapped !== previewVersionId)
 				savePreviewVersionId(previewRemapped)
 		}
-		if (deduped.changed || swept.removedIds.length > 0) {
+		if (deduped.changed || swept.removedIds.length > 0 || fieldsPruned > 0) {
 			if (idbAvailable()) {
-				await saveDatasetsAsync(swept.datasets)
+				await saveDatasetsAsync(finalDatasets)
 			} else {
-				saveDatasetsLocalFallback(swept.datasets)
+				saveDatasetsLocalFallback(finalDatasets)
 			}
 		}
 
 		saveDatasetCleanupDone(CLEANUP_VERSION)
-		if (swept.removedIds.length > 0 || deduped.changed) {
+		if (swept.removedIds.length > 0 || deduped.changed || fieldsPruned > 0) {
 			// eslint-disable-next-line no-console
 			console.info(
 				`[vis-components] dataset cleanup: removed ${swept.removedIds.length} orphaned dataset(s), ` +
-					`collapsed ${Object.keys(deduped.datasetIdMap).length} duplicate(s)`
+					`collapsed ${Object.keys(deduped.datasetIdMap).length} duplicate(s), ` +
+					`pruned ${fieldsPruned} orphaned field(s)`
 			)
 		}
 	} catch (error) {

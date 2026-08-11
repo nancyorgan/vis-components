@@ -117,3 +117,36 @@ describe("buildPieAnchors — size aggregation", () => {
 		expect(south?.sizeValue).toBe(30)
 	})
 })
+
+describe("buildPieAnchors — sparse value column (valueFieldMapped)", () => {
+	// A mapped value column is authoritative: wedges where it's blank get NO
+	// label instead of falling back to the wedge's measure.
+	const sparseStacks = [
+		{
+			category: "A",
+			slices: [
+				{ key: "n", groupValues: { hue: "n" }, value: 1, textValue: "peak" },
+				{ key: "s", groupValues: { hue: "s" }, value: 3 }, // label column blank
+			],
+		},
+	]
+
+	it("with valueFieldMapped, a slice without textValue gets a null label (no measure fallback)", () => {
+		const anchors = buildPieAnchors({
+			...baseArgs,
+			stacks: sparseStacks as any,
+			valueFieldMapped: true,
+		})
+		expect(anchors.find((a) => a.key === "A|n")?.label).toBe("peak")
+		expect(anchors.find((a) => a.key === "A|s")?.label).toBeNull()
+	})
+
+	it("without valueFieldMapped, the measure fallback still applies", () => {
+		const anchors = buildPieAnchors({
+			...baseArgs,
+			stacks: sparseStacks as any,
+		})
+		expect(anchors.find((a) => a.key === "A|n")?.label).toBe("peak")
+		expect(anchors.find((a) => a.key === "A|s")?.label).toBe("3")
+	})
+})

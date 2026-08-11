@@ -378,11 +378,15 @@ export const ShapeOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const theme = useAtomValue(themeAtom)
 	const fieldMapped = !!encodings.shape?.field
-	// Bar charts open this panel for the outline width (bar borders read it),
-	// but draw no point glyphs — the Default shape picker would be inert
-	// there, so it's hidden in bar modes.
+	// Bar, tile (heatmap), and hexbin charts open this panel for the outline
+	// width (bar / cell borders read it), but draw no point glyphs — the
+	// Default shape picker would be inert there, so it's hidden in those modes.
 	const modeId = useChartModeDef().id
-	const glyphsInert = modeId === "bars-x" || modeId === "bars-y"
+	const glyphsInert =
+		modeId === "bars-x" ||
+		modeId === "bars-y" ||
+		modeId === "tile" ||
+		modeId === "hexbin"
 	// Same defensive merge: older visualizations may be missing outlineColor /
 	// outlineWidth / overrides when the config was first introduced.
 	const cfg: ShapeConfig = {

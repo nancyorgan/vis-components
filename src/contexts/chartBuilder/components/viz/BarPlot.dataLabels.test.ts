@@ -123,3 +123,51 @@ describe("buildBarAnchors — stack vs. overlay mode positions", () => {
 		expect(stackSouth).not.toBe(overlaySouth)
 	})
 })
+
+describe("buildBarAnchors — sparse value column (valueFieldMapped)", () => {
+	// A mapped value column is authoritative: slices where it's blank get NO
+	// label — sparse columns are the mechanism for labeling one arbitrary
+	// point, so blanks mean "do not fill in this spot", never "show the
+	// measure instead".
+	const sparseStacks = [
+		{
+			category: "A",
+			slices: [
+				{ key: "", groupValues: {}, value: 10, textValue: "call-out" },
+			],
+		},
+		{
+			category: "B",
+			slices: [{ key: "", groupValues: {}, value: 20 }], // label column blank
+		},
+	]
+	const sparseAggregation = {
+		...aggregation,
+		stacks: sparseStacks,
+	}
+
+	it("with valueFieldMapped, a slice without textValue gets a null label (no measure fallback)", () => {
+		const anchors = buildBarAnchors({
+			aggregation: sparseAggregation as any,
+			categoryScale,
+			measureScale,
+			modes: [],
+			decimals: null,
+			valueFieldMapped: true,
+		})
+		expect(anchors.find((a) => a.key === "A|")?.label).toBe("call-out")
+		expect(anchors.find((a) => a.key === "B|")?.label).toBeNull()
+	})
+
+	it("without valueFieldMapped, the measure fallback still applies (labels show slice.value)", () => {
+		const anchors = buildBarAnchors({
+			aggregation: sparseAggregation as any,
+			categoryScale,
+			measureScale,
+			modes: [],
+			decimals: null,
+		})
+		expect(anchors.find((a) => a.key === "A|")?.label).toBe("call-out")
+		expect(anchors.find((a) => a.key === "B|")?.label).toBe("20")
+	})
+})

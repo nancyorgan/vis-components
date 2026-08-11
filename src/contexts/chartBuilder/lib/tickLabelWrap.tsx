@@ -32,8 +32,8 @@ export const tickWrapMaxPx = (fontSize: number): number => fontSize * 8
 
 /** Wrap a tick label to fit `maxPx`, returning a `\n`-joined multi-line
  *  string (the form `renderMultilineTspans` / `estimateLongestLineWidth`
- *  consume). Wraps on spaces; a single word too long for a line is
- *  hard-broken mid-word. Labels that already fit come back unchanged.
+ *  consume). Wraps on spaces and after internal hyphens; a single word too
+ *  long for a line is hard-broken mid-word. Labels that already fit come back unchanged.
  *  A non-positive `maxPx` (e.g. an empty axis's 0 band width) is a no-op
  *  rather than a one-character-per-line explosion. */
 export const wrapTickLabel = (

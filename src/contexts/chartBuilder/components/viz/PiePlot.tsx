@@ -20,7 +20,7 @@ import {
 	resolveLayerColor,
 	slotOpacityResolver,
 } from "../../lib/resolveLayerColor"
-import { type PositionScale } from "../../lib/scales"
+import { parseNumericCell, type PositionScale } from "../../lib/scales"
 import type { FieldType } from "../../lib/types"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import type { Encodings } from "../../lib/types"
@@ -438,6 +438,15 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 		if (!aggregation || aggregation.kind !== "ok") return null
 		if (ctx.coord.kind !== "cartesian") return null
 
+		// A mapped label column (distinct from the measure) is authoritative:
+		// slices where it's blank get NO label — sparse columns are the way
+		// to label a single arbitrary wedge, so blanks must never fall back
+		// to the measure. Mirrors the aggregator's own textValue condition.
+		const labelField = dataLabels?.value?.field ?? encodings.text?.field
+		const valueFieldMapped = Boolean(
+			labelField && labelField !== aggregation.measureField
+		)
+
 		// Single-pie mode: no category axis, one pie centered in the
 		// inner rect. The single stack produced by the synthetic
 		// categoryField feeds straight into `buildWedges`.
@@ -494,6 +503,7 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 								arc: resolvePieArc(channelConfigs.angle),
 								labelRadiusPct: dataLabelsRadiusPct,
 								labelAngleDeg: dataLabelsCfg?.polarLabelAngle,
+								valueFieldMapped,
 							})}
 						/>
 					)}
@@ -570,6 +580,7 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 							encodings,
 							rows: rowsForChart,
 							arc: resolvePieArc(channelConfigs.angle),
+							valueFieldMapped,
 						})}
 					/>
 				)}
@@ -710,6 +721,7 @@ export const buildPieAnchors = ({
 	arc,
 	labelRadiusPct,
 	labelAngleDeg,
+	valueFieldMapped,
 }: {
 	stacks: Stack[]
 	pieCenters: ReadonlyArray<{
@@ -737,6 +749,11 @@ export const buildPieAnchors = ({
 	/** Angular nudge in DEGREES added to every label's midpoint angle (Data
 	 *  Labels' `polarLabelAngle`). Positive = clockwise. Defaults to 0. */
 	labelAngleDeg?: number
+	/** True when the label value field is mapped and distinct from the
+	 * measure — that field is then authoritative: slices where it's blank
+	 * render no label (sparse labeling) instead of falling back to the
+	 * wedge's measure. */
+	valueFieldMapped?: boolean
 }): DataLabelAnchor[] => {
 	const anchors: DataLabelAnchor[] = []
 	const midRadius = pieRadius * ((labelRadiusPct ?? 100) / 100)
@@ -762,7 +779,9 @@ export const buildPieAnchors = ({
 			// negatively at angle 0 (top) and positively at angle π (bottom).
 			const cx = center.cx + Math.sin(midAngle) * midRadius
 			const cy = center.cy - Math.cos(midAngle) * midRadius
-			const labelValue = slice.textValue ?? slice.value
+			const labelValue = valueFieldMapped
+				? slice.textValue
+				: (slice.textValue ?? slice.value)
 			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			const hueValue = slice.groupValues.hue
 			// Aggregate the size field across rows in this slice (matching
@@ -790,11 +809,17 @@ export const buildPieAnchors = ({
 					}
 					if (!matches) continue
 					const raw = row[sizeField]
-					const n = Number(raw)
-					if (Number.isFinite(n)) {
+					// parseNumericCell, not Number: blanks are missing data and
+					// must not enter the size sum as 0 (`Number("") === 0`).
+					const n = parseNumericCell(raw)
+					if (n !== null) {
 						sum += n
 						foundNumeric = true
-					} else if (firstNonNumeric === undefined && raw !== undefined) {
+					} else if (
+						firstNonNumeric === undefined &&
+						raw != null &&
+						String(raw).trim() !== ""
+					) {
 						firstNonNumeric = String(raw)
 					}
 				}
