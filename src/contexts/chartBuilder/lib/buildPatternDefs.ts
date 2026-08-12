@@ -9,7 +9,11 @@ import {
 	inkPaletteForHue,
 	resolvePatternForMark,
 } from "./patterns"
-import { resolveGroupFill, type GroupValues } from "./resolveLayerColor"
+import {
+	modulatedPatternBg,
+	resolveGroupFill,
+	type GroupValues,
+} from "./resolveLayerColor"
 
 /** One mark's inputs to the pattern-def resolution, with the fill colors
  *  already resolved. Renderers with per-row pipelines (ScatterPlot) build
@@ -30,6 +34,13 @@ export type PatternDefItem = {
 	 *  out of the palette (and per-value hue overrides likewise miss the
 	 *  palette, falling back to the default ink). */
 	preModulationHue: string
+	/** Sat/bri unit values applied to `fill` (from `resolveMarkAesthetics` /
+	 *  `resolveGroupFill`). When hue is UNMAPPED they modulate the pattern's
+	 *  background tile the same way the fill was modulated, so sat/bri
+	 *  encodings stay visible on patterned marks. Omitted / null = no
+	 *  modulation. */
+	satUnit?: number | null
+	briUnit?: number | null
 }
 
 export type PatternDefOptions = {
@@ -67,7 +78,13 @@ export const resolvePatternDefForItem = (
 		const catStr = String(raw)
 		const catIdx = patternCategories.indexOf(catStr)
 		if (catIdx === -1) return null
-		const bgColor = hueG ? item.fill : patternBgFallback
+		const bgColor = hueG
+			? item.fill
+			: modulatedPatternBg(
+					patternBgFallback,
+					item.satUnit ?? null,
+					item.briUnit ?? null
+				)
 		const huePalette = inkPaletteForHue(channelConfigs, hueG?.type)
 		// Ink lookup keys on the PRE-modulation hue color (see
 		// `PatternDefItem.preModulationHue`).
@@ -155,13 +172,19 @@ export const buildPatternDefs = (
 		groupValuesList
 			.filter((groupValues) => groupValues.pattern !== undefined)
 			.map((groupValues) => {
-				const { fill, preModulationHue } = resolveGroupFill(
+				const { fill, preModulationHue, satUnit, briUnit } = resolveGroupFill(
 					groupValues,
 					defaultFill,
 					aestheticScales,
 					channelConfigs
 				)
-				return { patternValue: groupValues.pattern, fill, preModulationHue }
+				return {
+					patternValue: groupValues.pattern,
+					fill,
+					preModulationHue,
+					satUnit,
+					briUnit,
+				}
 			}),
 		aestheticScales,
 		channelConfigs,

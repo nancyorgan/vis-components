@@ -278,6 +278,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					patternValue: patternField ? row[patternField] : undefined,
 					fill: aes.fill,
 					preModulationHue: aes.preModulationHue,
+					satUnit: aes.satUnit,
+					briUnit: aes.briUnit,
 				}
 			}),
 			aestheticScales,
@@ -1094,6 +1096,8 @@ const buildMarks = ({
 				preModulationHue,
 				opacity: markOpacity,
 				radius: r,
+				satUnit,
+				briUnit,
 			} = resolveMarkAesthetics(row, aestheticScales, channelConfigs)
 
 			// Length/angle: line segment mode (overrides shape)
@@ -1122,6 +1126,8 @@ const buildMarks = ({
 								patternValue: pattern ? row[pattern.name] : undefined,
 								fill,
 								preModulationHue,
+								satUnit,
+								briUnit,
 							},
 							aestheticScales,
 							channelConfigs,

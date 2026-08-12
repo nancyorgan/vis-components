@@ -1512,6 +1512,38 @@ describe("CombinedGroupLegend — standalone pattern section", () => {
 		expect(d3Rgb(spans[0]!.style.backgroundColor).formatHex()).toBe("#654321")
 	})
 
+	it("sat/bri sharing the section modulate the pattern tile backgrounds per category", () => {
+		// User-reported: a brightness + pattern combined section showed only
+		// the pattern — the tiles' background stayed the flat pattern bg, so
+		// the brightness levels vanished from the legend (and the marks; the
+		// mark-side fix lives in resolveLayerColor/buildPatternDefs). Each
+		// category's tile bg must be the pattern background modulated by that
+		// category's brightness level.
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["brightness", "pattern"]}
+				type="categorical"
+				values={values}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					pattern: {
+						...DEFAULT_PATTERN_CONFIG,
+						backgroundColor: "#888888",
+					},
+				}}
+				reverseCategorical={false}
+			/>
+		)
+		const bgFills = [...container.querySelectorAll("pattern > rect")].map(
+			(r) => r.getAttribute("fill")
+		)
+		expect(bgFills.length).toBe(3)
+		// Auto brightness levels spread across the range → three distinct
+		// shades, none of them the flat unmodulated background.
+		expect(new Set(bgFills).size).toBe(3)
+		expect(bgFills).not.toContain("#888888")
+	})
+
 	it("dash overlay (line-chart context) strokes with the THEME swatch default, not the aux override", () => {
 		const { container } = render(
 			<CombinedGroupLegend

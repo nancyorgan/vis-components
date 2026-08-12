@@ -22,6 +22,13 @@ export type MarkAesthetics = {
 	opacity: number
 	/** Resolved point radius in pixels (area-encoded or the default). */
 	radius: number
+	/** Sat/bri unit values applied to `fill` (scale value when mapped, else
+	 *  the channel's default), `null` when no modulation applied. The
+	 *  pattern-defs pass uses these to modulate the NO-HUE pattern
+	 *  background the same way the fill is modulated (see
+	 *  `modulatedPatternBg` in lib/resolveLayerColor). */
+	satUnit: number | null
+	briUnit: number | null
 }
 
 /** Per-ROW mark aesthetics: hue → (capture pre-modulation hue) → sat/bri
@@ -68,5 +75,5 @@ export const resolveMarkAesthetics = (
 		if (r !== null && Number.isFinite(r)) radius = r
 	}
 
-	return { fill, preModulationHue, opacity, radius }
+	return { fill, preModulationHue, opacity, radius, satUnit, briUnit }
 }

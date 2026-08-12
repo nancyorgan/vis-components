@@ -5,7 +5,7 @@ import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import type { AspectRatioConfig } from "../../lib/channelConfig"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
-import { currentChannelConfigsAtom, themeAtom } from "../../store/atoms"
+import { currentChannelConfigsAtom } from "../../store/atoms"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 

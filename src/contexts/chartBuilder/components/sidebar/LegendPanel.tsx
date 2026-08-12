@@ -531,6 +531,16 @@ export const LegendPanel = () => {
 			.slice(0, swatchGroupChannels.indexOf(ch))
 			.some((prev) => swatchChannelActive(prev) && encodings[prev]?.field === field)
 	}
+	// Every swatch-group channel folded into the section `ch` leads — the
+	// group's header names them all ("Brightness · Pattern") so a combined
+	// section's controls aren't mislabeled as the lead channel alone.
+	const swatchSectionMembers = (ch: SwatchGroupChannel): SwatchGroupChannel[] => {
+		const field = encodings[ch]?.field
+		if (!field || !combineLegendSections) return [ch]
+		return swatchGroupChannels.filter(
+			(c) => swatchChannelActive(c) && encodings[c]?.field === field
+		)
+	}
 	// A quantitative color section falls back to discrete swatches — even in
 	// "bar" gradient style — when another group channel shares its field (a
 	// composed per-stop visual can't render as a continuous gradient strip).
@@ -1261,11 +1271,27 @@ export const LegendPanel = () => {
 							"line",
 							...SHAPE_PALETTE.map((_, i) => i),
 						]
+						// Channels folded into this section (lead first). Drives the
+						// group header AND which color rows are live: pattern tiles
+						// own the swatch background, so the aux Swatch-color row is
+						// inert when pattern is a member (except in line context,
+						// where the dash overlay strokes with the aux color), and
+						// the pattern Background / Pattern-color rows surface on
+						// whichever section pattern folded into (unless hue leads —
+						// hue owns the tile background there).
+						const members: readonly SwatchGroupChannel[] =
+							ch === "rug" ? [] : swatchSectionMembers(ch)
+						const patternInSection = members.includes("pattern")
+						const connectionMapped = !!encodings.connection?.field
 						return (
 							<div key={ch} className="flex flex-col gap-1 text-sm">
 								{swatchShapeSections.length > 1 && (
 									<span className="vc-group-header">
-										{LEGEND_FRIENDLY_NAME[ch]}
+										{ch === "rug"
+											? LEGEND_FRIENDLY_NAME.rug
+											: members
+													.map((c) => LEGEND_FRIENDLY_NAME[c])
+													.join(" · ")}
 									</span>
 								)}
 								<span className="text-stone-600 dark:text-stone-400">
@@ -1318,10 +1344,14 @@ export const LegendPanel = () => {
 								 *  paint with the shared aux color (no hue scale to inherit
 								 *  from), so its picker lives right in their group — the
 								 *  same `auxLegendSwatchColor` the Length / Angle / Size
-								 *  subsection edits. Resets to the theme's default. */}
+								 *  subsection edits. Resets to the theme's default. Inert
+								 *  (hidden) when pattern shares the section — the tiles
+								 *  paint the pattern Background instead — unless the dash
+								 *  overlay (line context) strokes with this color. */}
 								{(ch === "opacity" ||
 									ch === "saturation" ||
-									ch === "brightness") && (
+									ch === "brightness") &&
+									(!patternInSection || connectionMapped) && (
 									<div className="flex items-center gap-2">
 										<ColorInput
 											label="Swatch color"
@@ -1345,14 +1375,15 @@ export const LegendPanel = () => {
 										)}
 									</div>
 								)}
-								{/* Standalone pattern section (not sharing a hue color):
-								 *  the swatch tiles default to the Pattern menu's Background
-								 *  (else gray) under a near-black ink — offer both as
-								 *  legend-side overrides. Per-category ink overrides from
-								 *  the Pattern menu still win in the renderer, and both
-								 *  rows are moot when hue shares the field (that section
-								 *  is hue-led, so this group doesn't render for it). */}
-								{ch === "pattern" && (
+								{/* No-hue pattern tiles (pattern leads, or folded into a
+								 *  sat / bri / opacity-led section): the tiles default to
+								 *  the Pattern menu's Background (else gray) under a
+								 *  near-black ink — offer both as legend-side overrides.
+								 *  Per-category ink overrides from the Pattern menu still
+								 *  win in the renderer, and both rows are moot when hue
+								 *  shares the field (that section is hue-led — hue owns
+								 *  the tile background). */}
+								{ch !== "hue" && ch !== "outlineHue" && patternInSection && (
 									<>
 										<div className="flex items-center gap-2">
 											<ColorInput

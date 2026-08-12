@@ -2011,6 +2011,34 @@ const FontWeightRow = ({
  * fonts sections. Mirrors the styling of the per-label override toggle
  * in LabelsPanel so the chart-edit and theme-edit surfaces feel like
  * the same control. */
+const StyleToggleBtn = ({
+	on,
+	label,
+	className,
+	ariaLabel,
+	onClick,
+}: {
+	on: boolean
+	label: string
+	className: string
+	ariaLabel: string
+	onClick: () => void
+}) => (
+	<button
+		type="button"
+		onClick={onClick}
+		aria-label={ariaLabel}
+		aria-pressed={on}
+		className={`h-7 w-7 rounded border text-sm ${className} ${
+			on
+				? "border-stone-700 bg-stone-200 text-stone-900 dark:border-stone-300 dark:bg-stone-700 dark:text-white"
+				: "border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+		}`}
+	>
+		{label}
+	</button>
+)
+
 const StyleToggleRow = ({
 	bold = false,
 	italic,
@@ -2028,33 +2056,6 @@ const StyleToggleRow = ({
 	onItalic: (v: boolean) => void
 	onUnderline: (v: boolean) => void
 }) => {
-	const Btn = ({
-		on,
-		label,
-		className,
-		ariaLabel,
-		onClick,
-	}: {
-		on: boolean
-		label: string
-		className: string
-		ariaLabel: string
-		onClick: () => void
-	}) => (
-		<button
-			type="button"
-			onClick={onClick}
-			aria-label={ariaLabel}
-			aria-pressed={on}
-			className={`h-7 w-7 rounded border text-sm ${className} ${
-				on
-					? "border-stone-700 bg-stone-200 text-stone-900 dark:border-stone-300 dark:bg-stone-700 dark:text-white"
-					: "border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-			}`}
-		>
-			{label}
-		</button>
-	)
 	return (
 		/* Label column + gap match the sibling input rows (THEME_LABEL_CLASS /
 		   gap-2) so the buttons line up with the inputs; the tighter gap-1.5
@@ -2065,7 +2066,7 @@ const StyleToggleRow = ({
 			</span>
 			<div className="flex items-center gap-1.5">
 			{onBold && (
-				<Btn
+				<StyleToggleBtn
 					on={bold}
 					label="B"
 					className="font-bold"
@@ -2073,14 +2074,14 @@ const StyleToggleRow = ({
 					onClick={() => onBold(!bold)}
 				/>
 			)}
-			<Btn
+			<StyleToggleBtn
 				on={italic}
 				label="I"
 				className="italic"
 				ariaLabel="Italic"
 				onClick={() => onItalic(!italic)}
 			/>
-			<Btn
+			<StyleToggleBtn
 				on={underline}
 				label="U"
 				className="underline"

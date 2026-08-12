@@ -2742,7 +2742,12 @@ export const CombinedGroupLegend = ({
 		if (patCategories) {
 			const catIdx = patCategories.indexOf(v)
 			if (catIdx !== -1) {
-				const bg = hasHue ? color : patBg
+				// No-hue pattern tiles modulate their background by the
+				// category's sat/bri level, mirroring the marks (see
+				// `modulatedPatternBg` in lib/resolveLayerColor) — otherwise a
+				// sat/bri + pattern combined section shows only the pattern.
+				// With hue mapped, `color` already carries the modulation.
+				const bg = hasHue ? color : modulateColor(patBg, satU, briU)
 				// Mirror ScatterPlot's preferredInk lookup so the legend
 				// swatch's ink matches the mark's ink when the categorical
 				// palette pairs a hue color with a custom pattern ink. A
@@ -2770,11 +2775,11 @@ export const CombinedGroupLegend = ({
 				} else if (!hasHue && !showDash) {
 					// PATTERN_NONE is a legitimate category — "this one has no
 					// pattern marks". Its swatch is a plain tile in the pattern
-					// BACKGROUND color (what the mark actually draws), not the
-					// section's base swatch color. Hue-mapped sections keep the
-					// hue color; the dash overlay keeps the base color for its
-					// line + point glyph.
-					color = patBg
+					// BACKGROUND color (what the mark actually draws, sat/bri
+					// modulation included), not the section's base swatch
+					// color. Hue-mapped sections keep the hue color; the dash
+					// overlay keeps the base color for its line + point glyph.
+					color = bg
 				}
 			}
 		}

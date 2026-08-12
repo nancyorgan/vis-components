@@ -71,7 +71,17 @@ export const resolveGroupFill = (
 	defaultFill: string,
 	aestheticScales: AestheticScales,
 	channelConfigs: ChannelConfigs
-): { fill: string; preModulationHue: string } => {
+): {
+	fill: string
+	preModulationHue: string
+	/** Sat/bri unit values applied to `fill` (scale value when mapped, else
+	 *  the channel's default), `null` when no modulation applied. Exposed so
+	 *  the pattern-defs pass can modulate the NO-HUE pattern background the
+	 *  same way the fill is modulated — otherwise sat/bri encodings vanish
+	 *  on patterned marks the moment hue is unmapped. */
+	satUnit: number | null
+	briUnit: number | null
+} => {
 	const hueG = aestheticScales.hue?.field ?? null
 	const hueScale = aestheticScales.hue?.scale ?? null
 	const satG = aestheticScales.saturation?.field ?? null
@@ -97,8 +107,24 @@ export const resolveGroupFill = (
 	if (satUnit !== null || briUnit !== null) {
 		color = modulateColor(color, satUnit, briUnit)
 	}
-	return { fill: color, preModulationHue }
+	return { fill: color, preModulationHue, satUnit, briUnit }
 }
+
+/** The background tile color for a pattern when hue does NOT drive the
+ *  fill: the Pattern panel's background (or the historical gray fallback),
+ *  modulated by the SAME sat/bri units the fill used. One rule everywhere —
+ *  "the pattern background modulates exactly like the fill" — so mapping
+ *  saturation/brightness alongside pattern stays visible on the marks (and
+ *  the legend mirrors this). The pattern-INK lookup deliberately keeps
+ *  keying on the un-modulated background (palette-ink invariant). */
+export const modulatedPatternBg = (
+	patternBgFallback: string,
+	satUnit: number | null,
+	briUnit: number | null
+): string =>
+	satUnit !== null || briUnit !== null
+		? modulateColor(patternBgFallback, satUnit, briUnit)
+		: patternBgFallback
 
 /** Single source of truth for "what color does this slice/layer/row draw
  *  with?" Every aggregating chart renderer (BarPlot, AreaPlot, PiePlot,
@@ -137,19 +163,21 @@ export const resolveLayerColor = ({
 
 	// Hue → sat/bri modulation, with the pre-modulation hue color captured
 	// for the pattern-ink lookup below (see `resolveGroupFill`'s invariant).
-	const { fill: color, preModulationHue: paletteHueColor } = resolveGroupFill(
-		groupValues,
-		defaultFill,
-		aestheticScales,
-		channelConfigs
-	)
+	const {
+		fill: color,
+		preModulationHue: paletteHueColor,
+		satUnit,
+		briUnit,
+	} = resolveGroupFill(groupValues, defaultFill, aestheticScales, channelConfigs)
 
 	let patternId: string | null = null
 	if (patternCategories && patG && groupValues.pattern !== undefined) {
 		const catStr = String(groupValues.pattern)
 		const catIdx = patternCategories.indexOf(catStr)
 		if (catIdx !== -1) {
-			const bgColor = hueG ? color : patternBgFallback
+			const bgColor = hueG
+				? color
+				: modulatedPatternBg(patternBgFallback, satUnit, briUnit)
 			const huePalette = inkPaletteForHue(channelConfigs, hueG?.type)
 			const preferredInk = inkForHueColor(
 				hueG ? paletteHueColor : patternBgFallback,
