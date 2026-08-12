@@ -117,15 +117,15 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		Regression: ch.regression,
 		// The tick density controls (count / stride) render in the Ticks section
 		// on x/y, but under Tick Labels on r (which has no Ticks section).
-		// Custom breaks pin extra TICKS, so they live with the density controls.
+		// Custom breaks pin extra TICKS and scale range (min/max) pins the
+		// domain they lay out on, so both live with the density controls.
 		Ticks:
 			ch.tickmarks ||
-			(channel !== "r" && (ch.tickCount || ch.stride || ch.breaks)),
+			(channel !== "r" &&
+				(ch.tickCount || ch.stride || ch.breaks || ch.min || ch.max)),
 		"Tick Labels":
 			(channel === "r" && (ch.tickCount || ch.stride)) ||
 			ch.format ||
-			ch.min ||
-			ch.max ||
 			ch.tickLabelAngle ||
 			ch.tickLabelFont ||
 			ch.tickLabelColor ||
@@ -427,6 +427,21 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			{channel !== "r" && (
 				<Section title="Ticks" changed={sectionChanged.Ticks}>
 					{tickDensityControls}
+					{isContinuous && (
+						<ScaleRangeControls
+							isTemporal={effectiveType === "temporal"}
+							min={config.min ?? null}
+							max={config.max ?? null}
+							onChange={(next) => update(next)}
+							// On a histogram axis min/max limit the binned RANGE.
+							rangeHint={
+								isBinnedAxis
+									? "Limits the value range that gets binned (rows outside are dropped)."
+									: undefined
+							}
+							changed={{ min: ch.min, max: ch.max }}
+						/>
+					)}
 					{/* Extra pinned tick positions, ADDED to the auto layout above
 					 *  (Count 0 + breaks = fully custom ticks). Tick labels simply
 					 *  follow the ticks. Continuous axes only — a binned histogram
@@ -459,21 +474,6 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				{/* The r axis has no Ticks section, so its density control (count /
 				 *  stride) stays here; on x/y it lives in the Ticks section. */}
 				{channel === "r" && tickDensityControls}
-				{channel !== "r" && isContinuous && (
-					<ScaleRangeControls
-						isTemporal={effectiveType === "temporal"}
-						min={config.min ?? null}
-						max={config.max ?? null}
-						onChange={(next) => update(next)}
-						// On a histogram axis min/max limit the binned RANGE.
-						rangeHint={
-							isBinnedAxis
-								? "Limits the value range that gets binned (rows outside are dropped)."
-								: undefined
-						}
-						changed={{ min: ch.min, max: ch.max }}
-					/>
-				)}
 				<div className="mb-1.5 mt-1.5 flex items-center gap-2">
 					<NumberInput
 						label="Angle"
@@ -838,8 +838,8 @@ const NumericBoundField = ({
  * The min/max here pin the scale's domain (the base default applied to every
  * panel — facet-level range overrides still win where set). Bounds are stored
  * as plain numbers on the config; temporal values are epoch milliseconds,
- * surfaced/parsed as ISO dates in the inputs. (Custom tick breaks live in the
- * Ticks section, not here — tick labels simply follow the ticks.) */
+ * surfaced/parsed as ISO dates in the inputs. Renders in the Ticks section,
+ * between the density controls and the custom-breaks box. */
 const ScaleRangeControls = ({
 	isTemporal,
 	min,
@@ -927,7 +927,7 @@ const ScaleRangeControls = ({
 	)
 }
 
-/** Free-typed "Custom breaks" text box, shared by the tick scale-range section
+/** Free-typed "Custom breaks" text box, shared by the Ticks section
  * and the Gridlines section. The text is mirrored locally (so the cursor
  * doesn't jump while typing) and the parsed array commits on blur / Enter,
  * matching the legend's break-values box. Values are plain numbers — epoch

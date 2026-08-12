@@ -39,6 +39,7 @@ import {
 	parseBreaksInput,
 	resolveLegendBreaks,
 } from "../../lib/legendBreaks"
+import { DEFAULT_PATTERN_INK } from "../../lib/patterns"
 import { SHAPE_PALETTE, symbolPath } from "../../lib/scales"
 import {
 	explainLegendCustomization,
@@ -1356,6 +1357,68 @@ export const LegendPanel = () => {
 											</button>
 										)}
 									</div>
+								)}
+								{/* Standalone pattern section (not sharing a hue color):
+								 *  the swatch tiles default to the Pattern menu's Background
+								 *  (else gray) under a near-black ink — offer both as
+								 *  legend-side overrides. Per-category ink overrides from
+								 *  the Pattern menu still win in the renderer, and both
+								 *  rows are moot when hue shares the field (that section
+								 *  is hue-led, so this group doesn't render for it). */}
+								{ch === "pattern" && (
+									<>
+										<div className="flex items-center gap-2">
+											<ColorInput
+												label="Background"
+												labelClassName={LABEL_COL}
+												value={
+													merged.patternLegendBgColor ??
+													configs.pattern?.backgroundColor ??
+													"#e2e8f0"
+												}
+												onChange={(patternLegendBgColor) =>
+													update({ patternLegendBgColor })
+												}
+												showHexInput
+											/>
+											{merged.patternLegendBgColor != null && (
+												<button
+													type="button"
+													onClick={() =>
+														update({ patternLegendBgColor: null })
+													}
+													className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+												>
+													reset
+												</button>
+											)}
+										</div>
+										<div className="flex items-center gap-2">
+											<ColorInput
+												label="Pattern color"
+												labelClassName={LABEL_COL}
+												value={
+													merged.patternLegendInkColor ??
+													DEFAULT_PATTERN_INK
+												}
+												onChange={(patternLegendInkColor) =>
+													update({ patternLegendInkColor })
+												}
+												showHexInput
+											/>
+											{merged.patternLegendInkColor != null && (
+												<button
+													type="button"
+													onClick={() =>
+														update({ patternLegendInkColor: null })
+													}
+													className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+												>
+													reset
+												</button>
+											)}
+										</div>
+									</>
 								)}
 								{/* Swatch outline: per-section color + width. Hidden
 								 *  while the outline-color channel is encoded — mapped

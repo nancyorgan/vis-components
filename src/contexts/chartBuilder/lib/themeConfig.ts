@@ -875,6 +875,14 @@ export const explainLegendCustomization = (
 			changed: !isEmptyConfigValue(cfg.swatchOutlineWidths),
 		},
 		{
+			group: "swatchShape",
+			changed: differs(cfg.patternLegendBgColor, base.patternLegendBgColor),
+		},
+		{
+			group: "swatchShape",
+			changed: differs(cfg.patternLegendInkColor, base.patternLegendInkColor),
+		},
+		{
 			group: "shapeSwatch",
 			changed: differs(cfg.shapeLegendFillColor, base.shapeLegendFillColor),
 		},

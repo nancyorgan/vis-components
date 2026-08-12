@@ -1244,6 +1244,9 @@ export const Legend = ({
 								channelLegendCfgs={legendCfg.channels}
 								auxSwatchColor={resolvedAuxSwatchColor}
 								auxSwatchStroke={resolvedAuxSwatchStroke}
+								themeSwatchColor={theme.legendSwatchColor ?? null}
+								patternLegendBgColor={legendCfg.patternLegendBgColor ?? null}
+								patternLegendInkColor={legendCfg.patternLegendInkColor ?? null}
 								splitOutlineEligible={
 									modeDef.id === "areas-x" ||
 									modeDef.id === "areas-y" ||
@@ -1396,6 +1399,17 @@ type LegendSectionProps = {
 	/** Border (stroke) color for the area (size) legend swatch circles.
 	 * `null` / undefined uses the historical white outline. */
 	auxSwatchStroke?: string | null
+	/** The theme's default legend-swatch color, WITHOUT the per-visual
+	 * `auxLegendSwatchColor` override folded in. No-hue sections that don't
+	 * host an aux-painted channel (e.g. a pattern-only legend) rest on this
+	 * so they follow the theme but not another legend's swatch-color picker. */
+	themeSwatchColor?: string | null
+	/** Standalone-pattern swatch overrides (LegendConfig.patternLegendBgColor
+	 * / patternLegendInkColor). Only consulted when the section draws pattern
+	 * tiles WITHOUT a hue color — with hue mapped the swatch follows the hue
+	 * scale as a faithful key. */
+	patternLegendBgColor?: string | null
+	patternLegendInkColor?: string | null
 	/** Whether the chart mode (areas-x / areas-y / radar) exposes a separate
 	 *  line/outline palette — drives the HueLegend split-outline rendering.
 	 *  Computed by the parent, where the chart mode is resolved (modeDef is
@@ -1708,6 +1722,9 @@ const LegendSection = ({
 	channelLegendCfgs,
 	auxSwatchColor,
 	auxSwatchStroke,
+	themeSwatchColor = null,
+	patternLegendBgColor = null,
+	patternLegendInkColor = null,
 	splitOutlineEligible = false,
 	proportionalSizeExponent,
 	hueSwatchShape,
@@ -1792,6 +1809,9 @@ const LegendSection = ({
 						defaultSwatchOpacity={defaultSwatchOpacity}
 						auxSwatchColor={auxSwatchColor}
 						auxSwatchStroke={auxSwatchStroke}
+						themeSwatchColor={themeSwatchColor}
+						patternLegendBgColor={patternLegendBgColor}
+						patternLegendInkColor={patternLegendInkColor}
 						shapeLegendFillColor={legendFillColor}
 						shapeLegendStrokeColor={legendStrokeColor}
 						channelCfg={
@@ -2491,6 +2511,18 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	 *  glyph keeps the hue scale as a faithful key and these are ignored. */
 	auxSwatchColor?: string | null
 	auxSwatchStroke?: string | null
+	/** The theme's default legend-swatch color WITHOUT the per-visual
+	 *  `auxLegendSwatchColor` override folded in — the resting color for
+	 *  no-hue sections that don't host an aux-painted channel (pattern-only
+	 *  legends), so they follow the theme but not the aux picker. */
+	themeSwatchColor?: string | null
+	/** Standalone-pattern swatch overrides (Legend panel → Swatches →
+	 *  Pattern group). Background replaces the tile bg the no-hue pattern
+	 *  swatches draw on (auto = the Pattern menu's Background → #e2e8f0);
+	 *  ink replaces the DEFAULT pattern color (auto = near-black). Inert
+	 *  when hue shares the section; per-category ink overrides still win. */
+	patternLegendBgColor?: string | null
+	patternLegendInkColor?: string | null
 	/** Shape-swatch fill/stroke from the Legend "Shape swatch" submenu
 	 *  (`shapeLegendFillColor` / `shapeLegendStrokeColor`). Used for the shape
 	 *  glyph fill/stroke when shape shares the combined section and there's NO
@@ -2538,6 +2570,9 @@ export const CombinedGroupLegend = ({
 	swatchSize,
 	auxSwatchColor = null,
 	auxSwatchStroke = null,
+	themeSwatchColor = null,
+	patternLegendBgColor = null,
+	patternLegendInkColor = null,
 	shapeLegendFillColor = null,
 	shapeLegendStrokeColor = null,
 	defaultSwatchOpacity = 1,
@@ -2607,7 +2642,11 @@ export const CombinedGroupLegend = ({
 	const areaRadiusFor = (v: string): number | null =>
 		areaSizeScale ? applyAreaScale(areaSizeScale, v, type) : null
 	const patCategories = hasPat ? patternCategoriesFor(values, type) : null
-	const patBg = configs.pattern?.backgroundColor ?? "#e2e8f0"
+	// Standalone-pattern tile background: the legend override wins, then the
+	// Pattern menu's chart-wide Background, then the historical gray. Only
+	// consumed when hue does NOT drive the swatch (see `bg` in buildEntry).
+	const patBg =
+		patternLegendBgColor ?? configs.pattern?.backgroundColor ?? "#e2e8f0"
 	// Line dash overlay only meaningful when connection is mapped AND a
 	// pattern field shares this section's variable. Auto-cycle through
 	// DASH_CYCLE by category position; per-category overrides win.
@@ -2629,8 +2668,21 @@ export const CombinedGroupLegend = ({
 	// theme's `legendSwatchColor` default), then the mark's default fill. This
 	// keeps the shared-field shape+size legend in sync with the standalone
 	// ShapeLegend / AreaLegend pickers instead of silently using defaultFill.
+	// The aux color only applies when this section actually hosts a channel
+	// it paints (opacity / saturation / brightness / size / length / angle) —
+	// a pattern-led section has its own color story (pattern bg + ink) and
+	// must not follow another legend's swatch-color picker.
+	const hostsAuxPaintedChannel =
+		hasOp ||
+		hasSat ||
+		hasBri ||
+		channels.includes("area") ||
+		channels.includes("length") ||
+		channels.includes("angle")
 	const noHueSwatchFill =
-		shapeLegendFillColor ?? auxSwatchColor ?? defaultFill
+		shapeLegendFillColor ??
+		(hostsAuxPaintedChannel ? auxSwatchColor : themeSwatchColor) ??
+		defaultFill
 	// Area / radar split-outline: resolve each category's line color the same
 	// way AreaPlot/RadarPlot do (per-value override → line palette by category
 	// position → global stroke). Discovery order matches the renderer's group
@@ -2680,11 +2732,14 @@ export const CombinedGroupLegend = ({
 				const bg = hasHue ? color : patBg
 				// Mirror ScatterPlot's preferredInk lookup so the legend
 				// swatch's ink matches the mark's ink when the categorical
-				// palette pairs a hue color with a custom pattern ink.
+				// palette pairs a hue color with a custom pattern ink. A
+				// standalone (no-hue) pattern section instead offers its own
+				// default-ink override; per-category inks still win inside
+				// `resolvePatternForMark`.
 				const huePalette = inkPaletteForHue(configs, type)
 				const preferredInk = hasHue
 					? inkForHueColor(bg, huePalette.palette, huePalette.inks)
-					: null
+					: (patternLegendInkColor ?? null)
 				const resolved = resolvePatternForMark(
 					v,
 					catIdx,
@@ -2699,6 +2754,14 @@ export const CombinedGroupLegend = ({
 						paletteIdx: resolved.paletteIdx,
 						svgId: resolved.svgId,
 					}
+				} else if (!hasHue && !showDash) {
+					// PATTERN_NONE is a legitimate category — "this one has no
+					// pattern marks". Its swatch is a plain tile in the pattern
+					// BACKGROUND color (what the mark actually draws), not the
+					// section's base swatch color. Hue-mapped sections keep the
+					// hue color; the dash overlay keeps the base color for its
+					// line + point glyph.
+					color = patBg
 				}
 			}
 		}

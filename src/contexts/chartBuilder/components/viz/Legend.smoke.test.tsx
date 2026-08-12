@@ -4,6 +4,7 @@ import { TestProvider, type TestStore } from "../../../../testSupport/TestProvid
 import { describe, expect, it } from "vitest"
 import {
 	EMPTY_CHANNEL_CONFIGS,
+	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_SHAPE_CONFIG,
 } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -1432,5 +1433,120 @@ describe("Legend — flow modes list hue nodes over the endpoint UNION domain", 
 		// Node names must NOT appear — the override is endpoint-hue only.
 		for (const node of UNION_ORDER)
 			expect(titles).not.toContain(node)
+	})
+})
+
+describe("CombinedGroupLegend — standalone pattern section", () => {
+	// User-reported: a pattern legend on its OWN variable repainted when the
+	// opacity legend's swatch color (the shared aux color) changed. The aux
+	// color must only paint sections hosting an aux-painted channel; a
+	// pattern-led section keeps its own bg/ink story — with legend-side
+	// overrides for both when no hue drives the tiles.
+	const values = ["A", "B", "C"]
+
+	it("tile bg + default ink honor the standalone-pattern overrides; aux color never leaks in", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["pattern"]}
+				type="categorical"
+				values={values}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				auxSwatchColor="#00ff00"
+				patternLegendBgColor="#112233"
+				patternLegendInkColor="#445566"
+			/>
+		)
+		// Each category's <pattern> def tiles a background rect in the
+		// override color. Categories A/B/C auto-cycle palette indices 0-2
+		// (dots / diag / vert), none of which draw ink rects — so the def's
+		// direct rect children are exactly the three bg tiles.
+		const bgRects = [...container.querySelectorAll("pattern > rect")]
+		expect(bgRects.length).toBe(3)
+		expect(bgRects.every((r) => r.getAttribute("fill") === "#112233")).toBe(
+			true
+		)
+		// Ink marks (dot circles, stripe paths) draw in the override ink.
+		const inked = [
+			...container.querySelectorAll("pattern circle, pattern path"),
+		].filter(
+			(el) =>
+				el.getAttribute("fill") === "#445566" ||
+				el.getAttribute("stroke") === "#445566"
+		)
+		expect(inked.length).toBeGreaterThan(0)
+		// The aux (opacity/size) swatch color appears nowhere in the section.
+		expect(container.innerHTML.toLowerCase()).not.toContain("#00ff00")
+	})
+
+	it("PATTERN_NONE category renders a plain tile in the pattern background color", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["pattern"]}
+				type="categorical"
+				values={values}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					pattern: {
+						...DEFAULT_PATTERN_CONFIG,
+						overrides: { B: "none" },
+						backgroundColor: "#654321",
+					},
+				}}
+				reverseCategorical={false}
+				auxSwatchColor="#00ff00"
+			/>
+		)
+		// B's swatch is the plain rect span — painted with the pattern
+		// BACKGROUND (matching its unpatterned marks), not the section's base
+		// swatch color and never the aux color.
+		const spans = [
+			...container.querySelectorAll<HTMLElement>("span"),
+		].filter((s) => s.style.backgroundColor !== "")
+		expect(spans.length).toBe(1)
+		expect(d3Rgb(spans[0]!.style.backgroundColor).formatHex()).toBe("#654321")
+	})
+
+	it("dash overlay (line-chart context) strokes with the THEME swatch default, not the aux override", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["pattern"]}
+				type="categorical"
+				values={values}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				connectionMapped
+				auxSwatchColor="#00ff00"
+				themeSwatchColor="#123123"
+			/>
+		)
+		const lines = [...container.querySelectorAll("svg line")]
+		expect(lines.length).toBe(3)
+		expect(lines.every((l) => l.getAttribute("stroke") === "#123123")).toBe(
+			true
+		)
+	})
+
+	it("opacity-led section still follows the aux swatch color", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["opacity"]}
+				type="categorical"
+				values={values}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				auxSwatchColor="#00ff00"
+				themeSwatchColor="#123123"
+			/>
+		)
+		const spans = [
+			...container.querySelectorAll<HTMLElement>("span"),
+		].filter((s) => s.style.backgroundColor !== "")
+		expect(spans.length).toBe(3)
+		expect(
+			spans.every(
+				(s) => d3Rgb(s.style.backgroundColor).formatHex() === "#00ff00"
+			)
+		).toBe(true)
 	})
 })

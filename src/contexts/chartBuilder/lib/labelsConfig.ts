@@ -509,6 +509,17 @@ export type LegendConfig = {
 	 * common need is "pick one color that reads well against my chart
 	 * background" rather than per-channel customization. */
 	auxLegendSwatchColor?: string | null
+	/** Legend-swatch overrides for a PATTERN-led section that isn't paired
+	 *  with a hue color (standalone pattern legend). `patternLegendBgColor`
+	 *  overrides the swatch tile's background (auto = the Pattern menu's
+	 *  Background, else the historical `#e2e8f0`); `patternLegendInkColor`
+	 *  overrides the DEFAULT pattern (ink) color (auto = near-black).
+	 *  Per-category ink overrides from the Pattern menu still win — the
+	 *  legend must stay a faithful key for deliberate per-category colors.
+	 *  Both are inert while hue shares the section (swatches follow the hue
+	 *  scale there). `null` / absent = auto. */
+	patternLegendBgColor?: string | null
+	patternLegendInkColor?: string | null
 	/** Border (stroke) color for the AREA (size) legend swatch circles.
 	 * Only the area swatch is a filled shape with a meaningful outline —
 	 * length / angle swatches are lines (their stroke IS the swatch color)
@@ -568,6 +579,8 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	swatchOutlineWidth: null,
 	auxLegendSwatchColor: null,
 	auxLegendSwatchStroke: null,
+	patternLegendBgColor: null,
+	patternLegendInkColor: null,
 	channels: {},
 	columns: 1,
 	columnGap: 24,
