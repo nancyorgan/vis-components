@@ -341,6 +341,95 @@ describe("Axis categorical gridlines respect tick stride and grid.count", () => 
 	})
 })
 
+describe("Axis drops gridlines under the opposing spine", () => {
+	// User reported: "when the axis spine is in the same place as a gridline,
+	// it looks blurry" — a y-axis gridline at the domain min (pos =
+	// inner.y1) lies exactly under the x-axis spine, and the translucent
+	// gridline antialiases against the spine edge. The gridline is dropped
+	// so the spine paints alone there.
+	const yScale = scaleLinear()
+		.domain([0, 100])
+		.range([inner.y1, inner.y0])
+
+	const gridlinePositions = (
+		opposingAxis?: React.ComponentProps<typeof Axis>["opposingAxis"]
+	): number[] => {
+		const { container } = render(
+			wrapInSvg(
+				<Axis
+					scale={yScale}
+					orientation="y"
+					inner={inner}
+					label="Y"
+					fieldType="quantitative"
+					config={{
+						tickCount: 5,
+						customFormat: "",
+						tickLabelAngle: 0,
+						jitterAmount: 0,
+						gridlines: {
+							enabled: true,
+							color: "#abcdef",
+							thickness: 1,
+							count: 5,
+						},
+						tickmarks: { color: "#000", thickness: 1, length: 5 },
+						spine: { color: "#000", thickness: 1 },
+						distributionOverlay: {
+							showDensityViolin: false,
+							showBoxPlot: false,
+							showPoints: true,
+							color: "#000",
+							fillColor: "#000",
+							colorOverrides: {},
+							fillColorOverrides: {},
+						},
+						categoricalTickStride: 1,
+					}}
+					opposingAxis={opposingAxis}
+				/>
+			)
+		)
+		return [...container.querySelectorAll("line")]
+			.filter((l) => l.getAttribute("stroke") === "#abcdef")
+			.map((l) => Number(l.getAttribute("y1")))
+	}
+
+	it("keeps the bottom gridline when no opposing axis renders", () => {
+		expect(gridlinePositions(undefined)).toContain(inner.y1)
+	})
+
+	it("drops the gridline coinciding with a visible opposing spine", () => {
+		const positions = gridlinePositions({
+			config: { spine: { color: "#000", thickness: 1 } },
+		})
+		expect(positions).not.toContain(inner.y1)
+		// Only the coinciding line is dropped — the rest of the grid stays.
+		expect(positions.length).toBeGreaterThan(0)
+	})
+
+	it("defaults apply when the opposing axis has no config (spine visible)", () => {
+		expect(gridlinePositions({ config: undefined })).not.toContain(inner.y1)
+	})
+
+	it("keeps the gridline when the opposing spine is hidden (thickness 0)", () => {
+		const positions = gridlinePositions({
+			config: { spine: { color: "#000", thickness: 0 } },
+		})
+		expect(positions).toContain(inner.y1)
+	})
+
+	it("keeps the gridline when the opposing spine is nudged away", () => {
+		const positions = gridlinePositions({
+			config: {
+				spine: { color: "#000", thickness: 1 },
+				offsetY: 10,
+			},
+		})
+		expect(positions).toContain(inner.y1)
+	})
+})
+
 describe("Axis categorical tick stride", () => {
 	const cats = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 	const xBand = scaleBand<string>().domain(cats).range([0, 300]).padding(0)

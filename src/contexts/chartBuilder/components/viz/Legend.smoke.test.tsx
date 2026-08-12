@@ -452,6 +452,135 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 	})
 })
 
+/** Swatch shape generalization: the per-section shape picker used to be
+ *  color-sections-only ("Color Swatch Shape"), but the renderer resolves
+ *  `swatchShapes` by whichever channel LEADS a section — so pattern /
+ *  opacity / saturation / brightness-led sections must honor it too.
+ *  These pin the composed-swatch branches those sections route through. */
+describe("CombinedGroupLegend — swatch shape on pattern / opacity / modulation sections", () => {
+	it("pattern-led section draws symbol glyphs filled with the pattern", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["pattern"]}
+				type="categorical"
+				values={["A", "B", "C"]}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				swatchShape={2}
+			/>
+		)
+		const paths = [...container.querySelectorAll("svg path")]
+		// One glyph per category (pattern <defs> content may add paths of its
+		// own, so filter to the url(#…)-filled symbol paths).
+		const glyphs = paths.filter((p) =>
+			(p.getAttribute("fill") ?? "").startsWith("url(#")
+		)
+		expect(glyphs.length).toBe(3)
+	})
+
+	it("opacity-led section reshapes swatches and keeps per-category opacity", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["opacity"]}
+				type="categorical"
+				values={["A", "B", "C"]}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				swatchShape={2}
+			/>
+		)
+		expect(container.querySelectorAll("svg path").length).toBe(3)
+		// The glyph svg carries the category's opacity, so the shaped swatches
+		// still read as an opacity key.
+		const opacities = new Set(
+			[...container.querySelectorAll("svg")].map(
+				(s) => (s as SVGElement).style.opacity
+			)
+		)
+		expect(opacities.size).toBeGreaterThan(1)
+	})
+
+	it("saturation-led section renders line-segment swatches with modulated strokes", () => {
+		// Saturation leads a combined section when it shares a field with a
+		// legend candidate and no color channel is mapped (e.g. sat + pattern).
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["saturation"]}
+				type="categorical"
+				values={["A", "B", "C"]}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				swatchShape="line"
+			/>
+		)
+		const lines = container.querySelectorAll("svg line")
+		expect(lines.length).toBe(3)
+		// Per-category saturation modulation → distinct stroke colors.
+		const strokes = new Set([...lines].map((l) => l.getAttribute("stroke")))
+		expect(strokes.size).toBe(3)
+		expect(container.querySelectorAll("svg path").length).toBe(0)
+	})
+
+	it("pattern rectangles honor the swatch outline (color + width)", () => {
+		// The pattern-filled rect used to ignore the user's Swatch outline —
+		// only plain color rects and glyphs drew it.
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["pattern"]}
+				type="categorical"
+				values={["A", "B"]}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				swatchOutline={{ color: "#ff0000", width: 2 }}
+			/>
+		)
+		const rects = [...container.querySelectorAll("svg > rect")]
+		expect(rects.length).toBe(2)
+		expect(rects.every((r) => r.getAttribute("stroke") === "#ff0000")).toBe(true)
+		expect(rects.every((r) => r.getAttribute("stroke-width") === "2")).toBe(true)
+	})
+
+	it("swatch size scales the default and pattern rectangles (not glyph-only)", () => {
+		// Size 5 is the historical 18×12 rectangle; larger sizes scale it
+		// proportionally so the size input is live for every swatch form.
+		const patternAt = (size: number) =>
+			render(
+				<CombinedGroupLegend
+					channels={["pattern"]}
+					type="categorical"
+					values={["A"]}
+					configs={EMPTY_CHANNEL_CONFIGS}
+					reverseCategorical={false}
+					swatchSize={size}
+				/>
+			)
+		const svgWidth = (c: HTMLElement) =>
+			Number(c.querySelector("svg")?.getAttribute("width") ?? 0)
+		expect(svgWidth(patternAt(5).container)).toBe(18)
+		expect(svgWidth(patternAt(10).container)).toBe(36)
+
+		// Plain color rectangle (opacity-led section, default shape): the
+		// span's inline width/height scale the same way.
+		const plainAt = (size: number) =>
+			render(
+				<CombinedGroupLegend
+					channels={["opacity"]}
+					type="categorical"
+					values={["A"]}
+					configs={EMPTY_CHANNEL_CONFIGS}
+					reverseCategorical={false}
+					swatchSize={size}
+				/>
+			)
+		const spanWidth = (c: HTMLElement) => {
+			const span = c.querySelector('span[style*="width"]') as HTMLElement | null
+			return span ? Number.parseFloat(span.style.width) : 0
+		}
+		expect(spanWidth(plainAt(5).container)).toBe(18)
+		expect(spanWidth(plainAt(10).container)).toBe(36)
+	})
+})
+
 /** User reported: a chart with two shapes — one with `fillOverrides[v] =
  *  "none"` (outlined-only) — but the legend shows BOTH shapes filled.
  *  These tests pin the legend's per-category fill / stroke behavior so

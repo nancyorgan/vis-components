@@ -199,6 +199,8 @@ export const textConfigFromTheme = (t: Theme): TextConfig => ({
  * these fields existed, which keep the built-in defaults. */
 export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
 	...DEFAULT_DATA_LABELS_CONFIG,
+	color: t.dataLabelsColor ?? DEFAULT_DATA_LABELS_CONFIG.color,
+	fontFamily: t.dataLabelsFontFamily ?? DEFAULT_DATA_LABELS_CONFIG.fontFamily,
 	fontSize: t.dataLabelsFontSize ?? DEFAULT_DATA_LABELS_CONFIG.fontSize,
 	fontWeight: t.dataLabelsFontWeight ?? DEFAULT_DATA_LABELS_CONFIG.fontWeight,
 	italic: t.dataLabelsItalic ?? false,
@@ -773,7 +775,7 @@ export type LegendDotGroup =
 	| "formatting"
 	| "gradient"
 	| "auxSwatch"
-	| "colorSwatchShape"
+	| "swatchShape"
 	| "shapeSwatch"
 
 /** Which legend subsections deviate from the theme baseline. */
@@ -839,23 +841,38 @@ export const explainLegendCustomization = (
 			group: "auxSwatch",
 			changed: differs(cfg.auxLegendSwatchStroke, base.auxLegendSwatchStroke),
 		},
+		// The aux swatch color is also editable from the Swatches section
+		// (opacity / saturation / brightness groups host a picker for it),
+		// so it lights that section's dot as well.
 		{
-			group: "colorSwatchShape",
+			group: "swatchShape",
+			changed: differs(cfg.auxLegendSwatchColor, base.auxLegendSwatchColor),
+		},
+		{
+			group: "swatchShape",
 			changed: differs(cfg.hueLegendSwatchShape, base.hueLegendSwatchShape),
 		},
 		{
-			group: "colorSwatchShape",
+			group: "swatchShape",
 			changed: differs(cfg.hueLegendSwatchSize, base.hueLegendSwatchSize),
 		},
-		{ group: "colorSwatchShape", changed: !isEmptyConfigValue(cfg.swatchShapes) },
-		{ group: "colorSwatchShape", changed: !isEmptyConfigValue(cfg.swatchSizes) },
+		{ group: "swatchShape", changed: !isEmptyConfigValue(cfg.swatchShapes) },
+		{ group: "swatchShape", changed: !isEmptyConfigValue(cfg.swatchSizes) },
 		{
-			group: "colorSwatchShape",
+			group: "swatchShape",
 			changed: differs(cfg.swatchOutlineColor, base.swatchOutlineColor),
 		},
 		{
-			group: "colorSwatchShape",
+			group: "swatchShape",
 			changed: differs(cfg.swatchOutlineWidth, base.swatchOutlineWidth),
+		},
+		{
+			group: "swatchShape",
+			changed: !isEmptyConfigValue(cfg.swatchOutlineColors),
+		},
+		{
+			group: "swatchShape",
+			changed: !isEmptyConfigValue(cfg.swatchOutlineWidths),
 		},
 		{
 			group: "shapeSwatch",
@@ -887,10 +904,22 @@ export const labelsFromTheme = (t: Theme): LabelsConfig => ({
 			subtitleSize: t.titleSubtitleSize,
 			secondarySize: t.titleSecondarySize,
 			color: t.titleFontColor,
-			// Theme settings still carry a boolean bold flag; map it onto the
-			// numeric weight model (bold → 700, otherwise inherit the slot
-			// default).
-			weight: t.titleFontBold ? 700 : undefined,
+			// The numeric weight wins when set; older themes only carry the
+			// boolean bold flag, which maps onto the numeric weight model
+			// (bold → 700, otherwise inherit the slot default).
+			weight: t.titleFontWeight ?? (t.titleFontBold ? 700 : undefined),
+			// Per-slot weights / families refine individual title tiers; unset
+			// falls back to the shared values at resolve time (resolveTitleFont).
+			subtitleWeight: t.subtitleFontWeight,
+			secondaryWeight: t.axisTitleFontWeight,
+			legendWeight: t.legendTitleFontWeight,
+			subtitleFamily: t.subtitleFontFamily,
+			legendFamily: t.legendTitleFontFamily,
+			// Base alignments for title / subtitle / legend titles — the layer
+			// under per-visual titleAlignments (titleAlignmentOf).
+			primaryAlignment: t.titleAlignment,
+			subtitleAlignment: t.subtitleAlignment,
+			legendAlignment: t.legendTitleAlignment,
 			italic: t.titleFontItalic ?? false,
 			underline: t.titleFontUnderline ?? false,
 		},
@@ -898,9 +927,15 @@ export const labelsFromTheme = (t: Theme): LabelsConfig => ({
 			family: t.textFontFamily,
 			size: t.textFontSize,
 			color: t.textFontColor,
-			weight: t.textFontBold ? 700 : undefined,
+			weight: t.textFontWeight ?? (t.textFontBold ? 700 : undefined),
 			italic: t.textFontItalic ?? false,
 			underline: t.textFontUnderline ?? false,
+			// Legend entry-label overrides; unset falls back to the shared
+			// fields above at resolve time (resolveLegendTextFont).
+			legendFamily: t.legendTextFontFamily,
+			legendSize: t.legendTextFontSize,
+			legendWeight: t.legendTextFontWeight,
+			legendColor: t.legendTextColor,
 		},
 	},
 })

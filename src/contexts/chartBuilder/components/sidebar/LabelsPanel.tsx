@@ -2,7 +2,10 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { DEFAULT_TEXT_CONFIG } from "../../lib/channelConfig"
 import {
+	baseTitleAlignmentOf,
 	FONT_FAMILY_OPTIONS,
+	fontWeightDisplayName,
+	fontWeightOptionsFor,
 	LEGEND_CHANNELS,
 	LEGEND_FRIENDLY_NAME,
 	legendFontKey,
@@ -10,6 +13,7 @@ import {
 	type LabelAlignment,
 	type LabelFontKey,
 	type LegendChannel,
+	type TitlesFontConfig,
 	type VerticalAlignment,
 } from "../../lib/labelsConfig"
 import { isFlowModeId } from "../../lib/packedMeasure"
@@ -28,17 +32,31 @@ import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 
-/** Named font weights offered in the Weight dropdown. Replaces the old Bold
- * toggle so users can reach semibold / black, not just an on/off bold. The
- * empty value (rendered separately) means "inherit / use the slot default". */
-const FONT_WEIGHT_OPTIONS: Array<{ value: number; label: string }> = [
-	{ value: 300, label: "Light" },
-	{ value: 400, label: "Normal" },
-	{ value: 500, label: "Medium" },
-	{ value: 600, label: "Semibold" },
-	{ value: 700, label: "Bold" },
-	{ value: 900, label: "Black" },
-]
+/** Display name for an inherited family: the matching preset's label, else
+ * the stack's first family name (custom stacks never come from the presets). */
+const familyDisplayName = (family: string): string =>
+	FONT_FAMILY_OPTIONS.find((o) => o.value === family)?.label ??
+	family.split(",")[0].trim().replace(/^['"]|['"]$/g, "")
+
+/** Weights the renderers fall back to when neither the per-label override nor
+ * the base font sets one — fed into the Weight dropdown's "(inherit)" entry so
+ * it names the actual weight. Chart title / subtitle render through SharedText
+ * with no default (the SVG normal weight); axis, facet, and legend titles all
+ * default to medium (PlotCanvas passes 500, the legend title div is
+ * `font-medium`). */
+const PRIMARY_TITLE_DEFAULT_WEIGHT = 400
+const SECONDARY_TITLE_DEFAULT_WEIGHT = 500
+
+/** Effective inherited weight for each title tier — the per-slot base-font
+ * weight (theme-seeded) first, then the shared title weight, then the tier's
+ * render-site default. Mirrors resolveTitleFont's fallback chain so the
+ * Weight select's "(inherit)" entry names what actually renders. */
+const subtitleInheritWeight = (t: TitlesFontConfig): number =>
+	t.subtitleWeight ?? t.weight ?? PRIMARY_TITLE_DEFAULT_WEIGHT
+const secondaryInheritWeight = (t: TitlesFontConfig): number =>
+	t.secondaryWeight ?? t.weight ?? SECONDARY_TITLE_DEFAULT_WEIGHT
+const legendInheritWeight = (t: TitlesFontConfig): number =>
+	t.legendWeight ?? t.weight ?? SECONDARY_TITLE_DEFAULT_WEIGHT
 
 // ---------------------------------------------------------------------------
 // Panel
@@ -245,7 +263,9 @@ export const LabelsPanel = () => {
 	// doesn't light the dot (matches the per-row chevron dot rules).
 	const keyChanged = (key: LabelFontKey) =>
 		(overrides[key] !== undefined && Object.keys(overrides[key] ?? {}).length > 0) ||
-		(titleAlignments[key] !== undefined && titleAlignments[key] !== "center") ||
+		(titleAlignments[key] !== undefined &&
+			titleAlignments[key] !==
+				baseTitleAlignmentOf(labels.baseFont.titles, key)) ||
 		(titleVerticalAlignments[key] !== undefined &&
 			titleVerticalAlignments[key] !== "middle") ||
 		!!titleAngles[key] ||
@@ -266,6 +286,10 @@ export const LabelsPanel = () => {
 		channelConfigs.text?.color ?? DEFAULT_TEXT_CONFIG.color
 	const nodeTitleBaseSize =
 		channelConfigs.text?.fontSize ?? DEFAULT_TEXT_CONFIG.fontSize
+	const nodeTitleBaseFamily =
+		channelConfigs.text?.fontFamily ?? DEFAULT_TEXT_CONFIG.fontFamily
+	const nodeTitleBaseWeight =
+		channelConfigs.text?.fontWeight ?? DEFAULT_TEXT_CONFIG.fontWeight
 	// OR over the facet keys actually shown: grid-split renders the
 	// Column/Row (+ optional Panel) rows; wrap/single-axis renders the one
 	// unified Facet-title row.
@@ -293,9 +317,12 @@ export const LabelsPanel = () => {
 				onOverride={(patch) => setOverride("title", patch)}
 				alignment={titleAlignments.title}
 				onAlignment={(a) => setAlignment("title", a)}
+				baseAlignment={labels.baseFont.titles.primaryAlignment}
 				placeholder="Untitled chart"
 				baseColor={labels.baseFont.titles.color}
 				baseSize={labels.baseFont.titles.primarySize}
+				baseFamily={labels.baseFont.titles.family}
+				baseWeight={labels.baseFont.titles.weight ?? PRIMARY_TITLE_DEFAULT_WEIGHT}
 				extraActive={!!labels.titleOffsets?.title}
 				extraControls={
 					<OffsetControl
@@ -313,8 +340,13 @@ export const LabelsPanel = () => {
 				onOverride={(patch) => setOverride("subtitle", patch)}
 				alignment={titleAlignments.subtitle}
 				onAlignment={(a) => setAlignment("subtitle", a)}
+				baseAlignment={labels.baseFont.titles.subtitleAlignment}
 				baseColor={labels.baseFont.titles.color}
 				baseSize={labels.baseFont.titles.subtitleSize}
+				baseFamily={
+					labels.baseFont.titles.subtitleFamily ?? labels.baseFont.titles.family
+				}
+				baseWeight={subtitleInheritWeight(labels.baseFont.titles)}
 				extraActive={!!labels.titleOffsets?.subtitle}
 				extraControls={
 					<OffsetControl
@@ -339,6 +371,8 @@ export const LabelsPanel = () => {
 				placeholder={xTitleFallback || "field name"}
 				baseColor={labels.baseFont.titles.color}
 				baseSize={labels.baseFont.titles.secondarySize}
+				baseFamily={labels.baseFont.titles.family}
+				baseWeight={secondaryInheritWeight(labels.baseFont.titles)}
 				extraActive={!!labels.titleOffsets?.xAxisTitle}
 				extraControls={
 					<OffsetControl
@@ -359,6 +393,8 @@ export const LabelsPanel = () => {
 				placeholder={yTitleFallback || "field name"}
 				baseColor={labels.baseFont.titles.color}
 				baseSize={labels.baseFont.titles.secondarySize}
+				baseFamily={labels.baseFont.titles.family}
+				baseWeight={secondaryInheritWeight(labels.baseFont.titles)}
 				extraActive={
 					!!labels.yAxisTitleHorizontal ||
 					!!labels.titleOffsets?.yAxisTitle
@@ -396,6 +432,8 @@ export const LabelsPanel = () => {
 							onAlignment={(a) => setAlignment("nodeTitle", a)}
 							baseColor={nodeTitleBaseColor}
 							baseSize={nodeTitleBaseSize}
+							baseFamily={nodeTitleBaseFamily}
+							baseWeight={nodeTitleBaseWeight}
 							extraControls={
 								<OffsetControl
 									value={labels.titleOffsets?.nodeTitle ?? {}}
@@ -447,6 +485,13 @@ export const LabelsPanel = () => {
 						baseSize={
 							overrides.facetTitle?.size ?? labels.baseFont.titles.secondarySize
 						}
+						baseFamily={
+							overrides.facetTitle?.family ?? labels.baseFont.titles.family
+						}
+						baseWeight={
+							overrides.facetTitle?.weight ??
+							secondaryInheritWeight(labels.baseFont.titles)
+						}
 						extraActive={!!labels.titleOffsets?.facetColTitle}
 						extraControls={
 							<OffsetControl
@@ -473,6 +518,13 @@ export const LabelsPanel = () => {
 						baseSize={
 							overrides.facetTitle?.size ?? labels.baseFont.titles.secondarySize
 						}
+						baseFamily={
+							overrides.facetTitle?.family ?? labels.baseFont.titles.family
+						}
+						baseWeight={
+							overrides.facetTitle?.weight ??
+							secondaryInheritWeight(labels.baseFont.titles)
+						}
 						extraActive={!!labels.titleOffsets?.facetRowTitle}
 						extraControls={
 							<OffsetControl
@@ -497,6 +549,13 @@ export const LabelsPanel = () => {
 							baseColor={overrides.facetTitle?.color ?? labels.baseFont.titles.color}
 							baseSize={
 								overrides.facetTitle?.size ?? labels.baseFont.titles.secondarySize
+							}
+							baseFamily={
+								overrides.facetTitle?.family ?? labels.baseFont.titles.family
+							}
+							baseWeight={
+								overrides.facetTitle?.weight ??
+								secondaryInheritWeight(labels.baseFont.titles)
 							}
 							extraActive={!!labels.titleOffsets?.facetPanelTitle}
 							extraControls={
@@ -530,6 +589,8 @@ export const LabelsPanel = () => {
 					onAngle={(deg) => setAngle("facetTitle", deg)}
 					baseColor={labels.baseFont.titles.color}
 					baseSize={labels.baseFont.titles.secondarySize}
+					baseFamily={labels.baseFont.titles.family}
+					baseWeight={secondaryInheritWeight(labels.baseFont.titles)}
 					extraControls={
 						<OffsetControl
 							value={labels.titleOffsets?.facetTitle ?? {}}
@@ -571,9 +632,15 @@ export const LabelsPanel = () => {
 								onOverride={(next) => keys.forEach((k) => setOverride(k, next))}
 								alignment={titleAlignments[aKey]}
 								onAlignment={(a) => keys.forEach((k) => setAlignment(k, a))}
+								baseAlignment={labels.baseFont.titles.legendAlignment}
 								placeholder={encodings[group[0]].field ?? ""}
 								baseColor={labels.baseFont.titles.color}
 								baseSize={labels.baseFont.titles.secondarySize}
+								baseFamily={
+									labels.baseFont.titles.legendFamily ??
+									labels.baseFont.titles.family
+								}
+								baseWeight={legendInheritWeight(labels.baseFont.titles)}
 								extraActive={!!labels.titleOffsets?.[oKey]}
 								extraControls={
 									<OffsetControl
@@ -605,6 +672,9 @@ type LabelRowProps = {
 	onOverride: (patch: Partial<FontConfig> | null) => void
 	alignment?: LabelAlignment
 	onAlignment?: (a: LabelAlignment) => void
+	/** Theme-seeded default alignment shown (and treated as "unmodified")
+	 * when no explicit alignment is stored. Defaults to "center". */
+	baseAlignment?: LabelAlignment
 	verticalAlignment?: VerticalAlignment
 	onVerticalAlignment?: (a: VerticalAlignment) => void
 	angle?: number
@@ -616,6 +686,11 @@ type LabelRowProps = {
 	/** Inherited size (pt) shown as the font editor's Size placeholder when no
 	 * override is set. */
 	baseSize: number
+	/** Inherited family named in the Family select's "(inherit)" entry. */
+	baseFamily: string
+	/** Effective inherited weight (base font weight ?? the slot's render-site
+	 * default) named in the Weight select's "(inherit)" entry. */
+	baseWeight: number
 	/** Optional extra controls rendered inside the disclosure panel below the
 	 * alignment + font editor. Used today for the Y-axis "Read horizontally"
 	 * toggle so it lives with the rest of the y-title config instead of
@@ -829,6 +904,9 @@ type LabelStyleControlsProps = {
 	onOverride: (patch: Partial<FontConfig> | null) => void
 	alignment?: LabelAlignment
 	onAlignment?: (a: LabelAlignment) => void
+	/** Theme-seeded default alignment displayed when no explicit alignment
+	 * is stored. Defaults to "center". */
+	baseAlignment?: LabelAlignment
 	/** When provided, a second "Vertical alignment" row is shown (top / middle
 	 * / bottom) and the horizontal row's label switches to "Horizontal
 	 * alignment" to disambiguate. Only wired for the facet row-title slot. */
@@ -842,6 +920,11 @@ type LabelStyleControlsProps = {
 	baseColor: string
 	/** Inherited size (pt) shown as the Size box's placeholder. */
 	baseSize: number
+	/** Inherited family named in the Family select's "(inherit)" entry. */
+	baseFamily: string
+	/** Effective inherited weight (base font weight ?? the slot's render-site
+	 * default) named in the Weight select's "(inherit)" entry. */
+	baseWeight: number
 	extraControls?: React.ReactNode
 	/** Skip the purple `.vc-option-panel` wrapper (keeping its column layout).
 	 *  Pass when the controls render directly inside a boxed subsection —
@@ -856,12 +939,15 @@ const LabelStyleControls = ({
 	onOverride,
 	alignment,
 	onAlignment,
+	baseAlignment = "center",
 	verticalAlignment,
 	onVerticalAlignment,
 	angle,
 	onAngle,
 	baseColor,
 	baseSize,
+	baseFamily,
+	baseWeight,
 	extraControls,
 	bare = false,
 }: LabelStyleControlsProps) => {
@@ -874,7 +960,10 @@ const LabelStyleControls = ({
 					<span className={LABEL_COL}>
 						{onVerticalAlignment ? "Horizontal alignment" : "Align"}
 					</span>
-					<AlignmentControl value={alignment ?? "center"} onChange={onAlignment} />
+					<AlignmentControl
+						value={alignment ?? baseAlignment}
+						onChange={onAlignment}
+					/>
 				</div>
 			)}
 			{onVerticalAlignment && (
@@ -909,6 +998,8 @@ const LabelStyleControls = ({
 				showResetFields
 				baseColor={baseColor}
 				baseSize={baseSize}
+				baseFamily={baseFamily}
+				baseWeight={baseWeight}
 			/>
 			{extraControls}
 		</div>
@@ -930,12 +1021,17 @@ const LabelRow = ({
 	placeholder,
 	baseColor,
 	baseSize,
+	baseFamily,
+	baseWeight,
+	baseAlignment = "center",
 	extraControls,
 	extraActive = false,
 	textless = false,
 }: LabelRowProps) => {
 	const hasOverride = override !== undefined && Object.keys(override).length > 0
-	const hasAlignment = onAlignment && alignment && alignment !== "center"
+	// "Modified" means the stored alignment differs from the theme-seeded
+	// base, so a theme that defaults titles to left doesn't dot fresh charts.
+	const hasAlignment = onAlignment && alignment && alignment !== baseAlignment
 	const hasVerticalAlignment =
 		onVerticalAlignment && verticalAlignment && verticalAlignment !== "middle"
 	const hasAngle = onAngle && !!angle
@@ -991,12 +1087,15 @@ const LabelRow = ({
 							onOverride={onOverride}
 							alignment={alignment}
 							onAlignment={onAlignment}
+							baseAlignment={baseAlignment}
 							verticalAlignment={verticalAlignment}
 							onVerticalAlignment={onVerticalAlignment}
 							angle={angle}
 							onAngle={onAngle}
 							baseColor={baseColor}
 							baseSize={baseSize}
+							baseFamily={baseFamily}
+							baseWeight={baseWeight}
 							extraControls={extraControls}
 						/>
 					</Disclosure.Panel>
@@ -1021,6 +1120,13 @@ type FontEditorProps = {
 	/** Size (pt) shown as the Size box's placeholder when no override is set,
 	 *  so the inherited default reads at a glance instead of "inherit". */
 	baseSize?: number
+	/** Family named in the Family select's "(inherit)" entry when no override
+	 *  is set, same at-a-glance idea as `baseSize`. */
+	baseFamily?: string
+	/** Weight named in the Weight select's "(inherit)" entry when no override
+	 *  is set. Pass the EFFECTIVE inherited weight (base font weight, falling
+	 *  back to the slot's render-site default). */
+	baseWeight?: number
 }
 
 export const FontEditor = ({
@@ -1030,6 +1136,8 @@ export const FontEditor = ({
 	showResetFields,
 	baseColor,
 	baseSize,
+	baseFamily,
+	baseWeight,
 }: FontEditorProps) => {
 	const reset = (field: keyof FontConfig) => {
 		const next: Partial<FontConfig> = { ...value }
@@ -1053,7 +1161,13 @@ export const FontEditor = ({
 					}
 					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 				>
-					{showResetFields && <option value="">(inherit)</option>}
+					{showResetFields && (
+						<option value="">
+							{baseFamily !== undefined
+								? `(${familyDisplayName(baseFamily)})`
+								: "(inherit)"}
+						</option>
+					)}
 					{FONT_FAMILY_OPTIONS.map((opt) => (
 						<option key={opt.value} value={opt.value}>
 							{opt.label}
@@ -1131,12 +1245,20 @@ export const FontEditor = ({
 					}
 					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 				>
-					<option value="">{showResetFields ? "(inherit)" : "Default"}</option>
-					{FONT_WEIGHT_OPTIONS.map((opt) => (
-						<option key={opt.value} value={opt.value}>
-							{opt.label} ({opt.value})
-						</option>
-					))}
+					<option value="">
+						{showResetFields
+							? baseWeight !== undefined
+								? `(${fontWeightDisplayName(baseWeight)})`
+								: "(inherit)"
+							: "Default"}
+					</option>
+					{fontWeightOptionsFor(value.family ?? baseFamily, value.weight).map(
+						(opt) => (
+							<option key={opt.value} value={opt.value}>
+								{opt.label}
+							</option>
+						)
+					)}
 				</select>
 				{showResetFields && value.weight !== undefined && (
 					<ResetLink onClick={() => reset("weight")} />

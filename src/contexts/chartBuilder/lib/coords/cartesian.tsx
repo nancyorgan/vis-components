@@ -59,6 +59,13 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 		xScale: input.xScale,
 		yScale: input.yScale,
 	}
+	// Each axis is told about the perpendicular one (when it renders) so a
+	// gridline landing under the opposing spine is dropped rather than
+	// blurring against it. Spines draw even when `showXAxis`/`showYAxis` is
+	// false (faceted interior panels keep their frame), so presence of the
+	// scale + field type is the right gate.
+	const xAxisRenders = !!(input.xScale && input.xFieldType)
+	const yAxisRenders = !!(input.yScale && input.yFieldType)
 	return {
 		kind: "cartesian",
 		scales,
@@ -79,6 +86,9 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 						layer={layer}
 						titleAlignment={input.xAxisTitleAlignment}
 						showTitle={input.showXAxisTitle ?? true}
+						opposingAxis={
+							yAxisRenders ? { config: input.yAxisConfig } : undefined
+						}
 					/>
 				)}
 				{input.yScale && input.yFieldType && (
@@ -97,6 +107,9 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 						titleAlignment={input.yAxisTitleAlignment}
 						yTitleHorizontal={input.yAxisTitleHorizontal}
 						showTitle={input.showYAxisTitle ?? true}
+						opposingAxis={
+							xAxisRenders ? { config: input.xAxisConfig } : undefined
+						}
 					/>
 				)}
 			</>

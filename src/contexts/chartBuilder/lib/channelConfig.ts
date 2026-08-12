@@ -1389,7 +1389,7 @@ export type TextConfig = {
 	palette: string[]
 	fontFamily: string
 	fontSize: number // px
-	fontWeight: 400 | 500 | 600 | 700
+	fontWeight: number
 	/** Number of fractional digits when the text value is numeric. `null`
 	 * leaves numbers as the raw string from the row. */
 	decimals: number | null
@@ -1562,7 +1562,7 @@ export type DataLabelsConfig = {
 	fontFamily: string
 	/** Default font weight applied to every label (when no per-channel
 	 * override applies). */
-	fontWeight: 400 | 500 | 600 | 700
+	fontWeight: number
 	/** Italic label text. Optional so saved visuals from before the style
 	 * controls load with it off — matching their previous look. */
 	italic?: boolean

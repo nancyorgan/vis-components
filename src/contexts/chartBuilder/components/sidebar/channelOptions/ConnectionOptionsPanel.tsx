@@ -711,6 +711,8 @@ export const ConnectionOptionsPanel = () => {
 									legacyColor={undefined}
 									inheritedColor={labels.baseFont.text.color}
 									inheritedSize={labels.baseFont.text.size}
+									inheritedFamily={labels.baseFont.text.family}
+									inheritedWeight={labels.baseFont.text.weight ?? 400}
 									onChange={(tickLabelFont) => updateAxis({ tickLabelFont })}
 								/>
 							</CollapsibleSubsection>

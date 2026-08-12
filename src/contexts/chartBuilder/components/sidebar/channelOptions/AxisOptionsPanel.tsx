@@ -522,6 +522,8 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 					legacyColor={config.tickLabelColor}
 					inheritedColor={inheritedTickLabelColor}
 					inheritedSize={labels.baseFont.text.size}
+					inheritedFamily={labels.baseFont.text.family}
+					inheritedWeight={labels.baseFont.text.weight ?? 400}
 					onChange={(tickLabelFont) =>
 						// Writing the fuller font override supersedes the legacy
 						// `tickLabelColor`; clear it so the two color sources can't
@@ -1281,6 +1283,8 @@ export const TickLabelFontControl = ({
 	legacyColor,
 	inheritedColor,
 	inheritedSize,
+	inheritedFamily,
+	inheritedWeight,
 	onChange,
 }: {
 	value: Partial<FontConfig> | undefined
@@ -1288,6 +1292,11 @@ export const TickLabelFontControl = ({
 	inheritedColor: string
 	/** Inherited size (pt) shown as the Size box's placeholder. */
 	inheritedSize: number
+	/** Inherited family named in the Family select's "(inherit)" entry. */
+	inheritedFamily: string
+	/** Effective inherited weight (base text weight ?? the renderer's normal
+	 *  weight) named in the Weight select's "(inherit)" entry. */
+	inheritedWeight: number
 	onChange: (next: Partial<FontConfig> | undefined) => void
 }) => {
 	const current: Partial<FontConfig> =
@@ -1303,6 +1312,8 @@ export const TickLabelFontControl = ({
 			showResetFields
 			baseColor={inheritedColor}
 			baseSize={inheritedSize}
+			baseFamily={inheritedFamily}
+			baseWeight={inheritedWeight}
 		/>
 	)
 }

@@ -22,7 +22,10 @@ import {
 	type FacetConfig,
 	type LineDashPattern,
 } from "../../lib/channelConfig"
-import { FONT_FAMILY_OPTIONS } from "../../lib/labelsConfig"
+import {
+	FONT_FAMILY_OPTIONS,
+	fontWeightOptionsFor,
+} from "../../lib/labelsConfig"
 import { AlignmentControl } from "./LabelsPanel"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { effectiveType } from "../../lib/fieldType"
@@ -49,18 +52,6 @@ const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
 	value: opt.value,
 	label: opt.label,
 }))
-
-/** SelectInput is generic over a string union; font weights are numeric, so
- *  we stringify at the boundary and convert back in onChange. Mirrors the
- *  Caption panel's weight picker. */
-const WEIGHT_OPTIONS = [
-	{ value: "300", label: "Light" },
-	{ value: "400", label: "Regular" },
-	{ value: "500", label: "Medium" },
-	{ value: "600", label: "Semibold" },
-	{ value: "700", label: "Bold" },
-] as const
-type WeightOptionValue = (typeof WEIGHT_OPTIONS)[number]["value"]
 
 /** Seed values the `new*` factories write, so each style control can offer a
  *  "reset" link that only shows when the current value differs from the
@@ -1175,15 +1166,16 @@ const RectangleEditor = ({
 						)}
 					</div>
 					<div className="flex items-center gap-2">
-						<SelectInput<WeightOptionValue>
+						<SelectInput
 							label="Weight"
 							labelClassName={LABEL_COL}
-							value={
-								String(
-									rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight,
-								) as WeightOptionValue
-							}
-							options={WEIGHT_OPTIONS}
+							value={String(
+								rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight,
+							)}
+							options={fontWeightOptionsFor(
+								rect.textFontFamily ?? DEFAULT_RECTANGLE_TEXT.textFontFamily,
+								rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight
+							).map((w) => ({ value: String(w.value), label: w.label }))}
 							onChange={(w) => onChange({ textFontWeight: Number(w) })}
 						/>
 						{(rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight) !==

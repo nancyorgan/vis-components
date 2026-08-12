@@ -119,10 +119,13 @@ export const ThemePanel = () => {
 				})
 				set(currentDataLabelsConfigAtom, (prev) => {
 					const fromTheme = dataLabelsConfigFromTheme(theme)
-					// Only the theme-driven font knobs flow through; label
-					// encodings, colors, offsets, and templates are user-driven.
+					// Only the theme-driven font knobs (plus the single fallback
+					// color) flow through; label encodings, per-value color
+					// overrides, offsets, and templates are user-driven.
 					return {
 						...prev,
+						color: fromTheme.color,
+						fontFamily: fromTheme.fontFamily,
 						fontSize: fromTheme.fontSize,
 						fontWeight: fromTheme.fontWeight,
 						italic: fromTheme.italic,

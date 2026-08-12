@@ -46,6 +46,25 @@ export type TitlesFontConfig = FontStyles & {
 	/** Axis titles + legend section titles. */
 	secondarySize: number
 	color: string
+	/** Optional per-slot weights. Each falls back to the shared `weight`
+	 * (which doubles as the chart-title weight) when unset, so themes that
+	 * only carry the single weight keep their look. `secondaryWeight` covers
+	 * the same slots as `secondarySize` (axis + facet titles); legend section
+	 * titles split out into their own `legendWeight`. */
+	subtitleWeight?: number
+	secondaryWeight?: number
+	legendWeight?: number
+	/** Optional per-slot families, falling back to the shared `family` like
+	 * the weights above. Axis / facet titles always follow `family`. */
+	subtitleFamily?: string
+	legendFamily?: string
+	/** Theme-default alignments for the chart title / subtitle / legend
+	 * section titles. These are the BASE the per-visual `titleAlignments`
+	 * overrides layer on top of (see `titleAlignmentOf`) — kept out of
+	 * `titleAlignments` itself so theme defaults don't read as user edits. */
+	primaryAlignment?: LabelAlignment
+	subtitleAlignment?: LabelAlignment
+	legendAlignment?: LabelAlignment
 }
 
 /** Base font for body-ish text: axis tick labels, legend swatch labels. */
@@ -53,6 +72,13 @@ export type TextFontConfig = FontStyles & {
 	family: string
 	size: number
 	color: string
+	/** Optional legend-entry-label overrides (theme "Legend text" defaults).
+	 * Each falls back to the shared field above, so legend labels follow the
+	 * axis tick labels unless a theme splits them (resolveLegendTextFont). */
+	legendFamily?: string
+	legendSize?: number
+	legendWeight?: number
+	legendColor?: string
 }
 
 export type BaseFontConfig = {
@@ -113,6 +139,71 @@ export const FONT_FAMILY_OPTIONS: Array<{ label: string; value: string }> = [
 ]
 
 // ---------------------------------------------------------------------------
+// Font weight options — the single source of truth for every Weight picker
+// (builder panels AND the theme editor). Options are per-family: a picker
+// only offers weights the font can actually render, and every picker for the
+// same family offers the same list.
+// ---------------------------------------------------------------------------
+
+const WEIGHT_NAMES: Record<number, string> = {
+	100: "Thin",
+	200: "Extralight",
+	300: "Light",
+	400: "Regular",
+	500: "Medium",
+	600: "Semibold",
+	700: "Bold",
+	800: "Extrabold",
+	900: "Black",
+}
+
+const ALL_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900]
+
+/** Weights each family preset can actually render, keyed by the
+ * FONT_FAMILY_OPTIONS value. DM Sans is loaded as a variable font at
+ * wght 300–700 (index.html) — 900 would silently clamp to 700. DM Mono only
+ * ships 300/400/500. The system + Inter stacks are variable across the full
+ * range; Georgia and the monospace stack only carry regular + bold. */
+const FAMILY_WEIGHTS: Record<string, number[]> = {
+	"system-ui, sans-serif": ALL_WEIGHTS,
+	"Georgia, 'Times New Roman', serif": [400, 700],
+	"ui-monospace, SFMono-Regular, Menlo, monospace": [400, 700],
+	"'DM Sans', ui-sans-serif, sans-serif": [300, 400, 500, 600, 700],
+	"'DM Mono', ui-monospace, monospace": [300, 400, 500],
+	"Inter, system-ui, sans-serif": ALL_WEIGHTS,
+}
+
+/** Safe middle ground for family strings we don't recognize (older saved
+ * configs with custom stacks). */
+const FALLBACK_WEIGHTS = [300, 400, 500, 600, 700]
+
+export type FontWeightOption = { value: number; label: string }
+
+/** Display name for a weight: the canonical name when one exists (e.g.
+ * "Medium"), else the bare number. */
+export const fontWeightDisplayName = (weight: number): string =>
+	WEIGHT_NAMES[weight] ?? String(weight)
+
+/** Weight options for the given font family (a FONT_FAMILY_OPTIONS value).
+ * Pass the currently stored weight as `current` so a value outside the
+ * family's range (e.g. saved before a family switch) still renders as a
+ * selectable option instead of a blank select. */
+export const fontWeightOptionsFor = (
+	family?: string | null,
+	current?: number | null
+): FontWeightOption[] => {
+	const weights = (family && FAMILY_WEIGHTS[family]) || FALLBACK_WEIGHTS
+	const withCurrent =
+		current != null && !weights.includes(current)
+			? [...weights, current].sort((a, b) => a - b)
+			: weights
+	return withCurrent.map((w) => ({
+		value: w,
+		label: `${WEIGHT_NAMES[w] ?? "Weight"} (${w})`,
+	}))
+}
+
+// ---------------------------------------------------------------------------
 // Legend channel helpers
 // ---------------------------------------------------------------------------
 
@@ -154,7 +245,13 @@ export const LEGEND_CHANNELS: EncodingLegendChannel[] = [
 	"angle",
 ]
 
-export const LEGEND_FRIENDLY_NAME: Record<LegendChannel, string> = {
+// Saturation / brightness aren't legend channels (no section of their own),
+// but they can KEY a shared-field combined section's swatch-shape picker, so
+// the panel needs display names for them too.
+export const LEGEND_FRIENDLY_NAME: Record<
+	LegendChannel | "saturation" | "brightness",
+	string
+> = {
 	hue: "Color",
 	outlineHue: "Outline color",
 	area: "Size",
@@ -163,6 +260,8 @@ export const LEGEND_FRIENDLY_NAME: Record<LegendChannel, string> = {
 	opacity: "Opacity",
 	length: "Length",
 	angle: "Angle",
+	saturation: "Saturation",
+	brightness: "Brightness",
 	rug: "Rug",
 	densityCurve: "Density Curve",
 }
@@ -223,13 +322,19 @@ export const QUANTITATIVE_LEGEND_CHANNELS: QuantitativeLegendChannel[] = [
  * `SHAPE_PALETTE` index = that symbol, `"line"` = a short line segment. */
 export type LegendSwatchShape = number | "line" | null
 
-/** Color channels that draw solid color swatches and so accept a per-section
- * swatch shape (Color / Outline color / Rug). */
-export const SWATCH_SHAPE_CHANNELS: readonly LegendChannel[] = [
-	"hue",
-	"outlineHue",
-	"rug",
-]
+/** Channels that can KEY a swatch-drawing legend section and so accept a
+ * per-section swatch shape. A combined section resolves its shape from the
+ * FIRST group channel on its field (Legend.tsx's GROUP_CHANNELS order), so
+ * saturation / brightness — which never emit a section of their own — key
+ * one when they lead a shared-field group with no color channel present. */
+export type SwatchShapeChannel =
+	| "hue"
+	| "outlineHue"
+	| "saturation"
+	| "brightness"
+	| "pattern"
+	| "opacity"
+	| "rug"
 
 /** Per-channel quantitative-legend display config. Controls how break
  * labels are formatted, how many break stops appear on the gradient /
@@ -363,15 +468,16 @@ export type LegendConfig = {
 	 *  is set. `null` / undefined uses the default radius (5). Only affects
 	 *  shape swatches — the default rectangle ignores it. */
 	hueLegendSwatchSize?: number | null
-	/** Per-color-section swatch shape, keyed by the color channel (hue /
-	 *  outlineHue / rug). Lets each color legend draw a distinct glyph so the
+	/** Per-section swatch shape, keyed by the channel that LEADS the legend
+	 *  section (hue / outlineHue / saturation / brightness / pattern / opacity
+	 *  / rug). Lets each swatch-drawing legend use a distinct glyph so the
 	 *  user can tell them apart when several are mapped at once. `null` / absent
 	 *  = the default rectangle; a `SHAPE_PALETTE` index = that symbol; `"line"`
 	 *  = a short line segment (natural for the rug). For `hue` this supersedes
 	 *  the legacy global `hueLegendSwatchShape`. */
-	swatchShapes?: Partial<Record<LegendChannel, LegendSwatchShape>>
+	swatchShapes?: Partial<Record<SwatchShapeChannel, LegendSwatchShape>>
 	/** Per-section swatch radius (px), paired with `swatchShapes`. */
-	swatchSizes?: Partial<Record<LegendChannel, number>>
+	swatchSizes?: Partial<Record<SwatchShapeChannel, number>>
 	/** Outline drawn around each COLOR swatch in the legend (hue / rug /
 	 *  combined color sections). Keeps pale swatches — e.g. the white midpoint
 	 *  of a diverging gradient — visible against the legend background.
@@ -386,6 +492,15 @@ export type LegendConfig = {
 	 *  outline (the historical look and the default — no separate on/off
 	 *  toggle, the width IS the switch). */
 	swatchOutlineWidth?: number | null
+	/** Per-section swatch outline color, keyed like `swatchShapes`. An entry
+	 *  wins over the legacy global `swatchOutlineColor` (which used to border
+	 *  every section at once); `null` = explicitly auto (pipe in the marks'
+	 *  outline color) even when the global is set. */
+	swatchOutlineColors?: Partial<Record<SwatchShapeChannel, string | null>>
+	/** Per-section swatch outline width (px), keyed like `swatchShapes`.
+	 *  Falls back to the legacy global `swatchOutlineWidth`; `0` / `null` =
+	 *  no outline for that section (the width IS the switch). */
+	swatchOutlineWidths?: Partial<Record<SwatchShapeChannel, number | null>>
 	/** Color used for length / angle / area / opacity legend swatches
 	 * when they render as a STANDALONE section (no hue gradient to
 	 * inherit from). `null` falls back to the historical `#4f8eda`. The
@@ -614,26 +729,51 @@ export type LabelFontKey =
 
 export const legendFontKey = (ch: LegendChannel): LabelFontKey => `legend:${ch}`
 
-/** Resolve a color section's swatch shape: the per-channel `swatchShapes`
+/** Resolve a legend section's swatch shape: the per-channel `swatchShapes`
  * entry, falling back to the legacy global `hueLegendSwatchShape` for `hue`
  * (so visuals saved before per-section shapes keep their hue glyph). */
 export const legendSwatchShape = (
 	cfg: Pick<LegendConfig, "swatchShapes" | "hueLegendSwatchShape">,
-	ch: LegendChannel
+	ch: SwatchShapeChannel
 ): LegendSwatchShape => {
 	const perChannel = cfg.swatchShapes?.[ch]
 	if (perChannel !== undefined) return perChannel
 	return ch === "hue" ? (cfg.hueLegendSwatchShape ?? null) : null
 }
 
-/** Resolve a color section's swatch size (px), paired with the shape. */
+/** Resolve a legend section's swatch size (px), paired with the shape. */
 export const legendSwatchSize = (
 	cfg: Pick<LegendConfig, "swatchSizes" | "hueLegendSwatchSize">,
-	ch: LegendChannel
+	ch: SwatchShapeChannel
 ): number | null => {
 	const perChannel = cfg.swatchSizes?.[ch]
 	if (perChannel !== undefined) return perChannel
 	return ch === "hue" ? (cfg.hueLegendSwatchSize ?? null) : null
+}
+
+/** Resolve a legend section's swatch outline color: the per-channel entry
+ * (where `null` means explicitly auto), falling back to the legacy global
+ * `swatchOutlineColor` — which bordered every section at once — so visuals
+ * saved before per-section outlines keep their look. `null` = pipe in the
+ * marks' outline color (the render site's chain). */
+export const legendSwatchOutlineColor = (
+	cfg: Pick<LegendConfig, "swatchOutlineColors" | "swatchOutlineColor">,
+	ch: SwatchShapeChannel
+): string | null => {
+	const perChannel = cfg.swatchOutlineColors?.[ch]
+	if (perChannel !== undefined) return perChannel
+	return cfg.swatchOutlineColor ?? null
+}
+
+/** Resolve a legend section's swatch outline width (px), same fallback chain
+ * as the color. `0` / `null` = no outline. */
+export const legendSwatchOutlineWidth = (
+	cfg: Pick<LegendConfig, "swatchOutlineWidths" | "swatchOutlineWidth">,
+	ch: SwatchShapeChannel
+): number | null => {
+	const perChannel = cfg.swatchOutlineWidths?.[ch]
+	if (perChannel !== undefined) return perChannel
+	return cfg.swatchOutlineWidth ?? null
 }
 
 export type LabelAlignment = "left" | "center" | "right"
@@ -726,11 +866,29 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	titleOffsets: {},
 }
 
-/** Resolve a stored alignment for a title slot, defaulting to "center". */
+/** Theme-seeded base alignment for a title slot: the chart title / subtitle
+ * / legend-title slots read their `baseFont.titles.*Alignment`; everything
+ * else defaults to "center". This is the layer UNDER per-visual
+ * `titleAlignments` — the sidebar compares against it so theme defaults
+ * don't read as user edits. */
+export const baseTitleAlignmentOf = (
+	titles: TitlesFontConfig,
+	key: LabelFontKey
+): LabelAlignment => {
+	if (key === "title") return titles.primaryAlignment ?? "center"
+	if (key === "subtitle") return titles.subtitleAlignment ?? "center"
+	if (key.startsWith("legend:")) return titles.legendAlignment ?? "center"
+	return "center"
+}
+
+/** Resolve a stored alignment for a title slot: an explicit per-visual
+ * `titleAlignments` entry wins, else the theme-seeded base. */
 export const titleAlignmentOf = (
 	labels: LabelsConfig,
 	key: LabelFontKey
-): LabelAlignment => labels.titleAlignments?.[key] ?? "center"
+): LabelAlignment =>
+	labels.titleAlignments?.[key] ??
+	baseTitleAlignmentOf(labels.baseFont.titles, key)
 
 /** Resolve a stored rotation (degrees) for a title slot, defaulting to 0. */
 export const titleAngleOf = (labels: LabelsConfig, key: LabelFontKey): number =>
@@ -766,20 +924,36 @@ export const titleOffsetOf = (
  */
 export const resolveTitleFont = (
 	base: BaseFontConfig,
-	slot: "primary" | "subtitle" | "secondary",
+	slot: "primary" | "subtitle" | "secondary" | "legend",
 	override: Partial<FontConfig> | undefined
 ): FontConfig => {
+	// Legend section titles share the secondary SIZE but carry their own
+	// per-slot weight, so they can diverge from axis titles in weight only.
 	const size =
 		slot === "primary"
 			? base.titles.primarySize
 			: slot === "subtitle"
 				? base.titles.subtitleSize
 				: base.titles.secondarySize
+	const slotWeight =
+		slot === "subtitle"
+			? base.titles.subtitleWeight
+			: slot === "secondary"
+				? base.titles.secondaryWeight
+				: slot === "legend"
+					? base.titles.legendWeight
+					: undefined
+	const slotFamily =
+		slot === "subtitle"
+			? base.titles.subtitleFamily
+			: slot === "legend"
+				? base.titles.legendFamily
+				: undefined
 	return {
-		family: override?.family ?? base.titles.family,
+		family: override?.family ?? slotFamily ?? base.titles.family,
 		color: override?.color ?? base.titles.color,
 		size: ptToPx(override?.size ?? size),
-		weight: override?.weight ?? base.titles.weight,
+		weight: override?.weight ?? slotWeight ?? base.titles.weight,
 		italic: override?.italic ?? base.titles.italic ?? false,
 		underline: override?.underline ?? base.titles.underline ?? false,
 	}
@@ -811,6 +985,17 @@ export const resolveTextFont = (base: BaseFontConfig): TextFontConfig => ({
 	size: ptToPx(base.text.size),
 	color: base.text.color,
 	weight: base.text.weight,
+	italic: base.text.italic ?? false,
+	underline: base.text.underline ?? false,
+})
+
+/** Build the effective legend-entry-label font: the shared text font with
+ *  the theme's per-slot legend overrides applied on top. Size is px. */
+export const resolveLegendTextFont = (base: BaseFontConfig): TextFontConfig => ({
+	family: base.text.legendFamily ?? base.text.family,
+	size: ptToPx(base.text.legendSize ?? base.text.size),
+	color: base.text.legendColor ?? base.text.color,
+	weight: base.text.legendWeight ?? base.text.weight,
 	italic: base.text.italic ?? false,
 	underline: base.text.underline ?? false,
 })

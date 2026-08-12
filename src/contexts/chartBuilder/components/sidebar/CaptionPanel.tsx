@@ -11,7 +11,10 @@ import {
 	type CaptionConfig,
 	type CaptionUnit,
 } from "../../lib/captionConfig"
-import { FONT_FAMILY_OPTIONS } from "../../lib/labelsConfig"
+import {
+	FONT_FAMILY_OPTIONS,
+	fontWeightOptionsFor,
+} from "../../lib/labelsConfig"
 import { AlignmentControl } from "./LabelsPanel"
 import {
 	currentCaptionConfigAtom,
@@ -35,17 +38,6 @@ const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
 	value: opt.value,
 	label: opt.label,
 }))
-
-/** SelectInput is generic over a string union; font weights are numeric, so
- *  we stringify at the boundary and convert back in onChange. */
-const WEIGHT_OPTIONS = [
-	{ value: "300", label: "Light" },
-	{ value: "400", label: "Regular" },
-	{ value: "500", label: "Medium" },
-	{ value: "600", label: "Semibold" },
-	{ value: "700", label: "Bold" },
-] as const
-type WeightOptionValue = (typeof WEIGHT_OPTIONS)[number]["value"]
 
 const UNIT_SELECT_CLASS =
 	"rounded-sm border border-stone-300 bg-white px-1 py-1 text-sm text-stone-700 outline-none hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
@@ -286,11 +278,14 @@ export const CaptionPanel = () => {
 								)}
 							</div>
 							<div className="flex items-center gap-2">
-								<SelectInput<WeightOptionValue>
+								<SelectInput
 									label="Font weight"
 									labelClassName={LABEL_COL}
-									value={String(merged.fontWeight) as WeightOptionValue}
-									options={WEIGHT_OPTIONS}
+									value={String(merged.fontWeight)}
+									options={fontWeightOptionsFor(
+										merged.fontFamily,
+										merged.fontWeight
+									).map((w) => ({ value: String(w.value), label: w.label }))}
 									onChange={(w) => update({ fontWeight: Number(w) })}
 								/>
 								{merged.fontWeight !== DEFAULT_CAPTION_CONFIG.fontWeight && (

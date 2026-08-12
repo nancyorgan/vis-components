@@ -29,11 +29,14 @@ import {
 	DEFAULT_LEGEND_CONFIG,
 	LEGEND_FRIENDLY_NAME,
 	legendFontKey,
+	legendSwatchOutlineColor,
+	legendSwatchOutlineWidth,
 	legendSwatchShape,
 	legendSwatchSize,
 	type LegendSwatchShape,
-	resolveTextFont,
+	resolveLegendTextFont,
 	resolveTitleFont,
+	titleAlignmentOf,
 	type FontConfig,
 	type GradientBarStyle,
 	type LegendChannel,
@@ -43,6 +46,7 @@ import {
 	type QuantitativeLegendChannel,
 	resolveGradientBarStyle,
 	resolveLegendHidden,
+	type SwatchShapeChannel,
 } from "../../lib/labelsConfig"
 import { histogramMeasureDomain } from "../../lib/histogramBins"
 import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
@@ -669,7 +673,7 @@ export const Legend = ({
 
 	if (sections.length === 0) return null
 
-	const textFont = resolveTextFont(labels.baseFont)
+	const textFont = resolveLegendTextFont(labels.baseFont)
 	const bodyStyle: React.CSSProperties = {
 		fontFamily: textFont.family,
 		color: textFont.color,
@@ -819,7 +823,7 @@ export const Legend = ({
 		const titleText = override === undefined ? fallback : override
 		const titleFontSize = resolveTitleFont(
 			labels.baseFont,
-			"secondary",
+			"legend",
 			labels.fontOverrides?.[legendFontKey(keyChannel as LegendChannel)]
 		).size
 		return Math.max(max, titleText.length * titleFontSize * 0.55)
@@ -1183,7 +1187,7 @@ export const Legend = ({
 									: s.legendKey
 						const perLegendFont = resolveTitleFont(
 							labels.baseFont,
-							"secondary",
+							"legend",
 							labels.fontOverrides?.[legendFontKey(keyChannel as LegendChannel)]
 						)
 						const sectionKey =
@@ -1219,11 +1223,10 @@ export const Legend = ({
 									]
 								}
 								titleFont={perLegendFont}
-								titleAlignment={
-									labels.titleAlignments?.[
-										legendFontKey(keyChannel as LegendChannel)
-									]
-								}
+								titleAlignment={titleAlignmentOf(
+									labels,
+									legendFontKey(keyChannel as LegendChannel)
+								)}
 								titleOffset={
 									labels.titleOffsets?.[
 										legendFontKey(keyChannel as LegendChannel)
@@ -1265,31 +1268,37 @@ export const Legend = ({
 								}
 								hueSwatchShape={legendSwatchShape(
 									legendCfg,
-									keyChannel as LegendChannel
+									// Sections keyed by a non-swatch-shape channel (shape /
+									// length / …) just resolve to null — no entry is ever
+									// written for those keys.
+									keyChannel as SwatchShapeChannel
 								)}
 								hueSwatchSize={legendSwatchSize(
 									legendCfg,
-									keyChannel as LegendChannel
+									keyChannel as SwatchShapeChannel
 								)}
-								swatchOutline={
+								swatchOutline={(() => {
 									// Width 0 / unset = no outline. The user's swatch
 									// outline also stays inert while the outline-color
 									// encoding is mapped — those strokes are a faithful
-									// key for that encoding. Color pipes from the marks'
-									// outline color (Color menu → Outline) unless the
-									// user picked one; same chain the panel displays.
-									(legendCfg.swatchOutlineWidth ?? 0) > 0 &&
-									!encodings.outlineHue?.field
+									// key for that encoding. Resolved per section (keyed
+									// like the swatch shape, legacy globals as fallback);
+									// color pipes from the marks' outline color (Color
+									// menu → Outline) unless the user picked one; same
+									// chain the panel displays.
+									const key = keyChannel as SwatchShapeChannel
+									const width = legendSwatchOutlineWidth(legendCfg, key) ?? 0
+									return width > 0 && !encodings.outlineHue?.field
 										? {
 												color:
-													legendCfg.swatchOutlineColor ??
+													legendSwatchOutlineColor(legendCfg, key) ??
 													configs.shape?.outlineColor ??
 													theme.outlineColor ??
 													"#cccccc",
-												width: legendCfg.swatchOutlineWidth ?? 1,
+												width,
 											}
 										: null
-								}
+								})()}
 								defaultSwatchOpacity={defaultSwatchOpacity}
 								entryColumns={entryColumns}
 							/>
@@ -2063,7 +2072,8 @@ const Swatch = ({
 	 *  (filled with `color`), `"line"` draws a short line segment, `null` keeps
 	 *  the default rounded rectangle. */
 	shape?: LegendSwatchShape
-	/** Symbol radius (px) when `shape` is set. Defaults to 5. */
+	/** Swatch size (px, radius-like). Defaults to 5. Symbol radius when
+	 *  `shape` is set; scales the default rectangle proportionally otherwise. */
 	size?: number | null
 	children: React.ReactNode
 	/** When true, render with no width-min / no truncate so the row's
@@ -2083,8 +2093,12 @@ const Swatch = ({
 	>
 		{shape == null ? (
 			<span
-				className="block h-3 w-4 flex-shrink-0 rounded-sm"
+				className="block flex-shrink-0 rounded-sm"
 				style={{
+					// The size picker (radius-like, 5 = historical) scales the
+					// default 16×12 rectangle so it isn't glyph-only.
+					width: Math.round(16 * ((size ?? 5) / 5)),
+					height: Math.round(12 * ((size ?? 5) / 5)),
 					backgroundColor: color,
 					opacity,
 					...(strokeColor
@@ -2184,7 +2198,8 @@ const ComposedSwatch = ({
 	 *  swatch is drawn as this symbol, filled with the swatch color (or
 	 *  pattern overlay). `null` / undefined keeps the rectangle. */
 	swatchShape?: LegendSwatchShape
-	/** Symbol radius (px) for the `swatchShape` glyph. Defaults to 5. */
+	/** Swatch size (px, radius-like). Defaults to 5. Symbol radius for the
+	 *  `swatchShape` glyph; scales the default / pattern rectangle otherwise. */
 	swatchSize?: number | null
 	/** Border color drawn around the swatch — the area/radar line color when it
 	 *  differs from the fill. `null` / undefined → no border. */
@@ -2193,8 +2208,12 @@ const ComposedSwatch = ({
 	 *  split-outline width); the user's Swatch outline setting passes its own. */
 	outlineWidth?: number | null
 }) => {
-	const w = 18
-	const h = 12
+	// Default-rectangle dimensions. The swatch-size picker (radius-like, 5 =
+	// historical) scales them proportionally so the rectangle honors the size
+	// control just like the shaped glyphs do.
+	const rectScale = (swatchSize ?? 5) / 5
+	const w = Math.round(18 * rectScale)
+	const h = Math.round(12 * rectScale)
 	// Line chart context: mirror the rendered visual — dash line passing
 	// behind a (patterned) point. Shape uses the encoded shape index when
 	// available, otherwise defaults to a circle. Pattern fills the shape.
@@ -2392,7 +2411,13 @@ const ComposedSwatch = ({
 						{def.render(pattern.ink)}
 					</pattern>
 				</defs>
-				<rect width={w} height={h} fill={`url(#${patId})`} />
+				<rect
+					width={w}
+					height={h}
+					fill={`url(#${patId})`}
+					stroke={outlineStroke ?? undefined}
+					strokeWidth={outlineStroke ? (outlineWidth ?? 1.5) : undefined}
+				/>
 			</svg>
 		)
 	}

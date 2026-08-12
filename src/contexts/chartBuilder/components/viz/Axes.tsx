@@ -65,6 +65,18 @@ type Props = {
 	 * Used by faceted panels so a single shared title can be drawn outside
 	 * the panel grid. Defaults to true. */
 	showTitle?: boolean
+	/** The perpendicular axis, when one is rendered. This axis's gridlines
+	 * run parallel to the opposing spine, so a gridline can land exactly
+	 * under it (x-gridline at inner.x0, y-gridline at inner.y1) — the
+	 * translucent gridline antialiases against the spine edge and the line
+	 * looks blurry. When the opposing spine is visible, it replaces any
+	 * gridline its stroke covers. Object presence = the opposing axis
+	 * renders; `config` may still be undefined (defaults apply). Typed as
+	 * the subset the suppression reads so callers can pass a full
+	 * AxisConfig or just the spine/offset fields. */
+	opposingAxis?: {
+		config?: Pick<AxisConfig, "spine" | "offset" | "offsetX" | "offsetY">
+	}
 }
 
 const DEFAULT_TICK_COUNT = 5
@@ -84,6 +96,7 @@ export const Axis = ({
 	titleAlignment = "center",
 	yTitleHorizontal = false,
 	showTitle = true,
+	opposingAxis,
 }: Props) => {
 	const drawBack = layer !== "front"
 	const drawFront = layer !== "back" && showTicksAndLabels
@@ -384,7 +397,25 @@ export const Axis = ({
 			seen.add(key)
 			return true
 		})
-	})()
+	})().filter((pos) => {
+		// Spine-over-gridline: drop any gridline whose stroke overlaps the
+		// PERPENDICULAR axis's spine (this axis's gridlines run parallel to
+		// it). Both passes always render, so a visible opposing spine is
+		// guaranteed to paint where the dropped gridline would have — the
+		// spine replaces the gridline instead of blurring against it.
+		if (!opposingAxis) return true
+		const oppSpine = { ...DEFAULT_SPINE_CONFIG, ...opposingAxis.config?.spine }
+		if (!(oppSpine.thickness > 0)) return true
+		// The opposing spine follows ITS axis's position nudge (same legacy
+		// single-offset fold-in as `axisDx`/`axisDy` above, with the
+		// opposing orientation): only the component along this axis's
+		// gridline direction matters.
+		const oppLegacy = opposingAxis.config?.offset ?? 0
+		const spinePos = isX
+			? inner.x0 + (opposingAxis.config?.offsetX ?? -oppLegacy)
+			: inner.y1 + (opposingAxis.config?.offsetY ?? oppLegacy)
+		return Math.abs(pos - spinePos) > (oppSpine.thickness + grid.thickness) / 2 + 0.01
+	})
 
 	return (
 		<g>

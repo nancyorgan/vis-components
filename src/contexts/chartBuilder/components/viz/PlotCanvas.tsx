@@ -34,6 +34,7 @@ import {
 	layerFacetOverride,
 	resolveTextFont,
 	resolveTitleFont,
+	titleAlignmentOf,
 	type LabelAlignment,
 	type VerticalAlignment,
 } from "../../lib/labelsConfig"
@@ -1319,7 +1320,7 @@ export const PlotCanvas = () => {
 				? {
 						text: labels.title,
 						fontSize: titleFont.size,
-						align: (labels.titleAlignments?.title as LabelAlignment) ?? "center",
+						align: titleAlignmentOf(labels, "title"),
 						offsetX: labels.titleOffsets?.title?.x ?? 0,
 						offsetY: labels.titleOffsets?.title?.y ?? 0,
 					}
@@ -1328,8 +1329,7 @@ export const PlotCanvas = () => {
 				? {
 						text: labels.subtitle,
 						fontSize: subtitleFont.size,
-						align:
-							(labels.titleAlignments?.subtitle as LabelAlignment) ?? "center",
+						align: titleAlignmentOf(labels, "subtitle"),
 						offsetX: labels.titleOffsets?.subtitle?.x ?? 0,
 						offsetY: labels.titleOffsets?.subtitle?.y ?? 0,
 					}
@@ -1508,6 +1508,8 @@ export const PlotCanvas = () => {
 		labels.title,
 		labels.subtitle,
 		labels.titleAlignments,
+		// titleAlignmentOf also reads the theme-seeded base alignments.
+		labels.baseFont.titles,
 		labels.titleOffsets,
 		labels.yAxisTitleHorizontal,
 		titleFont.size,

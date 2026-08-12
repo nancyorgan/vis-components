@@ -23,7 +23,10 @@ import {
 	packedSourceForOptionValue,
 	topLevelGroupNames,
 } from "../../lib/packedMeasure"
-import { FONT_FAMILY_OPTIONS } from "../../lib/labelsConfig"
+import {
+	FONT_FAMILY_OPTIONS,
+	fontWeightOptionsFor,
+} from "../../lib/labelsConfig"
 import { CATEGORICAL_HUE_PALETTE, parseValue } from "../../lib/scales"
 import {
 	emptyDataLabelsEncodings,
@@ -74,18 +77,6 @@ const PALETTE_PRESET_NAMES: PaletteName[] = [
 	"RdBu",
 	"RdYlBu",
 	"Spectral",
-]
-
-/** Weight choices for the labels' font. Named like the Labels panel's weight
- *  dropdown so the two read consistently. */
-const FONT_WEIGHTS: Array<{
-	value: DataLabelsConfig["fontWeight"]
-	label: string
-}> = [
-	{ value: 400, label: "Normal (400)" },
-	{ value: 500, label: "Medium (500)" },
-	{ value: 600, label: "Semibold (600)" },
-	{ value: 700, label: "Bold (700)" },
 ]
 
 /** Small inline "reset" link — renders next to a control to restore its
@@ -1110,11 +1101,9 @@ const TextPropertiesPanel = ({
 				onChange={(fontFamily) => onChange({ fontFamily })}
 				selectClassName="flex-1"
 			/>
-			{cfg.fontFamily !== DEFAULT_DATA_LABELS_CONFIG.fontFamily && (
+			{cfg.fontFamily !== themeDefaults.fontFamily && (
 				<ResetLink
-					onClick={() =>
-						onChange({ fontFamily: DEFAULT_DATA_LABELS_CONFIG.fontFamily })
-					}
+					onClick={() => onChange({ fontFamily: themeDefaults.fontFamily })}
 				/>
 			)}
 		</div>
@@ -1122,16 +1111,11 @@ const TextPropertiesPanel = ({
 			<SelectInput
 				label="Weight"
 				labelClassName={LABEL_COL}
-				value={String(cfg.fontWeight) as "400" | "500" | "600" | "700"}
-				options={FONT_WEIGHTS.map((w) => ({
-					value: String(w.value) as "400" | "500" | "600" | "700",
-					label: w.label,
-				}))}
-				onChange={(w) =>
-					onChange({
-						fontWeight: Number(w) as DataLabelsConfig["fontWeight"],
-					})
-				}
+				value={String(cfg.fontWeight)}
+				options={fontWeightOptionsFor(cfg.fontFamily, cfg.fontWeight).map(
+					(w) => ({ value: String(w.value), label: w.label })
+				)}
+				onChange={(w) => onChange({ fontWeight: Number(w) })}
 				selectClassName="flex-1"
 			/>
 			{cfg.fontWeight !== themeDefaults.fontWeight && (

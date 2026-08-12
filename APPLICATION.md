@@ -1347,18 +1347,50 @@ a vertical bar the labels align within the label column. The default
 (unset) is the historical look — centered under a horizontal bar,
 left beside a vertical one.
 
-**Swatch outline** (Color Swatch Shape subsection, below a divider):
-a color + width pair drawn as a border around every color swatch —
-keeps pale swatches (e.g. the white midpoint of a diverging gradient)
-visible against the legend background. Width is the switch: 0 (the
-default) draws no outline, so there's no separate toggle. The color
-pipes in from the marks' outline color (Color menu → Outline), falling
-back to `#cccccc`; picking a color stores an override and "reset"
-returns to the piped-in value. Both controls are always visible while
-the group shows. The group hides — and the stored setting goes inert —
-whenever the outline-color channel is encoded, because the swatch
-strokes are then a faithful key for that encoding. The area/radar
-split-outline (line-color borders) also wins over it per swatch.
+**Swatches** subsection: every legend section that renders discrete
+swatches gets a full control group — glyph picker (default rectangle /
+line segment / the shape palette), Swatch size, Outline color, and
+Outline width. One group appears per rendered section, keyed by the
+channel that leads it: Color, Outline color, Saturation, Brightness,
+Pattern, Opacity, and Rug. Channels sharing a field collapse into one
+combined legend section, so only the leading channel's group shows (a
+pattern mapped to hue's field is covered by the Color group; mapped to
+its own field, it gets a Pattern group). Saturation / brightness never
+have standalone legends — their group appears only when they lead a
+shared-field section that has no color channel. Sections that render
+per-category shape glyphs (a shape encoding on the same field) or a
+continuous gradient bar / ramp offer no group; a quantitative color
+section that other group channels share (and so falls back to
+composed swatches even in "bar" style) does.
+
+**Swatch size** (px, radius-like, default 5) applies to every swatch
+form: it's the symbol radius for a chosen glyph and proportionally
+scales the default rectangle (including pattern-filled rectangles), so
+the input is always live — not glyph-only.
+
+**Swatch color** row: the Opacity / Saturation / Brightness groups
+additionally host the standalone-swatch color (their swatches have no
+hue scale to inherit from). It edits the same shared
+`auxLegendSwatchColor` the Length / Angle / Size subsection uses, and
+resets to the theme's default. Because field-mapped opacity is covered
+here, it drops out of that separate subsection — which now surfaces
+only for length / angle / area, plus measure-mapped (Count / Density)
+opacity, whose ramp has no Swatches group.
+
+**Swatch outline** (per-section Outline color + Outline width rows):
+a border drawn around that section's swatches — keeps pale swatches
+(e.g. the white midpoint of a diverging gradient) visible against the
+legend background. Width is the switch: 0 (the default) draws no
+outline, so there's no separate toggle. The color pipes in from the
+marks' outline color (Color menu → Outline), falling back to
+`#cccccc`; picking a color stores an override and "reset" returns to
+the piped-in value. A visual saved before per-section outlines had one
+global color + width pair; those legacy fields still apply to every
+section until a per-section value overrides them. The rows hide — and
+the stored settings go inert — whenever the outline-color channel is
+encoded, because the swatch strokes are then a faithful key for that
+encoding. The area/radar split-outline (line-color borders) also wins
+over it per swatch.
 
 For **left-aligned** legend section titles, the title text indents to
 line up with the LABEL text below (past the swatch + gap), not the

@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest"
 import {
 	layerFacetOverride,
 	legendChannelHiddenByDefault,
+	legendSwatchOutlineColor,
+	legendSwatchOutlineWidth,
+	legendSwatchShape,
+	legendSwatchSize,
 	migrateLabelsConfig,
 	resolveLegendHidden,
 } from "./labelsConfig"
@@ -206,5 +210,79 @@ describe("resolveLegendHidden", () => {
 		expect(legendChannelHiddenByDefault("hue", { areaHiddenByDefault: true })).toBe(
 			false
 		)
+	})
+})
+
+describe("legendSwatchShape / legendSwatchSize", () => {
+	it("resolves per-channel entries for every swatch-shape channel", () => {
+		const cfg = {
+			swatchShapes: {
+				hue: 1,
+				pattern: 2,
+				opacity: "line",
+				saturation: 3,
+				brightness: 4,
+				rug: "line",
+			},
+			swatchSizes: { pattern: 9 },
+		} as const
+		expect(legendSwatchShape(cfg, "pattern")).toBe(2)
+		expect(legendSwatchShape(cfg, "opacity")).toBe("line")
+		expect(legendSwatchShape(cfg, "saturation")).toBe(3)
+		expect(legendSwatchShape(cfg, "brightness")).toBe(4)
+		expect(legendSwatchSize(cfg, "pattern")).toBe(9)
+	})
+
+	it("untouched channels resolve to the default (null shape / null size)", () => {
+		expect(legendSwatchShape({}, "pattern")).toBe(null)
+		expect(legendSwatchShape({}, "saturation")).toBe(null)
+		expect(legendSwatchSize({}, "opacity")).toBe(null)
+	})
+
+	it("hue — and only hue — falls back to the legacy global fields", () => {
+		const legacy = { hueLegendSwatchShape: 5, hueLegendSwatchSize: 12 }
+		expect(legendSwatchShape(legacy, "hue")).toBe(5)
+		expect(legendSwatchSize(legacy, "hue")).toBe(12)
+		expect(legendSwatchShape(legacy, "pattern")).toBe(null)
+		expect(legendSwatchSize(legacy, "brightness")).toBe(null)
+		// A per-channel hue entry supersedes the legacy global.
+		expect(
+			legendSwatchShape({ ...legacy, swatchShapes: { hue: 0 } }, "hue")
+		).toBe(0)
+	})
+})
+
+describe("legendSwatchOutlineColor / legendSwatchOutlineWidth", () => {
+	it("per-channel entries win; unset resolves to null/none", () => {
+		const cfg = {
+			swatchOutlineColors: { pattern: "#ff0000" },
+			swatchOutlineWidths: { pattern: 2 },
+		}
+		expect(legendSwatchOutlineColor(cfg, "pattern")).toBe("#ff0000")
+		expect(legendSwatchOutlineWidth(cfg, "pattern")).toBe(2)
+		expect(legendSwatchOutlineColor(cfg, "opacity")).toBe(null)
+		expect(legendSwatchOutlineWidth(cfg, "opacity")).toBe(null)
+	})
+
+	it("legacy GLOBAL color/width fall back for EVERY channel (pre-per-section visuals)", () => {
+		const legacy = { swatchOutlineColor: "#00ff00", swatchOutlineWidth: 3 }
+		for (const ch of ["hue", "pattern", "opacity", "saturation", "rug"] as const) {
+			expect(legendSwatchOutlineColor(legacy, ch)).toBe("#00ff00")
+			expect(legendSwatchOutlineWidth(legacy, ch)).toBe(3)
+		}
+	})
+
+	it("an explicit per-channel null/0 overrides a set global (reset-to-auto / hide)", () => {
+		const cfg = {
+			swatchOutlineColor: "#00ff00",
+			swatchOutlineWidth: 3,
+			swatchOutlineColors: { pattern: null },
+			swatchOutlineWidths: { pattern: 0 },
+		}
+		expect(legendSwatchOutlineColor(cfg, "pattern")).toBe(null)
+		expect(legendSwatchOutlineWidth(cfg, "pattern")).toBe(0)
+		// Other channels keep the global.
+		expect(legendSwatchOutlineColor(cfg, "opacity")).toBe("#00ff00")
+		expect(legendSwatchOutlineWidth(cfg, "opacity")).toBe(3)
 	})
 })

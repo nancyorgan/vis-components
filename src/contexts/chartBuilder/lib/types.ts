@@ -343,6 +343,32 @@ export type Theme = {
 	titleFontBold?: boolean
 	titleFontItalic?: boolean
 	titleFontUnderline?: boolean
+	/** Numeric title font weight. Wins over the legacy `titleFontBold` flag
+	 * when set; themes saved before the Weight picker existed carry only the
+	 * boolean. Doubles as the fallback for the three per-slot weights below,
+	 * which refine individual title tiers when set. */
+	titleFontWeight?: number
+	subtitleFontWeight?: number
+	/** Axis titles + facet titles (the `secondary` title tier). */
+	axisTitleFontWeight?: number
+	/** Legend section titles — same size tier as axis titles, weight only. */
+	legendTitleFontWeight?: number
+	/** Per-slot font families for the subtitle / legend section titles.
+	 * Unset falls back to the shared `titleFontFamily` (which axis and facet
+	 * titles always follow). */
+	subtitleFontFamily?: string
+	legendTitleFontFamily?: string
+	/** Default alignments for the chart title / subtitle / legend section
+	 * titles. Unset = "center". Per-visual alignment edits override these. */
+	titleAlignment?: "left" | "center" | "right"
+	subtitleAlignment?: "left" | "center" | "right"
+	legendTitleAlignment?: "left" | "center" | "right"
+	/** Legend entry-label font overrides. Unset falls back to the shared
+	 * text font (axis tick labels), which legend labels historically shared. */
+	legendTextFontFamily?: string
+	legendTextFontSize?: number
+	legendTextFontWeight?: number
+	legendTextColor?: string
 	textFontFamily: string
 	textFontSize: number
 	textFontColor: string
@@ -351,6 +377,9 @@ export type Theme = {
 	textFontBold?: boolean
 	textFontItalic?: boolean
 	textFontUnderline?: boolean
+	/** Numeric text font weight. Wins over the legacy `textFontBold` flag
+	 * when set. */
+	textFontWeight?: number
 	// Named palettes
 	categoricalPalettes: SavedCategoricalPalette[]
 	/** Discrete palettes applied when a user maps an ORDINAL field to hue.
@@ -404,13 +433,17 @@ export type Theme = {
 	// in the sidebar override these.
 	textEncodingFontFamily: string
 	textEncodingFontSize: number
-	textEncodingFontWeight: 400 | 500 | 600 | 700
+	textEncodingFontWeight: number
 	textEncodingColor: string
 	// Data label defaults — seed the Data Labels layer's font when a chart
 	// is created or re-themed. Optional: themes saved before these fields
 	// existed fall back to the built-in defaults (11pt / 500 / plain).
 	dataLabelsFontSize?: number
-	dataLabelsFontWeight?: 400 | 500 | 600 | 700
+	dataLabelsFontWeight?: number
+	dataLabelsFontFamily?: string
+	/** Default single-color for data labels (the fallback when no palette /
+	 * gradient / per-value override applies). */
+	dataLabelsColor?: string
 	dataLabelsItalic?: boolean
 	dataLabelsUnderline?: boolean
 	// Distribution overlay defaults — stroke + fill used by the violin /

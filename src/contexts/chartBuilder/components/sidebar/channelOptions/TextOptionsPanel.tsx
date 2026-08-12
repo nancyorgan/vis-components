@@ -1,6 +1,9 @@
 import { useAtom, useAtomValue } from "jotai"
 import { type TextConfig } from "../../../lib/channelConfig"
-import { FONT_FAMILY_OPTIONS } from "../../../lib/labelsConfig"
+import {
+	FONT_FAMILY_OPTIONS,
+	fontWeightOptionsFor,
+} from "../../../lib/labelsConfig"
 import { textConfigFromTheme } from "../../../lib/themeConfig"
 import { parseValue } from "../../../lib/scales"
 import type { FieldType } from "../../../lib/types"
@@ -35,15 +38,6 @@ const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
 	value: opt.value,
 	label: opt.label,
 }))
-
-/** SelectInput is generic over a string union — font weights are
- *  numeric, so we stringify them at the boundary and convert back in
- *  onChange. */
-const WEIGHT_OPTIONS = (["400", "500", "600", "700"] as const).map((w) => ({
-	value: w,
-	label: w,
-}))
-type WeightOptionValue = (typeof WEIGHT_OPTIONS)[number]["value"]
 
 const effectiveType = (
 	inferred: FieldType | undefined,
@@ -172,13 +166,11 @@ export const TextOptionsPanel = () => {
 				<SelectInput
 					label="Weight"
 					labelClassName={LABEL_COL}
-					value={String(cfg.fontWeight) as WeightOptionValue}
-					options={WEIGHT_OPTIONS}
-					onChange={(w) =>
-						updateCfg({
-							fontWeight: Number(w) as TextConfig["fontWeight"],
-						})
-					}
+					value={String(cfg.fontWeight)}
+					options={fontWeightOptionsFor(cfg.fontFamily, cfg.fontWeight).map(
+						(w) => ({ value: String(w.value), label: w.label })
+					)}
+					onChange={(w) => updateCfg({ fontWeight: Number(w) })}
 					selectClassName="flex-1"
 				/>
 				{cfg.fontWeight !== themeCfg.fontWeight && (
