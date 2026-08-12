@@ -4,6 +4,11 @@
 	"version": "1.0.0",
 	"private": true,
 	"description": "Embeddable, data-centric visualization components",
+	"license": "SEE LICENSE IN LICENSE",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nancyorgan/vis-components.git"
+	},
 	"packageManager": "pnpm@10.24.0",
 	"scripts": {
 		"dev": "vite",

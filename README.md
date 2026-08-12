@@ -45,3 +45,10 @@ pushes to `main` and on pull requests.
 
 [APPLICATION.md](APPLICATION.md) is the behavioral source of truth for how the
 editor works; [LAYOUT.md](LAYOUT.md) documents the layout math.
+
+## License
+
+Licensed under the [O'Saasy License](LICENSE) — free to use, copy, modify, and
+redistribute, except as a competing hosted/SaaS offering of the software
+itself. Bundled open-source dependencies are credited in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
