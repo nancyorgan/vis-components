@@ -1285,19 +1285,32 @@ export const Legend = ({
 									// outline also stays inert while the outline-color
 									// encoding is mapped — those strokes are a faithful
 									// key for that encoding. Resolved per section (keyed
-									// like the swatch shape, legacy globals as fallback);
-									// color pipes from the marks' outline color (Color
-									// menu → Outline) unless the user picked one; same
-									// chain the panel displays.
+									// like the swatch shape, legacy globals as fallback).
+									// Auto color depends on what the swatch DEPICTS:
+									// sections whose fill is the hue scale (a mark
+									// stand-in) pipe the marks' outline color (Color
+									// menu → Outline) so the legend matches the chart;
+									// aux-painted sections (opacity / saturation /
+									// brightness lead — fill = the theme's legend-swatch
+									// color) stroke with the theme's legend-swatch
+									// outline instead, since a mark stroke has nothing
+									// to do with those swatches. Same chains the panel
+									// displays.
 									const key = keyChannel as SwatchShapeChannel
 									const width = legendSwatchOutlineWidth(legendCfg, key) ?? 0
+									const auxLed =
+										key === "opacity" ||
+										key === "saturation" ||
+										key === "brightness"
 									return width > 0 && !encodings.outlineHue?.field
 										? {
 												color:
 													legendSwatchOutlineColor(legendCfg, key) ??
-													configs.shape?.outlineColor ??
-													theme.outlineColor ??
-													"#cccccc",
+													(auxLed
+														? resolvedAuxSwatchStroke
+														: (configs.shape?.outlineColor ??
+															theme.outlineColor ??
+															"#cccccc")),
 												width,
 											}
 										: null

@@ -512,26 +512,13 @@ export const LegendPanel = () => {
 		"opacity",
 	] as const
 	type SwatchGroupChannel = (typeof swatchGroupChannels)[number]
-	// Mapped + visible. Saturation / brightness have no "Legends shown"
-	// toggle (they aren't legend candidates), so mapped = visible for them.
+	// Mapped + visible (per the "Legends shown" toggles).
 	const swatchChannelActive = (ch: SwatchGroupChannel): boolean =>
-		ch === "saturation" || ch === "brightness"
-			? !!encodings[ch]?.field
-			: mappedLegendChannels.includes(ch) && !effHidden[ch]
+		mappedLegendChannels.includes(ch) && !effHidden[ch]
 	const leadsSwatchSection = (ch: SwatchGroupChannel): boolean => {
 		if (!swatchChannelActive(ch)) return false
 		const field = encodings[ch]?.field
 		if (!field) return false
-		// Saturation / brightness never emit a section alone — they only
-		// surface inside a combined section on a legend candidate's field.
-		if (
-			(ch === "saturation" || ch === "brightness") &&
-			(!combineLegendSections ||
-				!mappedLegendChannels.some(
-					(c) => !effHidden[c] && encodings[c]?.field === field
-				))
-		)
-			return false
 		// With combining off every channel emits its own section.
 		if (!combineLegendSections) return true
 		// A visible shape channel on the same field turns the combined
@@ -1424,10 +1411,14 @@ export const LegendPanel = () => {
 								 *  while the outline-color channel is encoded — mapped
 								 *  outline colors own the swatch strokes and this
 								 *  setting is inert (the renderer ignores it too).
-								 *  Width 0 (the default) draws no outline; the color
+								 *  Width 0 (the default) draws no outline. The color
 								 *  seeds from the marks' outline color (Color menu →
 								 *  Outline) so the legend matches the chart when the
-								 *  user turns the width up. */}
+								 *  user turns the width up — except aux-painted
+								 *  sections (opacity / saturation / brightness), whose
+								 *  swatches aren't mark stand-ins: those seed from the
+								 *  theme's legend-swatch outline, matching the
+								 *  renderer. */}
 								{!outlineHueField && (
 									<>
 										<div className="flex items-center gap-2">
@@ -1436,9 +1427,13 @@ export const LegendPanel = () => {
 												labelClassName={LABEL_COL}
 												value={
 													legendSwatchOutlineColor(merged, ch) ??
-													configs.shape?.outlineColor ??
-													theme.outlineColor ??
-													"#cccccc"
+													(ch === "opacity" ||
+													ch === "saturation" ||
+													ch === "brightness"
+														? resolvedAuxSwatchStroke
+														: (configs.shape?.outlineColor ??
+															theme.outlineColor ??
+															"#cccccc"))
 												}
 												onChange={(color) =>
 													setSwatchOutlineColor(ch, color)

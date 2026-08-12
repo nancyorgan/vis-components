@@ -149,14 +149,21 @@ export const CHANNELS: Record<EncodingChannel, ChannelDef> = {
 		id: "saturation",
 		label: "Saturation",
 		accepts: ALL,
-		legendCandidate: false,
+		// On its own field, saturation gets a legend section (swatches =
+		// the aux swatch color modulated by each category's level), same as
+		// opacity. Sharing a field with another group channel still folds it
+		// into that field's combined section.
+		legendCandidate: true,
+		legendOrder: 4.1,
 		shelfOrder: 10,
 	},
 	brightness: {
 		id: "brightness",
 		label: "Brightness",
 		accepts: ALL,
-		legendCandidate: false,
+		// See saturation above — same solo-section behavior.
+		legendCandidate: true,
+		legendOrder: 4.2,
 		shelfOrder: 11,
 	},
 	pattern: {

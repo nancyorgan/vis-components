@@ -214,6 +214,8 @@ export type LegendChannel =
 	| "shape"
 	| "pattern"
 	| "opacity"
+	| "saturation"
+	| "brightness"
 	| "length"
 	| "angle"
 	// Color-slot legends: not encoding channels, so they're NOT in
@@ -241,17 +243,13 @@ export const LEGEND_CHANNELS: EncodingLegendChannel[] = [
 	"shape",
 	"pattern",
 	"opacity",
+	"saturation",
+	"brightness",
 	"length",
 	"angle",
 ]
 
-// Saturation / brightness aren't legend channels (no section of their own),
-// but they can KEY a shared-field combined section's swatch-shape picker, so
-// the panel needs display names for them too.
-export const LEGEND_FRIENDLY_NAME: Record<
-	LegendChannel | "saturation" | "brightness",
-	string
-> = {
+export const LEGEND_FRIENDLY_NAME: Record<LegendChannel, string> = {
 	hue: "Color",
 	outlineHue: "Outline color",
 	area: "Size",

@@ -7,7 +7,11 @@ import {
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_SHAPE_CONFIG,
 } from "../../lib/channelConfig"
-import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+import {
+	DEFAULT_LABELS_CONFIG,
+	DEFAULT_LEGEND_CONFIG,
+	type LegendConfig,
+} from "../../lib/labelsConfig"
 import { applyHueScale, makeHueScale } from "../../lib/scales"
 import { emptyEncodings, type Dataset } from "../../lib/types"
 import {
@@ -17,6 +21,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
+	currentLegendConfigAtom,
 	datasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
@@ -1546,6 +1551,179 @@ describe("CombinedGroupLegend — standalone pattern section", () => {
 		expect(
 			spans.every(
 				(s) => d3Rgb(s.style.backgroundColor).formatHex() === "#00ff00"
+			)
+		).toBe(true)
+	})
+})
+
+describe("Legend — solo saturation / brightness sections", () => {
+	// Full-Legend mount: saturation / brightness on their OWN field now emit
+	// a legend section (they're legend candidates, routed through
+	// CombinedGroupLegend like solo opacity). Before this they rendered no
+	// legend at all — the only way to key the shades was a ghost encoding.
+	const DATASET_ID = "ds-solo-modulation-legend-test"
+	const buildDataset = (): Dataset => ({
+		id: DATASET_ID,
+		name: "tiers",
+		fields: [
+			{ name: "Tier", inferredType: "categorical" },
+			{ name: "Value", inferredType: "quantitative" },
+		],
+		versions: [
+			{
+				id: "v1",
+				filename: "tiers.csv",
+				rows: [
+					{ Tier: "A", Value: "1" },
+					{ Tier: "B", Value: "2" },
+					{ Tier: "C", Value: "3" },
+				],
+				createdAt: 0,
+			},
+		],
+		latestVersionId: "v1",
+		createdAt: 0,
+	})
+
+	const installInMemoryLocalStorage = (): Map<string, string> => {
+		const store = new Map<string, string>()
+		const fakeStorage: Storage = {
+			get length() {
+				return store.size
+			},
+			clear: () => store.clear(),
+			getItem: (k) => (store.has(k) ? store.get(k)! : null),
+			key: (i) => [...store.keys()][i] ?? null,
+			removeItem: (k) => {
+				store.delete(k)
+			},
+			setItem: (k, v) => {
+				store.set(k, String(v))
+			},
+		}
+		Object.defineProperty(window, "localStorage", {
+			value: fakeStorage,
+			writable: true,
+			configurable: true,
+		})
+		Object.defineProperty(globalThis, "localStorage", {
+			value: fakeStorage,
+			writable: true,
+			configurable: true,
+		})
+		return store
+	}
+
+	const mountLegend = (opts?: {
+		channel?: "saturation" | "brightness"
+		legend?: Partial<LegendConfig>
+		configs?: typeof EMPTY_CHANNEL_CONFIGS
+	}) => {
+		const channel = opts?.channel ?? "brightness"
+		const channelConfigs = opts?.configs ?? EMPTY_CHANNEL_CONFIGS
+		const store = installInMemoryLocalStorage()
+		const encodings = {
+			...emptyEncodings(),
+			[channel]: { field: "Tier" },
+		}
+		const legendCfg: LegendConfig = {
+			...DEFAULT_LEGEND_CONFIG,
+			...(opts?.legend ?? {}),
+		}
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		store.set(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify(channelConfigs)
+		)
+		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, channelConfigs)
+			snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+			snap.set(currentLegendConfigAtom, legendCfg)
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+
+	const swatchColors = (container: HTMLElement): string[] =>
+		[...container.querySelectorAll<HTMLElement>("span")]
+			.filter((s) => s.style.backgroundColor !== "")
+			.map((s) => s.style.backgroundColor)
+
+	it("brightness on its own field emits a section with per-category modulated swatches", () => {
+		const { container } = mountLegend()
+		expect(container.textContent).toContain("Tier")
+		const colors = swatchColors(container)
+		expect(colors.length).toBe(3)
+		// Per-category brightness modulation → the shades must differ.
+		expect(new Set(colors).size).toBe(3)
+	})
+
+	it("saturation on its own field emits a section too", () => {
+		const { container } = mountLegend({ channel: "saturation" })
+		expect(container.textContent).toContain("Tier")
+		expect(swatchColors(container).length).toBe(3)
+	})
+
+	it("the aux swatch color drives the shades", () => {
+		const base = mountLegend()
+		const tinted = mountLegend({
+			legend: { auxLegendSwatchColor: "#00ff00" },
+		})
+		expect(swatchColors(tinted.container)).not.toEqual(
+			swatchColors(base.container)
+		)
+	})
+
+	it("the 'Legends shown' hide toggle removes the section", () => {
+		const { container } = mountLegend({
+			legend: { hidden: { brightness: true } },
+		})
+		expect(container.textContent ?? "").not.toContain("Tier")
+	})
+
+	it("swatch outline defaults to the legend-swatch outline, NOT the marks' outline", () => {
+		// Regression (Nancy report): with a legacy global outline width set,
+		// the new sat/bri sections piped the MARKS' outline color (Color menu
+		// → Outline / theme.outlineColor) into their swatch borders — a red
+		// mark stroke painted red rings on swatches that aren't mark
+		// stand-ins. Aux-painted sections must stroke with the legend-swatch
+		// outline chain (auxLegendSwatchStroke ?? theme.legendSwatchStroke)
+		// instead.
+		const { container } = mountLegend({
+			legend: {
+				swatchOutlineWidth: 2,
+				auxLegendSwatchStroke: "#123456",
+			},
+			configs: {
+				...EMPTY_CHANNEL_CONFIGS,
+				shape: { ...DEFAULT_SHAPE_CONFIG, outlineColor: "#f52929" },
+			},
+		})
+		const bordered = [
+			...container.querySelectorAll<HTMLElement>("span"),
+		].filter((s) => s.style.borderColor !== "")
+		expect(bordered.length).toBe(3)
+		expect(
+			bordered.every(
+				(s) => d3Rgb(s.style.borderColor).formatHex() === "#123456"
 			)
 		).toBe(true)
 	})
