@@ -163,6 +163,41 @@ export const DataLabelsPanel = () => {
 		p: Partial<EndpointLabelOverrides>
 	) => updateCfg({ [key]: { ...(merged[key] ?? {}), ...p } })
 
+	// "Changed" dot for the Position Adjustment and Alignment subsection —
+	// lights when ANY control inside deviates from its default. Mode-gated
+	// values (polar nudges, bar position, endpoint overrides) only count when
+	// their controls are visible: a stored deviation the current panel can't
+	// clear must not light the dot.
+	const endpointPositionEdited = (o: EndpointLabelOverrides | undefined) =>
+		o?.alignment != null || o?.xOffset != null || o?.yOffset != null
+	const positionChanged =
+		(merged.alignment ?? "center") !== "center" ||
+		merged.wrapText === true ||
+		merged.xOffset !== 0 ||
+		merged.yOffset !== 0 ||
+		(isBarMode && (merged.barLabelPosition ?? "center") !== "center") ||
+		(isPolarMode &&
+			((merged.polarLabelAngle ?? 0) !== 0 ||
+				(merged.polarLabelRadius ?? 100) !== 100)) ||
+		(splitEndpoints &&
+			(endpointPositionEdited(merged.firstLabel) ||
+				endpointPositionEdited(merged.lastLabel)))
+
+	// Sibling subsection dots, same model: any visible control non-default.
+	const selectionChanged =
+		effectiveLabelPoints(merged) !== "all" || merged.avoidOverlaps === true
+	const textPositionChanged = (merged.arcWrapLevels ?? []).length > 0
+	// Text Properties compares against the THEME's data-label defaults — the
+	// same baseline the panel's reset links restore.
+	const textPropertiesChanged =
+		merged.fontFamily !== themeDefaults.fontFamily ||
+		merged.fontWeight !== themeDefaults.fontWeight ||
+		(merged.italic ?? false) !== (themeDefaults.italic ?? false) ||
+		(merged.underline ?? false) !== (themeDefaults.underline ?? false)
+	// Every other background control is gated behind the toggle, so the
+	// toggle alone decides the dot (stored-but-hidden values don't count).
+	const textBackgroundChanged = merged.textBackground === true
+
 	const setField = (channel: DataLabelsChannel, fieldName: string) => {
 		// Reserved option values = the hierarchy-derived sources. Writing
 		// the slot fresh clears the other member (field ↔ measureSource
@@ -464,7 +499,10 @@ export const DataLabelsPanel = () => {
 			 *  which the tree renderers don't draw). */}
 			{!isTreeMode && (
 			<>
-			<CollapsibleSubsection title="Label selection and overlap">
+			<CollapsibleSubsection
+				title="Label selection and overlap"
+				changed={selectionChanged}
+			>
 				<div className="flex flex-col gap-2">
 				<SelectInput
 					label="Which labels"
@@ -489,7 +527,10 @@ export const DataLabelsPanel = () => {
 				</div>
 			</CollapsibleSubsection>
 
-			<CollapsibleSubsection title="Position Adjustment and Alignment">
+			<CollapsibleSubsection
+				title="Position Adjustment and Alignment"
+				changed={positionChanged}
+			>
 				<div className="flex flex-col gap-2">
 				{splitEndpoints ? (
 					<div className="flex flex-col gap-2">
@@ -694,7 +735,7 @@ export const DataLabelsPanel = () => {
 			 *  default inside-the-rim placement and wrapping the group name
 			 *  around the OUTSIDE of the circle on an arc. */}
 			{isPackedMode && (
-				<CollapsibleSubsection title="Text Position">
+				<CollapsibleSubsection title="Text Position" changed={textPositionChanged}>
 					<TextPositionPanel
 						cfg={merged}
 						onChange={updateCfg}
@@ -703,7 +744,7 @@ export const DataLabelsPanel = () => {
 				</CollapsibleSubsection>
 			)}
 
-			<CollapsibleSubsection title="Text Properties">
+			<CollapsibleSubsection title="Text Properties" changed={textPropertiesChanged}>
 				<TextPropertiesPanel
 					cfg={merged}
 					onChange={updateCfg}
@@ -712,7 +753,7 @@ export const DataLabelsPanel = () => {
 			</CollapsibleSubsection>
 
 			{!isTreeMode && (
-			<CollapsibleSubsection title="Text Background">
+			<CollapsibleSubsection title="Text Background" changed={textBackgroundChanged}>
 				<TextBackgroundPanel
 					cfg={merged}
 					onChange={updateCfg}

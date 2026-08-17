@@ -148,7 +148,12 @@ export const HuePanel = ({
 					}
 				>
 					{multiFields.map((name) => (
-						<CollapsibleSubsection key={name} title={name} boxed={false}>
+						<CollapsibleSubsection
+							key={name}
+							title={name}
+							boxed={false}
+							changed={cfg.fieldColors?.[name] != null}
+						>
 							<ColorSlotControls
 								labelPrefix={name}
 								slotCfg={cfg.fieldColors?.[name]}
@@ -290,7 +295,11 @@ const TextColorRulesRow = ({
 	const addRule = () =>
 		update([...display, { condition: "", color: cfg.color }])
 	return (
-		<CollapsibleSubsection title="Text color rules" boxed={false}>
+		<CollapsibleSubsection
+			title="Text color rules"
+			boxed={false}
+			changed={stored.length > 0}
+		>
 			{display.map((rule, i) => (
 				<div
 					// Index key is stable here: rules are ordered, identity == position

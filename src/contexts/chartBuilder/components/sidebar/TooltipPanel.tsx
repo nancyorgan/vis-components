@@ -100,9 +100,27 @@ export const TooltipPanel = () => {
 	// Stored 0–1; surfaced as a 0–100 percentage in the UI.
 	const hoverFadePercent = Math.round((merged.hoverFadeAmount ?? 0.85) * 100)
 
+	// Subsection "changed" dots — any control non-default. Controls nested
+	// behind an opt-in toggle (custom HTML boxes, recolor/outline styling)
+	// don't need their own checks: turning the toggle on is itself the
+	// deviation that lights the dot.
+	const tooltipsChanged =
+		merged.enabled !== DEFAULT_TOOLTIP_CONFIG.enabled ||
+		(merged.enabled &&
+			(merged.visibleFields.length > 0 || !!merged.useCustomHtml))
+	const hoverChanged =
+		!hoverEnabled ||
+		!legendHighlight ||
+		hoverRecolor ||
+		hoverOutline ||
+		!hoverFade ||
+		(hoverFade &&
+			(merged.hoverFadeAmount ?? 0.85) !==
+				DEFAULT_TOOLTIP_CONFIG.hoverFadeAmount)
+
 	return (
 		<div className="vc-option-panel">
-			<CollapsibleSubsection title="Tooltips" defaultOpen>
+			<CollapsibleSubsection title="Tooltips" defaultOpen changed={tooltipsChanged}>
 			<div className="flex flex-col gap-2">
 			<label className="flex items-center gap-2 text-sm">
 				<input
@@ -221,7 +239,7 @@ export const TooltipPanel = () => {
 			)}
 			</div>
 			</CollapsibleSubsection>
-			<CollapsibleSubsection title="Hover" defaultOpen>
+			<CollapsibleSubsection title="Hover" defaultOpen changed={hoverChanged}>
 				<div className="flex flex-col gap-2">
 					<label className="flex items-center gap-2 text-sm">
 						<input

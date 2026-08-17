@@ -34,9 +34,19 @@ export const AestheticsPanel = () => {
 	const setAspect = (next: AspectRatioConfig | null) =>
 		setConfigs((prev) => ({ ...prev, aspectRatio: next ?? undefined }))
 
+	// Subsection "changed" dots. Fresh charts seed backgroundColor from the
+	// theme (channelConfigsFromTheme), so the theme is the background's
+	// baseline; the rest have fixed defaults (fit / no ratio / dataset order).
+	// Aspect length/width are gated behind the enable toggle, so the toggle
+	// alone decides that dot.
+	const backgroundChanged = current !== themeDefault
+	const canvasChanged = scrollMode !== "fit"
+	const aspectChanged = aspect?.enabled === true
+	const drawOrderChanged = drawOrder !== null
+
 	return (
 		<>
-			<CollapsibleSubsection title="Chart background">
+			<CollapsibleSubsection title="Chart background" changed={backgroundChanged}>
 				<div className="flex flex-col gap-2">
 					<label className="flex items-center gap-2 text-sm">
 						<input
@@ -78,7 +88,7 @@ export const AestheticsPanel = () => {
 					)}
 				</div>
 			</CollapsibleSubsection>
-			<CollapsibleSubsection title="Canvas size">
+			<CollapsibleSubsection title="Canvas size" changed={canvasChanged}>
 				<div className="flex flex-col gap-1">
 					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
 						<input
@@ -101,7 +111,7 @@ export const AestheticsPanel = () => {
 					</p>
 				</div>
 			</CollapsibleSubsection>
-			<CollapsibleSubsection title="Aspect ratio">
+			<CollapsibleSubsection title="Aspect ratio" changed={aspectChanged}>
 				<div className="flex flex-col gap-2">
 					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
 						<input
@@ -149,7 +159,7 @@ export const AestheticsPanel = () => {
 					</p>
 				</div>
 			</CollapsibleSubsection>
-			<CollapsibleSubsection title="Draw order">
+			<CollapsibleSubsection title="Draw order" changed={drawOrderChanged}>
 				<div className="flex flex-col gap-2">
 					<label className="flex items-center gap-2 text-sm">
 						<span className={`shrink-0 ${LABEL_COL}`}>

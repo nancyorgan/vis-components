@@ -82,6 +82,30 @@ export const CaptionPanel = () => {
 
 	const update = (next: Partial<CaptionConfig>) => setCfg({ ...merged, ...next })
 
+	// Subsection "changed" dots — light when any control inside deviates from
+	// DEFAULT_CAPTION_CONFIG (the same baseline the reset links restore). Unit
+	// picks alone don't count: 0px and 0% (or auto) render identically, so a
+	// unit is only a change once its value is set.
+	const d = DEFAULT_CAPTION_CONFIG
+	const positionChanged = merged.offsetX !== d.offsetX || merged.offsetY !== d.offsetY
+	const sizeChanged = merged.width > 0 || merged.height > 0
+	const textChanged =
+		merged.fontFamily !== d.fontFamily ||
+		merged.fontSize !== d.fontSize ||
+		merged.fontWeight !== d.fontWeight ||
+		merged.align !== d.align ||
+		merged.textColor !== d.textColor ||
+		merged.padding !== d.padding
+	// Border color/width only count while the border toggle shows them.
+	const boxChanged =
+		merged.backgroundColor !== d.backgroundColor ||
+		merged.backgroundOpacity !== d.backgroundOpacity ||
+		merged.borderRadius !== d.borderRadius ||
+		merged.borderEnabled !== d.borderEnabled ||
+		(merged.borderEnabled &&
+			(merged.borderColor !== d.borderColor ||
+				merged.borderWidth !== d.borderWidth))
+
 	// The size the corresponding input should START stepping from. A stored
 	// value wins; otherwise we fall back to the current rendered box size
 	// (converted to percent when that unit is selected) so the first arrow
@@ -208,7 +232,7 @@ export const CaptionPanel = () => {
 						/>
 					</label>
 
-					<CollapsibleSubsection title="Adjust position">
+					<CollapsibleSubsection title="Adjust position" changed={positionChanged}>
 						<div className="flex flex-col gap-2">
 							<OffsetField
 								label="X"
@@ -230,14 +254,14 @@ export const CaptionPanel = () => {
 						</div>
 					</CollapsibleSubsection>
 
-					<CollapsibleSubsection title="Size">
+					<CollapsibleSubsection title="Size" changed={sizeChanged}>
 						<div className="flex flex-col gap-2">
 							{renderDimField("width", "Width")}
 							{renderDimField("height", "Height")}
 						</div>
 					</CollapsibleSubsection>
 
-					<CollapsibleSubsection title="Text">
+					<CollapsibleSubsection title="Text" changed={textChanged}>
 						<div className="flex flex-col gap-2">
 							<SelectInput
 								label="Font family"
@@ -328,7 +352,7 @@ export const CaptionPanel = () => {
 						</div>
 					</CollapsibleSubsection>
 
-					<CollapsibleSubsection title="Box">
+					<CollapsibleSubsection title="Box" changed={boxChanged}>
 						<div className="flex flex-col gap-2">
 							<div className="flex items-center gap-2">
 								<ColorInput
