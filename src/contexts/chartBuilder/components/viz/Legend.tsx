@@ -94,6 +94,11 @@ import {
 	symbolPath,
 } from "../../lib/scales"
 import type { HueScale } from "../../lib/scales"
+import {
+	GlyphMark,
+	resolveGlyph,
+	type ResolvedGlyph,
+} from "../../lib/customGlyphs"
 import { applyLevelOrder } from "../../lib/smartSort"
 import type { EncodingChannel, FieldType } from "../../lib/types"
 import {
@@ -2212,6 +2217,12 @@ const ComposedSwatch = ({
 	pattern: { bg: string; ink: string; paletteIdx: number; svgId: string } | null
 	shape?: {
 		idx: number
+		/** Resolved glyph for `idx` (built-in symbol OR the chart's custom
+		 * text / image glyph). Callers with access to the chart's
+		 * `shape.customGlyphs` pass this so custom shapes show in the
+		 * swatch; when absent the swatch draws the built-in symbol at
+		 * `idx`. */
+		glyph?: ResolvedGlyph
 		fill: string // "none" or a color
 		stroke: string
 		/** Glyph radius (px). Defaults to 5. Set by synthesized outline-only
@@ -2268,7 +2279,8 @@ const ComposedSwatch = ({
 		// "line" swatch shape has no point form here, so fall back to a circle.
 		const shapeIdx =
 			shape?.idx ?? (typeof swatchShape === "number" ? swatchShape : 0)
-		const symbolD = symbolPath(shapeIdx, r)
+		const pointGlyph: ResolvedGlyph =
+			shape?.glyph ?? { kind: "symbol", idx: shapeIdx }
 		const def = pattern
 			? PATTERN_PALETTE[pattern.paletteIdx % PATTERN_PALETTE.length]
 			: null
@@ -2315,8 +2327,9 @@ const ComposedSwatch = ({
 				/>
 				{showGlyph && (
 					<g transform={`translate(${cx}, ${cy})`}>
-						<path
-							d={symbolD}
+						<GlyphMark
+							glyph={pointGlyph}
+							r={r}
 							fill={shapeFill}
 							fillOpacity={shape?.fill === "none" && !pattern ? 0 : 1}
 							stroke={shapeStroke}
@@ -2356,8 +2369,9 @@ const ComposedSwatch = ({
 						strokeLinecap="round"
 					/>
 				) : (
-					<path
-						d={symbolPath(shape.idx, r)}
+					<GlyphMark
+						glyph={shape.glyph ?? { kind: "symbol", idx: shape.idx }}
+						r={r}
 						fill={shape.fill}
 						fillOpacity={shape.fill === "none" ? 0 : 1}
 						stroke={shape.stroke}
@@ -2804,6 +2818,7 @@ export const CombinedGroupLegend = ({
 			const strokeOverride = shapeStrokeOverrides[v]
 			shape = {
 				idx: shapeIndexer(v),
+				glyph: resolveGlyph(shapeIndexer(v), configs.shape?.customGlyphs),
 				fill: fillOverride === "none" ? "none" : (fillOverride ?? color),
 				stroke:
 					strokeOverride ??
@@ -2818,8 +2833,13 @@ export const CombinedGroupLegend = ({
 			// index, or "line"); falls back to the default shape. Fill follows the
 			// hue color when hue is also shown (matching the marks); outline-only
 			// (no hue) stays unfilled so the swatch reads as a stroke.
+			const glyphIdx =
+				typeof swatchShape === "number"
+					? swatchShape
+					: (configs.defaultShape ?? 0)
 			shape = {
-				idx: typeof swatchShape === "number" ? swatchShape : (configs.defaultShape ?? 0),
+				idx: glyphIdx,
+				glyph: resolveGlyph(glyphIdx, configs.shape?.customGlyphs),
 				fill: hasHue ? color : "none",
 				stroke: outlineRuleColor ?? outlineScaleColor ?? shapeOutlineColor,
 				size: swatchSize ?? undefined,
@@ -2851,13 +2871,15 @@ export const CombinedGroupLegend = ({
 		// color. Mirrors the quantitative shape-glyph path's size composition.
 		const areaR = areaRadiusFor(v)
 		if (areaR !== null) {
+			const areaGlyphIdx =
+				typeof swatchShape === "number"
+					? swatchShape
+					: (configs.defaultShape ?? 0)
 			shape = shape
 				? { ...shape, size: areaR }
 				: {
-						idx:
-							typeof swatchShape === "number"
-								? swatchShape
-								: (configs.defaultShape ?? 0),
+						idx: areaGlyphIdx,
+						glyph: resolveGlyph(areaGlyphIdx, configs.shape?.customGlyphs),
 						fill: hasHue ? color : noHueSwatchFill,
 						stroke:
 							outlineRuleColor ??
@@ -2914,6 +2936,7 @@ export const CombinedGroupLegend = ({
 			: null
 		const FALLBACK_R = 8
 		const shapeIdx = configs.defaultShape ?? 0
+		const shapeGlyph = resolveGlyph(shapeIdx, configs.shape?.customGlyphs)
 		const strokeColor =
 			configs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
 		const strokeWidth = configs.shape?.outlineWidth ?? 1
@@ -2954,8 +2977,9 @@ export const CombinedGroupLegend = ({
 								className="flex flex-shrink-0 flex-col items-center gap-1"
 							>
 								<svg width={cellW} height={cellH} aria-hidden="true">
-									<path
-										d={symbolPath(shapeIdx, r)}
+									<GlyphMark
+										glyph={shapeGlyph}
+										r={r}
 										transform={`translate(${cellW / 2},${cellH / 2})${deg ? ` rotate(${deg})` : ""}`}
 										fill={color}
 										fillOpacity={0.85 * defaultSwatchOpacity}
@@ -2990,8 +3014,9 @@ export const CombinedGroupLegend = ({
 								aria-hidden="true"
 								className="flex-shrink-0"
 							>
-								<path
-									d={symbolPath(shapeIdx, r)}
+								<GlyphMark
+									glyph={shapeGlyph}
+									r={r}
 									transform={`translate(${colWidth / 2},${rowH / 2})${deg ? ` rotate(${deg})` : ""}`}
 									fill={color}
 									fillOpacity={0.85 * defaultSwatchOpacity}
@@ -3503,8 +3528,9 @@ export const ShapeLegend = ({
 					aria-hidden="true"
 					className="flex-shrink-0"
 				>
-					<path
-						d={symbolPath(idx, 5)}
+					<GlyphMark
+						glyph={resolveGlyph(idx, configs.shape?.customGlyphs)}
+						r={5}
 						fill={fill}
 						fillOpacity={fill === "none" ? 0 : defaultSwatchOpacity}
 						stroke={stroke}

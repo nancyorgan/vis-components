@@ -61,9 +61,13 @@ import {
 	maxMeaningfulTicks,
 	overrideLinearDomain,
 	parseValue,
-	symbolPath,
 	type PositionScale,
 } from "../../lib/scales"
+import {
+	GlyphMark,
+	resolveGlyph,
+	type ResolvedGlyph,
+} from "../../lib/customGlyphs"
 import type { PlotInner } from "../../lib/plotLayout"
 import { splitPolylineAtRange } from "../../lib/dashRange"
 import { fitPolynomial, sampleRange } from "../../lib/regression"
@@ -923,9 +927,10 @@ const renderMarkPaths = (args: {
 				// which silently discarded the user's outline color.
 				const strokeForShape = mh.outline ?? m.shapeStroke
 				return (
-					<path
+					<GlyphMark
 						key={m.i}
-						d={m.d ?? ""}
+						glyph={m.glyph ?? { kind: "symbol", idx: 0 }}
+						r={m.r}
 						transform={`translate(${m.cx},${m.cy})${
 							m.rotation == null ? "" : ` rotate(${m.rotation})`
 						}`}
@@ -1030,7 +1035,9 @@ type Mark = {
 	 * `channelConfigs.shape.outlineColor` is only used as a final fallback
 	 * when this field is unexpectedly absent (e.g. legacy save shapes). */
 	shapeStroke: string
-	d: string | null
+	/** Resolved mark glyph (built-in symbol, custom text, or custom image);
+	 * `null` in length/angle line-segment mode where no glyph draws. */
+	glyph: ResolvedGlyph | null
 	line: { x1: number; y1: number; x2: number; y2: number } | null
 	patternId: string | null
 	markOpacity: number
@@ -1145,7 +1152,10 @@ const buildMarks = ({
 				shapeIdx && shape
 					? shapeIdx(row[shape.name])
 					: (channelConfigs.defaultShape ?? DEFAULT_SHAPE)
-			const d = lenValue === null ? symbolPath(shapeIndex, r) : null
+			const glyph =
+				lenValue === null
+					? resolveGlyph(shapeIndex, channelConfigs.shape?.customGlyphs)
+					: null
 			// Per-category fill / stroke overrides. Keyed by the SHAPE
 			// encoding's value when it's mapped, so users can give one
 			// category a hollow look (`"none"`) or pair a light fill with a
@@ -1215,7 +1225,7 @@ const buildMarks = ({
 				fill,
 				shapeFill,
 				shapeStroke,
-				d,
+				glyph,
 				line,
 				patternId,
 				markOpacity,
@@ -1331,6 +1341,13 @@ const renderConnectionLines = (
 		(cfg.customDashPattern
 			? sanitizeCustomDasharray(cfg.customDashPattern)
 			: null) ?? dashArrayFor(defaultDash)
+	// "Blank" dash pick: within the range window the line doesn't draw at
+	// all — a true gap, or the gap-color underlay alone when "Fill dash
+	// gaps" is on. A parsed custom dasharray wins over the swatch pick
+	// (defaultDashArray is non-null then), same precedence as the other
+	// swatches; without an active range blank is inert (falls through to
+	// solid below, since its dasharray is null).
+	const defaultBlank = defaultDash === "blank" && defaultDashArray === null
 	// Dash-gap color inputs — the same palette-paired pattern-ink options
 	// area patterns resolve their ink from (see `resolveDashGapColor`).
 	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
@@ -1442,15 +1459,18 @@ const renderConnectionLines = (
 			// palette-paired gap color, solid, same thickness) when `gapFill`
 			// is on so the gaps between dashes show as the paired color and
 			// the line reads as one connected two-color line; with `gapFill`
-			// off the gaps stay empty (truly dashed).
+			// off the gaps stay empty (truly dashed). `blank` = the segment is
+			// ALL gap: no top line at all, just the underlay when `gapFill` is
+			// on (nothing otherwise) — the range window's "Blank" pick.
 			const renderSegment = (
 				keyBase: string,
 				pts: Array<{ x: number; y: number }>,
 				dashArray: string | null,
-				patternValue: string | null = null
+				patternValue: string | null = null,
+				blank = false
 			): React.ReactElement[] => {
 				if (pts.length < 2) return []
-				if (dashArray === null) {
+				if (dashArray === null && !blank) {
 					return [renderLine(keyBase, pts, { stroke, ...lineProps })]
 				}
 				const els: React.ReactElement[] = []
@@ -1478,13 +1498,15 @@ const renderConnectionLines = (
 						})
 					)
 				}
-				els.push(
-					renderLine(keyBase, pts, {
-						stroke,
-						strokeDasharray: dashArray,
-						...lineProps,
-					})
-				)
+				if (dashArray !== null) {
+					els.push(
+						renderLine(keyBase, pts, {
+							stroke,
+							strokeDasharray: dashArray,
+							...lineProps,
+						})
+					)
+				}
 				return els
 			}
 			// Pattern encoding mapped: split the line into runs of constant
@@ -1530,15 +1552,19 @@ const renderConnectionLines = (
 			}
 			// No pattern encoding: one dash for the whole line (per-line
 			// override > global default, custom dasharray included).
+			const groupDash = dashPatterns[groupValue]
 			const dashArray =
-				dashPatterns[groupValue] !== undefined
-					? dashArrayFor(dashPatterns[groupValue] ?? "solid")
+				groupDash !== undefined
+					? dashArrayFor(groupDash ?? "solid")
 					: defaultDashArray
+			const blank = groupDash !== undefined ? groupDash === "blank" : defaultBlank
 			// "Apply pattern to range": dash only within [From, To] — the
 			// parts outside render solid (known vs forecast). Boundary
 			// points are interpolated so the segments meet exactly; the
-			// alternate-color underlay only backs the dashed segment.
-			if (dashArray !== null && rangeActive) {
+			// alternate-color underlay only backs the dashed segment. A
+			// "Blank" pick draws no line inside the window at all — a true
+			// gap, or the gap-color underlay alone when `gapFill` is on.
+			if ((dashArray !== null || blank) && rangeActive) {
 				const segs = splitPolylineAtRange(
 					sorted.map((m) => ({ x: m.cx, y: m.cy })),
 					rangeMinPx,
@@ -1548,7 +1574,13 @@ const renderConnectionLines = (
 				return [
 					...renderSegment(`conn-${groupValue}-pre`, segs.before, null),
 					...renderSegment(`conn-${groupValue}-post`, segs.after, null),
-					...renderSegment(`conn-${groupValue}-in`, segs.inside, dashArray),
+					...renderSegment(
+						`conn-${groupValue}-in`,
+						segs.inside,
+						dashArray,
+						null,
+						blank
+					),
 				]
 			}
 			return renderSegment(`conn-${groupValue}`, ptObjs, dashArray)

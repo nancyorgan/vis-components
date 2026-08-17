@@ -33,6 +33,13 @@ export const dashArrayFor = (pattern: LineDashPattern): string | null => {
 		case "dash-dot": {
 			return "8,3,2,3"
 		}
+		// "blank" has no dasharray recipe — the range-aware renderers detect
+		// it themselves and skip the stroke entirely (gap in the line, or the
+		// gap-fill underlay alone). Everywhere else null = solid, which is the
+		// deliberate fallback: blank without an active range window is inert.
+		case "blank": {
+			return null
+		}
 		// Default-case unreachable when callers respect the union, but
 		// guards against future-pattern strings sneaking through and
 		// silently rendering as solid.

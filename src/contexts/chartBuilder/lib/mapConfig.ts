@@ -70,9 +70,20 @@ export type MapConfig = {
 	 *  Like a region, a custom viewport forces a world projection. */
 	customViewport: GeoViewport | null
 	noDataFill: string
-	/** When true, every basemap feature draws — regions with no matching data
-	 *  row are painted with `noDataFill`. When false (default), only regions
-	 *  that join to a data row are drawn; the rest of the basemap is omitted. */
+	/** Optional pattern overlay for no-data regions: an index into
+	 *  `PATTERN_PALETTE` (lib/patterns), or null (default) for the solid
+	 *  `noDataFill`. Applies to regions absent from the dataset and to matched
+	 *  rows whose mapped measure value is blank/NA — NOT to maps with no
+	 *  measure mapped at all (there every region is "no measure", not
+	 *  "missing data"). */
+	noDataPattern: number | null
+	/** Ink color for `noDataPattern` (the pattern tiles' background is
+	 *  `noDataFill`). Inert while `noDataPattern` is null. */
+	noDataPatternInk: string
+	/** When true (default), every basemap feature draws — regions with no
+	 *  matching data row are painted with `noDataFill`, exactly like a matched
+	 *  row whose measure value is blank/NA. When false, only regions that join
+	 *  to a data row are drawn; the rest of the basemap is omitted. */
 	showNoDataRegions: boolean
 	/** When true (default), the geography region outlines draw as a backdrop
 	 *  behind the data marks (e.g. the Phase 3 bubble map). When false, the
@@ -88,6 +99,8 @@ export const DEFAULT_MAP_CONFIG: MapConfig = {
 	focusRegion: "auto",
 	customViewport: null,
 	noDataFill: "#e7e5e4", // stone-200
-	showNoDataRegions: false,
+	noDataPattern: null,
+	noDataPatternInk: "#a8a29e", // stone-400 — subtle over the stone-200 fill
+	showNoDataRegions: true,
 	showBasemap: true,
 }

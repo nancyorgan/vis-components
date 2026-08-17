@@ -158,6 +158,26 @@ that repeat across states — or the six within-state city/county name
 pairs, unless suffixed "city" — deliberately stay unmatched rather
 than guessing.
 
+Missing data on the choropleth: a region with no usable measure value
+paints with the **no-data fill** color (Maps section), whether the
+region is entirely absent from the dataset (no row joins) or its row's
+measure cell is blank/NA — both read as "no data" and look identical.
+"Fill regions with no data" is ON by default; turning it off draws
+only regions that join to a data row (a matched-but-blank row still
+draws, in the no-data fill). A focus region always fills no-data land
+regardless of the toggle, so a focused viewport never shows blank
+gaps.
+
+An optional **no-data pattern** (chip picker under the no-data fill,
+sharing the pattern channel's palette, plus an ink color that appears
+once a pattern is picked) overlays those same no-data regions —
+unmatched regions and blank/NA-measure rows — with the pattern drawn
+over the no-data fill. It does NOT apply when no measure is mapped at
+all (every region is "no measure" there, not "missing data"), and a
+region whose row carries a pattern-channel category keeps that
+encoding's pattern instead. The bubble map's region basemap paints the
+same way; the world backdrop stays solid.
+
 Geo marks support the **pattern** channel with the same semantics as
 the cartesian renderers (per-category palette cycling, per-value
 overrides / "None", hue-paired inks): choropleth region fills, dot-map
@@ -543,6 +563,12 @@ histogram or density display to be on). Resolution is
 **slot-config-if-present, else the legacy per-feature config field**
 (e.g. `connection.strokeColor`, `histogram.rugColor`), so saved
 visuals keep their colors unchanged until the user touches the slot.
+Every single-color swatch shown when "Vary by" is set to Single color
+(the Fill panel's default fill, each color slot, and the Shape panel's
+outline color) carries the same circular-arrow palette-popover button
+as the per-value override rows, offering the active categorical
+palette's colors (the chart's picked palette when one is stored, else
+the theme default) as one-click alternatives to the open-ended picker.
 Aggregate shapes (violin / box) resolve a mapped slot field against a
 representative row — the first data row of the shape's category (or of
 the panel, for the single-variable violin) — so "Vary by" works for
@@ -614,7 +640,17 @@ same stroke — the known-vs-forecast look (solid actuals, patterned
 forecast: pick a dash, set From to the forecast start, leave To
 blank). While the range is on with no dash picked (and no parseable
 custom value), a helper nudges the user to pick a dash style —
-alone, the range draws nothing. Values are raw axis values like value-mode
+alone, the range draws nothing. While the range is on, the dash row
+also grows a **Blank** option (`defaultDashPattern: "blank"`): inside
+the window the line doesn't draw at all — a true gap in the line —
+unless "Fill dash gaps" is on, in which case the window is painted by
+the gap-color underlay alone (a solid run of the gap color, no
+dashes). With gaps unfilled a helper points at the "Fill dash gaps"
+checkbox. Blank only exists inside the range window: the swatch is
+hidden while the range is off, turning the range off retires a stored
+blank pick back to solid, and the renderers treat a lingering blank
+with no active window as solid. A parsed custom dasharray still wins
+over the swatch pick, blank included. Values are raw axis values like value-mode
 annotation coordinates (numbers, dates, or categories); blank =
 unbounded; a value that doesn't parse is treated as unbounded;
 From > To swaps. One GLOBAL window per chart
@@ -666,6 +702,32 @@ Each channel exposes scaling controls (min/max), per-value overrides
 where it makes sense, and any channel-specific knobs (e.g., shape
 outline width). Theme defaults seed the ranges so new charts come up
 with sensible visuals.
+
+**Custom shape glyphs.** Every shape row (the Default-shape picker and
+the per-category rows) offers the six built-in symbols plus the chart's
+**custom glyphs** and a trailing **"+" chip** that opens an inline
+editor: type a short text glyph (up to 3 characters — counted as
+user-perceived characters, so one emoji is 1 — tinted by the mark's
+fill color like a symbol) or **upload an image**
+(downscaled to ≤128 px and stored as a data URL inside the visual;
+rendered as-is — fill / outline / pattern encodings don't apply to
+image glyphs, though opacity still fades them). Creating a glyph
+selects it for the row that opened the editor; the glyph list is
+shared chart-wide, so a glyph made on one row is a pick on every row
+(but per-VISUAL — a new visualization starts with an empty list).
+Emoji arrive by typing/pasting them directly, via the system emoji
+picker, or via **`:shortcode:` expansion** (`lib/emojiShortcodes`, a
+curated common set): a complete `:fire:` converts on the keystroke
+that closes it, and a bare `:joy` left in the box converts when Add
+is clicked. The input never truncates while typing — Add disables
+(with a hint) when the resolved text exceeds the cap.
+Internally shape references stay palette indices — index ≥ 6 points
+into `ShapeConfig.customGlyphs` — so themes, saved visuals, and the
+auto-cycle (built-ins only) are untouched. Deleting a glyph (× on the
+chip) tombstones its slot rather than splicing, keeping other rows'
+indices stable; anything still referencing the deleted slot falls back
+to the circle. Custom glyphs render on chart marks (scatter/line
+points, radar dots) and in the legends that show the shape encoding.
 
 **Saturation / Brightness** follow the field's type, like Opacity and
 Area do: a quantitative / temporal / numeric-ordinal field modulates
@@ -1445,8 +1507,9 @@ rectangle has:
     whichever encoding drives each axis (`x`/`y` for scatter,
     `length` for the measure axis in bars/areas, etc.). Numeric axes
     use the linear/time scale; categorical/string-ordinal axes
-    present a category dropdown and the rectangle spans full band
-    edges, not just point centers.
+    present a category dropdown and the rectangle spans between the
+    selected categories' centers — the same positions line-segment
+    endpoints land on.
 - Fill color + fill opacity.
 - Border color, thickness, opacity, dash style.
 - Layer toggle: **Behind chart** (under marks) or **In front** (over

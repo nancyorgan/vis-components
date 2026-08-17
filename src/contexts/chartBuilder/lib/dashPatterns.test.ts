@@ -21,6 +21,10 @@ describe("dashArrayFor", () => {
 		expect(dashArrayFor("dotted")).toBe("2,3")
 		expect(dashArrayFor("dash-dot")).toBe("8,3,2,3")
 	})
+
+	it("returns null for blank — solid is the fallback anywhere the range renderers don't special-case it", () => {
+		expect(dashArrayFor("blank")).toBeNull()
+	})
 })
 
 describe("resolveDashGapColor", () => {

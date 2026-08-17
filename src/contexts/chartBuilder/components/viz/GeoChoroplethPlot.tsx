@@ -5,6 +5,7 @@ import {
 	buildGeoPatternDefs,
 	buildRegionStyleResolvers,
 	resolveGeoFill,
+	resolveNoDataPatternDef,
 } from "../../lib/geo/geoMarkStyle"
 import { featureId } from "../../lib/geo/loadGeometry"
 
@@ -24,6 +25,11 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 	const geo = useGeoMapScaffold(props)
 	const { mapConfig, channelConfigs } = geo
 
+	// Optional no-data pattern overlay (unmatched / blank-measure regions).
+	// Registered in patternDefs below whenever set. Memoized on the atom-held
+	// config so the patternDefs memo doesn't churn every render.
+	const noDataDef = useMemo(() => resolveNoDataPatternDef(mapConfig), [mapConfig])
+
 	// Per-region fill / fill-opacity / stroke resolution, shared with the
 	// bubble map's region basemap (see buildRegionStyleResolvers): matched rows
 	// color via the hue/opacity measure + outlineHue/rules; unmatched regions
@@ -31,6 +37,7 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 	const regionStyle = buildRegionStyleResolvers({
 		featureToRow: geo.featureToRow,
 		noDataFill: mapConfig.noDataFill,
+		noDataPatternDef: noDataDef,
 		measureField: geo.measureField,
 		hueScale: geo.hueScale,
 		opacityScale: geo.opacityScale,
@@ -44,44 +51,44 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 	// Pattern `<defs>` for the matched regions, registered upfront so the
 	// region paths' `url(#...)` fills (see geoPatternFill via the style
 	// resolvers) always have a def to reference. Unmatched regions carry no
-	// pattern, so matched rows are the complete def universe.
-	const patternDefs = useMemo(
-		() =>
-			buildGeoPatternDefs(
-				[...geo.featureToRow.values()].map((row) => ({
+	// pattern-channel category, so matched rows plus the (optional) no-data
+	// pattern def are the complete def universe.
+	const patternDefs = useMemo(() => {
+		const defs = buildGeoPatternDefs(
+			[...geo.featureToRow.values()].map((row) => ({
+				row,
+				fill: resolveGeoFill(
+					mapConfig.noDataFill,
 					row,
-					fill: resolveGeoFill(
-						mapConfig.noDataFill,
-						row,
-						geo.measureField,
-						geo.hueScale,
-						geo.opacityScale
-					).fill,
-				})),
-				geo.aestheticScales,
-				channelConfigs
-			),
-		[
-			geo.featureToRow,
-			geo.measureField,
-			geo.hueScale,
-			geo.opacityScale,
+					geo.measureField,
+					geo.hueScale,
+					geo.opacityScale
+				).fill,
+			})),
 			geo.aestheticScales,
-			mapConfig.noDataFill,
-			channelConfigs,
-		]
-	)
+			channelConfigs
+		)
+		return noDataDef ? [...defs, noDataDef] : defs
+	}, [
+		geo.featureToRow,
+		geo.measureField,
+		geo.hueScale,
+		geo.opacityScale,
+		geo.aestheticScales,
+		mapConfig.noDataFill,
+		channelConfigs,
+		noDataDef,
+	])
 
 	const marksBody = (ctx: PlotContext) => {
 		const m = geo.beginMarks(ctx)
 		if (!m.ready) return m.placeholder
 		const { bundle, path } = m
 
-		// Default behavior: a region NOT in the dataset (no matched row) is
-		// omitted entirely. Turning on `showNoDataRegions` fills the rest of the
-		// basemap with the no-data color (the legacy always-on behavior). A
-		// region WITH a matched row always draws, even when its measure value is
-		// null.
+		// Default behavior: every region draws — one NOT in the dataset (no
+		// matched row) fills with the no-data color, exactly like a matched row
+		// whose measure value is null. Turning `showNoDataRegions` OFF omits
+		// unmatched regions entirely, drawing only regions with data.
 		//
 		// A focus region implies "show this area as a filled map", so it also
 		// fills non-data regions with the no-data color — both the own level's

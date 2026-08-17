@@ -772,6 +772,13 @@ const buildAreas = ({
 	const defaultDashArray =
 		(customDashPattern ? sanitizeCustomDasharray(customDashPattern) : null) ??
 		dashArrayFor(defaultDashPattern)
+	// "Blank" dash pick: within the range window the edge doesn't draw at
+	// all — a true gap, or the gap-color underlay alone when "Fill dash
+	// gaps" is on. A parsed custom dasharray wins over the swatch pick;
+	// without an active range blank is inert (its dasharray is null, so the
+	// edge renders solid). Mirrors ScatterPlot.
+	const defaultBlank =
+		defaultDashPattern === "blank" && defaultDashArray === null
 	// Pattern encoding → per-layer LINE DASH, mirroring ScatterPlot's
 	// connection polylines: each layer's pattern group value resolves via
 	// the shared `dashSpecForPatternValue` (custom dasharray > swatch
@@ -1069,19 +1076,26 @@ const buildAreas = ({
 							patternDomain
 						)
 					: null
+			const layerDash = dashPatterns[layerDashKey ?? ""]
 			const dashArray =
 				patternSpec?.kind === "custom"
 					? patternSpec.dasharray
-					: dashPatterns[layerDashKey ?? ""] !== undefined
-						? dashArrayFor(dashPatterns[layerDashKey ?? ""] ?? "solid")
+					: layerDash !== undefined
+						? dashArrayFor(layerDash ?? "solid")
 						: patternSpec?.kind === "pattern"
 							? dashArrayFor(patternSpec.pattern)
 							: defaultDashArray
+			// "Blank" only means anything while the range gates the dash — a
+			// mapped pattern field ignores the range (and never offers blank).
+			const layerBlank =
+				!patternField &&
+				(layerDash !== undefined ? layerDash === "blank" : defaultBlank)
 			// Solid → one path. Dashed → underlay (alternate color) +
 			// dashed top, so the gaps render as the alternate color
-			// instead of transparent.
+			// instead of transparent. Blank-in-range → the range branch
+			// below draws no top line inside the window.
 			const lineEls: React.ReactNode[] = []
-			if (dashArray === null) {
+			if (dashArray === null && !(layerBlank && rangeActive)) {
 				lineEls.push(
 					<path
 						key={layerKey || "__layer__"}
@@ -1161,16 +1175,20 @@ const buildAreas = ({
 								/>
 							)
 						}
-						lineEls.push(
-							<path
-								key={layerKey || "__layer__"}
-								d={dOf(segs.inside)}
-								stroke={effStroke}
-								strokeDasharray={dashArray}
-								onMouseEnter={onMouseEnter}
-								{...lineProps}
-							/>
-						)
+						// Blank = the window is ALL gap: no top line, just the
+						// underlay above (when on).
+						if (!layerBlank && dashArray !== null) {
+							lineEls.push(
+								<path
+									key={layerKey || "__layer__"}
+									d={dOf(segs.inside)}
+									stroke={effStroke}
+									strokeDasharray={dashArray}
+									onMouseEnter={onMouseEnter}
+									{...lineProps}
+								/>
+							)
+						}
 					}
 				} else {
 					if (gapFill) {
@@ -1188,7 +1206,10 @@ const buildAreas = ({
 							key={layerKey || "__layer__"}
 							d={topD}
 							stroke={effStroke}
-							strokeDasharray={dashArray}
+							// Non-null whenever this branch runs (blank requires an
+							// active range, which takes the branch above) — the
+							// fallback only satisfies the widened type.
+							strokeDasharray={dashArray ?? undefined}
 							onMouseEnter={onMouseEnter}
 							{...lineProps}
 						/>

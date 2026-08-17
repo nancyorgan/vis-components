@@ -22,7 +22,7 @@ import { dashArrayFor } from "../../lib/dashPatterns"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import { buildRadarScales } from "../../lib/radarScales"
-import { symbolPath } from "../../lib/scales"
+import { GlyphMark, resolveGlyph } from "../../lib/customGlyphs"
 import { resolveShapeColors } from "../../lib/shapeColors"
 import type { DatasetView, FieldType } from "../../lib/types"
 import {
@@ -468,9 +468,13 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 					const mh = rowHighlight(legendHighlight, p.row)
 					const fillForShape = mh.fill ?? baseFillForShape
 					return (
-						<path
+						<GlyphMark
 							key={p.i}
-							d={symbolPath(p.shapeIdx, p.radius)}
+							glyph={resolveGlyph(
+								p.shapeIdx,
+								channelConfigs.shape?.customGlyphs
+							)}
+							r={p.radius}
 							transform={`translate(${p.cx},${p.cy})`}
 							fill={fillForShape}
 							fillOpacity={

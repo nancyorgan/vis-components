@@ -20,7 +20,8 @@ import { seedFixtureScript, type SeedFixture } from "./seed"
  *  from `e2e/fixtures/countries-value.csv` so the CSV is the single source of
  *  truth.
  *
- *  We turn the "Fill regions with no data" toggle ON and assert the FULL world
+ *  We pin the "Fill regions with no data" toggle ON (the default — check() is
+ *  a no-op today) and assert the FULL world
  *  basemap draws (≥170 of 177 features). That is the most robust + meaningful
  *  assertion: it proves the entire countries geometry projects and renders, not
  *  just that a handful of matched features happened to draw. The Maps
@@ -82,9 +83,9 @@ test("world choropleth happy path: map connection + color, go Geographic, World 
 		.getByLabel("Geography level", { exact: true })
 		.selectOption({ label: "World Countries" })
 
-	// Turn on "Fill regions with no data" so the entire basemap draws (177
-	// features in world-atlas countries-110m → ≥170 paths, minus any the
-	// projection drops to null).
+	// "Fill regions with no data" is on by default; pin it on (no-op check)
+	// so the entire basemap draws (177 features in world-atlas countries-110m
+	// → ≥170 paths, minus any the projection drops to null).
 	await page.getByLabel(/Fill regions with no data/i).check()
 
 	// Geometry loads async, then the renderer draws one <path> per feature

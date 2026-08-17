@@ -42,6 +42,7 @@ import {
 	AreaRadarOutlinePanel,
 	CategoricalSwatchList,
 	HueOptionsPanel,
+	PalettePickerButton,
 	QuantitativePanel,
 	useQuantFieldExtent,
 } from "./HueOptionsPanel"
@@ -307,6 +308,16 @@ export const ColorSlotControls = ({
 						labelClassName={LABEL_COL}
 						value={singleColor}
 						onChange={(c) => updateSlot({ singleColor: c })}
+					/>
+					<PalettePickerButton
+						label={`Pick palette color for ${labelPrefix}`}
+						palette={
+							theme.categoricalPalettes.find(
+								(p) => p.id === theme.defaultCategoricalPaletteId,
+							)?.colors ?? CATEGORICAL_HUE_PALETTE
+						}
+						current={singleColor}
+						onPick={(c) => updateSlot({ singleColor: c })}
 					/>
 					{singleColor !== defaultColor && (
 						<button

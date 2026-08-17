@@ -394,6 +394,49 @@ describe("Pattern channel drives connection-line dash (scatter/line chart)", () 
 		// under the dashed part).
 		expect(lines.filter((p) => dashOf(p) === null).length).toBe(4)
 	})
+
+	it("'Blank' in the range window leaves a true gap when dash gaps are unfilled", () => {
+		const container = mount({
+			connection: {
+				defaultDashPattern: "blank",
+				dashGapFill: false,
+				dashRange: { enabled: true, min: "2", max: null },
+			},
+		})
+		const lines = polylines(container)
+		// Only the solid pre-range segment per line — nothing draws inside
+		// the window.
+		expect(lines.length).toBe(2)
+		expect(lines.every((p) => dashOf(p) === null)).toBe(true)
+	})
+
+	it("'Blank' + 'Fill dash gaps' paints the window in the gap color alone (no dashes)", () => {
+		const container = mount({
+			connection: {
+				defaultDashPattern: "blank",
+				dashGapFill: true,
+				dashRange: { enabled: true, min: "2", max: null },
+			},
+			configs: { defaultPatternInk: "#123456" },
+		})
+		const lines = polylines(container)
+		// Per line: the solid pre-range segment + the gap-color underlay
+		// across the window — no dashed top line.
+		expect(lines.length).toBe(4)
+		expect(lines.every((p) => dashOf(p) === null)).toBe(true)
+		expect(
+			lines.filter((p) => p.getAttribute("stroke") === "#123456").length
+		).toBe(2)
+	})
+
+	it("'Blank' without an active range is inert — lines render solid", () => {
+		const container = mount({
+			connection: { defaultDashPattern: "blank" },
+		})
+		const lines = polylines(container)
+		expect(lines.length).toBe(2)
+		expect(lines.every((p) => dashOf(p) === null)).toBe(true)
+	})
 })
 
 describe("Pattern channel drives layer dash (areas-x line-fill mode)", () => {
@@ -450,5 +493,41 @@ describe("Pattern channel drives layer dash (areas-x line-fill mode)", () => {
 		const dashes = lineFillPaths(container).map(dashOf)
 		expect(dashes.filter((d) => d === "1,5,9").length).toBe(2)
 		expect(dashes).not.toContain("8,4")
+	})
+
+	it("'Blank' in the range window applies to layer edges too (gap-color underlay only)", () => {
+		const container = mount({
+			chart: "area",
+			hueField: "region",
+			connection: {
+				defaultDashPattern: "blank",
+				dashGapFill: true,
+				dashRange: { enabled: true, min: "2", max: null },
+			},
+			configs: { defaultPatternInk: "#123456" },
+		})
+		const paths = lineFillPaths(container)
+		// Per layer: the solid pre-range edge + the gap-color underlay across
+		// the window — no dashed top path.
+		expect(paths.length).toBe(4)
+		expect(paths.every((p) => dashOf(p) === null)).toBe(true)
+		expect(
+			paths.filter((p) => p.getAttribute("stroke") === "#123456").length
+		).toBe(2)
+	})
+
+	it("'Blank' with dash gaps unfilled leaves a true gap in each layer edge", () => {
+		const container = mount({
+			chart: "area",
+			hueField: "region",
+			connection: {
+				defaultDashPattern: "blank",
+				dashGapFill: false,
+				dashRange: { enabled: true, min: "2", max: null },
+			},
+		})
+		const paths = lineFillPaths(container)
+		expect(paths.length).toBe(2)
+		expect(paths.every((p) => dashOf(p) === null)).toBe(true)
 	})
 })

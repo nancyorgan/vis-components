@@ -17,7 +17,8 @@ import { seedFixtureScript, type SeedFixture } from "./seed"
  *  input padding, plus an independent city (Baltimore city 24510).
  *
  *  Asserts the matched counties paint, the match status reads all rows
- *  matched, and — after turning on "Fill regions with no data" — the full
+ *  matched, and — with "Fill regions with no data" pinned on (the default;
+ *  check() is a no-op today) — the full
  *  counties-10m basemap (3231 features) draws. The counties TopoJSON is a
  *  dynamic import, so this also proves the lazy chunk loads in the dev
  *  server the e2e suite runs against. */
@@ -73,8 +74,9 @@ test("counties choropleth happy path: county FIPS join at the counties level", a
 		.getByLabel("Geography level", { exact: true })
 		.selectOption({ label: "US Counties" })
 
-	// Default draws ONLY matched regions: one path per fixture county (the
-	// counties TopoJSON loads lazily, so poll).
+	// The matched counties paint once the lazily-imported counties TopoJSON
+	// resolves (the default also fills no-data regions, so the count can be
+	// far above rowCount — the ≥ assertion tolerates both).
 	const paths = page.locator(`#${PLOT_SVG_ID} path`)
 	await expect(async () => {
 		expect(await paths.count()).toBeGreaterThanOrEqual(rowCount)
@@ -93,7 +95,8 @@ test("counties choropleth happy path: county FIPS join at the counties level", a
 		page.getByText(/County names repeat across states/i)
 	).toBeVisible()
 
-	// Fill no-data regions -> the whole 3231-feature basemap paints.
+	// Pin fill-no-data on (the default; no-op check) -> the whole
+	// 3231-feature basemap paints.
 	await page.getByLabel(/Fill regions with no data/i).check()
 	await expect(async () => {
 		expect(await paths.count()).toBeGreaterThanOrEqual(3000)

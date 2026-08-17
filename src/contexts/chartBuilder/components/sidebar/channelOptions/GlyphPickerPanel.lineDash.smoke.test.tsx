@@ -198,6 +198,42 @@ describe("Pattern panel — no-field Line dash row (line chart)", () => {
 	})
 })
 
+describe("Pattern panel — 'Blank' range option", () => {
+	it("hidden until 'Apply pattern to range' is on; picking it writes defaultDashPattern: 'blank'", async () => {
+		const store = seed(LINE)
+		const q = await mount()
+		expect(q.queryByLabelText("Blank line dash")).toBeNull()
+		fireEvent.click(q.getByLabelText("Apply pattern to range"))
+		fireEvent.click(q.getByLabelText("Blank line dash"))
+		expect(readSavedConfigs(store).connection?.defaultDashPattern).toBe("blank")
+		// Blank counts as a dash pick — the pick-a-dash nudge stays away.
+		expect(q.queryByText(/Pick a dash style above/)).toBeNull()
+	})
+
+	it("turning the range off retires a blank pick back to solid", async () => {
+		const store = seed(LINE)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Apply pattern to range"))
+		fireEvent.click(q.getByLabelText("Blank line dash"))
+		fireEvent.click(q.getByLabelText("Apply pattern to range"))
+		expect(readSavedConfigs(store).connection?.defaultDashPattern).toBe("solid")
+		expect(q.queryByLabelText("Blank line dash")).toBeNull()
+	})
+
+	it("with dash gaps unfilled, a helper points at 'Fill dash gaps'", async () => {
+		seed(LINE)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Apply pattern to range"))
+		// Auto-on without a pattern/hue collision — uncheck to leave a true gap.
+		fireEvent.click(q.getByLabelText("Fill dash gaps"))
+		fireEvent.click(q.getByLabelText("Blank line dash"))
+		expect(q.queryByText(/Blank leaves a gap/)).not.toBeNull()
+		// Filling the gaps satisfies the nudge.
+		fireEvent.click(q.getByLabelText("Fill dash gaps"))
+		expect(q.queryByText(/Blank leaves a gap/)).toBeNull()
+	})
+})
+
 describe("Pattern panel — pattern variable mapped (line chart)", () => {
 	it("hides 'Apply pattern to range' (conflicts with the variable's own split)", async () => {
 		seed({ ...LINE, pattern: { field: "status" } })

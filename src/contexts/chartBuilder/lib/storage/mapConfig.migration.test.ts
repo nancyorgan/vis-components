@@ -5,12 +5,18 @@ import { MAP_CONFIG_VERSION, mapConfigMigrations } from "./migrations"
 import { loadVersioned, migrateVersioned, saveVersioned } from "./versioning"
 
 /** mapConfig version contract. v1 was the original (identity-promoted)
- *  shape; v2 adds `showNoDataRegions` (default off). These tests pin:
+ *  shape; v2 adds `showNoDataRegions`; v3 `showBasemap`; v4 `focusRegion`;
+ *  v5 `customViewport`; v6 RESETS `showNoDataRegions` to true (one-time —
+ *  the default flipped so regions absent from the dataset paint with the
+ *  no-data fill; pre-v6 falses were overwhelmingly the old backfilled
+ *  default); v7 backfills `noDataPattern` (null) + `noDataPatternInk`.
+ *  These tests pin:
  *   - a missing stored value falls back to DEFAULT_MAP_CONFIG (handled at
  *     the `loadVersioned` layer, mirroring versioning.test.ts);
- *   - an already-current `{ _v: 2, data }` wrapper round-trips unchanged;
- *   - a v1 object (no `showNoDataRegions`) is promoted to v2, gaining
- *     `showNoDataRegions: false`. */
+ *   - an already-current wrapper round-trips unchanged (incl. an explicit
+ *     `showNoDataRegions: false` — the v6 reset never re-fires);
+ *   - pre-v6 objects promoted to current land on `showNoDataRegions: true`
+ *     whatever they stored. */
 
 /** In-memory Storage shim so the loader test doesn't touch real
  *  localStorage. Mirrors makeStorage() in versioning.test.ts. */
@@ -69,8 +75,8 @@ describe("mapConfig migration", () => {
 				DEFAULT_MAP_CONFIG
 			)
 		).toEqual(DEFAULT_MAP_CONFIG)
-		// And the default explicitly carries the new field, off.
-		expect(DEFAULT_MAP_CONFIG.showNoDataRegions).toBe(false)
+		// And the default fills regions with no data, on by default.
+		expect(DEFAULT_MAP_CONFIG.showNoDataRegions).toBe(true)
 		// And the basemap-backdrop field, on by default.
 		expect(DEFAULT_MAP_CONFIG.showBasemap).toBe(true)
 		// And the focus-region field, auto by default.
@@ -83,7 +89,8 @@ describe("mapConfig migration", () => {
 		// A config persisted before the basemap toggle shipped: v2 wrapper, no
 		// `showBasemap`. Migrating forward must backfill `showBasemap: true`
 		// (v2→v3) and `focusRegion: "auto"` (v3→v4) while leaving every other
-		// field untouched.
+		// field untouched — except `showNoDataRegions`, which the v5→v6 reset
+		// flips to true.
 		const v2Data = {
 			coordSystem: "geographic",
 			projection: "albersUsa",
@@ -100,9 +107,12 @@ describe("mapConfig migration", () => {
 		)
 		expect(result).toEqual({
 			...v2Data,
+			showNoDataRegions: true,
 			showBasemap: true,
 			focusRegion: "auto",
 			customViewport: null,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
 		})
 	})
 
@@ -127,8 +137,11 @@ describe("mapConfig migration", () => {
 		)
 		expect(result).toEqual({
 			...v3Data,
+			showNoDataRegions: true,
 			focusRegion: "auto",
 			customViewport: null,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
 		})
 	})
 
@@ -177,10 +190,10 @@ describe("mapConfig migration", () => {
 		expect((result as MapConfig).showBasemap).toBe(false)
 	})
 
-	it("promotes a v1 object without showNoDataRegions to v2 (gains the field, off)", () => {
+	it("promotes a v1 object without showNoDataRegions through to current (field lands on)", () => {
 		// A config persisted before the toggle shipped: v1 wrapper, no
-		// `showNoDataRegions`. The v1→v2 migration must backfill it as false
-		// (default off) while leaving every other field untouched.
+		// `showNoDataRegions`. v1→v2 backfills it (historically false), then the
+		// v5→v6 reset lands it on true; every other field is untouched.
 		const v1Data = {
 			coordSystem: "geographic",
 			projection: "albersUsa",
@@ -196,10 +209,12 @@ describe("mapConfig migration", () => {
 		)
 		expect(result).toEqual({
 			...v1Data,
-			showNoDataRegions: false,
+			showNoDataRegions: true,
 			showBasemap: true,
 			focusRegion: "auto",
 			customViewport: null,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
 		})
 	})
 
@@ -226,7 +241,8 @@ describe("mapConfig migration", () => {
 
 	it("promotes a bare (unwrapped) v0 legacy value through to the current version", () => {
 		// No `_v` wrapper → treated as v0, migrated forward through every
-		// step. The v0→v1 step is identity; v1→v2 backfills showNoDataRegions.
+		// step. The v0→v1 step is identity; the chain ends with the v5→v6
+		// showNoDataRegions reset, so the field lands on true.
 		const v0Data = {
 			coordSystem: "geographic",
 			projection: "auto",
@@ -243,14 +259,16 @@ describe("mapConfig migration", () => {
 			)
 		).toEqual({
 			...v0Data,
-			showNoDataRegions: false,
+			showNoDataRegions: true,
 			showBasemap: true,
 			focusRegion: "auto",
 			customViewport: null,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
 		})
 	})
 
-	it("promotes a v4 object without customViewport to v5 (gains the field, null)", () => {
+	it("promotes a v4 object without customViewport through to current (gains the field, null)", () => {
 		const v4Data = {
 			coordSystem: "geographic",
 			projection: "albersUsa",
@@ -267,7 +285,111 @@ describe("mapConfig migration", () => {
 			mapConfigMigrations,
 			DEFAULT_MAP_CONFIG
 		)
-		expect(result).toEqual({ ...v4Data, customViewport: null })
+		expect(result).toEqual({
+			...v4Data,
+			showNoDataRegions: true,
+			customViewport: null,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
+		})
+	})
+
+	it("v5→v6 resets a stored showNoDataRegions: false to true (one-time reset)", () => {
+		// The deliberate behavioral reset: regions absent from the dataset now
+		// paint with the no-data fill by default, so pre-v6 configs — where
+		// `false` was overwhelmingly the old backfilled default, not a user
+		// choice — come forward with the field flipped on.
+		const v5Data = {
+			coordSystem: "geographic",
+			projection: "albersUsa",
+			geographyLevel: "states",
+			keyType: "fips",
+			noDataFill: "#e7e5e4",
+			showNoDataRegions: false,
+			showBasemap: true,
+			focusRegion: "auto",
+			customViewport: null,
+		}
+		const result = migrateVersioned(
+			{ _v: 5, data: v5Data },
+			MAP_CONFIG_VERSION,
+			mapConfigMigrations,
+			DEFAULT_MAP_CONFIG
+		)
+		expect(result).toEqual({
+			...v5Data,
+			showNoDataRegions: true,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
+		})
+	})
+
+	it("v6→v7 backfills the no-data pattern fields (absent → null / default ink)", () => {
+		const v6Data = {
+			coordSystem: "geographic",
+			projection: "albersUsa",
+			geographyLevel: "states",
+			keyType: "fips",
+			noDataFill: "#e7e5e4",
+			showNoDataRegions: true,
+			showBasemap: true,
+			focusRegion: "auto",
+			customViewport: null,
+		}
+		const result = migrateVersioned(
+			{ _v: 6, data: v6Data },
+			MAP_CONFIG_VERSION,
+			mapConfigMigrations,
+			DEFAULT_MAP_CONFIG
+		)
+		expect(result).toEqual({
+			...v6Data,
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
+		})
+	})
+
+	it("does not clobber existing no-data pattern fields during v6→v7 (idempotent)", () => {
+		const v6Data = {
+			coordSystem: "geographic",
+			projection: "albersUsa",
+			geographyLevel: "states",
+			keyType: "fips",
+			noDataFill: "#e7e5e4",
+			showNoDataRegions: true,
+			showBasemap: true,
+			focusRegion: "auto",
+			customViewport: null,
+			noDataPattern: 3,
+			noDataPatternInk: "#123456",
+		}
+		const result = migrateVersioned(
+			{ _v: 6, data: v6Data },
+			MAP_CONFIG_VERSION,
+			mapConfigMigrations,
+			DEFAULT_MAP_CONFIG
+		)
+		expect((result as MapConfig).noDataPattern).toBe(3)
+		expect((result as MapConfig).noDataPatternInk).toBe("#123456")
+	})
+
+	it("a current wrapper with showNoDataRegions: false round-trips unchanged (reset never re-fires)", () => {
+		// A user who turns the toggle off AFTER the v6 reset persists at the
+		// current version, which skips the migration chain entirely — their
+		// choice sticks.
+		const data: MapConfig = {
+			...DEFAULT_MAP_CONFIG,
+			coordSystem: "geographic",
+			showNoDataRegions: false,
+		}
+		expect(
+			migrateVersioned(
+				{ _v: MAP_CONFIG_VERSION, data },
+				MAP_CONFIG_VERSION,
+				mapConfigMigrations,
+				DEFAULT_MAP_CONFIG
+			)
+		).toEqual(data)
 	})
 
 	it("does not clobber an existing customViewport during v4→v5 (idempotent)", () => {

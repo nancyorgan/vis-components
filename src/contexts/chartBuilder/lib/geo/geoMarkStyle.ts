@@ -33,6 +33,12 @@ export const OPACITY_BASE_FILL = "#3730a3" // indigo-800
  * `row` is the matched data row for this feature; `measureField` is whichever
  * of hue/opacity drives the value (hue preferred). When no measure is mapped
  * (or the value doesn't resolve), the base fill is returned with no opacity.
+ *
+ * `measureMissing` is true only when a measure IS mapped but its value didn't
+ * resolve (blank/NA cell) — the "this region has missing data" signal the
+ * no-data pattern keys on. It stays false when no measure is mapped at all
+ * (every region returns the base fill there; that's "no measure", not
+ * "missing data").
  */
 export const resolveGeoFill = (
 	baseFill: string,
@@ -40,24 +46,46 @@ export const resolveGeoFill = (
 	measureField: AestheticFieldInfo | null,
 	hueScale: AestheticScales["hue"],
 	opacityScale: AestheticScales["opacity"]
-): { fill: string; fillOpacity: number | undefined } => {
+): { fill: string; fillOpacity: number | undefined; measureMissing: boolean } => {
 	let fill = baseFill
 	let fillOpacity: number | undefined
+	let measureMissing = false
 	if (measureField) {
 		const raw = row[measureField.name]
 		if (hueScale) {
 			const color = applyHueScale(hueScale.scale, raw, measureField.type)
 			if (color !== null) fill = color
+			else measureMissing = true
 		} else if (opacityScale) {
 			const alpha = opacityScale.scale(raw)
 			if (alpha !== null) {
 				fill = OPACITY_BASE_FILL
 				fillOpacity = alpha
-			}
+			} else measureMissing = true
 		}
 	}
-	return { fill, fillOpacity }
+	return { fill, fillOpacity, measureMissing }
 }
+
+/** The `<pattern>` def for the map's OPTIONAL no-data pattern overlay
+ *  (`mapConfig.noDataPattern`), or null when the map uses the solid no-data
+ *  fill. One def per chart: the tile background is the no-data fill, the ink
+ *  is `noDataPatternInk`, so the id can be a fixed slug. Applies to unmatched
+ *  regions and matched rows whose measure value didn't resolve — see
+ *  `buildRegionStyleResolvers`. */
+export const resolveNoDataPatternDef = (mapConfig: {
+	noDataPattern: number | null
+	noDataFill: string
+	noDataPatternInk: string
+}): PatternDefSpec | null =>
+	mapConfig.noDataPattern === null
+		? null
+		: {
+				svgId: "vc-pat-nodata",
+				paletteIdx: mapConfig.noDataPattern,
+				bgColor: mapConfig.noDataFill,
+				inkColor: mapConfig.noDataPatternInk,
+			}
 
 /** Fallback pattern-tile background when no hue drives the mark fill and the
  *  user hasn't set `pattern.backgroundColor` (same constant the cartesian
@@ -170,7 +198,11 @@ export type RegionStyleResolvers = {
  *
  *  - FILL: the matched row's hue (preferred) / opacity measure via
  *    `resolveGeoFill`, swapped for a pattern ref when the row carries a
- *    pattern category (see `geoPatternFill`); unmatched → `noDataFill`.
+ *    pattern category (see `geoPatternFill`); unmatched → `noDataFill`, or
+ *    the no-data pattern ref when `noDataPatternDef` is set. A matched row
+ *    whose measure value didn't resolve (blank/NA) also takes the no-data
+ *    pattern — absent-from-dataset and explicit-NA look identical — unless
+ *    its own pattern-channel category already paints it.
  *  - FILL-OPACITY: only set on the opacity-only path (alpha varies over the
  *    shared base fill); unmatched → undefined (full opacity).
  *  - STROKE: conditional outline rule wins, then the `outlineHue` scale color
@@ -179,6 +211,7 @@ export type RegionStyleResolvers = {
 export const buildRegionStyleResolvers = ({
 	featureToRow,
 	noDataFill,
+	noDataPatternDef = null,
 	measureField,
 	hueScale,
 	opacityScale,
@@ -191,6 +224,9 @@ export const buildRegionStyleResolvers = ({
 	/** featureId -> matched data row (from `useGeoJoin`). */
 	featureToRow: Map<string, Record<string, unknown>>
 	noDataFill: string
+	/** From `resolveNoDataPatternDef(mapConfig)`. Callers that pass a non-null
+	 *  def must also register it in `<Plot patternDefs>`. */
+	noDataPatternDef?: PatternDefSpec | null
 	measureField: AestheticFieldInfo | null
 	hueScale: AestheticScales["hue"]
 	opacityScale: AestheticScales["opacity"]
@@ -204,18 +240,25 @@ export const buildRegionStyleResolvers = ({
 	channelConfigs: ChannelConfigs
 }): RegionStyleResolvers => {
 	const rowFor = (feature: Feature) => featureToRow.get(featureId(feature))
+	const noDataPaint = noDataPatternDef
+		? `url(#${noDataPatternDef.svgId})`
+		: noDataFill
 	return {
 		fillFor: (feature) => {
 			const row = rowFor(feature)
-			if (!row) return noDataFill
-			const { fill } = resolveGeoFill(
+			if (!row) return noDataPaint
+			const { fill, measureMissing } = resolveGeoFill(
 				noDataFill,
 				row,
 				measureField,
 				hueScale,
 				opacityScale
 			)
-			return geoPatternFill(row, fill, aestheticScales, channelConfigs)
+			const paint = geoPatternFill(row, fill, aestheticScales, channelConfigs)
+			// The row's own pattern-channel paint (an encoding) wins; otherwise a
+			// blank/NA measure renders like an unmatched region.
+			if (paint !== fill) return paint
+			return measureMissing ? noDataPaint : fill
 		},
 		fillOpacityFor: (feature) => {
 			const row = rowFor(feature)

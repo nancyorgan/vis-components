@@ -22,7 +22,7 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 3
+export const VISUALS_VERSION = 4
 export const DATASETS_VERSION = 1
 export const CHANNEL_CONFIGS_VERSION = 1
 export const LABELS_VERSION = 1
@@ -37,7 +37,7 @@ export const FIELD_OVERRIDES_VERSION = 1
 export const FIELD_LEVEL_ORDERS_VERSION = 1
 export const ANNOTATIONS_VERSION = 3
 export const CAPTION_VERSION = 1
-export const MAP_CONFIG_VERSION = 5
+export const MAP_CONFIG_VERSION = 7
 
 // ──────────────────────────────────────────────────────────────────────
 // Visuals
@@ -320,6 +320,26 @@ export const visualsMigrations: Migration[] = [
 		const themes = readThemeFontSizesV2()
 		return raw.map((v) => resetVisualFontSizesV1ToV2(v, themes))
 	},
+	// v3 -> v4: one-time reset of mapConfig.showNoDataRegions to true. The
+	// default flipped (regions absent from the dataset now paint with the
+	// no-data fill, matching matched-but-blank rows), and nearly every stored
+	// `false` is the old backfilled default rather than a user choice — so
+	// saved visuals reset rather than keep it. The toggle remains; turning it
+	// off again persists at v4+ and is never re-flipped. Visuals without a
+	// mapConfig pick the new default up via the restore-time default-merge.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		return raw.map((v) => {
+			if (typeof v !== "object" || !v) return v
+			const vis = v as Record<string, unknown>
+			const mc = vis.mapConfig
+			if (typeof mc !== "object" || !mc) return v
+			return {
+				...vis,
+				mapConfig: { ...mc, showNoDataRegions: true },
+			}
+		})
+	},
 ]
 
 // ──────────────────────────────────────────────────────────────────────
@@ -394,8 +414,14 @@ export const channelConfigsMigrations = identityMigrations
  *  dataset" toggle shipped. v2→v3 backfills `showBasemap` (default on) for
  *  configs persisted before the Phase 3 basemap backdrop toggle shipped. v3→v4
  *  backfills `focusRegion` (default "auto") for configs persisted before the
- *  center-on-region control shipped. Each step leaves every other field
- *  untouched. */
+ *  center-on-region control shipped. v4→v5 backfills `customViewport`
+ *  (default null). v5→v6 RESETS `showNoDataRegions` to true — the default
+ *  flipped so regions absent from the dataset paint with the no-data fill,
+ *  and pre-v6 `false` values are overwhelmingly the old backfilled default,
+ *  not user choices (turning it off again persists at v6+ and is never
+ *  re-flipped). v6→v7 backfills `noDataPattern` (null) + `noDataPatternInk`
+ *  for configs persisted before the no-data pattern option shipped. Every
+ *  step leaves every other field untouched. */
 export const mapConfigMigrations: Migration[] = [
 	identityMigrations[0],
 	(raw) => {
@@ -438,6 +464,26 @@ export const mapConfigMigrations: Migration[] = [
 		return {
 			...o,
 			customViewport: "customViewport" in o ? o.customViewport : null,
+		}
+	},
+	(raw) => {
+		if (typeof raw !== "object" || !raw) return raw
+		const o = raw as Record<string, unknown>
+		// v5→v6: deliberate one-time RESET (not a backfill — see the doc comment
+		// above): showNoDataRegions becomes true regardless of the stored value.
+		return { ...o, showNoDataRegions: true }
+	},
+	(raw) => {
+		if (typeof raw !== "object" || !raw) return raw
+		const o = raw as Record<string, unknown>
+		// v6→v7 backfills the no-data pattern fields (default: no pattern,
+		// stone-400 ink) for configs persisted before the no-data pattern
+		// option shipped. Only fill when absent — idempotent, no-clobber.
+		return {
+			...o,
+			noDataPattern: "noDataPattern" in o ? o.noDataPattern : null,
+			noDataPatternInk:
+				typeof o.noDataPatternInk === "string" ? o.noDataPatternInk : "#a8a29e",
 		}
 	},
 ]

@@ -25,6 +25,7 @@ import {
 	type ProjectionName,
 	type RegionKeyType,
 } from "../../lib/mapConfig"
+import { PATTERN_PALETTE } from "../../lib/patterns"
 import { currentMapConfigAtom } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
@@ -55,6 +56,45 @@ const projectionOptions: { value: ProjectionName | "auto"; label: string }[] = [
 	{ value: "auto", label: "Auto" },
 	...PROJECTIONS.map((p) => ({ value: p, label: PROJECTION_LABELS[p] })),
 ]
+
+/** Live preview tile for one no-data pattern chip: the pattern's tile drawn
+ *  with the CURRENT no-data fill as background and the current ink, so the
+ *  picker shows exactly what the map will paint. Mirrors GlyphPickerPanel's
+ *  PatternGlyph, sized for the Maps section's h-7 chip buttons. */
+const NoDataPatternChip = ({
+	idx,
+	bg,
+	ink,
+}: {
+	idx: number
+	bg: string
+	ink: string
+}) => {
+	const def = PATTERN_PALETTE[idx % PATTERN_PALETTE.length]
+	const uniqueId = `maps-nodata-chip-${idx}`
+	return (
+		<svg width={20} height={20} aria-hidden="true">
+			<defs>
+				<pattern
+					id={uniqueId}
+					patternUnits="userSpaceOnUse"
+					width={def.size}
+					height={def.size}
+				>
+					<rect width={def.size} height={def.size} fill={bg} />
+					{def.render(ink)}
+				</pattern>
+			</defs>
+			<rect
+				width={20}
+				height={20}
+				fill={`url(#${uniqueId})`}
+				stroke="#d6d3d1"
+				strokeWidth={0.5}
+			/>
+		</svg>
+	)
+}
 
 const geographyLevelOptions: { value: GeographyLevel | "auto"; label: string }[] =
 	[
@@ -438,6 +478,79 @@ export const MapsSection = () => {
 											update({
 												noDataFill:
 													DEFAULT_MAP_CONFIG.noDataFill,
+											})
+										}
+										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+									>
+										reset
+									</button>
+								)}
+							</div>
+						)}
+						{showNoDataFillColor && (
+							<div className="flex items-start gap-2">
+								<span className={`${LABEL_COL} shrink-0 pt-1`}>
+									No-data pattern
+								</span>
+								<div className="flex flex-wrap gap-1">
+									<button
+										type="button"
+										onClick={() => update({ noDataPattern: null })}
+										aria-pressed={mapConfig.noDataPattern === null}
+										className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
+											mapConfig.noDataPattern === null
+												? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
+												: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+										}`}
+									>
+										None
+									</button>
+									{PATTERN_PALETTE.map((_, idx) => {
+										const selected = idx === mapConfig.noDataPattern
+										return (
+											<button
+												// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
+												key={idx}
+												type="button"
+												onClick={() => update({ noDataPattern: idx })}
+												aria-pressed={selected}
+												aria-label={`No-data pattern option ${idx + 1}`}
+												className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
+													selected
+														? "border-stone-900 bg-white dark:border-white dark:bg-stone-800"
+														: "border-stone-300 bg-white hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900"
+												}`}
+											>
+												<NoDataPatternChip
+													idx={idx}
+													bg={mapConfig.noDataFill}
+													ink={mapConfig.noDataPatternInk}
+												/>
+											</button>
+										)
+									})}
+								</div>
+							</div>
+						)}
+						{showNoDataFillColor && mapConfig.noDataPattern !== null && (
+							<div className="flex items-center gap-2">
+								<ColorInput
+									label="Pattern ink"
+									labelClassName={LABEL_COL}
+									value={mapConfig.noDataPatternInk}
+									onChange={(noDataPatternInk) =>
+										update({ noDataPatternInk })
+									}
+									className="contents"
+								/>
+								{mapConfig.noDataPatternInk !==
+									DEFAULT_MAP_CONFIG.noDataPatternInk && (
+									<button
+										type="button"
+										onClick={() =>
+											update({
+												noDataPatternInk:
+													DEFAULT_MAP_CONFIG.noDataPatternInk,
 											})
 										}
 										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"

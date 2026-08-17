@@ -8,6 +8,7 @@ import {
 	geoPatternFill,
 	resolveGeoFill,
 	resolveGeoRadius,
+	resolveNoDataPatternDef,
 } from "../../lib/geo/geoMarkStyle"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import { resolveSlotColor } from "../../lib/resolveLayerColor"
@@ -56,11 +57,17 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 	const pointStrokeSlot = aestheticScales.colorSlots?.geoPointStroke
 	const pointStrokeCfg = channelConfigs.colorSlots?.geoPointStroke
 
+	// Optional no-data pattern overlay (unmatched / blank-measure regions on
+	// the basemap). Registered in patternDefs below whenever set. Memoized on
+	// the atom-held config so the patternDefs memo doesn't churn every render.
+	const noDataDef = useMemo(() => resolveNoDataPatternDef(mapConfig), [mapConfig])
+
 	// Per-region fill / fill-opacity / stroke resolution for the basemap —
 	// the same resolvers the choropleth uses for its interactive regions.
 	const regionStyle = buildRegionStyleResolvers({
 		featureToRow: geo.featureToRow,
 		noDataFill: mapConfig.noDataFill,
+		noDataPatternDef: noDataDef,
 		measureField: geo.measureField,
 		hueScale: geo.hueScale,
 		opacityScale: geo.opacityScale,
@@ -77,7 +84,7 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 	// per-mark resolution exactly so every `url(#...)` has a def.
 	const patternDefs = useMemo(() => {
 		const rows = [...geo.featureToRow.values()]
-		return buildGeoPatternDefs(
+		const defs = buildGeoPatternDefs(
 			[
 				...rows.map((row) => ({
 					row,
@@ -102,6 +109,9 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 			aestheticScales,
 			channelConfigs
 		)
+		// The no-data pattern def rides along whenever configured, so basemap
+		// regions referencing url(#vc-pat-nodata) always have their def.
+		return noDataDef ? [...defs, noDataDef] : defs
 	}, [
 		geo.featureToRow,
 		geo.measureField,
@@ -112,6 +122,7 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 		pointFillSlot,
 		pointFillCfg,
 		channelConfigs,
+		noDataDef,
 	])
 
 	const marksBody = (ctx: PlotContext) => {

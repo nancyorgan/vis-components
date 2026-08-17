@@ -4,6 +4,7 @@ import { afterEach } from "vitest"
 import { TestProvider } from "../../../../testSupport/TestProvider"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
+import { MAP_CONFIG_VERSION } from "../../lib/storage/migrations"
 import { emptyEncodings, type Dataset } from "../../lib/types"
 
 import { GeoChoroplethPlot } from "./GeoChoroplethPlot"
@@ -90,16 +91,22 @@ const seed = (
 		connection: { field: "state" },
 		hue: { field: "rate" },
 	})
+	// Wrapped in the current-version envelope so overrides are taken literally
+	// — a bare (v0) object would run the full migration chain, whose v5→v6
+	// step resets an explicit `showNoDataRegions: false` back to true.
 	set("vis-components:currentMapConfig", {
-		...DEFAULT_MAP_CONFIG,
-		coordSystem: "geographic",
-		...mapConfigOverrides,
+		_v: MAP_CONFIG_VERSION,
+		data: {
+			...DEFAULT_MAP_CONFIG,
+			coordSystem: "geographic",
+			...mapConfigOverrides,
+		},
 	})
 	/* eslint-enable @th/use-wrapped-json-functions */
 }
 
-/** Seed with the full basemap drawn (showNoDataRegions on) — the legacy
- *  behavior several tests assert (≥50 paths, no-data fill present). */
+/** Seed with the full basemap drawn (showNoDataRegions on — the default,
+ *  set explicitly for clarity): ≥50 paths, no-data fill present. */
 const seedFullBasemap = (rows?: Record<string, string>[]) =>
 	seed(rows, { showNoDataRegions: true })
 
@@ -135,8 +142,6 @@ afterEach(cleanup)
 
 describe("GeoChoroplethPlot (states choropleth)", () => {
 	it("renders one <path> per state feature when filling no-data regions", async () => {
-		// Full basemap requires showNoDataRegions on (default is off, which
-		// draws only matched regions — covered separately below).
 		seedFullBasemap()
 		const { container } = mount()
 		// Geometry resolves on a microtask, so wait for the basemap to draw.
@@ -147,15 +152,40 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 		})
 	})
 
-	it("by default (showNoDataRegions off) draws ONLY matched regions", async () => {
-		// Default config: only the four states with data should draw — no
-		// full basemap, and no path painted with the no-data fill.
-		seed([
-			{ state: "CA", rate: "1" },
-			{ state: "TX", rate: "2" },
-			{ state: "NY", rate: "3" },
-			{ state: "FL", rate: "4" },
-		])
+	it("by DEFAULT fills regions absent from the dataset with the no-data color", async () => {
+		// The user-reported gap: a geography missing from the dataset entirely
+		// (no row at all, not just a blank measure) must still paint with the
+		// missing-data color. Default config, four matched states → the full
+		// basemap draws, unmatched states in the no-data fill.
+		seed()
+		const { container } = mount()
+		await waitFor(() => {
+			expect(
+				container.querySelectorAll("path").length
+			).toBeGreaterThanOrEqual(50)
+		})
+		const fills = [...container.querySelectorAll("path")].map((p) =>
+			p.getAttribute("fill")
+		)
+		expect(fills).toContain(DEFAULT_MAP_CONFIG.noDataFill)
+		// The matched states are still scale-colored.
+		expect(
+			fills.some((f) => f !== null && f !== DEFAULT_MAP_CONFIG.noDataFill)
+		).toBe(true)
+	})
+
+	it("with showNoDataRegions off draws ONLY matched regions", async () => {
+		// Toggle off: only the four states with data should draw — no full
+		// basemap, and no path painted with the no-data fill.
+		seed(
+			[
+				{ state: "CA", rate: "1" },
+				{ state: "TX", rate: "2" },
+				{ state: "NY", rate: "3" },
+				{ state: "FL", rate: "4" },
+			],
+			{ showNoDataRegions: false }
+		)
 		const { container } = mount()
 		// Wait for geometry to resolve and the matched regions to paint.
 		await waitFor(() => {
@@ -173,8 +203,8 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 	it("a focus region fills non-data regions even with showNoDataRegions off", async () => {
 		// Reported bug: focusing a region left the non-data land blank. Focusing
 		// implies "show this area as a filled map", so non-data regions take the
-		// no-data fill regardless of the showNoDataRegions toggle (still off
-		// here). The four matched states stay scale-colored.
+		// no-data fill regardless of the showNoDataRegions toggle (explicitly
+		// off here). The four matched states stay scale-colored.
 		seed(
 			[
 				{ state: "CA", rate: "1" },
@@ -182,7 +212,7 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 				{ state: "NY", rate: "3" },
 				{ state: "FL", rate: "4" },
 			],
-			{ focusRegion: "northAmerica" }
+			{ focusRegion: "northAmerica", showNoDataRegions: false }
 		)
 		const { container } = mount()
 		// Many more than the 4 matched states draw now (the rest of the states
@@ -287,6 +317,41 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 		)
 		// The unmatched ("ZZ") and the many states without data all use no-data.
 		expect(fills).toContain(DEFAULT_MAP_CONFIG.noDataFill)
+	})
+
+	it("no-data pattern: absent AND blank-measure regions fill with the pattern ref", async () => {
+		// A pattern picked for the no-data fill: regions absent from the dataset
+		// AND a matched row with a blank measure cell both paint with the
+		// url(#vc-pat-nodata) paint server; the states with data keep their
+		// scale colors. The def itself must be registered in the SVG.
+		seed(
+			[
+				{ state: "CA", rate: "1" },
+				{ state: "TX", rate: "" }, // explicit blank → missing data
+			],
+			{ noDataPattern: 1 }
+		)
+		const { container } = mount()
+		await waitFor(() => {
+			expect(
+				container.querySelectorAll("path").length
+			).toBeGreaterThanOrEqual(50)
+		})
+		const markFills = [...container.querySelectorAll("path")]
+			.filter((p) => p.closest("defs") === null)
+			.map((p) => p.getAttribute("fill"))
+		expect(markFills).toContain("url(#vc-pat-nodata)")
+		// Solid no-data fill is fully replaced by the pattern paint.
+		expect(markFills).not.toContain(DEFAULT_MAP_CONFIG.noDataFill)
+		// CA still scale-colored (not the pattern, not the no-data fill).
+		expect(
+			markFills.some(
+				(f) => f !== null && f !== "url(#vc-pat-nodata)"
+			)
+		).toBe(true)
+		expect(
+			container.querySelector('pattern[id="vc-pat-nodata"]')
+		).not.toBeNull()
 	})
 
 	it("shows a tooltip with the row's fields when hovering a matched region", async () => {
@@ -427,8 +492,8 @@ const buildCountriesDataset = (
 })
 
 /** Mirror of `seed`, but seeds the countries dataset + a `countries` map
- *  config. `connection` → country code, `hue` → measure. `showNoDataRegions`
- *  defaults false (only matched countries draw) unless overridden. */
+ *  config. `connection` → country code, `hue` → measure. Same versioned
+ *  envelope as `seed` so overrides are taken literally. */
 const seedCountries = (
 	rows?: Record<string, string>[],
 	mapConfigOverrides: Partial<typeof DEFAULT_MAP_CONFIG> = {}
@@ -448,25 +513,31 @@ const seedCountries = (
 		hue: { field: "val" },
 	})
 	set("vis-components:currentMapConfig", {
-		...DEFAULT_MAP_CONFIG,
-		coordSystem: "geographic",
-		geographyLevel: "countries",
-		...mapConfigOverrides,
+		_v: MAP_CONFIG_VERSION,
+		data: {
+			...DEFAULT_MAP_CONFIG,
+			coordSystem: "geographic",
+			geographyLevel: "countries",
+			...mapConfigOverrides,
+		},
 	})
 	/* eslint-enable @th/use-wrapped-json-functions */
 }
 
 describe("GeoChoroplethPlot (world-country choropleth)", () => {
-	it("by default (showNoDataRegions off) draws ONLY matched countries", async () => {
+	it("with showNoDataRegions off draws ONLY matched countries", async () => {
 		// Three countries by ISO-3 (USA/CAN/MEX). With the no-data basemap off,
 		// exactly those three features draw — proving the countries geometry
 		// loaded, the naturalEarth projection produced paths (albersUsa would
 		// drop CAN/MEX to null), and the ISO-3 join matched all three.
-		seedCountries([
-			{ country: "USA", val: "1" },
-			{ country: "CAN", val: "2" },
-			{ country: "MEX", val: "3" },
-		])
+		seedCountries(
+			[
+				{ country: "USA", val: "1" },
+				{ country: "CAN", val: "2" },
+				{ country: "MEX", val: "3" },
+			],
+			{ showNoDataRegions: false }
+		)
 		const { container } = mount()
 		await waitFor(() => {
 			expect(container.querySelectorAll("path").length).toBe(3)
@@ -483,19 +554,16 @@ describe("GeoChoroplethPlot (world-country choropleth)", () => {
 		expect(fills.length).toBe(3)
 	})
 
-	it("draws the full world basemap when filling no-data regions", async () => {
-		// Same three matched countries + showNoDataRegions on → the whole
+	it("draws the full world basemap when filling no-data regions (the default)", async () => {
+		// Same three matched countries with the default config → the whole
 		// world-atlas basemap draws (177 country features). The unmatched
 		// countries carry the no-data fill; the three matched ones are
 		// scale-colored.
-		seedCountries(
-			[
-				{ country: "USA", val: "1" },
-				{ country: "CAN", val: "2" },
-				{ country: "MEX", val: "3" },
-			],
-			{ showNoDataRegions: true }
-		)
+		seedCountries([
+			{ country: "USA", val: "1" },
+			{ country: "CAN", val: "2" },
+			{ country: "MEX", val: "3" },
+		])
 		const { container } = mount()
 		await waitFor(() => {
 			expect(
@@ -516,13 +584,16 @@ describe("GeoChoroplethPlot (world-country choropleth)", () => {
 	it("joins countries given as ISO-2 codes", async () => {
 		// "US" / "CA" / "MX" are alpha-2 codes — auto key-type detection must
 		// recognize them as ISO and join through the renderer, drawing exactly
-		// three matched countries. Proves the ISO auto-detect (not just ISO-3)
-		// works end to end.
-		seedCountries([
-			{ country: "US", val: "1" },
-			{ country: "CA", val: "2" },
-			{ country: "MX", val: "3" },
-		])
+		// three matched countries (no-data regions off to isolate the join).
+		// Proves the ISO auto-detect (not just ISO-3) works end to end.
+		seedCountries(
+			[
+				{ country: "US", val: "1" },
+				{ country: "CA", val: "2" },
+				{ country: "MX", val: "3" },
+			],
+			{ showNoDataRegions: false }
+		)
 		const { container } = mount()
 		await waitFor(() => {
 			expect(container.querySelectorAll("path").length).toBe(3)
@@ -535,12 +606,17 @@ describe("GeoChoroplethPlot (world-country choropleth)", () => {
 	})
 
 	it("pattern channel: matched regions fill with pattern refs and emit <pattern> defs", async () => {
-		seed([
-			{ state: "CA", rate: "1", kind: "west" },
-			{ state: "TX", rate: "2", kind: "south" },
-			{ state: "NY", rate: "3", kind: "east" },
-			{ state: "FL", rate: "4", kind: "south" },
-		])
+		// No-data regions off so ONLY the four matched (pattern-filled) marks
+		// draw — the every-fill-is-a-pattern-ref assertion below needs that.
+		seed(
+			[
+				{ state: "CA", rate: "1", kind: "west" },
+				{ state: "TX", rate: "2", kind: "south" },
+				{ state: "NY", rate: "3", kind: "east" },
+				{ state: "FL", rate: "4", kind: "south" },
+			],
+			{ showNoDataRegions: false }
+		)
 		// The stock dataset has no pattern-able column — extend the seeded
 		// fields and map the pattern channel on top of the stock seed.
 		/* eslint-disable @th/use-wrapped-json-functions */

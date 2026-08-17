@@ -12,6 +12,7 @@ import {
 	resolveGeoFill,
 	resolveGeoOutlineColor,
 	resolveGeoPatternDef,
+	resolveNoDataPatternDef,
 } from "./geoMarkStyle"
 
 // A categorical hue scale over A/B/C — applyHueScale maps a raw value to a
@@ -78,6 +79,46 @@ describe("resolveGeoFill", () => {
 		)
 		expect(fill).not.toBe(OPACITY_BASE_FILL)
 		expect(fillOpacity).toBeUndefined()
+	})
+
+	it("flags measureMissing when a mapped measure value is blank/NA", () => {
+		const hue = hueOver(["A", "B"])
+		// Blank cell → the hue scale can't resolve → base fill + missing flag.
+		const missing = resolveGeoFill("#base", { cat: "" }, hue!.field, hue, null)
+		expect(missing.fill).toBe("#base")
+		expect(missing.measureMissing).toBe(true)
+		// A resolving value is NOT missing.
+		const ok = resolveGeoFill("#base", { cat: "A" }, hue!.field, hue, null)
+		expect(ok.measureMissing).toBe(false)
+		// No measure mapped at all is "no measure", not "missing data".
+		const none = resolveGeoFill("#base", { cat: "" }, null, null, null)
+		expect(none.measureMissing).toBe(false)
+	})
+})
+
+describe("resolveNoDataPatternDef", () => {
+	it("returns null when no pattern is configured", () => {
+		expect(
+			resolveNoDataPatternDef({
+				noDataPattern: null,
+				noDataFill: "#e7e5e4",
+				noDataPatternInk: "#a8a29e",
+			})
+		).toBeNull()
+	})
+
+	it("bakes the no-data fill + ink into a fixed-id def", () => {
+		const def = resolveNoDataPatternDef({
+			noDataPattern: 2,
+			noDataFill: "#e7e5e4",
+			noDataPatternInk: "#a8a29e",
+		})
+		expect(def).toEqual({
+			svgId: "vc-pat-nodata",
+			paletteIdx: 2,
+			bgColor: "#e7e5e4",
+			inkColor: "#a8a29e",
+		})
 	})
 })
 
@@ -249,5 +290,60 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 		})
 		expect(resolvers.fillFor(feature("06"))).toMatch(/^url\(#vc-pat-/)
 		expect(resolvers.fillFor(feature("48"))).toBe("#nodata")
+	})
+
+	it("no-data pattern: unmatched AND blank-measure regions take the pattern ref", () => {
+		const scales = patternScales(true)
+		const noDataDef = resolveNoDataPatternDef({
+			noDataPattern: 1,
+			noDataFill: "#nodata",
+			noDataPatternInk: "#ink",
+		})
+		const resolvers = buildRegionStyleResolvers({
+			featureToRow: new Map([
+				["06", { cat: "A" }], // resolves via the hue scale
+				["48", { cat: "" }], // blank measure cell → missing data
+			]),
+			noDataFill: "#nodata",
+			noDataPatternDef: noDataDef,
+			measureField: scales.hue!.field,
+			hueScale: scales.hue,
+			opacityScale: null,
+			baseOutlineColor: "#base",
+			outlineHue: null,
+			outlineColorRules: undefined,
+			aestheticScales: EMPTY_SCALES,
+			channelConfigs: EMPTY_CHANNEL_CONFIGS,
+		})
+		// A resolving measure keeps its scale color (no pattern channel here).
+		expect(resolvers.fillFor(feature("06"))).not.toBe("url(#vc-pat-nodata)")
+		// Blank measure and absent-from-dataset look identical: the pattern ref.
+		expect(resolvers.fillFor(feature("48"))).toBe("url(#vc-pat-nodata)")
+		expect(resolvers.fillFor(feature("31"))).toBe("url(#vc-pat-nodata)")
+	})
+
+	it("no-data pattern: a row's own pattern-channel category wins over it", () => {
+		const scales = patternScales(false) // pattern field only, no hue
+		const noDataDef = resolveNoDataPatternDef({
+			noDataPattern: 1,
+			noDataFill: "#nodata",
+			noDataPatternInk: "#ink",
+		})
+		const resolvers = buildRegionStyleResolvers({
+			featureToRow: new Map([["06", { cat: "", p: "A" }]]),
+			noDataFill: "#nodata",
+			noDataPatternDef: noDataDef,
+			measureField: hueOver(["A"])!.field, // measure mapped, value blank
+			hueScale: hueOver(["A"]),
+			opacityScale: null,
+			baseOutlineColor: "#base",
+			outlineHue: null,
+			outlineColorRules: undefined,
+			aestheticScales: scales,
+			channelConfigs: EMPTY_CHANNEL_CONFIGS,
+		})
+		const fill = resolvers.fillFor(feature("06"))
+		expect(fill).toMatch(/^url\(#vc-pat-/)
+		expect(fill).not.toBe("url(#vc-pat-nodata)")
 	})
 })

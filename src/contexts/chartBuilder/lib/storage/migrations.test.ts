@@ -350,3 +350,36 @@ describe("visualsMigrations v1 -> v2 (font sizes reset to theme after px→pt)",
 		expect(twice).toEqual(once)
 	})
 })
+
+describe("visualsMigrations v3 -> v4 (showNoDataRegions reset to true)", () => {
+	const upgrade = visualsMigrations[3]!
+
+	it("flips a saved visual's mapConfig.showNoDataRegions to true", () => {
+		// The default flipped: regions absent from the dataset now paint with
+		// the no-data fill. Saved visuals reset because their stored `false`
+		// was overwhelmingly the old backfilled default, not a user choice.
+		const out = upgrade([
+			{
+				id: "a",
+				mapConfig: {
+					coordSystem: "geographic",
+					noDataFill: "#e7e5e4",
+					showNoDataRegions: false,
+				},
+			},
+		]) as Array<{ mapConfig: Record<string, unknown> }>
+		expect(out[0]?.mapConfig.showNoDataRegions).toBe(true)
+		// Every other mapConfig field is untouched.
+		expect(out[0]?.mapConfig.coordSystem).toBe("geographic")
+		expect(out[0]?.mapConfig.noDataFill).toBe("#e7e5e4")
+	})
+
+	it("leaves visuals without a mapConfig alone (restore-time default-merge covers them)", () => {
+		expect(upgrade([{ id: "bare" }])).toEqual([{ id: "bare" }])
+	})
+
+	it("tolerates non-array input and non-object entries", () => {
+		expect(upgrade("junk")).toBe("junk")
+		expect(upgrade([null, "x"])).toEqual([null, "x"])
+	})
+})

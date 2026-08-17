@@ -323,11 +323,10 @@ export const ConnectionOptionsPanel = () => {
 		</div>
 	)
 
-	// Shared line-thickness control. In radar mode it lives inside the
-	// "Polygon" subsection alongside the fill toggle; everywhere else it
-	// sits at the panel's top level. When the mode groups lines by the
-	// connection value (scatter / radar), a "Vary by" dropdown lets the
-	// thickness differ per category.
+	// Shared line-thickness control — lives inside the "Line properties"
+	// subsection in every mode that draws connection lines. When the mode
+	// groups lines by the connection value (scatter / radar), a "Vary by"
+	// dropdown lets the thickness differ per category.
 	const lineThicknessRow = supportsThicknessVaryBy ? (
 		<div className="flex flex-col gap-2">
 			<SelectInput
@@ -727,32 +726,28 @@ export const ConnectionOptionsPanel = () => {
 					)}
 				</>
 			)}
-			{isLineOrAreaMode && !!connectionFieldName ? (
-				<CollapsibleSubsection title="Polygon" changed={ch.thickness || ch.fill}>
+			{isLineOrAreaMode && !!connectionFieldName && (
+				<CollapsibleSubsection title="Polygon" changed={ch.fill}>
 					<div className="flex flex-col gap-2">
-						{lineThicknessRow}
-						<div className="flex items-center gap-2 text-sm">
-							<LabelSpacer />
-							<label className="flex items-center gap-2">
-								<input
-									type="checkbox"
-									checked={isAreaMode}
-									onChange={(e) =>
-										e.target.checked ? switchToArea() : switchToLine()
-									}
-									className="h-3 w-3"
-								/>
-								<span
-									className={
-										ch.fill
-											? "font-semibold !text-vc-section-header"
-											: "text-stone-600 dark:text-stone-400"
-									}
-								>
-									Fill polygon
-								</span>
-							</label>
-						</div>
+						<label className="flex items-center gap-2 text-sm">
+							<input
+								type="checkbox"
+								checked={isAreaMode}
+								onChange={(e) =>
+									e.target.checked ? switchToArea() : switchToLine()
+								}
+								className="h-3 w-3"
+							/>
+							<span
+								className={
+									ch.fill
+										? "font-semibold !text-vc-section-header"
+										: "text-stone-600 dark:text-stone-400"
+								}
+							>
+								Fill polygon
+							</span>
+						</label>
 						{isAreaMode && (
 							<StackingRow
 								encodings={encodings}
@@ -762,14 +757,13 @@ export const ConnectionOptionsPanel = () => {
 						)}
 					</div>
 				</CollapsibleSubsection>
-			) : (
-				isLineOrAreaMode && <div className="px-2">{lineThicknessRow}</div>
 			)}
 			{isLineOrAreaMode && (
 				<CollapsibleSubsection
 					title="Line properties"
-					changed={ch.lineCap || ch.smoothing}
+					changed={ch.thickness || ch.lineCap || ch.smoothing}
 				>
+					{lineThicknessRow}
 					<div className="flex flex-col gap-1.5">
 						<label className="flex items-center gap-2 text-sm">
 							<input
@@ -880,33 +874,34 @@ export const ConnectionOptionsPanel = () => {
 				</CollapsibleSubsection>
 			)}
 			{isRadarMode && !!connectionFieldName && (
-				<CollapsibleSubsection title="Polygon" changed={ch.thickness || ch.fill}>
+				<CollapsibleSubsection title="Polygon" changed={ch.fill}>
 					<div className="flex flex-col gap-2">
-						{lineThicknessRow}
-						<div className="flex items-center gap-2 text-sm">
-							<LabelSpacer />
-							<label className="flex items-center gap-2">
-								<input
-									type="checkbox"
-									checked={cfg.fillPolygon === true}
-									onChange={(e) => updateCfg({ fillPolygon: e.target.checked })}
-									className="h-3 w-3"
-								/>
-								<span
-									className={
-										ch.fill
-											? "font-semibold !text-vc-section-header"
-											: "text-stone-600 dark:text-stone-400"
-									}
-								>
-									Fill polygon
-								</span>
-							</label>
-						</div>
+						<label className="flex items-center gap-2 text-sm">
+							<input
+								type="checkbox"
+								checked={cfg.fillPolygon === true}
+								onChange={(e) => updateCfg({ fillPolygon: e.target.checked })}
+								className="h-3 w-3"
+							/>
+							<span
+								className={
+									ch.fill
+										? "font-semibold !text-vc-section-header"
+										: "text-stone-600 dark:text-stone-400"
+								}
+							>
+								Fill polygon
+							</span>
+						</label>
 						<p className="vc-help">
 							Adjust line and fill opacity in the Opacity panel.
 						</p>
 					</div>
+				</CollapsibleSubsection>
+			)}
+			{isRadarMode && !!connectionFieldName && (
+				<CollapsibleSubsection title="Line properties" changed={ch.thickness}>
+					{lineThicknessRow}
 				</CollapsibleSubsection>
 			)}
 			{showPointSampling && (

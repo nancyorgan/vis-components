@@ -2924,16 +2924,6 @@ const AnnotationRects = ({
 			yDomainOverride?.max
 		)
 	}
-	// Detect categorical-style scales (scalePoint, used for categorical
-	// and string-ordinal axes). Their value-positions are point centers,
-	// not band edges — `step()` gives the per-band span we need to
-	// extend the annotation rectangle across the full bands.
-	const isPointScale = (s: PositionScale | null): boolean =>
-		s !== null && "step" in s && typeof (s as { step?: unknown }).step === "function"
-	const pointStep = (s: PositionScale): number => {
-		const step = (s as unknown as { step: () => number }).step()
-		return Number.isFinite(step) ? step : 0
-	}
 	// "Size panels by unit" (polar): shrink percent annotations about the
 	// panel center by the same factor the disc shrinks, so they track the
 	// marks across differently-sized panels instead of staying full-panel.
@@ -2971,13 +2961,11 @@ const AnnotationRects = ({
 					const a = applyPositionScale(xScale, r.xMin, axisFields.xType)
 					const b = applyPositionScale(xScale, r.xMax, axisFields.xType)
 					if (a === null || b === null) return null
-					// For point-scale (categorical / string-ordinal) axes,
-					// expand from the point's CENTER to its band's EDGES so
-					// the rectangle covers the full categories the user
-					// named — not just the strip between their centers.
-					const pad = isPointScale(xScale) ? pointStep(xScale) / 2 : 0
-					const lo = Math.min(a, b) - pad
-					const hi = Math.max(a, b) + pad
+					// Categorical (point-scale) coordinates land on the
+					// category's CENTER, same as line-segment endpoints —
+					// min/max name the exact positions the rectangle spans.
+					const lo = Math.min(a, b)
+					const hi = Math.max(a, b)
 					left = lo
 					width = hi - lo
 				} else {
@@ -2993,9 +2981,8 @@ const AnnotationRects = ({
 					const a = applyPositionScale(yScale, r.yMin, axisFields.yType)
 					const b = applyPositionScale(yScale, r.yMax, axisFields.yType)
 					if (a === null || b === null) return null
-					const pad = isPointScale(yScale) ? pointStep(yScale) / 2 : 0
-					const lo = Math.min(a, b) - pad
-					const hi = Math.max(a, b) + pad
+					const lo = Math.min(a, b)
+					const hi = Math.max(a, b)
 					top = lo
 					height = hi - lo
 				} else {

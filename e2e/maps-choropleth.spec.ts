@@ -18,9 +18,10 @@ import { seedFixtureScript, type SeedFixture } from "./seed"
  *
  *  Asserts the geo-choropleth mode resolves and renders the full US basemap
  *  inside the plot SVG, and that the Maps match-status reflects all 50
- *  fixture states matched. By default only regions WITH data draw, so the
- *  spec turns the "Fill regions with no data" toggle ON to force the whole
- *  basemap (states-10m has 56 features → ≥50 paths incl. territories/DC). */
+ *  fixture states matched. "Fill regions with no data" is on by default; the
+ *  spec checks the toggle anyway (a no-op today) so the whole-basemap
+ *  assertion (states-10m has 56 features → ≥50 paths incl. territories/DC)
+ *  survives any future default change. */
 
 const FIXTURE_URL = new URL("./fixtures/states-rate.csv", import.meta.url)
 
@@ -76,9 +77,10 @@ test("states choropleth happy path: map connection + color, go Geographic", asyn
 	await page.getByRole("button", { name: "Maps" }).click()
 	await page.getByRole("radio", { name: "Geographic" }).click()
 
-	// Default behavior draws ONLY the matched regions. Turn on "Fill regions
-	// with no data" so the entire basemap (incl. territories/DC with no row)
-	// draws — that's what the ≥50-path assertion below verifies.
+	// "Fill regions with no data" is on by default (regions absent from the
+	// dataset paint with the no-data color); check() is a no-op that pins the
+	// toggle on regardless of the default, so the entire basemap (incl.
+	// territories/DC with no row) draws — the ≥50-path assertion below.
 	await page.getByLabel(/Fill regions with no data/i).check()
 
 	// Geometry (states-10m) loads async, then the renderer draws one <path>

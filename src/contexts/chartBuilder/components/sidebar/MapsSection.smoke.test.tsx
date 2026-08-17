@@ -2,6 +2,7 @@ import { cleanup, render, screen, fireEvent } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
 import { afterEach, describe, expect, it } from "vitest"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
+import { MAP_CONFIG_VERSION } from "../../lib/storage/migrations"
 import { emptyEncodings } from "../../lib/types"
 
 import { MapsSection } from "./MapsSection"
@@ -57,9 +58,15 @@ const seed = (
 ) => {
 	installInMemoryLocalStorage()
 	/* eslint-disable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+	// Wrapped in the current-version envelope so overrides are taken literally
+	// — a bare (v0) object would run the migration chain, whose v5→v6 step
+	// resets an explicit `showNoDataRegions: false` back to true.
 	localStorage.setItem(
 		"vis-components:currentMapConfig",
-		JSON.stringify({ ...DEFAULT_MAP_CONFIG, coordSystem, ...overrides })
+		JSON.stringify({
+			_v: MAP_CONFIG_VERSION,
+			data: { ...DEFAULT_MAP_CONFIG, coordSystem, ...overrides },
+		})
 	)
 	if (encodings) {
 		localStorage.setItem(
@@ -188,14 +195,16 @@ describe("MapsSection", () => {
 		).toBeNull()
 	})
 
-	it("reveals the fill-regions-with-no-data toggle in choropleth mode, default off", () => {
+	it("reveals the fill-regions-with-no-data toggle in choropleth mode, default on", () => {
+		// Default ON: regions absent from the dataset paint with the no-data
+		// fill unless the user opts out.
 		seed("geographic", {}, CHOROPLETH_ENC)
 		mount()
 		const toggle = screen.getByLabelText(
 			/Fill regions with no data/i
 		) as HTMLInputElement
 		expect(toggle).toBeTruthy()
-		expect(toggle.checked).toBe(false)
+		expect(toggle.checked).toBe(true)
 	})
 
 	it("hides the fill-regions toggle in Cartesian mode", () => {
@@ -204,24 +213,58 @@ describe("MapsSection", () => {
 		expect(screen.queryByLabelText(/Fill regions with no data/i)).toBeNull()
 	})
 
-	it("reflects a seeded showNoDataRegions: true as checked", () => {
-		seed("geographic", { showNoDataRegions: true }, CHOROPLETH_ENC)
-		mount()
-		const toggle = screen.getByLabelText(
-			/Fill regions with no data/i
-		) as HTMLInputElement
-		expect(toggle.checked).toBe(true)
-	})
-
-	it("flips showNoDataRegions on when the toggle is clicked", () => {
-		seed("geographic", {}, CHOROPLETH_ENC)
+	it("reflects a seeded showNoDataRegions: false as unchecked", () => {
+		seed("geographic", { showNoDataRegions: false }, CHOROPLETH_ENC)
 		mount()
 		const toggle = screen.getByLabelText(
 			/Fill regions with no data/i
 		) as HTMLInputElement
 		expect(toggle.checked).toBe(false)
-		fireEvent.click(toggle)
+	})
+
+	it("flips showNoDataRegions off when the toggle is clicked", () => {
+		seed("geographic", {}, CHOROPLETH_ENC)
+		mount()
+		const toggle = screen.getByLabelText(
+			/Fill regions with no data/i
+		) as HTMLInputElement
 		expect(toggle.checked).toBe(true)
+		fireEvent.click(toggle)
+		expect(toggle.checked).toBe(false)
+	})
+
+	it("no-data pattern chips: None selected by default; ink input hidden until a pattern is picked", () => {
+		seed("geographic", {}, CHOROPLETH_ENC)
+		mount()
+		// The chip row renders wherever the no-data fill color does.
+		const none = screen.getByRole("button", { name: "None" })
+		expect(none.getAttribute("aria-pressed")).toBe("true")
+		// Ink color is inert without a pattern → hidden.
+		expect(screen.queryByLabelText(/Pattern ink/i)).toBeNull()
+		// Picking a pattern selects its chip and reveals the ink input.
+		const chip = screen.getByRole("button", {
+			name: /No-data pattern option 2/i,
+		})
+		fireEvent.click(chip)
+		expect(chip.getAttribute("aria-pressed")).toBe("true")
+		expect(none.getAttribute("aria-pressed")).toBe("false")
+		expect(screen.getByLabelText(/Pattern ink/i)).toBeTruthy()
+	})
+
+	it("reflects a seeded noDataPattern as the selected chip", () => {
+		seed("geographic", { noDataPattern: 0 }, CHOROPLETH_ENC)
+		mount()
+		expect(
+			screen
+				.getByRole("button", { name: /No-data pattern option 1/i })
+				.getAttribute("aria-pressed")
+		).toBe("true")
+	})
+
+	it("hides the no-data pattern chips in Cartesian mode (no no-data fill painted)", () => {
+		seed("cartesian")
+		mount()
+		expect(screen.queryByRole("button", { name: "None" })).toBeNull()
 	})
 
 	// --- Contextual gating: each toggle shows only in its own mode. ---

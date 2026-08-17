@@ -669,6 +669,14 @@ export type OpacitySlotConfig = {
 
 export type OpacitySlots = Partial<Record<OpacitySlotKey, OpacitySlotConfig>>
 
+/** A user-defined mark glyph: a short text string (1–3 characters, emoji
+ * OK — tinted by the mark's fill color like a symbol path) or an uploaded
+ * image (stored as a small data URL, rendered as-is — fill / outline /
+ * pattern encodings don't apply to images). */
+export type CustomGlyph =
+	| { kind: "text"; text: string }
+	| { kind: "image"; href: string; aspect: number }
+
 export type ShapeConfig = {
 	overrides: Record<string, number>
 	/** Stroke color applied to every point mark. Seeded from the theme's
@@ -696,6 +704,13 @@ export type ShapeConfig = {
 	 * outlineHue scale color; per-category `strokeOverrides` still win on
 	 * top. Only fire when an outline variable is mapped. */
 	outlineColorRules?: TextColorRule[]
+	/** Per-chart custom glyphs. A shape index `i >= SHAPE_PALETTE.length`
+	 * refers to `customGlyphs[i - SHAPE_PALETTE.length]`. Deleted slots are
+	 * tombstoned to `null` (never spliced) so existing index references —
+	 * `defaultShape`, per-category `overrides` — stay stable; a reference to
+	 * a tombstoned / out-of-range slot resolves to the circle symbol (see
+	 * `lib/customGlyphs.resolveGlyph`). */
+	customGlyphs?: Array<CustomGlyph | null>
 }
 export const DEFAULT_SHAPE_CONFIG: ShapeConfig = {
 	overrides: {},
@@ -1063,8 +1078,12 @@ export type ConnectionConfig = {
 /** Dash patterns offered in the Connection panel — each maps to a fixed
  *  SVG `stroke-dasharray` recipe in `lib/dashPatterns.ts`. New patterns
  *  add entries to BOTH places (the union here and the recipe map there)
- *  so the panel and renderer stay in sync. */
-export type LineDashPattern = "solid" | "dashed" | "dotted" | "dash-dot"
+ *  so the panel and renderer stay in sync. `"blank"` is the range-mode
+ *  gap option: where the dash applies the line doesn't draw at all (only
+ *  the "Fill dash gaps" underlay, when on). Only offered while "Apply
+ *  pattern to range" is enabled — as a whole-line dash it would erase the
+ *  line, so outside an active range the renderers treat it as solid. */
+export type LineDashPattern = "solid" | "dashed" | "dotted" | "dash-dot" | "blank"
 export const DEFAULT_CONNECTION_CONFIG: ConnectionConfig = {
 	lineColors: {},
 	thickness: 2,

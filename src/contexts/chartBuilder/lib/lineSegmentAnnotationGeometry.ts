@@ -40,9 +40,9 @@ const toNumber = (v: number | string): number => {
  *    independently when its scale/type is unavailable (e.g. a pie chart's
  *    missing axis), mirroring the rectangle renderer.
  *
- *  Unlike the rectangle, value-mode endpoints on a categorical (point) axis
- *  land on the category's CENTER — a line connects points, so there's no band
- *  to span. Returns `null` if any endpoint can't be projected. */
+ *  Value-mode endpoints on a categorical (point) axis land on the category's
+ *  CENTER — the same convention rectangle min/max coordinates use.
+ *  Returns `null` if any endpoint can't be projected. */
 export const computeLineSegmentPixels = (
 	line: LineSegmentAnnotation,
 	inner: Inner,

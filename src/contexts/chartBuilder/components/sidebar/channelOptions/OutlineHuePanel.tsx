@@ -34,6 +34,7 @@ import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledFiel
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import {
 	CategoricalSwatchList,
+	PalettePickerButton,
 	QuantitativePanel,
 	useQuantFieldExtent,
 } from "./HueOptionsPanel"
@@ -154,6 +155,20 @@ export const OutlineColorRow = () => {
 						value={cfg.outlineColor}
 						onChange={(outlineColor) => updateShape({ outlineColor })}
 						changed={cfg.outlineColor !== defaultColor}
+					/>
+					<PalettePickerButton
+						label="Pick palette outline color"
+						palette={
+							// Outline's own picked palette → fill palette → theme default,
+							// same precedence the outline scale uses when a field IS mapped.
+							outlinePaletteForHueType("categorical", configs) ??
+							theme.categoricalPalettes.find(
+								(p) => p.id === theme.defaultCategoricalPaletteId,
+							)?.colors ??
+							CATEGORICAL_HUE_PALETTE
+						}
+						current={cfg.outlineColor}
+						onPick={(outlineColor) => updateShape({ outlineColor })}
 					/>
 					{cfg.outlineColor !== defaultColor && (
 						<button

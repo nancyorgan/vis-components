@@ -12,6 +12,7 @@ import {
 	DEFAULT_LEGEND_CONFIG,
 	type LegendConfig,
 } from "../../lib/labelsConfig"
+import { CUSTOM_GLYPH_BASE } from "../../lib/customGlyphs"
 import { applyHueScale, makeHueScale } from "../../lib/scales"
 import { emptyEncodings, type Dataset } from "../../lib/types"
 import {
@@ -1758,5 +1759,79 @@ describe("Legend — solo saturation / brightness sections", () => {
 				(s) => d3Rgb(s.style.borderColor).formatHex() === "#123456"
 			)
 		).toBe(true)
+	})
+})
+
+/** Custom shape glyphs in the shape legend: a per-category override past
+ *  the built-in palette resolves into `shape.customGlyphs` and draws the
+ *  text / image glyph in the swatch — and a deleted (tombstoned) glyph
+ *  degrades to a symbol path instead of an empty swatch. */
+describe("ShapeLegend — custom glyphs", () => {
+	it("renders a text custom glyph for a category whose shape points past the palette", () => {
+		const { container } = render(
+			<ShapeLegend
+				type="categorical"
+				values={["east", "west"]}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					shape: {
+						...DEFAULT_SHAPE_CONFIG,
+						overrides: { east: CUSTOM_GLYPH_BASE },
+						customGlyphs: [{ kind: "text", text: "★" }],
+					},
+				}}
+				legendFillColor={null}
+				legendStrokeColor={null}
+			/>
+		)
+		const texts = [...container.querySelectorAll("text")]
+		expect(texts.some((t) => t.textContent === "★")).toBe(true)
+		// The other category keeps its symbol path.
+		expect(container.querySelectorAll("path").length).toBeGreaterThan(0)
+	})
+
+	it("renders an image custom glyph as an <image> swatch", () => {
+		const HREF = "data:image/png;base64,iVBORw0KGgo="
+		const { container } = render(
+			<ShapeLegend
+				type="categorical"
+				values={["east"]}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					shape: {
+						...DEFAULT_SHAPE_CONFIG,
+						overrides: { east: CUSTOM_GLYPH_BASE },
+						customGlyphs: [{ kind: "image", href: HREF, aspect: 1 }],
+					},
+				}}
+				legendFillColor={null}
+				legendStrokeColor={null}
+			/>
+		)
+		expect(
+			container.querySelector("image")?.getAttribute("href")
+		).toBe(HREF)
+	})
+
+	it("a tombstoned glyph reference falls back to a symbol path", () => {
+		const { container } = render(
+			<ShapeLegend
+				type="categorical"
+				values={["east"]}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					shape: {
+						...DEFAULT_SHAPE_CONFIG,
+						overrides: { east: CUSTOM_GLYPH_BASE },
+						customGlyphs: [null],
+					},
+				}}
+				legendFillColor={null}
+				legendStrokeColor={null}
+			/>
+		)
+		expect(container.querySelectorAll("image").length).toBe(0)
+		expect(container.querySelectorAll("text").length).toBe(0)
+		expect(container.querySelectorAll("path").length).toBe(1)
 	})
 })

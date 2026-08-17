@@ -513,6 +513,16 @@ export const HueOptionsPanel = ({
 	// --- SINGLE COLOR (no field and no measure source mapped) ---
 	if (!dataset || (!hueFieldName && !measureSource)) {
 		const currentFill = configs.defaultFill ?? theme.defaultFill
+		// On-palette shortcut beside the open-ended picker: the chart's picked
+		// categorical palette when one is stored, else the theme default.
+		const singleColorScheme =
+			theme.categoricalPalettes.find(
+				(p) =>
+					p.id ===
+					(configs.categoricalPaletteId ?? theme.defaultCategoricalPaletteId),
+			)?.colors ??
+			configs.categoricalPalette ??
+			CATEGORICAL_HUE_PALETTE
 		return (
 			<div className="flex flex-col gap-2">
 				{!hideVaryBy && varyBy}
@@ -522,6 +532,14 @@ export const HueOptionsPanel = ({
 						labelClassName={LABEL_COL}
 						value={currentFill}
 						onChange={(defaultFill) =>
+							setConfigs((prev) => ({ ...prev, defaultFill }))
+						}
+					/>
+					<PalettePickerButton
+						label="Pick palette color"
+						palette={singleColorScheme}
+						current={currentFill}
+						onPick={(defaultFill) =>
 							setConfigs((prev) => ({ ...prev, defaultFill }))
 						}
 					/>
