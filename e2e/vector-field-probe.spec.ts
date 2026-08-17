@@ -1,12 +1,19 @@
 import { existsSync, mkdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { test, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+import { isIgnorableConsoleError } from "./autogen-helpers"
 
 /** Vector-field probe: funny_animals_heatmap_data with activity → x,
- *  animal → y, silliness_score → hue + length + angle. Takes a
- *  screenshot and reads the rendered glyph properties so we can
- *  iterate on the look. */
+ *  animal → y, silliness_score → hue + length + angle. Screenshots the
+ *  result (secondary artifact) and ASSERTS the field actually rendered:
+ *   - the chart SVG exists at a sane size,
+ *   - the length+angle mapping produced vector glyphs (marks),
+ *   - those glyphs VARY in length and direction — a vector field whose
+ *     glyphs are all identical means the length/angle scales silently
+ *     collapsed,
+ *   - hue produced more than one stroke color,
+ *   - no console errors. */
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -39,6 +46,12 @@ const setup = async (page: Page): Promise<void> => {
 }
 
 test("vector field: setup + screenshot + glyph readings", async ({ page }, info) => {
+	const consoleErrors: string[] = []
+	page.on("console", (msg) => {
+		if (msg.type() !== "error") return
+		if (isIgnorableConsoleError(msg.text())) return
+		consoleErrors.push(msg.text())
+	})
 	mkdirSync(SCREENSHOT_DIR, { recursive: true })
 	await setup(page)
 
@@ -49,36 +62,68 @@ test("vector field: setup + screenshot + glyph readings", async ({ page }, info)
 		fullPage: false,
 	})
 
-	// Locate the chart SVG and read each glyph's transform / stroke / line.
+	// Locate the chart SVG and read each glyph's geometry / stroke.
 	const glyphs = await page.evaluate(() => {
 		const svg = document.querySelector("#vc-scatter-svg")
 		if (!svg) return null
-		// Vector-field marks render as <line> inside a per-point <g>.
 		const lines = Array.from(svg.querySelectorAll<SVGLineElement>("line"))
-		// Filter to "mark-ish" lines: short ones nested in a translated group.
-		const samples = lines
-			.filter((l) => {
-				const parent = l.parentElement as Element | null
-				return parent?.getAttribute("transform")?.includes("translate")
-			})
-			.slice(0, 10)
-			.map((l) => ({
-				x1: l.getAttribute("x1"),
-				y1: l.getAttribute("y1"),
-				x2: l.getAttribute("x2"),
-				y2: l.getAttribute("y2"),
+		// Vector-field marks are the `m.line` branch in ScatterPlot: a bare
+		// <line> (endpoints centered on the anchor, rotated by the angle
+		// encoding) painted with strokeWidth 3 + round caps. Axis spines,
+		// gridlines and tickmarks are also <line>s but carry the theme's
+		// thickness and butt caps, so the cap+width pair separates them —
+		// the old "parent has a translate" filter matched nothing, since
+		// these marks aren't wrapped in a per-point <g>.
+		const markLines = lines.filter(
+			(l) =>
+				l.getAttribute("stroke-linecap") === "round" &&
+				l.getAttribute("stroke-width") === "3",
+		)
+		const geometry = markLines.map((l) => {
+			const x1 = Number(l.getAttribute("x1") ?? "0")
+			const y1 = Number(l.getAttribute("y1") ?? "0")
+			const x2 = Number(l.getAttribute("x2") ?? "0")
+			const y2 = Number(l.getAttribute("y2") ?? "0")
+			return {
+				length: Math.round(Math.hypot(x2 - x1, y2 - y1) * 10) / 10,
+				// Undirected orientation in degrees (a segment and its
+				// reverse are the same glyph direction).
+				angleDeg:
+					Math.round(
+						(((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI + 180) % 180) *
+							10,
+					) / 10,
 				stroke: l.getAttribute("stroke"),
-				parentTransform: (l.parentElement as Element).getAttribute("transform"),
-			}))
+			}
+		})
 		return {
 			canvas: {
 				width: Math.round((svg as SVGElement).getBoundingClientRect().width),
 				height: Math.round((svg as SVGElement).getBoundingClientRect().height),
 			},
 			totalLines: lines.length,
-			samples,
+			markCount: markLines.length,
+			distinctLengths: new Set(geometry.map((g) => g.length)).size,
+			distinctAngles: new Set(geometry.map((g) => g.angleDeg)).size,
+			distinctStrokes: new Set(geometry.map((g) => g.stroke)).size,
+			samples: geometry.slice(0, 10),
 		}
 	})
 	// eslint-disable-next-line @th/use-wrapped-json-functions
 	console.log("[chart]", JSON.stringify(glyphs, null, 2))
+
+	expect(glyphs, "no chart SVG (#vc-scatter-svg) rendered").not.toBeNull()
+	expect(glyphs!.canvas.width, "chart canvas too narrow").toBeGreaterThan(200)
+	expect(glyphs!.canvas.height, "chart canvas too short").toBeGreaterThan(200)
+	expect(
+		glyphs!.markCount,
+		"length+angle on silliness_score should render vector glyphs",
+	).toBeGreaterThan(0)
+	// Length / angle / hue are all mapped to a quantitative field, so the
+	// glyphs must differ from one another — a single distinct value means
+	// the scale collapsed and the "field" is a grid of identical ticks.
+	expect(glyphs!.distinctLengths, "glyph lengths don't vary").toBeGreaterThan(1)
+	expect(glyphs!.distinctAngles, "glyph angles don't vary").toBeGreaterThan(1)
+	expect(glyphs!.distinctStrokes, "glyph hues don't vary").toBeGreaterThan(1)
+	expect(consoleErrors, "no console errors during render").toEqual([])
 })

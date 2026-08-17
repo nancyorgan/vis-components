@@ -5,11 +5,14 @@ import { expect, test } from "@playwright/test"
 import {
 	CHART_TYPES,
 	TESTDATA_DIR,
+	blockingIssues,
 	buildIndexHtml,
 	clickQuickStart,
 	collectIssues,
 	datasetCsvs,
 	isIgnorableConsoleError,
+	missingTestdataTitle,
+	noTestdata,
 	slug,
 	waitForDatasetReady,
 	type ScaffoldResult,
@@ -43,6 +46,9 @@ test.afterAll(() => {
 })
 
 const datasets = datasetCsvs(TESTDATA_DIR)
+
+if (datasets.length === 0)
+	test.skip(missingTestdataTitle("autogen"), noTestdata)
 
 for (const csv of datasets) {
 	test.describe(`autogen · ${csv}`, () => {
@@ -138,6 +144,13 @@ for (const csv of datasets) {
 					)
 				}
 				expect(consoleErrors, "no console errors during render").toEqual([])
+				// The layout checks are ASSERTED, not just reported. The HTML
+				// index (written in afterAll) stays as failure diagnostics —
+				// it still carries the screenshot and the advisory issues.
+				expect(
+					blockingIssues(issues),
+					`layout issues for ${csv} / ${chartLabel} — see ${SCREENSHOT_DIR}/index.html`,
+				).toEqual([])
 			})
 		}
 	})

@@ -4,9 +4,12 @@ import { fileURLToPath } from "node:url"
 import { expect, test, type Page } from "@playwright/test"
 import {
 	TESTDATA_DIR,
+	blockingIssues,
 	buildIndexHtml,
 	collectIssues,
 	isIgnorableConsoleError,
+	missingTestdataTitle,
+	noTestdata,
 	slug,
 	type ScaffoldResult,
 } from "./autogen-helpers"
@@ -1162,6 +1165,12 @@ const AVAILABLE_SCENARIOS = SCENARIOS.filter((scenario) =>
 	existsSync(path.join(TESTDATA_DIR, scenario.dataset)),
 )
 
+// Zero scenarios ⇒ zero tests, which reads in the report exactly like a
+// spec that passed. Register one explicitly-skipped placeholder naming
+// the reason instead — same convention as the other autogen specs.
+if (AVAILABLE_SCENARIOS.length === 0)
+	test.skip(missingTestdataTitle("autogen-themed-encoded"), noTestdata)
+
 for (const scenario of AVAILABLE_SCENARIOS) {
 	test(scenario.name, async ({ page }, info) => {
 		const consoleErrors: string[] = []
@@ -1309,5 +1318,12 @@ for (const scenario of AVAILABLE_SCENARIOS) {
 			)
 		}
 		expect(consoleErrors, "no console errors during render").toEqual([])
+		// The layout checks are ASSERTED, not just reported. The HTML index
+		// (written in afterAll) stays as failure diagnostics — it still
+		// carries the screenshot and the advisory issues.
+		expect(
+			blockingIssues(issues),
+			`layout issues for ${scenario.name} — see ${SCREENSHOT_DIR}/index.html`,
+		).toEqual([])
 	})
 }

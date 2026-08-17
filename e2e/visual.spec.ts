@@ -50,20 +50,6 @@ const screenshotChart = async (
 	await canvas.screenshot({ path })
 }
 
-/** When the chart canvas exceeds the visible viewport (tall faceted
- *  layouts), screenshot the SVG itself so we capture the entire chart
- *  including titles outside the visible scroll area. */
-const _screenshotFullSvg = async (
-	page: import("@playwright/test").Page,
-	name: string,
-	project: string
-) => {
-	const svg = page.locator("svg#vc-scatter-svg").first()
-	await expect(svg).toBeVisible()
-	const path = `${SCREENSHOT_DIR}/${project}/${name}.png`
-	await svg.screenshot({ path })
-}
-
 test.describe("Faceted layout visual smoke", () => {
 	test("1×3 faceted (shared axes)", async ({ page }, info) => {
 		await seedAndOpen(page, FACETED_1x3)

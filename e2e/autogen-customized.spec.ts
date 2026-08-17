@@ -5,11 +5,14 @@ import { expect, test, type Page } from "@playwright/test"
 import {
 	CHART_TYPES,
 	TESTDATA_DIR,
+	blockingIssues,
 	buildIndexHtml,
 	clickQuickStart,
 	collectIssues,
 	datasetCsvs,
 	isIgnorableConsoleError,
+	missingTestdataTitle,
+	noTestdata,
 	slug,
 	waitForDatasetReady,
 	type ScaffoldResult,
@@ -134,21 +137,38 @@ const applyCustomizations = async (page: Page): Promise<void> => {
 
 	// ─── (3) Left-align every title in the Labels panel ──────────────
 	// The Labels section ("Axis Labels and Titles") is open by default,
-	// but each title row's AlignmentControl lives inside a per-row
-	// Disclosure ("Toggle font settings for X axis title", etc.) that's
-	// collapsed by default. Expand every disclosure first, then click
-	// every "Align left" button. The Facet-title row exposes its
-	// alignment buttons directly (no disclosure), so it's picked up by
-	// the second loop too.
+	// but its rows now sit two levels deep:
+	//   CollapsibleSubsection ("Primary titles" / "Axis titles" /
+	//   "Facet titles" / "Legend titles") → per-row Disclosure
+	//   ("Toggle font settings for X-axis title") → AlignmentControl.
+	// Both levels UNMOUNT their children while closed, so we open the
+	// subsections first, then the per-row disclosures, then click every
+	// "Align left". (Before the subsections landed the disclosures were
+	// top-level; querying them directly now finds ZERO buttons and the
+	// whole customization silently no-ops — which made the
+	// `title-not-left-aligned` check assert an alignment nobody set.)
 	const labelsPanel = page.locator(
 		'[id="aside-section-Axis Labels and Titles"]',
 	)
+	const subsections = labelsPanel.getByRole("button", {
+		name: /^(Primary|Axis|Facet|Legend) titles$/,
+	})
+	const subsectionCount = await subsections.count()
+	for (let i = 0; i < subsectionCount; i++) {
+		const btn = subsections.nth(i)
+		if ((await btn.getAttribute("aria-expanded")) === "false") {
+			await btn.click({ timeout: 2000 }).catch(() => {})
+		}
+	}
 	const expanders = labelsPanel.getByRole("button", {
 		name: /^Toggle font settings for /,
 	})
 	const expanderCount = await expanders.count()
 	for (let i = 0; i < expanderCount; i++) {
-		await expanders.nth(i).click({ timeout: 2000 }).catch(() => {})
+		const btn = expanders.nth(i)
+		if ((await btn.getAttribute("aria-expanded")) === "false") {
+			await btn.click({ timeout: 2000 }).catch(() => {})
+		}
 	}
 	const leftButtons = labelsPanel.getByRole("button", {
 		name: "Align left",
@@ -160,6 +180,9 @@ const applyCustomizations = async (page: Page): Promise<void> => {
 }
 
 const datasets = datasetCsvs(TESTDATA_DIR)
+
+if (datasets.length === 0)
+	test.skip(missingTestdataTitle("autogen-customized"), noTestdata)
 
 for (const csv of datasets) {
 	test.describe(`autogen-customized · ${csv}`, () => {
@@ -264,6 +287,13 @@ for (const csv of datasets) {
 					)
 				}
 				expect(consoleErrors, "no console errors during render").toEqual([])
+				// The layout checks are ASSERTED, not just reported. The HTML
+				// index (written in afterAll) stays as failure diagnostics —
+				// it still carries the screenshot and the advisory issues.
+				expect(
+					blockingIssues(issues),
+					`layout issues for ${csv} / ${chartLabel} — see ${SCREENSHOT_DIR}/index.html`,
+				).toEqual([])
 			})
 		}
 	})

@@ -5,10 +5,13 @@ import { expect, test, type Page } from "@playwright/test"
 import {
 	CHART_TYPES,
 	TESTDATA_DIR,
+	blockingIssues,
 	buildIndexHtml,
 	clickQuickStart,
 	collectIssues,
 	isIgnorableConsoleError,
+	missingTestdataTitle,
+	noTestdata,
 	slug,
 	waitForDatasetReady,
 	type ScaffoldResult,
@@ -42,6 +45,9 @@ const DATASETS = [
 const AVAILABLE_DATASETS = DATASETS.filter((csv) =>
 	existsSync(path.join(TESTDATA_DIR, csv)),
 )
+
+if (AVAILABLE_DATASETS.length === 0)
+	test.skip(missingTestdataTitle("autogen-data-labels"), noTestdata)
 
 type Alignment = "left" | "center" | "right"
 
@@ -343,6 +349,14 @@ for (const scenario of SCENARIOS) {
 					expect(consoleErrors, "no console errors during render").toEqual(
 						[],
 					)
+					// The layout checks are ASSERTED, not just reported. The
+					// per-scenario HTML index (written in afterAll) stays as
+					// failure diagnostics — it still carries the screenshot
+					// and the advisory issues.
+					expect(
+						blockingIssues(issues),
+						`layout issues for ${scenario.id} · ${csv} / ${chartLabel} — see ${scenarioDir}/index.html`,
+					).toEqual([])
 				})
 			}
 		}

@@ -2,15 +2,27 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { test, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+import { isIgnorableConsoleError } from "./autogen-helpers"
 
 /** §10 verification: as the user shrinks the y-gap from 0 into the
  *  negative (ridgeline territory), the panel SIZE should freeze at
  *  the gap=0 value. Only the cell positions should change (cumulative
  *  overlap). This spec sweeps gapY across {0, -20, -50, -80, -120} on
- *  the same 4×1 vertical-bar facet and reports per-panel inner.height
- *  + facet-label y position. The heights should match across all
- *  gapY values; the label-y deltas should track gapY. */
+ *  the same 4×1 vertical-bar facet and ASSERTS, at every step:
+ *   - the same set of panels renders, each with marks and a non-zero
+ *     inner height,
+ *   - panel inner heights are FROZEN at their gap=0 values,
+ *   - the panel-to-panel pitch shifts by exactly gapY (cumulative
+ *     overlap) relative to the gap=0 pitch,
+ *   - no console errors.
+ *  Screenshots + measurements.json stay as secondary artifacts. */
+
+/** Pixel slack for the frozen-height and pitch comparisons. Cell origins
+ *  are cumulative sums of fractional cell dims, so a 1px rounding wobble
+ *  accumulates down the stack; 2px absorbs it while still catching a
+ *  real drift (the sweep moves panels by 20–120px per step). */
+const PITCH_TOLERANCE_PX = 2
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -87,10 +99,22 @@ const setGapY = async (page: Page, gapY: number): Promise<void> => {
 	await page.waitForTimeout(600)
 }
 
-const measurePanels = async (page: Page) => {
+type PanelMeasurement = {
+	key: string | null
+	innerWidth: number
+	innerHeight: number
+	/** Panel-local y of the tallest vertical line — the cell's top edge.
+	 *  Panel-to-panel deltas of this value ARE the grid pitch. */
+	innerTop: number
+	labelY: number | null
+	/** Rendered marks inside the panel (bars/points/areas). */
+	markCount: number
+}
+
+const measurePanels = async (page: Page): Promise<PanelMeasurement[] | null> => {
 	return page.evaluate(() => {
 		const svg = document.querySelector("#vc-scatter-svg") as SVGSVGElement | null
-		if (!svg) return { error: "no svg" }
+		if (!svg) return null
 		const svgBox = svg.getBoundingClientRect()
 		const panels = Array.from(
 			svg.querySelectorAll<SVGGElement>("g[data-panel-key]"),
@@ -119,12 +143,16 @@ const measurePanels = async (page: Page) => {
 			const labelY = facetLabel
 				? Math.round(facetLabel.getBoundingClientRect().top - svgBox.top)
 				: null
+			const markCount = g.querySelectorAll(
+				"rect[fill], circle, path[d]:not([d=''])",
+			).length
 			return {
 				key: g.getAttribute("data-panel-key"),
 				innerWidth: Math.round(bestH.len),
 				innerHeight: Math.round(bestV.len),
 				innerTop: Math.round(bestV.y1),
 				labelY,
+				markCount,
 			}
 		})
 	})
@@ -133,14 +161,62 @@ const measurePanels = async (page: Page) => {
 test("§10 ridgeline sweep: panel heights freeze, cells overlap cumulatively", async ({
 	page,
 }, info) => {
+	const consoleErrors: string[] = []
+	page.on("console", (msg) => {
+		if (msg.type() !== "error") return
+		if (isIgnorableConsoleError(msg.text())) return
+		consoleErrors.push(msg.text())
+	})
 	mkdirSync(SCREENSHOT_DIR, { recursive: true })
 	await setup4x1(page)
 
-	const measurements: Record<string, unknown>[] = []
+	const measurements: Array<{ gapY: number; panels: PanelMeasurement[] }> = []
+	/** Baseline (gapY = 0) heights + pitches, filled on the first step. */
+	let baseline: PanelMeasurement[] | null = null
 	for (const gapY of GAP_Y_VALUES) {
 		await setGapY(page, gapY)
 		const panels = await measurePanels(page)
-		measurements.push({ gapY, panels })
+		expect(panels, `gapY=${gapY}: no chart SVG rendered`).not.toBeNull()
+		// Every step must render the SAME panels, each with content.
+		if (baseline === null) {
+			baseline = panels
+			expect(
+				baseline!.length,
+				"expected a multi-panel stack at gapY=0",
+			).toBeGreaterThan(1)
+		}
+		expect(
+			panels!.map((p) => p.key),
+			`gapY=${gapY}: panel set changed`,
+		).toEqual(baseline!.map((p) => p.key))
+		for (const p of panels!) {
+			expect(
+				p.markCount,
+				`gapY=${gapY}: panel "${p.key}" rendered no marks`,
+			).toBeGreaterThan(0)
+			expect(
+				p.innerHeight,
+				`gapY=${gapY}: panel "${p.key}" has zero inner height`,
+			).toBeGreaterThan(0)
+		}
+		// §10: negative gaps overlap the CELLS; panel SIZE freezes at the
+		// gap=0 value.
+		for (let i = 0; i < panels!.length; i++) {
+			expect(
+				Math.abs(panels![i]!.innerHeight - baseline![i]!.innerHeight),
+				`gapY=${gapY}: panel "${panels![i]!.key}" inner height ${panels![i]!.innerHeight} drifted from the gapY=0 height ${baseline![i]!.innerHeight}`,
+			).toBeLessThanOrEqual(PITCH_TOLERANCE_PX)
+		}
+		// …and the pitch between consecutive cells shifts by exactly gapY.
+		for (let i = 1; i < panels!.length; i++) {
+			const pitch = panels![i]!.innerTop - panels![i - 1]!.innerTop
+			const basePitch = baseline![i]!.innerTop - baseline![i - 1]!.innerTop
+			expect(
+				Math.abs(pitch - (basePitch + gapY)),
+				`gapY=${gapY}: pitch between "${panels![i - 1]!.key}" and "${panels![i]!.key}" was ${pitch}, expected ${basePitch + gapY} (gap=0 pitch ${basePitch} + gapY)`,
+			).toBeLessThanOrEqual(PITCH_TOLERANCE_PX)
+		}
+		measurements.push({ gapY, panels: panels! })
 		const file = path.join(
 			SCREENSHOT_DIR,
 			info.project.name,
@@ -158,4 +234,5 @@ test("§10 ridgeline sweep: panel heights freeze, cells overlap cumulatively", a
 		"[ridgeline-sweep]",
 		JSON.stringify(measurements, null, 2),
 	)
+	expect(consoleErrors, "no console errors during the sweep").toEqual([])
 })
