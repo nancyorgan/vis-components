@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 
 import {
-	removeInstance,
 	removeInstancesForVisual,
 	upsertEmbedInstance,
 } from "./embedInstances"
@@ -112,20 +111,5 @@ describe("removeInstancesForVisual", () => {
 	it("is a no-op when no instances match", () => {
 		const instances = { a: mkInstance({ id: "a", visualId: "v1" }) }
 		expect(removeInstancesForVisual(instances, "v999")).toEqual(instances)
-	})
-})
-
-describe("removeInstance", () => {
-	it("removes a single instance by id", () => {
-		const instances = {
-			a: mkInstance({ id: "a" }),
-			b: mkInstance({ id: "b" }),
-		}
-		expect(Object.keys(removeInstance(instances, "a"))).toEqual(["b"])
-	})
-
-	it("is a no-op when the id isn't present", () => {
-		const instances = { a: mkInstance({ id: "a" }) }
-		expect(removeInstance(instances, "missing")).toBe(instances)
 	})
 })

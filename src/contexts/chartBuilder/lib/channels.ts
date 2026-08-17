@@ -1,4 +1,4 @@
-import type { EncodingChannel, FieldType } from "./types"
+import type { EncodingChannel, FieldType } from "./channelNames"
 
 /** Pure, component-free channel metadata. Options-panel lookups live on
  * the components side (`components/sidebar/channelOptions/channelPanels`)

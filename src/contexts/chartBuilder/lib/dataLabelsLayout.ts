@@ -2,11 +2,16 @@
  *  decide which labels to render and where. Extracted so each rule can be
  *  tested without spinning up the SVG / Jotai machinery. */
 
+import { charWidthConservativeFactor } from "./estimateMargins"
+
 /** Approximate label bbox using a fixed width-per-character ratio — this is
  *  a heuristic, not a measured metric. For our purposes (overlap detection)
  *  a slight overestimate is fine: false positives just make `nudgeOverlaps`
- *  err on the side of separating labels that were borderline-touching. */
-export const CHAR_WIDTH_RATIO = 0.6
+ *  err on the side of separating labels that were borderline-touching —
+ *  which is why this is the CONSERVATIVE tier (0.6) rather than the centered
+ *  `charWidthFactor` (0.55) used for margin reservation. Re-exported under
+ *  the local name because tests and `DataLabelsLayer` refer to it. */
+export const CHAR_WIDTH_RATIO = charWidthConservativeFactor
 
 export type LabelBox = {
 	cx: number

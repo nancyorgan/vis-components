@@ -39,17 +39,9 @@ export type Stack = {
 	slices: StackSlice[]
 }
 
-/** Backwards-compatible alias. New code should prefer `StackSlice`. */
-export type BarSlice = StackSlice
-/** Backwards-compatible alias. New code should prefer `Stack`. */
-export type BarStack = Stack
-
 export type StacksAggregation =
 	| { categories: string[]; stacks: Stack[] }
 	| { error: string }
-
-/** Backwards-compatible alias. New code should prefer `StacksAggregation`. */
-export type BarAggregation = StacksAggregation
 
 export type AggregateStacksInput = {
 	rows: Row[]
@@ -80,9 +72,6 @@ export type AggregateStacksInput = {
 	 * categorical-length validation (there's no length field to reconcile). */
 	countRows?: boolean
 }
-
-/** Backwards-compatible alias. New code should prefer `AggregateStacksInput`. */
-export type AggregateBarsInput = AggregateStacksInput
 
 const DISALLOWED_ERROR =
 	"When length is categorical, its field must match one of the grouping encodings (hue, saturation, brightness, pattern), or length must be quantitative."

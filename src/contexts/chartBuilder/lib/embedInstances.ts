@@ -51,15 +51,3 @@ export const removeInstancesForVisual = (
 	}
 	return next
 }
-
-/** Drop a single instance by id. Used by the landing-page row delete action
- * for instance rows. */
-export const removeInstance = (
-	instances: Record<string, EmbedInstance>,
-	instanceId: string
-): Record<string, EmbedInstance> => {
-	if (!(instanceId in instances)) return instances
-	const next = { ...instances }
-	delete next[instanceId]
-	return next
-}

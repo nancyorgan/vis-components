@@ -1,6 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { PLOT_SVG_ID, serializeEmbedCapture } from "../lib/captureThumbnail"
+import {
+	STABLE_POLLS,
+	chartLayoutReady,
+	serializeEmbedCapture,
+} from "../lib/captureThumbnail"
 import { upsertEmbedInstance } from "../lib/embedInstances"
 import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
 import type { ExportUnit } from "../lib/storage"
@@ -849,32 +853,6 @@ const ResizeHandles = ({
  * the serialized markup byte-identical for `STABLE_POLLS` consecutive polls. */
 const CAPTURE_TIMEOUT_MS = 15_000
 const POLL_INTERVAL_MS = 100
-/** Consecutive byte-identical polls before the layout is trusted as settled
- *  (≈300ms of layout silence). Matches thumbnailBackfill's STABLE_POLLS. */
-const STABLE_POLLS = 3
-
-/** True once the chart's layout is worth serializing: the capture target
- *  exists with a real size, and — for faceted charts — EVERY panel has one
- *  (the grid gets its size before the individual panels finish mounting). */
-const chartLayoutReady = (doc: Document): boolean => {
-	const grid = doc.querySelector<HTMLElement>("[data-facet-grid]")
-	if (grid) {
-		const gridRect = grid.getBoundingClientRect()
-		if (gridRect.width === 0 || gridRect.height === 0) return false
-		const panels = [...grid.querySelectorAll<SVGSVGElement>(`#${PLOT_SVG_ID}`)]
-		return (
-			panels.length > 0 &&
-			panels.every((panel) => {
-				const r = panel.getBoundingClientRect()
-				return r.width > 0 && r.height > 0
-			})
-		)
-	}
-	const svg = doc.querySelector<SVGSVGElement>(`#${PLOT_SVG_ID}`)
-	if (!svg) return false
-	const rect = svg.getBoundingClientRect()
-	return rect.width > 0 && rect.height > 0
-}
 
 const waitForChartSvg = async (
 	iframe: HTMLIFrameElement | null

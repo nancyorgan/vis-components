@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { charWidthFactor } from "./estimateMargins"
 
 /** Render a title/label string as one or more `<tspan>` lines.
  *
@@ -69,7 +70,7 @@ const splitAfterHyphens = (word: string): string[] => {
  *
  *  Used by the caption box, which has a fixed pixel width but free-form long
  *  text. SVG `<text>` has no auto-wrap, so we pre-break into lines here using
- *  the same `fontSize * 0.55` px/char heuristic as `fitTextWithEllipsis` /
+ *  the same `charWidthFactor` px/char heuristic as `fitTextWithEllipsis` /
  *  `estimateMargins`. Lines break at spaces and after internal hyphens (the
  *  hyphen stays at the end of the line). By default a single unbreakable word
  *  longer than `maxPx` is left intact on its own line, so it may visually
@@ -84,7 +85,7 @@ export const wrapTextToWidth = (
 	fontSize: number,
 	opts?: { breakWords?: boolean }
 ): string[] => {
-	const charWidth = fontSize * 0.55
+	const charWidth = fontSize * charWidthFactor
 	const maxChars = charWidth > 0 ? Math.max(1, Math.floor(maxPx / charWidth)) : 1
 	const out: string[] = []
 	for (const paragraph of text.split("\n")) {
@@ -255,7 +256,7 @@ export const wrapSegments = <T extends { text: string }>(
  *  (SVG <text> ignores that rule).
  *
  *  Uses the same character-count heuristic as `estimateMargins.ts`:
- *  ~`fontSize * 0.55` px/char. Returns the original string when it
+ *  ~`fontSize * charWidthFactor` px/char. Returns the original string when it
  *  already fits, and `…` (or `text[0]`) when even the ellipsis would
  *  overflow. */
 export const fitTextWithEllipsis = (
@@ -264,7 +265,7 @@ export const fitTextWithEllipsis = (
 	fontSize: number
 ): string => {
 	if (!text || maxPx <= 0 || fontSize <= 0) return ""
-	const charWidth = fontSize * 0.55
+	const charWidth = fontSize * charWidthFactor
 	const ellipsis = "…"
 	const ellipsisPx = charWidth // ellipsis is roughly one char wide
 	const fullPx = text.length * charWidth + 4

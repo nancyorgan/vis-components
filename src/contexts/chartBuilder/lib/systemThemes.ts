@@ -1,5 +1,7 @@
 import type { SavedTheme, Theme } from "./types"
 
+/** The bundled categorical palette. Sole declaration — `store/atoms.ts`
+ *  reaches it through `LIGHT_THEME_BASE` rather than keeping a copy. */
 const SET3_COLORS = [
 	"#8DD3C7",
 	"#FFFFB3",
@@ -30,8 +32,13 @@ const ORDINAL_BLUES = [
 /** The "Light" system theme — these are the values the editor shipped with
  * before per-user themes existed. Used as the baseline for new accounts
  * and the seed for any user theme that the user creates without copying
- * an existing one. */
-const LIGHT_THEME_BASE: Theme = {
+ * an existing one.
+ *
+ * Also the single source of truth for `store/atoms.ts`'s `DEFAULT_THEME`
+ * (the baseline `themeAtom` falls back to and the floor `migrateTheme`
+ * merges legacy blobs onto) — keep the two in one declaration, never two
+ * copies. Treat as immutable: it is spread, never mutated in place. */
+export const LIGHT_THEME_BASE: Theme = {
 	defaultFill: "#d1d5db",
 	defaultRadius: 4,
 	defaultOpacity: 0.85,

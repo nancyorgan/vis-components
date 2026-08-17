@@ -4,6 +4,7 @@ import {
 	DEFAULT_ANGLE_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_SHAPE,
+	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_SPINE_CONFIG,
 	type AngleConfig,
 	type ChannelConfigs,
@@ -356,7 +357,8 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 				shapeCategoryValue: shapeKey,
 				shapeConfig: channelConfigs.shape,
 				hueMapped: !!aestheticScales.hue,
-				fallbackOutline: channelConfigs.shape?.outlineColor ?? "#ffffff",
+				fallbackOutline:
+					channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
 			})
 			points.push({
 				i,

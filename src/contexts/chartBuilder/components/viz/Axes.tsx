@@ -1,4 +1,3 @@
-import type { scaleBand, scaleLinear, scalePoint, scaleTime } from "d3-scale"
 import { autoLabelAngleFor } from "../../lib/autoLabelAngle"
 import {
 	DEFAULT_GRIDLINE_CONFIG,
@@ -673,10 +672,3 @@ export const Axis = ({
 		</g>
 	)
 }
-
-// Satisfy eslint — unused-import guard for scale type imports.
-export type _ScaleTypeMarker =
-	| ReturnType<typeof scaleLinear>
-	| ReturnType<typeof scaleTime>
-	| ReturnType<typeof scaleBand>
-	| ReturnType<typeof scalePoint>

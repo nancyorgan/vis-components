@@ -13,6 +13,7 @@ import {
 	DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
 	DEFAULT_REGRESSION_CONFIG,
 	DEFAULT_SHAPE,
+	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
 	type AxisConfig,
 	type ChannelConfigs,
@@ -83,15 +84,13 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	currentThemeIdAtom,
-	themeAtom,
-	themesAtom,
 } from "../../store/atoms"
 import {
 	useAestheticScales,
 	type AestheticScales,
 } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import {
 	rowHighlight,
 	useLegendHighlight,
@@ -142,13 +141,9 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 	const markHover = useMarkHoverHighlight(markHoverField)
 	const publishHover = (row: Record<string, unknown>) =>
 		markHover.enter(markHoverField ? row[markHoverField] : undefined)
-	// Live theme (Settings edits take effect immediately) for the connection /
-	// stem default single color — the color a "single color" line/stem draws
-	// when the slot isn't varying by a field.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const liveTheme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	// Theme source for the connection / stem default single color — the color
+	// a "single color" line/stem draws when the slot isn't varying by a field.
+	const liveTheme = useCurrentTheme()
 	const connectionColor = liveTheme.connectionColor
 	const [hovered, setHovered] = useState<HoverState | null>(null)
 
@@ -1193,7 +1188,8 @@ const buildMarks = ({
 				shapeCategoryValue: shapeKey,
 				shapeConfig: channelConfigs.shape,
 				hueMapped: !!hue,
-				fallbackOutline: channelConfigs.shape?.outlineColor ?? "#ffffff",
+				fallbackOutline:
+					channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
 				outlineScaleColor,
 				outlineRuleColor,
 			})

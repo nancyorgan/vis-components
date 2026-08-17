@@ -1,24 +1,9 @@
-export type FieldType = "quantitative" | "categorical" | "temporal" | "ordinal"
-
-export type EncodingChannel =
-	| "x"
-	| "y"
-	| "r"
-	| "length"
-	| "angle"
-	| "area"
-	| "saturation"
-	| "hue"
-	| "outlineHue"
-	| "brightness"
-	| "opacity"
-	| "shape"
-	| "pattern"
-	| "connection"
-	| "facet"
-	| "facetRow"
-	| "facetCol"
-	| "text"
+// The channel/field-type name unions live in `lib/channelNames.ts` so the
+// channel registry can import them without importing this module — otherwise
+// `types.ts` and `channels.ts` form an import cycle. Re-exported here because
+// this module is the barrel everything else imports them from.
+import type { EncodingChannel, FieldType } from "./channelNames"
+export type { EncodingChannel, FieldType }
 
 // Re-exported from the channel registry so there's one source of truth.
 // Adding a new channel is a single entry in `lib/channels.ts`.

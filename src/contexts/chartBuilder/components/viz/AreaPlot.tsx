@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react"
 import { scaleBand, scaleLinear } from "d3-scale"
 import { useAtomValue } from "jotai"
-import { aggregateStacks, type GroupEncoding } from "../../lib/aggregateBars"
-import type { Stack } from "../../lib/aggregators/stacks"
+import {
+	aggregateStacks,
+	type GroupEncoding,
+	type Stack,
+} from "../../lib/aggregators/stacks"
 import {
 	buildPatternDefs,
 	stacksToGroupValues,

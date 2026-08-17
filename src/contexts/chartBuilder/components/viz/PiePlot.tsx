@@ -2,9 +2,16 @@ import { useMemo, useState } from "react"
 import { scaleBand } from "d3-scale"
 import { arc as d3arc } from "d3-shape"
 import { useAtomValue } from "jotai"
-import { aggregateBars, type GroupEncoding } from "../../lib/aggregateBars"
-import type { Stack } from "../../lib/aggregators/stacks"
-import { DEFAULT_ANGLE_CONFIG, type ChannelConfigs } from "../../lib/channelConfig"
+import {
+	aggregateBars,
+	type GroupEncoding,
+	type Stack,
+} from "../../lib/aggregators/stacks"
+import {
+	DEFAULT_ANGLE_CONFIG,
+	DEFAULT_SHAPE_CONFIG,
+	type ChannelConfigs,
+} from "../../lib/channelConfig"
 import { getChartMode } from "../../lib/chartMode"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import { cartesian } from "../../lib/coords"
@@ -888,7 +895,8 @@ const resolveWedgeDeps = (
 	highlight: LegendHighlight | null
 ): WedgeDeps => ({
 	highlight,
-	outlineColor: channelConfigs.shape?.outlineColor ?? "#ffffff",
+	outlineColor:
+		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
 	outlineWidth: channelConfigs.shape?.outlineWidth ?? 1,
 	defaultFill: channelConfigs.defaultFill ?? FALLBACK_FILL,
 	patternBgFallback: channelConfigs.pattern?.backgroundColor ?? "#e2e8f0",

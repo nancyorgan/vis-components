@@ -84,6 +84,13 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 		defaultLevel: 1,
 		acceptsFieldMapping: true,
 	},
+	// Density-curve opacity is level-only BY DESIGN, even though the color
+	// slots of the same name accept a field: curve GROUPING is driven by the
+	// color slots' field, and both renderers resolve curve opacity once per
+	// curve (not per row), so a field mapped here would render per-category
+	// controls that have no effect on the canvas. Same rationale as the flow
+	// node/ribbon slots above. Making this functional means threading per-row
+	// opacity through buildDensityCurve — a feature, not a flag flip.
 	{
 		key: "densityCurveFill",
 		label: "Density Curve Fill",

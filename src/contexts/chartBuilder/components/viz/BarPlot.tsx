@@ -1,14 +1,19 @@
 import { useMemo, useState } from "react"
 import { scaleBand, scaleLinear } from "d3-scale"
 import { useAtomValue } from "jotai"
-import { aggregateBars, type GroupEncoding } from "../../lib/aggregateBars"
-import type { GroupChannel, Stack } from "../../lib/aggregators/stacks"
+import {
+	aggregateBars,
+	type GroupChannel,
+	type GroupEncoding,
+	type Stack,
+} from "../../lib/aggregators/stacks"
 import {
 	buildPatternDefs,
 	stacksToGroupValues,
 } from "../../lib/buildPatternDefs"
 import {
 	AUTO_BAR_GAP_FRACTION,
+	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
 	type ChannelConfigs,
 	type ColorSlotConfig,
@@ -56,15 +61,13 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	currentThemeIdAtom,
-	themeAtom,
-	themesAtom,
 } from "../../store/atoms"
 import {
 	useAestheticScales,
 	type AestheticScales,
 } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import {
 	groupHighlight,
 	useLegendHighlight,
@@ -139,13 +142,8 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 	const dataLabelsFormatSpec = dataLabels?.value?.field
 		? (dataLabelsCfg?.fieldFormats?.[dataLabels.value.field] ?? null)
 		: null
-	// Live theme — the density curve's pre-slot default color (slate stroke)
-	// follows Settings edits, matching how ScatterPlot resolves single colors.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const liveTheme =
-		allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	// Source of the density curve's pre-slot default color (slate stroke).
+	const liveTheme = useCurrentTheme()
 	// Bar charts route Data Labels through `buildBarAnchors` (slice-center
 	// positioning instead of raw-row positioning). Only fire when the user
 	// has mapped at least one DataLabels field — otherwise an empty Data
@@ -1104,7 +1102,8 @@ const buildRects = ({
 	const sliceHighlight = (
 		groupValues: Partial<Record<GroupChannel, string>>
 	): MarkHighlight => groupHighlight(highlight, groupValues, aestheticScales)
-	const outlineColor = channelConfigs.shape?.outlineColor ?? "#ffffff"
+	const outlineColor =
+		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
 	const outlineWidth = channelConfigs.shape?.outlineWidth ?? 1
 	// Border opacity from the Border slot. Bars are aggregated slices (no single
 	// row), so a field-mapped border resolves to the slot's static level. Fill

@@ -415,9 +415,9 @@ export const expandEmojiShortcodes = (text: string): string =>
  * users reasonably stop typing once they've named the emoji. */
 export const expandEmojiInput = (text: string): string => {
 	const expanded = expandEmojiShortcodes(text.trim())
-	const bare = /^:([\w+-]+):?$/.exec(expanded)
-	if (bare) {
-		const hit = EMOJI_SHORTCODES[bare[1]!.toLowerCase()]
+	const name = /^:([\w+-]+):?$/.exec(expanded)?.[1]
+	if (name) {
+		const hit = EMOJI_SHORTCODES[name.toLowerCase()]
 		if (hit) return hit
 	}
 	return expanded

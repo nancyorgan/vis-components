@@ -1385,11 +1385,6 @@ export const DEFAULT_RADIUS = 4
 export const DEFAULT_OPACITY = 0.85
 export const DEFAULT_SHAPE = 0
 export const DEFAULT_ANGLE = 0
-/** Default chart-area background. `null` lets the host's background show
- * through (the editor and most embeds), which is what previous visualizations
- * relied on; theme-driven defaults override this in `configsFromTheme`. */
-export const DEFAULT_BACKGROUND_COLOR: string | null = null
-
 /** Configuration for the `text` encoding — labels rendered next to (scatter)
  * or inside (bars / pies / tiles) marks. The user can pin a single color or
  * supply a per-category palette overriding it; the palette is independent

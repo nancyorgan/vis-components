@@ -12,8 +12,30 @@
  * the chart simply has a bit more or less padding than strictly needed —
  * never a hard cutoff. */
 
+/** Character-width heuristics come in two tiers, and the difference is
+ *  deliberate — do not collapse them into one number.
+ *
+ *  `charWidthFactor` (0.55) is the CENTERED estimate: the average px-per-char
+ *  for a generic sans-serif. Use it where being wrong in either direction is
+ *  cheap and symmetric — reserving margin space, wrapping, ellipsis
+ *  truncation, auto label angles. Overshoot means slightly extra padding;
+ *  undershoot means slightly less.
+ *
+ *  `charWidthConservativeFactor` (0.6) is a DELIBERATE OVERESTIMATE, for
+ *  fit / overlap GATING where the two error directions are not symmetric —
+ *  data-label overlap nudging (`lib/dataLabelsLayout`) and hierarchy label
+ *  fit checks (`components/viz/useHierarchyScaffold`). There a false
+ *  positive is harmless (labels get nudged apart, or a label that would
+ *  just barely have fit is skipped) while a false negative is visible
+ *  breakage (overlapping labels, text spilling out of its mark). */
+
 /** Average px-per-char for a generic sans-serif at the given font size. */
 export const charWidthFactor = 0.55
+
+/** Intentionally-high px-per-char for fit / overlap gating. See the note
+ *  above: this is NOT a better estimate than `charWidthFactor`, it is a
+ *  safety margin. */
+export const charWidthConservativeFactor = 0.6
 
 /** Estimate the rendered pixel width of a text string at a given font size.
  *  Strings containing newlines are treated as a single line — callers that

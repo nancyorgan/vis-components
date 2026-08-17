@@ -127,6 +127,41 @@ export const serializeChartSvg = (doc: Document = document): string | null => {
 }
 
 // ---------------------------------------------------------------------------
+// Settle detection — shared by every offscreen-embed capture poller
+// ---------------------------------------------------------------------------
+
+/** How many consecutive polls the serialized chart must be byte-identical
+ *  before we trust it. A cold embed does several layout passes (measure →
+ *  solve → re-render, ResizeObserver rounds, font swaps); capturing at
+ *  first-nonzero-size grabs a mid-layout frame — facet panels stacked at the
+ *  origin under giant title text. Three matching polls ≈ 300ms of layout
+ *  silence. */
+export const STABLE_POLLS = 3
+
+/** True once the chart's layout is worth serializing: the capture target
+ *  exists with a real size, and — for faceted charts — EVERY panel has one
+ *  (the grid gets its size before the individual panels finish mounting). */
+export const chartLayoutReady = (doc: Document): boolean => {
+	const grid = doc.querySelector<HTMLElement>("[data-facet-grid]")
+	if (grid) {
+		const gridRect = grid.getBoundingClientRect()
+		if (gridRect.width === 0 || gridRect.height === 0) return false
+		const panels = [...grid.querySelectorAll<SVGSVGElement>(`#${PLOT_SVG_ID}`)]
+		return (
+			panels.length > 0 &&
+			panels.every((panel) => {
+				const r = panel.getBoundingClientRect()
+				return r.width > 0 && r.height > 0
+			})
+		)
+	}
+	const svg = doc.querySelector<SVGSVGElement>(`#${PLOT_SVG_ID}`)
+	if (!svg) return false
+	const rect = svg.getBoundingClientRect()
+	return rect.width > 0 && rect.height > 0
+}
+
+// ---------------------------------------------------------------------------
 // Full-page export capture (chart + legend)
 // ---------------------------------------------------------------------------
 

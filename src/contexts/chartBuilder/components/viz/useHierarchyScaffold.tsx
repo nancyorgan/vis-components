@@ -16,6 +16,7 @@ import {
 } from "../../lib/channelConfig"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import { ptToPx } from "../../lib/fontUnit"
+import { charWidthConservativeFactor } from "../../lib/estimateMargins"
 import { cartesian } from "../../lib/coords"
 import {
 	formatSingleLabel,
@@ -79,9 +80,11 @@ import type { CoordFactory } from "./Plot"
  * (it'd be a natural color slot). */
 export const HIERARCHY_PARENT_FILL = "rgba(148, 163, 184, 0.12)" // stone-400 @ 12%
 
-/** Labels only render when they fit their mark; the estimate mirrors the
- * ~0.6em average glyph width used by the margin estimators. */
-const CHAR_WIDTH_EM = 0.6
+/** Labels only render when they fit their mark. This uses the CONSERVATIVE
+ * char-width tier (0.6em), not the centered ~0.55em estimate the margin
+ * estimators use: over-estimating here just skips a label that would barely
+ * have fit, while under-estimating spills text outside its mark. */
+const CHAR_WIDTH_EM = charWidthConservativeFactor
 export const hierarchyLabelWidth = (label: string, fontSize: number): number =>
 	label.length * fontSize * CHAR_WIDTH_EM
 export const hierarchyLabelFits = (

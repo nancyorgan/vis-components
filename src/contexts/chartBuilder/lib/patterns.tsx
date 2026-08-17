@@ -103,36 +103,6 @@ export const PATTERN_PALETTE: PatternDef[] = [
 	},
 ]
 
-export const makePatternIndexer = (
-	rawValues: unknown[],
-	type: FieldType,
-	config?: PatternConfig
-): ((raw: unknown) => number) => {
-	const domain = [
-		...new Set(
-			rawValues
-				.map((v) => parseValue(v, type))
-				.filter((v) => v !== null)
-				.map(String)
-		),
-	]
-	return (raw) => {
-		const v = parseValue(raw, type)
-		if (v === null) return 0
-		const str = String(v)
-		const override = config?.overrides?.[str]
-		// "none" overrides aren't real palette indices; fall back to the
-		// rotation index. Callers that care about "none" use `resolvePattern*`
-		// instead.
-		if (typeof override === "number") return override
-		const idx = domain.indexOf(str)
-		return Math.max(idx, 0)
-	}
-}
-
-export const patternIdAt = (idx: number): string =>
-	PATTERN_PALETTE[idx % PATTERN_PALETTE.length].id
-
 // ----- Helpers ---------------------------------------------------------------
 
 /** Turn any CSS color string into a short slug safe for SVG ids. */

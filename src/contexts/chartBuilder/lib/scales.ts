@@ -450,24 +450,6 @@ export type HueScale =
 			scale: ReturnType<typeof scaleLinear<string, string>>
 	  }
 
-/** Pick the palette that should drive a hue scale based on the field
- *  type and the channel configs. Ordinal fields prefer the theme's
- *  ordinal palette (sequential); everything else uses the categorical
- *  palette. Callers can override by passing `customPalette` directly to
- *  `makeHueScale`. */
-export const paletteForHueType = (
-	type: FieldType,
-	configs: {
-		categoricalPalette?: readonly string[]
-		ordinalPalette?: readonly string[]
-	},
-): readonly string[] | undefined => {
-	if (type === "ordinal") {
-		return configs.ordinalPalette ?? configs.categoricalPalette
-	}
-	return configs.categoricalPalette
-}
-
 /** Palette array driving the `outlineHue` categorical/ordinal scale. Outline
  *  keeps its OWN palette selection (`outlineCategoricalPalette` /
  *  `outlineOrdinalPalette`) so changing it never disturbs the fill-hue

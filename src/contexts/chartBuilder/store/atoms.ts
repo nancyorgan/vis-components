@@ -75,7 +75,11 @@ import {
 import { idbAvailable } from "../lib/storage/idb"
 import type { StorageContentAdapter } from "../lib/storage/adapter"
 import { getStorageAdapter } from "../lib/storage/registry"
-import { SYSTEM_LIGHT_THEME, SYSTEM_THEMES } from "../lib/systemThemes"
+import {
+	LIGHT_THEME_BASE,
+	SYSTEM_LIGHT_THEME,
+	SYSTEM_THEMES,
+} from "../lib/systemThemes"
 import {
 	type DataLabelsEncodings,
 	type Dataset,
@@ -381,110 +385,10 @@ export const libraryCollapsedFoldersAtom = persistedAtom<ReadonlySet<string>>(
 	saveLibraryCollapsedFolders
 )
 
-const SET3_COLORS = [
-	"#8DD3C7",
-	"#FFFFB3",
-	"#BEBADA",
-	"#FB8072",
-	"#80B1D3",
-	"#FDB462",
-	"#B3DE69",
-	"#FCCDE5",
-	"#D9D9D9",
-	"#BC80BD",
-	"#CCEBC5",
-	"#FFED6F",
-]
-
-export const DEFAULT_THEME: Theme = {
-	defaultFill: "#d1d5db",
-	defaultRadius: 4,
-	defaultOpacity: 0.85,
-	defaultShape: 0,
-	outlineColor: "#ffffff",
-	outlineWidth: 1,
-	titleFontFamily: "system-ui, sans-serif",
-	titleFontColor: "#111827",
-	titlePrimarySize: 20,
-	titleSubtitleSize: 14,
-	titleSecondarySize: 13,
-	textFontFamily: "system-ui, sans-serif",
-	textFontSize: 12,
-	textFontColor: "#4a5568",
-	categoricalPalettes: [{ id: "set3", name: "Set 3", colors: SET3_COLORS }],
-	ordinalPalettes: [
-		{
-			id: "blues",
-			name: "Blues (light→dark)",
-			colors: [
-				"#deebf7",
-				"#c6dbef",
-				"#9ecae1",
-				"#6baed6",
-				"#4292c6",
-				"#2171b5",
-			],
-		},
-	],
-	linearGradients: [
-		{
-			id: "default-linear",
-			name: "Blue scale",
-			low: "#f7fbff",
-			high: "#08306b",
-		},
-	],
-	divergingGradients: [
-		{
-			id: "default-diverging",
-			name: "Red–Yellow–Green",
-			low: "#d73027",
-			mid: "#ffffbf",
-			high: "#1a9850",
-		},
-	],
-	defaultCategoricalPaletteId: "set3",
-	defaultOrdinalPaletteId: "blues",
-	defaultTextPaletteId: null,
-	defaultGradientPalette: "viridis",
-	patternInkColor: "#0f172a",
-	patternBackgroundColor: "#e2e8f0",
-	gridlineColor: "#e2e8f0",
-	gridlineThickness: 1,
-	tickmarkColor: "#94a3b8",
-	tickmarkThickness: 1,
-	tickmarkLength: 4,
-	spineColor: "#94a3b8",
-	spineThickness: 1,
-	textEncodingFontFamily: "system-ui, sans-serif",
-	textEncodingFontSize: 11,
-	textEncodingFontWeight: 500,
-	textEncodingColor: "#111827",
-	dataLabelsFontSize: 11,
-	dataLabelsFontWeight: 500,
-	dataLabelsItalic: false,
-	dataLabelsUnderline: false,
-	distributionOverlayStroke: "#475569",
-	distributionOverlayFill: "#cbd5e1",
-	regressionStroke: "#475569",
-	regressionCiFill: "#cbd5e1",
-	connectionThickness: 2,
-	connectionColor: "#888888",
-	lengthMin: 4,
-	lengthMax: 40,
-	angleMin: -180,
-	angleMax: 180,
-	areaMin: 3,
-	areaMax: 18,
-	saturationMin: 0.2,
-	saturationMax: 1,
-	brightnessMin: 0.25,
-	brightnessMax: 0.85,
-	chartBackgroundColor: null,
-	legendBackgroundColor: "#ffffff",
-	legendSwatchColor: "#4f8eda",
-	legendSwatchStroke: "#ffffff",
-}
+/** The default theme — same object the "System (Light)" theme is built
+ * from, so the fallback baseline and the bundled system theme can never
+ * drift apart. Declared once in `lib/systemThemes.ts`. */
+export const DEFAULT_THEME: Theme = LIGHT_THEME_BASE
 
 /** Migrate old theme (single palette/gradient) to new multi-palette format. */
 const migrateTheme = (raw: Record<string, unknown>): Theme => {

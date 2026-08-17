@@ -18,7 +18,8 @@
  * silently replaced by the last visual rendered. */
 
 import {
-	PLOT_SVG_ID,
+	STABLE_POLLS,
+	chartLayoutReady,
 	serializeChartSvg,
 	thumbnailFromChartSvgText,
 } from "../../chartBuilder/lib/captureThumbnail"
@@ -47,14 +48,6 @@ export const backfillCandidates = (
 const CAPTURE_TIMEOUT_MS = 15_000
 const POLL_INTERVAL_MS = 150
 
-/** How many consecutive polls the serialized chart must be byte-identical
- *  before we trust it. A cold embed does several layout passes (measure →
- *  solve → re-render, ResizeObserver rounds, font swaps); capturing at
- *  first-nonzero-size grabs a mid-layout frame — facet panels stacked at the
- *  origin under giant title text. Three matching polls ≈ 300ms of layout
- *  silence. */
-const STABLE_POLLS = 3
-
 /** Offscreen render size. The capture downscales to a 480px longest edge, so
  *  this only sets the thumbnail's aspect and detail level; 4:3-ish matches
  *  the library card boxes. */
@@ -65,29 +58,6 @@ const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => {
 		window.setTimeout(resolve, ms)
 	})
-
-/** True once the chart's layout is worth serializing: the capture target
- *  exists with a real size, and — for faceted charts — EVERY panel has one
- *  (the grid gets its size before the individual panels finish mounting). */
-const chartLayoutReady = (doc: Document): boolean => {
-	const grid = doc.querySelector<HTMLElement>("[data-facet-grid]")
-	if (grid) {
-		const gridRect = grid.getBoundingClientRect()
-		if (gridRect.width === 0 || gridRect.height === 0) return false
-		const panels = [...grid.querySelectorAll<SVGSVGElement>(`#${PLOT_SVG_ID}`)]
-		return (
-			panels.length > 0 &&
-			panels.every((panel) => {
-				const r = panel.getBoundingClientRect()
-				return r.width > 0 && r.height > 0
-			})
-		)
-	}
-	const svg = doc.querySelector<SVGSVGElement>(`#${PLOT_SVG_ID}`)
-	if (!svg) return false
-	const rect = svg.getBoundingClientRect()
-	return rect.width > 0 && rect.height > 0
-}
 
 /** Boot one visual's embed in a hidden iframe and capture its chart as a PNG
  *  data URL. Resolves `null` on timeout or capture failure; never throws. */
