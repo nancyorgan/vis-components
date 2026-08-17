@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { afterEach } from "vitest"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
 import { emptyEncodings, type Dataset } from "../../lib/types"
@@ -27,55 +29,19 @@ const US_CITIES: Record<string, string>[] = [
 	{ city: "Chicago", lon: "-87.6", lat: "41.8", pop: "2700000" },
 ]
 
-const buildDataset = (rows: Record<string, string>[] = US_CITIES): Dataset => ({
-	id: DATASET_ID,
-	name: "cities",
-	fields: [
-		{ name: "city", inferredType: "categorical" },
-		{ name: "lon", inferredType: "quantitative" },
-		{ name: "lat", inferredType: "quantitative" },
-		{ name: "pop", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "cities.csv",
-			rows,
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (rows: Record<string, string>[] = US_CITIES): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "cities",
+		filename: "cities.csv",
+		fields: [
+			{ name: "city", inferredType: "categorical" },
+			{ name: "lon", inferredType: "quantitative" },
+			{ name: "lat", inferredType: "quantitative" },
+			{ name: "pop", inferredType: "quantitative" },
+		],
+		rows,
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (
 	rows?: Record<string, string>[],

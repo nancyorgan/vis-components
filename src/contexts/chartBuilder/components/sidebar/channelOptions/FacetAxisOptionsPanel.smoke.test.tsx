@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, within } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
 import {
 	DEFAULT_FACET_CONFIG,
@@ -33,60 +35,24 @@ afterEach(cleanup)
 
 const ID = "ds-facet-axis-panel"
 
-const buildDataset = (): Dataset => ({
-	id: ID,
-	name: "facetaxis",
-	createdAt: 0,
-	latestVersionId: "v1",
-	fields: [
-		{ name: "rowcat", inferredType: "categorical" },
-		{ name: "colcat", inferredType: "categorical" },
-		{ name: "xv", inferredType: "quantitative" },
-		{ name: "yv", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "facetaxis.csv",
-			createdAt: 0,
-			rows: [
-				{ rowcat: "North", colcat: "Left", xv: "1", yv: "2" },
-				{ rowcat: "North", colcat: "Right", xv: "2", yv: "3" },
-				{ rowcat: "South", colcat: "Left", xv: "3", yv: "4" },
-				{ rowcat: "South", colcat: "Right", xv: "4", yv: "5" },
-			],
-		},
-	],
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fake: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: ID,
+		name: "facetaxis",
+		filename: "facetaxis.csv",
+		fields: [
+			{ name: "rowcat", inferredType: "categorical" },
+			{ name: "colcat", inferredType: "categorical" },
+			{ name: "xv", inferredType: "quantitative" },
+			{ name: "yv", inferredType: "quantitative" },
+		],
+		rows: [
+			{ rowcat: "North", colcat: "Left", xv: "1", yv: "2" },
+			{ rowcat: "North", colcat: "Right", xv: "2", yv: "3" },
+			{ rowcat: "South", colcat: "Left", xv: "3", yv: "4" },
+			{ rowcat: "South", colcat: "Right", xv: "4", yv: "5" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const scatterEncodings = (overrides: Partial<Encodings> = {}): Encodings => ({
 	...emptyEncodings(),

@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_AXIS_CONFIG,
@@ -20,67 +22,31 @@ const DATASET_ID = "ds-violin-slot-color"
 
 const PALETTE = ["#e11d48", "#2563eb"]
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "clinics",
-	fields: [
-		{ name: "proc", inferredType: "categorical" },
-		{ name: "value", inferredType: "quantitative" },
-		// Constant within each `proc` category (like a facet field is constant
-		// within a panel), but NOT the category-axis field.
-		{ name: "region", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "clinics.csv",
-			rows: [
-				...Array.from({ length: 12 }, (_, i) => ({
-					proc: "A",
-					value: String(i + 1),
-					region: "East",
-				})),
-				...Array.from({ length: 12 }, (_, i) => ({
-					proc: "B",
-					value: String(i + 5),
-					region: "West",
-				})),
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "clinics",
+		filename: "clinics.csv",
+		fields: [
+			{ name: "proc", inferredType: "categorical" },
+			{ name: "value", inferredType: "quantitative" },
+			// Constant within each `proc` category (like a facet field is constant
+			// within a panel), but NOT the category-axis field.
+			{ name: "region", inferredType: "categorical" },
+		],
+		rows: [
+			...Array.from({ length: 12 }, (_, i) => ({
+				proc: "A",
+				value: String(i + 1),
+				region: "East",
+			})),
+			...Array.from({ length: 12 }, (_, i) => ({
+				proc: "B",
+				value: String(i + 5),
+				region: "West",
+			})),
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (encodings: Encodings, colorSlots: ColorSlots) => {
 	installInMemoryLocalStorage()

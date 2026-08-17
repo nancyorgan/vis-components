@@ -34,39 +34,9 @@ vi.mock("./storage/idb", () => ({
 }))
 
 import { loadDatasetsAsync, saveDatasetsAsync } from "./storage"
+import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 
 const KEY = "vis-components:datasets"
-
-/** happy-dom's localStorage is incomplete here (no `clear`), so install a
- *  minimal in-memory Storage — same approach the viz smoke tests use. */
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const makeDataset = (id: string): Dataset => ({
 	id,

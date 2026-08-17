@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { useAtomValue } from "jotai"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { afterEach, describe, expect, it } from "vitest"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { DEFAULT_LABELS_CONFIG, type LabelsConfig } from "../../lib/labelsConfig"
@@ -12,34 +13,6 @@ import { LabelsPanel } from "./LabelsPanel"
 // ---------------------------------------------------------------------------
 // Shared harness
 // ---------------------------------------------------------------------------
-
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-}
 
 // The panel's atoms all run `persistEffect`, which calls `setSelf(load())`
 // on first read — clobbering anything seeded via `initializeState`. So

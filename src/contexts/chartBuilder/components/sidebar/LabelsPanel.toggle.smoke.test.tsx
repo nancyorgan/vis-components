@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { useAtomValue } from "jotai"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { afterEach, describe, expect, it } from "vitest"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
 import { currentLabelsAtom } from "../../store/atoms"
@@ -15,34 +16,6 @@ import { LabelsPanel } from "./LabelsPanel"
  *  separately verified by Jotai's reactivity contract.) */
 describe("LabelsPanel — y-axis horizontal toggle wiring", () => {
 	afterEach(cleanup)
-
-	const installInMemoryLocalStorage = () => {
-		const store = new Map<string, string>()
-		const fakeStorage: Storage = {
-			get length() {
-				return store.size
-			},
-			clear: () => store.clear(),
-			getItem: (k) => (store.has(k) ? store.get(k)! : null),
-			key: (i) => [...store.keys()][i] ?? null,
-			removeItem: (k) => {
-				store.delete(k)
-			},
-			setItem: (k, v) => {
-				store.set(k, String(v))
-			},
-		}
-		Object.defineProperty(window, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-		Object.defineProperty(globalThis, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-	}
 
 	const initState = (snap: TestStore) => {
 		snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)

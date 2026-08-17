@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -45,65 +47,29 @@ const DATASET_ID = "ds-hue-color"
 
 const PALETTE = ["#ff0000", "#0000ff"] // north → red, south → blue
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "points",
-	fields: [
-		{ name: "month", inferredType: "quantitative" },
-		{ name: "sales", inferredType: "quantitative" },
-		{ name: "region", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "points.csv",
-			rows: [
-				{ month: "1", sales: "10", region: "north" },
-				{ month: "2", sales: "20", region: "north" },
-				{ month: "1", sales: "5", region: "south" },
-				{ month: "2", sales: "15", region: "south" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "points",
+		filename: "points.csv",
+		fields: [
+			{ name: "month", inferredType: "quantitative" },
+			{ name: "sales", inferredType: "quantitative" },
+			{ name: "region", inferredType: "categorical" },
+		],
+		rows: [
+			{ month: "1", sales: "10", region: "north" },
+			{ month: "2", sales: "20", region: "north" },
+			{ month: "1", sales: "5", region: "south" },
+			{ month: "2", sales: "15", region: "south" },
+		],
+	})
 
 // Just the south rows — simulates one facet panel.
 const SOUTH_ROWS = [
 	{ month: "1", sales: "5", region: "south" },
 	{ month: "2", sales: "15", region: "south" },
 ]
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seedState = () => {
 	const store = installInMemoryLocalStorage()

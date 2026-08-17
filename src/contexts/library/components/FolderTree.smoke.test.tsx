@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { TestProvider } from "../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { stringifyJsonDangerous } from "../../../lib/json"
@@ -64,37 +65,6 @@ const mkVisual = (id: string, folderId: string | null, name = id): Visual => ({
 	createdAt: 1,
 	updatedAt: 1,
 })
-
-/** happy-dom's localStorage is incomplete (no .clear); install the same
- *  in-memory shim the other smoke tests use. Reinstalled per test, which
- *  also serves as the between-test reset. */
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-}
 
 /* eslint-disable @th/no-storage-outside-try -- the in-memory shim cannot
    throw, and a swallowed seeding failure would only obscure test errors */

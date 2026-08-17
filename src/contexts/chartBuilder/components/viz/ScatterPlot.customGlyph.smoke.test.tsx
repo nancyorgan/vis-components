@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -36,61 +38,23 @@ import { ScatterPlot } from "./ScatterPlot"
 
 const DATASET_ID = "ds-custom-glyph"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "test",
-	fields: [
-		{ name: "xv", inferredType: "quantitative" },
-		{ name: "yv", inferredType: "quantitative" },
-		{ name: "region", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "test.csv",
-			rows: [
-				{ xv: "1", yv: "10", region: "north" },
-				{ xv: "2", yv: "20", region: "north" },
-				{ xv: "3", yv: "30", region: "south" },
-				{ xv: "4", yv: "40", region: "south" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-/** In-memory localStorage shim — see ScatterPlot.lineChart.smoke.test.tsx
- *  for why happy-dom's default breaks the persist effect. */
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "test",
+		filename: "test.csv",
+		fields: [
+			{ name: "xv", inferredType: "quantitative" },
+			{ name: "yv", inferredType: "quantitative" },
+			{ name: "region", inferredType: "categorical" },
+		],
+		rows: [
+			{ xv: "1", yv: "10", region: "north" },
+			{ xv: "2", yv: "20", region: "north" },
+			{ xv: "3", yv: "30", region: "south" },
+			{ xv: "4", yv: "40", region: "south" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const mount = (opts: {
 	shapeField?: string

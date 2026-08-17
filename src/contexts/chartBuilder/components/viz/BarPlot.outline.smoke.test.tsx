@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
 import { emptyEncodings, type Dataset } from "../../lib/types"
@@ -14,59 +16,23 @@ import { ChartCanvas } from "./ChartCanvas"
 
 const DATASET_ID = "ds-bar-outline"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "bars",
-	fields: [
-		{ name: "category", inferredType: "categorical" },
-		{ name: "value", inferredType: "quantitative" },
-		{ name: "series", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "bars.csv",
-			rows: [
-				{ category: "A", value: "10", series: "x" },
-				{ category: "A", value: "20", series: "y" },
-				{ category: "B", value: "15", series: "x" },
-				{ category: "B", value: "25", series: "y" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "bars",
+		filename: "bars.csv",
+		fields: [
+			{ name: "category", inferredType: "categorical" },
+			{ name: "value", inferredType: "quantitative" },
+			{ name: "series", inferredType: "categorical" },
+		],
+		rows: [
+			{ category: "A", value: "10", series: "x" },
+			{ category: "A", value: "20", series: "y" },
+			{ category: "B", value: "15", series: "x" },
+			{ category: "B", value: "25", series: "y" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (shape: Record<string, unknown> | null) => {
 	const store = installInMemoryLocalStorage()
@@ -121,14 +87,6 @@ describe("BarPlot — stack outline (Shape > Outline)", () => {
 		seed({ outlineColor: "#ff0000", outlineWidth: 3 })
 		const { container } = mount()
 		const strokes = markRectStrokes(container)
-		// eslint-disable-next-line no-console
-		console.log(
-			"[outline custom] total rects:",
-			container.querySelectorAll("rect").length,
-			"stroked:",
-			// eslint-disable-next-line @th/use-wrapped-json-functions
-			JSON.stringify(strokes)
-		)
 		const outlined = strokes.filter(
 			(s) => s.stroke === "#ff0000" && s.strokeWidth === "3"
 		)
@@ -139,14 +97,6 @@ describe("BarPlot — stack outline (Shape > Outline)", () => {
 		seed(null)
 		const { container } = mount()
 		const strokes = markRectStrokes(container)
-		// eslint-disable-next-line no-console
-		console.log(
-			"[outline default] total rects:",
-			container.querySelectorAll("rect").length,
-			"stroked:",
-			// eslint-disable-next-line @th/use-wrapped-json-functions
-			JSON.stringify(strokes)
-		)
 		const outlined = strokes.filter(
 			(s) => s.stroke === "#ffffff" && s.strokeWidth === "1"
 		)

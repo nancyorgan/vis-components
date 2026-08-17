@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_AXIS_CONFIG } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -17,56 +19,20 @@ const DATASET_ID = "ds-hist-facet"
 
 /** grp A: 5 rows (scores 1..5); grp B: 4 rows (scores 15..18). With one shared
  *  bin spanning the union, A's bar encodes 5 and B's encodes 4. */
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "scores",
-	fields: [
-		{ name: "score", inferredType: "quantitative" },
-		{ name: "grp", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "scores.csv",
-			rows: [
-				...[1, 2, 3, 4, 5].map((s) => ({ score: String(s), grp: "A" })),
-				...[15, 16, 17, 18].map((s) => ({ score: String(s), grp: "B" })),
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "scores",
+		filename: "scores.csv",
+		fields: [
+			{ name: "score", inferredType: "quantitative" },
+			{ name: "grp", inferredType: "categorical" },
+		],
+		rows: [
+			...[1, 2, 3, 4, 5].map((s) => ({ score: String(s), grp: "A" })),
+			...[15, 16, 17, 18].map((s) => ({ score: String(s), grp: "B" })),
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = () => {
 	installInMemoryLocalStorage()

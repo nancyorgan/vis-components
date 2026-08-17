@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -28,62 +30,23 @@ import { HexbinPlot } from "./HexbinPlot"
 
 const DATASET_ID = "ds-hexbin-test"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "points",
-	fields: [
-		{ name: "X", inferredType: "quantitative" },
-		{ name: "Y", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "points.csv",
-			rows: [
-				{ X: "1", Y: "1" },
-				{ X: "1", Y: "1" },
-				{ X: "1", Y: "1" },
-				{ X: "9", Y: "9" },
-				{ X: "9", Y: "9" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-/** Map-backed localStorage shim — see ScatterPlot.lineChart.smoke.test.tsx
- *  for why happy-dom's built-in localStorage doesn't work with the
- *  persistEffect-backed atoms. */
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "points",
+		filename: "points.csv",
+		fields: [
+			{ name: "X", inferredType: "quantitative" },
+			{ name: "Y", inferredType: "quantitative" },
+		],
+		rows: [
+			{ X: "1", Y: "1" },
+			{ X: "1", Y: "1" },
+			{ X: "1", Y: "1" },
+			{ X: "9", Y: "9" },
+			{ X: "9", Y: "9" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const encodingsFor = (opts?: { dropY?: boolean }) => ({
 	...emptyEncodings(),

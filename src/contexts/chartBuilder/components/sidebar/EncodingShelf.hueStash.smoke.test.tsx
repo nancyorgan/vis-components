@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, within } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
 import { useAtomValue } from "jotai"
 import type { HueConfig } from "../../lib/channelConfig"
@@ -15,27 +17,20 @@ import { EncodingShelf } from "./EncodingShelf"
 
 const DATASET_ID = "ds-hue-stash"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "scores",
-	fields: [
-		{ name: "score", inferredType: "quantitative" },
-		{ name: "group", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "scores.csv",
-			rows: Array.from({ length: 12 }, (_, i) => ({
-				score: String(i + 1),
-				group: i % 2 === 0 ? "A" : "B",
-			})),
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "scores",
+		filename: "scores.csv",
+		fields: [
+			{ name: "score", inferredType: "quantitative" },
+			{ name: "group", inferredType: "categorical" },
+		],
+		rows: Array.from({ length: 12 }, (_, i) => ({
+			score: String(i + 1),
+			group: i % 2 === 0 ? "A" : "B",
+		})),
+	})
 
 /** The user's hand-picked gradient — distinct from any theme default so a
  *  re-seed (the bug) can't accidentally pass the assertions. */
@@ -49,32 +44,6 @@ const PICKED_GRADIENT: Extract<HueConfig, { kind: "quantitative" }> = {
 	highColor: "#fedcba",
 	highValue: null,
 	stackMode: "stack",
-}
-
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	for (const target of [window, globalThis]) {
-		Object.defineProperty(target, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-	}
-	return store
 }
 
 const seed = () => {

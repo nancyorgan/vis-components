@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -16,62 +18,26 @@ import { ChartCanvas } from "./ChartCanvas"
 
 const DATASET_ID = "ds-line-draw-order"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "line-draw-order",
-	fields: [
-		{ name: "xv", inferredType: "quantitative" },
-		{ name: "yv", inferredType: "quantitative" },
-		{ name: "series", inferredType: "categorical" },
-		{ name: "rank", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "line-draw-order.csv",
-			// Encounter order is B (rank 2, high y) then A (rank 1, low y):
-			// the un-sorted paint order is [B, A].
-			rows: [
-				{ xv: "1", yv: "9", series: "B", rank: "2" },
-				{ xv: "2", yv: "9", series: "B", rank: "2" },
-				{ xv: "1", yv: "1", series: "A", rank: "1" },
-				{ xv: "2", yv: "1", series: "A", rank: "1" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "line-draw-order",
+		filename: "line-draw-order.csv",
+		fields: [
+			{ name: "xv", inferredType: "quantitative" },
+			{ name: "yv", inferredType: "quantitative" },
+			{ name: "series", inferredType: "categorical" },
+			{ name: "rank", inferredType: "quantitative" },
+		],
+		// Encounter order is B (rank 2, high y) then A (rank 1, low y):
+		// the un-sorted paint order is [B, A].
+		rows: [
+			{ xv: "1", yv: "9", series: "B", rank: "2" },
+			{ xv: "2", yv: "9", series: "B", rank: "2" },
+			{ xv: "1", yv: "1", series: "A", rank: "1" },
+			{ xv: "2", yv: "1", series: "A", rank: "1" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (drawOrder: DrawOrderConfig | null) => {
 	installInMemoryLocalStorage()

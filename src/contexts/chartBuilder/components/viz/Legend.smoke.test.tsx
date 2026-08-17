@@ -1,6 +1,8 @@
 import { render } from "@testing-library/react"
 import { rgb as d3Rgb } from "d3-color"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	EMPTY_CHANNEL_CONFIGS,
@@ -1161,57 +1163,21 @@ describe("Legend — hexbin Point count section", () => {
 	// section is built inside Legend's sections loop from Jotai state, so
 	// this needs the dataset/encodings scaffolding.
 	const DATASET_ID = "ds-hexbin-legend-test"
-	const buildDataset = (): Dataset => ({
-		id: DATASET_ID,
-		name: "points",
-		fields: [
-			{ name: "X", inferredType: "quantitative" },
-			{ name: "Y", inferredType: "quantitative" },
-		],
-		versions: [
-			{
-				id: "v1",
-				filename: "points.csv",
-				rows: [
-					{ X: "1", Y: "1" },
-					{ X: "1", Y: "1" },
-					{ X: "9", Y: "9" },
-				],
-				createdAt: 0,
-			},
-		],
-		latestVersionId: "v1",
-		createdAt: 0,
-	})
-
-	const installInMemoryLocalStorage = (): Map<string, string> => {
-		const store = new Map<string, string>()
-		const fakeStorage: Storage = {
-			get length() {
-				return store.size
-			},
-			clear: () => store.clear(),
-			getItem: (k) => (store.has(k) ? store.get(k)! : null),
-			key: (i) => [...store.keys()][i] ?? null,
-			removeItem: (k) => {
-				store.delete(k)
-			},
-			setItem: (k, v) => {
-				store.set(k, String(v))
-			},
-		}
-		Object.defineProperty(window, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "points",
+			filename: "points.csv",
+			fields: [
+				{ name: "X", inferredType: "quantitative" },
+				{ name: "Y", inferredType: "quantitative" },
+			],
+			rows: [
+				{ X: "1", Y: "1" },
+				{ X: "1", Y: "1" },
+				{ X: "9", Y: "9" },
+			],
 		})
-		Object.defineProperty(globalThis, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-		return store
-	}
 
 	const mountLegend = (opts?: { dropY?: boolean }) => {
 		const store = installInMemoryLocalStorage()
@@ -1278,67 +1244,31 @@ describe("Legend — flow modes list hue nodes over the endpoint UNION domain", 
 	const DATASET_ID = "ds-flow-legend-test"
 	// `Region` is a NON-endpoint categorical column — hue mapped there must
 	// keep its own 2-value domain, not the node union (the negative case).
-	const buildDataset = (): Dataset => ({
-		id: DATASET_ID,
-		name: "flows",
-		fields: [
-			{ name: "Start", inferredType: "categorical" },
-			{ name: "Stop", inferredType: "categorical" },
-			{ name: "Value", inferredType: "quantitative" },
-			{ name: "Region", inferredType: "categorical" },
-		],
-		versions: [
-			{
-				id: "v1",
-				filename: "flows.csv",
-				rows: [
-					{ Start: "Nashville", Stop: "Memphis", Value: "5", Region: "South" },
-					{ Start: "New York", Stop: "Miami", Value: "8", Region: "North" },
-					{ Start: "Miami", Stop: "Miami", Value: "2", Region: "South" },
-					{ Start: "New York", Stop: "Nashville", Value: "3", Region: "North" },
-					{ Start: "Nashville", Stop: "New York", Value: "1", Region: "South" },
-					{ Start: "Seattle", Stop: "New York", Value: "4", Region: "North" },
-					{ Start: "Seattle", Stop: "Miami", Value: "2", Region: "North" },
-				],
-				createdAt: 0,
-			},
-		],
-		latestVersionId: "v1",
-		createdAt: 0,
-	})
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "flows",
+			filename: "flows.csv",
+			fields: [
+				{ name: "Start", inferredType: "categorical" },
+				{ name: "Stop", inferredType: "categorical" },
+				{ name: "Value", inferredType: "quantitative" },
+				{ name: "Region", inferredType: "categorical" },
+			],
+			rows: [
+				{ Start: "Nashville", Stop: "Memphis", Value: "5", Region: "South" },
+				{ Start: "New York", Stop: "Miami", Value: "8", Region: "North" },
+				{ Start: "Miami", Stop: "Miami", Value: "2", Region: "South" },
+				{ Start: "New York", Stop: "Nashville", Value: "3", Region: "North" },
+				{ Start: "Nashville", Stop: "New York", Value: "1", Region: "South" },
+				{ Start: "Seattle", Stop: "New York", Value: "4", Region: "North" },
+				{ Start: "Seattle", Stop: "Miami", Value: "2", Region: "North" },
+			],
+		})
 
 	// Union of Start/Stop in first-appearance order (source before target
 	// within a row) — Memphis is second because row 1's Stop introduces it.
 	const UNION_ORDER = ["Nashville", "Memphis", "New York", "Miami", "Seattle"]
-
-	const installInMemoryLocalStorage = (): Map<string, string> => {
-		const store = new Map<string, string>()
-		const fakeStorage: Storage = {
-			get length() {
-				return store.size
-			},
-			clear: () => store.clear(),
-			getItem: (k) => (store.has(k) ? store.get(k)! : null),
-			key: (i) => [...store.keys()][i] ?? null,
-			removeItem: (k) => {
-				store.delete(k)
-			},
-			setItem: (k, v) => {
-				store.set(k, String(v))
-			},
-		}
-		Object.defineProperty(window, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-		Object.defineProperty(globalThis, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-		return store
-	}
 
 	const mountLegend = (hueField = "Start") => {
 		const store = installInMemoryLocalStorage()
@@ -1595,57 +1525,21 @@ describe("Legend — solo saturation / brightness sections", () => {
 	// CombinedGroupLegend like solo opacity). Before this they rendered no
 	// legend at all — the only way to key the shades was a ghost encoding.
 	const DATASET_ID = "ds-solo-modulation-legend-test"
-	const buildDataset = (): Dataset => ({
-		id: DATASET_ID,
-		name: "tiers",
-		fields: [
-			{ name: "Tier", inferredType: "categorical" },
-			{ name: "Value", inferredType: "quantitative" },
-		],
-		versions: [
-			{
-				id: "v1",
-				filename: "tiers.csv",
-				rows: [
-					{ Tier: "A", Value: "1" },
-					{ Tier: "B", Value: "2" },
-					{ Tier: "C", Value: "3" },
-				],
-				createdAt: 0,
-			},
-		],
-		latestVersionId: "v1",
-		createdAt: 0,
-	})
-
-	const installInMemoryLocalStorage = (): Map<string, string> => {
-		const store = new Map<string, string>()
-		const fakeStorage: Storage = {
-			get length() {
-				return store.size
-			},
-			clear: () => store.clear(),
-			getItem: (k) => (store.has(k) ? store.get(k)! : null),
-			key: (i) => [...store.keys()][i] ?? null,
-			removeItem: (k) => {
-				store.delete(k)
-			},
-			setItem: (k, v) => {
-				store.set(k, String(v))
-			},
-		}
-		Object.defineProperty(window, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "tiers",
+			filename: "tiers.csv",
+			fields: [
+				{ name: "Tier", inferredType: "categorical" },
+				{ name: "Value", inferredType: "quantitative" },
+			],
+			rows: [
+				{ Tier: "A", Value: "1" },
+				{ Tier: "B", Value: "2" },
+				{ Tier: "C", Value: "3" },
+			],
 		})
-		Object.defineProperty(globalThis, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-		return store
-	}
 
 	const mountLegend = (opts?: {
 		channel?: "saturation" | "brightness"

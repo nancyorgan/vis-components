@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -15,60 +17,24 @@ import { ChartCanvas } from "./ChartCanvas"
 
 const DATASET_ID = "ds-draw-order"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "draw-order",
-	fields: [
-		{ name: "xv", inferredType: "quantitative" },
-		{ name: "yv", inferredType: "quantitative" },
-		{ name: "size", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "draw-order.csv",
-			// Dataset order deliberately NOT sorted by `size` (or by x):
-			// row 0 → x=2/size=5, row 1 → x=3/size=9, row 2 → x=1/size=1.
-			rows: [
-				{ xv: "2", yv: "1", size: "5" },
-				{ xv: "3", yv: "2", size: "9" },
-				{ xv: "1", yv: "3", size: "1" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "draw-order",
+		filename: "draw-order.csv",
+		fields: [
+			{ name: "xv", inferredType: "quantitative" },
+			{ name: "yv", inferredType: "quantitative" },
+			{ name: "size", inferredType: "quantitative" },
+		],
+		// Dataset order deliberately NOT sorted by `size` (or by x):
+		// row 0 → x=2/size=5, row 1 → x=3/size=9, row 2 → x=1/size=1.
+		rows: [
+			{ xv: "2", yv: "1", size: "5" },
+			{ xv: "3", yv: "2", size: "9" },
+			{ xv: "1", yv: "3", size: "1" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (drawOrder: DrawOrderConfig | null) => {
 	installInMemoryLocalStorage()

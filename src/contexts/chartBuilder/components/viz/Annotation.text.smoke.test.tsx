@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_AXIS_CONFIG } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -15,56 +17,20 @@ import { ChartCanvas } from "./ChartCanvas"
 
 const DATASET_ID = "ds-anno-text"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "anno-text",
-	fields: [
-		{ name: "x", inferredType: "quantitative" },
-		{ name: "y", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "anno.csv",
-			rows: Array.from({ length: 10 }, (_, i) => ({
-				x: String(i),
-				y: String(i * 2),
-			})),
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "anno-text",
+		filename: "anno.csv",
+		fields: [
+			{ name: "x", inferredType: "quantitative" },
+			{ name: "y", inferredType: "quantitative" },
+		],
+		rows: Array.from({ length: 10 }, (_, i) => ({
+			x: String(i),
+			y: String(i * 2),
+		})),
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (withText: boolean) => {
 	installInMemoryLocalStorage()

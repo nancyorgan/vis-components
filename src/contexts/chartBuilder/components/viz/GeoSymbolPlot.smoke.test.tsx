@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { afterEach } from "vitest"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
 import { emptyEncodings, type Dataset } from "../../lib/types"
@@ -25,53 +27,17 @@ const buildDataset = (
 		{ state: "TX", pop: "50" },
 		{ state: "NY", pop: "25" },
 	]
-): Dataset => ({
-	id: DATASET_ID,
-	name: "pops",
-	fields: [
-		{ name: "state", inferredType: "categorical" },
-		{ name: "pop", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "pops.csv",
-			rows,
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "pops",
+		filename: "pops.csv",
+		fields: [
+			{ name: "state", inferredType: "categorical" },
+			{ name: "pop", inferredType: "quantitative" },
+		],
+		rows,
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (
 	rows?: Record<string, string>[],

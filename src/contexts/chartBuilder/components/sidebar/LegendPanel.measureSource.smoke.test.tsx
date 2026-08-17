@@ -1,5 +1,7 @@
 import { cleanup, render, within } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
 import { DEFAULT_AXIS_CONFIG } from "../../lib/channelConfig"
 import { emptyEncodings, type Dataset } from "../../lib/types"
@@ -13,47 +15,14 @@ import { LegendPanel } from "./LegendPanel"
 
 const DATASET_ID = "ds-legendpanel-measure"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "scores",
-	fields: [{ name: "score", inferredType: "quantitative" }],
-	versions: [
-		{
-			id: "v1",
-			filename: "scores.csv",
-			rows: Array.from({ length: 20 }, (_, i) => ({ score: String(i + 1) })),
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	for (const target of [window, globalThis]) {
-		Object.defineProperty(target, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-	}
-	return store
-}
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "scores",
+		filename: "scores.csv",
+		fields: [{ name: "score", inferredType: "quantitative" }],
+		rows: Array.from({ length: 20 }, (_, i) => ({ score: String(i + 1) })),
+	})
 
 const seed = (hue: Record<string, unknown> | undefined, histogram: boolean) => {
 	const store = installInMemoryLocalStorage()

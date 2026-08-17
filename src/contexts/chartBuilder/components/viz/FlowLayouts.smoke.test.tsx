@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 
 import { type ChannelConfigs } from "../../lib/channelConfig"
@@ -47,25 +49,17 @@ const buildDataset = (
 					!(r.Start === "Nashville" && r.Stop === "New York")
 			)
 		: allRows
-	const dataset: Dataset = {
+	const dataset: Dataset = buildDatasetFixture({
 		id: DATASET_ID,
 		name: "flows",
+		filename: "flows.csv",
 		fields: [
 			{ name: "Start", inferredType: "categorical" },
 			{ name: "Stop", inferredType: "categorical" },
 			{ name: "Value", inferredType: "quantitative" },
 		],
-		versions: [
-			{
-				id: "v1",
-				filename: "flows.csv",
-				rows,
-				createdAt: 0,
-			},
-		],
-		latestVersionId: "v1",
-		createdAt: 0,
-	}
+		rows,
+	})
 	// Target-less variant: no Stop column at all, so target auto-detection
 	// finds no candidate and the scaffold never reaches `ready`.
 	if (opts.omitTarget) {
@@ -73,35 +67,6 @@ const buildDataset = (
 		dataset.versions[0].rows = rows.map(({ Stop: _stop, ...rest }) => rest)
 	}
 	return dataset
-}
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
 }
 
 const plotFor = { chord: ChordPlot, sankey: SankeyPlot } as const

@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -34,57 +36,21 @@ import { ScatterPlot } from "./ScatterPlot"
  *  (e.g. prop not threaded through). */
 const DATASET_ID = "ds-scatter-y-horizontal"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "scatter",
-	fields: [
-		{ name: "x", inferredType: "quantitative" },
-		{ name: "y", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "d.csv",
-			rows: [
-				{ x: "10", y: "A" },
-				{ x: "20", y: "B" },
-				{ x: "30", y: "C" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "scatter",
+		filename: "d.csv",
+		fields: [
+			{ name: "x", inferredType: "quantitative" },
+			{ name: "y", inferredType: "categorical" },
+		],
+		rows: [
+			{ x: "10", y: "A" },
+			{ x: "20", y: "B" },
+			{ x: "30", y: "C" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (horizontal: boolean) => {
 	const store = installInMemoryLocalStorage()

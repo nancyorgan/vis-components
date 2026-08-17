@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -39,51 +41,22 @@ const DATASET_ID = "ds-first-tick"
 
 const INNER = { x0: 100, y0: 50, x1: 500, y1: 350 }
 
-const buildDataset = (rows: Array<Record<string, string>>): Dataset => ({
-	id: DATASET_ID,
-	name: "ft",
-	fields: [
-		{ name: "g", inferredType: "categorical" },
-		{ name: "h", inferredType: "categorical" },
-	],
-	versions: [{ id: "v1", filename: "ft.csv", rows, createdAt: 0 }],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
+const buildDataset = (rows: Array<Record<string, string>>): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "ft",
+		filename: "ft.csv",
+		fields: [
+			{ name: "g", inferredType: "categorical" },
+			{ name: "h", inferredType: "categorical" },
+		],
+		rows,
+	})
 
 const TWO_BY_TWO = [
 	{ g: "A", h: "P" },
 	{ g: "B", h: "Q" },
 ]
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const mount = (
 	rows: Array<Record<string, string>>,

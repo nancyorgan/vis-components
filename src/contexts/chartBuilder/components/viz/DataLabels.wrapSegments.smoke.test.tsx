@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -37,57 +39,21 @@ import { ScatterPlot } from "./ScatterPlot"
 
 const DATASET_ID = "ds-wrap-segments"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "wrap-segments",
-	fields: [
-		{ name: "month", inferredType: "quantitative" },
-		{ name: "sales", inferredType: "quantitative" },
-		{ name: "region", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "wrap-segments.csv",
-			rows: [
-				{ month: "1", sales: "10", region: "the far northern region" },
-				{ month: "2", sales: "20", region: "the far northern region" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "wrap-segments",
+		filename: "wrap-segments.csv",
+		fields: [
+			{ name: "month", inferredType: "quantitative" },
+			{ name: "sales", inferredType: "quantitative" },
+			{ name: "region", inferredType: "categorical" },
+		],
+		rows: [
+			{ month: "1", sales: "10", region: "the far northern region" },
+			{ month: "2", sales: "20", region: "the far northern region" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const cfg: DataLabelsConfig = {
 	...DEFAULT_DATA_LABELS_CONFIG,

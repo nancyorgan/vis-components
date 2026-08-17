@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DATA_LABELS_SINGLE_COLOR_ID,
@@ -47,32 +49,25 @@ const DATASET_ID = "ds-anchor-hue"
 
 const PALETTE = ["#ff0000", "#0000ff"] // north → red, south → blue
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "sales",
-	fields: [
-		{ name: "cat", inferredType: "categorical" },
-		{ name: "val", inferredType: "quantitative" },
-		{ name: "region", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "sales.csv",
-			// Dataset row order introduces north FIRST — that's the order the
-			// chart's marks + legend assign palette slots in.
-			rows: [
-				{ cat: "A", val: "10", region: "north" },
-				{ cat: "A", val: "30", region: "south" },
-				{ cat: "B", val: "20", region: "north" },
-				{ cat: "B", val: "40", region: "south" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "sales",
+		filename: "sales.csv",
+		fields: [
+			{ name: "cat", inferredType: "categorical" },
+			{ name: "val", inferredType: "quantitative" },
+			{ name: "region", inferredType: "categorical" },
+		],
+		// Dataset row order introduces north FIRST — that's the order the
+		// chart's marks + legend assign palette slots in.
+		rows: [
+			{ cat: "A", val: "10", region: "north" },
+			{ cat: "A", val: "30", region: "south" },
+			{ cat: "B", val: "20", region: "north" },
+			{ cat: "B", val: "40", region: "south" },
+		],
+	})
 
 // Anchors deliberately list SOUTH first — simulating a stack/slice layout
 // order that differs from dataset row order.
@@ -82,35 +77,6 @@ const ANCHORS: DataLabelAnchor[] = [
 	{ cx: 50, cy: 10, key: "B|south", label: "40", hueValue: "south" },
 	{ cx: 50, cy: 40, key: "B|north", label: "20", hueValue: "north" },
 ]
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 /** Persist-effects hydrate atoms from localStorage on init (overriding the
  *  Jotai store), so the state must be seeded there — same pattern as

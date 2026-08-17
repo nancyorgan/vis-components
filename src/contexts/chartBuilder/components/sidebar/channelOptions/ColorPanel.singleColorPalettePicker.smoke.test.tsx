@@ -1,5 +1,7 @@
 import { fireEvent, render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { EMPTY_CHANNEL_CONFIGS } from "../../../lib/channelConfig"
 import { emptyEncodings, type Dataset } from "../../../lib/types"
@@ -22,57 +24,21 @@ import { ColorPanel } from "./ColorPanel"
 
 const ID = "ds-single-color-picker"
 
-const buildDataset = (): Dataset => ({
-	id: ID,
-	name: "scatter",
-	createdAt: 0,
-	latestVersionId: "v1",
-	fields: [
-		{ name: "xv", inferredType: "quantitative" },
-		{ name: "yv", inferredType: "quantitative" },
-		{ name: "series", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "scatter.csv",
-			createdAt: 0,
-			rows: [
-				{ xv: "1", yv: "2", series: "A" },
-				{ xv: "3", yv: "4", series: "B" },
-			],
-		},
-	],
-})
-
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fake: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: ID,
+		name: "scatter",
+		filename: "scatter.csv",
+		fields: [
+			{ name: "xv", inferredType: "quantitative" },
+			{ name: "yv", inferredType: "quantitative" },
+			{ name: "series", inferredType: "categorical" },
+		],
+		rows: [
+			{ xv: "1", yv: "2", series: "A" },
+			{ xv: "3", yv: "4", series: "B" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const mount = (withConnection = false) => {
 	const enc = {

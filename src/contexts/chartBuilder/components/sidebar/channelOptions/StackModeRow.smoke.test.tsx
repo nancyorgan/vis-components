@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
 import {
 	DEFAULT_AXIS_CONFIG,
@@ -34,60 +36,24 @@ afterEach(cleanup)
 
 const ID = "ds-stackmode-row"
 
-const buildDataset = (): Dataset => ({
-	id: ID,
-	name: "stackrow",
-	createdAt: 0,
-	latestVersionId: "v1",
-	fields: [
-		{ name: "cat", inferredType: "categorical" },
-		{ name: "val", inferredType: "quantitative" },
-		{ name: "grp", inferredType: "categorical" },
-		{ name: "pat", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "stackrow.csv",
-			createdAt: 0,
-			rows: [
-				{ cat: "A", val: "2", grp: "g1", pat: "p1" },
-				{ cat: "A", val: "3", grp: "g1", pat: "p2" },
-				{ cat: "A", val: "4", grp: "g2", pat: "p1" },
-				{ cat: "B", val: "1", grp: "g2", pat: "p2" },
-			],
-		},
-	],
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fake: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: ID,
+		name: "stackrow",
+		filename: "stackrow.csv",
+		fields: [
+			{ name: "cat", inferredType: "categorical" },
+			{ name: "val", inferredType: "quantitative" },
+			{ name: "grp", inferredType: "categorical" },
+			{ name: "pat", inferredType: "categorical" },
+		],
+		rows: [
+			{ cat: "A", val: "2", grp: "g1", pat: "p1" },
+			{ cat: "A", val: "3", grp: "g1", pat: "p2" },
+			{ cat: "A", val: "4", grp: "g2", pat: "p1" },
+			{ cat: "B", val: "1", grp: "g2", pat: "p2" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const barsEncodings = (overrides: Partial<Encodings>): Encodings => ({
 	...emptyEncodings(),

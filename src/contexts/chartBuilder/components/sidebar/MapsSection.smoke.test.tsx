@@ -1,49 +1,12 @@
 import { cleanup, render, screen, fireEvent } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { afterEach, describe, expect, it } from "vitest"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
 import { MAP_CONFIG_VERSION } from "../../lib/storage/migrations"
 import { emptyEncodings } from "../../lib/types"
 
 import { MapsSection } from "./MapsSection"
-
-/** The Maps section is the user-facing control surface for geographic charts.
- *  Its master switch is the Coordinate system toggle; the projection / level /
- *  key / match-status / no-data controls only appear once the system is
- *  Geographic.
- *
- *  Seeding goes through localStorage (not `initializeState`) because the
- *  atoms' persist effects re-read storage on first `get`, clobbering any
- *  `initializeState` value — mirror the other `*.smoke.test.tsx` here. */
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 /** Active-mode-gated toggles need the right encodings to resolve a mode:
  *  - geo-choropleth: connection mapped, NO area → "Fill regions with no data"

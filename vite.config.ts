@@ -27,6 +27,9 @@ export default defineConfig({
 	test: {
 		environment: "happy-dom",
 		include: ["src/**/*.test.{ts,tsx}"],
+		// Runs once per test file, before the file's own module body. Puts
+		// every suite on an isolated in-memory localStorage (see the file).
+		setupFiles: ["src/testSupport/vitest.setup.ts"],
 		// Playwright specs live under e2e/ and have a different runner — keep
 		// vitest from picking them up.
 		exclude: ["**/node_modules/**", "e2e/**"],

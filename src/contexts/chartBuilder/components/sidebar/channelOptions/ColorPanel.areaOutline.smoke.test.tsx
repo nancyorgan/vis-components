@@ -1,5 +1,7 @@
 import { fireEvent, render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
@@ -24,57 +26,21 @@ import { ColorPanel } from "./ColorPanel"
 
 const ID = "ds-color-area"
 
-const buildDataset = (): Dataset => ({
-	id: ID,
-	name: "area",
-	createdAt: 0,
-	latestVersionId: "v1",
-	fields: [
-		{ name: "month", inferredType: "categorical" },
-		{ name: "val", inferredType: "quantitative" },
-		{ name: "series", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "area.csv",
-			createdAt: 0,
-			rows: [
-				{ month: "Jan", val: "10", series: "A" },
-				{ month: "Jan", val: "8", series: "B" },
-			],
-		},
-	],
-})
-
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fake: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: ID,
+		name: "area",
+		filename: "area.csv",
+		fields: [
+			{ name: "month", inferredType: "categorical" },
+			{ name: "val", inferredType: "quantitative" },
+			{ name: "series", inferredType: "categorical" },
+		],
+		rows: [
+			{ month: "Jan", val: "10", series: "A" },
+			{ month: "Jan", val: "8", series: "B" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fake,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const enc = {
 	...emptyEncodings(),

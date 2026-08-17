@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 
 import { type ChannelConfigs } from "../../lib/channelConfig"
@@ -31,61 +33,25 @@ import { TreemapPlot } from "./TreemapPlot"
 const DATASET_ID = "ds-hier-test"
 const PARENT_WASH = "rgba(148, 163, 184, 0.12)"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "fruit",
-	fields: [
-		{ name: "Parent", inferredType: "categorical" },
-		{ name: "Child", inferredType: "categorical" },
-		{ name: "Value", inferredType: "quantitative" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "fruit.csv",
-			rows: [
-				{ Parent: "Pome", Child: "Apple", Value: "7" },
-				{ Parent: "Pome", Child: "Pear", Value: "7" },
-				{ Parent: "Citrus", Child: "Lemon", Value: "8" },
-				{ Parent: "Melon", Child: "Watermelon", Value: "" },
-				{ Parent: "Watermelon", Child: "Mini", Value: "1" },
-				{ Parent: "Watermelon", Child: "Seedless", Value: "6" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "fruit",
+		filename: "fruit.csv",
+		fields: [
+			{ name: "Parent", inferredType: "categorical" },
+			{ name: "Child", inferredType: "categorical" },
+			{ name: "Value", inferredType: "quantitative" },
+		],
+		rows: [
+			{ Parent: "Pome", Child: "Apple", Value: "7" },
+			{ Parent: "Pome", Child: "Pear", Value: "7" },
+			{ Parent: "Citrus", Child: "Lemon", Value: "8" },
+			{ Parent: "Melon", Child: "Watermelon", Value: "" },
+			{ Parent: "Watermelon", Child: "Mini", Value: "1" },
+			{ Parent: "Watermelon", Child: "Seedless", Value: "6" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const mountLayout = (
 	layout: "treemap" | "sunburst",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
 	DEFAULT_AXIS_CONFIG,
+	DEFAULT_CHORD_AXIS_CONFIG,
+	DEFAULT_DATA_LABELS_CONFIG,
 	DEFAULT_OPACITY_QUANTITATIVE,
 	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
@@ -11,17 +13,20 @@ import {
 	angleConfigFromTheme,
 	axisConfigFromTheme,
 	channelHasCustomization,
+	chordAxisConfigFromTheme,
 	configsFromTheme,
 	connectionConfigFromTheme,
+	dataLabelsConfigFromTheme,
 	explainChannelCustomization,
 	explainLegendCustomization,
+	labelsFromTheme,
 	legendConfigFromTheme,
 	legendHasCustomization,
 	patternConfigFromTheme,
 	shapeConfigFromTheme,
 	textConfigFromTheme,
 } from "./themeConfig"
-import { type LegendConfig } from "./labelsConfig"
+import { DEFAULT_LABELS_CONFIG, type LegendConfig } from "./labelsConfig"
 import type { Theme } from "./types"
 
 const STUB_THEME: Theme = {
@@ -513,5 +518,265 @@ describe("opacity stackMode dot (phase 2)", () => {
 		const labels = explainChannelCustomization("opacity", cfg, STUB_THEME)
 		expect(labels).toContain("opacity stacking")
 		expect(labels).not.toContain("opacity scale")
+	})
+})
+
+// ── Data Labels theme seed ──────────────────────────────────────────────────
+// `dataLabelsConfigFromTheme` can't join the configsFromTheme parity describe
+// above: the Data Labels blob is its OWN persisted slice
+// (`currentDataLabelsConfigAtom` / `Visual.dataLabelsConfig`), not part of
+// `ChannelConfigs`, so `configsFromTheme` has no `dataLabels` key to compare
+// against. These direct tests are the drift guard instead — they pin both the
+// theme pickup and the legacy-theme fallbacks, which are the two ways this
+// builder can silently ship the wrong font.
+describe("dataLabelsConfigFromTheme", () => {
+	const THEMED: Theme = {
+		...STUB_THEME,
+		dataLabelsColor: "#ff00aa",
+		dataLabelsFontFamily: "Inter, system-ui, sans-serif",
+		dataLabelsFontSize: 17,
+		dataLabelsFontWeight: 800,
+		dataLabelsItalic: true,
+		dataLabelsUnderline: true,
+	}
+
+	it("picks up every theme-driven data-label field", () => {
+		const cfg = dataLabelsConfigFromTheme(THEMED)
+		expect(cfg.color).toBe("#ff00aa")
+		expect(cfg.fontFamily).toBe("Inter, system-ui, sans-serif")
+		expect(cfg.fontSize).toBe(17)
+		expect(cfg.fontWeight).toBe(800)
+		expect(cfg.italic).toBe(true)
+		expect(cfg.underline).toBe(true)
+	})
+
+	it("leaves the non-theme-driven fields at the built-in defaults", () => {
+		// Only the font knobs are theme-driven; everything else (offsets,
+		// templates, per-value color maps) must come through untouched or a
+		// re-theme would silently wipe the user's label setup.
+		const cfg = dataLabelsConfigFromTheme(THEMED)
+		expect(cfg.colorOverrides).toEqual(DEFAULT_DATA_LABELS_CONFIG.colorOverrides)
+		expect(cfg.labelTemplate).toBe(DEFAULT_DATA_LABELS_CONFIG.labelTemplate)
+		expect(cfg.sizeMin).toBe(DEFAULT_DATA_LABELS_CONFIG.sizeMin)
+		expect(cfg.sizeMax).toBe(DEFAULT_DATA_LABELS_CONFIG.sizeMax)
+		expect(cfg.xOffset).toBe(DEFAULT_DATA_LABELS_CONFIG.xOffset)
+		expect(cfg.yOffset).toBe(DEFAULT_DATA_LABELS_CONFIG.yOffset)
+		expect(cfg.barLabelPosition).toBe(
+			DEFAULT_DATA_LABELS_CONFIG.barLabelPosition
+		)
+	})
+
+	it("a legacy theme (fields predate the feature) falls back to the built-ins", () => {
+		// STUB_THEME carries none of the six optional fields — exactly the shape
+		// of a theme saved before data-label fonts were themeable.
+		const cfg = dataLabelsConfigFromTheme(STUB_THEME)
+		expect(cfg).toEqual(DEFAULT_DATA_LABELS_CONFIG)
+		// Pinned literally so a default change has to be a deliberate edit here.
+		expect(cfg.fontSize).toBe(11)
+		expect(cfg.fontWeight).toBe(500)
+		expect(cfg.fontFamily).toBe("system-ui, sans-serif")
+		expect(cfg.color).toBe("#111827")
+		expect(cfg.italic).toBe(false)
+		expect(cfg.underline).toBe(false)
+	})
+
+	it("italic / underline fall back to false, not undefined", () => {
+		// These two use `?? false` rather than `?? DEFAULT.x`; a leaked
+		// `undefined` would read as "unset" against the dot baseline.
+		const cfg = dataLabelsConfigFromTheme({
+			...STUB_THEME,
+			dataLabelsItalic: false,
+			dataLabelsUnderline: false,
+		})
+		expect(cfg.italic).toBe(false)
+		expect(cfg.underline).toBe(false)
+	})
+})
+
+// ── Chord ring axis theme seed ──────────────────────────────────────────────
+// Shared by the Connection panel and ChordPlot (and the dot baseline for the
+// Tickmark / Spine controls), so the drawn ring and the panel's displayed
+// values can't drift apart.
+describe("chordAxisConfigFromTheme", () => {
+	it("tickmarks + spine take the same theme fields the x / y axes seed from", () => {
+		const cfg = chordAxisConfigFromTheme(STUB_THEME)
+		expect(cfg.tickmarks).toEqual({
+			color: STUB_THEME.tickmarkColor,
+			thickness: STUB_THEME.tickmarkThickness,
+			length: STUB_THEME.tickmarkLength,
+		})
+		expect(cfg.spine).toEqual({
+			color: STUB_THEME.spineColor,
+			thickness: STUB_THEME.spineThickness,
+		})
+		// Same source fields as the cartesian axis builder.
+		const xAxis = axisConfigFromTheme(STUB_THEME, "x")
+		expect(cfg.tickmarks).toEqual(xAxis.tickmarks)
+		expect(cfg.spine).toEqual(xAxis.spine)
+	})
+
+	it("carries the full DEFAULT_CHORD_AXIS_CONFIG for the non-theme fields", () => {
+		const cfg = chordAxisConfigFromTheme(STUB_THEME)
+		expect(cfg.enabled).toBe(DEFAULT_CHORD_AXIS_CONFIG.enabled)
+		expect(cfg.tickCount).toBe(DEFAULT_CHORD_AXIS_CONFIG.tickCount)
+		expect(cfg.customFormat).toBe(DEFAULT_CHORD_AXIS_CONFIG.customFormat)
+		expect(cfg.labelEvery).toBe(DEFAULT_CHORD_AXIS_CONFIG.labelEvery)
+	})
+
+	it("follows a different theme's tick / spine styling", () => {
+		const other: Theme = {
+			...STUB_THEME,
+			tickmarkColor: "#123456",
+			tickmarkThickness: 3,
+			tickmarkLength: 9,
+			spineColor: "#654321",
+			spineThickness: 4,
+		}
+		const cfg = chordAxisConfigFromTheme(other)
+		expect(cfg.tickmarks).toEqual({
+			color: "#123456",
+			thickness: 3,
+			length: 9,
+		})
+		expect(cfg.spine).toEqual({ color: "#654321", thickness: 4 })
+	})
+})
+
+// ── Labels theme seed ───────────────────────────────────────────────────────
+// `labelsFromTheme` seeds the persisted `labelsConfig` slice on every new /
+// reset visual. Anything it drops is a theme setting the user never sees.
+describe("labelsFromTheme", () => {
+	const FULL: Theme = {
+		...STUB_THEME,
+		titleFontWeight: 800,
+		titleFontBold: false,
+		subtitleFontWeight: 600,
+		axisTitleFontWeight: 400,
+		legendTitleFontWeight: 300,
+		subtitleFontFamily: "Georgia, 'Times New Roman', serif",
+		legendTitleFontFamily: "Inter, system-ui, sans-serif",
+		titleAlignment: "left",
+		subtitleAlignment: "right",
+		legendTitleAlignment: "center",
+		titleFontItalic: true,
+		titleFontUnderline: true,
+		textFontWeight: 300,
+		textFontItalic: true,
+		textFontUnderline: true,
+		legendTextFontFamily: "'DM Sans', ui-sans-serif, sans-serif",
+		legendTextFontSize: 15,
+		legendTextFontWeight: 600,
+		legendTextColor: "#00aa00",
+	}
+
+	it("a fully-populated theme flows into baseFont.titles", () => {
+		const { titles } = labelsFromTheme(FULL).baseFont
+		expect(titles).toEqual({
+			family: FULL.titleFontFamily,
+			primarySize: FULL.titlePrimarySize,
+			subtitleSize: FULL.titleSubtitleSize,
+			secondarySize: FULL.titleSecondarySize,
+			color: FULL.titleFontColor,
+			weight: 800,
+			subtitleWeight: 600,
+			secondaryWeight: 400,
+			legendWeight: 300,
+			subtitleFamily: "Georgia, 'Times New Roman', serif",
+			legendFamily: "Inter, system-ui, sans-serif",
+			primaryAlignment: "left",
+			subtitleAlignment: "right",
+			legendAlignment: "center",
+			italic: true,
+			underline: true,
+		})
+	})
+
+	it("a fully-populated theme flows into baseFont.text", () => {
+		const { text } = labelsFromTheme(FULL).baseFont
+		expect(text).toEqual({
+			family: FULL.textFontFamily,
+			size: FULL.textFontSize,
+			color: FULL.textFontColor,
+			weight: 300,
+			italic: true,
+			underline: true,
+			legendFamily: "'DM Sans', ui-sans-serif, sans-serif",
+			legendSize: 15,
+			legendWeight: 600,
+			legendColor: "#00aa00",
+		})
+	})
+
+	it("a minimal theme leaves optional slots unset (resolve-time fallback)", () => {
+		// The per-slot weights / families / alignments MUST stay undefined rather
+		// than being filled with a concrete value — resolveTitleFont /
+		// resolveLegendTextFont fall back to the shared fields, and a baked-in
+		// value here would freeze the slot against later theme edits.
+		const { titles, text } = labelsFromTheme(STUB_THEME).baseFont
+		expect(titles.weight).toBeUndefined()
+		expect(titles.subtitleWeight).toBeUndefined()
+		expect(titles.secondaryWeight).toBeUndefined()
+		expect(titles.legendWeight).toBeUndefined()
+		expect(titles.subtitleFamily).toBeUndefined()
+		expect(titles.legendFamily).toBeUndefined()
+		expect(titles.primaryAlignment).toBeUndefined()
+		expect(titles.subtitleAlignment).toBeUndefined()
+		expect(titles.legendAlignment).toBeUndefined()
+		// italic / underline are `?? false`, not left undefined.
+		expect(titles.italic).toBe(false)
+		expect(titles.underline).toBe(false)
+		expect(text.weight).toBeUndefined()
+		expect(text.legendFamily).toBeUndefined()
+		expect(text.legendSize).toBeUndefined()
+		expect(text.legendWeight).toBeUndefined()
+		expect(text.legendColor).toBeUndefined()
+		expect(text.italic).toBe(false)
+		expect(text.underline).toBe(false)
+		// The required fields still come from the theme.
+		expect(titles.family).toBe(STUB_THEME.titleFontFamily)
+		expect(titles.primarySize).toBe(STUB_THEME.titlePrimarySize)
+		expect(text.size).toBe(STUB_THEME.textFontSize)
+		expect(text.color).toBe(STUB_THEME.textFontColor)
+	})
+
+	it("keeps the DEFAULT_LABELS_CONFIG scaffolding for everything outside baseFont", () => {
+		const cfg = labelsFromTheme(STUB_THEME)
+		expect(cfg.title).toBe(DEFAULT_LABELS_CONFIG.title)
+		expect(cfg.subtitle).toBe(DEFAULT_LABELS_CONFIG.subtitle)
+		expect(cfg.legendTitles).toEqual({})
+		expect(cfg.fontOverrides).toEqual({})
+		expect(cfg.titleAlignments).toEqual({})
+		expect(cfg.titleOffsets).toEqual({})
+		expect(cfg.yAxisTitleHorizontal).toBe(false)
+		expect(cfg.configVersion).toBe(DEFAULT_LABELS_CONFIG.configVersion)
+	})
+
+	it("numeric theme weights win over the legacy bold flag", () => {
+		// Legacy theme: only the boolean survives → maps onto 700.
+		const legacyBold: Theme = {
+			...STUB_THEME,
+			titleFontBold: true,
+			textFontBold: true,
+		}
+		expect(labelsFromTheme(legacyBold).baseFont.titles.weight).toBe(700)
+		expect(labelsFromTheme(legacyBold).baseFont.text.weight).toBe(700)
+		// Both present → the numeric weight wins, even when it's LIGHTER than
+		// bold (the bold flag is stale once a weight has been picked).
+		const both: Theme = {
+			...legacyBold,
+			titleFontWeight: 300,
+			textFontWeight: 400,
+		}
+		expect(labelsFromTheme(both).baseFont.titles.weight).toBe(300)
+		expect(labelsFromTheme(both).baseFont.text.weight).toBe(400)
+		// bold: false with no numeric weight → unset (inherit the slot default),
+		// NOT an explicit 400.
+		const notBold: Theme = {
+			...STUB_THEME,
+			titleFontBold: false,
+			textFontBold: false,
+		}
+		expect(labelsFromTheme(notBold).baseFont.titles.weight).toBeUndefined()
+		expect(labelsFromTheme(notBold).baseFont.text.weight).toBeUndefined()
 	})
 })

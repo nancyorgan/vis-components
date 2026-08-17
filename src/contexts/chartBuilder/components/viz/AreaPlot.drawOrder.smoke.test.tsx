@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -37,60 +39,24 @@ import { AreaPlot } from "./AreaPlot"
 
 const DATASET_ID = "ds-area-draw-order"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "area-draw-order",
-	fields: [
-		{ name: "cat", inferredType: "categorical" },
-		{ name: "val", inferredType: "quantitative" },
-		{ name: "conn", inferredType: "categorical" },
-		{ name: "grp", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "area-draw-order.csv",
-			rows: [
-				{ cat: "P", val: "90", conn: "c", grp: "big" },
-				{ cat: "Q", val: "80", conn: "c", grp: "big" },
-				{ cat: "P", val: "10", conn: "c", grp: "small" },
-				{ cat: "Q", val: "15", conn: "c", grp: "small" },
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "area-draw-order",
+		filename: "area-draw-order.csv",
+		fields: [
+			{ name: "cat", inferredType: "categorical" },
+			{ name: "val", inferredType: "quantitative" },
+			{ name: "conn", inferredType: "categorical" },
+			{ name: "grp", inferredType: "categorical" },
+		],
+		rows: [
+			{ cat: "P", val: "90", conn: "c", grp: "big" },
+			{ cat: "Q", val: "80", conn: "c", grp: "big" },
+			{ cat: "P", val: "10", conn: "c", grp: "small" },
+			{ cat: "Q", val: "15", conn: "c", grp: "small" },
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 type Opts = { drawOrder?: { field: string; dir: "asc" | "desc" } | null }
 

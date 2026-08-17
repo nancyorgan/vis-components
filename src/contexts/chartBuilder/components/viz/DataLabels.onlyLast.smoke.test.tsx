@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react"
-import { useAtomValue } from "jotai"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -26,16 +26,6 @@ import {
 } from "../../store/atoms"
 
 import { ScatterPlot } from "./ScatterPlot"
-
-const Probe = () => {
-	const cfg = useAtomValue(currentDataLabelsConfigAtom)
-	const enc = useAtomValue(currentDataLabelsEncodingsAtom)
-	// eslint-disable-next-line no-console
-	console.log("[probe] dataLabels onlyLastLabel:", cfg.onlyLastLabel)
-	// eslint-disable-next-line no-console
-	console.log("[probe] dataLabels value field:", enc.value?.field)
-	return null
-}
 
 /** User reported: "Only show last labels per series is showing labels in
  *  places that aren't the last point." This test mounts a scatter +
@@ -78,35 +68,6 @@ const buildLineDataset = (): Dataset => ({
 	latestVersionId: "v1",
 	createdAt: 0,
 })
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seedState = () => {
 	const store = installInMemoryLocalStorage()
@@ -180,7 +141,6 @@ describe("Data labels — onlyLastLabel on a scatter+connection line chart", () 
 		const { container } = render(
 			<TestProvider initializeState={initState}>
 				<div style={{ width: 600, height: 400 }}>
-					<Probe />
 					<ScatterPlot />
 				</div>
 			</TestProvider>

@@ -1,5 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_AXIS_CONFIG,
@@ -22,67 +24,31 @@ const LINE_STROKE = DEFAULT_REGRESSION_CONFIG.color
 const BAND_FILL = DEFAULT_REGRESSION_CONFIG.ciFillColor
 const PALETTE = ["#e11d48", "#2563eb"]
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "measurements",
-	fields: [
-		{ name: "xval", inferredType: "quantitative" },
-		{ name: "yval", inferredType: "quantitative" },
-		{ name: "region", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "measurements.csv",
-			rows: [
-				// East: y ≈ 2x + 1 with a small deterministic wiggle (so the CI
-				// has nonzero width); West: y ≈ -x + 20.
-				...Array.from({ length: 10 }, (_, i) => ({
-					xval: String(i),
-					yval: String(2 * i + 1 + (i % 2 === 0 ? 0.2 : -0.2)),
-					region: "East",
-				})),
-				...Array.from({ length: 10 }, (_, i) => ({
-					xval: String(i),
-					yval: String(20 - i + (i % 2 === 0 ? 0.2 : -0.2)),
-					region: "West",
-				})),
-			],
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "measurements",
+		filename: "measurements.csv",
+		fields: [
+			{ name: "xval", inferredType: "quantitative" },
+			{ name: "yval", inferredType: "quantitative" },
+			{ name: "region", inferredType: "categorical" },
+		],
+		rows: [
+			// East: y ≈ 2x + 1 with a small deterministic wiggle (so the CI
+			// has nonzero width); West: y ≈ -x + 20.
+			...Array.from({ length: 10 }, (_, i) => ({
+				xval: String(i),
+				yval: String(2 * i + 1 + (i % 2 === 0 ? 0.2 : -0.2)),
+				region: "East",
+			})),
+			...Array.from({ length: 10 }, (_, i) => ({
+				xval: String(i),
+				yval: String(20 - i + (i % 2 === 0 ? 0.2 : -0.2)),
+				region: "West",
+			})),
+		],
 	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 const seed = (
 	encodings: Encodings,

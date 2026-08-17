@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { TestProvider } from "../../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../../testSupport/localStorageShim"
+import { buildDataset as buildDatasetFixture } from "../../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
 import { useAtomValue } from "jotai"
 import { emptyEncodings, type Dataset } from "../../../lib/types"
@@ -14,53 +16,20 @@ import { BrightnessOptionsPanel, SaturationOptionsPanel } from "./RangePanel"
 
 const DATASET_ID = "ds-modulation-levels"
 
-const buildDataset = (): Dataset => ({
-	id: DATASET_ID,
-	name: "scores",
-	fields: [
-		{ name: "score", inferredType: "quantitative" },
-		{ name: "group", inferredType: "categorical" },
-	],
-	versions: [
-		{
-			id: "v1",
-			filename: "scores.csv",
-			rows: Array.from({ length: 12 }, (_, i) => ({
-				score: String(i + 1),
-				group: ["A", "B", "C"][i % 3],
-			})),
-			createdAt: 0,
-		},
-	],
-	latestVersionId: "v1",
-	createdAt: 0,
-})
-
-const installInMemoryLocalStorage = () => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	for (const target of [window, globalThis]) {
-		Object.defineProperty(target, "localStorage", {
-			value: fakeStorage,
-			writable: true,
-			configurable: true,
-		})
-	}
-	return store
-}
+const buildDataset = (): Dataset =>
+	buildDatasetFixture({
+		id: DATASET_ID,
+		name: "scores",
+		filename: "scores.csv",
+		fields: [
+			{ name: "score", inferredType: "quantitative" },
+			{ name: "group", inferredType: "categorical" },
+		],
+		rows: Array.from({ length: 12 }, (_, i) => ({
+			score: String(i + 1),
+			group: ["A", "B", "C"][i % 3],
+		})),
+	})
 
 const seed = (brightnessField: string) => {
 	const store = installInMemoryLocalStorage()

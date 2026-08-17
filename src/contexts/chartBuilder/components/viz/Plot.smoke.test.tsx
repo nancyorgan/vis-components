@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react"
 import type { ReactElement } from "react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
+import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_FACET_CONFIG } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -98,35 +99,6 @@ const buildTileDataset = (): Dataset => ({
 	latestVersionId: "v1",
 	createdAt: 0,
 })
-
-const installInMemoryLocalStorage = (): Map<string, string> => {
-	const store = new Map<string, string>()
-	const fakeStorage: Storage = {
-		get length() {
-			return store.size
-		},
-		clear: () => store.clear(),
-		getItem: (k) => (store.has(k) ? store.get(k)! : null),
-		key: (i) => [...store.keys()][i] ?? null,
-		removeItem: (k) => {
-			store.delete(k)
-		},
-		setItem: (k, v) => {
-			store.set(k, String(v))
-		},
-	}
-	Object.defineProperty(window, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	Object.defineProperty(globalThis, "localStorage", {
-		value: fakeStorage,
-		writable: true,
-		configurable: true,
-	})
-	return store
-}
 
 type SeedOpts = {
 	dataset: Dataset
