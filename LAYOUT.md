@@ -112,7 +112,21 @@ Mark renderers pick up the scale-sharing via `scalesRowsOverrideX` /
 
 ## 5. Margin estimation
 
-Two pure helpers in [estimateMargins.ts](src/contexts/chartBuilder/lib/estimateMargins.ts).
+Four pure helpers in [estimateMargins.ts](src/contexts/chartBuilder/lib/estimateMargins.ts):
+the two OUTER floors (`estimateExtraLeftMargin`,
+`estimateExtraBottomMargin`) that size the edge row/column's chrome,
+and the two INTERIOR-chrome helpers (`estimateInteriorBottomChrome`,
+`estimateInteriorLeftChrome`) that size an un-shared interior
+row/column's chrome.
+
+**Units.** Every font size the solver and these estimators receive is
+already **px**. Font sizes are stored in POINTS tool-wide and converted
+exactly once, in the resolvers (`lib/fontUnit.ts`, 1pt = 4/3px) — see
+APPLICATION.md §7. Nothing in this file converts, and nothing here
+should: handing a raw pt config value to an estimator produces a margin
+that is wrong by a factor of 4/3 (a 12pt label reserved as if it were
+12px), which is the most likely cause of a "labels clip / too much
+padding" bug in this code.
 
 **`estimateExtraLeftMargin`** → extra px beyond `BASE_MARGIN.left (76)`:
 
@@ -150,7 +164,41 @@ The 1.4 line-height multiplier accounts for ascender + descender + leading.
 The 25 `titleLabelGap` matches `TITLE_LABEL_GAP_PX` in the solver — without
 it the title would clip ~2-5px past the canvas bottom (was Bug #8).
 
-Both helpers use the 0.55-char-width estimator as a fallback. **In
+**Interior chrome (un-shared axes).** The two helpers above size the
+chrome of the row/column that carries the shared axis TITLE. Interior
+rows/cols under `shareX=false` / `shareY=false` draw their own ticks
+and tick labels but no title, so they get their own pair:
+
+```
+estimateInteriorBottomChrome = tickReserve(10)
+                             + labelWidth × |sin(angle)|
+                             + fontSize × 1.4 × lineCount × |cos(angle)|
+                             + 8                     (0 when no x labels)
+estimateInteriorLeftChrome   = labelWidth + 24       (0 when no y labels)
+```
+
+These are ABSOLUTE chrome values, not deltas above a base — unlike the
+`extra` the two outer helpers return. `facetLayoutSolver.cellMargins`
+picks one of three regimes per side: the edge row/col that carries the
+axis gets `cellMargin + floor`; an interior row/col with the axis
+SHARED gets the flat `SHARED_INTERIOR_AXIS_RESERVE` (4px — spine only,
+since it draws no ticks or labels); an interior row/col with the axis
+UN-shared gets the interior-chrome estimate. So the 4px reserve and
+these helpers are alternatives for the same slot, never additive.
+The solver computes them **per row / per column** (max across the
+panels in that row/col), not as one global max, so a wide-label panel
+in one column doesn't inflate an unrelated column's chrome while
+spines still line up within each column. `estimateInteriorLeftChrome`
+deliberately reuses `estimateExtraLeftMargin`'s `labelW + 24` formula
+minus the title term, so leftmost-column and interior-column chrome
+match exactly when there is no y-title — which is what keeps the axes
+aligned across all columns in that case.
+
+All four helpers use the 0.55-char-width estimator (`charWidthFactor`) as a
+fallback. Note its sibling `charWidthConservativeFactor` (0.6), also exported
+from `estimateMargins.ts`: that one is a deliberate OVERestimate used only for
+fit / overlap gating (data-label overlap nudging, hierarchy label fitting) and
+never for layout reservation. **In
 production, PlotCanvas pre-measures the longest label per axis via
 `canvas.measureText` and passes the measured width to the solver, which
 uses it in preference to the estimate** (Bug #7). The 0.55 estimate is
@@ -571,6 +619,7 @@ explicit justification in the doc but materially affect layout:
 | `TITLE_LABEL_GAP_PX` | 25 | facetLayoutSolver.ts AND estimateMargins.ts | Gap between tick labels and axis title |
 | `TICK_LINE_PAD` | 6 | facetLayoutSolver.ts | Gap between plot edge and tick labels |
 | `charWidthFactor` | 0.55 | estimateMargins.ts | Avg sans-serif px-per-char per fontSize unit |
+| `charWidthConservativeFactor` | 0.6 | estimateMargins.ts | Deliberate OVERestimate for fit/overlap gating (data-label nudging, hierarchy label fitting) — not a layout-reservation number |
 | `MIN_TITLE_X` | 12 + fontSize/2 | facetLayoutSolver.ts | Floor for y-title's distance from canvas left edge |
 | `DEFAULT_MIN_PX_PER_CATEGORY` | 20 | facetLayoutSolver.ts | Scroll-mode floor: each category gets ≥20px |
 | `DEFAULT_MIN_PANEL_PX` | 200 | facetLayoutSolver.ts | Scroll-mode floor: each panel gets ≥200px |

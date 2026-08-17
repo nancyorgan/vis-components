@@ -48,9 +48,14 @@ iframes embedding this visual update automatically), OR detach into a
 brand-new visual. New datasets get their type-inferred fields and
 become available across the workspace; field types can be adjusted by
 the user as appropriate, and those adjustments are reflected in the
-visual. New dataset versions must have the same columns and data types
-as the original dataset; anything else breaks the versioning and is
-not allowed.
+visual. New dataset versions are **additive** (`lib/datasetCompat.ts`):
+a version must keep every column the dataset already has, with the
+same inferred type, but it MAY bring net-new columns — those are
+merged into the dataset's field list and become mappable like any
+other field. Dropping a column or changing an existing column's type
+is still rejected, and the upload dialog names the offending columns;
+the net-new columns are reported separately as an informational note,
+not as a blocker.
 
 ### 2.2 Field types
 Every field is tagged with one of: `quantitative` (numbers),
@@ -67,7 +72,50 @@ specific version it was authored against), field-type overrides, all
 encoding-channel assignments, every channel config, label settings,
 legend settings, data labels, annotations, and a thumbnail. Visuals
 persist to localStorage with versioned migrations so older saves
-remain backward-compatible.
+remain backward-compatible. (Dataset ROWS are the exception — they
+live in IndexedDB, not localStorage; see §14.)
+
+### 2.4 Dataset versions & cleanup
+The editor header carries a **version badge** — the dataset name plus
+`v2 of 3 · latest` — styled amber while a non-latest version is being
+previewed. Clicking it opens a popover listing every version
+newest-first with its upload timestamp and filename:
+
+- **Switching versions** — picking a row sets `previewVersionIdAtom`
+  (null = follow whatever is latest), so the editor re-renders against
+  that version's rows. A "← Back to latest" link appears while an
+  older version is being previewed.
+- **Notes** — each version takes a free-text note, added / edited
+  inline in the popover; an emptied note is dropped.
+- **Deleting a version** — any version except the one currently active
+  can be deleted, as long as more than one remains. The confirm
+  prompt warns that iframes pinned to that version will show a
+  "version not found" error; deleting the latest promotes the
+  previous one to latest. There is no rename.
+
+Deleting a version calls **`pruneOrphanFields`** (`datasetCompat.ts`):
+because additive uploads merge net-new columns into the dataset's
+invariant field list, removing the version that introduced a column
+would otherwise leave that field orphaned in the Fields panel and the
+encoding dropdowns. Column presence is judged by the union of row keys
+across every remaining version (a single row isn't authoritative — the
+CSV parser omits trailing keys on short rows), and pruning is skipped
+entirely when any version has zero rows rather than risk dropping a
+live field.
+
+Datasets have no library UI of their own, so unreferenced ones are
+swept rather than managed: `sweepOrphanDatasets` (`lib/datasetSweep.ts`)
+runs whenever visuals are deleted, dropping every dataset no remaining
+visual references and no protected id names (the editor's current
+dataset is protected — an upload not yet saved as a visual is live
+work). Alongside it, `runDatasetStoreCleanup` is a **marker-guarded
+one-shot** run from `main.tsx` after the example seed: it collapses
+byte-identical duplicate datasets (repointing visuals, embeds, and the
+pinned dataset / version ids), deletes the orphan backlog that
+accumulated before cascade-on-delete existed, and prunes historical
+orphan fields. It runs once per browser per `CLEANUP_VERSION` (bump
+the constant to re-run) and must never throw — a failure logs, skips
+the marker so it retries next launch, and first paint proceeds.
 
 ---
 
@@ -277,7 +325,8 @@ modes because no flow mark reads the overall opacity. Hue on a NON-endpoint colu
 mapped saturation / brightness / opacity) is inert in flow modes —
 edges aggregate multiple rows, so row-backed aesthetics are ambiguous
 and marks keep the default fill; the legend still lists such fields
-(known gap, see the implementation plan's deviations). Flows have no
+(known gap — the legend section is drawn from the mapping, not from
+what the flow renderer actually consumed). Flows have no
 nesting, so the hierarchy-derived variables (Top-level group / Nesting
 depth) are NOT offered in flow modes. The flat signature (`area` with
 no connection) under a flow layout has no edges to draw — the canvas
@@ -768,10 +817,34 @@ Connection is the line/area glue. Controls:
   area-detection fires, and sets `connection.fill = "area"`. Switching
   to Line reverses the swap. Auto-sets hue stackMode to "stack" when
   switching to Area.
-- **Line thickness** — px.
+- **Line thickness** — px, with a "Vary by" dropdown for a single
+  value or one thickness per connection value. The floor is **0**, not
+  a hairline: thickness is the switch, so 0 hides the line and leaves
+  the points (and, in area mode, the fill) standing — there is no
+  separate "show line" toggle. Per-value overrides clamp to the same
+  floor (`MIN_LINE_THICKNESS` in `lib/connectionThickness.ts` mirrors
+  the input's `min`).
+- **Smooth line** — a checkbox plus an **Amount** slider (5–100%,
+  shown only while the checkbox is on). One stored number,
+  `connection.smoothing` in [0, 1]: checking the box seeds 0.6,
+  unchecking writes 0, and the slider is the fine control (no separate
+  boolean). Above 0 the polyline is replaced by a cardinal spline
+  whose tension is `1 - smoothing` (`lib/linePath.buildLinePath`) — the
+  curve still passes through every data point, but sharp turns round
+  off and can overshoot slightly. Applies to scatter connection lines
+  and area/line-mode layer edges; radar polygons ignore it.
+- **Line cap** — Round (default) or Square, for the OPEN ends of
+  scatter connection polylines and area/line layer edges (dash
+  segments included). "Square" maps to SVG's `butt` cap: the stroke
+  ends flush at the endpoint's data position instead of extending half
+  a stroke-width past it. Radar polygons are closed, so caps never
+  show there.
 - **Show points** — `all`, `none`, `first-only`, `last-only`,
   `first-and-last`, or `every-n` with stride N. Drives marker
   visibility along each line.
+
+Thickness, smoothing, and line cap share the panel's **Line
+properties** subsection, which is shown in line and area modes only.
 
 In the **structure modes** (packed circles / treemap / sunburst /
 chord / sankey), connection is a structural key, not a drawn line, so
@@ -923,7 +996,18 @@ The X-axis and Y-axis panels (under Encodings) configure:
   no gridlines of their own. **Custom breaks** here (continuous axes
   only) pins extra gridlines at listed positions, drawn in addition
   to the automatic lines (match-tick or explicit count); a break that
-  coincides with an automatic line paints once.
+  coincides with an automatic line paints once. **The spine replaces a
+  coincident gridline**: this axis's gridlines run parallel to the
+  opposing axis's spine, so one can land exactly under it (an
+  x-gridline at the left spine, a y-gridline at the bottom spine) and
+  the translucent gridline antialiases against the spine edge into a
+  blurry double line. Whenever the opposing spine is visible
+  (thickness > 0), any gridline its stroke covers is dropped — the
+  spine draws there instead. The test compares positions after both
+  axes' position nudges, and the tolerance is half the two strokes'
+  combined width. Cartesian coordinates only (`Axis`'s `opposingAxis`
+  prop, passed from `lib/coords/cartesian.tsx`); polar and radar axes
+  have no opposing spine.
 - **Adjust position** (end of Tick Labels, behind a divider) — X / Y
   pixel nudge that moves the whole axis (spine, tick marks, tick
   labels, title) without moving the gridlines, which stay pinned to
@@ -1289,13 +1373,13 @@ channel — is a point size, matching what Office/print tools mean by
 "size 12". Rendering converts once at the resolution boundary
 (`lib/fontUnit.ts`, 1pt = 4/3px per the CSS definition; stored configs
 are never converted — the numbers' unit is pt by definition). Combined
-with the physical export sizing + DPI stamping (§6), a chart exported
-at 6×3in with size-12 axis labels drops into a presentation with text
-exactly matching 12pt body text. Layout and measurement code stays in
-px; the pt→px conversion happens inside `resolveTitleFont` /
-`resolveTextFont` / `resolveLabelSize` (and `resolveTickFontSizePx`
-for per-axis overrides), so anything downstream of those resolvers
-never sees pt.
+with the physical export sizing + DPI stamping (§14, "Export & embed"),
+a chart exported at 6×3in with size-12 axis labels drops into a
+presentation with text exactly matching 12pt body text. Layout and
+measurement code stays in px; the pt→px conversion happens inside
+`resolveTitleFont` / `resolveTextFont` / `resolveLabelSize` (and
+`resolveTickFontSizePx` for per-axis overrides), so anything
+downstream of those resolvers never sees pt.
 
 The Labels panel covers chart title, subtitle, x-axis title, y-axis
 title, and facet/legend titles. Each title has:
@@ -1364,7 +1448,31 @@ rect corners).
 Channels mapped to the **same field** combine into one legend section
 with composed swatches (color + shape + pattern + opacity). The
 combined-section title defaults to the field name; users can
-override per-channel.
+override per-channel. Combining is a **toggle**, not a law: "Combine
+legends with same variables" (`combineSameVariable` on the legend
+config, default on) sits under the "Legends shown" group and appears
+only when some field actually IS shared by more than one channel.
+Turning it off skips the field-level merge entirely — each channel
+emits its own section, as if it were the only encoding on that field —
+so the "leading channel" rules below (the Swatches groups, say) apply
+only while the toggle is on.
+
+**Hover to highlight.** Hovering a categorical legend entry publishes
+`{ field, value }` to `hoveredLegendEntryAtom`; the plot renderers read
+it through `useLegendHighlight` and repaint the matching marks, while
+the other entries in the legend fade in step with the marks so the
+legend and chart read as one gesture. What "highlight" means is the
+Hover subsection's business (§10's tooltip config, shared with direct
+mark hover): non-matching marks fade by default (`hoverFade`, dropping
+to ~15% opacity), and matched marks can additionally be recolored
+(`hoverRecolor`) or outlined (`hoverOutline`), both opt-in. The whole
+behavior is gated on the "Show hover" master toggle AND its
+legend-highlight sub-option (`hoverEnabled` + `legendHighlight`, both
+default on): with either off, entries never publish a hovered value
+and the plots stay un-dimmed. Wired up in Scatter, Bar, Area, Pie,
+Radar, and the hierarchy layouts; the geo and flow (chord / sankey)
+renderers are NOT wired, so hovering their legends does nothing to the
+marks.
 
 Per-channel visibility lives in the "Legends shown" toggles. Every
 mapped channel defaults to shown, EXCEPT the Size (area) legend in
@@ -1638,6 +1746,63 @@ right edge (208–480 px; width persists across reloads, independent
 of the editor sidebar's width). Embedded iframes
 sync via an embed-instances mechanism so live previews update when
 the source visual's dataset version changes.
+
+### Export & embed
+
+One modal ("Export this visualization", `components/ExportModal.tsx`)
+with two tabs.
+
+**Embed** produces `<iframe>` snippets pointing at
+`/embed/<visualId>` on the same origin (cross-origin embedding is not
+supported, and the tab says so). A **Pin behavior** radio chooses
+between *live updating* (always renders the dataset's latest version)
+and *pinned* (appends `?v=<versionId>`, frozen forever). A **Render
+legend as a separate iframe** checkbox splits the output into two
+snippets — `?part=chart` and `?part=legend` — so the legend can be
+placed independently in the host page. Iframe dimensions are seeded
+by measuring the live on-screen chart / plot area / legend subtree, so
+the embed inherits the size the user sees (fixed fallbacks when a
+piece can't be measured). The snippets are editable textareas: hand
+edits survive until an option that rebuilds the snippet changes.
+Copying a snippet records an embed instance, which is what lets live
+embeds follow later version uploads.
+
+**Export image** renders the chart in a preview iframe and downloads
+it as **PNG**, **JPEG**, **SVG**, or **PDF**:
+
+- **Size** — Width / Height inputs plus a **Units** picker of
+  `px` / `in` / `cm`. The unit is display-only: sizes are stored,
+  dragged, and exported in px, and the picker just converts what the
+  inputs show at the CSS-standard 96 px/inch. The chosen unit persists
+  (`exportUnitAtom`), so it's the default for the next export. Both
+  dimensions clamp to 50–4096 px (the same bounds the drag-resize
+  handles on the preview enforce), and a **Lock aspect ratio**
+  checkbox derives one from the other. The size a visual was last
+  successfully exported at is remembered and restored on reopen;
+  with none saved, the export seeds from the editor's CURRENT
+  on-screen chart size so absolute-pixel title offsets export where
+  the user placed them.
+- **Resolution** (raster formats only — SVG is vector) — a 1×–4×
+  multiplier, silently clamped down when width × ratio would exceed
+  the browser's canvas limits.
+- **DPI stamping** — PNG and JPEG files are stamped with their true
+  resolution (96 × the multiplier) by `lib/imageDpi.ts` before
+  download. Without the stamp, physical-size consumers (PowerPoint,
+  Word, print layouts) guess a DPI and a 2× export lands at double
+  size and gets shrunk to fit; with it, a chart exported at "6.5 in"
+  inserts at 6.5 inches. PDF export takes the same route — rasterize,
+  then wrap in a one-page PDF whose MediaBox is the px size converted
+  to points at 96 dpi.
+- **Capture timing** — the preview iframe is a cold-booting embed app,
+  so the exporter waits for webfonts to settle, every panel to be
+  sized, and the serialized markup to stay byte-identical across
+  three consecutive polls before capturing. Grabbing the first sized
+  frame would serialize a fallback-font layout whose spacing differs
+  from the settled editor render.
+
+This is the other half of the points convention in §7: physical export
+sizing + DPI stamping is what makes a size-12 label land as true 12pt
+in the destination document.
 
 ### Single-file distribution & bundled examples
 

@@ -10,8 +10,12 @@
  *  - {@link runDatasetStoreCleanup}: a marker-guarded one-shot (main.tsx)
  *    that clears the backlog accumulated before cascade-on-delete existed,
  *    and re-runs the duplicate collapse the localStorage→IndexedDB move
- *    orphaned (see docs/plans/2026-08-05-orphan-dataset-cleanup-design.md,
- *    kept outside the repo). */
+ *    orphaned. Design decisions behind that one-shot: sweep on a
+ *    {@link CLEANUP_VERSION} marker rather than every launch (bump it to
+ *    re-run); dedupe BEFORE sweeping so collapsed duplicates take their
+ *    references with them; protect the editor's current dataset so an
+ *    unsaved upload survives; and never throw — a failure logs, skips the
+ *    marker so it retries next launch, and first paint proceeds. */
 
 import { pruneOrphanFields } from "./datasetCompat"
 import { dedupeDatasetStores } from "./datasetDedupe"
