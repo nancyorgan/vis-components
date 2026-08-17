@@ -901,10 +901,6 @@ export const titleAlignmentOf = (
 	labels.titleAlignments?.[key] ??
 	baseTitleAlignmentOf(labels.baseFont.titles, key)
 
-/** Resolve a stored rotation (degrees) for a title slot, defaulting to 0. */
-export const titleAngleOf = (labels: LabelsConfig, key: LabelFontKey): number =>
-	labels.titleAngles?.[key] ?? 0
-
 /** Map an alignment to an SVG `text-anchor` value. */
 export const textAnchorFromAlignment = (
 	a: LabelAlignment
@@ -1121,5 +1117,6 @@ export const migrateLabelsConfig = (
 				.titleVerticalAlignments ?? {},
 		yAxisTitleHorizontal: raw.yAxisTitleHorizontal ?? false,
 		titleOffsets: raw.titleOffsets ?? {},
+		titleAngles: raw.titleAngles ?? {},
 	}
 }

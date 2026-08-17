@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	fontWeightDisplayName,
+	fontWeightOptionsFor,
 	layerFacetOverride,
 	legendChannelHiddenByDefault,
 	legendSwatchOutlineColor,
@@ -66,6 +68,24 @@ describe("migrateLabelsConfig", () => {
 			facetPanelTitle: { x: 12, y: -8 },
 			facetTitle: { x: 0, y: 4 },
 		})
+	})
+
+	it("preserves titleAngles (facet-title Orientation) through migration", () => {
+		const out = migrateLabelsConfig({
+			title: "",
+			subtitle: "",
+			xAxisTitle: "",
+			yAxisTitle: "",
+			legendTitles: {},
+			fontOverrides: {},
+			titleAngles: { facetTitle: 90 },
+		} as unknown as Parameters<typeof migrateLabelsConfig>[0])
+		expect(out.titleAngles).toEqual({ facetTitle: 90 })
+		// Its neighbours in the same "newer fields" group DO survive — the drop
+		// is specific to titleAngles, not a whole-group regression.
+		expect(out.titleAlignments).toEqual({})
+		expect(out.titleOffsets).toEqual({})
+		expect(out.titleVerticalAlignments).toEqual({})
 	})
 
 	it("defaults newer fields to safe values when absent (older saved visuals)", () => {
@@ -284,5 +304,105 @@ describe("legendSwatchOutlineColor / legendSwatchOutlineWidth", () => {
 		// Other channels keep the global.
 		expect(legendSwatchOutlineColor(cfg, "opacity")).toBe("#00ff00")
 		expect(legendSwatchOutlineWidth(cfg, "opacity")).toBe(3)
+	})
+})
+
+/** The single source of truth for EVERY Weight picker (builder panels and the
+ *  theme editor), so all pickers for one family must offer the same list. Two
+ *  silent-drift risks it guards: a family whose picker offers a weight the
+ *  loaded font can't render (DM Sans clamps 800/900 to 700 — the user picks
+ *  "Black" and nothing changes), and a stored weight vanishing from its own
+ *  picker after a family switch (blank select, and re-saving loses the value).
+ *
+ *  NOTE the legacy `bold` flag is NOT this function's business — the
+ *  boolean → numeric-weight rule lives in the two *config* builders
+ *  (`labelsFromTheme` in themeConfig.ts and `migrateLabelsConfig` here), each
+ *  covered by its own tests. By the time a weight reaches this function it is
+ *  already numeric, and the function only decides which numbers to OFFER. */
+describe("fontWeightOptionsFor", () => {
+	const values = (family?: string | null, current?: number | null) =>
+		fontWeightOptionsFor(family, current).map((o) => o.value)
+
+	it("a known family returns exactly its per-family weight list", () => {
+		// Variable fonts: the full 100–900 ramp.
+		expect(values("system-ui, sans-serif")).toEqual([
+			100, 200, 300, 400, 500, 600, 700, 800, 900,
+		])
+		expect(values("Inter, system-ui, sans-serif")).toEqual([
+			100, 200, 300, 400, 500, 600, 700, 800, 900,
+		])
+		// Static fonts that only ship regular + bold.
+		expect(values("Georgia, 'Times New Roman', serif")).toEqual([400, 700])
+		expect(values("ui-monospace, SFMono-Regular, Menlo, monospace")).toEqual([
+			400, 700,
+		])
+		// DM Sans is loaded as a variable font at wght 300–700; 800/900 would
+		// silently clamp, so they must not be offered.
+		expect(values("'DM Sans', ui-sans-serif, sans-serif")).toEqual([
+			300, 400, 500, 600, 700,
+		])
+		// DM Mono only ships 300/400/500.
+		expect(values("'DM Mono', ui-monospace, monospace")).toEqual([300, 400, 500])
+	})
+
+	it("an unknown / missing family falls back to the safe middle range", () => {
+		// Older saved configs carry custom stacks we don't recognize; the
+		// fallback keeps a usable picker instead of an empty one.
+		const FALLBACK = [300, 400, 500, 600, 700]
+		expect(values("Comic Sans MS, cursive")).toEqual(FALLBACK)
+		expect(values(undefined)).toEqual(FALLBACK)
+		expect(values(null)).toEqual(FALLBACK)
+		expect(values("")).toEqual(FALLBACK)
+	})
+
+	it("a stored weight outside the family's range is added, in sorted position", () => {
+		// Saved 900 on Inter, then switched the family to DM Sans: without this
+		// the select renders blank and the stored value is lost on next save.
+		expect(values("'DM Sans', ui-sans-serif, sans-serif", 900)).toEqual([
+			300, 400, 500, 600, 700, 900,
+		])
+		expect(values("Georgia, 'Times New Roman', serif", 500)).toEqual([
+			400, 500, 700,
+		])
+		expect(values("Comic Sans MS, cursive", 100)).toEqual([
+			100, 300, 400, 500, 600, 700,
+		])
+	})
+
+	it("a stored weight already in the family's range is not duplicated", () => {
+		expect(values("'DM Sans', ui-sans-serif, sans-serif", 700)).toEqual([
+			300, 400, 500, 600, 700,
+		])
+		// null / undefined `current` means "nothing stored" — no extra entry.
+		expect(values("Georgia, 'Times New Roman', serif", null)).toEqual([400, 700])
+		expect(values("Georgia, 'Times New Roman', serif", undefined)).toEqual([
+			400, 700,
+		])
+	})
+
+	it("labels canonical weights by name, and off-ramp weights as bare 'Weight'", () => {
+		expect(fontWeightOptionsFor("Georgia, 'Times New Roman', serif")).toEqual([
+			{ value: 400, label: "Regular (400)" },
+			{ value: 700, label: "Bold (700)" },
+		])
+		// A non-canonical stored weight (e.g. a variable-font 450) has no name.
+		const opts = fontWeightOptionsFor("Georgia, 'Times New Roman', serif", 450)
+		expect(opts.map((o) => o.label)).toEqual([
+			"Regular (400)",
+			"Weight (450)",
+			"Bold (700)",
+		])
+		// Documenting a divergence rather than asserting it's right: the option
+		// list says "Weight" for an unnamed value while the display-name helper
+		// says the bare number. Both are only reachable via off-ramp weights.
+		expect(fontWeightDisplayName(450)).toBe("450")
+		expect(fontWeightDisplayName(700)).toBe("Bold")
+	})
+
+	it("never mutates the shared per-family list (the source-of-truth arrays)", () => {
+		// The append path must copy — mutating would leak the stray weight into
+		// every OTHER picker for that family for the rest of the session.
+		fontWeightOptionsFor("'DM Mono', ui-monospace, monospace", 900)
+		expect(values("'DM Mono', ui-monospace, monospace")).toEqual([300, 400, 500])
 	})
 })
