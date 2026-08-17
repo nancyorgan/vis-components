@@ -20,18 +20,7 @@ import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubs
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL_NESTED } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
-
-/** Small inline "reset" link, rendered only when a control differs from its
- *  default. Matches the LabelsPanel / CaptionPanel idiom. */
-const ResetLink = ({ onClick }: { onClick: () => void }) => (
-	<button
-		type="button"
-		onClick={onClick}
-		className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-	>
-		reset
-	</button>
-)
+import { ResetLink } from "../../../../components/ui/ResetLink"
 
 /** Sidebar panel for the tooltip subsystem. Drives `TooltipConfig` —
  * enable toggle, per-field visibility (drawn from the dataset, including

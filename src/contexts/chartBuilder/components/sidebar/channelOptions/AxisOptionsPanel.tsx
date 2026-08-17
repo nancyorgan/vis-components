@@ -34,6 +34,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../../components/ui/Toggle"
 import { AlignmentControl, FontEditor } from "../LabelsPanel"
@@ -315,13 +316,10 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 					: "bin"}
 			</span>
 			{(config.categoricalTickStride ?? 1) !== 1 && (
-				<button
-					type="button"
+				<ResetLink
 					onClick={() => update({ categoricalTickStride: 1 })}
-					className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+					underline
+				/>
 			)}
 		</div>
 	) : !isContinuous ? (
@@ -347,13 +345,10 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 					: `category (${maxTicks} total)`}
 			</span>
 			{(config.categoricalTickStride ?? 1) !== 1 && (
-				<button
-					type="button"
+				<ResetLink
 					onClick={() => update({ categoricalTickStride: 1 })}
-					className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+					underline
+				/>
 			)}
 		</div>
 	) : (
@@ -372,13 +367,10 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			/>
 			<span className="text-sm text-stone-600">max {maxTicks}</span>
 			{config.tickCount !== themeTickCount && (
-				<button
-					type="button"
+				<ResetLink
 					onClick={() => update({ tickCount: themeTickCount })}
-					className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+					underline
+				/>
 			)}
 		</div>
 	)
@@ -489,13 +481,10 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						changed={ch.tickLabelAngle}
 					/>
 					{(config.tickLabelAngle ?? 0) !== 0 && (
-						<button
-							type="button"
+						<ResetLink
 							onClick={() => update({ tickLabelAngle: 0 })}
-							className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+							underline
+						/>
 					)}
 				</div>
 				<div className="mb-1.5 flex flex-col gap-1">
@@ -695,13 +684,10 @@ const AxisAdjustPositionControl = ({
 		<div className="flex items-center gap-2">
 			<span className="vc-group-header">Adjust position</span>
 			{(offsetX !== 0 || offsetY !== 0) && (
-				<button
-					type="button"
+				<ResetLink
 					onClick={onReset}
-					className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+					underline
+				/>
 			)}
 		</div>
 		<NumberInput
@@ -1014,27 +1000,38 @@ const BreaksField = ({
 }
 
 /** Spine color + thickness. Shared with the chord ring axis's Spine section
- *  (there the "spine" is the arc along each group's outer edge). */
+ *  (there the "spine" is the arc along each group's outer edge) and with the
+ *  radar Spokes section (there the "spine" is a perimeter spoke). */
 export const SpineControls = ({
 	spine,
 	onChange,
 	theme,
+	hideColorRow = false,
+	showChanged = true,
 }: {
 	spine: SpineConfig
 	onChange: (s: SpineConfig) => void
 	theme: Theme
+	/** Drop the Color row. Radar spokes take their color from the Color menu's
+	 *  "Radar Spine" slot, so the radar panel points at that instead. */
+	hideColorRow?: boolean
+	/** Show the per-line "changed" dots (differs-from-theme). Off for radar,
+	 *  whose Spokes section has never lit dots. */
+	showChanged?: boolean
 }) => {
 	const set = (next: Partial<SpineConfig>) => onChange({ ...spine, ...next })
 
 	return (
 		<div className="flex flex-col gap-2">
-			<ColorInput
-				label="Color"
-				labelClassName={LABEL_COL}
-				value={spine.color}
-				onChange={(color) => set({ color })}
-				changed={valueChanged(spine.color, theme.spineColor)}
-			/>
+			{!hideColorRow && (
+				<ColorInput
+					label="Color"
+					labelClassName={LABEL_COL}
+					value={spine.color}
+					onChange={(color) => set({ color })}
+					changed={showChanged ? valueChanged(spine.color, theme.spineColor) : undefined}
+				/>
+			)}
 			<NumberInput
 				label="Thickness"
 				labelClassName={LABEL_COL}
@@ -1045,7 +1042,9 @@ export const SpineControls = ({
 				onChange={(thickness) => set({ thickness })}
 				inputClassName="w-16"
 				suffix="px"
-				changed={valueChanged(spine.thickness, theme.spineThickness)}
+				changed={
+					showChanged ? valueChanged(spine.thickness, theme.spineThickness) : undefined
+				}
 			/>
 			<button
 				type="button"

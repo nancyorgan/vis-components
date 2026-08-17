@@ -19,12 +19,10 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	currentThemeIdAtom,
-	themeAtom,
-	themesAtom,
 } from "../../../store/atoms"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 
 import {
 	axisConfigFromTheme,
@@ -36,6 +34,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 
 import {
@@ -77,10 +76,7 @@ export const ColorPanel = () => {
 
 	// Subsection dots — reuse the SAME change data the top-level Color dot uses
 	// (so they can't disagree). The hue registry labels map to the subheaders.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const hueChanged = new Set(
 		explainChannelCustomization("hue", configs, theme, !!encodings.hue?.field)
 	)
@@ -155,10 +151,7 @@ const themeRegression = (
  * menu's "Regression line" subheader. */
 const RegressionLineStyleControls = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const regression: RegressionConfig = {
 		...themeRegression(theme),
 		...configs.x?.regression,
@@ -231,10 +224,7 @@ export const ColorSlotControls = ({
 	updateSlot: (partial: Partial<ColorSlotConfig>) => void
 }) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const dataset = useCurrentDatasetView()
 
 	const field = slotCfg?.field ?? null
@@ -320,13 +310,7 @@ export const ColorSlotControls = ({
 						onPick={(c) => updateSlot({ singleColor: c })}
 					/>
 					{singleColor !== defaultColor && (
-						<button
-							type="button"
-							onClick={() => updateSlot({ singleColor: defaultColor })}
-							className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+						<ResetLink onClick={() => updateSlot({ singleColor: defaultColor })} />
 					)}
 				</div>
 			) : isQuant ? (
@@ -364,11 +348,7 @@ const ColorSlotSubsection = ({
 	extraChanged?: boolean
 }) => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	// Prefer the live theme so settings-edited palettes appear immediately.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 
 	const slotCfg = configs.colorSlots?.[def.key]
 	const field = slotCfg?.field ?? null
@@ -433,10 +413,7 @@ const SlotCategoricalControls = ({
 	dataset: ReturnType<typeof useCurrentDatasetView>
 	updateSlot: (partial: Partial<ColorSlotConfig>) => void
 }) => {
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const levelOrder = levelOrders[fieldName]
 

@@ -6,6 +6,7 @@ import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubs
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import {
 	DEFAULT_RECTANGLE_TEXT,
@@ -60,18 +61,6 @@ const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
 const RECT_STYLE_DEFAULTS = newRectangle("")
 const CIRCLE_STYLE_DEFAULTS = newCircle("")
 const LINE_STYLE_DEFAULTS = newLineSegment("")
-
-/** Small inline "reset" link, rendered next to a style control only when its
- *  value differs from the default. Matches the LabelsPanel `ResetLink`. */
-const ResetLink = ({ onClick }: { onClick: () => void }) => (
-	<button
-		type="button"
-		onClick={onClick}
-		className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-	>
-		reset
-	</button>
-)
 
 /** Shared collapsible shell for one annotation's editor. The header row —
  *  expand/collapse chevron, name box, remove link — is always visible so a

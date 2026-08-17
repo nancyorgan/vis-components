@@ -30,6 +30,7 @@ import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../components/ui/ResetLink"
 import { Toggle } from "../../../../components/ui/Toggle"
 
 /** Display name for an inherited family: the matching preset's label, else
@@ -203,7 +204,8 @@ export const LabelsPanel = () => {
 		for (const ch of activeLegendChannels) legendTitleGroups.push([ch])
 	}
 	// Mirror what the chart renderers actually show as the axis title default
-	// (see `resolveAxisTitleText` in lib/). For bars/areas the measure field
+	// (each renderer resolves it inline as `labels.<axis>Title ?? field`).
+	// For bars/areas the measure field
 	// is on the `length` channel and lands on whichever axis the orientation
 	// puts it on, so we can't just read `encodings.x.field` blindly.
 	const chartMode = modeDef.id
@@ -1336,15 +1338,5 @@ export const StyleButton = ({
 		}`}
 	>
 		{label}
-	</button>
-)
-
-const ResetLink = ({ onClick }: { onClick: () => void }) => (
-	<button
-		type="button"
-		onClick={onClick}
-		className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-	>
-		reset
 	</button>
 )

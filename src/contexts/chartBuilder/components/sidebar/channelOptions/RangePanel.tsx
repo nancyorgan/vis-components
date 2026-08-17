@@ -14,9 +14,6 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	currentThemeIdAtom,
-	themeAtom,
-	themesAtom,
 } from "../../../store/atoms"
 import { effectiveType } from "../../../lib/fieldType"
 import {
@@ -30,19 +27,11 @@ import type { FieldType } from "../../../lib/types"
 import { orderedLevels } from "../../../lib/smartSort"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { StackModeRow } from "./StackModeRow"
-
-/** The visual's CURRENT theme from `themesAtom` (falling back to the legacy
- *  `themeAtom` snapshot) — the same baseline the encoding-row "changed" dot
- *  compares against, so this panel's reset/defaults actually clear the dot. */
-const useLiveTheme = () => {
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	return allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
-}
 
 // Generic min/max numeric-range panel, used for Area (pixel radius) plus
 // Saturation and Brightness (HSL component range in [0, 1]).
@@ -120,7 +109,7 @@ const useAreaOrdinalCategories = (): string[] | null => {
 
 export const AreaOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const theme = useLiveTheme()
+	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.area?.field
 	const modeId = useChartModeDef().id
 	const ordinalCategories = useAreaOrdinalCategories()
@@ -174,7 +163,7 @@ export const AreaOptionsPanel = () => {
  * categories keep the spread, so the auto behavior is the zero-config
  * default. Mirrors the saturation/brightness `DerivedLevelsPanel`. */
 const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
-	const theme = useLiveTheme()
+	const theme = useCurrentTheme()
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	// Follow the Fields reorder for row ORDER only — the spread scale below stays
 	// built from discovery-order `categories`, so each level's auto radius (and
@@ -237,13 +226,7 @@ const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
 							suffix="px"
 						/>
 						{overridden && (
-							<button
-								type="button"
-								onClick={() => setOverride(value, null)}
-								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-							>
-								reset
-							</button>
+							<ResetLink onClick={() => setOverride(value, null)} />
 						)}
 					</div>
 				)
@@ -263,7 +246,7 @@ const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
  * charts don't light the "changed" dot. */
 const ScaleByRow = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useLiveTheme()
+	const theme = useCurrentTheme()
 	const sizeBy = configs.area?.sizeBy ?? "area"
 	const setSizeBy = (next: "area" | "diameter") =>
 		setConfigs((prev) => {
@@ -316,7 +299,7 @@ const ScaleByRow = () => {
 
 export const SaturationOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const theme = useLiveTheme()
+	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.saturation?.field
 	const derived = packedSourceOf(encodings.saturation)
 	const discrete = useModulationDiscreteValues("saturation")
@@ -364,7 +347,7 @@ export const SaturationOptionsPanel = () => {
 
 export const BrightnessOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const theme = useLiveTheme()
+	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.brightness?.field
 	const derived = packedSourceOf(encodings.brightness)
 	const discrete = useModulationDiscreteValues("brightness")
@@ -512,13 +495,7 @@ const ModulationLevelsPanel = ({
 							inputClassName="w-20"
 						/>
 						{overridden && (
-							<button
-								type="button"
-								onClick={() => setOverride(value, null)}
-								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-							>
-								reset
-							</button>
+							<ResetLink onClick={() => setOverride(value, null)} />
 						)}
 					</div>
 				)
@@ -618,13 +595,7 @@ const DerivedLevelsPanel = ({
 							inputClassName="w-20"
 						/>
 						{overridden && (
-							<button
-								type="button"
-								onClick={() => setOverride(value, null)}
-								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-							>
-								reset
-							</button>
+							<ResetLink onClick={() => setOverride(value, null)} />
 						)}
 					</div>
 				)
@@ -738,7 +709,7 @@ const RangePanel = ({
 
 const AreaDefaultPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useLiveTheme()
+	const theme = useCurrentTheme()
 	const currentRadius = configs.defaultRadius ?? theme.defaultRadius
 
 	return (

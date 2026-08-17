@@ -4,6 +4,7 @@ import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubs
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 import {
@@ -20,19 +21,6 @@ import {
 	currentCaptionConfigAtom,
 	currentRenderedCaptionBoxAtom,
 } from "../../store/atoms"
-
-
-/** Small inline "reset" link, rendered only when a control differs from its
- *  default. Matches the LabelsPanel / OpacityOptionsPanel idiom. */
-const ResetLink = ({ onClick }: { onClick: () => void }) => (
-	<button
-		type="button"
-		onClick={onClick}
-		className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-	>
-		reset
-	</button>
-)
 
 const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
 	value: opt.value,

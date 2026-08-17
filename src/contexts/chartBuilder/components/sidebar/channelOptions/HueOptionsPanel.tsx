@@ -60,18 +60,18 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	currentThemeIdAtom,
 	type AtomValueType,
 	type SetterOrUpdater,
 	themeAtom,
-	themesAtom,
 } from "../../../store/atoms"
 import { orderedLevels } from "../../../lib/smartSort"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../../store/useCurrentTheme"
 
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 
 /** Sequential (single-progression) d3 presets — render with Low + High
@@ -280,13 +280,7 @@ export const CategoricalSwatchList = ({
 						onPick={(color) => onSetColor(v, color)}
 					/>
 					{isOverridden && (
-						<button
-							type="button"
-							onClick={() => onResetColor(v)}
-							className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+						<ResetLink onClick={() => onResetColor(v)} />
 					)}
 				</div>
 			)
@@ -305,16 +299,7 @@ export const HueOptionsPanel = ({
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const storedTheme = useAtomValue(themeAtom)
-	// Prefer the LIVE theme from `themesAtom` (which the settings editor
-	// writes to) so palettes added in Settings appear in the chart's
-	// dropdowns immediately. Falls back to `themeAtom` when the chart's
-	// theme id is missing from `themesAtom` (e.g., a deleted custom theme
-	// or a fresh chart that hasn't picked a theme yet).
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const liveTheme = allThemes.find((t) => t.id === currentThemeId)
-	const theme = liveTheme ?? storedTheme
+	const theme = useCurrentTheme()
 
 	const dataset = useCurrentDatasetView()
 	const hueFieldName = encodings.hue?.field ?? null
@@ -544,18 +529,14 @@ export const HueOptionsPanel = ({
 						}
 					/>
 					{currentFill !== theme.defaultFill && (
-						<button
-							type="button"
+						<ResetLink
 							onClick={() =>
 								setConfigs((prev) => ({
 									...prev,
 									defaultFill: theme.defaultFill,
 								}))
 							}
-							className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+						/>
 					)}
 				</div>
 			</div>
@@ -868,10 +849,7 @@ export const AreaRadarOutlinePanel = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const dataset = useCurrentDatasetView()
 
 	const hueFieldName = encodings.hue?.field ?? null
@@ -1042,13 +1020,7 @@ export const AreaRadarOutlinePanel = () => {
 							{v}
 						</span>
 						{isOverridden && (
-							<button
-								type="button"
-								onClick={() => resetLineColor(v)}
-								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-							>
-								reset
-							</button>
+							<ResetLink onClick={() => resetLineColor(v)} />
 						)}
 					</div>
 				)
@@ -1273,15 +1245,7 @@ export const QuantitativePanel = ({
 				: row === "mid"
 					? { midColor: defColor, midValue: null }
 					: { highColor: defColor, highValue: null }
-		return (
-			<button
-				type="button"
-				onClick={() => updateQ(patch)}
-				className={RESET_LINK_CLASS}
-			>
-				reset
-			</button>
-		)
+		return <ResetLink onClick={() => updateQ(patch)} underline />
 	}
 
 	// Auto stop-value placeholders: the values the scale actually uses when

@@ -9,6 +9,7 @@ import { useEffect, useMemo } from "react"
 
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 /** Segmented control for one axis's share mode. Three options:
  *
@@ -314,13 +315,7 @@ export const GapInput = ({
 			suffix="px"
 		/>
 		{value !== defaultValue && (
-			<button
-				type="button"
-				onClick={() => onChange(defaultValue)}
-				className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+			<ResetLink onClick={() => onChange(defaultValue)} />
 		)}
 	</div>
 )

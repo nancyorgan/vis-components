@@ -29,12 +29,10 @@ import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
-	currentThemeIdAtom,
 	quickStartStateAtom,
-	themeAtom,
-	themesAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { Disclosure } from "@headlessui/react"
 
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
@@ -56,16 +54,9 @@ export const EncodingShelf = ({ channel }: Props) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	// Resolve the theme that's actually applied to this visual (the live
-	// theme in `themesAtom`), falling back to the legacy `themeAtom` only when
-	// the chart's theme id can't be resolved. The badge baseline below must
-	// match the theme the configs were seeded from — using the legacy
-	// `themeAtom` here would compute a stale baseline and flag channels as
-	// "changed" the user never touched.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	// The badge baseline below must match the theme the configs were seeded
+	// from, or channels the user never touched light up as "changed".
+	const theme = useCurrentTheme()
 	const setQuickStartState = useSetAtom(quickStartStateAtom)
 	const [pendingConflict, setPendingConflict] = useState<string | null>(null)
 

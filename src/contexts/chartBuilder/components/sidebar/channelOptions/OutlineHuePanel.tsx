@@ -20,10 +20,8 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	currentThemeIdAtom,
 	type AtomValueType,
 	themeAtom,
-	themesAtom,
 } from "../../../store/atoms"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
@@ -31,6 +29,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import {
 	CategoricalSwatchList,
@@ -110,12 +109,7 @@ export const OutlineHueFieldDropdown = () => {
 export const OutlineColorRow = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const { value, fieldOptions, onChange, disabled } = useOutlineHueField()
-	// Live theme so the single-color default (and its reset target) tracks the
-	// theme's outline color.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const cfg: ShapeConfig = { ...shapeConfigFromTheme(theme), ...configs.shape }
 	const defaultColor = theme.outlineColor
 
@@ -171,13 +165,7 @@ export const OutlineColorRow = () => {
 						onPick={(outlineColor) => updateShape({ outlineColor })}
 					/>
 					{cfg.outlineColor !== defaultColor && (
-						<button
-							type="button"
-							onClick={() => updateShape({ outlineColor: defaultColor })}
-							className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+						<ResetLink onClick={() => updateShape({ outlineColor: defaultColor })} />
 					)}
 				</div>
 			) : (
@@ -288,14 +276,7 @@ export const OutlineHueScaleControls = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	// Prefer the LIVE theme (settings-edited palettes appear immediately),
-	// falling back to the legacy snapshot when the chart's theme id is missing
-	// from `themesAtom`. Mirrors HueOptionsPanel so both pickers list the same
-	// palettes.
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
+	const theme = useCurrentTheme()
 	const dataset = useCurrentDatasetView()
 
 	const fieldName = encodings.outlineHue?.field ?? null

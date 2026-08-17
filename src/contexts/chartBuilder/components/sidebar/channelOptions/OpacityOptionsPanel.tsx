@@ -42,6 +42,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { StackModeRow } from "./StackModeRow"
 
@@ -588,13 +589,7 @@ const OpacityLevelInput = ({
 			onChange={onChange}
 		/>
 		{value !== defaultLevel && (
-			<button
-				type="button"
-				onClick={() => onChange(defaultLevel)}
-				className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+			<ResetLink onClick={() => onChange(defaultLevel)} />
 		)}
 	</div>
 )
@@ -655,13 +650,7 @@ const CategoricalOpacityList = ({
 						onChange={(next) => onSet(v, next)}
 					/>
 					{isOverridden && (
-						<button
-							type="button"
-							onClick={() => onReset(v)}
-							className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+						<ResetLink onClick={() => onReset(v)} />
 					)}
 				</div>
 			)

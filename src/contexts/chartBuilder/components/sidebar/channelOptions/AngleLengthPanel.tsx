@@ -7,7 +7,6 @@ import {
 	DEFAULT_LENGTH_CONFIG,
 	DEFAULT_SPINE_CONFIG,
 	type AngleConfig,
-	type SpineConfig,
 } from "../../../lib/channelConfig"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { angleConfigFromTheme } from "../../../lib/themeConfig"
@@ -20,6 +19,8 @@ import type { Theme } from "../../../lib/types"
 
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { SpineControls } from "./AxisOptionsPanel"
 
 // ---------------------------------------------------------------------------
 // Angle
@@ -90,13 +91,10 @@ export const AngleOptionsPanel = () => {
 						suffix="°"
 					/>
 					{cfg.minAngle !== themeAngle.minAngle && (
-						<button
-							type="button"
+						<ResetLink
 							onClick={() => updateCfg({ minAngle: themeAngle.minAngle })}
-							className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+							underline
+						/>
 					)}
 				</div>
 				<div className="flex items-center gap-2">
@@ -112,13 +110,10 @@ export const AngleOptionsPanel = () => {
 						suffix="°"
 					/>
 					{cfg.maxAngle !== themeAngle.maxAngle && (
-						<button
-							type="button"
+						<ResetLink
 							onClick={() => updateCfg({ maxAngle: themeAngle.maxAngle })}
-							className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+							underline
+						/>
 					)}
 				</div>
 				<div className="vc-help">
@@ -159,18 +154,14 @@ export const AngleOptionsPanel = () => {
 					suffix="°"
 				/>
 				{currentAngle !== 0 && (
-					<button
-						type="button"
+					<ResetLink
 						onClick={() =>
 							setConfigs((prev) => ({
 								...prev,
 								defaultAngle: 0,
 							}))
 						}
-						className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-					>
-						reset
-					</button>
+					/>
 				)}
 			</div>
 		</div>
@@ -277,15 +268,12 @@ const RadarAxisControls = ({
 					inputClassName="w-16"
 				/>
 				{tickCount !== (DEFAULT_ANGLE_CONFIG.tickCount ?? 6) && (
-					<button
-						type="button"
+					<ResetLink
 						onClick={() =>
 							updateCfg({ tickCount: DEFAULT_ANGLE_CONFIG.tickCount })
 						}
-						className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-					>
-						reset
-					</button>
+						underline
+					/>
 				)}
 			</div>
 			<p className="vc-help">
@@ -306,69 +294,29 @@ const RadarAxisControls = ({
 					suffix="°"
 				/>
 				{tickLabelAngle !== (DEFAULT_ANGLE_CONFIG.tickLabelAngle ?? 0) && (
-					<button
-						type="button"
+					<ResetLink
 						onClick={() =>
 							updateCfg({ tickLabelAngle: DEFAULT_ANGLE_CONFIG.tickLabelAngle })
 						}
-						className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-					>
-						reset
-					</button>
+						underline
+					/>
 				)}
 			</div>
-			<SpineControls
-				spine={cfg.spine ?? DEFAULT_SPINE_CONFIG}
-				onChange={(s) => updateCfg({ spine: s })}
-				theme={theme}
-			/>
-		</div>
-	)
-}
-
-/** Spoke color + thickness. Mirrors `AxisOptionsPanel`'s SpineControls so
- *  radar's spoke styling reads like x/y axis styling — same labels,
- *  same number ranges. */
-const SpineControls = ({
-	spine,
-	onChange,
-	theme,
-}: {
-	spine: SpineConfig
-	onChange: (s: SpineConfig) => void
-	theme: Theme
-}) => {
-	const set = (next: Partial<SpineConfig>) => onChange({ ...spine, ...next })
-	return (
-		<div className="flex flex-col gap-2">
+			{/* Spoke styling reuses the x/y axis Spine control (same labels, same
+			    ranges). The color row is dropped — spoke color lives in the Color
+			    menu's "Radar Spine" slot — and the "changed" dots stay off. */}
 			<span className="text-sm text-stone-600 dark:text-stone-400">Spokes</span>
 			<p className="vc-help">
 				Set spoke color under the <strong>Color</strong> menu →{" "}
 				<strong>Radar Spine</strong>.
 			</p>
-			<NumberInput
-				label="Thickness"
-				labelClassName={LABEL_COL}
-				value={spine.thickness}
-				min={0}
-				max={5}
-				step={0.5}
-				onChange={(thickness) => set({ thickness })}
-				inputClassName="w-16"
-				suffix="px"
+			<SpineControls
+				spine={cfg.spine ?? DEFAULT_SPINE_CONFIG}
+				onChange={(s) => updateCfg({ spine: s })}
+				theme={theme}
+				hideColorRow
+				showChanged={false}
 			/>
-			<button
-				type="button"
-				onClick={() =>
-					onChange({
-						color: theme.spineColor || DEFAULT_SPINE_CONFIG.color,
-						thickness: theme.spineThickness || DEFAULT_SPINE_CONFIG.thickness,
-					})
-				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
 		</div>
 	)
 }
@@ -407,13 +355,10 @@ const BarGapControl = ({
 				<span className="text-sm text-stone-600">px</span>
 			</label>
 			{barGapPx !== null && (
-				<button
-					type="button"
+				<ResetLink
 					onClick={() => onChange(null)}
-					className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+					underline
+				/>
 			)}
 		</div>
 		<p className="vc-help">
@@ -496,8 +441,7 @@ export const LengthOptionsPanel = () => {
 						suffix="px"
 					/>
 					{cfg.minLength !== DEFAULT_LENGTH_CONFIG.minLength && (
-						<button
-							type="button"
+						<ResetLink
 							onClick={() =>
 								setConfigs((prev) => ({
 									...prev,
@@ -507,10 +451,8 @@ export const LengthOptionsPanel = () => {
 									},
 								}))
 							}
-							className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+							underline
+						/>
 					)}
 				</div>
 				<div className="flex items-center gap-2">
@@ -534,8 +476,7 @@ export const LengthOptionsPanel = () => {
 						suffix="px"
 					/>
 					{cfg.maxLength !== DEFAULT_LENGTH_CONFIG.maxLength && (
-						<button
-							type="button"
+						<ResetLink
 							onClick={() =>
 								setConfigs((prev) => ({
 									...prev,
@@ -545,10 +486,8 @@ export const LengthOptionsPanel = () => {
 									},
 								}))
 							}
-							className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-						>
-							reset
-						</button>
+							underline
+						/>
 					)}
 				</div>
 				<div className="text-sm text-stone-600">

@@ -18,6 +18,7 @@ import {
 	primaryStackChannel,
 	type StackChannel,
 } from "../../../lib/stackMode"
+import { MIN_LINE_THICKNESS } from "../../../lib/connectionThickness"
 import {
 	HIERARCHY_ID_NONE,
 	inferHierarchyIdField,
@@ -50,6 +51,7 @@ import { parseValue } from "../../../lib/scales"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../../components/ui/Toggle"
 import {
@@ -300,25 +302,20 @@ export const ConnectionOptionsPanel = () => {
 				labelClassName={LABEL_COL}
 				changed={ch.thickness}
 				value={cfg.thickness}
-				min={0.5}
+				min={MIN_LINE_THICKNESS}
 				step={0.5}
 				onChange={(n) => {
-					// No `clamp`: negative typed input is ignored (matching the
-					// previous raw input's guard) rather than snapped to 0.5;
-					// spinner / arrow-key steps still floor at the 0.5 min.
+					// No `clamp`: negative typed input is ignored rather than
+					// snapped; spinner / arrow-key steps floor at
+					// MIN_LINE_THICKNESS (0, which hides the line —
+					// thickness-is-the-switch).
 					if (n >= 0) updateCfg({ thickness: n })
 				}}
 				inputClassName="w-16"
 				suffix="px"
 			/>
 			{cfg.thickness !== themeCfg.thickness && (
-				<button
-					type="button"
-					onClick={() => updateCfg({ thickness: themeCfg.thickness })}
-					className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+				<ResetLink onClick={() => updateCfg({ thickness: themeCfg.thickness })} />
 			)}
 		</div>
 	)
@@ -358,20 +355,14 @@ export const ConnectionOptionsPanel = () => {
 									label={`Line thickness for ${v}`}
 									labelClassName="sr-only"
 									value={rowValue}
-									min={0.5}
+									min={MIN_LINE_THICKNESS}
 									step={0.5}
 									onChange={(n) => setThicknessFor(v, n)}
 									inputClassName="w-16"
 									suffix="px"
 								/>
 								{rowValue !== cfg.thickness && (
-									<button
-										type="button"
-										onClick={() => resetThicknessFor(v)}
-										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-									>
-										reset
-									</button>
+									<ResetLink onClick={() => resetThicknessFor(v)} />
 								)}
 							</div>
 						)
@@ -642,15 +633,12 @@ export const ConnectionOptionsPanel = () => {
 											changed={axisCh.tickCount}
 										/>
 										{axis.tickCount !== themeAxis.tickCount && (
-											<button
-												type="button"
+											<ResetLink
 												onClick={() =>
 													updateAxis({ tickCount: themeAxis.tickCount })
 												}
-												className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-											>
-												reset
-											</button>
+												underline
+											/>
 										)}
 									</div>
 									<div className="flex gap-2">
@@ -694,15 +682,12 @@ export const ConnectionOptionsPanel = () => {
 											: "tick"}
 									</span>
 									{axis.labelEvery !== themeAxis.labelEvery && (
-										<button
-											type="button"
+										<ResetLink
 											onClick={() =>
 												updateAxis({ labelEvery: themeAxis.labelEvery })
 											}
-											className="text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-										>
-											reset
-										</button>
+											underline
+										/>
 									)}
 								</div>
 								<TickLabelFontControl

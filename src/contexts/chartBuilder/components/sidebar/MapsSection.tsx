@@ -6,6 +6,7 @@ import {
 	LABEL_COL,
 	LabelSpacer,
 } from "../../../../components/ui/LabeledField"
+import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 import {
@@ -472,18 +473,14 @@ export const MapsSection = () => {
 								/>
 								{mapConfig.noDataFill !==
 									DEFAULT_MAP_CONFIG.noDataFill && (
-									<button
-										type="button"
+									<ResetLink
 										onClick={() =>
 											update({
 												noDataFill:
 													DEFAULT_MAP_CONFIG.noDataFill,
 											})
 										}
-										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-									>
-										reset
-									</button>
+									/>
 								)}
 							</div>
 						)}
@@ -545,18 +542,14 @@ export const MapsSection = () => {
 								/>
 								{mapConfig.noDataPatternInk !==
 									DEFAULT_MAP_CONFIG.noDataPatternInk && (
-									<button
-										type="button"
+									<ResetLink
 										onClick={() =>
 											update({
 												noDataPatternInk:
 													DEFAULT_MAP_CONFIG.noDataPatternInk,
 											})
 										}
-										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-									>
-										reset
-									</button>
+									/>
 								)}
 							</div>
 						)}

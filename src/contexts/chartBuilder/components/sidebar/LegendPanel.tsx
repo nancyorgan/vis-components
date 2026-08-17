@@ -51,11 +51,9 @@ import {
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
 	currentRenderedGradientBarLengthAtom,
-	currentThemeIdAtom,
-	themeAtom,
-	themesAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 
 import { AlignmentControl } from "./LabelsPanel"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
@@ -66,6 +64,7 @@ import {
 	LabelSpacerNested,
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../components/ui/ResetLink"
 import { RadioGroup } from "../../../../components/ui/RadioGroup"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
@@ -266,15 +265,7 @@ export const LegendPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
-	// Prefer the LIVE theme from `themesAtom` so values edited in Settings
-	// (e.g. legendSwatchColor) take effect immediately on the chart.
-	// `themeAtom` is a legacy/fallback used when the chart's themeId is
-	// missing from `themesAtom` (deleted theme, fresh chart, etc.).
-	const storedTheme = useAtomValue(themeAtom)
-	const allThemes = useAtomValue(themesAtom)
-	const currentThemeId = useAtomValue(currentThemeIdAtom)
-	const liveTheme = allThemes.find((t) => t.id === currentThemeId)
-	const theme = liveTheme ?? storedTheme
+	const theme = useCurrentTheme()
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const merged: LegendConfig = { ...DEFAULT_LEGEND_CONFIG, ...cfg }
 	// Per-subsection "changed" dots: a group lights when a setting it owns
@@ -816,15 +807,11 @@ export const LegendPanel = () => {
 										onChange={(borderColor) => update({ borderColor })}
 									/>
 									{merged.borderColor !== DEFAULT_LEGEND_CONFIG.borderColor && (
-										<button
-											type="button"
+										<ResetLink
 											onClick={() =>
 												update({ borderColor: DEFAULT_LEGEND_CONFIG.borderColor })
 											}
-											className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-										>
-											reset
-										</button>
+										/>
 									)}
 								</div>
 								<div className="flex items-center gap-2">
@@ -839,17 +826,13 @@ export const LegendPanel = () => {
 										suffix="px"
 									/>
 									{merged.borderRadius !== DEFAULT_LEGEND_CONFIG.borderRadius && (
-										<button
-											type="button"
+										<ResetLink
 											onClick={() =>
 												update({
 													borderRadius: DEFAULT_LEGEND_CONFIG.borderRadius,
 												})
 											}
-											className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-										>
-											reset
-										</button>
+										/>
 									)}
 								</div>
 							</>
@@ -910,15 +893,11 @@ export const LegendPanel = () => {
 								inputClassName="w-16"
 							/>
 							{(merged.columns ?? 1) !== (DEFAULT_LEGEND_CONFIG.columns ?? 1) && (
-								<button
-									type="button"
+								<ResetLink
 									onClick={() =>
 										update({ columns: DEFAULT_LEGEND_CONFIG.columns })
 									}
-									className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-								>
-									reset
-								</button>
+								/>
 							)}
 						</div>
 						<p className="vc-help">
@@ -941,15 +920,11 @@ export const LegendPanel = () => {
 								/>
 								{(merged.columnGap ?? DEFAULT_LEGEND_CONFIG.columnGap) !==
 									DEFAULT_LEGEND_CONFIG.columnGap && (
-									<button
-										type="button"
+									<ResetLink
 										onClick={() =>
 											update({ columnGap: DEFAULT_LEGEND_CONFIG.columnGap })
 										}
-										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-									>
-										reset
-									</button>
+									/>
 								)}
 							</div>
 						)}
@@ -1108,13 +1083,7 @@ export const LegendPanel = () => {
 									<span className="text-sm text-stone-600">px</span>
 								</label>
 								{merged.gradientBarLength != null && (
-									<button
-										type="button"
-										onClick={() => update({ gradientBarLength: null })}
-										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-									>
-										reset
-									</button>
+									<ResetLink onClick={() => update({ gradientBarLength: null })} />
 								)}
 							</div>
 							<div className="flex items-center gap-2">
@@ -1130,13 +1099,7 @@ export const LegendPanel = () => {
 								/>
 								{merged.gradientBarRadius != null &&
 									merged.gradientBarRadius !== DEFAULT_GRADIENT_BAR_RADIUS && (
-										<button
-											type="button"
-											onClick={() => update({ gradientBarRadius: null })}
-											className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-										>
-											reset
-										</button>
+										<ResetLink onClick={() => update({ gradientBarRadius: null })} />
 									)}
 							</div>
 							<NumberInput
@@ -1179,13 +1142,7 @@ export const LegendPanel = () => {
 											showHexInput
 										/>
 										{merged.gradientBarTickColor != null && (
-											<button
-												type="button"
-												onClick={() => update({ gradientBarTickColor: null })}
-												className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-											>
-												reset
-											</button>
+											<ResetLink onClick={() => update({ gradientBarTickColor: null })} />
 										)}
 									</div>
 								</>
@@ -1218,13 +1175,7 @@ export const LegendPanel = () => {
 						/>
 						{merged.auxLegendSwatchColor !== null &&
 							merged.auxLegendSwatchColor !== undefined && (
-								<button
-									type="button"
-									onClick={() => update({ auxLegendSwatchColor: null })}
-									className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-								>
-									reset
-								</button>
+								<ResetLink onClick={() => update({ auxLegendSwatchColor: null })} />
 							)}
 					</div>
 					{showAuxSwatchStroke && (
@@ -1240,13 +1191,7 @@ export const LegendPanel = () => {
 							/>
 							{merged.auxLegendSwatchStroke !== null &&
 								merged.auxLegendSwatchStroke !== undefined && (
-									<button
-										type="button"
-										onClick={() => update({ auxLegendSwatchStroke: null })}
-										className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-									>
-										reset
-									</button>
+									<ResetLink onClick={() => update({ auxLegendSwatchStroke: null })} />
 								)}
 						</div>
 					)}
@@ -1363,15 +1308,11 @@ export const LegendPanel = () => {
 											showHexInput
 										/>
 										{merged.auxLegendSwatchColor != null && (
-											<button
-												type="button"
+											<ResetLink
 												onClick={() =>
 													update({ auxLegendSwatchColor: null })
 												}
-												className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-											>
-												reset
-											</button>
+											/>
 										)}
 									</div>
 								)}
@@ -1400,15 +1341,11 @@ export const LegendPanel = () => {
 												showHexInput
 											/>
 											{merged.patternLegendBgColor != null && (
-												<button
-													type="button"
+												<ResetLink
 													onClick={() =>
 														update({ patternLegendBgColor: null })
 													}
-													className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-												>
-													reset
-												</button>
+												/>
 											)}
 										</div>
 										<div className="flex items-center gap-2">
@@ -1425,15 +1362,11 @@ export const LegendPanel = () => {
 												showHexInput
 											/>
 											{merged.patternLegendInkColor != null && (
-												<button
-													type="button"
+												<ResetLink
 													onClick={() =>
 														update({ patternLegendInkColor: null })
 													}
-													className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-												>
-													reset
-												</button>
+												/>
 											)}
 										</div>
 									</>
@@ -1472,13 +1405,7 @@ export const LegendPanel = () => {
 												showHexInput
 											/>
 											{legendSwatchOutlineColor(merged, ch) !== null && (
-												<button
-													type="button"
-													onClick={() => resetSwatchOutlineColor(ch)}
-													className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-												>
-													reset
-												</button>
+												<ResetLink onClick={() => resetSwatchOutlineColor(ch)} />
 											)}
 										</div>
 										<NumberInput
@@ -1523,13 +1450,7 @@ export const LegendPanel = () => {
 						/>
 						{merged.shapeLegendFillColor !== null &&
 							merged.shapeLegendFillColor !== undefined && (
-								<button
-									type="button"
-									onClick={() => update({ shapeLegendFillColor: null })}
-									className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-								>
-									reset
-								</button>
+								<ResetLink onClick={() => update({ shapeLegendFillColor: null })} />
 							)}
 					</div>
 					<div className="flex items-center gap-2">
@@ -1548,13 +1469,7 @@ export const LegendPanel = () => {
 						/>
 						{merged.shapeLegendStrokeColor !== null &&
 							merged.shapeLegendStrokeColor !== undefined && (
-								<button
-									type="button"
-									onClick={() => update({ shapeLegendStrokeColor: null })}
-									className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-								>
-									reset
-								</button>
+								<ResetLink onClick={() => update({ shapeLegendStrokeColor: null })} />
 							)}
 					</div>
 					<p className="vc-help">
