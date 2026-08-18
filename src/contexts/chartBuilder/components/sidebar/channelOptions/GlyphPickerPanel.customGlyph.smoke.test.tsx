@@ -142,6 +142,26 @@ describe("Shape panel — custom glyphs (no shape field: Default shape row)", ()
 		])
 	})
 
+	it("the create-only Adjust position nudge appears once text is typed and stores dx/dy (Y sign flips: UI positive = up)", async () => {
+		const store = seed(SCATTER)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Add custom shape"))
+		// Hidden until there's a typed glyph to place.
+		expect(q.queryByText("Adjust position")).toBeNull()
+		fireEvent.change(q.getByLabelText("Custom shape text"), {
+			target: { value: "_" },
+		})
+		expect(q.getByText("Adjust position")).toBeTruthy()
+		fireEvent.change(q.getByLabelText("X"), { target: { value: "-60" } })
+		fireEvent.change(q.getByLabelText("Y"), { target: { value: "25" } })
+		fireEvent.click(q.getByText("Add"))
+		// % of mark radius → stored as multiples of r; Y flips to screen
+		// convention (positive = down) at the input boundary.
+		expect(readSavedConfigs(store).shape?.customGlyphs).toEqual([
+			{ kind: "text", text: "_", dx: -0.6, dy: -0.25 },
+		])
+	})
+
 	it("deleting a glyph tombstones its slot (null, not spliced)", async () => {
 		const store = seed(SCATTER, {
 			defaultShape: CUSTOM_GLYPH_BASE + 1,

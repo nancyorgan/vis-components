@@ -689,7 +689,18 @@ export type OpacitySlots = Partial<Record<OpacitySlotKey, OpacitySlotConfig>>
  * image (stored as a small data URL, rendered as-is — fill / outline /
  * pattern encodings don't apply to images). */
 export type CustomGlyph =
-	| { kind: "text"; text: string }
+	| {
+			kind: "text"
+			text: string
+			/** Optional position nudge set at glyph creation, in multiples of
+			 * the mark's circle-equivalent radius (screen convention: positive
+			 * `dy` = down). Lets a glyph branch off the data point — e.g. an
+			 * OHLC open/close tick pushed clear of the connection line.
+			 * Absent = centered. Marks apply it; chip previews and legend
+			 * swatches render centered (see `lib/customGlyphs.stripNudge`). */
+			dx?: number
+			dy?: number
+	  }
 	| { kind: "image"; href: string; aspect: number }
 
 export type ShapeConfig = {

@@ -3,7 +3,7 @@ import {
 	DEFAULT_SHAPE_CONFIG,
 	type LineDashPattern,
 } from "../../../lib/channelConfig"
-import { GlyphMark, resolveGlyph } from "../../../lib/customGlyphs"
+import { GlyphMark, resolveGlyph, stripNudge } from "../../../lib/customGlyphs"
 import { DASH_CYCLE, dashArrayFor } from "../../../lib/dashPatterns"
 import type { GradientBarStyle, LegendSwatchShape } from "../../../lib/labelsConfig"
 import {
@@ -483,7 +483,10 @@ export const CombinedGroupLegend = ({
 			: null
 		const FALLBACK_R = 8
 		const shapeIdx = configs.defaultShape ?? 0
-		const shapeGlyph = resolveGlyph(shapeIdx, configs.shape?.customGlyphs)
+		// Swatches render centered — strip any creation-time nudge.
+		const shapeGlyph = stripNudge(
+			resolveGlyph(shapeIdx, configs.shape?.customGlyphs)
+		)
 		const strokeColor =
 			configs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
 		const strokeWidth = configs.shape?.outlineWidth ?? 1

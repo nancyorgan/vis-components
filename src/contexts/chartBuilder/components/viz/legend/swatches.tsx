@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react"
 import { useAtomValue, useSetAtom } from "jotai"
-import { GlyphMark, type ResolvedGlyph } from "../../../lib/customGlyphs"
+import {
+	GlyphMark,
+	stripNudge,
+	type ResolvedGlyph,
+} from "../../../lib/customGlyphs"
 import { chunkColumns } from "../../../lib/legendSections"
 import {
 	DEFAULT_LEGEND_CONFIG,
@@ -516,7 +520,8 @@ export const ComposedSwatch = ({
 				{showGlyph && (
 					<g transform={`translate(${cx}, ${cy})`}>
 						<GlyphMark
-							glyph={pointGlyph}
+							// Swatches render centered — strip any creation-time nudge.
+							glyph={stripNudge(pointGlyph)}
 							r={r}
 							fill={shapeFill}
 							fillOpacity={shape?.fill === "none" && !pattern ? 0 : 1}
@@ -558,7 +563,9 @@ export const ComposedSwatch = ({
 					/>
 				) : (
 					<GlyphMark
-						glyph={shape.glyph ?? { kind: "symbol", idx: shape.idx }}
+						glyph={stripNudge(
+							shape.glyph ?? { kind: "symbol", idx: shape.idx }
+						)}
 						r={r}
 						fill={shape.fill}
 						fillOpacity={shape.fill === "none" ? 0 : 1}

@@ -1,5 +1,5 @@
 import { DEFAULT_SHAPE_CONFIG } from "../../../lib/channelConfig"
-import { GlyphMark, resolveGlyph } from "../../../lib/customGlyphs"
+import { GlyphMark, resolveGlyph, stripNudge } from "../../../lib/customGlyphs"
 import { orderCategories, uniqueValues } from "../../../lib/legendSections"
 import { makeShapeIndexer } from "../../../lib/scales"
 import { renderEntryList } from "./swatches"
@@ -65,7 +65,9 @@ export const ShapeLegend = ({
 					className="flex-shrink-0"
 				>
 					<GlyphMark
-						glyph={resolveGlyph(idx, configs.shape?.customGlyphs)}
+						// Swatches render centered — nudged text glyphs would sit
+						// off-center in (or clip out of) the 16px box.
+						glyph={stripNudge(resolveGlyph(idx, configs.shape?.customGlyphs))}
 						r={5}
 						fill={fill}
 						fillOpacity={fill === "none" ? 0 : defaultSwatchOpacity}

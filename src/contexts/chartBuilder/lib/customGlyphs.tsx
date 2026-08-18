@@ -16,7 +16,7 @@ import { SHAPE_PALETTE, symbolPath } from "./scales"
 
 export type ResolvedGlyph =
 	| { kind: "symbol"; idx: number }
-	| { kind: "text"; text: string }
+	| { kind: "text"; text: string; dx?: number; dy?: number }
 	| { kind: "image"; href: string; aspect: number }
 
 /** Max characters in a text glyph (unicode code points, so one emoji = 1). */
@@ -44,6 +44,15 @@ export const resolveGlyph = (
 	if (!custom) return { kind: "symbol", idx: 0 }
 	return custom
 }
+
+/** Drop a text glyph's position nudge so it renders centered. Chip
+ * previews and legend swatches use this — a nudged glyph floating
+ * off-center in a small swatch box reads as a bug (and can clip); only
+ * chart marks apply the nudge. */
+export const stripNudge = (glyph: ResolvedGlyph): ResolvedGlyph =>
+	glyph.kind === "text" && (glyph.dx || glyph.dy)
+		? { kind: "text", text: glyph.text }
+		: glyph
 
 /** Split into user-perceived characters: grapheme clusters when
  * `Intl.Segmenter` exists (so a skin-tone or ZWJ-sequence emoji counts
@@ -125,7 +134,9 @@ export const fileToGlyph = (file: File): Promise<CustomGlyph> =>
  * don't apply, and the mark's fill opacity folds into the element opacity
  * so encoded opacity still fades the image like any other mark. The caller
  * owns positioning via `transform` (glyphs center on the local origin,
- * matching `symbolPath`). */
+ * matching `symbolPath`); a text glyph's creation-time `dx`/`dy` nudge
+ * shifts its ink off that origin — preview/legend callers pass the glyph
+ * through `stripNudge` to stay centered. */
 export const GlyphMark = ({
 	glyph,
 	r,
@@ -172,6 +183,10 @@ export const GlyphMark = ({
 			<text
 				textAnchor="middle"
 				dominantBaseline="central"
+				// Creation-time nudge, in multiples of r so it scales with the
+				// mark (a px nudge would drift under size encodings).
+				x={(glyph.dx ?? 0) * r}
+				y={(glyph.dy ?? 0) * r}
 				fontSize={textGlyphFontSize(glyph.text, r)}
 				transform={transform}
 				fill={fill}

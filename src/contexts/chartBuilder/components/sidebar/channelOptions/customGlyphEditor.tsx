@@ -8,12 +8,15 @@ import {
 	glyphCharCount,
 	MAX_TEXT_GLYPH_CHARS,
 	sanitizeGlyphText,
+	stripNudge,
 } from "../../../lib/customGlyphs"
 import {
 	expandEmojiInput,
 	expandEmojiShortcodes,
 } from "../../../lib/emojiShortcodes"
 import { CHIP_INK } from "../../../lib/previewInk"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import { NumberInput } from "../../../../../components/ui/NumberInput"
 
 import { PREVIEW_SIZE } from "./glyphShared"
 
@@ -42,7 +45,9 @@ const CustomGlyphPreview = ({
 		aria-hidden="true"
 	>
 		<GlyphMark
-			glyph={glyph}
+			// Chips render centered — a nudged glyph off-center in a 28px
+			// chip reads as a bug; only chart marks apply the nudge.
+			glyph={stripNudge(glyph)}
 			r={glyph.kind === "image" ? 8 : 5}
 			fill={selected ? "currentColor" : CHIP_INK}
 			fillOpacity={0.9}
@@ -105,6 +110,43 @@ export const CustomGlyphChips = ({
 	</>
 )
 
+/** Live preview for the create editor's "Adjust position" nudge: the glyph
+ *  drawn over center hairlines, so the off-center placement is visible
+ *  before committing (the nudge is create-only — there's no post-hoc edit,
+ *  so this is the only tuning feedback besides add → look → delete). The
+ *  vertical hairline stands in for a line through the data point (the OHLC
+ *  case: does the tick clear it?). */
+const NudgePreview = ({ glyph }: { glyph: CustomGlyph }) => {
+	const s = 40
+	return (
+		<svg
+			width={s}
+			height={s}
+			viewBox={`${-s / 2} ${-s / 2} ${s} ${s}`}
+			aria-hidden="true"
+			className="flex-shrink-0 rounded border border-stone-200 dark:border-stone-700"
+		>
+			<line
+				x1={0}
+				y1={-s / 2}
+				x2={0}
+				y2={s / 2}
+				className="stroke-stone-300 dark:stroke-stone-600"
+				strokeWidth={1}
+			/>
+			<line
+				x1={-s / 2}
+				y1={0}
+				x2={s / 2}
+				y2={0}
+				className="stroke-stone-300 dark:stroke-stone-600"
+				strokeWidth={1}
+			/>
+			<GlyphMark glyph={glyph} r={8} fill={CHIP_INK} fillOpacity={0.9} />
+		</svg>
+	)
+}
+
 /** Inline editor opened by the "+" chip: type a short text glyph or upload
  *  an image. Creation goes through `onCreate`, which also selects the new
  *  glyph for the row that opened the editor. */
@@ -117,6 +159,12 @@ export const CustomGlyphEditor = ({
 }) => {
 	const [text, setText] = useState("")
 	const [error, setError] = useState<string | null>(null)
+	// Position nudge, in % of the mark's radius, math convention (positive
+	// Y = up). Only settable here at creation — once added, a glyph's nudge
+	// is fixed (delete and re-add to change it). Zeroes are omitted from the
+	// stored glyph so un-nudged glyphs keep today's exact shape.
+	const [nudgeX, setNudgeX] = useState(0)
+	const [nudgeY, setNudgeY] = useState(0)
 	// Validate on submit, never truncate while typing — live truncation
 	// breaks emoji shortcodes (":joy" was getting chopped to ":jo").
 	// Browsers don't expand shortcodes on their own, so the editor does:
@@ -130,7 +178,15 @@ export const CustomGlyphEditor = ({
 	const canSubmit = count > 0 && !tooLong
 	const submitText = () => {
 		if (!canSubmit) return
-		onCreate({ kind: "text", text: sanitizeGlyphText(expanded) })
+		onCreate({
+			kind: "text",
+			text: sanitizeGlyphText(expanded),
+			// Stored screen-convention (positive dy = down), in multiples of
+			// the mark radius so the nudge scales with mark size; the Y sign
+			// flips at this input boundary (UI shows positive = up).
+			...(nudgeX !== 0 ? { dx: nudgeX / 100 } : {}),
+			...(nudgeY !== 0 ? { dy: -nudgeY / 100 } : {}),
+		})
 		onClose()
 	}
 	return (
@@ -210,6 +266,50 @@ export const CustomGlyphEditor = ({
 			)}
 			{error && (
 				<span className="text-red-600 dark:text-red-400">{error}</span>
+			)}
+			{/* Create-only position nudge — appears once there's a typed glyph
+			 *  to place, and never again after Add (there's no post-hoc glyph
+			 *  edit; delete and re-add to change it). Image uploads bypass it. */}
+			{count > 0 && !tooLong && (
+				<div className="mt-1 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<span className="vc-group-header">Adjust position</span>
+					<div className="flex flex-wrap items-center gap-2">
+						<div className="flex flex-col gap-2">
+							<NumberInput
+								label="X"
+								labelClassName={LABEL_COL}
+								value={nudgeX}
+								step={5}
+								onChange={setNudgeX}
+								inputClassName="w-20"
+								suffix="%"
+							/>
+							<NumberInput
+								label="Y"
+								labelClassName={LABEL_COL}
+								value={nudgeY}
+								step={5}
+								onChange={setNudgeY}
+								inputClassName="w-20"
+								suffix="%"
+							/>
+						</div>
+						<NudgePreview
+							glyph={{
+								kind: "text",
+								text: sanitizeGlyphText(expanded),
+								dx: nudgeX / 100,
+								dy: -nudgeY / 100,
+							}}
+						/>
+					</div>
+					<p className="vc-help">
+						Shifts the characters off the data point — e.g. X of -60%
+						hangs a dash to the left of a line through the point. 100% =
+						the mark&apos;s radius; positive X moves right, positive Y
+						moves up. Set now — it can&apos;t be changed after adding.
+					</p>
+				</div>
 			)}
 		</div>
 	)

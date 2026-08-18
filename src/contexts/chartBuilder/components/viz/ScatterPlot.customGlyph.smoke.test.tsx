@@ -133,6 +133,22 @@ describe("ScatterPlot — custom shape glyphs", () => {
 		expect(w).toBeCloseTo(2 * h)
 	})
 
+	it("a text glyph's creation-time nudge shifts the <text> off the mark center, scaled by mark radius", () => {
+		const container = mount({
+			customGlyphs: [{ kind: "text", text: "_", dx: -0.6, dy: 0.25 }],
+			defaultShape: CUSTOM_GLYPH_BASE,
+		})
+		const marks = glyphTexts(container, "_")
+		expect(marks.length).toBe(4)
+		// The nudge is stored in multiples of the mark radius; recover r from
+		// the font size (a 1-char glyph draws at 2.4r — see textGlyphFontSize).
+		const t = marks[0]!
+		const r = Number(t.getAttribute("font-size")) / 2.4
+		expect(r).toBeGreaterThan(0)
+		expect(Number(t.getAttribute("x"))).toBeCloseTo(-0.6 * r)
+		expect(Number(t.getAttribute("y"))).toBeCloseTo(0.25 * r)
+	})
+
 	it("a tombstoned (deleted) glyph reference degrades to the circle symbol", () => {
 		const container = mount({
 			customGlyphs: [null],

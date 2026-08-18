@@ -6,6 +6,7 @@ import {
 	MAX_TEXT_GLYPH_CHARS,
 	resolveGlyph,
 	sanitizeGlyphText,
+	stripNudge,
 	textGlyphFontSize,
 } from "./customGlyphs"
 import { SHAPE_PALETTE } from "./scales"
@@ -50,6 +51,26 @@ describe("resolveGlyph", () => {
 			idx: 0,
 		})
 		expect(resolveGlyph(-1, [TEXT_GLYPH])).toEqual({ kind: "symbol", idx: 0 })
+	})
+})
+
+describe("stripNudge", () => {
+	it("drops a text glyph's creation-time nudge (previews render centered)", () => {
+		expect(stripNudge({ kind: "text", text: "_", dx: -0.6, dy: 0.25 })).toEqual(
+			{ kind: "text", text: "_" }
+		)
+	})
+
+	it("returns un-nudged glyphs unchanged (same reference)", () => {
+		const symbol = { kind: "symbol", idx: 3 } as const
+		expect(stripNudge(symbol)).toBe(symbol)
+		expect(stripNudge(TEXT_GLYPH)).toBe(TEXT_GLYPH)
+		expect(stripNudge(IMAGE_GLYPH)).toBe(IMAGE_GLYPH)
+	})
+
+	it("resolveGlyph passes a nudge through untouched (marks apply it)", () => {
+		const nudged: CustomGlyph = { kind: "text", text: "_", dx: 1, dy: -0.5 }
+		expect(resolveGlyph(CUSTOM_GLYPH_BASE, [nudged])).toEqual(nudged)
 	})
 })
 
