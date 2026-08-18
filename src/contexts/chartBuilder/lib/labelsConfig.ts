@@ -832,6 +832,17 @@ export type LabelsConfig = {
 	 * vertically beside their panels, typically paired with an offset since
 	 * the solver's band reserve doesn't grow for the rotated extent. */
 	titleAngles?: Partial<Record<LabelFontKey, number>>
+	/** "Color by facet": when true, each facet title is colored per facet
+	 * VALUE via `facetTitleColors`. The stored colors stay put when this is
+	 * off — unchecking reverts every title to its slot's resolved color
+	 * without losing the picks, so re-checking restores them. */
+	facetTitleColorByValue?: boolean
+	/** Sparse per-facet-value title colors, keyed by the facet VALUE string
+	 * (a wrap panel key, or a grid row / column value). Missing entries fall
+	 * back to the slot's resolved title color (the theme's title color unless
+	 * a facet-title font override sets one). Only consulted while
+	 * `facetTitleColorByValue` is true — see `facetTitleColorOf`. */
+	facetTitleColors?: Record<string, string>
 	/** When true, the y-axis title is drawn upright (0°) instead of rotated
 	 * -90°. Pairs with the auto-margin logic so a long horizontal title can
 	 * push the plot rightward to fit. */
@@ -873,6 +884,8 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	titleAlignments: {},
 	titleVerticalAlignments: {},
 	titleAngles: {},
+	facetTitleColorByValue: false,
+	facetTitleColors: {},
 	yAxisTitleHorizontal: false,
 	titleOffsets: {},
 }
@@ -906,6 +919,18 @@ export const textAnchorFromAlignment = (
 	a: LabelAlignment
 ): "start" | "middle" | "end" =>
 	a === "left" ? "start" : a === "right" ? "end" : "middle"
+
+/** Per-facet-value title color: the `facetTitleColors` entry for the value,
+ * gated on the "Color by facet" checkbox. `undefined` = use the slot's
+ * resolved font color. Shared by every facet-title render site (grid header
+ * strips, wrap / compact-grid panel labels) so the lookups can't drift. */
+export const facetTitleColorOf = (
+	labels: Pick<LabelsConfig, "facetTitleColorByValue" | "facetTitleColors">,
+	value: string | null | undefined
+): string | undefined =>
+	labels.facetTitleColorByValue === true && value != null
+		? labels.facetTitleColors?.[value]
+		: undefined
 
 /** Resolve the stored offset for a title slot, defaulting to zeros.
  * `distance` only ever holds a value for `nodeTitle` (see LabelsConfig). */
@@ -1118,5 +1143,7 @@ export const migrateLabelsConfig = (
 		yAxisTitleHorizontal: raw.yAxisTitleHorizontal ?? false,
 		titleOffsets: raw.titleOffsets ?? {},
 		titleAngles: raw.titleAngles ?? {},
+		facetTitleColorByValue: raw.facetTitleColorByValue ?? false,
+		facetTitleColors: raw.facetTitleColors ?? {},
 	}
 }

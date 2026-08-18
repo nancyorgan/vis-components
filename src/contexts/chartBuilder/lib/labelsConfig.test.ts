@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	facetTitleColorOf,
 	fontWeightDisplayName,
 	fontWeightOptionsFor,
 	layerFacetOverride,
@@ -88,6 +89,24 @@ describe("migrateLabelsConfig", () => {
 		expect(out.titleVerticalAlignments).toEqual({})
 	})
 
+	it("preserves the Color-by-facet checkbox + per-value colors through migration", () => {
+		const out = migrateLabelsConfig({
+			title: "",
+			subtitle: "",
+			xAxisTitle: "",
+			yAxisTitle: "",
+			legendTitles: {},
+			fontOverrides: {},
+			facetTitleColorByValue: true,
+			facetTitleColors: { East: "#ff0000", West: "#0000ff" },
+		})
+		expect(out.facetTitleColorByValue).toBe(true)
+		expect(out.facetTitleColors).toEqual({
+			East: "#ff0000",
+			West: "#0000ff",
+		})
+	})
+
 	it("defaults newer fields to safe values when absent (older saved visuals)", () => {
 		// Simulates a visual saved BEFORE titleAlignments / yAxisTitleHorizontal
 		// existed — migrate should fill in safe defaults, not leave them
@@ -103,6 +122,8 @@ describe("migrateLabelsConfig", () => {
 		expect(out.titleAlignments).toEqual({})
 		expect(out.yAxisTitleHorizontal).toBe(false)
 		expect(out.titleOffsets).toEqual({})
+		expect(out.facetTitleColorByValue).toBe(false)
+		expect(out.facetTitleColors).toEqual({})
 	})
 
 	it("returns the full DEFAULT_LABELS_CONFIG shape on null input", () => {
@@ -110,6 +131,39 @@ describe("migrateLabelsConfig", () => {
 		expect(out.title).toBe("")
 		expect(out.titleAlignments).toBeDefined()
 		expect(out.yAxisTitleHorizontal).toBe(false)
+	})
+})
+
+/** "Color by facet" gates at LOOKUP time: stored colors survive an unchecked
+ *  box (so re-checking restores the picks) but must not paint anything. */
+describe("facetTitleColorOf", () => {
+	it("returns the per-value color only while the checkbox is on", () => {
+		const colors = { East: "#ff0000" }
+		expect(
+			facetTitleColorOf(
+				{ facetTitleColorByValue: true, facetTitleColors: colors },
+				"East"
+			)
+		).toBe("#ff0000")
+		expect(
+			facetTitleColorOf(
+				{ facetTitleColorByValue: false, facetTitleColors: colors },
+				"East"
+			)
+		).toBeUndefined()
+		expect(
+			facetTitleColorOf({ facetTitleColors: colors }, "East")
+		).toBeUndefined()
+	})
+
+	it("returns undefined for unmapped values and null keys", () => {
+		const labels = {
+			facetTitleColorByValue: true,
+			facetTitleColors: { East: "#ff0000" },
+		}
+		expect(facetTitleColorOf(labels, "West")).toBeUndefined()
+		expect(facetTitleColorOf(labels, null)).toBeUndefined()
+		expect(facetTitleColorOf(labels, undefined)).toBeUndefined()
 	})
 })
 

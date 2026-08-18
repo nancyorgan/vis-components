@@ -216,11 +216,14 @@ export const PalettesSection = ({
 						htmlFor={textPaletteSelectId}
 						className="text-sm font-medium text-stone-700 dark:text-stone-300"
 					>
-						Default text label palette
+						Default text palette
 					</label>
 					<p className="text-xs text-stone-500 dark:text-stone-400">
-						Used to color text-encoded labels per category — pick a palette
-						of darker shades to pair with your default categorical palette.
+						Offered by text color pickers — per-category label colors and
+						per-facet title colors. Pick a palette of darker shades that
+						pair with your default categorical palette and stay legible as
+						text. Without one, those pickers offer the default categorical
+						palette (text-encoded labels fall back to a single color).
 					</p>
 					<select
 						id={textPaletteSelectId}

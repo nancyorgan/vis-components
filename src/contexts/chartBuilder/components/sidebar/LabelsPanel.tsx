@@ -1,6 +1,11 @@
+import { useMemo } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useChartModeDef } from "../../store/useChartModeDef"
-import { DEFAULT_TEXT_CONFIG } from "../../lib/channelConfig"
+import {
+	DEFAULT_FACET_CONFIG,
+	DEFAULT_TEXT_CONFIG,
+	type FacetConfig,
+} from "../../lib/channelConfig"
 import {
 	baseTitleAlignmentOf,
 	FONT_FAMILY_OPTIONS,
@@ -17,17 +22,25 @@ import {
 	type VerticalAlignment,
 } from "../../lib/labelsConfig"
 import { isFlowModeId } from "../../lib/packedMeasure"
+import { resolveFacetPanels } from "../../lib/resolveFacetPanels"
+import { resolveTextPickerPalette } from "../../lib/themeConfig"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
+	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
 	currentVisualNameAtom,
 } from "../../store/atoms"
+import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
+import { PalettePickerButton } from "./channelOptions/HueOptionsPanel"
 import { Disclosure } from "@headlessui/react"
 
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
+import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
@@ -259,6 +272,50 @@ export const LabelsPanel = () => {
 	// panel), not on the data actually having empty cells, so the row doesn't
 	// appear/disappear as the data changes.
 	const hideEmptyOn = channelConfigs.facet?.hideEmptyPanels === true
+	// "Color by facet" swatch rows enumerate the facet values through the same
+	// resolver PlotCanvas renders against, so the rows match the drawn titles
+	// (ordering included) exactly.
+	const fieldOverrides = useAtomValue(currentFieldOverridesAtom)
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
+	const dataset = useCurrentDatasetView()
+	const facetPanelCfg = useMemo<FacetConfig>(
+		() => ({ ...DEFAULT_FACET_CONFIG, ...channelConfigs.facet }),
+		[channelConfigs.facet]
+	)
+	const facetPanels = useMemo(
+		() =>
+			isFaceted
+				? resolveFacetPanels(
+						dataset,
+						encodings,
+						levelOrders,
+						fieldOverrides,
+						facetPanelCfg
+					)
+				: null,
+		[isFaceted, dataset, encodings, levelOrders, fieldOverrides, facetPanelCfg]
+	)
+	const setFacetColorByValue = (on: boolean) => {
+		setLabels((prev) => {
+			// Unchecking keeps the stored per-value colors (they just stop
+			// applying), so re-checking restores the picks. The key itself is
+			// dropped so the persisted config stays sparse.
+			if (!on) {
+				const { facetTitleColorByValue: _off, ...rest } = prev
+				return rest
+			}
+			return { ...prev, facetTitleColorByValue: true }
+		})
+	}
+	const setFacetTitleColor = (value: string, color: string | null) => {
+		setLabels((prev) => {
+			const { [value]: _prev, ...rest } = prev.facetTitleColors ?? {}
+			return {
+				...prev,
+				facetTitleColors: color === null ? rest : { ...rest, [value]: color },
+			}
+		})
+	}
 	// Subsection "changed" dot: any row inside has a styling deviation — font
 	// override, non-center alignment, or a non-zero offset / active extra
 	// control. Typed title TEXT is content, not styling, and deliberately
@@ -295,11 +352,92 @@ export const LabelsPanel = () => {
 	// OR over the facet keys actually shown: grid-split renders the
 	// Column/Row (+ optional Panel) rows; wrap/single-axis renders the one
 	// unified Facet-title row.
-	const facetChanged = facetGridSplit
-		? keyChanged("facetColTitle") ||
-			keyChanged("facetRowTitle") ||
-			(hideEmptyOn && keyChanged("facetPanelTitle"))
-		: keyChanged("facetTitle")
+	const facetChanged =
+		(facetGridSplit
+			? keyChanged("facetColTitle") ||
+				keyChanged("facetRowTitle") ||
+				(hideEmptyOn && keyChanged("facetPanelTitle"))
+			: keyChanged("facetTitle")) ||
+		// "Color by facet" is a rendered deviation only while checked — colors
+		// retained under an unchecked box don't apply, so they don't dot.
+		labels.facetTitleColorByValue === true
+	// "Color by facet" block, rendered directly under the Color row of the
+	// facet-title font editor(s) via the `afterColor` slot. In a both-axes
+	// grid each header strip's editor hosts its own values (Column titles →
+	// column values, Row titles → row values); otherwise the single inline
+	// editor hosts the one flat list (wrap panel keys, or the mapped axis's
+	// values in a row-/col-only grid). The checkbox gates both the swatch
+	// rows and the render-time lookup, so unchecking reverts every title to
+	// the slot's color while keeping the stored picks. The base color mirrors
+	// the slot's font-color fallback chain so an untouched swatch previews
+	// what that title actually renders.
+	const colorByFacetOn = labels.facetTitleColorByValue === true
+	// Palette offered by each row's circle-arrow picker: the live theme's
+	// designated TEXT palette (typically darker shades that stay legible as
+	// text), falling back to the default categorical palette when the theme
+	// doesn't designate one.
+	const theme = useCurrentTheme()
+	const facetSwatchPalette = resolveTextPickerPalette(theme)
+	const facetColorControls = (values: string[], baseColor: string) => (
+		<div className="flex flex-col gap-1.5">
+			<Toggle
+				label="Color by facet"
+				checked={colorByFacetOn}
+				onChange={setFacetColorByValue}
+			/>
+			{colorByFacetOn &&
+				values.map((v) => {
+					const current = labels.facetTitleColors?.[v]
+					return (
+						<div key={v} className="flex items-center gap-2 text-sm">
+							{/* Facet value doubles as the row's w-24 label column so
+							 *  the swatches line up with the controls above. Long
+							 *  values truncate with a tooltip. */}
+							<span
+								className="w-24 flex-shrink-0 truncate text-stone-700 dark:text-stone-300"
+								title={v}
+							>
+								{v}
+							</span>
+							<ColorInput
+								label={`Title color for ${v}`}
+								labelClassName="sr-only"
+								value={current ?? baseColor}
+								onChange={(color) => setFacetTitleColor(v, color)}
+								className="contents"
+							/>
+							<PalettePickerButton
+								label={`Pick palette title color for ${v}`}
+								palette={facetSwatchPalette}
+								current={current ?? baseColor}
+								onPick={(color) => setFacetTitleColor(v, color)}
+							/>
+							{current !== undefined && (
+								<ResetLink onClick={() => setFacetTitleColor(v, null)} />
+							)}
+						</div>
+					)
+				})}
+		</div>
+	)
+	// Row-only / col-only grids carry a "__all__" placeholder on the unmapped
+	// axis — internal, never rendered as a title.
+	const facetRowVals =
+		facetPanels?.mode === "grid"
+			? facetPanels.rowValues.filter((v) => v !== "__all__")
+			: []
+	const facetColVals =
+		facetPanels?.mode === "grid"
+			? facetPanels.colValues.filter((v) => v !== "__all__")
+			: []
+	const facetFlatVals =
+		facetPanels?.mode === "wrap"
+			? facetPanels.values
+			: facetRowVals.length > 0
+				? facetRowVals
+				: facetColVals
+	const facetTitleBaseColor =
+		overrides.facetTitle?.color ?? labels.baseFont.titles.color
 	const legendChanged = activeLegendChannels.some((ch) =>
 		keyChanged(legendFontKey(ch))
 	)
@@ -494,6 +632,11 @@ export const LabelsPanel = () => {
 							overrides.facetTitle?.weight ??
 							secondaryInheritWeight(labels.baseFont.titles)
 						}
+						afterColor={facetColorControls(
+							facetColVals,
+							overrides.facetColTitle?.color ?? facetTitleBaseColor
+						)}
+						hideColor={colorByFacetOn}
 						extraActive={!!labels.titleOffsets?.facetColTitle}
 						extraControls={
 							<OffsetControl
@@ -527,6 +670,11 @@ export const LabelsPanel = () => {
 							overrides.facetTitle?.weight ??
 							secondaryInheritWeight(labels.baseFont.titles)
 						}
+						afterColor={facetColorControls(
+							facetRowVals,
+							overrides.facetRowTitle?.color ?? facetTitleBaseColor
+						)}
+						hideColor={colorByFacetOn}
 						extraActive={!!labels.titleOffsets?.facetRowTitle}
 						extraControls={
 							<OffsetControl
@@ -593,6 +741,8 @@ export const LabelsPanel = () => {
 					baseSize={labels.baseFont.titles.secondarySize}
 					baseFamily={labels.baseFont.titles.family}
 					baseWeight={secondaryInheritWeight(labels.baseFont.titles)}
+					afterColor={facetColorControls(facetFlatVals, facetTitleBaseColor)}
+					hideColor={colorByFacetOn}
 					extraControls={
 						<OffsetControl
 							value={labels.titleOffsets?.facetTitle ?? {}}
@@ -693,6 +843,15 @@ type LabelRowProps = {
 	/** Effective inherited weight (base font weight ?? the slot's render-site
 	 * default) named in the Weight select's "(inherit)" entry. */
 	baseWeight: number
+	/** Optional controls rendered inside the font editor directly below its
+	 * Color row. Used by the facet-title slots for the "Color by facet"
+	 * checkbox + per-value swatches, so the color-related options sit
+	 * together. */
+	afterColor?: React.ReactNode
+	/** Hide the font editor's own Color row. The facet-title slots pass this
+	 * while "Color by facet" is checked — the per-value swatches take over,
+	 * so the single swatch would be inert. */
+	hideColor?: boolean
 	/** Optional extra controls rendered inside the disclosure panel below the
 	 * alignment + font editor. Used today for the Y-axis "Read horizontally"
 	 * toggle so it lives with the rest of the y-title config instead of
@@ -927,6 +1086,11 @@ type LabelStyleControlsProps = {
 	/** Effective inherited weight (base font weight ?? the slot's render-site
 	 * default) named in the Weight select's "(inherit)" entry. */
 	baseWeight: number
+	/** Rendered inside the font editor directly below its Color row (see
+	 * LabelRowProps.afterColor). */
+	afterColor?: React.ReactNode
+	/** Hide the font editor's own Color row (see LabelRowProps.hideColor). */
+	hideColor?: boolean
 	extraControls?: React.ReactNode
 	/** Skip the purple `.vc-option-panel` wrapper (keeping its column layout).
 	 *  Pass when the controls render directly inside a boxed subsection —
@@ -950,6 +1114,8 @@ const LabelStyleControls = ({
 	baseSize,
 	baseFamily,
 	baseWeight,
+	afterColor,
+	hideColor,
 	extraControls,
 	bare = false,
 }: LabelStyleControlsProps) => {
@@ -1002,6 +1168,8 @@ const LabelStyleControls = ({
 				baseSize={baseSize}
 				baseFamily={baseFamily}
 				baseWeight={baseWeight}
+				afterColor={afterColor}
+				hideColor={hideColor}
 			/>
 			{extraControls}
 		</div>
@@ -1026,6 +1194,8 @@ const LabelRow = ({
 	baseFamily,
 	baseWeight,
 	baseAlignment = "center",
+	afterColor,
+	hideColor,
 	extraControls,
 	extraActive = false,
 	textless = false,
@@ -1098,6 +1268,8 @@ const LabelRow = ({
 							baseSize={baseSize}
 							baseFamily={baseFamily}
 							baseWeight={baseWeight}
+							afterColor={afterColor}
+							hideColor={hideColor}
 							extraControls={extraControls}
 						/>
 					</Disclosure.Panel>
@@ -1129,6 +1301,15 @@ type FontEditorProps = {
 	 *  is set. Pass the EFFECTIVE inherited weight (base font weight, falling
 	 *  back to the slot's render-site default). */
 	baseWeight?: number
+	/** Optional controls rendered directly below the Color row, so callers
+	 *  can keep color-related extras (e.g. the facet-title "Color by facet"
+	 *  checkbox + per-value swatches) next to the color swatch instead of
+	 *  after the whole editor. */
+	afterColor?: React.ReactNode
+	/** Hide the editor's own Color row (the `afterColor` block still renders
+	 *  in its place). For callers whose per-value color controls supersede
+	 *  the single swatch — an inert control shouldn't stay visible. */
+	hideColor?: boolean
 }
 
 export const FontEditor = ({
@@ -1140,6 +1321,8 @@ export const FontEditor = ({
 	baseSize,
 	baseFamily,
 	baseWeight,
+	afterColor,
+	hideColor = false,
 }: FontEditorProps) => {
 	const reset = (field: keyof FontConfig) => {
 		const next: Partial<FontConfig> = { ...value }
@@ -1180,31 +1363,34 @@ export const FontEditor = ({
 					<ResetLink onClick={() => reset("family")} />
 				)}
 			</label>
-			<label className="flex items-center gap-2 text-sm">
-				<span className={LABEL_COL}>Color</span>
-				<input
-					type="text"
-					value={value.color ?? ""}
-					onChange={(e) =>
-						onChange({
-							...value,
-							color: e.target.value === "" ? undefined : e.target.value,
-						})
-					}
-					placeholder={showResetFields ? (baseColor ?? "(inherit)") : "#111827"}
-					className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-				/>
-				<input
-					type="color"
-					value={value.color ?? baseColor ?? "#111827"}
-					onChange={(e) => onChange({ ...value, color: e.target.value })}
-					aria-label="Color swatch"
-					className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
-				/>
-				{showResetFields && value.color !== undefined && (
-					<ResetLink onClick={() => reset("color")} />
-				)}
-			</label>
+			{!hideColor && (
+				<label className="flex items-center gap-2 text-sm">
+					<span className={LABEL_COL}>Color</span>
+					<input
+						type="text"
+						value={value.color ?? ""}
+						onChange={(e) =>
+							onChange({
+								...value,
+								color: e.target.value === "" ? undefined : e.target.value,
+							})
+						}
+						placeholder={showResetFields ? (baseColor ?? "(inherit)") : "#111827"}
+						className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					/>
+					<input
+						type="color"
+						value={value.color ?? baseColor ?? "#111827"}
+						onChange={(e) => onChange({ ...value, color: e.target.value })}
+						aria-label="Color swatch"
+						className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+					/>
+					{showResetFields && value.color !== undefined && (
+						<ResetLink onClick={() => reset("color")} />
+					)}
+				</label>
+			)}
+			{afterColor}
 			<label className="flex items-center gap-2 text-sm">
 				<span className={LABEL_COL}>Size</span>
 				<input

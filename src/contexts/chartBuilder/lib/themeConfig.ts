@@ -65,6 +65,15 @@ export const resolveCategoricalPalette = (
 	return { colors, patternInks }
 }
 
+/** Palette offered by TEXT-color palette pickers (per-facet title colors,
+ * text-encoded labels): the theme's designated text palette when one is set,
+ * else the default categorical palette. Text palettes are typically darker
+ * shades of the mark palette that stay legible at text sizes. */
+export const resolveTextPickerPalette = (t: Theme): string[] =>
+	(t.defaultTextPaletteId
+		? t.categoricalPalettes.find((p) => p.id === t.defaultTextPaletteId)?.colors
+		: undefined) ?? resolveCategoricalPalette(t).colors
+
 /** Same shape as `resolveCategoricalPalette` but targets the theme's
  *  ordinal-palette list. Falls back to a sequential single-hue ramp so
  *  themes that haven't authored an ordinal palette still render ordinal

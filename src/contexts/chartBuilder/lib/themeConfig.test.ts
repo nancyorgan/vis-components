@@ -34,6 +34,7 @@ import {
 	legendConfigFromTheme,
 	legendHasCustomization,
 	patternConfigFromTheme,
+	resolveTextPickerPalette,
 	shapeConfigFromTheme,
 	textConfigFromTheme,
 } from "./themeConfig"
@@ -131,6 +132,29 @@ const ALL_CHANNELS = [
 // without a field mapped. This single invariant catches the whole class of bugs
 // we kept hitting (incomplete baselines, missing defaults, self-dotting configs)
 // the moment any default/builder drifts out of sync — no per-symptom vigilance.
+describe("resolveTextPickerPalette", () => {
+	it("returns the designated text palette when the theme sets one", () => {
+		const theme: Theme = {
+			...STUB_THEME,
+			categoricalPalettes: [
+				{ id: "p1", name: "P1", colors: ["#a", "#b"] },
+				{ id: "txt", name: "Text", colors: ["#111", "#222"] },
+			],
+			defaultTextPaletteId: "txt",
+		}
+		expect(resolveTextPickerPalette(theme)).toEqual(["#111", "#222"])
+	})
+
+	it("falls back to the default categorical palette when none is designated", () => {
+		expect(resolveTextPickerPalette(STUB_THEME)).toEqual(["#a", "#b"])
+	})
+
+	it("falls back when the designated id no longer exists (deleted palette)", () => {
+		const theme: Theme = { ...STUB_THEME, defaultTextPaletteId: "gone" }
+		expect(resolveTextPickerPalette(theme)).toEqual(["#a", "#b"])
+	})
+})
+
 describe("guardrail: a fresh chart shows no dots anywhere", () => {
 	const fresh = configsFromTheme(STUB_THEME)
 	for (const channel of ALL_CHANNELS) {
