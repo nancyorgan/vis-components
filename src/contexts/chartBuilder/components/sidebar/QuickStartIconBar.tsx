@@ -61,6 +61,32 @@ const ScatterIcon = ({ className }: IconProps) => (
 	</svg>
 )
 
+const DumbbellIcon = ({ className }: IconProps) => (
+	<svg viewBox="0 0 16 16" className={className} aria-hidden="true">
+		{/* Two category rows, each a pair of endpoint dots joined by a bar. */}
+		<line
+			x1="4"
+			y1="5"
+			x2="12"
+			y2="5"
+			stroke="currentColor"
+			strokeWidth={1.5}
+		/>
+		<circle cx="4" cy="5" r="1.75" />
+		<circle cx="12" cy="5" r="1.75" fillOpacity={0.5} />
+		<line
+			x1="6"
+			y1="11"
+			x2="13"
+			y2="11"
+			stroke="currentColor"
+			strokeWidth={1.5}
+		/>
+		<circle cx="6" cy="11" r="1.75" />
+		<circle cx="13" cy="11" r="1.75" fillOpacity={0.5} />
+	</svg>
+)
+
 const LineIcon = ({ className }: IconProps) => (
 	<svg viewBox="0 0 16 16" className={className} aria-hidden="true">
 		<polyline
@@ -205,24 +231,33 @@ const TreemapIcon = ({ className }: IconProps) => (
 
 const SunburstIcon = ({ className }: IconProps) => (
 	<svg viewBox="0 0 16 16" className={className} aria-hidden="true">
-		{/* Sunburst: filled hub with two ring segments around it. */}
-		<circle cx="8" cy="8" r="2.5" />
-		<path
-			d="M 8 3.5 A 4.5 4.5 0 0 1 12.5 8 L 10.5 8 A 2.5 2.5 0 0 0 8 5.5 Z"
-			fillOpacity={0.6}
-		/>
-		<path
-			d="M 3.5 8 A 4.5 4.5 0 0 0 8 12.5 L 8 10.5 A 2.5 2.5 0 0 1 5.5 8 Z"
-			fillOpacity={0.6}
-		/>
-		<path
-			d="M 8 1.5 A 6.5 6.5 0 0 1 14.5 8 L 12.5 8 A 4.5 4.5 0 0 0 8 3.5 Z"
-			fillOpacity={0.3}
-		/>
-		<path
-			d="M 1.5 8 A 6.5 6.5 0 0 1 8 1.5 L 8 3.5 A 4.5 4.5 0 0 0 3.5 8 Z"
-			fillOpacity={0.45}
-		/>
+		{/* Sunburst: filled hub wrapped by two concentric rings, each broken
+		 * into arc segments with clear angular gaps so the ring structure
+		 * stays legible at 16px (filled wedges mushed into a blob). */}
+		<circle cx="8" cy="8" r="2" />
+		<g fill="none" stroke="currentColor">
+			<path d="M 8 3.7 A 4.3 4.3 0 0 1 11.72 10.15" strokeWidth={2} />
+			<path
+				d="M 10.15 11.72 A 4.3 4.3 0 0 1 5.24 4.71"
+				strokeWidth={2}
+				opacity={0.7}
+			/>
+			<path
+				d="M 9.18 1.3 A 6.8 6.8 0 0 1 14.7 9.18"
+				strokeWidth={1.6}
+				opacity={0.45}
+			/>
+			<path
+				d="M 13.21 12.37 A 6.8 6.8 0 0 1 3.63 13.21"
+				strokeWidth={1.6}
+				opacity={0.45}
+			/>
+			<path
+				d="M 1.61 10.33 A 6.8 6.8 0 0 1 5.67 1.61"
+				strokeWidth={1.6}
+				opacity={0.45}
+			/>
+		</g>
 	</svg>
 )
 
@@ -243,6 +278,7 @@ const SankeyIcon = ({ className }: IconProps) => (
 const ICONS: Record<QuickStartChartType, (p: IconProps) => JSX.Element> = {
 	bar: BarIcon,
 	scatter: ScatterIcon,
+	dumbbell: DumbbellIcon,
 	line: LineIcon,
 	area: AreaIcon,
 	pie: PieIcon,
@@ -259,6 +295,7 @@ const ICONS: Record<QuickStartChartType, (p: IconProps) => JSX.Element> = {
 const LABELS: Record<QuickStartChartType, string> = {
 	bar: "Bar chart",
 	scatter: "Scatter plot",
+	dumbbell: "Dumbbell chart",
 	line: "Line chart",
 	area: "Area chart",
 	pie: "Pie chart",
@@ -278,6 +315,7 @@ const LABELS: Record<QuickStartChartType, string> = {
 const MISSING_TYPE_HINT: Record<QuickStartChartType, string> = {
 	bar: "Needs at least one categorical field.",
 	scatter: "Needs at least two quantitative fields.",
+	dumbbell: "Needs a categorical field and a quantitative field.",
 	line: "Needs a quantitative/temporal field plus a categorical connection field.",
 	area: "Needs a quantitative/temporal field plus a categorical connection field.",
 	pie: "Needs a categorical field and a quantitative field.",

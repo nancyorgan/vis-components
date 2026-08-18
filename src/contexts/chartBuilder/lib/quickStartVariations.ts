@@ -6,6 +6,7 @@ import type { EncodingChannel, FieldType } from "./types"
 export type QuickStartChartType =
 	| "bar"
 	| "scatter"
+	| "dumbbell"
 	| "line"
 	| "area"
 	| "pie"
@@ -21,6 +22,7 @@ export type QuickStartChartType =
 export const QUICK_START_CHART_TYPES: readonly QuickStartChartType[] = [
 	"bar",
 	"scatter",
+	"dumbbell",
 	"line",
 	"area",
 	"pie",
@@ -58,9 +60,10 @@ export type QuickStartVariation = {
 	 * explicitly in `channels` or picked up opportunistically. Defaults to
 	 * `"stack"`. */
 	stackMode?: StackMode
-	/** Applies to `connection.fill`. Only meaningful when `channels.connection`
-	 * is set. Determines whether an areas-family render draws a filled area
-	 * ("area") or a polyline on the top edge only ("line"). */
+	/** Applies to `connection.fill`. Only meaningful when the variation maps
+	 * connection (via `channels.connection` or `connectionFrom`). Determines
+	 * whether an areas-family render draws a filled area ("area") or a
+	 * polyline on the top edge only ("line"). */
 	connectionFill?: "line" | "area"
 	/** Turn on a violin or box overlay on the named axis. Only meaningful for
 	 * strip-plot variations (categorical x with quant y, or vice versa). The
@@ -100,6 +103,13 @@ export type QuickStartVariation = {
 	 * "color by node" (the renderers build one scale over the source∪target
 	 * union), where a random opportunistic categorical would color nothing. */
 	hueFrom?: EncodingChannel
+	/** Map `connection` to the SAME field that landed on the named channel.
+	 * The dumbbell scaffold points this at `y`: connecting the points WITHIN
+	 * each category is what makes it a dumbbell — a freshly-picked connection
+	 * field would link points ACROSS categories (a line chart) instead.
+	 * `assignFields` never sees this channel (it reuses an already-assigned
+	 * field), so it can't affect satisfiability. */
+	connectionFrom?: EncodingChannel
 	/** Map `hue` to a hierarchy-DERIVED source instead of a field. Tree
 	 * scaffolds use `"rootGroup"` so every node takes its outermost group's
 	 * color — the canonical hierarchy look, with no extra column needed. */
@@ -240,6 +250,39 @@ export const QUICK_START_VARIATIONS: Record<
 				length: QUANTITATIVE_LIKE,
 				angle: QUANTITATIVE_LIKE,
 			},
+		},
+	],
+	dumbbell: [
+		{
+			// Dumbbell: a categorical y with two-or-more measures per category
+			// (rows split by the hue field), endpoints connected within each
+			// category. `connectionFrom: "y"` is the load-bearing part — the
+			// connection field must BE the category field so lines link each
+			// category's own points. Shape distinguishes the endpoints alongside
+			// hue, and area sizes them.
+			name: "Dumbbell",
+			channels: {
+				y: CATEGORICAL_LIKE,
+				x: QUANTITATIVE_LIKE,
+				hue: CATEGORICAL_LIKE,
+				shape: CATEGORICAL_LIKE,
+				area: QUANTITATIVE_LIKE,
+			},
+			connectionFrom: "y",
+			connectionFill: "line",
+		},
+		{
+			// Vertical twin — categories along x, values on y.
+			name: "Dumbbell (vertical)",
+			channels: {
+				x: CATEGORICAL_LIKE,
+				y: QUANTITATIVE_LIKE,
+				hue: CATEGORICAL_LIKE,
+				shape: CATEGORICAL_LIKE,
+				area: QUANTITATIVE_LIKE,
+			},
+			connectionFrom: "x",
+			connectionFill: "line",
 		},
 	],
 	line: [

@@ -9,6 +9,7 @@ import type { Page } from "@playwright/test"
 export const CHART_TYPES = [
 	"Bar chart",
 	"Scatter plot",
+	"Dumbbell chart",
 	"Line chart",
 	"Area chart",
 	"Pie chart",

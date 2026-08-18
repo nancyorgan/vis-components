@@ -85,6 +85,13 @@ const AESTHETIC_FILL: Record<
 		decorativeCat: ["pattern", "shape"],
 		colorModQuant: ["brightness", "saturation", "opacity"],
 	},
+	// Dumbbell requires shape + area in its channels, so the fill only layers
+	// pattern + a color modulation on top.
+	dumbbell: {
+		alwaysQuant: [],
+		decorativeCat: ["pattern"],
+		colorModQuant: ["brightness", "saturation", "opacity"],
+	},
 	line: {
 		alwaysQuant: ["area"],
 		decorativeCat: ["pattern", "shape"],
@@ -506,12 +513,24 @@ export const applyVariation = (
 		configs.hue = { ...DEFAULT_CATEGORICAL_HUE_CONFIG }
 	}
 
+	// Variation-seeded connection: the dumbbell scaffold points connection at
+	// the field the category axis got (`connectionFrom: "y"`), so each
+	// category's endpoints link to each other — a fresh field pick would link
+	// points across categories instead. Bypasses `assignFields` like `hueFrom`.
+	if (variation.connectionFrom) {
+		const source = assignments.find(
+			(a) => a.channel === variation.connectionFrom
+		)
+		if (source) encodings.connection = { field: source.field.name }
+	}
+
 	// Map variations also reset connection: their region-key field rides the
 	// `connection` channel (via `variation.geo`, not `channels`), and stale
 	// knobs from a previous chart (radar polygon fill, area fill) shouldn't
 	// leak onto the map join.
 	if (
 		variation.channels.connection !== undefined ||
+		variation.connectionFrom !== undefined ||
 		variation.geo === "choropleth" ||
 		variation.geo === "symbols"
 	) {

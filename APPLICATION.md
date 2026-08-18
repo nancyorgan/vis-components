@@ -479,8 +479,8 @@ brightness, or pattern.
 
 ### 3.4 Quickstart bar
 The icon bar above the encoding shelves gives one-click scaffolds for
-each chart family (bar, scatter, line, area, pie, violin, tile, map,
-packed circles, treemap, sunburst, sankey).
+each chart family (bar, scatter, dumbbell, line, area, pie, violin,
+tile, map, packed circles, treemap, sunburst, sankey).
 Each icon cycles through random *variations* (e.g., bars → vertical →
 grouped → patterned stacked → horizontal). The scaffold assigns
 eligible fields automatically and optionally drops in a hue encoding
@@ -488,6 +488,16 @@ for free if a spare categorical field is available. Each variation
 declares which channels need which field types; a chart-type button is
 greyed out if the dataset can't satisfy any variation. Quickstart is a
 starting point only — not a recommendation system.
+
+Some variations seed a channel with a field ANOTHER channel already
+got instead of picking fresh (`hueFrom` / `connectionFrom`). The
+**Dumbbell** icon's variations (horizontal, then vertical) map the
+category axis, a quantitative value axis, hue, shape, and area, and
+use `connectionFrom` pointed at the category axis: connection carries
+the category-axis field so each category's endpoints (rows split by
+the hue field) connect to each other — a freshly-picked connection
+field would link points across categories and render a line chart
+instead.
 
 The **Map** icon is value-driven, not type-driven: the dataset's rows
 are sampled (`lib/geo/detectGeoFields.ts`) for columns that join a

@@ -641,6 +641,46 @@ describe("applyVariation", () => {
 		expect(configs.connection?.fillPolygon).toBe(true)
 	})
 
+	it("maps connection to the named channel's field via connectionFrom and applies connectionFill", () => {
+		const dumbbellVariation = {
+			name: "Dumbbell",
+			channels: {
+				y: ["categorical"] as readonly FieldType[],
+				x: ["quantitative"] as readonly FieldType[],
+				hue: ["categorical"] as readonly FieldType[],
+			},
+			connectionFrom: "y" as const,
+			connectionFill: "line" as const,
+		}
+		const dumbbellAssignments = [
+			{ channel: "y" as const, field: field("country", "categorical") },
+			{ channel: "x" as const, field: field("lifeExp", "quantitative") },
+			{ channel: "hue" as const, field: field("year", "categorical") },
+		]
+		const { encodings, configs } = applyVariation(
+			dumbbellVariation,
+			dumbbellAssignments,
+			{}
+		)
+		// Connection reuses the category-axis field — that's what links each
+		// category's endpoints to each other instead of across categories.
+		expect(encodings.connection.field).toBe("country")
+		expect(configs.connection?.fill).toBe("line")
+	})
+
+	it("leaves connection unmapped when connectionFrom names an unassigned channel", () => {
+		const brokenVariation = {
+			name: "broken",
+			channels: {
+				x: ["quantitative"] as readonly FieldType[],
+			},
+			connectionFrom: "y" as const,
+		}
+		const a = [{ channel: "x" as const, field: field("v", "quantitative") }]
+		const { encodings } = applyVariation(brokenVariation, a, {})
+		expect(encodings.connection.field).toBeNull()
+	})
+
 	it("leaves fillPolygon off (default false) for non-radar (or unflagged radar) variations", () => {
 		const plainRadar = {
 			name: "Radar polygon",
@@ -695,6 +735,54 @@ describe("radar variations (QUICK_START_VARIATIONS.radar)", () => {
 		expect(encodings.angle.field).toBe("metric")
 		expect(encodings.r.field).toBe("score")
 		expect(encodings.connection.field).toBeNull()
+	})
+})
+
+describe("dumbbell variations (QUICK_START_VARIATIONS.dumbbell)", () => {
+	const dumbbell = QUICK_START_VARIATIONS.dumbbell[0]!
+
+	it("scaffolds all five channels and connects endpoints within each category", () => {
+		const fields = [
+			field("country", "categorical"),
+			field("year", "categorical"),
+			field("lifeExp", "quantitative"),
+			field("pop", "quantitative"),
+			field("region", "categorical"),
+		]
+		const assignments = assignFields(dumbbell, fields, {})
+		expect(assignments).not.toBeNull()
+		const { encodings, configs } = applyVariation(dumbbell, assignments!, {})
+		expect(encodings.y.field).toBe("country")
+		expect(encodings.x.field).toBe("lifeExp")
+		expect(encodings.hue.field).toBe("year")
+		expect(encodings.shape.field).toBe("region")
+		expect(encodings.area.field).toBe("pop")
+		// The dumbbell shape depends on connection being the SAME field as y —
+		// a fresh pick would draw lines across categories (a line chart).
+		expect(encodings.connection.field).toBe("country")
+		expect(configs.connection?.fill).toBe("line")
+	})
+
+	it("stays satisfiable on a lean one-categorical dataset via field reuse", () => {
+		const fields = [
+			field("category", "categorical"),
+			field("value", "quantitative"),
+		]
+		expect(isVariationSatisfiable(dumbbell, fields, {})).toBe(true)
+	})
+
+	it("vertical variation connects via the x category field", () => {
+		const vertical = QUICK_START_VARIATIONS.dumbbell[1]!
+		const fields = [
+			field("category", "categorical"),
+			field("value", "quantitative"),
+			field("year", "categorical"),
+		]
+		const assignments = assignFields(vertical, fields, {})
+		expect(assignments).not.toBeNull()
+		const { encodings } = applyVariation(vertical, assignments!, {})
+		expect(encodings.x.field).toBe("category")
+		expect(encodings.connection.field).toBe("category")
 	})
 })
 
