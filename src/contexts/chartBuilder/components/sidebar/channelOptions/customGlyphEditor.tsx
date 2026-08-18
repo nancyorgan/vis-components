@@ -205,6 +205,7 @@ export const CustomGlyphEditor = ({
 				<span className="vc-help">
 					Up to {MAX_TEXT_GLYPH_CHARS} characters — emoji work
 					(paste, :fire: shortcodes, or your system emoji picker).
+					Spaces count: a lone space makes a blank mark.
 				</span>
 			)}
 			{error && (

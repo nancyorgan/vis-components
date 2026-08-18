@@ -412,13 +412,15 @@ export const expandEmojiShortcodes = (text: string): string =>
 
 /** Submit-time expansion: complete `:name:` tokens everywhere, plus a
  * bare `:name` (closing colon never typed) when it's the entire input —
- * users reasonably stop typing once they've named the emoji. */
+ * users reasonably stop typing once they've named the emoji. Surrounding
+ * whitespace is preserved, not trimmed: spaces are meaningful in text
+ * glyphs (" 🔥" and "🔥 " center differently; " " is a blank mark). */
 export const expandEmojiInput = (text: string): string => {
-	const expanded = expandEmojiShortcodes(text.trim())
-	const name = /^:([\w+-]+):?$/.exec(expanded)?.[1]
-	if (name) {
-		const hit = EMOJI_SHORTCODES[name.toLowerCase()]
-		if (hit) return hit
+	const expanded = expandEmojiShortcodes(text)
+	const bare = /^(\s*):([\w+-]+):?(\s*)$/.exec(expanded)
+	if (bare) {
+		const hit = EMOJI_SHORTCODES[bare[2].toLowerCase()]
+		if (hit) return bare[1] + hit + bare[3]
 	}
 	return expanded
 }

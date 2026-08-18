@@ -3,7 +3,7 @@ import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubs
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
-import type { AspectRatioConfig } from "../../lib/channelConfig"
+import type { AspectRatioConfig, CanvasSizeConfig } from "../../lib/channelConfig"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
 import { currentChannelConfigsAtom } from "../../store/atoms"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
@@ -34,13 +34,19 @@ export const AestheticsPanel = () => {
 	const setAspect = (next: AspectRatioConfig | null) =>
 		setConfigs((prev) => ({ ...prev, aspectRatio: next ?? undefined }))
 
+	const canvasSize = configs.canvasSize ?? null
+	const setCanvasSize = (next: CanvasSizeConfig | null) =>
+		setConfigs((prev) => ({ ...prev, canvasSize: next ?? undefined }))
+
 	// Subsection "changed" dots. Fresh charts seed backgroundColor from the
 	// theme (channelConfigsFromTheme), so the theme is the background's
 	// baseline; the rest have fixed defaults (fit / no ratio / dataset order).
 	// Aspect length/width are gated behind the enable toggle, so the toggle
 	// alone decides that dot.
 	const backgroundChanged = current !== themeDefault
-	const canvasChanged = scrollMode !== "fit"
+	// Canvas-size width/height are gated behind the enable toggle (like
+	// aspect ratio's inputs), so the toggle alone decides its half of the dot.
+	const canvasChanged = scrollMode !== "fit" || canvasSize?.enabled === true
 	const aspectChanged = aspect?.enabled === true
 	const drawOrderChanged = drawOrder !== null
 
@@ -89,7 +95,53 @@ export const AestheticsPanel = () => {
 				</div>
 			</CollapsibleSubsection>
 			<CollapsibleSubsection title="Canvas size" changed={canvasChanged}>
-				<div className="flex flex-col gap-1">
+				<div className="flex flex-col gap-2">
+					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+						<input
+							type="checkbox"
+							checked={canvasSize?.enabled ?? false}
+							onChange={(e) =>
+								setCanvasSize({
+									enabled: e.target.checked,
+									width: canvasSize?.width ?? 1000,
+									height: canvasSize?.height ?? 600,
+								})
+							}
+							className="cursor-pointer"
+						/>
+						Set canvas size
+					</label>
+					{canvasSize?.enabled && (
+						<>
+							<NumberInput
+								label="Width"
+								labelClassName={LABEL_COL}
+								value={canvasSize.width}
+								onChange={(width) => setCanvasSize({ ...canvasSize, width })}
+								min={50}
+								step={10}
+								clamp
+								suffix="px"
+							/>
+							<NumberInput
+								label="Height"
+								labelClassName={LABEL_COL}
+								value={canvasSize.height}
+								onChange={(height) => setCanvasSize({ ...canvasSize, height })}
+								min={50}
+								step={10}
+								clamp
+								suffix="px"
+							/>
+						</>
+					)}
+					<p className="vc-help">
+						Draws the chart inside a fixed pixel rectangle instead of
+						filling the viewport. The canvas shows as a white rectangle;
+						the viewport area outside it is shaded gray.
+					</p>
+				</div>
+				<div className="flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">
 					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
 						<input
 							type="checkbox"

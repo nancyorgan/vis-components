@@ -59,10 +59,11 @@ const graphemes = (text: string): string[] => {
  * points compose it. */
 export const glyphCharCount = (text: string): number => graphemes(text).length
 
-/** Trim + cap a text-glyph input to `MAX_TEXT_GLYPH_CHARS` user-perceived
- * characters. */
+/** Cap a text-glyph input to `MAX_TEXT_GLYPH_CHARS` user-perceived
+ * characters. Spaces are kept and count — a lone space is a deliberate
+ * blank mark, and " _" / "_" / "_ " are three different glyphs. */
 export const sanitizeGlyphText = (raw: string): string =>
-	graphemes(raw.trim()).slice(0, MAX_TEXT_GLYPH_CHARS).join("")
+	graphemes(raw).slice(0, MAX_TEXT_GLYPH_CHARS).join("")
 
 /** Font size that fits `text` into a mark of circle-equivalent radius `r`.
  * A single character draws at ~2.4r for visual parity with the filled
@@ -180,7 +181,10 @@ export const GlyphMark = ({
 				strokeOpacity={strokeOpacity}
 				opacity={opacity}
 				paintOrder="stroke"
-				style={{ userSelect: "none" }}
+				// SVG collapses leading/trailing whitespace by default; keep it
+				// so " _", "_" and "_ " center differently and " " stays blank.
+				xmlSpace="preserve"
+				style={{ userSelect: "none", whiteSpace: "pre" }}
 				onMouseEnter={onMouseEnter}
 			>
 				{glyph.text}

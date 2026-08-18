@@ -15,6 +15,7 @@ import { stringifyJsonDangerous } from "../../../lib/json"
 import { ConfirmDialog } from "../../../components/ui/Modal"
 
 import { AestheticRangesSection } from "./themeSections/AestheticRangesSection"
+import { AnnotationsSection } from "./themeSections/AnnotationsSection"
 import { AxesSection } from "./themeSections/AxesSection"
 import { DistributionRegressionSection } from "./themeSections/DistributionRegressionSection"
 import { GlobalAestheticsSection } from "./themeSections/GlobalAestheticsSection"
@@ -270,6 +271,7 @@ export const ThemesPage = () => {
 					<GradientsSection {...sectionProps} />
 					<PatternsSection {...sectionProps} />
 					<DistributionRegressionSection {...sectionProps} />
+					<AnnotationsSection {...sectionProps} />
 					<AestheticRangesSection {...sectionProps} />
 				</div>
 

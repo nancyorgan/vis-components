@@ -26,6 +26,14 @@ import {
 	type ShapeConfig,
 	type TextConfig,
 } from "./channelConfig"
+import {
+	DEFAULT_BOX_ANNOTATION_STYLE,
+	DEFAULT_LINE_ANNOTATION_STYLE,
+	DEFAULT_RECTANGLE_TEXT,
+	type BoxAnnotationStyle,
+	type LineAnnotationStyle,
+	type RectangleTextStyle,
+} from "./annotationsConfig"
 import { DEFAULT_HEXBIN_BIN_COUNT } from "./hexbins"
 import {
 	DEFAULT_LABELS_CONFIG,
@@ -205,6 +213,57 @@ export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
 	fontWeight: t.dataLabelsFontWeight ?? DEFAULT_DATA_LABELS_CONFIG.fontWeight,
 	italic: t.dataLabelsItalic ?? false,
 	underline: t.dataLabelsUnderline ?? false,
+})
+
+/** Theme-seeded fill + border style for NEW rectangle and circle annotations.
+ * The `??` fallbacks are the historical seed values, so themes without the
+ * annotation fields keep the original look. An unset border color follows the
+ * fill color — the built-in seed ties them together (and the border is
+ * invisible by default anyway: opacity 0). */
+export const boxAnnotationStyleFromTheme = (t: Theme): BoxAnnotationStyle => ({
+	backgroundColor:
+		t.annotationFillColor ?? DEFAULT_BOX_ANNOTATION_STYLE.backgroundColor,
+	backgroundOpacity:
+		t.annotationFillOpacity ?? DEFAULT_BOX_ANNOTATION_STYLE.backgroundOpacity,
+	borderColor:
+		t.annotationBorderColor ??
+		t.annotationFillColor ??
+		DEFAULT_BOX_ANNOTATION_STYLE.borderColor,
+	borderThickness:
+		t.annotationBorderThickness ??
+		DEFAULT_BOX_ANNOTATION_STYLE.borderThickness,
+	borderOpacity:
+		t.annotationBorderOpacity ?? DEFAULT_BOX_ANNOTATION_STYLE.borderOpacity,
+	borderDash: t.annotationBorderDash ?? DEFAULT_BOX_ANNOTATION_STYLE.borderDash,
+	borderDasharray: t.annotationBorderDasharray ?? null,
+})
+
+/** Theme-seeded style for NEW rectangle annotations: the shared fill + border
+ * plus the rectangle-only text styling. Also the reset baseline the
+ * Annotations panel's style controls compare against / restore to. */
+export const rectangleStyleFromTheme = (
+	t: Theme
+): BoxAnnotationStyle & RectangleTextStyle => ({
+	...boxAnnotationStyleFromTheme(t),
+	textFontFamily:
+		t.annotationTextFontFamily ?? DEFAULT_RECTANGLE_TEXT.textFontFamily,
+	textFontSize: t.annotationTextFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize,
+	textColor: t.annotationTextColor ?? DEFAULT_RECTANGLE_TEXT.textColor,
+	textFontWeight:
+		t.annotationTextFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight,
+	textAlign: t.annotationTextAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign,
+	textPadding: t.annotationTextPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding,
+})
+
+/** Theme-seeded stroke style for NEW line-segment annotations. */
+export const lineAnnotationStyleFromTheme = (t: Theme): LineAnnotationStyle => ({
+	lineColor: t.annotationLineColor ?? DEFAULT_LINE_ANNOTATION_STYLE.lineColor,
+	lineThickness:
+		t.annotationLineThickness ?? DEFAULT_LINE_ANNOTATION_STYLE.lineThickness,
+	lineOpacity:
+		t.annotationLineOpacity ?? DEFAULT_LINE_ANNOTATION_STYLE.lineOpacity,
+	lineDash: t.annotationLineDash ?? DEFAULT_LINE_ANNOTATION_STYLE.lineDash,
+	lineDasharray: t.annotationLineDasharray ?? null,
 })
 
 /** Theme-seeded `connection` slice — see `shapeConfigFromTheme` for why this

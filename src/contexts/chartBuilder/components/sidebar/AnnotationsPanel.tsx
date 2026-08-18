@@ -14,15 +14,23 @@ import {
 	newLineSegment,
 	newRectangle,
 	type AnnotationsConfig,
+	type BoxAnnotationStyle,
 	type CircleAnnotation,
+	type LineAnnotationStyle,
 	type LineSegmentAnnotation,
 	type RectangleAnnotation,
+	type RectangleTextStyle,
 } from "../../lib/annotationsConfig"
+import {
+	boxAnnotationStyleFromTheme,
+	lineAnnotationStyleFromTheme,
+	rectangleStyleFromTheme,
+} from "../../lib/themeConfig"
 import {
 	DEFAULT_FACET_CONFIG,
 	type FacetConfig,
-	type LineDashPattern,
 } from "../../lib/channelConfig"
+import { DashStylePicker } from "./channelOptions/dashControls"
 import {
 	FONT_FAMILY_OPTIONS,
 	fontWeightOptionsFor,
@@ -40,27 +48,13 @@ import {
 	currentFieldOverridesAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
-
-const DASH_OPTIONS: LineDashPattern[] = [
-	"solid",
-	"dashed",
-	"dotted",
-	"dash-dot",
-]
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 
 /** Font-family choices for rectangle text, mirroring the Caption panel. */
 const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
 	value: opt.value,
 	label: opt.label,
 }))
-
-/** Seed values the `new*` factories write, so each style control can offer a
- *  "reset" link that only shows when the current value differs from the
- *  default and snaps back to exactly what a freshly-added annotation has.
- *  Mirrors the per-shape factories in `annotationsConfig.ts`. */
-const RECT_STYLE_DEFAULTS = newRectangle("")
-const CIRCLE_STYLE_DEFAULTS = newCircle("")
-const LINE_STYLE_DEFAULTS = newLineSegment("")
 
 /** Shared collapsible shell for one annotation's editor. The header row —
  *  expand/collapse chevron, name box, remove link — is always visible so a
@@ -322,6 +316,19 @@ export const AnnotationsPanel = () => {
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()
 	const modeId = useChartModeDef().id
+	// Theme-seeded style defaults: what a freshly-added annotation looks like,
+	// and the baseline each style control's reset link compares against /
+	// restores to (the live theme, per the theme-derived-UI rule).
+	const theme = useCurrentTheme()
+	const rectDefaults = useMemo(() => rectangleStyleFromTheme(theme), [theme])
+	const circleDefaults = useMemo(
+		() => boxAnnotationStyleFromTheme(theme),
+		[theme],
+	)
+	const lineDefaults = useMemo(
+		() => lineAnnotationStyleFromTheme(theme),
+		[theme],
+	)
 	// Facet panels for the current chart — same resolver PlotCanvas renders
 	// against, so the keys the user scopes to match the rendered panels. When
 	// the chart isn't faceted (`mode === "single"`) we hide the scope control.
@@ -430,7 +437,10 @@ export const AnnotationsPanel = () => {
 		const id = `rect-${Date.now().toString(36)}-${Math.random()
 			.toString(36)
 			.slice(2, 6)}`
-		update({ ...cfg, rectangles: [...cfg.rectangles, newRectangle(id)] })
+		update({
+			...cfg,
+			rectangles: [...cfg.rectangles, newRectangle(id, rectDefaults)],
+		})
 		setExpanded(id, true)
 	}
 
@@ -452,7 +462,7 @@ export const AnnotationsPanel = () => {
 		const id = `circle-${Date.now().toString(36)}-${Math.random()
 			.toString(36)
 			.slice(2, 6)}`
-		update({ ...cfg, circles: [...circles, newCircle(id)] })
+		update({ ...cfg, circles: [...circles, newCircle(id, circleDefaults)] })
 		setExpanded(id, true)
 	}
 
@@ -472,7 +482,10 @@ export const AnnotationsPanel = () => {
 		const id = `line-${Date.now().toString(36)}-${Math.random()
 			.toString(36)
 			.slice(2, 6)}`
-		update({ ...cfg, lineSegments: [...lineSegments, newLineSegment(id)] })
+		update({
+			...cfg,
+			lineSegments: [...lineSegments, newLineSegment(id, lineDefaults)],
+		})
 		setExpanded(id, true)
 	}
 
@@ -521,6 +534,7 @@ export const AnnotationsPanel = () => {
 				<RectangleEditor
 					key={rect.id}
 					rect={rect}
+					defaults={rectDefaults}
 					onChange={(patch) => updateRect(rect.id, patch)}
 					onRemove={() => removeRect(rect.id)}
 					open={expandedIds.has(rect.id)}
@@ -544,6 +558,7 @@ export const AnnotationsPanel = () => {
 				<CircleEditor
 					key={circle.id}
 					circle={circle}
+					defaults={circleDefaults}
 					onChange={(patch) => updateCircle(circle.id, patch)}
 					onRemove={() => removeCircle(circle.id)}
 					open={expandedIds.has(circle.id)}
@@ -568,6 +583,7 @@ export const AnnotationsPanel = () => {
 				<LineSegmentEditor
 					key={line.id}
 					line={line}
+					defaults={lineDefaults}
 					onChange={(patch) => updateLine(line.id, patch)}
 					onRemove={() => removeLine(line.id)}
 					open={expandedIds.has(line.id)}
@@ -597,6 +613,7 @@ export const AnnotationsPanel = () => {
  *  but styles a stroke instead of a fill + border. */
 const LineSegmentEditor = ({
 	line,
+	defaults,
 	onChange,
 	onRemove,
 	open,
@@ -608,6 +625,8 @@ const LineSegmentEditor = ({
 	facetScope,
 }: {
 	line: LineSegmentAnnotation
+	/** Theme-seeded style baseline the reset links compare against. */
+	defaults: LineAnnotationStyle
 	onChange: (patch: Partial<LineSegmentAnnotation>) => void
 	onRemove: () => void
 	/** Whether the editor body is expanded; the name row always shows. */
@@ -673,7 +692,7 @@ const LineSegmentEditor = ({
 					{line.coordSystem === "percent" ? (
 						<div className="flex flex-col gap-2">
 							<NumberInput
-								label="start x %"
+								label="left %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.xMin) * 100)}
 								step={1}
@@ -681,15 +700,7 @@ const LineSegmentEditor = ({
 								suffix="%"
 							/>
 							<NumberInput
-								label="start y %"
-								labelClassName={LABEL_COL}
-								value={cleanNumber(toNumber(line.yMin) * 100)}
-								step={1}
-								onChange={(v) => onChange({ yMin: v / 100 })}
-								suffix="%"
-							/>
-							<NumberInput
-								label="end x %"
+								label="right %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.xMax) * 100)}
 								step={1}
@@ -697,7 +708,15 @@ const LineSegmentEditor = ({
 								suffix="%"
 							/>
 							<NumberInput
-								label="end y %"
+								label="bottom %"
+								labelClassName={LABEL_COL}
+								value={cleanNumber(toNumber(line.yMin) * 100)}
+								step={1}
+								onChange={(v) => onChange({ yMin: v / 100 })}
+								suffix="%"
+							/>
+							<NumberInput
+								label="top %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(line.yMax) * 100)}
 								step={1}
@@ -708,28 +727,28 @@ const LineSegmentEditor = ({
 					) : (
 						<div className="flex flex-col gap-2">
 							<AxisValueInput
-								label="start x"
+								label="left"
 								labelClassName={LABEL_COL}
 								value={line.xMin}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMin: v })}
 							/>
 							<AxisValueInput
-								label="start y"
-								labelClassName={LABEL_COL}
-								value={line.yMin}
-								axis={yAxis}
-								onChange={(v) => onChange({ yMin: v })}
-							/>
-							<AxisValueInput
-								label="end x"
+								label="right"
 								labelClassName={LABEL_COL}
 								value={line.xMax}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMax: v })}
 							/>
 							<AxisValueInput
-								label="end y"
+								label="bottom"
+								labelClassName={LABEL_COL}
+								value={line.yMin}
+								axis={yAxis}
+								onChange={(v) => onChange({ yMin: v })}
+							/>
+							<AxisValueInput
+								label="top"
 								labelClassName={LABEL_COL}
 								value={line.yMax}
 								axis={yAxis}
@@ -749,11 +768,9 @@ const LineSegmentEditor = ({
 							value={line.lineColor}
 							onChange={(c) => onChange({ lineColor: c })}
 						/>
-						{line.lineColor !== LINE_STYLE_DEFAULTS.lineColor && (
+						{line.lineColor !== defaults.lineColor && (
 							<ResetLink
-								onClick={() =>
-									onChange({ lineColor: LINE_STYLE_DEFAULTS.lineColor })
-								}
+								onClick={() => onChange({ lineColor: defaults.lineColor })}
 							/>
 						)}
 					</div>
@@ -767,10 +784,10 @@ const LineSegmentEditor = ({
 							onChange={(v) => onChange({ lineThickness: v })}
 							suffix="px"
 						/>
-						{line.lineThickness !== LINE_STYLE_DEFAULTS.lineThickness && (
+						{line.lineThickness !== defaults.lineThickness && (
 							<ResetLink
 								onClick={() =>
-									onChange({ lineThickness: LINE_STYLE_DEFAULTS.lineThickness })
+									onChange({ lineThickness: defaults.lineThickness })
 								}
 							/>
 						)}
@@ -785,21 +802,23 @@ const LineSegmentEditor = ({
 							max={1}
 							onChange={(v) => onChange({ lineOpacity: v })}
 						/>
-						{line.lineOpacity !== LINE_STYLE_DEFAULTS.lineOpacity && (
+						{line.lineOpacity !== defaults.lineOpacity && (
 							<ResetLink
-								onClick={() =>
-									onChange({ lineOpacity: LINE_STYLE_DEFAULTS.lineOpacity })
-								}
+								onClick={() => onChange({ lineOpacity: defaults.lineOpacity })}
 							/>
 						)}
 					</div>
-					<SelectInput
-						label="Dash"
-						labelClassName={LABEL_COL}
-						value={line.lineDash}
-						options={DASH_OPTIONS.map((d) => ({ value: d, label: d }))}
-						onChange={(v) => onChange({ lineDash: v as LineDashPattern })}
-					/>
+					<div className="flex items-start gap-2 text-sm">
+						<span className={`${LABEL_COL} shrink-0 pt-1.5`}>Dash</span>
+						<DashStylePicker
+							pattern={line.lineDash}
+							customDasharray={line.lineDasharray ?? null}
+							onChange={({ pattern, customDasharray }) =>
+								onChange({ lineDash: pattern, lineDasharray: customDasharray })
+							}
+							ariaContext="line annotation"
+						/>
+					</div>
 				</div>
 			</CollapsibleSubsection>
 
@@ -844,6 +863,7 @@ const LineSegmentEditor = ({
 
 const RectangleEditor = ({
 	rect,
+	defaults,
 	onChange,
 	onRemove,
 	open,
@@ -855,6 +875,8 @@ const RectangleEditor = ({
 	facetScope,
 }: {
 	rect: RectangleAnnotation
+	/** Theme-seeded style baseline the reset links compare against. */
+	defaults: BoxAnnotationStyle & RectangleTextStyle
 	onChange: (patch: Partial<RectangleAnnotation>) => void
 	onRemove: () => void
 	/** Whether the editor body is expanded; the name row always shows. */
@@ -922,7 +944,7 @@ const RectangleEditor = ({
 					{rect.coordSystem === "percent" ? (
 						<div className="flex flex-col gap-2">
 							<NumberInput
-								label="x min %"
+								label="left %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.xMin) * 100)}
 								step={1}
@@ -930,7 +952,7 @@ const RectangleEditor = ({
 								suffix="%"
 							/>
 							<NumberInput
-								label="x max %"
+								label="right %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.xMax) * 100)}
 								step={1}
@@ -938,7 +960,7 @@ const RectangleEditor = ({
 								suffix="%"
 							/>
 							<NumberInput
-								label="y min %"
+								label="bottom %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.yMin) * 100)}
 								step={1}
@@ -946,7 +968,7 @@ const RectangleEditor = ({
 								suffix="%"
 							/>
 							<NumberInput
-								label="y max %"
+								label="top %"
 								labelClassName={LABEL_COL}
 								value={cleanNumber(toNumber(rect.yMax) * 100)}
 								step={1}
@@ -957,28 +979,28 @@ const RectangleEditor = ({
 					) : (
 						<div className="flex flex-col gap-2">
 							<AxisValueInput
-								label="x min"
+								label="left"
 								labelClassName={LABEL_COL}
 								value={rect.xMin}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMin: v })}
 							/>
 							<AxisValueInput
-								label="x max"
+								label="right"
 								labelClassName={LABEL_COL}
 								value={rect.xMax}
 								axis={xAxis}
 								onChange={(v) => onChange({ xMax: v })}
 							/>
 							<AxisValueInput
-								label="y min"
+								label="bottom"
 								labelClassName={LABEL_COL}
 								value={rect.yMin}
 								axis={yAxis}
 								onChange={(v) => onChange({ yMin: v })}
 							/>
 							<AxisValueInput
-								label="y max"
+								label="top"
 								labelClassName={LABEL_COL}
 								value={rect.yMax}
 								axis={yAxis}
@@ -998,11 +1020,11 @@ const RectangleEditor = ({
 							value={rect.backgroundColor}
 							onChange={(c) => onChange({ backgroundColor: c })}
 						/>
-						{rect.backgroundColor !== RECT_STYLE_DEFAULTS.backgroundColor && (
+						{rect.backgroundColor !== defaults.backgroundColor && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										backgroundColor: RECT_STYLE_DEFAULTS.backgroundColor,
+										backgroundColor: defaults.backgroundColor,
 									})
 								}
 							/>
@@ -1019,11 +1041,11 @@ const RectangleEditor = ({
 							onChange={(v) => onChange({ backgroundOpacity: v })}
 						/>
 						{rect.backgroundOpacity !==
-							RECT_STYLE_DEFAULTS.backgroundOpacity && (
+							defaults.backgroundOpacity && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										backgroundOpacity: RECT_STYLE_DEFAULTS.backgroundOpacity,
+										backgroundOpacity: defaults.backgroundOpacity,
 									})
 								}
 							/>
@@ -1041,10 +1063,10 @@ const RectangleEditor = ({
 							value={rect.borderColor}
 							onChange={(c) => onChange({ borderColor: c })}
 						/>
-						{rect.borderColor !== RECT_STYLE_DEFAULTS.borderColor && (
+						{rect.borderColor !== defaults.borderColor && (
 							<ResetLink
 								onClick={() =>
-									onChange({ borderColor: RECT_STYLE_DEFAULTS.borderColor })
+									onChange({ borderColor: defaults.borderColor })
 								}
 							/>
 						)}
@@ -1059,11 +1081,11 @@ const RectangleEditor = ({
 							onChange={(v) => onChange({ borderThickness: v })}
 							suffix="px"
 						/>
-						{rect.borderThickness !== RECT_STYLE_DEFAULTS.borderThickness && (
+						{rect.borderThickness !== defaults.borderThickness && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										borderThickness: RECT_STYLE_DEFAULTS.borderThickness,
+										borderThickness: defaults.borderThickness,
 									})
 								}
 							/>
@@ -1079,21 +1101,28 @@ const RectangleEditor = ({
 							max={1}
 							onChange={(v) => onChange({ borderOpacity: v })}
 						/>
-						{rect.borderOpacity !== RECT_STYLE_DEFAULTS.borderOpacity && (
+						{rect.borderOpacity !== defaults.borderOpacity && (
 							<ResetLink
 								onClick={() =>
-									onChange({ borderOpacity: RECT_STYLE_DEFAULTS.borderOpacity })
+									onChange({ borderOpacity: defaults.borderOpacity })
 								}
 							/>
 						)}
 					</div>
-					<SelectInput
-						label="Dash"
-						labelClassName={LABEL_COL}
-						value={rect.borderDash}
-						options={DASH_OPTIONS.map((d) => ({ value: d, label: d }))}
-						onChange={(v) => onChange({ borderDash: v as LineDashPattern })}
-					/>
+					<div className="flex items-start gap-2 text-sm">
+						<span className={`${LABEL_COL} shrink-0 pt-1.5`}>Dash</span>
+						<DashStylePicker
+							pattern={rect.borderDash}
+							customDasharray={rect.borderDasharray ?? null}
+							onChange={({ pattern, customDasharray }) =>
+								onChange({
+									borderDash: pattern,
+									borderDasharray: customDasharray,
+								})
+							}
+							ariaContext="rectangle border"
+						/>
+					</div>
 				</div>
 			</CollapsibleSubsection>
 
@@ -1114,7 +1143,7 @@ const RectangleEditor = ({
 					<SelectInput
 						label="Font"
 						labelClassName={LABEL_COL}
-						value={rect.textFontFamily ?? DEFAULT_RECTANGLE_TEXT.textFontFamily}
+						value={rect.textFontFamily ?? defaults.textFontFamily}
 						options={FAMILY_OPTIONS}
 						onChange={(textFontFamily) => onChange({ textFontFamily })}
 						selectClassName="flex-1"
@@ -1123,17 +1152,17 @@ const RectangleEditor = ({
 						<NumberInput
 							label="Size"
 							labelClassName={LABEL_COL}
-							value={rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize}
+							value={rect.textFontSize ?? defaults.textFontSize}
 							min={1}
 							step={1}
 							onChange={(v) => onChange({ textFontSize: v })}
 							suffix="pt"
 						/>
-						{(rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize) !==
-							DEFAULT_RECTANGLE_TEXT.textFontSize && (
+						{(rect.textFontSize ?? defaults.textFontSize) !==
+							defaults.textFontSize && (
 							<ResetLink
 								onClick={() =>
-									onChange({ textFontSize: DEFAULT_RECTANGLE_TEXT.textFontSize })
+									onChange({ textFontSize: defaults.textFontSize })
 								}
 							/>
 						)}
@@ -1142,14 +1171,14 @@ const RectangleEditor = ({
 						<ColorInput
 							label="Color"
 							labelClassName={LABEL_COL}
-							value={rect.textColor ?? DEFAULT_RECTANGLE_TEXT.textColor}
+							value={rect.textColor ?? defaults.textColor}
 							onChange={(c) => onChange({ textColor: c })}
 						/>
-						{(rect.textColor ?? DEFAULT_RECTANGLE_TEXT.textColor) !==
-							DEFAULT_RECTANGLE_TEXT.textColor && (
+						{(rect.textColor ?? defaults.textColor) !==
+							defaults.textColor && (
 							<ResetLink
 								onClick={() =>
-									onChange({ textColor: DEFAULT_RECTANGLE_TEXT.textColor })
+									onChange({ textColor: defaults.textColor })
 								}
 							/>
 						)}
@@ -1159,20 +1188,20 @@ const RectangleEditor = ({
 							label="Weight"
 							labelClassName={LABEL_COL}
 							value={String(
-								rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight,
+								rect.textFontWeight ?? defaults.textFontWeight,
 							)}
 							options={fontWeightOptionsFor(
-								rect.textFontFamily ?? DEFAULT_RECTANGLE_TEXT.textFontFamily,
-								rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight
+								rect.textFontFamily ?? defaults.textFontFamily,
+								rect.textFontWeight ?? defaults.textFontWeight
 							).map((w) => ({ value: String(w.value), label: w.label }))}
 							onChange={(w) => onChange({ textFontWeight: Number(w) })}
 						/>
-						{(rect.textFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight) !==
-							DEFAULT_RECTANGLE_TEXT.textFontWeight && (
+						{(rect.textFontWeight ?? defaults.textFontWeight) !==
+							defaults.textFontWeight && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										textFontWeight: DEFAULT_RECTANGLE_TEXT.textFontWeight,
+										textFontWeight: defaults.textFontWeight,
 									})
 								}
 							/>
@@ -1182,7 +1211,7 @@ const RectangleEditor = ({
 					<div className="flex items-center gap-2 text-sm">
 						<span className={LABEL_COL}>Alignment</span>
 						<AlignmentControl
-							value={rect.textAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign}
+							value={rect.textAlign ?? defaults.textAlign}
 							onChange={(textAlign) => onChange({ textAlign })}
 						/>
 					</div>
@@ -1190,17 +1219,17 @@ const RectangleEditor = ({
 						<NumberInput
 							label="Padding"
 							labelClassName={LABEL_COL}
-							value={rect.textPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding}
+							value={rect.textPadding ?? defaults.textPadding}
 							min={0}
 							step={1}
 							onChange={(v) => onChange({ textPadding: v })}
 							suffix="px"
 						/>
-						{(rect.textPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding) !==
-							DEFAULT_RECTANGLE_TEXT.textPadding && (
+						{(rect.textPadding ?? defaults.textPadding) !==
+							defaults.textPadding && (
 							<ResetLink
 								onClick={() =>
-									onChange({ textPadding: DEFAULT_RECTANGLE_TEXT.textPadding })
+									onChange({ textPadding: defaults.textPadding })
 								}
 							/>
 						)}
@@ -1270,6 +1299,7 @@ const radiusToPercent = (units: number, axis: AxisInfo): number => {
  *  on-screen circle — see `circleAnnotationGeometry.ts` for the placement. */
 const CircleEditor = ({
 	circle,
+	defaults,
 	onChange,
 	onRemove,
 	open,
@@ -1282,6 +1312,8 @@ const CircleEditor = ({
 	facetScope,
 }: {
 	circle: CircleAnnotation
+	/** Theme-seeded style baseline the reset links compare against. */
+	defaults: BoxAnnotationStyle
 	onChange: (patch: Partial<CircleAnnotation>) => void
 	onRemove: () => void
 	/** Whether the editor body is expanded; the name row always shows. */
@@ -1463,11 +1495,11 @@ const CircleEditor = ({
 							onChange={(c) => onChange({ backgroundColor: c })}
 						/>
 						{circle.backgroundColor !==
-							CIRCLE_STYLE_DEFAULTS.backgroundColor && (
+							defaults.backgroundColor && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										backgroundColor: CIRCLE_STYLE_DEFAULTS.backgroundColor,
+										backgroundColor: defaults.backgroundColor,
 									})
 								}
 							/>
@@ -1484,11 +1516,11 @@ const CircleEditor = ({
 							onChange={(v) => onChange({ backgroundOpacity: v })}
 						/>
 						{circle.backgroundOpacity !==
-							CIRCLE_STYLE_DEFAULTS.backgroundOpacity && (
+							defaults.backgroundOpacity && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										backgroundOpacity: CIRCLE_STYLE_DEFAULTS.backgroundOpacity,
+										backgroundOpacity: defaults.backgroundOpacity,
 									})
 								}
 							/>
@@ -1506,10 +1538,10 @@ const CircleEditor = ({
 							value={circle.borderColor}
 							onChange={(c) => onChange({ borderColor: c })}
 						/>
-						{circle.borderColor !== CIRCLE_STYLE_DEFAULTS.borderColor && (
+						{circle.borderColor !== defaults.borderColor && (
 							<ResetLink
 								onClick={() =>
-									onChange({ borderColor: CIRCLE_STYLE_DEFAULTS.borderColor })
+									onChange({ borderColor: defaults.borderColor })
 								}
 							/>
 						)}
@@ -1525,11 +1557,11 @@ const CircleEditor = ({
 							suffix="px"
 						/>
 						{circle.borderThickness !==
-							CIRCLE_STYLE_DEFAULTS.borderThickness && (
+							defaults.borderThickness && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										borderThickness: CIRCLE_STYLE_DEFAULTS.borderThickness,
+										borderThickness: defaults.borderThickness,
 									})
 								}
 							/>
@@ -1545,23 +1577,30 @@ const CircleEditor = ({
 							max={1}
 							onChange={(v) => onChange({ borderOpacity: v })}
 						/>
-						{circle.borderOpacity !== CIRCLE_STYLE_DEFAULTS.borderOpacity && (
+						{circle.borderOpacity !== defaults.borderOpacity && (
 							<ResetLink
 								onClick={() =>
 									onChange({
-										borderOpacity: CIRCLE_STYLE_DEFAULTS.borderOpacity,
+										borderOpacity: defaults.borderOpacity,
 									})
 								}
 							/>
 						)}
 					</div>
-					<SelectInput
-						label="Dash"
-						labelClassName={LABEL_COL}
-						value={circle.borderDash}
-						options={DASH_OPTIONS.map((d) => ({ value: d, label: d }))}
-						onChange={(v) => onChange({ borderDash: v as LineDashPattern })}
-					/>
+					<div className="flex items-start gap-2 text-sm">
+						<span className={`${LABEL_COL} shrink-0 pt-1.5`}>Dash</span>
+						<DashStylePicker
+							pattern={circle.borderDash}
+							customDasharray={circle.borderDasharray ?? null}
+							onChange={({ pattern, customDasharray }) =>
+								onChange({
+									borderDash: pattern,
+									borderDasharray: customDasharray,
+								})
+							}
+							ariaContext="circle border"
+						/>
+					</div>
 				</div>
 			</CollapsibleSubsection>
 

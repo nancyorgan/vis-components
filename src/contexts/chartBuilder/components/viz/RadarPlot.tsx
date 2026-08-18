@@ -19,7 +19,7 @@ import { radial } from "../../lib/coords"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import { slotOpacityResolver } from "../../lib/resolveLayerColor"
 import { resolveMarkAesthetics } from "../../lib/resolveMarkAesthetics"
-import { dashArrayFor } from "../../lib/dashPatterns"
+import { dashArrayFor, sanitizeCustomDasharray } from "../../lib/dashPatterns"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import { buildRadarScales } from "../../lib/radarScales"
@@ -446,7 +446,13 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 							stroke={c.borderColor}
 							strokeWidth={c.borderThickness}
 							strokeOpacity={c.borderOpacity}
-							strokeDasharray={dashArrayFor(c.borderDash) ?? undefined}
+							strokeDasharray={
+								(c.borderDasharray
+									? sanitizeCustomDasharray(c.borderDasharray)
+									: null) ??
+								dashArrayFor(c.borderDash) ??
+								undefined
+							}
 						/>
 					)
 				})

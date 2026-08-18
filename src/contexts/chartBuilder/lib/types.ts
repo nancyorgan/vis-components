@@ -191,7 +191,11 @@ export const emptyDataLabelsEncodings = (): DataLabelsEncodings => ({
 
 import type { AnnotationsConfig } from "./annotationsConfig"
 import type { CaptionConfig } from "./captionConfig"
-import type { ChannelConfigs, DataLabelsConfig } from "./channelConfig"
+import type {
+	ChannelConfigs,
+	DataLabelsConfig,
+	LineDashPattern,
+} from "./channelConfig"
 import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
 import type { MapConfig } from "./mapConfig"
 
@@ -431,6 +435,38 @@ export type Theme = {
 	dataLabelsColor?: string
 	dataLabelsItalic?: boolean
 	dataLabelsUnderline?: boolean
+	// Annotation defaults — seed the style of NEWLY ADDED annotations (the
+	// sidebar's rectangles / circles / lines). Existing annotations keep the
+	// style they were authored with. All optional: themes saved before these
+	// fields existed fall back to the built-in seed values. Fill + border
+	// apply to rectangles AND circles; the text fields are rectangle-only
+	// (circles have no text). An unset border color follows the fill color
+	// (the historical seed tied them together).
+	annotationFillColor?: string
+	annotationFillOpacity?: number
+	annotationBorderColor?: string
+	annotationBorderThickness?: number
+	annotationBorderOpacity?: number
+	annotationBorderDash?: LineDashPattern
+	/** Custom SVG dasharray for the border (the dash picker's Custom choice).
+	 * When set it wins over `annotationBorderDash`. */
+	annotationBorderDasharray?: string | null
+	annotationTextFontFamily?: string
+	/** Points, like every other theme font size (converted via lib/fontUnit
+	 * at render time). */
+	annotationTextFontSize?: number
+	annotationTextColor?: string
+	annotationTextFontWeight?: number
+	annotationTextAlign?: "left" | "center" | "right"
+	/** Inner padding between the rectangle edge and its text, in px. */
+	annotationTextPadding?: number
+	annotationLineColor?: string
+	annotationLineThickness?: number
+	annotationLineOpacity?: number
+	annotationLineDash?: LineDashPattern
+	/** Custom SVG dasharray for line annotations — wins over
+	 * `annotationLineDash` when set. */
+	annotationLineDasharray?: string | null
 	// Distribution overlay defaults — stroke + fill used by the violin /
 	// box-plot overlays when first enabled on a chart's value axis.
 	distributionOverlayStroke: string

@@ -26,6 +26,98 @@ import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 
 import { LineDashGlyph } from "./glyphShared"
 
+const swatchClass = (selected: boolean) =>
+	`flex h-7 items-center justify-center rounded border transition-colors ${
+		selected
+			? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
+			: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+	}`
+
+/** The None / dash swatches / Custom button row every single-choice dash
+ *  picker shares (regression line, annotation borders + lines). The three
+ *  states are mutually exclusive: picking a swatch clears any custom
+ *  dasharray, and Custom opens the dasharray text box (which stays open
+ *  while empty via local state — an empty string isn't persisted).
+ *  `pattern: "solid"` doubles as None; a non-null `customDasharray` wins
+ *  over `pattern` at render time. `ariaContext` names the owning control in
+ *  the buttons' aria-labels (e.g. "regression line" → "No dash for
+ *  regression line" / "Regression line dash dotted"). */
+export const DashStylePicker = ({
+	pattern,
+	customDasharray,
+	onChange,
+	ariaContext,
+}: {
+	pattern: LineDashPattern
+	customDasharray: string | null
+	onChange: (next: {
+		pattern: LineDashPattern
+		customDasharray: string | null
+	}) => void
+	ariaContext: string
+}) => {
+	const [customOpen, setCustomOpen] = useState(false)
+	const customActive = customOpen || !!customDasharray
+	const isNone = pattern === "solid" && !customActive
+	const activeIdx = DASH_CYCLE.indexOf(pattern)
+	const capped = ariaContext.charAt(0).toUpperCase() + ariaContext.slice(1)
+	const pick = (style: LineDashPattern) => {
+		setCustomOpen(false)
+		onChange({ pattern: style, customDasharray: null })
+	}
+	return (
+		<div className="flex flex-col gap-1">
+			<div className="flex flex-wrap gap-1">
+				<button
+					type="button"
+					onClick={() => pick("solid")}
+					aria-pressed={isNone}
+					aria-label={`No dash for ${ariaContext}`}
+					className={`${swatchClass(isNone)} px-2 text-sm`}
+				>
+					None
+				</button>
+				{DASH_CYCLE.map((style) => {
+					const idx = DASH_CYCLE.indexOf(style)
+					const selected = !customActive && idx === activeIdx
+					return (
+						<button
+							key={style}
+							type="button"
+							onClick={() => pick(style)}
+							aria-pressed={selected}
+							aria-label={`${capped} dash ${style}`}
+							className={`${swatchClass(selected)} w-7`}
+						>
+							<LineDashGlyph idx={idx} selected={selected} />
+						</button>
+					)
+				})}
+				<button
+					type="button"
+					onClick={() => setCustomOpen(true)}
+					aria-pressed={customActive}
+					aria-label={`Custom dash for ${ariaContext}`}
+					className={`${swatchClass(customActive)} px-2 text-sm`}
+				>
+					Custom
+				</button>
+			</div>
+			{customActive && (
+				<CustomDashInput
+					value={customDasharray ?? ""}
+					onChange={(raw) =>
+						onChange({
+							pattern,
+							customDasharray: raw === "" ? null : raw,
+						})
+					}
+				/>
+			)}
+		</div>
+	)
+}
+
 /** Dash pattern for the scatter regression-line overlay: the same
  *  None / dash swatches / Custom row per-category lines get, but a single
  *  choice for the one overlay line (per-group fits share it). Writes
@@ -41,9 +133,6 @@ export const RegressionDashSubsection = () => {
 	const allThemes = useAtomValue(themesAtom)
 	const currentThemeId = useAtomValue(currentThemeIdAtom)
 	const theme = allThemes.find((t) => t.id === currentThemeId) ?? storedTheme
-	// Keeps the custom-dasharray box open before any value is typed — an
-	// empty string isn't persisted (mirrors the per-category picker).
-	const [customOpen, setCustomOpen] = useState(false)
 	const base: RegressionConfig =
 		axisConfigFromTheme(theme, "x").regression ?? DEFAULT_REGRESSION_CONFIG
 	const reg: RegressionConfig = { ...base, ...configs.x?.regression }
@@ -56,10 +145,6 @@ export const RegressionDashSubsection = () => {
 				regression: { ...reg, ...next },
 			},
 		}))
-	const hasCustom = !!reg.customDasharray
-	const customActive = customOpen || hasCustom
-	const isNone = reg.lineStyle === "solid" && !customActive
-	const activeIdx = DASH_CYCLE.indexOf(reg.lineStyle)
 	const changed =
 		valueChanged(reg.lineStyle, base.lineStyle) ||
 		valueChanged(reg.customDasharray, base.customDasharray) ||
@@ -67,66 +152,17 @@ export const RegressionDashSubsection = () => {
 			{ ...DEFAULT_DASH_RANGE, ...reg.dashRange },
 			{ ...DEFAULT_DASH_RANGE, ...base.dashRange }
 		)
-	// None / a swatch / Custom are a single mutually-exclusive choice —
-	// picking a style clears any custom dasharray.
-	const pick = (style: LineDashPattern) => {
-		setCustomOpen(false)
-		update({ lineStyle: style, customDasharray: null })
-	}
-	const swatchClass = (selected: boolean) =>
-		`flex h-7 items-center justify-center rounded border transition-colors ${
-			selected
-				? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-				: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-		}`
 	return (
 		<CollapsibleSubsection title="Regression line" changed={changed}>
 			<div className="flex flex-col gap-1 text-sm">
-				<div className="flex flex-wrap gap-1">
-					<button
-						type="button"
-						onClick={() => pick("solid")}
-						aria-pressed={isNone}
-						aria-label="No dash for regression line"
-						className={`${swatchClass(isNone)} px-2 text-sm`}
-					>
-						None
-					</button>
-					{DASH_CYCLE.map((style) => {
-						const idx = DASH_CYCLE.indexOf(style)
-						const selected = !customActive && idx === activeIdx
-						return (
-							<button
-								key={style}
-								type="button"
-								onClick={() => pick(style)}
-								aria-pressed={selected}
-								aria-label={`Regression line dash ${style}`}
-								className={`${swatchClass(selected)} w-7`}
-							>
-								<LineDashGlyph idx={idx} selected={selected} />
-							</button>
-						)
-					})}
-					<button
-						type="button"
-						onClick={() => setCustomOpen(true)}
-						aria-pressed={customActive}
-						aria-label="Custom dash for regression line"
-						className={`${swatchClass(customActive)} px-2 text-sm`}
-					>
-						Custom
-					</button>
-				</div>
-				{customActive && (
-					<CustomDashInput
-						value={reg.customDasharray ?? ""}
-						onChange={(raw) => {
-							if (raw === "") update({ customDasharray: null })
-							else update({ customDasharray: raw })
-						}}
-					/>
-				)}
+				<DashStylePicker
+					pattern={reg.lineStyle}
+					customDasharray={reg.customDasharray ?? null}
+					onChange={({ pattern, customDasharray }) =>
+						update({ lineStyle: pattern, customDasharray })
+					}
+					ariaContext="regression line"
+				/>
 				<DashRangeRows
 					range={{ ...DEFAULT_DASH_RANGE, ...reg.dashRange }}
 					onChange={(next) =>

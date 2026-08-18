@@ -63,13 +63,18 @@ describe("text glyph helpers", () => {
 		expect(glyphCharCount("👨‍👩‍👧")).toBe(1)
 	})
 
-	it("sanitize trims and caps at the max length (emoji count once)", () => {
-		expect(sanitizeGlyphText("  A ")).toBe("A")
+	it("sanitize caps at the max length (emoji count once)", () => {
 		expect(sanitizeGlyphText("ABCD")).toBe("ABC")
 		expect(glyphCharCount(sanitizeGlyphText("🔥🔥🔥🔥"))).toBe(
 			MAX_TEXT_GLYPH_CHARS
 		)
-		expect(sanitizeGlyphText("   ")).toBe("")
+	})
+
+	it("sanitize keeps spaces — position matters and a lone space is a blank mark", () => {
+		expect(sanitizeGlyphText(" ")).toBe(" ")
+		expect(sanitizeGlyphText(" _")).toBe(" _")
+		expect(sanitizeGlyphText("_ ")).toBe("_ ")
+		expect(sanitizeGlyphText("  A ")).toBe("  A")
 	})
 
 	it("font size shrinks for longer strings and scales with radius", () => {

@@ -25,7 +25,9 @@ describe("expandEmojiShortcodes (live, per-keystroke)", () => {
 describe("expandEmojiInput (submit-time)", () => {
 	it("accepts a bare :name with no closing colon when it's the whole input", () => {
 		expect(expandEmojiInput(":joy")).toBe("😂")
-		expect(expandEmojiInput(" :joy: ")).toBe("😂")
+		// Surrounding whitespace survives — spaces are meaningful in glyphs.
+		expect(expandEmojiInput(" :joy: ")).toBe(" 😂 ")
+		expect(expandEmojiInput(" :joy")).toBe(" 😂")
 	})
 
 	it("does NOT bare-expand mid-text or unknown names", () => {

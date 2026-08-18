@@ -1,6 +1,10 @@
 import { useCallback, useRef } from "react"
 import { useAtom, useAtomValue } from "jotai"
-import { blackAndWhiteModeAtom, sidebarWidthAtom } from "../store/atoms"
+import {
+	blackAndWhiteModeAtom,
+	currentChannelConfigsAtom,
+	sidebarWidthAtom,
+} from "../store/atoms"
 import { useAutoSave } from "../store/useAutoSave"
 
 import { DataDrawer } from "./drawer/DataDrawer"
@@ -16,6 +20,11 @@ export const EditorLayout = () => {
 	useAutoSave()
 	const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom)
 	const blackAndWhite = useAtomValue(blackAndWhiteModeAtom)
+	const canvasSizeCfg = useAtomValue(currentChannelConfigsAtom).canvasSize
+	const fixedCanvas =
+		canvasSizeCfg?.enabled && canvasSizeCfg.width > 0 && canvasSizeCfg.height > 0
+			? canvasSizeCfg
+			: null
 	const draggingRef = useRef(false)
 	const startXRef = useRef(0)
 	const startWidthRef = useRef(0)
@@ -72,19 +81,47 @@ export const EditorLayout = () => {
 				</div>
 				<div className="flex min-h-0 min-w-0 flex-col">
 					<ErrorBoundary>
-						<div
-							// Marked so the Export modal can default its output
-							// dimensions to the editor's on-screen chart size — the
-							// export embed then solves an identical layout, so
-							// absolute-pixel title offsets land where the user sees
-							// them (rather than shifting under a reflow at a
-							// different size).
-							data-editor-chart-viewport
-							className="min-h-0 flex-1 overflow-auto"
-							style={blackAndWhite ? { filter: "grayscale(1)" } : undefined}
-						>
-							<ChartCanvas />
-						</div>
+						{/* data-editor-chart-viewport marks the element whose size the
+						 *  Export modal defaults its output dimensions to — the export
+						 *  embed then solves an identical layout, so absolute-pixel
+						 *  title offsets land where the user sees them (rather than
+						 *  shifting under a reflow at a different size). With a fixed
+						 *  canvas size the marker moves to the white canvas rectangle
+						 *  itself, so exports default to the prescribed dimensions. */}
+						{fixedCanvas ? (
+							// Fixed canvas size (Aesthetics → Canvas size): the chart
+							// draws inside a white width × height rectangle centered in
+							// the viewport; the rest of the viewport is shaded gray and
+							// scrolls when the rectangle exceeds it. `w-max min-w-full`
+							// keeps the gray backdrop covering the full scroll range,
+							// and `m-auto` (not justify/align-center) keeps the
+							// rectangle's top-left reachable when it overflows.
+							<div
+								className="min-h-0 flex-1 overflow-auto bg-stone-200 dark:bg-stone-800"
+								style={blackAndWhite ? { filter: "grayscale(1)" } : undefined}
+							>
+								<div className="flex min-h-full w-max min-w-full p-6">
+									<div
+										data-editor-chart-viewport
+										className="m-auto shrink-0 overflow-hidden bg-white shadow-md"
+										style={{
+											width: fixedCanvas.width,
+											height: fixedCanvas.height,
+										}}
+									>
+										<ChartCanvas />
+									</div>
+								</div>
+							</div>
+						) : (
+							<div
+								data-editor-chart-viewport
+								className="min-h-0 flex-1 overflow-auto"
+								style={blackAndWhite ? { filter: "grayscale(1)" } : undefined}
+							>
+								<ChartCanvas />
+							</div>
+						)}
 					</ErrorBoundary>
 					<ErrorBoundary>
 						<DataDrawer />

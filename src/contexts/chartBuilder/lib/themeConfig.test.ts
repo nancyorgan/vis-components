@@ -10,8 +10,19 @@ import {
 	type ChannelConfigs,
 } from "./channelConfig"
 import {
+	DEFAULT_BOX_ANNOTATION_STYLE,
+	DEFAULT_LINE_ANNOTATION_STYLE,
+	DEFAULT_RECTANGLE_TEXT,
+	newCircle,
+	newLineSegment,
+	newRectangle,
+} from "./annotationsConfig"
+import {
 	angleConfigFromTheme,
 	axisConfigFromTheme,
+	boxAnnotationStyleFromTheme,
+	lineAnnotationStyleFromTheme,
+	rectangleStyleFromTheme,
 	channelHasCustomization,
 	chordAxisConfigFromTheme,
 	configsFromTheme,
@@ -590,6 +601,125 @@ describe("dataLabelsConfigFromTheme", () => {
 		})
 		expect(cfg.italic).toBe(false)
 		expect(cfg.underline).toBe(false)
+	})
+})
+
+// ── Annotation style theme seeds ────────────────────────────────────────────
+// Shared by the Annotations panel (new-annotation seeding + reset baselines)
+// and the theme editor's Annotations section, so the two can't drift.
+describe("annotation style builders", () => {
+	const THEMED: Theme = {
+		...STUB_THEME,
+		annotationFillColor: "#3b82f6",
+		annotationFillOpacity: 0.5,
+		annotationBorderColor: "#1d4ed8",
+		annotationBorderThickness: 3,
+		annotationBorderOpacity: 0.8,
+		annotationBorderDash: "dashed",
+		annotationBorderDasharray: "4,2",
+		annotationTextFontFamily: "Inter, system-ui, sans-serif",
+		annotationTextFontSize: 16,
+		annotationTextColor: "#0f172a",
+		annotationTextFontWeight: 600,
+		annotationTextAlign: "left",
+		annotationTextPadding: 12,
+		annotationLineColor: "#dc2626",
+		annotationLineThickness: 4,
+		annotationLineOpacity: 0.7,
+		annotationLineDash: "dotted",
+		annotationLineDasharray: "1,3",
+	}
+
+	it("boxAnnotationStyleFromTheme picks up every fill + border field", () => {
+		expect(boxAnnotationStyleFromTheme(THEMED)).toEqual({
+			backgroundColor: "#3b82f6",
+			backgroundOpacity: 0.5,
+			borderColor: "#1d4ed8",
+			borderThickness: 3,
+			borderOpacity: 0.8,
+			borderDash: "dashed",
+			borderDasharray: "4,2",
+		})
+	})
+
+	it("rectangleStyleFromTheme adds the text styling on top of the box style", () => {
+		const style = rectangleStyleFromTheme(THEMED)
+		expect(style).toMatchObject(boxAnnotationStyleFromTheme(THEMED))
+		expect(style.textFontFamily).toBe("Inter, system-ui, sans-serif")
+		expect(style.textFontSize).toBe(16)
+		expect(style.textColor).toBe("#0f172a")
+		expect(style.textFontWeight).toBe(600)
+		expect(style.textAlign).toBe("left")
+		expect(style.textPadding).toBe(12)
+	})
+
+	it("lineAnnotationStyleFromTheme picks up every stroke field", () => {
+		expect(lineAnnotationStyleFromTheme(THEMED)).toEqual({
+			lineColor: "#dc2626",
+			lineThickness: 4,
+			lineOpacity: 0.7,
+			lineDash: "dotted",
+			lineDasharray: "1,3",
+		})
+	})
+
+	it("a legacy theme (no annotation fields) yields the built-in seed values", () => {
+		// STUB_THEME predates the annotation fields — the builders must return
+		// exactly the historical factory seeds, so old themes keep the old look.
+		expect(boxAnnotationStyleFromTheme(STUB_THEME)).toEqual(
+			DEFAULT_BOX_ANNOTATION_STYLE
+		)
+		expect(rectangleStyleFromTheme(STUB_THEME)).toEqual({
+			...DEFAULT_BOX_ANNOTATION_STYLE,
+			textFontFamily: DEFAULT_RECTANGLE_TEXT.textFontFamily,
+			textFontSize: DEFAULT_RECTANGLE_TEXT.textFontSize,
+			textColor: DEFAULT_RECTANGLE_TEXT.textColor,
+			textFontWeight: DEFAULT_RECTANGLE_TEXT.textFontWeight,
+			textAlign: DEFAULT_RECTANGLE_TEXT.textAlign,
+			textPadding: DEFAULT_RECTANGLE_TEXT.textPadding,
+		})
+		expect(lineAnnotationStyleFromTheme(STUB_THEME)).toEqual(
+			DEFAULT_LINE_ANNOTATION_STYLE
+		)
+	})
+
+	it("an unset border color follows the fill color (the seed ties them)", () => {
+		const style = boxAnnotationStyleFromTheme({
+			...STUB_THEME,
+			annotationFillColor: "#3b82f6",
+		})
+		expect(style.borderColor).toBe("#3b82f6")
+	})
+
+	it("the factories write the theme style onto new annotations", () => {
+		const rect = newRectangle("r1", rectangleStyleFromTheme(THEMED))
+		expect(rect.backgroundColor).toBe("#3b82f6")
+		expect(rect.borderDash).toBe("dashed")
+		expect(rect.borderDasharray).toBe("4,2")
+		expect(rect.textFontWeight).toBe(600)
+		expect(rect.text).toBe("")
+		// Non-style fields keep the factory geometry / layering.
+		expect(rect.zOrder).toBe("behind")
+		expect(rect.coordSystem).toBe("percent")
+
+		const circle = newCircle("c1", boxAnnotationStyleFromTheme(THEMED))
+		expect(circle.backgroundOpacity).toBe(0.5)
+		expect(circle.borderColor).toBe("#1d4ed8")
+		expect(circle.radius).toBe(0.2)
+
+		const line = newLineSegment("l1", lineAnnotationStyleFromTheme(THEMED))
+		expect(line.lineColor).toBe("#dc2626")
+		expect(line.lineDash).toBe("dotted")
+		expect(line.zOrder).toBe("front")
+	})
+
+	it("style-less factory calls keep the historical seed values", () => {
+		expect(newRectangle("r")).toMatchObject({
+			...DEFAULT_BOX_ANNOTATION_STYLE,
+			...DEFAULT_RECTANGLE_TEXT,
+		})
+		expect(newCircle("c")).toMatchObject(DEFAULT_BOX_ANNOTATION_STYLE)
+		expect(newLineSegment("l")).toMatchObject(DEFAULT_LINE_ANNOTATION_STYLE)
 	})
 })
 

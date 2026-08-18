@@ -43,6 +43,11 @@ export type RectangleAnnotation = {
 	/** 0..1 alpha applied to the border stroke. */
 	borderOpacity: number
 	borderDash: LineDashPattern
+	/** User-typed custom SVG dasharray (e.g. `"2,2"`). When set it WINS over
+	 *  `borderDash` — the picker's Custom choice. Null/absent = use
+	 *  `borderDash` (also the shape of annotations saved before Custom
+	 *  existed). Parsed via `sanitizeCustomDasharray` at render time. */
+	borderDasharray?: string | null
 	/** "behind" draws the rectangle UNDER the chart marks (e.g. a shaded
 	 *  background band); "front" draws ABOVE marks (e.g. a callout box
 	 *  highlighting a region). */
@@ -79,8 +84,9 @@ export type RectangleAnnotation = {
 }
 
 /** Fallback text styling for rectangles saved before the text feature (and
- *  the seed values `newRectangle` writes). Kept here so the sidebar editor
- *  and the renderer resolve missing fields to the exact same defaults. */
+ *  the seed values `newRectangle` writes when the theme doesn't override
+ *  them). Kept here so the sidebar editor and the renderer resolve missing
+ *  fields to the exact same defaults. */
 export const DEFAULT_RECTANGLE_TEXT = {
 	text: "",
 	textFontFamily: "system-ui, sans-serif",
@@ -90,6 +96,39 @@ export const DEFAULT_RECTANGLE_TEXT = {
 	textAlign: "center" as "left" | "center" | "right",
 	textPadding: 8,
 }
+
+/** Built-in fill + border seed shared by rectangles and circles — the values
+ *  the factories write when the theme carries no annotation defaults, and the
+ *  `??` fallbacks behind the theme's `annotation*` fields (see
+ *  `rectangleStyleFromTheme` and friends in themeConfig.ts). */
+export const DEFAULT_BOX_ANNOTATION_STYLE = {
+	backgroundColor: "#facc15",
+	backgroundOpacity: 0.2,
+	borderColor: "#facc15",
+	borderThickness: 1,
+	borderOpacity: 0,
+	borderDash: "solid" as LineDashPattern,
+	borderDasharray: null as string | null,
+}
+
+/** Built-in stroke seed for line-segment annotations — same role as
+ *  `DEFAULT_BOX_ANNOTATION_STYLE`. */
+export const DEFAULT_LINE_ANNOTATION_STYLE = {
+	lineColor: "#1e293b",
+	lineThickness: 2,
+	lineOpacity: 1,
+	lineDash: "solid" as LineDashPattern,
+	lineDasharray: null as string | null,
+}
+
+/** The style fields rectangles and circles share (fill + border). */
+export type BoxAnnotationStyle = typeof DEFAULT_BOX_ANNOTATION_STYLE
+
+/** The rectangle's text styling, sans the text content itself. */
+export type RectangleTextStyle = Omit<typeof DEFAULT_RECTANGLE_TEXT, "text">
+
+/** The line segment's stroke styling. */
+export type LineAnnotationStyle = typeof DEFAULT_LINE_ANNOTATION_STYLE
 
 /** A user-defined circle drawn on top of (or behind) the plot. Always
  *  renders as a TRUE on-screen circle; `radiusAxis` only selects which axis
@@ -127,6 +166,8 @@ export type CircleAnnotation = {
 	/** 0..1 alpha applied to the border stroke. */
 	borderOpacity: number
 	borderDash: LineDashPattern
+	/** Custom dasharray override — see `RectangleAnnotation.borderDasharray`. */
+	borderDasharray?: string | null
 	/** "behind" draws under the chart marks; "front" draws above them. */
 	zOrder: "behind" | "front"
 	/** How `centerX/centerY/radius` are interpreted — see field docs above. */
@@ -162,6 +203,8 @@ export type LineSegmentAnnotation = {
 	/** 0..1 alpha applied to the line stroke. */
 	lineOpacity: number
 	lineDash: LineDashPattern
+	/** Custom dasharray override — see `RectangleAnnotation.borderDasharray`. */
+	lineDasharray?: string | null
 	/** "behind" draws the line UNDER the chart marks; "front" draws ABOVE
 	 *  them (the usual choice for a reference / trend line). */
 	zOrder: "behind" | "front"
@@ -185,8 +228,13 @@ export const DEFAULT_ANNOTATIONS_CONFIG: AnnotationsConfig = {
 }
 
 /** Build a new rectangle with sensible defaults — placed in the
- *  upper-middle of the plot so it's visible immediately. */
-export const newRectangle = (id: string): RectangleAnnotation => ({
+ *  upper-middle of the plot so it's visible immediately. `style` carries the
+ *  theme's annotation defaults (see `rectangleStyleFromTheme`); omitted, the
+ *  built-in seed values apply. */
+export const newRectangle = (
+	id: string,
+	style?: BoxAnnotationStyle & RectangleTextStyle
+): RectangleAnnotation => ({
 	id,
 	// Left blank so the sidebar shows an iterating "Rectangle N" suggestion
 	// (placeholder) — the user is nudged to type a more descriptive label.
@@ -195,21 +243,21 @@ export const newRectangle = (id: string): RectangleAnnotation => ({
 	xMax: 0.75,
 	yMin: 0.4,
 	yMax: 0.7,
-	backgroundColor: "#facc15",
-	backgroundOpacity: 0.2,
-	borderColor: "#facc15",
-	borderThickness: 1,
-	borderOpacity: 0,
-	borderDash: "solid",
 	zOrder: "behind",
 	coordSystem: "percent",
 	...DEFAULT_RECTANGLE_TEXT,
+	...DEFAULT_BOX_ANNOTATION_STYLE,
+	...style,
 })
 
 /** Build a new line segment with sensible defaults — a visible diagonal
  *  across the middle of the plot, drawn in front so it reads as a reference
- *  / trend line over the marks. */
-export const newLineSegment = (id: string): LineSegmentAnnotation => ({
+ *  / trend line over the marks. `style` carries the theme's line-annotation
+ *  defaults (see `lineAnnotationStyleFromTheme`). */
+export const newLineSegment = (
+	id: string,
+	style?: LineAnnotationStyle
+): LineSegmentAnnotation => ({
 	id,
 	// Blank — see `newRectangle` (sidebar shows an iterating suggestion).
 	name: "",
@@ -217,17 +265,20 @@ export const newLineSegment = (id: string): LineSegmentAnnotation => ({
 	yMin: 0.4,
 	xMax: 0.75,
 	yMax: 0.7,
-	lineColor: "#1e293b",
-	lineThickness: 2,
-	lineOpacity: 1,
-	lineDash: "solid",
 	zOrder: "front",
 	coordSystem: "percent",
+	...DEFAULT_LINE_ANNOTATION_STYLE,
+	...style,
 })
 
 /** Build a new circle with sensible defaults — centered in the plot with a
- *  radius of 20% of the plot width, so it's visible immediately. */
-export const newCircle = (id: string): CircleAnnotation => ({
+ *  radius of 20% of the plot width, so it's visible immediately. `style`
+ *  carries the theme's annotation fill + border defaults (see
+ *  `boxAnnotationStyleFromTheme`). */
+export const newCircle = (
+	id: string,
+	style?: BoxAnnotationStyle
+): CircleAnnotation => ({
 	id,
 	// Blank — see `newRectangle` (sidebar shows an iterating suggestion).
 	name: "",
@@ -235,12 +286,8 @@ export const newCircle = (id: string): CircleAnnotation => ({
 	centerY: 0.5,
 	radius: 0.2,
 	radiusAxis: "x",
-	backgroundColor: "#facc15",
-	backgroundOpacity: 0.2,
-	borderColor: "#facc15",
-	borderThickness: 1,
-	borderOpacity: 0,
-	borderDash: "solid",
 	zOrder: "behind",
 	coordSystem: "percent",
+	...DEFAULT_BOX_ANNOTATION_STYLE,
+	...style,
 })

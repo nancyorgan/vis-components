@@ -1619,7 +1619,11 @@ rectangle has:
     selected categories' centers — the same positions line-segment
     endpoints land on.
 - Fill color + fill opacity.
-- Border color, thickness, opacity, dash style.
+- Border color, thickness, opacity, and dash. Dash is the same
+  None / dash-swatch / Custom button row the Pattern panel's
+  regression-line control uses (swatches preview dashed / dotted /
+  dash-dot); Custom opens a dasharray text box (e.g. `2,2`), and a
+  custom dasharray wins over the swatch pick at render time.
 - Layer toggle: **Behind chart** (under marks) or **In front** (over
   marks).
 
@@ -1632,6 +1636,11 @@ placed and renders nothing). **Line segments**
 (`lib/lineSegmentAnnotationGeometry.ts`) run between two endpoints,
 each in Percent or Values coordinates. Both share the rectangle's
 fill/border/layer styling controls.
+
+New annotations seed their style (fill, border, text font, line
+stroke) from the active theme's **Annotations** defaults (§12), and
+each style control's reset link compares against and restores those
+theme values.
 
 All three shapes render per-panel in PlotCanvas, using each panel's
 own position scales in Values mode and clipping to the panel's plot
@@ -1668,6 +1677,18 @@ Theme settings:
   created or re-themed; the Data Labels panel's reset links restore
   these theme values. Themes saved before these fields existed fall
   back to the built-in defaults (11pt, weight 500, plain).
+- **Annotations** — the initial style newly added annotations get:
+  fill color + opacity, border color / thickness / opacity / dash for
+  rectangles and circles; font family / size / color / weight,
+  alignment, and padding for rectangle text; and color / thickness /
+  opacity / dash for line annotations. The dash controls are the same
+  None / swatch / Custom button rows the annotation editors use. Existing annotations keep the
+  style they were authored with (re-theming never restyles them); the
+  Annotations panel's reset links compare against and restore these
+  theme values. An unset border color follows the fill color. Themes
+  saved before these fields existed fall back to the built-in seeds
+  (yellow 20% fill, invisible border, slate line, 13pt centered
+  text).
 
 Custom themes can be set as the user's default; new charts pick that
 up automatically. The Hue panel reads palettes from the active theme

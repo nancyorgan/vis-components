@@ -287,6 +287,21 @@ export type AspectRatioConfig = {
 	width: number
 }
 
+/** Fixed drawing surface (Aesthetics → Canvas size → "Set canvas size").
+ * When enabled, the chart is laid out inside a fixed width × height pixel
+ * rectangle instead of filling the editor viewport. The editor shows that
+ * rectangle as a white canvas centered in the viewport, with the area
+ * outside it shaded light gray; the rectangle scrolls into view when it's
+ * larger than the viewport. Scroll mode and the fixed aspect ratio then
+ * operate WITHIN the rectangle. */
+export type CanvasSizeConfig = {
+	enabled: boolean
+	/** Canvas width in pixels. Default 1000. */
+	width: number
+	/** Canvas height in pixels. Default 600. */
+	height: number
+}
+
 export const DEFAULT_HISTOGRAM_CONFIG: HistogramConfig = {
 	enabled: false,
 	binCount: 10,
@@ -1520,6 +1535,9 @@ export type ChannelConfigs = Partial<{
 	drawOrder?: DrawOrderConfig | null
 	/** Aesthetics → Aspect ratio (see AspectRatioConfig). Absent = off. */
 	aspectRatio: AspectRatioConfig
+	/** Aesthetics → Canvas size (see CanvasSizeConfig). Absent = off:
+	 * the chart fills the editor viewport as before. */
+	canvasSize: CanvasSizeConfig
 	/** Generic color targets beyond fill (`hue`) and outline (`outlineHue`):
 	 * line, rug, violin/box stroke + fill, lollipop stem, radar spine. Each is
 	 * an independent optional color encoding surfaced as a subheader in the

@@ -79,6 +79,7 @@ import {
 	DEFAULT_DATA_LABELS_CONFIG,
 	effectiveLabelPoints,
 	type EndpointLabelOverrides,
+	type LineDashPattern,
 } from "../../lib/channelConfig"
 import { buildLabelText } from "../../lib/dataLabelsStyle"
 import {
@@ -89,7 +90,7 @@ import {
 } from "../../lib/annotationsConfig"
 import { computeCirclePixels } from "../../lib/circleAnnotationGeometry"
 import { computeLineSegmentPixels } from "../../lib/lineSegmentAnnotationGeometry"
-import { dashArrayFor } from "../../lib/dashPatterns"
+import { dashArrayFor, sanitizeCustomDasharray } from "../../lib/dashPatterns"
 import type { Rect } from "../../lib/facetLayoutSolver"
 import {
 	applyPositionScale,
@@ -2745,6 +2746,17 @@ const overrideLinearDomain = (
 	return scale
 }
 
+/** Resolve an annotation stroke's SVG dasharray: a (sanitized) custom
+ *  dasharray wins over the built-in pattern — the same precedence the dash
+ *  picker's Custom button implies. `undefined` = solid (no attribute). */
+const annotationDasharray = (
+	custom: string | null | undefined,
+	pattern: LineDashPattern
+): string | undefined =>
+	(custom ? sanitizeCustomDasharray(custom) : null) ??
+	dashArrayFor(pattern) ??
+	undefined
+
 /** Draws a rectangle annotation's optional text label inside the box. The
  *  text block is centered VERTICALLY within the rect; horizontally it follows
  *  `textAlign`, inset from the box edge by `textPadding`. Renders nothing when
@@ -2993,7 +3005,7 @@ const AnnotationRects = ({
 					top = inner.y + inner.height * (1 - y1)
 					height = inner.height * (y1 - y0)
 				}
-				const dash = dashArrayFor(r.borderDash) ?? undefined
+				const dash = annotationDasharray(r.borderDasharray, r.borderDash)
 				return (
 					<g key={r.id}>
 						<rect
@@ -3032,7 +3044,7 @@ const AnnotationRects = ({
 					yType: axisFields.yType,
 				})
 				if (geom === null) return null
-				const dash = dashArrayFor(c.borderDash) ?? undefined
+				const dash = annotationDasharray(c.borderDasharray, c.borderDash)
 				return (
 					<circle
 						key={c.id}
@@ -3061,7 +3073,7 @@ const AnnotationRects = ({
 						yType: axisFields.yType,
 					})
 					if (geom === null) return null
-					const dash = dashArrayFor(l.lineDash) ?? undefined
+					const dash = annotationDasharray(l.lineDasharray, l.lineDash)
 					return (
 						<line
 							key={l.id}
