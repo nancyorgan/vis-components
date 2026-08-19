@@ -9,6 +9,7 @@ import { FieldList } from "./FieldList"
 import { LabelsPanel } from "./LabelsPanel"
 import { LegendPanel } from "./LegendPanel"
 import { MapsSection } from "./MapsSection"
+import { ReshapePanel } from "./ReshapePanel"
 import { ThemePanel } from "./ThemePanel"
 import { TooltipPanel } from "./TooltipPanel"
 
@@ -17,6 +18,7 @@ export const Sidebar = () => {
 		<aside className="bg-vc-sidebar flex h-full flex-col gap-3 overflow-y-auto px-2 py-5">
 			<AsideSection title="Data">
 				<DataUpload />
+				<ReshapePanel />
 			</AsideSection>
 			<hr className="mx-3 border-stone-200 dark:border-stone-700" />
 			<AsideSection title="Fields">

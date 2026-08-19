@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useAtom } from "jotai"
-import { drawerHeightAtom, drawerOpenAtom } from "../../store/atoms"
+import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import {
+	drawerHeightAtom,
+	drawerOpenAtom,
+	reshapePanelOpenAtom,
+	sidebarCollapsedAtom,
+} from "../../store/atoms"
 import { useHandleCsvUpload } from "../../store/useCreateNewDataset"
+import {
+	reshapeAppliedAtom,
+	useCurrentDatasetView,
+} from "../../store/useCurrentDatasetView"
 
 import { DataTable } from "./DataTable"
 
@@ -16,6 +25,10 @@ export const DataDrawer = () => {
 	const startHeightRef = useRef(0)
 
 	const handleCsvUpload = useHandleCsvUpload()
+	const dataset = useCurrentDatasetView()
+	const [reshapeOpen, setReshapeOpen] = useAtom(reshapePanelOpenAtom)
+	const reshapeApplied = useAtomValue(reshapeAppliedAtom)
+	const setSidebarCollapsed = useSetAtom(sidebarCollapsedAtom)
 	const [dragOver, setDragOver] = useState(false)
 	const [dropError, setDropError] = useState<string | null>(null)
 	// Counter to handle nested drag enters/leaves (child elements) without
@@ -119,6 +132,30 @@ export const DataDrawer = () => {
 					<span className="hidden text-sm text-stone-500 sm:inline dark:text-stone-500">
 						Drop a CSV to upload
 					</span>
+					{dataset && (
+						<button
+							type="button"
+							title="Reshape wide data into long format (options open under Data in the left menu)"
+							// Toggles only the options MENU — an applied reshape stays
+							// applied with the menu closed (uncheck its Combine columns
+							// to undo it).
+							onClick={() => {
+								const opening = !reshapeOpen
+								setReshapeOpen(opening)
+								// Surface the options: the panel lives in the Data
+								// section of the left menu, which may be collapsed.
+								if (opening)
+									setSidebarCollapsed((prev) => ({ ...prev, Data: false }))
+							}}
+							className={
+								reshapeApplied
+									? "text-sm font-medium text-th-electric-indigo-700 hover:opacity-80 dark:text-th-electric-indigo-300"
+									: "text-sm text-stone-600 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							}
+						>
+							{reshapeApplied ? "Reshape ✓" : "Reshape"}
+						</button>
+					)}
 					<button
 						type="button"
 						onClick={() => setOpen((v) => !v)}

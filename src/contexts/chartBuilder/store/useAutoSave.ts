@@ -13,6 +13,7 @@ import {
 	currentLabelsAtom,
 	currentLegendConfigAtom,
 	currentMapConfigAtom,
+	currentReshapeConfigAtom,
 	currentTooltipConfigAtom,
 	currentVisualIdAtom,
 	currentVisualNameAtom,
@@ -50,6 +51,7 @@ export const useAutoSave = () => {
 	const annotations = useAtomValue(currentAnnotationsAtom)
 	const caption = useAtomValue(currentCaptionConfigAtom)
 	const mapConfig = useAtomValue(currentMapConfigAtom)
+	const reshapeConfig = useAtomValue(currentReshapeConfigAtom)
 
 	// Skip the very first effect run — that's just the initial hydration
 	// after a visual load; nothing has changed.
@@ -85,6 +87,7 @@ export const useAutoSave = () => {
 		annotations,
 		caption,
 		mapConfig,
+		reshapeConfig,
 		saveVisual,
 		navigate,
 		setStatus,

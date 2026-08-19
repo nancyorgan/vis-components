@@ -13,6 +13,7 @@ import {
 	type TooltipConfig,
 } from "../lib/labelsConfig"
 import { type MapConfig } from "../lib/mapConfig"
+import { type ReshapeConfig } from "../lib/reshape"
 import {
 	loadCurrentAnnotations,
 	loadCurrentCaption,
@@ -26,6 +27,7 @@ import {
 	loadCurrentLabels,
 	loadCurrentLegend,
 	loadCurrentMapConfig,
+	loadCurrentReshapeConfig,
 	loadCurrentTooltip,
 	loadCurrentVisualId,
 	loadCurrentVisualName,
@@ -57,6 +59,7 @@ import {
 	saveCurrentLabels,
 	saveCurrentLegend,
 	saveCurrentMapConfig,
+	saveCurrentReshapeConfig,
 	saveCurrentTooltip,
 	saveCurrentVisualId,
 	saveCurrentVisualName,
@@ -516,6 +519,13 @@ export const currentThemeIdAtom = atom<string | null>(null)
 
 export const drawerOpenAtom = atom<boolean>(true)
 
+/** Whether the Reshape (wide→long) options panel is showing under Data.
+ * Toggled by the data tray's "Reshape" button and the panel's own "Save and
+ * close" button. Intentionally NOT persisted: this is transient menu
+ * visibility — the reshape itself lives in `currentReshapeConfigAtom` and
+ * applies whenever columns are combined, menu open or not. */
+export const reshapePanelOpenAtom = atom<boolean>(false)
+
 /** Black-and-white preview toggle. Wraps the chart canvas in `filter:
  * grayscale(1)` so the user can spot color-only encodings during an
  * accessibility pass. Intentionally NOT persisted: this is a transient
@@ -544,6 +554,15 @@ export const currentChannelConfigsAtom = persistedAtom<ChannelConfigs>(
 export const currentMapConfigAtom = persistedAtom<MapConfig>(
 	loadCurrentMapConfig,
 	saveCurrentMapConfig
+)
+
+/** Per-visual wide→long reshape (melt) of the bound dataset: which columns
+ * are kept as IDs, which combine into the variable/value pair, and the two
+ * new column names. Applied at view-resolution time (see
+ * `currentDatasetViewAtom`); the stored dataset rows stay wide. */
+export const currentReshapeConfigAtom = persistedAtom<ReshapeConfig>(
+	loadCurrentReshapeConfig,
+	saveCurrentReshapeConfig
 )
 
 export const currentLabelsAtom = persistedAtom<LabelsConfig>(

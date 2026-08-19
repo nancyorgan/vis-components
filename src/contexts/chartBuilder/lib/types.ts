@@ -198,6 +198,7 @@ import type {
 } from "./channelConfig"
 import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
 import type { MapConfig } from "./mapConfig"
+import type { ReshapeConfig } from "./reshape"
 
 export type Visual = {
 	id: string
@@ -227,6 +228,12 @@ export type Visual = {
 	 * on load. Without this the map state (e.g. Geographic on) wouldn't persist
 	 * per visual and would reset to "No map" when reopened. */
 	mapConfig?: MapConfig
+	/** Per-visual wide→long reshape (melt) of the bound dataset — ID columns,
+	 * combined columns, and the two new column names. Applied when the view
+	 * is resolved, so the stored dataset rows stay wide. Optional for
+	 * back-compat with visuals saved before reshape existed — falls back to
+	 * DEFAULT_RESHAPE_CONFIG on load. */
+	reshapeConfig?: ReshapeConfig
 	/** Per-visual Data Labels encodings — which fields drive the label
 	 * layer's x, y, hue, size, text. Optional for back-compat. */
 	dataLabelsEncodings?: DataLabelsEncodings

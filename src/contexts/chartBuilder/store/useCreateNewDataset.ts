@@ -2,6 +2,7 @@ import { useAtomCallback } from "jotai/utils"
 import { useCallback } from "react"
 import { datasetContentHash, findDuplicateDataset } from "../lib/datasetDedupe"
 import { inferFieldType } from "../lib/inferFieldType"
+import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
 import { parseCsvFile } from "../lib/parseCsv"
 import {
 	emptyEncodings,
@@ -15,6 +16,7 @@ import {
 	currentDatasetIdAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
+	currentReshapeConfigAtom,
 	currentVisualIdAtom,
 	datasetsAtom,
 	pendingUploadAtom,
@@ -66,6 +68,7 @@ export const useCreateNewDataset = () =>
 				set(previewVersionIdAtom, null)
 				set(currentEncodingsAtom, emptyEncodings())
 				set(currentFieldOverridesAtom, {})
+				set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
 				return existingId
 			}
 			const id = newDatasetId()
@@ -95,6 +98,7 @@ export const useCreateNewDataset = () =>
 			set(previewVersionIdAtom, null)
 			set(currentEncodingsAtom, emptyEncodings())
 			set(currentFieldOverridesAtom, {})
+			set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
 			return id
 		}, [])
 	)

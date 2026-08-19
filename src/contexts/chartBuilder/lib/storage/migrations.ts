@@ -38,6 +38,7 @@ export const FIELD_LEVEL_ORDERS_VERSION = 1
 export const ANNOTATIONS_VERSION = 3
 export const CAPTION_VERSION = 1
 export const MAP_CONFIG_VERSION = 7
+export const RESHAPE_CONFIG_VERSION = 1
 
 // ──────────────────────────────────────────────────────────────────────
 // Visuals
@@ -504,6 +505,7 @@ export const legendMigrations: Migration[] = [
 ]
 export const tooltipMigrations = identityMigrations
 export const captionMigrations = identityMigrations
+export const reshapeConfigMigrations = identityMigrations
 export const dataLabelsEncodingsMigrations = identityMigrations
 export const dataLabelsConfigMigrations = identityMigrations
 export const encodingsMigrations = identityMigrations

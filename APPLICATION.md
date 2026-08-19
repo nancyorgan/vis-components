@@ -57,6 +57,53 @@ is still rejected, and the upload dialog names the offending columns;
 the net-new columns are reported separately as an informational note,
 not as a blocker.
 
+### 2.1b Reshape (wide → long)
+The tool wants long data (one observation per row), but users often
+arrive with wide tables (one column per category — Monday, Tuesday,
+…). A **"Reshape"** button in the data-table tray header (visible
+whenever a dataset is loaded) shows/hides the reshape options panel
+under Data in the left menu (expanding the Data section if
+collapsed). The button toggles only the MENU: an applied reshape
+stays applied with the menu closed (the button reads "Reshape ✓" in
+the accent color while one is applied), and the panel ends with a
+**"Save and close"** button that does the same close. There is no
+on/off switch — the reshape applies exactly while Combine columns
+are checked, so unchecking them all restores the wide table. The
+panel is a purple option box whose
+"Reshape (wide → long)" subheader is a standard collapsible
+subsection (chevron; open by default since the tray click should
+reveal the options). It lists the RAW wide columns:
+
+- **ID columns** — checkboxes over every column; checked columns are
+  kept as-is on every output row. Checking a column here withdraws it
+  from Combine.
+- **Combine** — checkboxes over the remaining (non-ID) columns; each
+  checked column melts into one output row per input row. Columns
+  checked in neither list are dropped from the reshaped view.
+- **Combined variable name** (default `category`) — the new
+  categorical column holding the melted columns' names — and **Value
+  variable name** (default `value`) holding their cell values. The
+  boxes come prefilled with the defaults, and a blanked box falls
+  back to its default (shown as the placeholder) rather than
+  blocking the reshape. The
+  value column's type is re-inferred from the melted cells; melt
+  order follows dataset column order, and empty cells melt to empty
+  strings rather than being skipped.
+
+The reshape is **non-destructive config, not a data rewrite**
+(`lib/reshape.ts`, `Visual.reshapeConfig`): stored rows stay wide
+(versions are additive, so a melt could never be a dataset version),
+and the melt is applied where the dataset view is resolved
+(`currentDatasetViewAtom`), so the tray table, field list, encoding
+shelves, renderers, and embeds all see the long shape at once. A
+half-configured reshape (nothing to combine, or a name colliding
+with a kept ID column or the other name — surfaced as amber
+warnings) passes the wide data through instead of blanking the
+chart. A new
+version of the wide file flows through the same reshape, and its
+net-new columns simply appear unchecked. Uploading a different
+dataset resets the reshape.
+
 ### 2.2 Field types
 Every field is tagged with one of: `quantitative` (numbers),
 `categorical` (distinct labels), `temporal` (dates), `ordinal` (ranked

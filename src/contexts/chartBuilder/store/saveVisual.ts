@@ -13,6 +13,7 @@ import {
 	migrateLabelsConfig,
 } from "../lib/labelsConfig"
 import { DEFAULT_MAP_CONFIG } from "../lib/mapConfig"
+import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
 import {
 	configsFromTheme,
 	dataLabelsConfigFromTheme,
@@ -38,6 +39,7 @@ import {
 	currentLabelsAtom,
 	currentLegendConfigAtom,
 	currentMapConfigAtom,
+	currentReshapeConfigAtom,
 	currentThemeIdAtom,
 	currentTooltipConfigAtom,
 	currentVisualIdAtom,
@@ -81,6 +83,7 @@ export const useSaveVisual = () => {
 			const annotationsConfig = get(currentAnnotationsAtom)
 			const captionConfig = get(currentCaptionConfigAtom)
 			const mapConfig = get(currentMapConfigAtom)
+			const reshapeConfig = get(currentReshapeConfigAtom)
 
 			const now = Date.now()
 
@@ -127,6 +130,11 @@ export const useSaveVisual = () => {
 			},
 			captionConfig: { ...captionConfig },
 			mapConfig: { ...mapConfig },
+			reshapeConfig: {
+				...reshapeConfig,
+				idFields: [...reshapeConfig.idFields],
+				meltFields: [...reshapeConfig.meltFields],
+			},
 			thumbnail,
 			createdAt: existing?.createdAt ?? now,
 			updatedAt: now,
@@ -230,6 +238,13 @@ export const useLoadVisual = () => {
 			...DEFAULT_MAP_CONFIG,
 			...visual.mapConfig,
 			})
+			// Per-visual wide→long reshape — added after first release. Older
+			// visuals leave it undefined; default-merge so the fields exist on
+			// the atom and a prior visual's reshape doesn't linger.
+			set(currentReshapeConfigAtom, {
+			...DEFAULT_RESHAPE_CONFIG,
+			...visual.reshapeConfig,
+			})
 			return true
 		}, [])
 	)
@@ -267,6 +282,7 @@ export const useResetVisual = () => {
 			set(currentAnnotationsAtom, DEFAULT_ANNOTATIONS_CONFIG)
 			set(currentCaptionConfigAtom, DEFAULT_CAPTION_CONFIG)
 			set(currentMapConfigAtom, DEFAULT_MAP_CONFIG)
+			set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
 			set(currentThemeIdAtom, userDefaultThemeId)
 			set(previewVersionIdAtom, null)
 			// "New visualization" must land on a truly fresh editor — the only path

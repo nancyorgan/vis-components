@@ -3,14 +3,8 @@ import { useAtomValue } from "jotai"
 
 import { detectGeographyLevel } from "../lib/geo/detectGeographyLevel"
 import type { GeographyLevel, RegionKeyType } from "../lib/mapConfig"
-import { resolveDatasetView } from "../lib/resolveDatasetVersion"
-import {
-	currentDatasetIdAtom,
-	currentEncodingsAtom,
-	currentMapConfigAtom,
-	datasetsAtom,
-	previewVersionIdAtom,
-} from "./atoms"
+import { currentEncodingsAtom, currentMapConfigAtom } from "./atoms"
+import { currentDatasetViewAtom } from "./useCurrentDatasetView"
 
 /**
  * The concrete geography level the map should use — the ONE home for
@@ -31,21 +25,11 @@ import {
 export const useEffectiveGeographyLevel = (): GeographyLevel | null => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const mapConfig = useAtomValue(currentMapConfigAtom)
-	// NOT useCurrentDatasetView(): that helper re-derives a fresh DatasetView
-	// object every render, and the detection effect below keys on the dataset
-	// — an unstable identity would reset detection each render and loop
-	// forever at "loading". Memoizing on the underlying atom values (stable
-	// between real updates) keeps the effect quiescent.
-	const datasets = useAtomValue(datasetsAtom)
-	const datasetId = useAtomValue(currentDatasetIdAtom)
-	const previewVersionId = useAtomValue(previewVersionIdAtom)
-	const dataset = useMemo(
-		() =>
-			datasetId
-				? resolveDatasetView(datasets[datasetId], previewVersionId)
-				: undefined,
-		[datasets, datasetId, previewVersionId]
-	)
+	// The derived view atom caches per store, so its identity is stable
+	// between real updates — the detection effect below can key on it without
+	// looping. (It also carries the wide→long reshape, so detection sees the
+	// same fields/rows the chart renders.)
+	const dataset = useAtomValue(currentDatasetViewAtom)
 
 	const configured = mapConfig.geographyLevel
 	const regionField = encodings.connection.field

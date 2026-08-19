@@ -34,6 +34,7 @@ import {
 	EMPTY_CHANNEL_CONFIGS,
 } from "./channelConfig"
 import { DEFAULT_MAP_CONFIG, type MapConfig } from "./mapConfig"
+import { DEFAULT_RESHAPE_CONFIG, type ReshapeConfig } from "./reshape"
 import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
 import {
 	DEFAULT_LABELS_CONFIG,
@@ -65,6 +66,8 @@ import {
 	LABELS_VERSION,
 	mapConfigMigrations,
 	MAP_CONFIG_VERSION,
+	reshapeConfigMigrations,
+	RESHAPE_CONFIG_VERSION,
 	legendMigrations,
 	LEGEND_VERSION,
 	themesMigrations,
@@ -106,6 +109,7 @@ const KEY_CURRENT_FIELD_OVERRIDES = "vis-components:currentFieldOverrides"
 const KEY_CURRENT_FIELD_LEVEL_ORDERS = "vis-components:currentFieldLevelOrders"
 const KEY_CURRENT_CHANNEL_CONFIGS = "vis-components:currentChannelConfigs"
 const KEY_CURRENT_MAP_CONFIG = "vis-components:currentMapConfig"
+const KEY_CURRENT_RESHAPE_CONFIG = "vis-components:currentReshapeConfig"
 const KEY_CURRENT_LABELS = "vis-components:currentLabels"
 const KEY_CURRENT_LEGEND = "vis-components:currentLegend"
 const KEY_CURRENT_TOOLTIP = "vis-components:currentTooltip"
@@ -599,6 +603,20 @@ export const saveCurrentMapConfig = (c: MapConfig): void =>
 	saveVersioned({
 		key: KEY_CURRENT_MAP_CONFIG,
 		currentVersion: MAP_CONFIG_VERSION,
+		data: c,
+	})
+
+export const loadCurrentReshapeConfig = (): ReshapeConfig =>
+	loadVersioned<ReshapeConfig>({
+		key: KEY_CURRENT_RESHAPE_CONFIG,
+		currentVersion: RESHAPE_CONFIG_VERSION,
+		migrations: reshapeConfigMigrations,
+		fallback: DEFAULT_RESHAPE_CONFIG,
+	})
+export const saveCurrentReshapeConfig = (c: ReshapeConfig): void =>
+	saveVersioned({
+		key: KEY_CURRENT_RESHAPE_CONFIG,
+		currentVersion: RESHAPE_CONFIG_VERSION,
 		data: c,
 	})
 
