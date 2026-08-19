@@ -235,6 +235,13 @@ export const SettingsLayout = () => {
 					</Link>
 					<ThemesSubNav />
 					<Link
+						to="/settings/fonts"
+						className={c(navLink, navIdle)}
+						activeProps={{ className: c(navLink, navActive) }}
+					>
+						Fonts
+					</Link>
+					<Link
 						to="/settings/sharing"
 						className={c(navLink, navIdle)}
 						activeProps={{ className: c(navLink, navActive) }}

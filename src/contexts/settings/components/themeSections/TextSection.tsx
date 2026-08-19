@@ -1,5 +1,5 @@
 import { DEFAULT_DATA_LABELS_CONFIG } from "../../../chartBuilder/lib/channelConfig"
-import { FONT_FAMILY_OPTIONS } from "../../../chartBuilder/lib/labelsConfig"
+import { useFontFamilyOptions } from "../../../chartBuilder/store/useFontOptions"
 
 import {
 	AlignmentRow,
@@ -14,7 +14,9 @@ import {
 } from "./controls"
 import type { ThemeSectionProps } from "./types"
 
-export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
+export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
+	const familyOptions = useFontFamilyOptions()
+	return (
 	<SectionGroup title="Text" isReadOnly={isReadOnly}>
 		<Section title="Main title">
 			<p className="text-sm text-stone-600 dark:text-stone-400">
@@ -26,7 +28,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				label="Family"
 				value={theme.titleFontFamily}
 				onChange={(v) => set("titleFontFamily", v)}
-				options={FONT_FAMILY_OPTIONS}
+				options={familyOptions}
 			/>
 			<ColorInput
 				label="Color"
@@ -130,7 +132,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				label="Family"
 				value={theme.textFontFamily}
 				onChange={(v) => set("textFontFamily", v)}
-				options={FONT_FAMILY_OPTIONS}
+				options={familyOptions}
 			/>
 			<ColorInput
 				label="Color"
@@ -270,4 +272,5 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			/>
 		</Section>
 	</SectionGroup>
-)
+	)
+}

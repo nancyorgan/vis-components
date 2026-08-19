@@ -1,5 +1,5 @@
 import { DashStylePicker } from "../../../chartBuilder/components/sidebar/channelOptions/dashControls"
-import { FONT_FAMILY_OPTIONS } from "../../../chartBuilder/lib/labelsConfig"
+import { useFontFamilyOptions } from "../../../chartBuilder/store/useFontOptions"
 import {
 	lineAnnotationStyleFromTheme,
 	rectangleStyleFromTheme,
@@ -27,6 +27,7 @@ export const AnnotationsSection = ({
 	// same builders the Annotations panel seeds and resets from).
 	const box = rectangleStyleFromTheme(theme)
 	const line = lineAnnotationStyleFromTheme(theme)
+	const familyOptions = useFontFamilyOptions()
 	return (
 		<SectionGroup title="Annotations" isReadOnly={isReadOnly}>
 			<Section title="Rectangles &amp; circles">
@@ -93,7 +94,7 @@ export const AnnotationsSection = ({
 					label="Family"
 					value={box.textFontFamily}
 					onChange={(v) => set("annotationTextFontFamily", v)}
-					options={FONT_FAMILY_OPTIONS}
+					options={familyOptions}
 				/>
 				<ColorInput
 					label="Color"

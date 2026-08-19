@@ -21,6 +21,7 @@
 
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { loadUserDefaultThemeId, saveUserDefaultThemeId } from "../storage"
+import type { UserFont } from "../fontLibrary"
 import type {
 	Dataset,
 	EmbedInstance,
@@ -130,6 +131,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		datasets: new Map<string, string>(),
 		embedInstances: new Map<string, string>(),
 		themes: new Map<string, string>(),
+		fonts: new Map<string, string>(),
 	}
 
 	const putJson = (collection: string) => (id: string, serialized: string) =>
@@ -213,6 +215,19 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				toMap(themes),
 				putJson("themes"),
 				deleteFrom("themes")
+			),
+
+		loadUserFonts: async () => {
+			const fonts = await loadCollection<UserFont[]>("fonts")
+			setBaseline(baselines.fonts, toMap(fonts))
+			return fonts
+		},
+		saveUserFonts: (fonts) =>
+			syncCollection(
+				baselines.fonts,
+				toMap(fonts),
+				putJson("fonts"),
+				deleteFrom("fonts")
 			),
 
 		// Per-person preference on a server with no notion of persons — stays

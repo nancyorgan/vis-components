@@ -31,10 +31,11 @@ import {
 	type FacetConfig,
 } from "../../lib/channelConfig"
 import { DashStylePicker } from "./channelOptions/dashControls"
+import { fontWeightOptionsFor } from "../../lib/labelsConfig"
 import {
-	FONT_FAMILY_OPTIONS,
-	fontWeightOptionsFor,
-} from "../../lib/labelsConfig"
+	useFontFamilyOptions,
+	useUserFontWeights,
+} from "../../store/useFontOptions"
 import { AlignmentControl } from "./LabelsPanel"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { effectiveType } from "../../lib/fieldType"
@@ -49,12 +50,6 @@ import {
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
-
-/** Font-family choices for rectangle text, mirroring the Caption panel. */
-const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
-	value: opt.value,
-	label: opt.label,
-}))
 
 /** Shared collapsible shell for one annotation's editor. The header row —
  *  expand/collapse chevron, name box, remove link — is always visible so a
@@ -892,6 +887,8 @@ const RectangleEditor = ({
 	/** Facet-targeting control, rendered at the top when faceted (else null). */
 	facetScope?: ReactNode
 }) => {
+	const familyOptions = useFontFamilyOptions()
+	const userFontWeights = useUserFontWeights()
 	return (
 		<AnnotationCard
 			name={rect.name}
@@ -1144,7 +1141,7 @@ const RectangleEditor = ({
 						label="Font"
 						labelClassName={LABEL_COL}
 						value={rect.textFontFamily ?? defaults.textFontFamily}
-						options={FAMILY_OPTIONS}
+						options={familyOptions}
 						onChange={(textFontFamily) => onChange({ textFontFamily })}
 						selectClassName="flex-1"
 					/>
@@ -1192,7 +1189,8 @@ const RectangleEditor = ({
 							)}
 							options={fontWeightOptionsFor(
 								rect.textFontFamily ?? defaults.textFontFamily,
-								rect.textFontWeight ?? defaults.textFontWeight
+								rect.textFontWeight ?? defaults.textFontWeight,
+								userFontWeights
 							).map((w) => ({ value: String(w.value), label: w.label }))}
 							onChange={(w) => onChange({ textFontWeight: Number(w) })}
 						/>

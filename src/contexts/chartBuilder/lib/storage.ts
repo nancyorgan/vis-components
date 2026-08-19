@@ -72,12 +72,15 @@ import {
 	LEGEND_VERSION,
 	themesMigrations,
 	THEMES_VERSION,
+	userFontsMigrations,
+	USER_FONTS_VERSION,
 	tooltipMigrations,
 	TOOLTIP_VERSION,
 	visualsMigrations,
 	VISUALS_VERSION,
 } from "./storage/migrations"
 import { idbAvailable, idbGet, idbSet } from "./storage/idb"
+import type { UserFont } from "./fontLibrary"
 import {
 	loadVersioned,
 	migrateVersioned,
@@ -129,6 +132,7 @@ const KEY_EXPORT_SIZES = "vis-components:exportSizes"
 const KEY_EXPORT_UNIT = "vis-components:exportUnit"
 const KEY_THEME = "vis-components:theme"
 const KEY_THEMES = "vis-components:themes"
+const KEY_USER_FONTS = "vis-components:userFonts"
 const KEY_USER_DEFAULT_THEME_ID = "vis-components:userDefaultThemeId"
 const KEY_EXAMPLE_SEED_APPLIED = "vis-components:exampleSeedApplied"
 const KEY_DATASET_CLEANUP_DONE = "vis-components:datasetCleanupDone"
@@ -481,6 +485,23 @@ export const saveThemes = (themes: SavedTheme[]): void =>
 		key: KEY_THEMES,
 		currentVersion: THEMES_VERSION,
 		data: themes,
+	})
+
+/** The user's font library — Google Fonts added once and offered in every
+ * Family picker. Metadata only; woff2 binaries cache in IndexedDB keyed by
+ * face URL (fontBinaries.ts). */
+export const loadUserFonts = (): UserFont[] =>
+	loadVersioned<UserFont[]>({
+		key: KEY_USER_FONTS,
+		currentVersion: USER_FONTS_VERSION,
+		migrations: userFontsMigrations,
+		fallback: [],
+	})
+export const saveUserFonts = (fonts: UserFont[]): void =>
+	saveVersioned({
+		key: KEY_USER_FONTS,
+		currentVersion: USER_FONTS_VERSION,
+		data: fonts,
 	})
 
 export const loadUserDefaultThemeId = (): string | null =>

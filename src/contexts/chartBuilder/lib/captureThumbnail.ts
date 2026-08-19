@@ -1,3 +1,5 @@
+import { embedFontsInSvg } from "./fontEmbed"
+
 export const PLOT_SVG_ID = "vc-scatter-svg"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -484,10 +486,13 @@ const rasterizeSvg = (svgDataUrl: string): Promise<string | null> =>
 /** Rasterize already-serialized chart SVG markup into a thumbnail PNG data
  *  URL. Exposed for the thumbnail backfill, which polls `serializeChartSvg`
  *  until the output stabilizes and then needs to rasterize that exact frame
- *  (re-serializing could catch the next layout pass). */
-export const thumbnailFromChartSvgText = (
+ *  (re-serializing could catch the next layout pass). Webfont faces embed
+ *  from the local cache only (`allowNetwork: false`) — a thumbnail autosave
+ *  must never wait on Google Fonts; uncached faces just fall back. */
+export const thumbnailFromChartSvgText = async (
 	svgText: string
-): Promise<string | null> => rasterizeSvg(toDataUrl(svgText))
+): Promise<string | null> =>
+	rasterizeSvg(toDataUrl(await embedFontsInSvg(svgText, { allowNetwork: false })))
 
 /** Capture the chart rendered in `doc` as a small PNG data URL for use as a
  *  library thumbnail. Returns `null` if no chart is rendered or

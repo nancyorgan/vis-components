@@ -1,7 +1,10 @@
 import { useEffect } from "react"
+import { useAtomValue } from "jotai"
 import { Outlet, useRouterState } from "@tanstack/react-router"
 
 import { Header } from "../components/Header"
+import { registerUserFonts } from "../contexts/chartBuilder/lib/fontRegistration"
+import { userFontsAtom } from "../contexts/chartBuilder/store/atoms"
 
 /** Swallow file drops that miss the data drawer's drop zone. Without this, the
  * browser default (navigate to the file:// URL) replaces the app with what
@@ -30,10 +33,21 @@ const useGlobalFileDropGuard = () => {
 	}, [])
 }
 
+/** Register the user font library's FontFaces (from the IndexedDB binary
+ * cache, fetching on first sight). Lives at the root so user fonts render
+ * everywhere charts do — editor, library thumbnails, and /embed/ pages. */
+const useUserFontRegistration = () => {
+	const fonts = useAtomValue(userFontsAtom)
+	useEffect(() => {
+		void registerUserFonts(fonts)
+	}, [fonts])
+}
+
 export const RootLayout = () => {
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
 	const isEmbed = pathname.startsWith("/embed/")
 	useGlobalFileDropGuard()
+	useUserFontRegistration()
 	return (
 		<div className="flex min-h-screen flex-col bg-white text-stone-900 dark:bg-stone-900 dark:text-stone-100">
 			{!isEmbed && <Header />}

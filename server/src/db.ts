@@ -41,6 +41,12 @@ const MIGRATIONS: readonly string[] = [
 		byte_size INTEGER NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// v2 — user font library (Google Fonts metadata; binaries stay client-side)
+	`CREATE TABLE fonts (
+		id TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 ]
 
 /** The JSON-body tables, keyed by the API's collection segment. Table names
@@ -50,6 +56,7 @@ export const JSON_TABLES = {
 	folders: "folders",
 	"embed-instances": "embed_instances",
 	themes: "themes",
+	fonts: "fonts",
 } as const
 
 export type JsonCollection = keyof typeof JSON_TABLES

@@ -6,6 +6,7 @@ import {
 	serializeEmbedCapture,
 } from "../lib/captureThumbnail"
 import { upsertEmbedInstance } from "../lib/embedInstances"
+import { embedFontsInSvg } from "../lib/fontEmbed"
 import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
 import { appOrigin } from "../../../lib/appOrigin"
 import type { ExportUnit } from "../lib/storage"
@@ -529,7 +530,13 @@ const ExportTab = ({
 		setError(null)
 		setBusy(true)
 		try {
-			const svgText = await waitForChartSvg(iframeRef.current)
+			// Inline webfont faces (Google-hosted presets + user library fonts)
+			// as data: @font-face rules — the raster path loads the SVG through
+			// an <img>, which can't fetch external stylesheets, and downloaded
+			// SVGs must render on machines without the fonts installed.
+			const svgText = await embedFontsInSvg(
+				await waitForChartSvg(iframeRef.current)
+			)
 			const filename = `${visualId}.${format}`
 			if (format === "svg") {
 				downloadBlob(new Blob([svgText], { type: "image/svg+xml" }), filename)

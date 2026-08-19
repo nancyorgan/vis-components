@@ -12,20 +12,16 @@ import {
 	type CaptionConfig,
 	type CaptionUnit,
 } from "../../lib/captionConfig"
-import {
-	FONT_FAMILY_OPTIONS,
-	fontWeightOptionsFor,
-} from "../../lib/labelsConfig"
+import { fontWeightOptionsFor } from "../../lib/labelsConfig"
 import { AlignmentControl } from "./LabelsPanel"
 import {
 	currentCaptionConfigAtom,
 	currentRenderedCaptionBoxAtom,
 } from "../../store/atoms"
-
-const FAMILY_OPTIONS = FONT_FAMILY_OPTIONS.map((opt) => ({
-	value: opt.value,
-	label: opt.label,
-}))
+import {
+	useFontFamilyOptions,
+	useUserFontWeights,
+} from "../../store/useFontOptions"
 
 const UNIT_SELECT_CLASS =
 	"rounded-sm border border-stone-300 bg-white px-1 py-1 text-sm text-stone-700 outline-none hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
@@ -74,6 +70,8 @@ const OffsetField = ({
 export const CaptionPanel = () => {
 	const [cfg, setCfg] = useAtom(currentCaptionConfigAtom)
 	const renderedBox = useAtomValue(currentRenderedCaptionBoxAtom)
+	const familyOptions = useFontFamilyOptions()
+	const userFontWeights = useUserFontWeights()
 	// Id base for the Width / Height inputs so their visible labels associate
 	// via htmlFor (the inputs stay raw — blank means "auto", which the shared
 	// NumberInput can't express).
@@ -267,7 +265,7 @@ export const CaptionPanel = () => {
 								label="Font family"
 								labelClassName={LABEL_COL}
 								value={merged.fontFamily}
-								options={FAMILY_OPTIONS}
+								options={familyOptions}
 								onChange={(fontFamily) => update({ fontFamily })}
 								selectClassName="flex-1"
 							/>
@@ -296,7 +294,8 @@ export const CaptionPanel = () => {
 									value={String(merged.fontWeight)}
 									options={fontWeightOptionsFor(
 										merged.fontFamily,
-										merged.fontWeight
+										merged.fontWeight,
+										userFontWeights
 									).map((w) => ({ value: String(w.value), label: w.label }))}
 									onChange={(w) => update({ fontWeight: Number(w) })}
 								/>

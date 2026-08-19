@@ -1,8 +1,9 @@
 import type { DataLabelsConfig } from "../../../lib/channelConfig"
+import { fontWeightOptionsFor } from "../../../lib/labelsConfig"
 import {
-	FONT_FAMILY_OPTIONS,
-	fontWeightOptionsFor,
-} from "../../../lib/labelsConfig"
+	useFontFamilyOptions,
+	useUserFontWeights,
+} from "../../../store/useFontOptions"
 
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
@@ -24,17 +25,17 @@ export const TextPropertiesPanel = ({
 	/** Theme-seeded baseline (`dataLabelsConfigFromTheme`) — the weight and
 	 *  style reset links compare against and restore the THEME's defaults. */
 	themeDefaults: DataLabelsConfig
-}) => (
+}) => {
+	const familyOptions = useFontFamilyOptions()
+	const userFontWeights = useUserFontWeights()
+	return (
 	<div className="flex flex-col gap-2">
 		<div className="flex items-center gap-2">
 			<SelectInput
 				label="Family"
 				labelClassName={LABEL_COL}
 				value={cfg.fontFamily}
-				options={FONT_FAMILY_OPTIONS.map((opt) => ({
-					value: opt.value,
-					label: opt.label,
-				}))}
+				options={familyOptions}
 				onChange={(fontFamily) => onChange({ fontFamily })}
 				selectClassName="flex-1"
 			/>
@@ -49,9 +50,11 @@ export const TextPropertiesPanel = ({
 				label="Weight"
 				labelClassName={LABEL_COL}
 				value={String(cfg.fontWeight)}
-				options={fontWeightOptionsFor(cfg.fontFamily, cfg.fontWeight).map(
-					(w) => ({ value: String(w.value), label: w.label })
-				)}
+				options={fontWeightOptionsFor(
+					cfg.fontFamily,
+					cfg.fontWeight,
+					userFontWeights
+				).map((w) => ({ value: String(w.value), label: w.label }))}
 				onChange={(w) => onChange({ fontWeight: Number(w) })}
 				selectClassName="flex-1"
 			/>
@@ -92,4 +95,5 @@ export const TextPropertiesPanel = ({
 			)}
 		</div>
 	</div>
-)
+	)
+}

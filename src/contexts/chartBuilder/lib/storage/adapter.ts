@@ -30,14 +30,17 @@ import {
 	loadThemes,
 	loadThumbnailsAsync,
 	loadUserDefaultThemeId,
+	loadUserFonts,
 	loadVisuals,
 	saveDatasetsAsync,
 	saveEmbedInstances,
 	saveFolders,
 	saveThemes,
 	saveUserDefaultThemeId,
+	saveUserFonts,
 	saveVisuals,
 } from "../storage"
+import type { UserFont } from "../fontLibrary"
 import type {
 	Dataset,
 	EmbedInstance,
@@ -79,6 +82,9 @@ export interface StorageContentAdapter {
 	loadThemes(): Promise<SavedTheme[] | null>
 	saveThemes(themes: SavedTheme[]): Promise<void>
 
+	loadUserFonts(): Promise<UserFont[]>
+	saveUserFonts(fonts: UserFont[]): Promise<void>
+
 	loadUserDefaultThemeId(): Promise<string | null>
 	saveUserDefaultThemeId(id: string | null): Promise<void>
 }
@@ -109,6 +115,11 @@ export const localStorageAdapter: StorageContentAdapter = {
 	loadThemes: async () => loadThemes(),
 	saveThemes: async (themes) => {
 		saveThemes(themes)
+	},
+
+	loadUserFonts: async () => loadUserFonts(),
+	saveUserFonts: async (fonts) => {
+		saveUserFonts(fonts)
 	},
 
 	loadUserDefaultThemeId: async () => loadUserDefaultThemeId(),

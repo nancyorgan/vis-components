@@ -45,6 +45,7 @@ import {
 	loadTheme,
 	loadThemes,
 	loadUserDefaultThemeId,
+	loadUserFonts,
 	loadVisuals,
 	mergeThumbnails,
 	saveCurrentAnnotations,
@@ -76,6 +77,7 @@ import {
 	type ExportUnit,
 } from "../lib/storage"
 import { idbAvailable } from "../lib/storage/idb"
+import type { UserFont } from "../lib/fontLibrary"
 import type { StorageContentAdapter } from "../lib/storage/adapter"
 import { getStorageAdapter } from "../lib/storage/registry"
 import {
@@ -493,6 +495,16 @@ export const themesAtom = contentAtom<SavedTheme[]>(
 	// bootstrap.
 	async (adapter) => (await adapter.loadThemes()) ?? buildInitialThemes(),
 	(adapter, themes) => adapter.saveThemes(themes)
+)
+
+/** The user's font library — Google Fonts added via Settings → Fonts.
+ * Every Family picker appends these to the built-in FONT_FAMILY_OPTIONS
+ * (useFontOptions.ts), and RootLayout registers their cached woff2 binaries
+ * as FontFaces so charts render them everywhere, embeds included. */
+export const userFontsAtom = contentAtom<UserFont[]>(
+	loadUserFonts,
+	(adapter) => adapter.loadUserFonts(),
+	(adapter, fonts) => adapter.saveUserFonts(fonts)
 )
 
 /** Which theme the user has starred as their default — applied to new

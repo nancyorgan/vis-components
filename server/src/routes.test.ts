@@ -67,6 +67,16 @@ describe("JSON collections over HTTP", () => {
 		expect(list).toEqual([visual])
 	})
 
+	it("round-trips the fonts collection (user font library) as an array", async () => {
+		const font = { id: "gf-lora", family: "Lora", weights: [400, 700] }
+		const put = await fetch(`${base}/api/fonts/gf-lora`, {
+			method: "PUT",
+			body: JSON.stringify(font),
+		})
+		expect(put.status).toBe(204)
+		expect(await (await fetch(`${base}/api/fonts`)).json()).toEqual([font])
+	})
+
 	it("serves embed-instances as an id-keyed record", async () => {
 		const instance = { id: "ei-1", visualId: "v1" }
 		await fetch(`${base}/api/embed-instances/ei-1`, {

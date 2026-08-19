@@ -1,7 +1,7 @@
 import {
-	FONT_FAMILY_OPTIONS,
-	fontWeightOptionsFor,
-} from "../../../chartBuilder/lib/labelsConfig"
+	useFontFamilyOptions,
+	useFontWeightOptions,
+} from "../../../chartBuilder/store/useFontOptions"
 import { AlignmentControl } from "../../../chartBuilder/components/sidebar/LabelsPanel"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { symbolPath } from "../../../chartBuilder/lib/scales"
@@ -114,27 +114,30 @@ export const FontFamilyRow = ({
 	onChange: (family: string) => void
 	/** Called when the user picks the "(default)" entry. Omit to drop it. */
 	onDefault?: () => void
-}) => (
-	<label className="flex items-center gap-2 text-sm">
-		<span className={THEME_LABEL_CLASS}>
-			{label}
-			</span>
-		<select
-			value={value ?? ""}
-			onChange={(e) =>
-				e.target.value === "" ? onDefault?.() : onChange(e.target.value)
-			}
-			className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-		>
-			{onDefault && <option value="">(default)</option>}
-			{FONT_FAMILY_OPTIONS.map((opt) => (
-				<option key={opt.value} value={opt.value}>
-					{opt.label}
-				</option>
-			))}
-		</select>
-	</label>
-)
+}) => {
+	const familyOptions = useFontFamilyOptions()
+	return (
+		<label className="flex items-center gap-2 text-sm">
+			<span className={THEME_LABEL_CLASS}>
+				{label}
+				</span>
+			<select
+				value={value ?? ""}
+				onChange={(e) =>
+					e.target.value === "" ? onDefault?.() : onChange(e.target.value)
+				}
+				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+			>
+				{onDefault && <option value="">(default)</option>}
+				{familyOptions.map((opt) => (
+					<option key={opt.value} value={opt.value}>
+						{opt.label}
+					</option>
+				))}
+			</select>
+		</label>
+	)
+}
 
 /** Alignment row for the title / subtitle / legend-title alignment defaults.
  * Uses the builder's AlignmentControl so both surfaces feel like the same
@@ -175,29 +178,32 @@ export const FontWeightRow = ({
 	onChange: (w: number) => void
 	/** Called when the user picks the "(default)" entry. Omit to drop it. */
 	onDefault?: () => void
-}) => (
-	<label className="flex items-center gap-2 text-sm">
-		<span className={THEME_LABEL_CLASS}>
-			{label}
-			</span>
-		<select
-			value={value ?? ""}
-			onChange={(e) =>
-				e.target.value === ""
-					? onDefault?.()
-					: onChange(Number(e.target.value))
-			}
-			className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-		>
-			{onDefault && <option value="">(default)</option>}
-			{fontWeightOptionsFor(family, value).map((opt) => (
-				<option key={opt.value} value={opt.value}>
-					{opt.label}
-				</option>
-			))}
-		</select>
-	</label>
-)
+}) => {
+	const weightOptions = useFontWeightOptions(family, value)
+	return (
+		<label className="flex items-center gap-2 text-sm">
+			<span className={THEME_LABEL_CLASS}>
+				{label}
+				</span>
+			<select
+				value={value ?? ""}
+				onChange={(e) =>
+					e.target.value === ""
+						? onDefault?.()
+						: onChange(Number(e.target.value))
+				}
+				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+			>
+				{onDefault && <option value="">(default)</option>}
+				{weightOptions.map((opt) => (
+					<option key={opt.value} value={opt.value}>
+						{opt.label}
+					</option>
+				))}
+			</select>
+		</label>
+	)
+}
 
 /** Three-button B/I/U toggle row used inside the Title fonts + Text
  * fonts sections. Mirrors the styling of the per-label override toggle

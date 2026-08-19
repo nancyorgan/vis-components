@@ -39,6 +39,7 @@ export const ANNOTATIONS_VERSION = 3
 export const CAPTION_VERSION = 1
 export const MAP_CONFIG_VERSION = 7
 export const RESHAPE_CONFIG_VERSION = 1
+export const USER_FONTS_VERSION = 1
 
 // ──────────────────────────────────────────────────────────────────────
 // Visuals
@@ -545,6 +546,7 @@ export const themesMigrations: Migration[] = [
 	},
 ]
 export const embedInstancesMigrations = identityMigrations
+export const userFontsMigrations = identityMigrations
 export const fieldOverridesMigrations = identityMigrations
 export const fieldLevelOrdersMigrations = identityMigrations
 /** Annotations v1 → v2: backfill the `circles` list for configs saved before

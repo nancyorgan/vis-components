@@ -8,7 +8,6 @@ import {
 } from "../../lib/channelConfig"
 import {
 	baseTitleAlignmentOf,
-	FONT_FAMILY_OPTIONS,
 	fontWeightDisplayName,
 	fontWeightOptionsFor,
 	LEGEND_CHANNELS,
@@ -35,6 +34,11 @@ import {
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
+import {
+	useFamilyDisplayName,
+	useFontFamilyOptions,
+	useUserFontWeights,
+} from "../../store/useFontOptions"
 import { PalettePickerButton } from "./channelOptions/HueOptionsPanel"
 import { Disclosure } from "@headlessui/react"
 
@@ -45,12 +49,6 @@ import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
 import { Toggle } from "../../../../components/ui/Toggle"
-
-/** Display name for an inherited family: the matching preset's label, else
- * the stack's first family name (custom stacks never come from the presets). */
-const familyDisplayName = (family: string): string =>
-	FONT_FAMILY_OPTIONS.find((o) => o.value === family)?.label ??
-	family.split(",")[0].trim().replace(/^['"]|['"]$/g, "")
 
 /** Weights the renderers fall back to when neither the per-label override nor
  * the base font sets one — fed into the Weight dropdown's "(inherit)" entry so
@@ -1314,6 +1312,9 @@ export const FontEditor = ({
 	afterColor,
 	hideColor = false,
 }: FontEditorProps) => {
+	const familyOptions = useFontFamilyOptions()
+	const userFontWeights = useUserFontWeights()
+	const familyDisplayName = useFamilyDisplayName()
 	const reset = (field: keyof FontConfig) => {
 		const next: Partial<FontConfig> = { ...value }
 		delete next[field]
@@ -1343,7 +1344,7 @@ export const FontEditor = ({
 								: "(inherit)"}
 						</option>
 					)}
-					{FONT_FAMILY_OPTIONS.map((opt) => (
+					{familyOptions.map((opt) => (
 						<option key={opt.value} value={opt.value}>
 							{opt.label}
 						</option>
@@ -1430,7 +1431,11 @@ export const FontEditor = ({
 								: "(inherit)"
 							: "Default"}
 					</option>
-					{fontWeightOptionsFor(value.family ?? baseFamily, value.weight).map(
+					{fontWeightOptionsFor(
+						value.family ?? baseFamily,
+						value.weight,
+						userFontWeights
+					).map(
 						(opt) => (
 							<option key={opt.value} value={opt.value}>
 								{opt.label}

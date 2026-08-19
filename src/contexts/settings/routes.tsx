@@ -1,6 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
 import { rootRoute } from "../../routes/router"
+import { FontsPage } from "./components/FontsPage"
 import { SettingsLayout } from "./components/SettingsLayout"
 import { SharingPage } from "./components/SharingPage"
 import { ThemesPage } from "./components/ThemesPage"
@@ -21,6 +22,12 @@ export const settingsSharingRoute = createRoute({
 	getParentRoute: () => settingsRoute,
 	path: "/sharing",
 	component: SharingPage,
+})
+
+export const settingsFontsRoute = createRoute({
+	getParentRoute: () => settingsRoute,
+	path: "/fonts",
+	component: FontsPage,
 })
 
 // Default redirect: /settings → /settings/themes

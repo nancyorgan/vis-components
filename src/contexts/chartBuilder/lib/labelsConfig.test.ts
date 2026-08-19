@@ -459,4 +459,24 @@ describe("fontWeightOptionsFor", () => {
 		fontWeightOptionsFor("'DM Mono', ui-monospace, monospace", 900)
 		expect(values("'DM Mono', ui-monospace, monospace")).toEqual([300, 400, 500])
 	})
+
+	it("resolves user-library stacks through the extra table, built-ins first", () => {
+		const extra = {
+			"'Lora', Georgia, serif": [400, 500, 600, 700],
+			// A (hypothetical) collision with a built-in stack must lose to it.
+			"Georgia, 'Times New Roman', serif": [100],
+		}
+		expect(
+			fontWeightOptionsFor("'Lora', Georgia, serif", null, extra).map(
+				(o) => o.value
+			)
+		).toEqual([400, 500, 600, 700])
+		expect(
+			fontWeightOptionsFor(
+				"Georgia, 'Times New Roman', serif",
+				null,
+				extra
+			).map((o) => o.value)
+		).toEqual([400, 700])
+	})
 })

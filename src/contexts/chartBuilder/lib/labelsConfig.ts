@@ -184,15 +184,20 @@ export type FontWeightOption = { value: number; label: string }
 export const fontWeightDisplayName = (weight: number): string =>
 	WEIGHT_NAMES[weight] ?? String(weight)
 
-/** Weight options for the given font family (a FONT_FAMILY_OPTIONS value).
- * Pass the currently stored weight as `current` so a value outside the
- * family's range (e.g. saved before a family switch) still renders as a
- * selectable option instead of a blank select. */
+/** Weight options for the given font family (a FONT_FAMILY_OPTIONS value or
+ * a user-library stack). Pass the currently stored weight as `current` so a
+ * value outside the family's range (e.g. saved before a family switch) still
+ * renders as a selectable option instead of a blank select.
+ * `extraFamilyWeights` extends the built-in table with the user font
+ * library's per-stack weights (see useFontOptions.useUserFontWeights). */
 export const fontWeightOptionsFor = (
 	family?: string | null,
-	current?: number | null
+	current?: number | null,
+	extraFamilyWeights?: Record<string, number[]>
 ): FontWeightOption[] => {
-	const weights = (family && FAMILY_WEIGHTS[family]) || FALLBACK_WEIGHTS
+	const weights =
+		(family && (FAMILY_WEIGHTS[family] ?? extraFamilyWeights?.[family])) ||
+		FALLBACK_WEIGHTS
 	const withCurrent =
 		current != null && !weights.includes(current)
 			? [...weights, current].sort((a, b) => a - b)
