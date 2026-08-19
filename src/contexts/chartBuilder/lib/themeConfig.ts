@@ -216,7 +216,15 @@ export const textConfigFromTheme = (t: Theme): TextConfig => ({
  * these fields existed, which keep the built-in defaults. */
 export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
 	...DEFAULT_DATA_LABELS_CONFIG,
-	color: t.dataLabelsColor ?? DEFAULT_DATA_LABELS_CONFIG.color,
+	// No system theme sets `dataLabelsColor` (and custom themes only carry it
+	// once edited), so without the `textEncodingColor` middle step every theme
+	// fell to the hardcoded default — near-black labels on a dark theme. Data
+	// labels succeeded the text channel, so its theme color is the right
+	// inherited default (the size/weight defaults already mirror its 11/500).
+	color:
+		t.dataLabelsColor ??
+		t.textEncodingColor ??
+		DEFAULT_DATA_LABELS_CONFIG.color,
 	fontFamily: t.dataLabelsFontFamily ?? DEFAULT_DATA_LABELS_CONFIG.fontFamily,
 	fontSize: t.dataLabelsFontSize ?? DEFAULT_DATA_LABELS_CONFIG.fontSize,
 	fontWeight: t.dataLabelsFontWeight ?? DEFAULT_DATA_LABELS_CONFIG.fontWeight,

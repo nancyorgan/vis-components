@@ -605,14 +605,38 @@ describe("dataLabelsConfigFromTheme", () => {
 		// STUB_THEME carries none of the six optional fields — exactly the shape
 		// of a theme saved before data-label fonts were themeable.
 		const cfg = dataLabelsConfigFromTheme(STUB_THEME)
-		expect(cfg).toEqual(DEFAULT_DATA_LABELS_CONFIG)
+		// Color is the one exception: with `dataLabelsColor` unset it follows
+		// the theme's TEXT-ENCODING color (data labels succeeded the text
+		// channel), not the hardcoded built-in — otherwise every dark/custom
+		// theme got near-black labels regardless of its text colors.
+		expect(cfg).toEqual({
+			...DEFAULT_DATA_LABELS_CONFIG,
+			color: STUB_THEME.textEncodingColor,
+		})
 		// Pinned literally so a default change has to be a deliberate edit here.
 		expect(cfg.fontSize).toBe(11)
 		expect(cfg.fontWeight).toBe(500)
 		expect(cfg.fontFamily).toBe("system-ui, sans-serif")
-		expect(cfg.color).toBe("#111827")
+		expect(cfg.color).toBe("#111")
 		expect(cfg.italic).toBe(false)
 		expect(cfg.underline).toBe(false)
+	})
+
+	it("color falls back dataLabelsColor → textEncodingColor → built-in", () => {
+		// An explicit data-labels color always wins…
+		expect(dataLabelsConfigFromTheme(THEMED).color).toBe("#ff00aa")
+		// …an unset one follows the theme's text-encoding color…
+		expect(dataLabelsConfigFromTheme(STUB_THEME).color).toBe("#111")
+		// …and only a theme with NEITHER lands on the hardcoded default.
+		// (`textEncodingColor` is required on the Theme type, but stored
+		// themes from before the field existed load without it — cast to
+		// simulate that shape.)
+		expect(
+			dataLabelsConfigFromTheme({
+				...STUB_THEME,
+				textEncodingColor: undefined,
+			} as unknown as Theme).color
+		).toBe("#111827")
 	})
 
 	it("italic / underline fall back to false, not undefined", () => {

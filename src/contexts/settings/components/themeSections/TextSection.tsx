@@ -236,7 +236,12 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			<ColorInput
 				label="Font color"
 				value={
-					theme.dataLabelsColor ?? DEFAULT_DATA_LABELS_CONFIG.color
+					// Same effective-value chain as `dataLabelsConfigFromTheme`:
+					// unset falls to the theme's text-encoding color, so the sheet
+					// shows what a fresh chart's labels will actually paint.
+					theme.dataLabelsColor ??
+					theme.textEncodingColor ??
+					DEFAULT_DATA_LABELS_CONFIG.color
 				}
 				onChange={(v) => set("dataLabelsColor", v)}
 			/>
