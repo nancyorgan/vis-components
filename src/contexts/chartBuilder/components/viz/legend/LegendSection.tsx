@@ -158,6 +158,16 @@ export const LegendSection = ({
 			: titleAlignment === "right"
 				? "right"
 				: "center"
+	// Children hug their own width (no flex stretch) so the alignment also
+	// positions the swatch/gradient block relative to a WIDER title — a long
+	// centered title gets the legend content centered beneath it instead of
+	// pinned left. `textAlign` still aligns lines within a multi-line title.
+	const alignItems: "flex-start" | "center" | "flex-end" =
+		titleAlignment === "left"
+			? "flex-start"
+			: titleAlignment === "right"
+				? "flex-end"
+				: "center"
 	// Each sub-legend honors `orientation` directly so its swatches lay
 	// out in the right axis (vertical = stacked rows, horizontal = single
 	// row) WITHOUT wrapping. No CSS override needed.
@@ -166,7 +176,7 @@ export const LegendSection = ({
 		// `gap-2.5` (10 px) puts a comfortable air-gap between the section
 		// title and the legend content below it — `gap-1.5` (6 px) crowded
 		// the title against the top of a gradient bar.
-		<div className="flex flex-col gap-2.5">
+		<div className="flex flex-col gap-2.5" style={{ alignItems }}>
 			{header !== "" && (
 				<div
 					className="font-medium"
