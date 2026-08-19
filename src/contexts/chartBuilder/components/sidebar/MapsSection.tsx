@@ -486,7 +486,7 @@ export const MapsSection = () => {
 						)}
 						{showNoDataFillColor && (
 							<div className="flex items-start gap-2">
-								<span className={`${LABEL_COL} shrink-0 pt-1`}>
+								<span className={`${LABEL_COL} shrink-0 pt-1 text-sm`}>
 									No-data pattern
 								</span>
 								<div className="flex flex-wrap gap-1">

@@ -205,10 +205,14 @@ export const useGeoMapScaffold = (
 	// world-capable projection (mercator / naturalEarth) otherwise leaves the
 	// rest of the globe blank. Load the countries geometry to draw behind the
 	// regions/marks in the no-data fill so the map reads in a global context.
-	// albersUsa clips the world to nothing, so we only load the backdrop for
-	// world-capable projections; the "countries" level already IS the world.
+	// Gate on the projection the user CHOSE (resolved without the focus
+	// override): a focus forces a world projection just so albersUsa can pan,
+	// and that mustn't conjure neighboring countries onto a map that never
+	// showed them (e.g. Canada appearing when custom-zooming a US map). The
+	// "countries" level already IS the world.
 	const needsWorldBackdrop =
-		resolvedProjection !== "albersUsa" && levelForProjection !== "countries"
+		resolveGeoProjection(levelForProjection, mapConfig.projection, "auto") !==
+			"albersUsa" && levelForProjection !== "countries"
 	const { bundle: worldBundle } = useGeometry(
 		needsWorldBackdrop ? "countries" : null
 	)

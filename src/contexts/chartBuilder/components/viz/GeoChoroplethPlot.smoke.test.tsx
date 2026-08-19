@@ -182,7 +182,7 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 		)
 		const { container } = mount()
 		// Many more than the 4 matched states draw now (the rest of the states
-		// in no-data fill, plus the world backdrop countries).
+		// in no-data fill; no backdrop countries — the projection is auto).
 		await waitFor(() => {
 			expect(
 				container.querySelectorAll("path").length
@@ -241,6 +241,67 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 		expect(
 			container.querySelector('rect[pointer-events="all"]')
 		).not.toBeNull()
+	})
+
+	it("custom focus does NOT add the world backdrop under an auto projection", async () => {
+		// Reported bug: custom-zooming an Albers-USA states map made Canada
+		// appear. Focusing forces a world projection internally (albersUsa
+		// can't pan), but the backdrop gate must follow the projection the user
+		// CHOSE — auto here — so no backdrop countries join the 56 state
+		// features the geometry ships.
+		seed(
+			[
+				{ state: "CA", rate: "1" },
+				{ state: "TX", rate: "2" },
+			],
+			{
+				focusRegion: "custom",
+				customViewport: { west: -128, south: 23, east: -66, north: 50 },
+			}
+		)
+		const { container } = mount()
+		await waitFor(() => {
+			expect(
+				container.querySelectorAll("path").length
+			).toBeGreaterThanOrEqual(10)
+		})
+		expect(container.querySelectorAll("path").length).toBeLessThanOrEqual(56)
+	})
+
+	it("custom focus keeps the world backdrop under an explicit world projection", async () => {
+		// The counterpart: the user explicitly chose Natural Earth, so the
+		// world-context backdrop stays. The focus clip drops most countries, so
+		// compare against an identical auto-projection mount (same internal
+		// projection — focus forces Natural Earth either way): the explicit
+		// world projection must draw strictly more paths (the surviving
+		// backdrop countries, e.g. Canada).
+		const viewport = { west: -128, south: 23, east: -66, north: 50 }
+		const rows = [
+			{ state: "CA", rate: "1" },
+			{ state: "TX", rate: "2" },
+		]
+		seed(rows, { focusRegion: "custom", customViewport: viewport })
+		const auto = mount()
+		await waitFor(() => {
+			expect(
+				auto.container.querySelectorAll("path").length
+			).toBeGreaterThanOrEqual(10)
+		})
+		const autoCount = auto.container.querySelectorAll("path").length
+		cleanup()
+
+		seed(rows, {
+			projection: "naturalEarth",
+			focusRegion: "custom",
+			customViewport: viewport,
+		})
+		const world = mount()
+		// The countries backdrop loads async after the states — wait for it.
+		await waitFor(() => {
+			expect(world.container.querySelectorAll("path").length).toBeGreaterThan(
+				autoCount
+			)
+		})
 	})
 
 	it("fills matched regions via the scale and unmatched with noDataFill", async () => {

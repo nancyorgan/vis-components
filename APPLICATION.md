@@ -263,6 +263,14 @@ draws, in the no-data fill). A focus region always fills no-data land
 regardless of the toggle, so a focused viewport never shows blank
 gaps.
 
+The **world-countries backdrop** (neighboring countries drawn in the
+no-data fill behind a non-world geography level) appears only when the
+user's CHOSEN projection is a world projection (Natural Earth or
+Mercator). Focusing — a named region or Custom (drag to center) —
+internally forces a world projection so Albers USA can pan, but that
+never adds the backdrop: an Albers-USA states map custom-zoomed stays
+US-only (no Canada appearing).
+
 An optional **no-data pattern** (chip picker under the no-data fill,
 sharing the pattern channel's palette, plus an ink color that appears
 once a pattern is picked) overlays those same no-data regions —
