@@ -18,17 +18,28 @@
  * -------------------------------------------------------------------------- */
 @theme {
 	/* Typography — Google Fonts loaded in index.html.
-	 *   body  → DM Sans (overrides the shared --font-sans default)
-	 *   heads → DM Sans (--font-heading token → `font-heading` utility)
-	 * Currently both point at DM Sans (neutral baseline while we decide on a
-	 * display face); the Google Fonts link + --font-heading token stay wired
-	 * up so we can swap in a header/body pairing later without replumbing.
+	 *   body  → Quicksand (overrides the shared --font-sans default)
+	 *   heads → Quicksand (--font-heading token → `font-heading` utility)
+	 * The UI renders in Quicksand; DM Sans stays loaded because it's a chart
+	 * font option (FONT_FAMILY_OPTIONS in labelsConfig.ts) for figures. The
+	 * --font-heading token stays wired up so we can swap in a header/body
+	 * pairing later without replumbing.
 	 * Overriding --font-sans here (imported after the vendored theme) keeps
 	 * the change project-local without editing tailwind.theme.css. */
 	--font-sans:
-		"DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+		"Quicksand", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
 		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-	--font-heading: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+	--font-heading: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+
+	/* Quicksand renders noticeably lighter than DM Sans at the same weight, so
+	 * the UI weight scale shifts up one step: body text 400→500 (base layer
+	 * below), font-medium 500→600, font-semibold 600→700 (Quicksand's max, so
+	 * font-bold stays 700 and merges with semibold). Chart surfaces are fenced
+	 * back to the stock scale in the base layer — figure text weights belong
+	 * to the chart theme, not the UI face. */
+	--font-weight-normal: 500;
+	--font-weight-medium: 600;
+	--font-weight-semibold: 700;
 
 	/* Project accent — used by primary interactive surfaces. Pick one brand
 	 * color to expand Tailwind's vc-accent utilities (text-vc-accent,
@@ -64,7 +75,7 @@
  * Base layer — global element defaults
  * -------------------------------------------------------------------------- */
 @layer base {
-	/* Headings render in the --font-heading face (currently DM Sans). Covers
+	/* Headings render in the --font-heading face (currently Quicksand). Covers
 	 * the sidebar section headers too — AsideSection renders them as <h3>. Use
 	 * the `font-heading` utility for header-like elements that aren't <h1>–<h6>. */
 	h1,
@@ -74,6 +85,24 @@
 	h5,
 	h6 {
 		font-family: var(--font-heading);
+	}
+
+	/* UI text renders at 500 — Quicksand's 400 is too light to read
+	 * comfortably at UI sizes (see the weight-scale note in @theme). */
+	body {
+		font-weight: 450;
+	}
+
+	/* Figure fence: chart surfaces keep the browser-default weight and the
+	 * stock Tailwind weight scale, so exported/embedded charts render exactly
+	 * as they did before the UI font swap. Covers the editor viewport (incl.
+	 * legends + tooltips) and the embed/export/thumbnail capture root. */
+	[data-editor-chart-viewport],
+	[data-export-root] {
+		font-weight: 400;
+		--font-weight-normal: 400;
+		--font-weight-medium: 500;
+		--font-weight-semibold: 600;
 	}
 
 	/* Keep the embed route truly chromeless: scrollbars inside the iframe

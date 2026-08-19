@@ -7,15 +7,7 @@ import {
 	currentDatasetIdAtom,
 	datasetsAtom,
 } from "../contexts/chartBuilder/store/atoms"
-import { combine as c } from "../lib/cls"
-
 import { Button } from "./ui/Button"
-
-const linkBase = "px-3 py-1.5 rounded-sm text-sm font-medium transition-colors"
-const linkIdle =
-	"text-stone-600 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-white dark:hover:bg-stone-700"
-const linkActive =
-	"text-stone-900 bg-stone-100 dark:text-white dark:bg-stone-700"
 
 export const Header = () => {
 	return (
@@ -73,16 +65,6 @@ export const Header = () => {
 				>
 					v{__APP_VERSION__}
 				</span>
-				<nav className="flex items-center gap-1">
-					<Link
-						to="/"
-						className={c(linkBase, linkIdle)}
-						activeProps={{ className: c(linkBase, linkActive) }}
-						activeOptions={{ exact: true }}
-					>
-						Visualizations
-					</Link>
-				</nav>
 			</div>
 			<div className="flex items-center gap-3">
 				<NewVisualizationButton />

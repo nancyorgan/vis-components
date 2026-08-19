@@ -343,6 +343,14 @@ export const QuickStartIconBar = () => {
 	const setMapConfig = useSetAtom(currentMapConfigAtom)
 	const theme = useCurrentTheme()
 	const [pending, setPending] = useState<Pending | null>(null)
+	// Custom hover tooltip (instant, unlike the native `title` delay). Fixed
+	// positioning so it escapes the sidebar's overflow-y-auto clipping; the
+	// x-center is clamped so long labels don't run off the window edge.
+	const [hovered, setHovered] = useState<{
+		label: string
+		x: number
+		y: number
+	} | null>(null)
 
 	const fields = useMemo(() => dataset?.fields ?? [], [dataset])
 
@@ -477,22 +485,51 @@ export const QuickStartIconBar = () => {
 					const disabled = satisfiable.length === 0
 					const tooltip = disabled
 						? `${LABELS[chartType]} unavailable: ${MISSING_TYPE_HINT[chartType]}`
-						: `${LABELS[chartType]} — click to scaffold, click again to cycle variations`
+						: LABELS[chartType]
 					return (
 						<button
 							key={chartType}
 							type="button"
 							disabled={disabled || !dataset}
 							onClick={() => onIconClick(chartType)}
-							title={tooltip}
+							onMouseEnter={(e) => {
+								const rect = e.currentTarget.getBoundingClientRect()
+								setHovered({
+									label: tooltip,
+									x: rect.left + rect.width / 2,
+									y: rect.bottom,
+								})
+							}}
+							onMouseLeave={() => setHovered(null)}
 							aria-label={LABELS[chartType]}
-							className="flex h-8 w-full items-center justify-center rounded border border-stone-300 bg-white text-stone-700 transition-colors hover:enabled:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200 dark:hover:enabled:bg-stone-700"
+							className="flex h-8 w-full items-center justify-center rounded border border-stone-300 bg-white text-stone-700 transition hover:enabled:scale-125 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
 						>
-							<Icon className="h-4 w-4 fill-current" />
+							<Icon className="h-6 w-6 fill-current" />
 						</button>
 					)
 				})}
 			</div>
+			{hovered && (
+				<div
+					key={hovered.label}
+					ref={(el) => {
+						// After layout, nudge the centered tooltip back inside the
+						// window when it would spill past either edge (the sidebar
+						// hugs the left edge, so short-center-x labels can overflow).
+						if (!el) return
+						const r = el.getBoundingClientRect()
+						const overLeft = Math.max(0, 8 - r.left)
+						const overRight = Math.max(0, r.right - (window.innerWidth - 8))
+						const dx = overLeft - overRight
+						if (dx !== 0)
+							el.style.transform = `translateX(calc(-50% + ${dx}px))`
+					}}
+					className="pointer-events-none fixed z-50 max-w-56 -translate-x-1/2 rounded-md bg-white px-2 py-1 text-center text-xs font-medium text-th-electric-indigo-700 shadow-md ring-1 ring-stone-200"
+					style={{ left: hovered.x, top: hovered.y + 6 }}
+				>
+					{hovered.label}
+				</div>
+			)}
 			{pending && (
 				<div className="flex flex-col gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-stone-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-stone-200">
 					<div>

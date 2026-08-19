@@ -392,9 +392,6 @@ export const LibraryPage = () => {
 							</Button>
 						)}
 						<ViewToggle view={view} onChange={setView} />
-						<Link to="/editor/new">
-							<Button compact>New visualization</Button>
-						</Link>
 					</div>
 					{backfillNote && (
 						<p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
