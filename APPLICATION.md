@@ -618,7 +618,12 @@ palette section branches on field type:
   swatch → pick color). Each row also carries a circular-arrow button
   that opens a popover of the current palette's swatches (wrapping at
   6 per row, current color highlighted) — pick one to commit it and
-  close. Stack mode (stack / group / overlay) for bars
+  close. A down-chevron at the popover's bottom expands it with the
+  theme's other palettes (categorical then ordinal, skipping any whose
+  colors duplicate one already shown), each palette as its own
+  whitespace-separated swatch group, so a color can be borrowed from a
+  palette the chart isn't on; the chevron flips to collapse them and
+  the popover reopens collapsed. Stack mode (stack / group / overlay) for bars
   and areas. **Area charts** also get a separate "Line color" section
   with its own palette dropdown (lets the user pair a light fill
   palette with dark strokes); per-value line color overrides supported
@@ -632,6 +637,12 @@ palette section branches on field type:
   and optional pinned domain values. Each stop's value box shows the
   computed auto value as its greyed placeholder (data min / mid / data
   max) rather than the word "auto"; typing a value pins that stop.
+  Every stop row (preset steps, Low/Mid/High, and manual steps) also
+  carries the circular-arrow palette-popover button beside its swatch,
+  offering the theme's default categorical palette (expandable to the
+  theme's other palettes) so a gradient stop can borrow a theme color;
+  picking one commits through the row's normal edit path (so editing a
+  preset still transitions to a custom gradient).
   Diverging gradients (presets and saved) center their mid stop at 0
   whenever the data spans 0 — the palette's neutral marks the sign
   change — falling back to the domain midpoint for one-signed data.

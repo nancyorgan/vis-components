@@ -21,7 +21,10 @@ import {
 	LabelSpacer,
 } from "../../../../../components/ui/LabeledField"
 import { ColorSlotControls } from "../channelOptions/ColorPanel"
-import { CategoricalSwatchList } from "../channelOptions/HueOptionsPanel"
+import {
+	CategoricalSwatchList,
+	PalettePickerButton,
+} from "../channelOptions/HueOptionsPanel"
 
 const PALETTE_PRESET_NAMES: PaletteName[] = [
 	"viridis",
@@ -123,19 +126,33 @@ export const HuePanel = ({
 					{/* The single color swatch sits directly under the palette/gradient
 					 *  dropdown so it's immediately reachable when "None (single
 					 *  color)" is selected (no scale → this IS the label color). The
-					 *  advanced text-color rules drop below it. */}
-					<ColorInput
-						label={
-							(cfg.textColorRules?.length ?? 0) > 0
-								? "Else (fallback)"
-								: usesScale
-									? "Fallback"
-									: "Color"
-						}
-						labelClassName={LABEL_COL}
-						value={cfg.color}
-						onChange={(color) => onChange({ color })}
-					/>
+					 *  advanced text-color rules drop below it. The circular-arrow
+					 *  palette picker rides along like every other single-color
+					 *  swatch (theme's default categorical palette). */}
+					<div className="flex items-center gap-2">
+						<ColorInput
+							label={
+								(cfg.textColorRules?.length ?? 0) > 0
+									? "Else (fallback)"
+									: usesScale
+										? "Fallback"
+										: "Color"
+							}
+							labelClassName={LABEL_COL}
+							value={cfg.color}
+							onChange={(color) => onChange({ color })}
+						/>
+						<PalettePickerButton
+							label="Pick palette color for label text"
+							palette={
+								theme.categoricalPalettes.find(
+									(p) => p.id === theme.defaultCategoricalPaletteId
+								)?.colors ?? CATEGORICAL_HUE_PALETTE
+							}
+							current={cfg.color}
+							onPick={(color) => onChange({ color })}
+						/>
+					</div>
 					<TextColorRulesRow cfg={cfg} onChange={onChange} />
 				</>
 			)}

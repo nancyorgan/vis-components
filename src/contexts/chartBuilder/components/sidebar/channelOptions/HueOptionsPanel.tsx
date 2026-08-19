@@ -43,6 +43,7 @@ import {
 	buildQuantHueConfigFromTheme,
 	resolveGradientToConfig,
 } from "../../../lib/hueDefaults"
+import { resolveCategoricalPalette } from "../../../lib/themeConfig"
 import { rgb as d3Rgb } from "d3-color"
 import { StackModeRow } from "./StackModeRow"
 import { preserveStackMode } from "../../../lib/stackMode"
@@ -68,6 +69,7 @@ import { orderedLevels } from "../../../lib/smartSort"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 
+import { DisclosureChevron } from "../../../../../components/ui/Chevron"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
@@ -124,7 +126,11 @@ const effectiveFieldType = (
  *  colors — a quick on-palette alternative to the open-ended color picker
  *  beside it. Swatches wrap at 6 per row; picking one commits it and closes
  *  the popover. (Replaces the old step-to-next-color cycling, where
- *  overshooting a color meant clicking all the way around again.) */
+ *  overshooting a color meant clicking all the way around again.) A
+ *  disclosure chevron at the popover's bottom expands it with the theme's
+ *  OTHER palettes (categorical + ordinal), one whitespace-separated swatch
+ *  group per palette, for borrowing a color from a palette the swatch isn't
+ *  on. */
 export const PalettePickerButton = ({
 	palette,
 	current,
@@ -137,24 +143,74 @@ export const PalettePickerButton = ({
 	label: string
 }) => {
 	const [open, setOpen] = useState(false)
+	const [showOthers, setShowOthers] = useState(false)
+	const theme = useCurrentTheme()
 	const containerRef = useRef<HTMLDivElement>(null)
+	// Every theme palette except the one already shown, deduped by color
+	// content (not id — `palette` arrives as bare colors, and the same
+	// colors can back several entries).
+	const otherPalettes = useMemo(() => {
+		const key = (colors: readonly string[]) =>
+			colors.map((c) => c.toLowerCase()).join("|")
+		const seen = new Set([key(palette)])
+		return [
+			...theme.categoricalPalettes,
+			...(theme.ordinalPalettes ?? []),
+		].filter((p) => {
+			if (p.colors.length === 0 || seen.has(key(p.colors))) return false
+			seen.add(key(p.colors))
+			return true
+		})
+	}, [theme, palette])
 	// Close when focus leaves the button + popover entirely (tab away or
 	// click elsewhere); moving focus onto a swatch keeps it open. Attached
 	// to each button (not the wrapper div) so the wrapper stays inert.
+	const close = () => {
+		setOpen(false)
+		setShowOthers(false)
+	}
 	const closeIfFocusLeft = (e: React.FocusEvent) => {
 		if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-			setOpen(false)
+			close()
 		}
 	}
 	const closeOnEscape = (e: React.KeyboardEvent) => {
-		if (e.key === "Escape") setOpen(false)
+		if (e.key === "Escape") close()
 	}
+	const swatchGroup = (colors: readonly string[]) => (
+		<div className="flex flex-wrap gap-1">
+			{colors.map((c, i) => {
+				const isCurrent = c.toLowerCase() === current.toLowerCase()
+				return (
+					<button
+						// eslint-disable-next-line react/no-array-index-key -- palettes may repeat a color
+						key={`${i}-${c}`}
+						type="button"
+						onClick={() => {
+							onPick(c)
+							close()
+						}}
+						onBlur={closeIfFocusLeft}
+						onKeyDown={closeOnEscape}
+						aria-label={`Use ${c}`}
+						title={c}
+						className={`h-5 w-5 flex-shrink-0 rounded ${
+							isCurrent
+								? "ring-1 ring-stone-900 dark:ring-white"
+								: ""
+						}`}
+						style={{ backgroundColor: c }}
+					/>
+				)
+			})}
+		</div>
+	)
 	if (palette.length === 0) return null
 	return (
 		<div ref={containerRef} className="relative flex-shrink-0">
 			<button
 				type="button"
-				onClick={() => setOpen((o) => !o)}
+				onClick={() => (open ? close() : setOpen(true))}
 				onBlur={closeIfFocusLeft}
 				onKeyDown={closeOnEscape}
 				aria-label={label}
@@ -186,35 +242,40 @@ export const PalettePickerButton = ({
 				 *  against its containing block — here the tiny button wrapper —
 				 *  which would collapse the row to one swatch per line (a
 				 *  vertical stack). max-content sizing lays the swatches out
-				 *  horizontally; max-w then caps the line at exactly 6 h-5
-				 *  swatches (6×1.25rem + 5×0.25rem gap + p-1.5 + border), so
-				 *  longer palettes wrap at 6 per row. Anchored to the button's
-				 *  right edge so it stays inside the sidebar. */
-				<div className="absolute right-0 top-full z-20 mt-1 flex w-max max-w-[10rem] flex-wrap gap-1 rounded border border-stone-300 bg-white p-1.5 shadow-lg dark:border-stone-600 dark:bg-stone-800">
-					{palette.map((c, i) => {
-						const isCurrent = c.toLowerCase() === current.toLowerCase()
-						return (
-							<button
-								// eslint-disable-next-line react/no-array-index-key -- palettes may repeat a color
-								key={`${i}-${c}`}
-								type="button"
-								onClick={() => {
-									onPick(c)
-									setOpen(false)
-								}}
-								onBlur={closeIfFocusLeft}
-								onKeyDown={closeOnEscape}
-								aria-label={`Use ${c}`}
-								title={c}
-								className={`h-5 w-5 flex-shrink-0 rounded ${
-									isCurrent
-										? "ring-1 ring-stone-900 dark:ring-white"
-										: ""
-								}`}
-								style={{ backgroundColor: c }}
-							/>
-						)
-					})}
+				 *  horizontally; max-w then caps each group's line at exactly 6
+				 *  h-5 swatches (6×1.25rem + 5×0.25rem gap + p-1.5 + border), so
+				 *  longer palettes wrap at 6 per row. The column's gap-2 is the
+				 *  whitespace separating one palette's swatch group from the
+				 *  next. Anchored to the button's right edge so it stays inside
+				 *  the sidebar. */
+				<div className="absolute right-0 top-full z-20 mt-1 flex w-max max-w-[10rem] flex-col gap-2 rounded border border-stone-300 bg-white p-1.5 shadow-lg dark:border-stone-600 dark:bg-stone-800">
+					{swatchGroup(palette)}
+					{showOthers &&
+						otherPalettes.map((p) => (
+							<div key={p.id}>{swatchGroup(p.colors)}</div>
+						))}
+					{otherPalettes.length > 0 && (
+						<button
+							type="button"
+							onClick={() => setShowOthers((s) => !s)}
+							onBlur={closeIfFocusLeft}
+							onKeyDown={closeOnEscape}
+							aria-label={
+								showOthers
+									? "Hide other theme palettes"
+									: "Show other theme palettes"
+							}
+							aria-expanded={showOthers}
+							title={
+								showOthers
+									? "Hide other theme palettes"
+									: "Show other theme palettes"
+							}
+							className="-my-0.5 flex h-4 w-full flex-shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+						>
+							<DisclosureChevron open={showOthers} />
+						</button>
+					)}
 				</div>
 			)}
 		</div>
@@ -1261,6 +1322,12 @@ export const QuantitativePanel = ({
 			? fmtStopValue(autoDivergingMid(effLo, effHi))
 			: undefined
 
+	// Colors the circular-arrow popover beside each stop swatch offers —
+	// the theme's default categorical palette (its chevron expands the
+	// theme's other palettes), so gradient stops can borrow theme colors
+	// without the open-ended picker. Mirrors the single-color swatches.
+	const stopPickerPalette = resolveCategoricalPalette(theme).colors
+
 	// Preset endpoint colors — used to seed swatches when a preset is
 	// active. Diverging presets get Low/Mid/High (and transition to
 	// `customDiverging` on edit, preserving the mid stop). Linear presets
@@ -1377,6 +1444,7 @@ export const QuantitativePanel = ({
 							label={`Step ${i + 1}`}
 							color={c}
 							value={null}
+							palette={stopPickerPalette}
 							placeholder={
 								ext
 									? fmtStopValue(
@@ -1421,6 +1489,7 @@ export const QuantitativePanel = ({
 						color={presetColors.high}
 						value={null}
 						placeholder={highPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) =>
 							updateQ({
 								palette: "customDiverging",
@@ -1444,6 +1513,7 @@ export const QuantitativePanel = ({
 						color={presetColors.mid}
 						value={null}
 						placeholder={midPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) =>
 							updateQ({
 								palette: "customDiverging",
@@ -1467,6 +1537,7 @@ export const QuantitativePanel = ({
 						color={presetColors.low}
 						value={null}
 						placeholder={lowPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) =>
 							updateQ({
 								palette: "customDiverging",
@@ -1501,6 +1572,7 @@ export const QuantitativePanel = ({
 						color={cfg.highColor}
 						value={cfg.highValue}
 						placeholder={highPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) => updateQ({ highColor: c })}
 						onValue={(v) => updateQ({ highValue: v })}
 						trailing={stopResetLink("high", cfg.highColor, cfg.highValue)}
@@ -1510,6 +1582,7 @@ export const QuantitativePanel = ({
 						color={cfg.lowColor}
 						value={cfg.lowValue}
 						placeholder={lowPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) => updateQ({ lowColor: c })}
 						onValue={(v) => updateQ({ lowValue: v })}
 						trailing={stopResetLink("low", cfg.lowColor, cfg.lowValue)}
@@ -1531,6 +1604,7 @@ export const QuantitativePanel = ({
 						color={cfg.highColor}
 						value={cfg.highValue}
 						placeholder={highPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) => updateQ({ highColor: c })}
 						onValue={(v) => updateQ({ highValue: v })}
 						trailing={stopResetLink("high", cfg.highColor, cfg.highValue)}
@@ -1540,6 +1614,7 @@ export const QuantitativePanel = ({
 						color={cfg.midColor ?? "#ffffff"}
 						value={cfg.midValue}
 						placeholder={midPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) => updateQ({ midColor: c })}
 						onValue={(v) => updateQ({ midValue: v })}
 						trailing={stopResetLink(
@@ -1553,6 +1628,7 @@ export const QuantitativePanel = ({
 						color={cfg.lowColor}
 						value={cfg.lowValue}
 						placeholder={lowPlaceholder}
+						palette={stopPickerPalette}
 						onColor={(c) => updateQ({ lowColor: c })}
 						onValue={(v) => updateQ({ lowValue: v })}
 						trailing={stopResetLink("low", cfg.lowColor, cfg.lowValue)}
@@ -1567,7 +1643,12 @@ export const QuantitativePanel = ({
 			 *  white→black anchors. User adds more via `+ add a new step`.
 			 *  Stops are labeled Step 1 .. Step N in order. */}
 			{paletteMode === "custom" && (
-				<CustomStopsList cfg={cfg} updateQ={updateQ} dataExtent={ext} />
+				<CustomStopsList
+					cfg={cfg}
+					updateQ={updateQ}
+					dataExtent={ext}
+					palette={stopPickerPalette}
+				/>
 			)}
 		</div>
 	)
@@ -1582,12 +1663,15 @@ const CustomStopsList = ({
 	cfg,
 	updateQ,
 	dataExtent,
+	palette,
 }: {
 	cfg: Extract<HueConfig, { kind: "quantitative" }>
 	updateQ: (
 		patch: Partial<Extract<HueConfig, { kind: "quantitative" }>>,
 	) => void
 	dataExtent?: [number, number] | null
+	/** Passed through to each row's palette popover (see StopRowProps). */
+	palette?: readonly string[]
 }) => {
 	const stops: CustomHueStop[] =
 		cfg.customStops && cfg.customStops.length >= 2
@@ -1650,6 +1734,7 @@ const CustomStopsList = ({
 					color={s.color}
 					value={s.value}
 					placeholder={stopPlaceholder(i)}
+					palette={palette}
 					onColor={(c) => updateAt(i, { color: c })}
 					onValue={(v) => updateAt(i, { value: v })}
 					trailing={
@@ -1698,6 +1783,10 @@ type StopRowProps = {
 	/** Shown greyed in the value box while it's empty ("auto"). Callers
 	 * pass the computed auto value (data min/mid/max) when they know it. */
 	placeholder?: string
+	/** Colors offered by the circular-arrow palette popover beside the
+	 * swatch (the theme's default categorical palette; the popover's
+	 * chevron expands the theme's other palettes). Omit to hide it. */
+	palette?: readonly string[]
 	trailing?: React.ReactNode
 }
 
@@ -1708,6 +1797,7 @@ const CustomStopRow = ({
 	onColor,
 	onValue,
 	placeholder,
+	palette,
 	trailing,
 }: StopRowProps) => {
 	return (
@@ -1721,6 +1811,14 @@ const CustomStopRow = ({
 				onChange={onColor}
 				className="contents"
 			/>
+			{palette && (
+				<PalettePickerButton
+					label={`Pick palette color for ${label}`}
+					palette={palette}
+					current={color}
+					onPick={onColor}
+				/>
+			)}
 			{/* Stays a raw input: a blank field commits `null` ("auto" — position
 			 *  the stop evenly / use the data extent), which the NumberInput
 			 *  primitive can't express. No visible label of its own, so an
