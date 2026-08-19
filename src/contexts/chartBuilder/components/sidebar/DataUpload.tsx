@@ -37,6 +37,7 @@ export const DataUpload = () => {
 	const inputRef = useRef<HTMLInputElement>(null)
 	const currentDataset = useCurrentDatasetView()
 	const [error, setError] = useState<string | null>(null)
+	const [warning, setWarning] = useState<string | null>(null)
 	const handleCsvUpload = useHandleCsvUpload()
 
 	return (
@@ -58,8 +59,10 @@ export const DataUpload = () => {
 					e.target.value = ""
 					if (!file) return
 					setError(null)
+					setWarning(null)
 					const result = await handleCsvUpload(file)
 					if (!result.ok) setError(result.error)
+					else setWarning(result.warning ?? null)
 				}}
 			/>
 			{currentDataset && (
@@ -81,6 +84,11 @@ export const DataUpload = () => {
 			{error && (
 				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
 					{error}
+				</div>
+			)}
+			{warning && (
+				<div className="rounded-sm bg-amber-50 px-2 py-1 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+					{warning}
 				</div>
 			)}
 			{/* Shared upload-prompt modal — opens whenever `pendingUploadAtom` is

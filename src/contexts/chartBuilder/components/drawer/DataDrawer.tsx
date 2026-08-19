@@ -31,6 +31,7 @@ export const DataDrawer = () => {
 	const setSidebarCollapsed = useSetAtom(sidebarCollapsedAtom)
 	const [dragOver, setDragOver] = useState(false)
 	const [dropError, setDropError] = useState<string | null>(null)
+	const [dropWarning, setDropWarning] = useState<string | null>(null)
 	// Counter to handle nested drag enters/leaves (child elements) without
 	// flicker. We only hide the overlay when the counter returns to zero.
 	const dragDepthRef = useRef(0)
@@ -89,6 +90,7 @@ export const DataDrawer = () => {
 		dragDepthRef.current = 0
 		setDragOver(false)
 		setDropError(null)
+		setDropWarning(null)
 		const file = e.dataTransfer.files?.[0]
 		if (!file) return
 		if (!file.name.toLowerCase().endsWith(".csv")) {
@@ -97,6 +99,7 @@ export const DataDrawer = () => {
 		}
 		const result = await handleCsvUpload(file)
 		if (!result.ok) setDropError(result.error)
+		else setDropWarning(result.warning ?? null)
 	}
 
 	const effectiveHeight = open ? height : 36
@@ -127,6 +130,11 @@ export const DataDrawer = () => {
 					{dropError && (
 						<span className="text-sm text-red-700 dark:text-red-300">
 							{dropError}
+						</span>
+					)}
+					{dropWarning && (
+						<span className="text-sm text-amber-700 dark:text-amber-300">
+							{dropWarning}
 						</span>
 					)}
 					<span className="hidden text-sm text-stone-500 sm:inline dark:text-stone-500">

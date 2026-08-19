@@ -4,10 +4,13 @@ Embeddable, data-centric visualization components.
 
 ## Prerequisites
 
-Node 24.11.0 (managed via fnm). From any directory in the repo:
+Node 24 (the current LTS; `.node-version` pins the major, and `engines` in
+package.json enforces `>=22.16 <23 || >=24` — the self-host server uses the
+built-in `node:sqlite`, which needs at least that). With fnm, from any
+directory in the repo:
 
 ```
-eval "$(fnm env --use-on-cd)" && fnm use 24.11.0
+eval "$(fnm env --use-on-cd)" && fnm use 24
 ```
 
 pnpm 10 (the exact version is pinned via `packageManager` in package.json;
@@ -24,6 +27,50 @@ pnpm dev
 
 Editor: http://localhost:3002.
 
+Run this way (or served as static files), everything you make is stored in
+your own browser (localStorage + IndexedDB) — private to that browser, no
+server required.
+
+## Self-hosting (shared server)
+
+The repo also ships a small self-host server for running the app as a shared
+deployment: same UI, but visuals, folders, datasets, embed instances, and
+themes are stored centrally (SQLite + a dataset directory) and shared by
+everyone who uses that URL. It has zero runtime dependencies beyond Node
+itself.
+
+```
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build     # emits dist/ (frontend) and server/dist/ (server)
+
+VIS_BASE_URL=https://charts.example.com \
+VIS_DB_DIR=/var/lib/vis/db \
+VIS_DATA_DIR=/var/lib/vis/data \
+VIS_PORT=8080 \
+node server/dist/main.js
+```
+
+All four environment variables are required; the server refuses to start with
+a one-line reason per missing/invalid value.
+
+| Variable | Meaning |
+|---|---|
+| `VIS_BASE_URL` | Absolute origin the app is reached at (behind any proxies). Used for embed/share links; never derived from incoming requests. |
+| `VIS_DB_DIR` | Directory for the SQLite database. Initialized when empty; malformed state fails startup. |
+| `VIS_DATA_DIR` | Directory for dataset files (one gzipped JSON file per dataset). |
+| `VIS_PORT` | Port to listen on. Plain HTTP — put TLS termination in front. |
+
+Operational notes: `GET /alive` answers 200 for liveness probes; logs go to
+stdout/stderr; SIGTERM drains in-flight requests and closes the database
+cleanly; run exactly one replica (SQLite is embedded). The same build served
+without the server behaves exactly like the local editor — the frontend
+detects the server at boot via `GET /api/config`. Users on the same server
+share one library; edits are last-write-wins per item. Dataset uploads warn
+above 25 MB and are rejected above 100 MB (browser performance is the real
+constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
+startup; it's expected.
+
 ## Verifying changes
 
 ```
@@ -32,8 +79,8 @@ pnpm lint        # eslint
 pnpm test        # unit + component tests (vitest)
 pnpm test:watch  # vitest in watch mode
 pnpm test:e2e    # Playwright end-to-end suite (~12 min; starts its own server)
-pnpm build       # typecheck + production bundle
-pnpm preview     # serve the production bundle locally
+pnpm build       # typecheck + production bundle + self-host server
+pnpm preview     # serve the production bundle locally (dev-grade, not for deployment)
 ```
 
 `build` is gated on `typecheck`, so type errors fail the build rather than

@@ -23,10 +23,19 @@ export default defineConfig({
 	server: {
 		host: "localhost",
 		port: 3002,
+		// Frontend dev against a running self-host server: set VIS_DEV_API to
+		// its address (e.g. `VIS_DEV_API=http://localhost:8080 pnpm dev`) and
+		// /api proxies there, so the dev editor boots into server mode. Unset —
+		// the default — /api 404s and the editor stays browser-local.
+		proxy: process.env.VIS_DEV_API
+			? { "/api": { target: process.env.VIS_DEV_API, changeOrigin: true } }
+			: undefined,
 	},
 	test: {
 		environment: "happy-dom",
-		include: ["src/**/*.test.{ts,tsx}"],
+		// Self-host server tests live under server/src and opt into the node
+		// environment per-file via `// @vitest-environment node`.
+		include: ["src/**/*.test.{ts,tsx}", "server/src/**/*.test.ts"],
 		// Runs once per test file, before the file's own module body. Puts
 		// every suite on an isolated in-memory localStorage (see the file).
 		setupFiles: ["src/testSupport/vitest.setup.ts"],

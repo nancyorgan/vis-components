@@ -91,6 +91,29 @@ export default tseslint.config(
 		},
 	},
 	{
+		// Self-host server: plain Node, no React/browser globals. Logging to
+		// stdout/stderr is the server's logging contract, so `no-console` stays
+		// on but log.ts (the one sanctioned sink) carries a targeted disable.
+		files: ['server/src/**/*.ts'],
+		extends: [js.configs.recommended, ...tseslint.configs.recommended],
+		languageOptions: {
+			globals: { ...globals.node },
+		},
+		rules: {
+			'no-console': 'error',
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{
+					args: 'all',
+					ignoreRestSiblings: true,
+					varsIgnorePattern: '^_',
+					argsIgnorePattern: '^_',
+					caughtErrorsIgnorePattern: '^_',
+				},
+			],
+		},
+	},
+	{
 		files: ['**/*.{test,spec}.{ts,tsx}', '**/*.smoke.test.tsx', 'src/test/**'],
 		rules: {
 			// non-null assertions are legit in tests

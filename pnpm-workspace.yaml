@@ -1,0 +1,8 @@
+# pnpm settings (this is a single-package repo; no `packages` list needed).
+#
+# minimumReleaseAge: never install a package version published less than
+# 3 days ago (in minutes). Combined with the exact version pins in
+# package.json and --frozen-lockfile installs, upgrades only ever happen
+# deliberately — and never onto a release young enough that a compromised
+# publish wouldn't have been caught yet.
+minimumReleaseAge: 4320

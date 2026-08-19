@@ -7,6 +7,7 @@ import {
 } from "../lib/captureThumbnail"
 import { upsertEmbedInstance } from "../lib/embedInstances"
 import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
+import { appOrigin } from "../../../lib/appOrigin"
 import type { ExportUnit } from "../lib/storage"
 import { embedInstancesAtom, exportSizesAtom, exportUnitAtom } from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
@@ -286,7 +287,11 @@ const EmbedTab = ({
 	)
 
 	const { snippets, embedUrl } = useMemo(() => {
-		const origin = typeof window === "undefined" ? "" : window.location.origin
+		// Outward-facing URLs: in server mode the canonical base URL comes from
+		// the server config (the page may sit behind proxies), locally it's the
+		// page's own origin. The preview iframe below deliberately does NOT use
+		// this — it must stay same-origin for the SVG capture to work.
+		const origin = appOrigin()
 		const params = new URLSearchParams()
 		if (mode === "pinned" && view) params.set("v", view.versionId)
 		const baseQuery = params.toString()
@@ -325,9 +330,9 @@ const EmbedTab = ({
 
 	// Reset the editable drafts to the freshly generated snippets only when an
 	// option that rebuilds them changes. Keyed on a stable signature rather
-	// than the `snippets` reference: `view` from useCurrentDatasetView is a new
-	// object every render, so watching `snippets` would reset (and clobber) the
-	// user's edits on every keystroke. Done during render (React's "adjust
+	// than the `snippets` reference: `view` (and thus `snippets`) can change
+	// identity on unrelated store updates, so watching `snippets` could reset
+	// (and clobber) the user's edits. Done during render (React's "adjust
 	// state on change" pattern) so the reset lands before paint, no effect.
 	const snippetSignature = `${visualId}|${mode}|${splitLegend}|${
 		view?.versionId ?? ""

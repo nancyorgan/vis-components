@@ -1,6 +1,11 @@
 import { useAtomCallback } from "jotai/utils"
 import { useCallback } from "react"
 import { datasetContentHash, findDuplicateDataset } from "../lib/datasetDedupe"
+import {
+	datasetRejectMessage,
+	datasetSizeIssue,
+	datasetWarnMessage,
+} from "../lib/datasetLimits"
 import { inferFieldType } from "../lib/inferFieldType"
 import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
 import { parseCsvFile } from "../lib/parseCsv"
@@ -103,7 +108,9 @@ export const useCreateNewDataset = () =>
 		}, [])
 	)
 
-export type UploadResult = { ok: true } | { ok: false; error: string }
+export type UploadResult =
+	| { ok: true; warning?: string }
+	| { ok: false; error: string }
 
 /** Top-level entry point for both the sidebar Upload button and the data-
  * drawer drag-and-drop. Parses the CSV, then either:
@@ -118,6 +125,13 @@ export const useHandleCsvUpload = () => {
 	return useAtomCallback(
 		useCallback(
 			async (get, set, file: File): Promise<UploadResult> => {
+				// Size gate before any parsing: very large files are slow to
+				// parse, render, and (in server mode) transfer — and the server
+				// independently rejects bodies over the hard limit.
+				const sizeIssue = datasetSizeIssue(file.size)
+				if (sizeIssue === "reject") {
+					return { ok: false, error: datasetRejectMessage(file.size) }
+				}
 				try {
 					const parsed = await parseUpload(file)
 					const visualId = get(currentVisualIdAtom)
@@ -126,7 +140,11 @@ export const useHandleCsvUpload = () => {
 					} else {
 						createNewDataset(parsed, file.name.replace(/\.csv$/i, ""))
 					}
-					return { ok: true }
+					return {
+						ok: true,
+						warning:
+							sizeIssue === "warn" ? datasetWarnMessage(file.size) : undefined,
+					}
 				} catch (error) {
 					return {
 						ok: false,
