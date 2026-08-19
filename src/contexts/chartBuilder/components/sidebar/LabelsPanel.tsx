@@ -565,7 +565,6 @@ export const LabelsPanel = () => {
 				<CollapsibleSubsection title="Node titles" changed={nodeTitlesChanged}>
 					<div className="flex flex-col gap-2">
 						<LabelStyleControls
-							bare
 							override={overrides.nodeTitle}
 							onOverride={(patch) => setOverride("nodeTitle", patch)}
 							alignment={titleAlignments.nodeTitle}
@@ -722,7 +721,6 @@ export const LabelsPanel = () => {
 					// type, so the styling options are shown inline the moment the
 					// subsection opens instead of behind a second "Auto"-row chevron.
 					<LabelStyleControls
-					bare
 					override={overrides.facetTitle}
 					onOverride={(patch) => setOverride("facetTitle", patch)}
 					alignment={titleAlignments.facetTitle}
@@ -1092,12 +1090,6 @@ type LabelStyleControlsProps = {
 	/** Hide the font editor's own Color row (see LabelRowProps.hideColor). */
 	hideColor?: boolean
 	extraControls?: React.ReactNode
-	/** Skip the purple `.vc-option-panel` wrapper (keeping its column layout).
-	 *  Pass when the controls render directly inside a boxed subsection —
-	 *  they're the subsection's whole body, so the extra box reads as
-	 *  box-in-box. Rows that expand into these controls (LabelRow) keep the
-	 *  wrapper. */
-	bare?: boolean
 }
 
 const LabelStyleControls = ({
@@ -1117,11 +1109,12 @@ const LabelStyleControls = ({
 	afterColor,
 	hideColor,
 	extraControls,
-	bare = false,
 }: LabelStyleControlsProps) => {
-	const hasOverride = override !== undefined && Object.keys(override).length > 0
+	// No box of its own: these controls always render inside a subsection's
+	// white card (inline or expanded from a LabelRow), where another panel
+	// would read as box-in-box.
 	return (
-		<div className={bare ? "flex flex-col gap-2" : "vc-option-panel"}>
+		<div className="flex flex-col gap-2">
 			{onAlignment && (
 				/* div, not label: AlignmentControl is a button group, not a form control */
 				<div className="flex items-center gap-2 text-sm">
@@ -1162,7 +1155,6 @@ const LabelStyleControls = ({
 			<FontEditor
 				value={override ?? {}}
 				onChange={(patch) => onOverride(patch)}
-				onResetAll={hasOverride ? () => onOverride(null) : undefined}
 				showResetFields
 				baseColor={baseColor}
 				baseSize={baseSize}
@@ -1287,7 +1279,6 @@ const LabelRow = ({
 type FontEditorProps = {
 	value: Partial<FontConfig>
 	onChange: (patch: Partial<FontConfig>) => void
-	onResetAll?: () => void
 	showResetFields: boolean
 	/** Color previewed in the color swatch when no override is set. */
 	baseColor?: string
@@ -1315,7 +1306,6 @@ type FontEditorProps = {
 export const FontEditor = ({
 	value,
 	onChange,
-	onResetAll,
 	showResetFields,
 	baseColor,
 	baseSize,
@@ -1482,15 +1472,6 @@ export const FontEditor = ({
 						/>
 					)}
 			</div>
-			{onResetAll && (
-				<button
-					type="button"
-					onClick={onResetAll}
-					className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
-			)}
 		</div>
 	)
 }

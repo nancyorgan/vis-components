@@ -1020,49 +1020,48 @@ export const SpineControls = ({
 	showChanged?: boolean
 }) => {
 	const set = (next: Partial<SpineConfig>) => onChange({ ...spine, ...next })
+	// `||` (not `??`) so a 0 / undefined theme value falls back to the
+	// built-in default. A theme that somehow has `spineThickness: 0` would
+	// otherwise have "reset" produce an invisible spine (= no visible change
+	// for the user clicking the link).
+	const resetColor = theme.spineColor || DEFAULT_SPINE_CONFIG.color
+	const resetThickness = theme.spineThickness || DEFAULT_SPINE_CONFIG.thickness
 
 	return (
 		<div className="flex flex-col gap-2">
 			{!hideColorRow && (
-				<ColorInput
-					label="Color"
-					labelClassName={LABEL_COL}
-					value={spine.color}
-					onChange={(color) => set({ color })}
-					changed={showChanged ? valueChanged(spine.color, theme.spineColor) : undefined}
-				/>
+				<div className="flex items-center gap-2">
+					<ColorInput
+						label="Color"
+						labelClassName={LABEL_COL}
+						value={spine.color}
+						onChange={(color) => set({ color })}
+						changed={showChanged ? valueChanged(spine.color, theme.spineColor) : undefined}
+					/>
+					{spine.color !== resetColor && (
+						<ResetLink onClick={() => set({ color: resetColor })} underline />
+					)}
+				</div>
 			)}
-			<NumberInput
-				label="Thickness"
-				labelClassName={LABEL_COL}
-				value={spine.thickness}
-				min={0}
-				max={5}
-				step={0.5}
-				onChange={(thickness) => set({ thickness })}
-				inputClassName="w-16"
-				suffix="px"
-				changed={
-					showChanged ? valueChanged(spine.thickness, theme.spineThickness) : undefined
-				}
-			/>
-			<button
-				type="button"
-				onClick={() =>
-					// `||` (not `??`) so a 0 / undefined theme value falls
-					// back to the built-in default. A theme that somehow has
-					// `spineThickness: 0` would otherwise have "reset to
-					// defaults" produce an invisible spine (= no visible
-					// change for the user clicking the button).
-					onChange({
-						color: theme.spineColor || DEFAULT_SPINE_CONFIG.color,
-						thickness: theme.spineThickness || DEFAULT_SPINE_CONFIG.thickness,
-					})
-				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+			<div className="flex items-center gap-2">
+				<NumberInput
+					label="Thickness"
+					labelClassName={LABEL_COL}
+					value={spine.thickness}
+					min={0}
+					max={5}
+					step={0.5}
+					onChange={(thickness) => set({ thickness })}
+					inputClassName="w-16"
+					suffix="px"
+					changed={
+						showChanged ? valueChanged(spine.thickness, theme.spineThickness) : undefined
+					}
+				/>
+				{spine.thickness !== resetThickness && (
+					<ResetLink onClick={() => set({ thickness: resetThickness })} underline />
+				)}
+			</div>
 		</div>
 	)
 }
@@ -1100,6 +1099,10 @@ const GridlineControls = ({
 			: axis === "y"
 				? theme.yGridlineThickness
 				: theme.rGridlineThickness) ?? theme.gridlineThickness
+	// `||` (not `??`): a 0 / undefined theme thickness falls back to the
+	// built-in default so "reset" never produces invisible gridlines.
+	const resetColor = themeColor || DEFAULT_GRIDLINE_CONFIG.color
+	const resetThickness = themeThickness || DEFAULT_GRIDLINE_CONFIG.thickness
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -1111,25 +1114,38 @@ const GridlineControls = ({
 			/>
 			{grid.enabled && (
 				<>
-					<ColorInput
-						label="Color"
-						labelClassName={LABEL_COL}
-						value={grid.color}
-						onChange={(color) => set({ color })}
-						changed={valueChanged(grid.color, themeColor)}
-					/>
-					<NumberInput
-						label="Thickness"
-						labelClassName={LABEL_COL}
-						value={grid.thickness}
-						min={0}
-						max={5}
-						step={0.5}
-						onChange={(thickness) => set({ thickness })}
-						inputClassName="w-16"
-						suffix="px"
-						changed={valueChanged(grid.thickness, themeThickness)}
-					/>
+					<div className="flex items-center gap-2">
+						<ColorInput
+							label="Color"
+							labelClassName={LABEL_COL}
+							value={grid.color}
+							onChange={(color) => set({ color })}
+							changed={valueChanged(grid.color, themeColor)}
+						/>
+						{grid.color !== resetColor && (
+							<ResetLink onClick={() => set({ color: resetColor })} underline />
+						)}
+					</div>
+					<div className="flex items-center gap-2">
+						<NumberInput
+							label="Thickness"
+							labelClassName={LABEL_COL}
+							value={grid.thickness}
+							min={0}
+							max={5}
+							step={0.5}
+							onChange={(thickness) => set({ thickness })}
+							inputClassName="w-16"
+							suffix="px"
+							changed={valueChanged(grid.thickness, themeThickness)}
+						/>
+						{grid.thickness !== resetThickness && (
+							<ResetLink
+								onClick={() => set({ thickness: resetThickness })}
+								underline
+							/>
+						)}
+					</div>
 					<div className="flex items-center gap-2">
 						<LabelSpacer />
 						<Toggle
@@ -1163,20 +1179,6 @@ const GridlineControls = ({
 							hint="Comma-separated extra gridline positions, drawn in addition to the automatic ones above."
 						/>
 					)}
-					<button
-						type="button"
-						onClick={() =>
-							onChange({
-								enabled: true,
-								color: themeColor || DEFAULT_GRIDLINE_CONFIG.color,
-								thickness: themeThickness || DEFAULT_GRIDLINE_CONFIG.thickness,
-								count: null,
-							})
-						}
-						className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-					>
-						reset
-					</button>
 				</>
 			)}
 		</div>
@@ -1200,6 +1202,15 @@ export const TickmarkControls = ({
 	divider?: boolean
 }) => {
 	const set = (next: Partial<TickmarkConfig>) => onChange({ ...tick, ...next })
+	// `||` / `> 0` (not `??`): a 0 / undefined theme value falls back to the
+	// built-in default so "reset" never produces invisible tick marks.
+	const resetColor = theme.tickmarkColor || DEFAULT_TICKMARK_CONFIG.color
+	const resetThickness =
+		theme.tickmarkThickness || DEFAULT_TICKMARK_CONFIG.thickness
+	const resetLength =
+		theme.tickmarkLength > 0
+			? theme.tickmarkLength
+			: DEFAULT_TICKMARK_CONFIG.length
 
 	return (
 		<div
@@ -1214,54 +1225,55 @@ export const TickmarkControls = ({
 					Tick marks
 				</span>
 			)}
-			<ColorInput
-				label="Color"
-				labelClassName={LABEL_COL}
-				value={tick.color}
-				onChange={(color) => set({ color })}
-				changed={valueChanged(tick.color, theme.tickmarkColor)}
-			/>
-			<NumberInput
-				label="Thickness"
-				labelClassName={LABEL_COL}
-				value={tick.thickness}
-				min={0}
-				max={5}
-				step={0.5}
-				onChange={(thickness) => set({ thickness })}
-				inputClassName="w-16"
-				suffix="px"
-				changed={valueChanged(tick.thickness, theme.tickmarkThickness)}
-			/>
-			<NumberInput
-				label="Length"
-				labelClassName={LABEL_COL}
-				value={tick.length}
-				min={0}
-				max={20}
-				step={1}
-				onChange={(length) => set({ length })}
-				inputClassName="w-16"
-				suffix="px"
-				changed={valueChanged(tick.length, theme.tickmarkLength)}
-			/>
-			<button
-				type="button"
-				onClick={() =>
-					onChange({
-						color: theme.tickmarkColor || DEFAULT_TICKMARK_CONFIG.color,
-						thickness:
-							theme.tickmarkThickness || DEFAULT_TICKMARK_CONFIG.thickness,
-						length:
-							theme.tickmarkLength > 0
-								? theme.tickmarkLength
-								: DEFAULT_TICKMARK_CONFIG.length,
-					})
-				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+			<div className="flex items-center gap-2">
+				<ColorInput
+					label="Color"
+					labelClassName={LABEL_COL}
+					value={tick.color}
+					onChange={(color) => set({ color })}
+					changed={valueChanged(tick.color, theme.tickmarkColor)}
+				/>
+				{tick.color !== resetColor && (
+					<ResetLink onClick={() => set({ color: resetColor })} underline />
+				)}
+			</div>
+			<div className="flex items-center gap-2">
+				<NumberInput
+					label="Thickness"
+					labelClassName={LABEL_COL}
+					value={tick.thickness}
+					min={0}
+					max={5}
+					step={0.5}
+					onChange={(thickness) => set({ thickness })}
+					inputClassName="w-16"
+					suffix="px"
+					changed={valueChanged(tick.thickness, theme.tickmarkThickness)}
+				/>
+				{tick.thickness !== resetThickness && (
+					<ResetLink
+						onClick={() => set({ thickness: resetThickness })}
+						underline
+					/>
+				)}
+			</div>
+			<div className="flex items-center gap-2">
+				<NumberInput
+					label="Length"
+					labelClassName={LABEL_COL}
+					value={tick.length}
+					min={0}
+					max={20}
+					step={1}
+					onChange={(length) => set({ length })}
+					inputClassName="w-16"
+					suffix="px"
+					changed={valueChanged(tick.length, theme.tickmarkLength)}
+				/>
+				{tick.length !== resetLength && (
+					<ResetLink onClick={() => set({ length: resetLength })} underline />
+				)}
+			</div>
 		</div>
 	)
 }
@@ -1270,7 +1282,7 @@ export const TickmarkControls = ({
  *  Reuses the shared `FontEditor` so the controls match the Labels panel's
  *  title/subtitle font editors exactly. Any field left unset inherits the
  *  global Text encoding font (`labels.baseFont.text`); the per-field "reset"
- *  links and "Reset to base font" clear back to that inherited default.
+ *  links clear back to that inherited default.
  *  Shown on every axis (x, y, r).
  *
  *  `legacyColor` seeds the editor's color from the older standalone
@@ -1300,14 +1312,12 @@ export const TickLabelFontControl = ({
 }) => {
 	const current: Partial<FontConfig> =
 		value ?? (legacyColor ? { color: legacyColor } : {})
-	const hasOverride = Object.keys(current).length > 0
 	return (
 		<FontEditor
 			value={current}
 			onChange={(patch) =>
 				onChange(Object.keys(patch).length > 0 ? patch : undefined)
 			}
-			onResetAll={hasOverride ? () => onChange(undefined) : undefined}
 			showResetFields
 			baseColor={inheritedColor}
 			baseSize={inheritedSize}

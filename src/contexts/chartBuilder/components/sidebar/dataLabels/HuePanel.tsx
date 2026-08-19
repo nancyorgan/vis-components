@@ -160,15 +160,14 @@ export const HuePanel = ({
 				<div
 					className={
 						perVariableColor
-							? "flex flex-col gap-1.5"
-							: "flex flex-col gap-1.5 border-t border-stone-200 pt-2 dark:border-stone-700"
+							? "flex flex-col gap-2"
+							: "flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700"
 					}
 				>
 					{multiFields.map((name) => (
 						<CollapsibleSubsection
 							key={name}
 							title={name}
-							boxed={false}
 							changed={cfg.fieldColors?.[name] != null}
 						>
 							<ColorSlotControls
@@ -314,7 +313,6 @@ const TextColorRulesRow = ({
 	return (
 		<CollapsibleSubsection
 			title="Text color rules"
-			boxed={false}
 			changed={stored.length > 0}
 		>
 			{display.map((rule, i) => (
