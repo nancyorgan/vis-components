@@ -51,16 +51,18 @@ export const ColorInput = ({
 	// Local mirror of the text input so the user can type freely without
 	// every intermediate keystroke firing onChange. Synced back from
 	// `value` whenever the parent updates it (so external resets work).
-	const [textValue, setTextValue] = useState(value)
+	const [textValue, setTextValue] = useState(value.toUpperCase())
 	useEffect(() => {
-		setTextValue(value)
+		setTextValue(value.toUpperCase())
 	}, [value])
 
 	const handleSwatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		onChange(e.target.value)
+		// The native swatch always emits lowercase hex; normalize so
+		// stored values (and the text box) stay uppercase.
+		onChange(e.target.value.toUpperCase())
 	}
 	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const next = e.target.value
+		const next = e.target.value.toUpperCase()
 		setTextValue(next)
 		if (HEX_PATTERN.test(next)) onChange(next)
 	}
@@ -68,7 +70,7 @@ export const ColorInput = ({
 		// On blur, snap back to the last-committed value if the user
 		// left invalid intermediate text. Prevents the input from
 		// looking out of sync with the swatch indefinitely.
-		if (!HEX_PATTERN.test(textValue)) setTextValue(value)
+		if (!HEX_PATTERN.test(textValue)) setTextValue(value.toUpperCase())
 	}
 
 	return (

@@ -233,7 +233,7 @@ describe("ColorInput", () => {
 		)
 		const swatch = container.querySelector('input[type="color"]')!
 		fireEvent.change(swatch, { target: { value: "#ff0000" } })
-		expect(captured).toBe("#ff0000")
+		expect(captured).toBe("#FF0000")
 	})
 
 	it("fires onChange when text input becomes a valid hex", () => {
@@ -249,7 +249,7 @@ describe("ColorInput", () => {
 		)
 		const text = container.querySelector('input[type="text"]')!
 		fireEvent.change(text, { target: { value: "#abcdef" } })
-		expect(captured).toBe("#abcdef")
+		expect(captured).toBe("#ABCDEF")
 	})
 
 	it("does NOT fire onChange on intermediate invalid hex (lets the user type freely)", () => {
@@ -267,6 +267,16 @@ describe("ColorInput", () => {
 		// "#ab" is partial — not a valid hex per HEX_PATTERN.
 		fireEvent.change(text, { target: { value: "#ab" } })
 		expect(calls).toBe(0)
+	})
+
+	it("displays a lowercase value prop as uppercase hex", () => {
+		const { container } = render(
+			<ColorInput label="Fill" value="#abcdef" onChange={() => {}} />
+		)
+		const text = container.querySelector(
+			'input[type="text"]'
+		) as HTMLInputElement
+		expect(text.value).toBe("#ABCDEF")
 	})
 
 	it("hides the hex text input when showHexInput is false", () => {
