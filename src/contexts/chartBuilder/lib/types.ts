@@ -177,6 +177,14 @@ export type DataLabelsEncodings = {
 	 * `field` is null in this mode. Both are optional so visuals saved before
 	 * the feature load unchanged (single-field). */
 	value: { field: string | null; multiField?: boolean; fields?: string[] }
+	/** Geo modes only — replaces the X/Y position rows on maps. The field
+	 * whose values join to map regions; each label centers on its region's
+	 * centroid. Independent of the map's own `connection` field AND of the
+	 * map's geography level: the label level is auto-detected from THIS
+	 * field's values, so a county choropleth can carry state-level labels
+	 * (e.g. a state-average column repeated on county rows). Optional so
+	 * visuals saved before the feature load unchanged. */
+	geography?: { field: string | null }
 }
 
 export const emptyDataLabelsEncodings = (): DataLabelsEncodings => ({
@@ -187,6 +195,7 @@ export const emptyDataLabelsEncodings = (): DataLabelsEncodings => ({
 	hue: { field: null },
 	size: { field: null },
 	value: { field: null },
+	geography: { field: null },
 })
 
 import type { AnnotationsConfig } from "./annotationsConfig"
@@ -474,6 +483,12 @@ export type Theme = {
 	/** Custom SVG dasharray for line annotations — wins over
 	 * `annotationLineDash` when set. */
 	annotationLineDasharray?: string | null
+	// Map defaults — seed the leader lines that connect a map's data labels
+	// back to their region centroids ("Draw leader lines" in the Data Labels
+	// panel). Optional: themes saved before these fields existed fall back
+	// to the built-in defaults (#999999 / 1px).
+	mapLeaderLineColor?: string
+	mapLeaderLineThickness?: number
 	// Distribution overlay defaults — stroke + fill used by the violin /
 	// box-plot overlays when first enabled on a chart's value axis.
 	distributionOverlayStroke: string

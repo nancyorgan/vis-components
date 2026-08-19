@@ -62,6 +62,12 @@ export type GeoScales = {
 	 *  lon/lat shift. */
 	invert: (pixel: [number, number]) => [number, number] | null
 	path: (feature: GeoJSON.Feature | GeoJSON.GeoJsonObject) => string | null
+	/** Projected pixel bounds `[[x0,y0],[x1,y1]]` of a feature — d3
+	 *  `geoPath.bounds`. Used to prefilter point-in-region tests (the data
+	 *  labels' open-space preference) without walking full geometries. */
+	pathBounds: (
+		feature: GeoJSON.Feature | GeoJSON.GeoJsonObject
+	) => [[number, number], [number, number]]
 	/** Pixel-space clip rectangle `[[x0,y0],[x1,y1]]` when the projection is
 	 *  clipped to a focus region, else `null`. Path-based geometry is already
 	 *  clipped by the projection; point renderers (bubbles/dots) consult this to

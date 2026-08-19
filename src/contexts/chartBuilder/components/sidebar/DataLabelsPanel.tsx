@@ -8,7 +8,6 @@ import {
 } from "../../lib/channelConfig"
 import { resolveHierarchyIdField } from "../../lib/buildHierarchy"
 import { dataLabelsConfigFromTheme } from "../../lib/themeConfig"
-import { getChartMode } from "../../lib/chartMode"
 import { effectiveType } from "../../lib/fieldType"
 import {
 	PACKED_DERIVED_LABELS,
@@ -30,15 +29,18 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 } from "../../store/atoms"
+import { useChartModeDef } from "../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
 
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
+import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
 	LABEL_COL_NESTED,
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 import { AlignmentControl } from "./LabelsPanel"
@@ -62,6 +64,7 @@ const CHANNEL_LABEL: Record<DataLabelsChannel, string> = {
 	y: "Y position",
 	angle: "Angle",
 	r: "R",
+	geography: "Geography",
 	value: "Value",
 	hue: "Color",
 	size: "Size",
@@ -117,21 +120,23 @@ export const DataLabelsPanel = () => {
 			? effectiveType(dataset, hueField, overrides)
 			: null
 
+	// Resolve the mode via the shared hook — it folds in field types, channel
+	// configs AND the map config, so config-gated modes (histograms) and geo
+	// modes both detect exactly like the render path.
+	const modeDef = useChartModeDef()
+	const chartMode = modeDef.id
 	// Tile (categorical × categorical heatmap) is the only chart type where
 	// label positions MUST match the chart's encoding — every cell is keyed
 	// by (chart.x, chart.y), so encoding a third field as the label's x or
 	// y would produce nonsense. When the user picks one position we
 	// auto-fill the other, and we restrict the dropdowns to just the
 	// chart's x/y fields so the user can't pick anything misleading.
-	const chartMode =
-		dataset == null
-			? getChartMode(chartEncodings, undefined, chartConfigs)
-			: getChartMode(
-					chartEncodings,
-					(name) => effectiveType(dataset, name, overrides),
-					chartConfigs
-				)
 	const isTileMode = chartMode === "tile"
+	// Maps: labels anchor to REGIONS, not to x/y fields — the position rows
+	// are replaced by a single "Geography" row (the field whose values join
+	// to map regions; labels center on each matched region's centroid). The
+	// per-series "Which labels" selection has no meaning on a map.
+	const isGeoMode = modeDef.canvas.coordFamily === "geo"
 	// Tree layouts (packed circles / treemap / sunburst): labels are PLACED
 	// by the layout (leaf centers, container rims, arc centroids), so the
 	// position rows and every position/overlap fine-tuning control stand
@@ -156,8 +161,12 @@ export const DataLabelsPanel = () => {
 	// "First and last per series" splits the label-text, alignment, and
 	// position controls into First/Last pairs (the only mode where two label
 	// populations coexist). The pairs read effective values (override ?? base)
-	// and write into the endpoint override blocks.
-	const splitEndpoints = effectiveLabelPoints(merged) === "first-last"
+	// and write into the endpoint override blocks. Geo modes never split:
+	// the labelPoints selection is hidden AND skipped there (no series on a
+	// map), so a stored "first-last" from a previous chart must not split
+	// the controls.
+	const splitEndpoints =
+		!isGeoMode && effectiveLabelPoints(merged) === "first-last"
 	const patchEndpoint = (
 		key: "firstLabel" | "lastLabel",
 		p: Partial<EndpointLabelOverrides>
@@ -184,8 +193,14 @@ export const DataLabelsPanel = () => {
 				endpointPositionEdited(merged.lastLabel)))
 
 	// Sibling subsection dots, same model: any visible control non-default.
+	// (The labelPoints select is hidden — and inert — in geo modes, so a
+	// stored deviation must not light the dot there. Leader lines are
+	// geo-only: the color/thickness inputs are gated behind the toggle, so
+	// the toggle alone decides their contribution — like Text Background.)
 	const selectionChanged =
-		effectiveLabelPoints(merged) !== "all" || merged.avoidOverlaps === true
+		(!isGeoMode && effectiveLabelPoints(merged) !== "all") ||
+		merged.avoidOverlaps === true ||
+		(isGeoMode && merged.leaderLines === true)
 	const textPositionChanged = (merged.arcWrapLevels ?? []).length > 0
 	// Text Properties compares against the THEME's data-label defaults — the
 	// same baseline the panel's reset links restore.
@@ -363,10 +378,22 @@ export const DataLabelsPanel = () => {
 					name from the ID column.
 				</p>
 			)}
-			{/* Pies position labels in polar terms — Angle + R replace the
+			{/* Maps anchor labels to REGIONS — one Geography row replaces the
+			 *  cartesian X/Y rows. Its field joins to map regions at its own
+			 *  auto-detected level, independent of the map's region field, so
+			 *  a county map can carry state-level labels.
+			 *  Pies position labels in polar terms — Angle + R replace the
 			 *  cartesian X/Y rows. These are plain mapping dropdowns; the
 			 *  placement nudges (Angle°, R%) live under "Adjust position". */}
-			{isTreeMode ? null : isPolarMode ? (
+			{isTreeMode ? null : isGeoMode ? (
+				<DataLabelChannelRow
+					channel="geography"
+					label={CHANNEL_LABEL.geography}
+					value={encodings.geography?.field ?? null}
+					onChange={(v) => setField("geography", v)}
+					eligible={allEligible}
+				/>
+			) : isPolarMode ? (
 				<>
 					<DataLabelChannelRow
 						channel="angle"
@@ -504,6 +531,9 @@ export const DataLabelsPanel = () => {
 				changed={selectionChanged}
 			>
 				<div className="flex flex-col gap-2">
+				{/* Per-series endpoint selection is meaningless on a map (no
+				 *  series) — the renderer skips it there, so the control hides. */}
+				{!isGeoMode && (
 				<SelectInput
 					label="Which labels"
 					labelClassName={LABEL_COL}
@@ -518,12 +548,85 @@ export const DataLabelsPanel = () => {
 						updateCfg({ labelPoints })
 					}
 				/>
+				)}
 				<Toggle
 					label="Avoid overlapping labels"
 					className="mt-1"
 					checked={merged.avoidOverlaps === true}
 					onChange={(avoidOverlaps) => updateCfg({ avoidOverlaps })}
 				/>
+				{/* Maps only: leader lines connect a displaced label (offset or
+				 *  overlap-nudged) back to its region's centroid. Defaults come
+				 *  from the theme's Maps section. */}
+				{isGeoMode && (
+					<>
+						<Toggle
+							label="Draw leader lines"
+							checked={merged.leaderLines === true}
+							onChange={(leaderLines) => updateCfg({ leaderLines })}
+						/>
+						{merged.leaderLines === true && (
+							<>
+								<div className="ml-6 flex flex-col gap-2 text-sm">
+									{/* Reset links restore the THEME's Maps-section stroke
+									 *  (the same baseline new charts seed from). */}
+									<div className="flex items-center gap-2">
+										<ColorInput
+											label="Line color"
+											labelClassName={LABEL_COL_NESTED}
+											value={
+												merged.leaderLineColor ??
+												themeDefaults.leaderLineColor ??
+												"#999999"
+											}
+											onChange={(leaderLineColor) =>
+												updateCfg({ leaderLineColor })
+											}
+										/>
+										{merged.leaderLineColor !==
+											themeDefaults.leaderLineColor && (
+											<ResetLink
+												onClick={() =>
+													updateCfg({
+														leaderLineColor: themeDefaults.leaderLineColor,
+													})
+												}
+											/>
+										)}
+									</div>
+									<div className="flex items-center gap-2">
+										<NumberInput
+											label="Thickness"
+											labelClassName={LABEL_COL_NESTED}
+											value={merged.leaderLineWidth ?? 1}
+											min={0}
+											step={0.5}
+											onChange={(leaderLineWidth) =>
+												updateCfg({ leaderLineWidth })
+											}
+											inputClassName="w-16"
+											suffix="px"
+										/>
+										{merged.leaderLineWidth !==
+											themeDefaults.leaderLineWidth && (
+											<ResetLink
+												onClick={() =>
+													updateCfg({
+														leaderLineWidth: themeDefaults.leaderLineWidth,
+													})
+												}
+											/>
+										)}
+									</div>
+								</div>
+								<p className="vc-help">
+									Lines connect a label back to its region when an offset or
+									overlap avoidance moves it off the region&apos;s center.
+								</p>
+							</>
+						)}
+					</>
+				)}
 				</div>
 			</CollapsibleSubsection>
 

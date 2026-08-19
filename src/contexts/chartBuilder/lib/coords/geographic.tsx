@@ -107,6 +107,7 @@ export const geographic = (input: GeoInput): CoordSystem => {
 		project: (ll) => proj(ll) ?? null,
 		invert: (px) => proj.invert?.(px) ?? null,
 		path: (f) => path(f as GeoPermissibleObjects) ?? null,
+		pathBounds: (f) => path.bounds(f as GeoPermissibleObjects),
 		clipRect,
 	}
 	return {

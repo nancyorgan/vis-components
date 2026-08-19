@@ -188,6 +188,7 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 					hoverHandler={geo.hoverHandler}
 					preserveOrder={drawOrder !== null}
 				/>
+				{geo.renderDataLabels(m)}
 			</>,
 			{ onMouseLeave: geo.clearHover }
 		)

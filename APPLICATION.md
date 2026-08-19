@@ -290,6 +290,10 @@ pattern category (`lib/geo/geoMarkStyle.ts` — `resolveGeoPatternDef`).
 Geo fills apply no sat/bri modulation, so the resolved fill doubles as
 the pattern background and the ink-lookup key.
 
+Data labels on maps anchor to REGIONS via the Data Labels section's
+**Geography** row (which replaces its X/Y position rows in geo modes) —
+see §6.5.
+
 **Hierarchy layouts** (packed circles, treemap, sunburst) reuse
 existing channels the same way the geo modes do: `area` supplies each
 row's size, and `connection` is the hierarchy key (which container
@@ -1331,6 +1335,45 @@ there, and a note says so. Value, Color, Size, and Text Properties
 still apply (see §6.2); Value defaults to each row's name. Chord /
 sankey label styling is a planned follow-up.
 
+In the GEO modes (choropleth / bubble map / dot map) labels anchor to
+REGIONS: a **Geography** row replaces the X/Y position rows. Its field's
+values join to map regions exactly like the map's own region channel —
+but INDEPENDENTLY of it, at a level auto-detected from this field's own
+values, so a county choropleth can carry state-level labels (pick the
+state column as Geography and a state-average column as Value). Each
+matched region renders ONE label at its centroid: the first row (in
+dataset order) among the region's rows whose composed Value text is
+non-null supplies the text (and the Color / Size lookups), so a value
+column that's blank on some rows still labels from the rows that carry
+it; unmatched values, blank-value regions, and regions the projection
+or focus box clips render no label. Both Geography AND Value must be
+mapped for the layer to render. Single- and multi-variable Value work
+as everywhere else (per-variable colors don't apply — same as bars);
+when the Geography field IS the map's region field, the map's key-type
+override carries over to the label join. Labels live inside the map's
+pan/zoom group, so they move (and scale) with the geography. "Which
+labels" (per-series endpoint selection) is hidden and skipped in geo
+modes — there are no series on a map; overlap avoidance (2-D on maps —
+colliding labels fan out in any direction, see §6.2), offsets,
+alignment, wrap, text properties, and text background all apply.
+
+Geo modes add a **Draw leader lines** toggle under Label selection and
+overlap (geo-only; hidden elsewhere). When on, every label that sits
+away from its region's centroid — displaced by the X/Y offsets or by
+overlap avoidance — draws a straight line from the centroid to the
+nearest edge of the label's box (including the text-background rect's
+padding when one is drawn, plus a small gap), rendered UNDER the label
+text. A label still on its centroid draws no line, so an untouched
+layer stays clean. Checking the toggle reveals **Line color** and
+**Thickness** inputs (thickness 0 hides the lines), each with a reset
+link that appears when the value deviates from — and restores — the
+theme default; the defaults come from the theme's **Maps** section
+(`mapLeaderLineColor` /
+`mapLeaderLineThickness`, falling back to #999999 / 1px for themes
+saved before the fields existed), seeded on chart creation and flowed
+through on a theme switch like the data-label font knobs. Leader lines
+live inside the map's pan/zoom group with the labels.
+
 Packed circles additionally get a **Text Position** subheader with one
 "Wrap label around" checkbox per CONTAINER level (top level circle,
 second level circle, … — levels come from the drawn hierarchy, the
@@ -1408,7 +1451,20 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   the minimum gaps allow, preserving vertical order. Stacked end-of-line
   labels are solved exactly (least total displacement); scattered label
   fields fall back to a best-effort downward sweep and may still collide
-  when densely packed.
+  when densely packed. GEO modes instead spread colliding labels in ANY
+  direction: each moved label takes the closest free spot on rings
+  around its own position (verticals, then horizontals, then diagonals,
+  at one-line-height steps), so a pile of map labels fans out around
+  its regions instead of forming a downward column — which also keeps
+  leader lines short and pointing every which way rather than all
+  upward. Displaced labels additionally PREFER open map space — ocean
+  and regions carrying no data (per the map's own region join) — over
+  covering data-carrying regions: within each ring an open-space
+  candidate wins, and the search looks up to two rings past the first
+  merely-free spot for an open one before settling, so labels near a
+  coast or an empty neighbor drift there without ever flying far just
+  to reach water. Non-colliding labels never move; a label with no
+  free spot within ~12 rings stays put (best-effort, as elsewhere).
 - **Bar label position** — center / inside-base / inside-end /
   outside-end (only meaningful for bars).
 - **Text color rules** — conditional overrides (e.g., white text on
@@ -1765,6 +1821,12 @@ Theme settings:
   saved before these fields existed fall back to the built-in seeds
   (yellow 20% fill, invisible border, slate line, 13pt centered
   text).
+- **Maps** — default stroke (line color + thickness) for the leader
+  lines that connect a map's data labels back to their regions ("Draw
+  leader lines" in the Data Labels panel, §6). Seeded on chart
+  creation and flowed through on a theme switch like the data-label
+  font knobs. Themes saved before these fields existed fall back to
+  the built-in defaults (#999999, 1px).
 
 Custom themes can be set as the user's default; new charts pick that
 up automatically. The Hue panel reads palettes from the active theme

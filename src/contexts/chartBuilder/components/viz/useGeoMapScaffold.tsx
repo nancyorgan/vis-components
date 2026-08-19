@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode, SVGProps } from "react"
 import type { FeatureCollection } from "geojson"
 import { useAtomValue, useSetAtom } from "jotai"
-import type { ChannelConfigs } from "../../lib/channelConfig"
+import {
+	DEFAULT_DATA_LABELS_CONFIG,
+	type ChannelConfigs,
+} from "../../lib/channelConfig"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import { geographic } from "../../lib/coords/geographic"
 import type { GeoScales } from "../../lib/coords/types"
@@ -10,15 +13,22 @@ import { regionViewport, viewportGeoJson } from "../../lib/geo/focusRegion"
 import { DEFAULT_OUTLINE_COLOR } from "../../lib/geo/geoMarkStyle"
 import { resolveGeoProjection } from "../../lib/geo/geoProjection"
 import type { GeometryBundle } from "../../lib/geo/loadGeometry"
+import { buildOpenSpacePredicate } from "../../lib/geo/openSpace"
 import { worldBackdropFeatures } from "../../lib/geo/worldBackdrop"
 import type {
 	GeographyLevel,
 	GeoViewport,
 	MapConfig,
 } from "../../lib/mapConfig"
-import type { DatasetView, Encodings } from "../../lib/types"
+import {
+	emptyDataLabelsEncodings,
+	type DatasetView,
+	type Encodings,
+} from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
+	currentDataLabelsConfigAtom,
+	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentMapConfigAtom,
 } from "../../store/atoms"
@@ -30,9 +40,12 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
 import { useGeoJoin } from "../../store/useGeoJoin"
+import { useGeoLabelLevel } from "../../store/useGeoLabelLevel"
 import { useGeometry } from "../../store/useGeometry"
 
+import { DataLabelsLayer } from "./DataLabelsLayer"
 import { GeoBasemap } from "./GeoBasemap"
+import { buildGeoLabelAnchors } from "./geoLabelAnchors"
 import { HoverTooltip } from "./HoverTooltip"
 import type { CoordFactory, PlotContext, PlotProps } from "./Plot"
 import { useMapPanZoom } from "./useMapPanZoom"
@@ -55,7 +68,9 @@ export type GeoMarksReady = {
 	ready: true
 	bundle: GeometryBundle
 	path: GeoScales["path"]
+	pathBounds: GeoScales["pathBounds"]
 	project: GeoScales["project"]
+	invert: GeoScales["invert"]
 	clipRect: GeoScales["clipRect"]
 	inClip: (px: number, py: number) => boolean
 }
@@ -101,6 +116,13 @@ export type GeoMapScaffold = {
 	 *  already "countries" (and the countries geometry has loaded). Renderers
 	 *  with a basemap toggle add their own `mapConfig.showBasemap` gate. */
 	renderWorldBackdrop: (path: GeoScales["path"]) => ReactNode
+	/** The Data Labels layer for maps: one label per region matched by the
+	 *  labels' `geography` channel, centered on the region's centroid (which
+	 *  may be a COARSER level than the map's — state labels on a county map).
+	 *  Renderers place it LAST inside `renderInteractiveRoot` so labels
+	 *  pan/zoom with the marks. Null until the label geometry resolves or
+	 *  when the channel isn't in use. */
+	renderDataLabels: (m: GeoMarksReady) => ReactNode
 	/** Mouse handler that records the hovered row + pointer position (wired to
 	 *  both onMouseEnter and onMouseMove for a follow-cursor feel). */
 	hoverHandler: (
@@ -251,6 +273,86 @@ export const useGeoMapScaffold = (
 		mapConfig.keyType
 	)
 
+	// --- Data labels on maps -------------------------------------------------
+	// The labels' `geography` channel joins independently of the map's own
+	// region field, at its OWN auto-detected level — so a county map can carry
+	// state-level labels. Defensive merge: persisted encodings from before the
+	// channel existed lack the key.
+	const dataLabelsEncodings = {
+		...emptyDataLabelsEncodings(),
+		...useAtomValue(currentDataLabelsEncodingsAtom),
+	}
+	const dataLabelsCfg = {
+		...DEFAULT_DATA_LABELS_CONFIG,
+		...useAtomValue(currentDataLabelsConfigAtom),
+	}
+	const labelField = dataLabelsEncodings.geography?.field ?? null
+	// Mirror the layer's own gate (geography + value both required) so we
+	// don't load geometry that can't render anything.
+	const labelValue = dataLabelsEncodings.value
+	const labelsActive =
+		labelField !== null &&
+		(Boolean(labelValue.field) ||
+			(labelValue.multiField === true && (labelValue.fields?.length ?? 0) > 0))
+	// When the geography field IS the map's region field, reuse the map's
+	// effective level + keyType override so labels and regions can't disagree;
+	// otherwise detect the label level from the field's own values.
+	const labelSameAsRegion =
+		labelsActive && joinRegions && labelField === regionField
+	const detectedLabelLevel = useGeoLabelLevel(
+		labelsActive && !labelSameAsRegion ? labelField : null
+	)
+	const { bundle: labelOwnBundle } = useGeometry(
+		labelSameAsRegion ? null : detectedLabelLevel
+	)
+	const labelBundle = !labelsActive
+		? null
+		: labelSameAsRegion
+			? bundle
+			: labelOwnBundle
+	const labelKeyType = labelSameAsRegion ? mapConfig.keyType : "auto"
+
+	const renderDataLabels = (m: GeoMarksReady): ReactNode => {
+		if (labelField === null || labelBundle === null) return null
+		const anchors = buildGeoLabelAnchors({
+			rows: rowsForChart,
+			geographyField: labelField,
+			value: labelValue,
+			cfg: dataLabelsCfg,
+			hueField: dataLabelsEncodings.hue.field,
+			sizeField: dataLabelsEncodings.size.field,
+			bundle: labelBundle,
+			keyType: labelKeyType,
+			project: m.project,
+			inClip: m.inClip,
+		})
+		// Open-space preference for the overlap spread: displaced labels drift
+		// toward ocean / no-data regions rather than onto data-carrying ones.
+		// Occupied = the MAP's own joined regions (labels may sit at a coarser
+		// level, but it's the map's marks a label mustn't cover). The dot map
+		// has no region join → empty set → no preference, spread unchanged.
+		const preferOpenSpace = buildOpenSpacePredicate({
+			features: m.bundle.features,
+			occupiedIds: new Set(featureToRow.keys()),
+			bounds: m.pathBounds,
+			invert: m.invert,
+		})
+		// The layer handles styling / overlap / offsets / gating; the row-based
+		// position props are inert on the anchor path.
+		return (
+			<DataLabelsLayer
+				anchors={anchors}
+				positionGate="geo"
+				preferOpenSpace={preferOpenSpace}
+				rows={rowsForChart}
+				xScale={null}
+				yScale={null}
+				xType={null}
+				yType={null}
+			/>
+		)
+	}
+
 	// Fit the projection to the level's whole feature collection so every
 	// region lands in the panel even when only a few are data-matched. When
 	// geometry hasn't resolved yet this is an empty collection (no marks draw).
@@ -308,7 +410,9 @@ export const useGeoMapScaffold = (
 			ready: true,
 			bundle,
 			path: ctx.coord.scales.path,
+			pathBounds: ctx.coord.scales.pathBounds,
 			project: ctx.coord.scales.project,
+			invert: ctx.coord.scales.invert,
 			clipRect,
 			inClip,
 		}
@@ -398,6 +502,7 @@ export const useGeoMapScaffold = (
 		beginMarks,
 		renderInteractiveRoot,
 		renderWorldBackdrop,
+		renderDataLabels,
 		hoverHandler,
 		clearHover,
 		plotProps: { inner: props.inner, coord, tooltip },

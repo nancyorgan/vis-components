@@ -120,8 +120,9 @@ export const ThemePanel = () => {
 				set(currentDataLabelsConfigAtom, (prev) => {
 					const fromTheme = dataLabelsConfigFromTheme(theme)
 					// Only the theme-driven font knobs (plus the single fallback
-					// color) flow through; label encodings, per-value color
-					// overrides, offsets, and templates are user-driven.
+					// color and the map leader-line stroke) flow through; label
+					// encodings, per-value color overrides, offsets, and templates
+					// are user-driven.
 					return {
 						...prev,
 						color: fromTheme.color,
@@ -130,6 +131,8 @@ export const ThemePanel = () => {
 						fontWeight: fromTheme.fontWeight,
 						italic: fromTheme.italic,
 						underline: fromTheme.underline,
+						leaderLineColor: fromTheme.leaderLineColor,
+						leaderLineWidth: fromTheme.leaderLineWidth,
 					}
 				})
 				set(currentThemeIdAtom, themeId)

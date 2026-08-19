@@ -337,3 +337,195 @@ export const sampleConnectionPointIndices = (
 	for (let i = 0; i < count; i += stride) set.add(i)
 	return [...set].sort((a, b) => a - b)
 }
+
+/** Candidate directions for the 2-D overlap spread, tried in this order
+ *  within each ring: verticals first (the cheapest clear for wide, short
+ *  label boxes), then horizontals, then diagonals. Unit vectors, so every
+ *  candidate in a ring sits at the same distance from the label's start. */
+const SPREAD_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+	[0, -1],
+	[0, 1],
+	[1, 0],
+	[-1, 0],
+	[Math.SQRT1_2, -Math.SQRT1_2],
+	[-Math.SQRT1_2, -Math.SQRT1_2],
+	[Math.SQRT1_2, Math.SQRT1_2],
+	[-Math.SQRT1_2, Math.SQRT1_2],
+]
+
+/** How many rings outward the 2-D spread searches before giving up and
+ *  leaving a label at its (still colliding) start position. Ring spacing is
+ *  one line-height per step, so this bounds displacement to roughly a dozen
+ *  label heights — far enough to clear a dense cluster, close enough that a
+ *  leader line still reads as belonging to its label. */
+const MAX_SPREAD_RINGS = 12
+
+/** With a `prefer` predicate in play, how many rings PAST the first plain
+ *  free spot the spread keeps searching for a preferred one. Small on
+ *  purpose: sending a label into open map space is worth a slightly longer
+ *  leader line, but not a flight across the chart. */
+const PREFERRED_LOOKAHEAD_RINGS = 2
+
+/** Resolve label collisions by moving labels in ANY direction — the 2-D
+ *  counterpart of `nudgeOverlaps`, used by the GEO renderers. Map labels
+ *  are scattered over a plane (region centroids), so the vertical-only
+ *  nudge — right for end-of-line series labels — just piles colliding map
+ *  labels into a downward column, which wastes space and looks lopsided
+ *  once leader lines tie each label back to its region.
+ *
+ *  Greedy candidate-ring placement: walk boxes in input order; a box that
+ *  collides with an already-placed one tries candidate positions on rings
+ *  around its start position (its anchor plus the user's offsets) at
+ *  one-line-height steps, verticals → horizontals → diagonals within each
+ *  ring, and takes the FIRST candidate whose padded box is free — i.e. the
+ *  closest available spot. Non-colliding boxes never move; a box with no
+ *  free candidate within `MAX_SPREAD_RINGS` stays put (best-effort, like
+ *  the 1-D pass). Deterministic: no randomness, input order decides ties.
+ *
+ *  The optional `prefer` predicate marks pixels the spread should steer
+ *  displaced labels toward — on maps, open space: ocean and regions with no
+ *  data, where a label can't sit on top of another region's marks. Within
+ *  each ring preferred candidates win over merely-free ones, and the search
+ *  keeps looking up to `PREFERRED_LOOKAHEAD_RINGS` past the first plain
+ *  free spot for a preferred one before settling — so a label beside a
+ *  coast or an empty neighbor drifts there, but never flies far just to
+ *  reach water. Labels that don't collide still never move.
+ *
+ *  Placed boxes are indexed in a coarse spatial hash so the candidate
+ *  probes stay near-linear even when a map carries thousands of labels
+ *  (county-level joins). Mutates copies; the input array is untouched. */
+export const spreadOverlaps2D = <T extends LabelBox>(
+	boxes: T[],
+	opts?: { prefer?: (x: number, y: number) => boolean }
+): T[] => {
+	if (boxes.length <= 1) return boxes
+	const out = boxes.map((b) => ({ ...b }))
+	const halfW = (b: T) => labelWidth(b) / 2
+	const halfH = (b: T) => labelHeight(b) / 2
+	// Spatial hash of PLACED boxes by center cell. Query reach must cover
+	// the largest placed half-extent, tracked as boxes land.
+	const CELL = 256
+	const cells = new Map<string, number[]>()
+	let maxHalfW = 0
+	let maxHalfH = 0
+	const collides = (b: T, x: number, y: number, gap: number): boolean => {
+		const reachX = halfW(b) + maxHalfW + gap
+		const reachY = halfH(b) + maxHalfH + gap
+		const i0 = Math.floor((x - reachX) / CELL)
+		const i1 = Math.floor((x + reachX) / CELL)
+		const j0 = Math.floor((y - reachY) / CELL)
+		const j1 = Math.floor((y + reachY) / CELL)
+		for (let i = i0; i <= i1; i++) {
+			for (let j = j0; j <= j1; j++) {
+				const bucket = cells.get(`${i}:${j}`)
+				if (!bucket) continue
+				for (const idx of bucket) {
+					const p = out[idx]
+					if (
+						Math.abs(x - p.cx) < halfW(b) + halfW(p) + gap &&
+						Math.abs(y - p.cy) < halfH(b) + halfH(p) + gap
+					) {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+	const place = (idx: number) => {
+		const b = out[idx]
+		const k = `${Math.floor(b.cx / CELL)}:${Math.floor(b.cy / CELL)}`
+		const bucket = cells.get(k)
+		if (bucket) bucket.push(idx)
+		else cells.set(k, [idx])
+		maxHalfW = Math.max(maxHalfW, halfW(b))
+		maxHalfH = Math.max(maxHalfH, halfH(b))
+	}
+	for (let idx = 0; idx < out.length; idx++) {
+		const b = out[idx]
+		// Strict-overlap test (no clearance) decides whether to move at all —
+		// labels merely within clearance of each other stay put, matching the
+		// 1-D pass's detection. Candidates then demand the padded gap so the
+		// chosen spot has visible breathing room.
+		if (collides(b, b.cx, b.cy, 0)) {
+			const step = halfH(b) * 2 + NUDGE_CLEARANCE_PX
+			const prefer = opts?.prefer
+			// First plain-free candidate, kept as the fallback while the search
+			// looks a little further for a PREFERRED free spot.
+			let fallback: { x: number; y: number } | null = null
+			let fallbackRing = 0
+			search: for (let ring = 1; ring <= MAX_SPREAD_RINGS; ring++) {
+				if (
+					fallback !== null &&
+					ring > fallbackRing + PREFERRED_LOOKAHEAD_RINGS
+				) {
+					break
+				}
+				for (const [dx, dy] of SPREAD_DIRECTIONS) {
+					const x = b.cx + dx * ring * step
+					const y = b.cy + dy * ring * step
+					if (collides(b, x, y, NUDGE_CLEARANCE_PX)) continue
+					if (!prefer || prefer(x, y)) {
+						b.cx = x
+						b.cy = y
+						fallback = null
+						break search
+					}
+					if (fallback === null) {
+						fallback = { x, y }
+						fallbackRing = ring
+					}
+				}
+			}
+			if (fallback !== null) {
+				b.cx = fallback.x
+				b.cy = fallback.y
+			}
+		}
+		place(idx)
+	}
+	return out
+}
+
+/** The leader-line segment from an anchor point (a map region's centroid)
+ *  toward the CENTER of a label's bounding box, clipped at the box edge so
+ *  the line meets the label without running under its glyphs. Returns null
+ *  when the anchor sits inside the box — a label still on (or over) its
+ *  anchor needs no leader. Used by the geo Data Labels leader-line render;
+ *  pure math so it's testable without SVG. */
+export const leaderLineSegment = ({
+	anchorX,
+	anchorY,
+	left,
+	right,
+	top,
+	bottom,
+}: {
+	anchorX: number
+	anchorY: number
+	left: number
+	right: number
+	top: number
+	bottom: number
+}): { x1: number; y1: number; x2: number; y2: number } | null => {
+	const cx = (left + right) / 2
+	const cy = (top + bottom) / 2
+	const dx = cx - anchorX
+	const dy = cy - anchorY
+	// Slab clipping against the box, aimed at its center. The center is
+	// inside the box by construction, so along each axis the segment either
+	// starts inside the slab (dx/dy = 0 → the axis constrains nothing) or
+	// crosses into it at the smaller of the two boundary parameters; the
+	// segment enters the box at the LATER of the two axis entries.
+	const tx = dx === 0 ? -Infinity : Math.min((left - anchorX) / dx, (right - anchorX) / dx)
+	const ty = dy === 0 ? -Infinity : Math.min((top - anchorY) / dy, (bottom - anchorY) / dy)
+	const t = Math.max(tx, ty)
+	// t <= 0 → the anchor is already inside the box (or on its edge).
+	if (!Number.isFinite(t) || t <= 0) return null
+	return {
+		x1: anchorX,
+		y1: anchorY,
+		x2: anchorX + dx * t,
+		y2: anchorY + dy * t,
+	}
+}

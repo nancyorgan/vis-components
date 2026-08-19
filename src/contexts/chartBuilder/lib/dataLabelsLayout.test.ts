@@ -6,9 +6,11 @@ import {
 	keepLastPerSeries,
 	labelHeight,
 	labelWidth,
+	leaderLineSegment,
 	nudgeOverlaps,
 	sampleConnectionPointIndices,
 	selectEndpointsPerSeries,
+	spreadOverlaps2D,
 	type LabelBox,
 } from "./dataLabelsLayout"
 
@@ -467,5 +469,153 @@ describe("sampleConnectionPointIndices", () => {
 		expect(sampleConnectionPointIndices(0, "all", 1)).toEqual([])
 		expect(sampleConnectionPointIndices(1, "all", 1)).toEqual([0])
 		expect(sampleConnectionPointIndices(1, "first-and-last", 1)).toEqual([0])
+	})
+})
+
+describe("leaderLineSegment", () => {
+	// A 20×10 box centered at (10, 5).
+	const box = { left: 0, right: 20, top: 0, bottom: 10 }
+
+	it("returns null when the anchor sits inside (or on the edge of) the box — an undisplaced label needs no leader", () => {
+		expect(leaderLineSegment({ anchorX: 10, anchorY: 5, ...box })).toBeNull()
+		expect(leaderLineSegment({ anchorX: 1, anchorY: 9, ...box })).toBeNull()
+		// Exactly on the edge still counts as touching the label.
+		expect(leaderLineSegment({ anchorX: 0, anchorY: 5, ...box })).toBeNull()
+	})
+
+	it("clips a horizontal approach at the box's near vertical edge", () => {
+		const seg = leaderLineSegment({ anchorX: -10, anchorY: 5, ...box })
+		expect(seg).toEqual({ x1: -10, y1: 5, x2: 0, y2: 5 })
+	})
+
+	it("clips a vertical approach at the box's near horizontal edge", () => {
+		const seg = leaderLineSegment({ anchorX: 10, anchorY: 25, ...box })
+		expect(seg).toEqual({ x1: 10, y1: 25, x2: 10, y2: 10 })
+	})
+
+	it("clips a diagonal approach at whichever edge the anchor→center segment crosses first", () => {
+		// Anchor below-right; heading to center (10, 5) it crosses the bottom
+		// edge (y=10) before the right edge (x=20): entering the y-slab needs
+		// t=0.75, the x-slab only t=0.5 — the LATER entry wins.
+		const seg = leaderLineSegment({ anchorX: 30, anchorY: 25, ...box })
+		expect(seg?.x1).toBe(30)
+		expect(seg?.y1).toBe(25)
+		expect(seg?.y2).toBeCloseTo(10)
+		expect(seg?.x2).toBeCloseTo(15)
+	})
+})
+
+describe("spreadOverlaps2D", () => {
+	const overlapping = (a: LabelBox, b: LabelBox): boolean =>
+		Math.abs(a.cx - b.cx) < labelWidth(a) / 2 + labelWidth(b) / 2 &&
+		Math.abs(a.cy - b.cy) < labelHeight(a) / 2 + labelHeight(b) / 2
+
+	it("leaves non-colliding labels exactly where they are", () => {
+		const boxes = [
+			lb({ index: 0, cx: 0, cy: 0 }),
+			lb({ index: 1, cx: 200, cy: 0 }),
+			lb({ index: 2, cx: 0, cy: 200 }),
+		]
+		const out = spreadOverlaps2D(boxes)
+		expect(out.map((b) => [b.cx, b.cy])).toEqual([
+			[0, 0],
+			[200, 0],
+			[0, 200],
+		])
+	})
+
+	it("spreads a colliding pile in MULTIPLE directions (up, down, sideways), not a downward column", () => {
+		// Four narrow labels stacked on one point — the map case the 1-D nudge
+		// handles worst. Expect: first stays, and the rest fan out around it
+		// (closest ring first: verticals, then a horizontal) instead of all
+		// marching down.
+		const boxes = Array.from({ length: 4 }, (_, i) =>
+			lb({ index: i, text: "a", cx: 0, cy: 0 })
+		)
+		const out = spreadOverlaps2D(boxes)
+		// The first label never moves.
+		expect([out[0].cx, out[0].cy]).toEqual([0, 0])
+		// No pair still collides.
+		for (let i = 0; i < out.length; i++) {
+			for (let j = i + 1; j < out.length; j++) {
+				expect(overlapping(out[i], out[j])).toBe(false)
+			}
+		}
+		const moved = out.slice(1)
+		// At least one went UP and one went DOWN...
+		expect(moved.some((b) => b.cy < 0)).toBe(true)
+		expect(moved.some((b) => b.cy > 0)).toBe(true)
+		// ...and one resolved HORIZONTALLY once both verticals were taken.
+		expect(moved.some((b) => b.cx !== 0 && b.cy === 0)).toBe(true)
+	})
+
+	it("prefers the cheapest clear — a wide label pair separates vertically at one ring", () => {
+		// Wide boxes need several rings to clear horizontally but only one
+		// vertically, so the second label lands straight above the first.
+		const boxes = [
+			lb({ index: 0, text: "abcdefghij", cx: 0, cy: 0 }),
+			lb({ index: 1, text: "abcdefghij", cx: 0, cy: 0 }),
+		]
+		const out = spreadOverlaps2D(boxes)
+		expect([out[0].cx, out[0].cy]).toEqual([0, 0])
+		expect(out[1].cx).toBe(0)
+		expect(out[1].cy).toBeLessThan(0)
+		expect(overlapping(out[0], out[1])).toBe(false)
+	})
+
+	it("does not mutate the input boxes", () => {
+		const boxes = [
+			lb({ index: 0, cx: 0, cy: 0 }),
+			lb({ index: 1, cx: 0, cy: 0 }),
+		]
+		spreadOverlaps2D(boxes)
+		expect(boxes.map((b) => [b.cx, b.cy])).toEqual([
+			[0, 0],
+			[0, 0],
+		])
+	})
+})
+
+describe("spreadOverlaps2D with an open-space preference", () => {
+	// Narrow one-char labels: halfW 3, halfH 5.5 → ring step 12 (one line
+	// height + clearance). Two labels stacked on one point; only the second
+	// moves, and `prefer` steers where it lands.
+	const pile = () => [
+		lb({ index: 0, text: "a", cx: 0, cy: 0 }),
+		lb({ index: 1, text: "a", cx: 0, cy: 0 }),
+	]
+
+	it("picks a preferred candidate over an earlier direction in the SAME ring", () => {
+		// Ring 1 up/down are free but not preferred; right (x > 0) is. The
+		// spread takes the preferred spot at the same distance.
+		const out = spreadOverlaps2D(pile(), { prefer: (x) => x > 0 })
+		expect([out[1].cx, out[1].cy]).toEqual([12, 0])
+	})
+
+	it("looks a couple rings PAST the first free spot for a preferred one", () => {
+		// Nothing preferred on ring 1 (fallback recorded at up), but ring 2's
+		// downward candidate reaches preferred territory (y ≥ 24) — within the
+		// lookahead, so it wins over the closer non-preferred spot.
+		const out = spreadOverlaps2D(pile(), { prefer: (_x, y) => y >= 24 })
+		expect([out[1].cx, out[1].cy]).toEqual([0, 24])
+	})
+
+	it("settles for the closest free spot when preferred space is beyond the lookahead", () => {
+		// Preferred space only 5 rings out (y ≥ 60): too far — the label takes
+		// the first plain free candidate (ring 1 up) instead of flying there.
+		const out = spreadOverlaps2D(pile(), { prefer: (_x, y) => y >= 60 })
+		expect([out[1].cx, out[1].cy]).toEqual([0, -12])
+	})
+
+	it("never moves labels that don't collide, whatever `prefer` says", () => {
+		const boxes = [
+			lb({ index: 0, cx: 0, cy: 0 }),
+			lb({ index: 1, cx: 300, cy: 300 }),
+		]
+		const out = spreadOverlaps2D(boxes, { prefer: () => false })
+		expect(out.map((b) => [b.cx, b.cy])).toEqual([
+			[0, 0],
+			[300, 300],
+		])
 	})
 })

@@ -133,6 +133,7 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 						)
 					})}
 				</g>
+				{geo.renderDataLabels(m)}
 			</>
 		)
 	}

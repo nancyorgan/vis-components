@@ -8,8 +8,10 @@ import {
 import {
 	labelHeight,
 	labelWidth,
+	leaderLineSegment,
 	nudgeOverlaps,
 	selectEndpointsPerSeries,
+	spreadOverlaps2D,
 	type LabelBox,
 } from "../../lib/dataLabelsLayout"
 import {
@@ -91,8 +93,15 @@ type Props = {
 	anchors?: readonly DataLabelAnchor[]
 	/** Which position channels gate the layer on. `"xy"` (default) wants
 	 * `x` + `y` mapped; `"polar"` (pies) wants `angle` + `r` mapped — though
-	 * legacy `x` + `y` still satisfy it so saved pie visuals keep working. */
-	positionGate?: "xy" | "polar"
+	 * legacy `x` + `y` still satisfy it so saved pie visuals keep working.
+	 * `"geo"` (maps) wants `geography` mapped — anchors arrive pre-positioned
+	 * at region centroids, and the per-series `labelPoints` selection stands
+	 * down (there are no series ends on a map). */
+	positionGate?: "xy" | "polar" | "geo"
+	/** Geo only: "is this pixel open map space?" (ocean / no-data regions).
+	 * Handed to the 2-D overlap spread so displaced labels prefer landing
+	 * there over covering data-carrying regions. Unset → no preference. */
+	preferOpenSpace?: (x: number, y: number) => boolean
 }
 
 // Text formatting, size interpolation, hue-scale assembly, and the fill
@@ -377,6 +386,7 @@ export const DataLabelsLayer = ({
 	rowFilter,
 	anchors,
 	positionGate = "xy",
+	preferOpenSpace,
 }: Props) => {
 	const encodings: DataLabelsEncodings = {
 		...emptyDataLabelsEncodings(),
@@ -457,7 +467,9 @@ export const DataLabelsLayer = ({
 	const positionMapped =
 		positionGate === "polar"
 			? Boolean(angleField) || (Boolean(xField) && Boolean(yField))
-			: Boolean(xField) && Boolean(yField)
+			: positionGate === "geo"
+				? Boolean(encodings.geography?.field)
+				: Boolean(xField) && Boolean(yField)
 	// "Value" is satisfied by a single mapped field OR multi-field mode with
 	// at least one field checked (multi-field mode leaves `value.field` null).
 	const valueMapped =
@@ -536,9 +548,75 @@ export const DataLabelsLayer = ({
 		const lastAxis: "x" | "y" =
 			yType === "categorical" || yType === "ordinal" ? "y" : "x"
 		const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
-		const filtered = applyLabelPoints(layoutBoxes, cfg, lastAxis)
-		const finalBoxes = cfg.avoidOverlaps ? nudgeOverlaps(filtered) : filtered
-		return renderLabels(finalBoxes, cfg, textBgColor)
+		// Maps have no per-series endpoints, so the `labelPoints` selection is
+		// skipped there — a stored "last per series" from a previous chart must
+		// not silently drop every region label but one.
+		const filtered =
+			positionGate === "geo"
+				? layoutBoxes
+				: applyLabelPoints(layoutBoxes, cfg, lastAxis)
+		// Overlap pass: maps spread colliding labels in ANY direction (their
+		// anchors scatter over a plane, and a downward-only pile looks lopsided
+		// with leader lines); series charts keep the vertical-only nudge, which
+		// preserves the reading order of stacked end-of-line labels.
+		const finalBoxes = cfg.avoidOverlaps
+			? positionGate === "geo"
+				? spreadOverlaps2D(filtered, { prefer: preferOpenSpace })
+				: nudgeOverlaps(filtered)
+			: filtered
+		const labels = renderLabels(finalBoxes, cfg, textBgColor)
+		// Maps only: leader lines from each region's centroid (the raw anchor)
+		// to its label's box edge, drawn UNDER the labels. A label still on its
+		// centroid produces no line (`leaderLineSegment` returns null when the
+		// anchor sits inside the box), so lines only appear where offsets or
+		// the overlap pass actually moved a label.
+		const leaderWidth = cfg.leaderLineWidth ?? 1
+		if (positionGate !== "geo" || cfg.leaderLines !== true || leaderWidth <= 0) {
+			return labels
+		}
+		const leaderAnchor = alignmentAnchor(cfg.alignment)
+		// The box the line stops at: the text footprint plus the background
+		// rect's padding when one is drawn, plus a small breathing gap so the
+		// line never kisses the glyphs.
+		const leaderPadX =
+			(cfg.textBackground ? (cfg.textBackgroundPadX ?? DEFAULT_BG_PAD_X) : 0) + 2
+		const leaderPadY =
+			(cfg.textBackground ? (cfg.textBackgroundPadY ?? DEFAULT_BG_PAD_Y) : 0) + 2
+		const leaderLines = finalBoxes.flatMap((b) => {
+			const w = labelWidth(b)
+			const left =
+				leaderAnchor === "start"
+					? b.cx
+					: leaderAnchor === "end"
+						? b.cx - w
+						: b.cx - w / 2
+			const seg = leaderLineSegment({
+				anchorX: b.anchorX,
+				anchorY: b.anchorY,
+				left: left - leaderPadX,
+				right: left + w + leaderPadX,
+				top: b.cy - labelHeight(b) / 2 - leaderPadY,
+				bottom: b.cy + labelHeight(b) / 2 + leaderPadY,
+			})
+			if (!seg) return []
+			return [
+				<line
+					key={`leader-${b.key}`}
+					x1={seg.x1}
+					y1={seg.y1}
+					x2={seg.x2}
+					y2={seg.y2}
+					stroke={cfg.leaderLineColor ?? "#999999"}
+					strokeWidth={leaderWidth}
+				/>,
+			]
+		})
+		return (
+			<g aria-hidden="true" pointerEvents="none">
+				<g data-testid="geo-leader-lines">{leaderLines}</g>
+				{labels}
+			</g>
+		)
 	}
 
 	// --- Row-based path (scatter / fallback). ---------------------------

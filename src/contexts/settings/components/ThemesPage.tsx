@@ -21,6 +21,7 @@ import { DistributionRegressionSection } from "./themeSections/DistributionRegre
 import { GlobalAestheticsSection } from "./themeSections/GlobalAestheticsSection"
 import { GradientsSection } from "./themeSections/GradientsSection"
 import { LegendSection } from "./themeSections/LegendSection"
+import { MapsSection } from "./themeSections/MapsSection"
 import { MarkSection } from "./themeSections/MarkSection"
 import { PalettesSection } from "./themeSections/PalettesSection"
 import { PatternsSection } from "./themeSections/PatternsSection"
@@ -272,6 +273,7 @@ export const ThemesPage = () => {
 					<PatternsSection {...sectionProps} />
 					<DistributionRegressionSection {...sectionProps} />
 					<AnnotationsSection {...sectionProps} />
+					<MapsSection {...sectionProps} />
 					<AestheticRangesSection {...sectionProps} />
 				</div>
 

@@ -331,6 +331,16 @@ export const PlotCanvas = () => {
 	const dataLabelOverflow = useMemo(() => {
 		const empty = { left: 0, right: 0 }
 		if (!dataset) return empty
+		// Geo modes anchor labels at region centroids INSIDE the plot area —
+		// no edge overflow to reserve for. (The `mode` memo lives below this
+		// one, so resolve the def inline; the registry scan is cheap.)
+		const memoMode = getChartModeDef(
+			encodings,
+			(name) => effectiveType(dataset, name, overrides),
+			channelConfigs,
+			mapConfig
+		)
+		if (memoMode.canvas.coordFamily === "geo") return empty
 		// Data labels have their own encoding atom; the rendered text comes
 		// from that `value` mapping. Fall back to the chart's measure encoding
 		// when the data-labels value isn't explicitly mapped (mirrors
@@ -485,8 +495,12 @@ export const PlotCanvas = () => {
 		dataLabelsEncodings.value?.multiField,
 		dataLabelsEncodings.value?.fields,
 		dataLabelsEncodings.size?.field,
-		encodings.length?.field,
-		encodings.y?.field,
+		// Whole `encodings` (covers the length/y fallback fields) + the geo
+		// gate's mode-detection inputs, mirroring the `mode` memo's own deps.
+		encodings,
+		overrides,
+		channelConfigs,
+		mapConfig,
 	])
 
 	const titleFont = resolveTitleFont(

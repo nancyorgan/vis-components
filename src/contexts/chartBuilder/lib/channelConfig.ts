@@ -1750,6 +1750,17 @@ export type DataLabelsConfig = {
 	 *  inside the top rim. Managed by the Data Labels panel's "Text
 	 *  Position" checkboxes; other renderers ignore it. */
 	arcWrapLevels?: number[]
+	/** Maps only: draw a leader line from each region's centroid to its
+	 *  label whenever the label sits away from the centroid (X/Y offset or
+	 *  an overlap-avoidance nudge). A label still on its centroid draws no
+	 *  line. Non-geo renderers ignore it. */
+	leaderLines?: boolean
+	/** Stroke color of the leader lines. Theme-seeded
+	 *  (`Theme.mapLeaderLineColor`). */
+	leaderLineColor?: string
+	/** Stroke thickness (px) of the leader lines — 0 hides them.
+	 *  Theme-seeded (`Theme.mapLeaderLineThickness`). */
+	leaderLineWidth?: number
 }
 
 export type LabelPointsMode = "all" | "first" | "last" | "first-last"
@@ -1839,4 +1850,7 @@ export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	textBackgroundPadX: 3,
 	textBackgroundPadY: 1.5,
 	arcWrapLevels: [],
+	leaderLines: false,
+	leaderLineColor: "#999999",
+	leaderLineWidth: 1,
 }

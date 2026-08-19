@@ -217,6 +217,7 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 					hoverHandler={geo.hoverHandler}
 					preserveOrder={drawOrder !== null}
 				/>
+				{geo.renderDataLabels(m)}
 			</>,
 			{ onMouseLeave: geo.clearHover }
 		)

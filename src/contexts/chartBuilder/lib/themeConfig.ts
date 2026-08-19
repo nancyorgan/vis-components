@@ -212,8 +212,9 @@ export const textConfigFromTheme = (t: Theme): TextConfig => ({
 
 /** Theme-seeded Data Labels config — see `shapeConfigFromTheme` for why this
  * is a shared builder. Only the font knobs (size / weight / italic /
- * underline) are theme-driven; the `??` fallbacks cover themes saved before
- * these fields existed, which keep the built-in defaults. */
+ * underline), the single fallback color, and the map leader-line stroke are
+ * theme-driven; the `??` fallbacks cover themes saved before these fields
+ * existed, which keep the built-in defaults. */
 export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
 	...DEFAULT_DATA_LABELS_CONFIG,
 	// No system theme sets `dataLabelsColor` (and custom themes only carry it
@@ -230,6 +231,10 @@ export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
 	fontWeight: t.dataLabelsFontWeight ?? DEFAULT_DATA_LABELS_CONFIG.fontWeight,
 	italic: t.dataLabelsItalic ?? false,
 	underline: t.dataLabelsUnderline ?? false,
+	leaderLineColor:
+		t.mapLeaderLineColor ?? DEFAULT_DATA_LABELS_CONFIG.leaderLineColor,
+	leaderLineWidth:
+		t.mapLeaderLineThickness ?? DEFAULT_DATA_LABELS_CONFIG.leaderLineWidth,
 })
 
 /** Theme-seeded fill + border style for NEW rectangle and circle annotations.
