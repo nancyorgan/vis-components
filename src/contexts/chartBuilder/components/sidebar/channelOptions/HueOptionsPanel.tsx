@@ -962,13 +962,7 @@ export const AreaRadarOutlinePanel = () => {
 					onChange={(c) => setStrokeColor(c)}
 				/>
 				{strokeColor !== null && (
-					<button
-						type="button"
-						onClick={() => setStrokeColor(null)}
-						className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-					>
-						match fill
-					</button>
+					<ResetLink onClick={() => setStrokeColor(null)} label="match fill" />
 				)}
 			</div>
 		)
@@ -1112,10 +1106,6 @@ const toHex = (rgbString: string): string => {
  * fractions from overflowing the w-12 input. */
 const fmtStopValue = (n: number): string =>
 	Number.isFinite(n) ? String(Number(n.toPrecision(4))) : "auto"
-
-/** Shared styling for the inline "reset" links on gradient stop rows. */
-const RESET_LINK_CLASS =
-	"text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
 
 /** How many swatch rows to show for each linear preset. Sequential
  * palettes like viridis/plasma/inferno pass through several distinct
@@ -1422,13 +1412,7 @@ export const QuantitativePanel = ({
 			 *  so there's no per-row default to restore). Every other mode gets
 			 *  per-row reset links instead; presets are pristine by definition. */}
 			{paletteMode === "custom" && (
-				<button
-					type="button"
-					onClick={resetColors}
-					className={`self-start ${RESET_LINK_CLASS}`}
-				>
-					reset
-				</button>
+				<ResetLink onClick={resetColors} underline className="self-start" />
 			)}
 
 			{/* Linear preset mode: N rows sampled from the interpolator,

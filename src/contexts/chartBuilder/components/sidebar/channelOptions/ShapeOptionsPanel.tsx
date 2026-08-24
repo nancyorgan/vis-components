@@ -23,6 +23,7 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 import { CustomGlyphChips, CustomGlyphEditor } from "./customGlyphEditor"
 import { CategoryRow, ShapeGlyph } from "./glyphShared"
@@ -239,8 +240,7 @@ export const ShapeOptionsPanel = () => {
 					})}
 				</>
 			)}
-			<button
-				type="button"
+			<ResetLink
 				onClick={() => {
 					setConfigs((prev) => ({
 						...prev,
@@ -251,10 +251,9 @@ export const ShapeOptionsPanel = () => {
 						outlineWidth: theme.outlineWidth,
 					})
 				}}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+				underline
+				className="self-start"
+			/>
 		</div>
 	)
 }

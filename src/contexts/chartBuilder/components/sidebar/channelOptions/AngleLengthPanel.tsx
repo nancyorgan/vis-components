@@ -523,18 +523,16 @@ export const LengthOptionsPanel = () => {
 			<div className="vc-help">
 				Set a length to render all marks as line segments. Clear to use shapes.
 			</div>
-			<button
-				type="button"
+			<ResetLink
 				onClick={() =>
 					setConfigs((prev) => ({
 						...prev,
 						defaultLength: null,
 					}))
 				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+				underline
+				className="self-start"
+			/>
 		</div>
 	)
 }

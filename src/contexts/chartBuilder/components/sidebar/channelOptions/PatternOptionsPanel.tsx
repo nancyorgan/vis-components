@@ -47,6 +47,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 import { StackModeRow } from "./StackModeRow"
 import {
@@ -722,8 +723,7 @@ export const PatternOptionsPanel = () => {
 						</div>
 					</>
 				)}
-				<button
-					type="button"
+				<ResetLink
 					onClick={() => {
 						setDefaultCustomDashOpen(false)
 						setConfigs((prev) => ({
@@ -750,10 +750,9 @@ export const PatternOptionsPanel = () => {
 						}))
 						updateCfg({ backgroundColor: theme.patternBackgroundColor })
 					}}
-					className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
+					underline
+					className="self-start"
+				/>
 				{modeDef.id === "scatter" && regressionOn(configs) && (
 					<RegressionDashSubsection />
 				)}
@@ -917,15 +916,7 @@ export const PatternOptionsPanel = () => {
 			>
 				{display ?? v}
 			</span>
-			{canReset && (
-				<button
-					type="button"
-					onClick={onReset}
-					className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
-			)}
+			{canReset && <ResetLink onClick={onReset} />}
 		</div>
 	)
 

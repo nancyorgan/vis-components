@@ -684,13 +684,11 @@ const RangePanel = ({
 				{variant.suffix} – {variant.max}
 				{variant.suffix}
 			</div>
-			<button
-				type="button"
+			<ResetLink
 				onClick={() => update({ min: variant.min, max: variant.max })}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+				underline
+				className="self-start"
+			/>
 			{/* Saturation/Brightness can drive bar layout when 2+ stack channels
 			    are mapped to different vars. Area doesn't stack (and "area" isn't
 			    a StackChannel), so it's excluded. StackModeRow self-gates. */}
@@ -727,18 +725,16 @@ const AreaDefaultPanel = () => {
 				inputClassName="w-20"
 				suffix="px"
 			/>
-			<button
-				type="button"
+			<ResetLink
 				onClick={() =>
 					setConfigs((prev) => ({
 						...prev,
 						defaultRadius: theme.defaultRadius,
 					}))
 				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				reset
-			</button>
+				underline
+				className="self-start"
+			/>
 		</div>
 	)
 }

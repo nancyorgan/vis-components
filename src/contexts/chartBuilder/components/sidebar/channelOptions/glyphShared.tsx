@@ -11,6 +11,7 @@ import { symbolPath } from "../../../lib/scales"
 
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 export const PREVIEW_SIZE = 20
 
@@ -138,15 +139,7 @@ export const CategoryRow = ({
 			>
 				{value}
 			</span>
-			{hasAnyOverride && (
-				<button
-					type="button"
-					onClick={onReset}
-					className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-				>
-					reset
-				</button>
-			)}
+			{hasAnyOverride && <ResetLink onClick={onReset} />}
 		</div>
 		<div className="flex flex-wrap gap-1">
 			{Array.from({ length: paletteSize }, (_, idx) => {
@@ -204,13 +197,7 @@ export const ColorRow = ({
 			className="contents"
 		/>
 		{onClear && value !== null && (
-			<button
-				type="button"
-				onClick={onClear}
-				className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-			>
-				{clearLabel}
-			</button>
+			<ResetLink onClick={onClear} label={clearLabel} />
 		)}
 	</div>
 )
