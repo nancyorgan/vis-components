@@ -155,8 +155,13 @@ swept rather than managed: `sweepOrphanDatasets` (`lib/datasetSweep.ts`)
 runs whenever visuals are deleted, dropping every dataset no remaining
 visual references and no protected id names (the editor's current
 dataset is protected — an upload not yet saved as a visual is live
-work). Alongside it, `runDatasetStoreCleanup` is a **marker-guarded
-one-shot** run from `main.tsx` after the example seed: it collapses
+work). Seed datasets from the ephemeral example overlay (§14) are safe
+from it: the sweep judges them against the seed visuals that reference
+them, and a swept store is written back through the same strip every
+save uses. Alongside it, `runDatasetStoreCleanup` is a
+**marker-guarded one-shot** run from `main.tsx` — after a persisted
+seed, before the ephemeral overlay, which it must never see: it
+collapses
 byte-identical duplicate datasets (repointing visuals, embeds, and the
 pinned dataset / version ids), deletes the orphan backlog that
 accumulated before cascade-on-delete existed, and prunes historical
@@ -240,11 +245,11 @@ channels); geographic rendering is gated by the chart-wide MapConfig
 (`coordSystem: "geographic"`), set via the "Maps" sidebar section.
 When no MapConfig is active the geo modes never fire.
 
-Geography levels: US States, US Counties, and World Countries are
-implemented (US ZIP/ZCTA is not yet). The level's `"auto"` setting
-detects the best-matching level by scoring the connection field's
-values against each level's lookup table (ties and no-match fall back
-to states; the dot map, which has no connection field, always
+Geography levels: US States, US Counties, US ZIP/ZCTA, and World
+Countries are all implemented. The level's `"auto"` setting detects
+the best-matching level by scoring the connection field's values
+against each level's lookup table (ties and no-match fall back to
+states; the dot map, which has no connection field, always
 auto-resolves to states). The Geography level dropdown shows what Auto
 resolved to ("Auto (US Counties)"); an explicit pick always wins.
 County joins accept 5-digit FIPS codes (unpadded tolerated) and
@@ -252,6 +257,58 @@ state-qualified names ("Washington County, TX"); bare county names
 that repeat across states — or the six within-state city/county name
 pairs, unless suffixed "city" — deliberately stay unmatched rather
 than guessing.
+
+Country joins accept ISO 3166-1 codes in all three forms (alpha-2,
+alpha-3, numeric) and names — and names join through an alias table
+(`lib/geo/countryNames.ts`) as well as the atlas's own feature names,
+because world-atlas renders SHORT forms ("Dem. Rep. Congo", "Central
+African Rep.", "S. Sudan") while real CSVs carry full names
+("Democratic Republic of the Congo") and common variants ("USA",
+"UK", "Republic of Korea", "Russian Federation", "Czech Republic",
+"Ivory Coast", "Burma", "Swaziland", "East Timor", "The Gambia",
+World Bank forms like "Congo, Dem. Rep."). Every alias maps to
+exactly ONE country — the two Congos can never cross-join, and
+genuinely ambiguous forms (bare "Korea") are deliberately absent, so
+they stay unmatched rather than guessing (same policy as county
+names). The alias table doubles as the display source for the data
+labels' "Full country name" format (§6.5).
+
+ZIP/ZCTA is special in one way: its boundary data (~33k polygons,
+8.6MB even aggressively simplified — no us-atlas equivalent exists)
+does NOT ship in the default build. The level is fully plumbed
+against a topology seam (`lib/geo/zctaTopology.ts`), and a build opts
+in by generating the asset: `pnpm zcta` writes
+`public/geo/zcta-500k.json` from the public Census source, Vite copies
+it into `dist/` as a SIDECAR file, and the app fetches it the first
+time a visual uses the level — never at boot, and never inlined into
+the single-file `index.html` (which is also why a `file://` build
+can't use it: a local page can't fetch a sibling). Alternatively a
+host registers a runtime source via `setZctaTopologyLoader`. Without a
+source the Maps section explains that ZIP/ZCTA data isn't available;
+with one, ZCTAs join by 5-digit code under the dedicated "ZIP code"
+region key (never FIPS — the two 5-digit families must not cross-join),
+with numeric columns that lost leading zeros left-padded to 5 and
+ZIP+4 values matched by their 5-digit prefix. Auto level detection
+considers zcta last (states > counties > countries > zcta), and only
+loads the heavy table when a source exists, the cheaper levels scored
+poorly, and the column even looks ZIP-like (mostly 3–5-digit
+numerics).
+
+Points outside the projection: Albers USA (the default for US
+geography levels) is US-only — it projects anything outside the US (and
+its Alaska/Hawaii insets) to null, so such marks simply don't draw.
+When that drops at least one mark, the Maps section shows a hint under
+the Projection control — "N of M points fall outside the mapped area
+and aren't shown" (dot map rows with a usable lon/lat; "regions" on
+the bubble map, whose joined-region centroids can only drop under an
+explicitly chosen Albers USA) — and, when Albers USA is the resolved
+projection, names the fix (choose Natural Earth or Mercator). The hint
+hides when nothing dropped, and under a focus region (focus forces a
+world projection; marks panned out of a focus box are deliberate
+framing, not lost data). Rows whose lon/lat can't parse never count —
+they can't draw under any projection. Counting lives in
+`useGeoOutsideCount` / `lib/geo/outsideProjection.ts`, which mirror
+the renderers' skip logic exactly.
 
 Missing data on the choropleth: a region with no usable measure value
 paints with the **no-data fill** color (Maps section), whether the
@@ -521,8 +578,10 @@ scatter — the dangling "Point count" selection stays visible in the
 dropdown so it can be cleared, and re-establishing the gating restores
 the hexbins. When faceted, each panel bins its own rows over the
 shared axis domains (cells align across panels), but each panel's
-color scale spans its own max count — the same known divergence the
-histogram measure has.
+color scale spans its own max count — a known divergence from the
+single legend ramp. (The histogram measure used to share this
+divergence; it now colors every panel over one global domain — see
+§3.3's histogram note.)
 
 Modes are resolved in precedence order (first match wins); scatter is
 the always-true fallback. Tile requires **both** axes to be
@@ -530,7 +589,16 @@ categorical/ordinal and **no** glyph-implying channel (length, angle,
 shape, area, opacity, connection) — mapping any of those drops it back
 to scatter. The histogram rows are driven by a per-axis toggle in the
 channel config, not by an encoding; the renderer bins the quantitative
-axis and counts rows per bin.
+axis and counts rows per bin. When Fill color / Fill opacity vary by
+the bins' derived measure (Count / Density), the color scale is
+GLOBAL: one `[0, max]` domain shared by every facet panel and the
+legend ramp, where `max` is the largest per-panel bin (bin edges from
+the pooled rows, density shares per panel) — so equal counts read as
+equal colors across panels, the tallest bar anywhere hits the ramp's
+high end, and a bar's color always matches where its value falls on
+the legend. The measure AXIS still follows the facet share modes
+independently; the color domain deliberately does not
+(`histogramMeasureColorDomain` is the single seam).
 
 All of the above can be faceted across a categorical or ordinal
 variable. Hue can be replaced or combined with opacity, saturation,
@@ -539,7 +607,7 @@ brightness, or pattern.
 ### 3.4 Quickstart bar
 The icon bar above the encoding shelves gives one-click scaffolds for
 each chart family (bar, scatter, dumbbell, line, area, pie, violin,
-tile, map, packed circles, treemap, sunburst, sankey).
+density curve, tile, map, packed circles, treemap, sunburst, sankey).
 Each icon cycles through random *variations* (e.g., bars → vertical →
 grouped → patterned stacked → horizontal). The scaffold assigns
 eligible fields automatically and optionally drops in a hue encoding
@@ -557,6 +625,19 @@ the category-axis field so each category's endpoints (rows split by
 the hue field) connect to each other — a freshly-picked connection
 field would link points across categories and render a line chart
 instead.
+
+The **Density curve** icon scaffolds a single quantitative field on x
+with nothing on the opposite axis (the density axis is implied), and
+turns on the standalone KDE curve — the same
+`distributionOverlay.showDensityCurve` config the manual Distribution
+→ "Density" segment writes, so the sidebar reflects and controls the
+scaffolded chart exactly as if the user had built it by hand. It also
+stamps the axis's shared histogram config (histogram off — the two
+displays are mutually exclusive — and `densityFill` per variation).
+Its two variations are the stroked curve and the filled one ("Fill
+under curve" on). No hue: the lone curve has nothing to color per
+category, and the underlying points render only as the optional rug,
+so opportunistic extras stay off.
 
 The **Map** icon is value-driven, not type-driven: the dataset's rows
 are sampled (`lib/geo/detectGeoFields.ts`) for columns that join a
@@ -715,6 +796,12 @@ Behavior depends on chart context:
 - **No connection mapped** (bar / area / scatter): SVG fill patterns
   (six pattern shapes). Per-value pattern picker. Ink and background
   color controls, defaulting to the Pattern defaults from the theme.
+  With no pattern variable mapped, the panel's **Default pattern**
+  picker (`defaultPattern` + its ink) fills EVERY mark — scatter
+  points, bars, area layers, and pie wedges alike (the pattern tile's
+  background is each mark's drawn fill when hue is mapped, else the
+  Pattern background color). Geo and structure modes keep their own
+  pattern semantics and ignore it.
 - **Connection mapped, no shape encoded** (line chart): swatches are
   line dashes (`dashed`, `dotted`, `dash-dot` — `solid` is implicit
   via the "None" button). Patterns drive line stroke style; points
@@ -831,6 +918,17 @@ Each channel exposes scaling controls (min/max), per-value overrides
 where it makes sense, and any channel-specific knobs (e.g., shape
 outline width). Theme defaults seed the ranges so new charts come up
 with sensible visuals.
+
+**Unresolvable mapped values fall back to the channel default.** When
+a color-pipeline channel (hue, saturation, brightness, opacity) is
+mapped but a row's/slice's value can't resolve through its scale
+(blank/NA cell, value outside the scale's domain), the mark renders
+with that channel's DEFAULT — hue → the default fill, sat/bri → the
+default saturation/brightness level, opacity → the default opacity —
+exactly as if the channel weren't mapped. One convention across every
+renderer, row-based and group-based alike. (Geo maps are the deliberate
+exception: an unresolvable mapped measure there means "missing data"
+and takes the no-data fill/pattern instead.)
 
 **Custom shape glyphs.** Every shape row (the Default-shape picker and
 the per-category rows) offers the six built-in symbols plus the chart's
@@ -1086,7 +1184,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   spine draws there instead. The test compares positions after both
   axes' position nudges, and the tolerance is half the two strokes'
   combined width. Cartesian coordinates only (`Axis`'s `opposingAxis`
-  prop, passed from `lib/coords/cartesian.tsx`); polar and radar axes
+  prop, passed from `components/viz/coords/cartesian.tsx`); polar and radar axes
   have no opposing spine.
 - **Adjust position** (end of Tick Labels, behind a divider) — X / Y
   pixel nudge that moves the whole axis (spine, tick marks, tick
@@ -1357,6 +1455,19 @@ modes — there are no series on a map; overlap avoidance (2-D on maps —
 colliding labels fan out in any direction, see §6.2), offsets,
 alignment, wrap, text properties, and text background all apply.
 
+On COUNTRIES-level label joins (auto-detected from the Geography
+field's values), the Label-format dropdowns additionally offer a
+Geography preset: **Full country name**. It formats any recognizable
+country value — the atlas's abbreviated short name, a variant, an ISO
+code — as its preferred long form ("Dem. Rep. Congo" → "Democratic
+Republic of the Congo", "Congo" → "Republic of the Congo"), printing
+unrecognized values as-is. It's stored as the `country-name` spec in
+the same per-field `fieldFormats` store as the d3 presets (no new
+config field), resolves through the same alias table the join uses
+(`lib/geo/countryNames.ts`, §2's country aliases), and is hidden on
+every other chart type and geography level — other dropdowns are
+unchanged.
+
 Geo modes add a **Draw leader lines** toggle under Label selection and
 overlap (geo-only; hidden elsewhere). When on, every label that sits
 away from its region's centroid — displaced by the X/Y offsets or by
@@ -1407,6 +1518,9 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   labels (scatter / lines), aggregated slice labels (bars / areas /
   pies / tile cells), and hierarchy leaf labels. Missing values still
   skip the label entirely (a null measure never renders as "0%").
+  Countries-level geo charts add a Geography preset group with **Full
+  country name** (see the geo-labels notes above); the option appears
+  ONLY there.
   A mapped Value field is AUTHORITATIVE: on aggregating charts
   (bars / areas / pies / tiles), slices whose Value cells are all
   blank render NO label — they never fall back to the slice's
@@ -1602,9 +1716,34 @@ behavior is gated on the "Show hover" master toggle AND its
 legend-highlight sub-option (`hoverEnabled` + `legendHighlight`, both
 default on): with either off, entries never publish a hovered value
 and the plots stay un-dimmed. Wired up in Scatter, Bar, Area, Pie,
-Radar, and the hierarchy layouts; the geo and flow (chord / sankey)
-renderers are NOT wired, so hovering their legends does nothing to the
-marks.
+Radar, the hierarchy layouts, the geographic renderers, and the flow
+diagrams.
+
+On the MAPS the marks match by row value exactly as elsewhere: a
+choropleth's regions, a bubble map's bubbles plus its region
+choropleth basemap, and a dot map's dots. Two map-specific rules: a
+region drawn in the no-data paint — absent from the dataset, or a
+matched row whose measure is blank — belongs to no category, so it
+fades with the rest and NEVER lights up, even when its row carries the
+hovered value; and the purely geographic backdrops (the dot map's
+plain basemap, the world-countries backdrop) are context rather than
+marks, so they don't dim at all. Quantitative color legends are
+gradients, which publish no entries, so a measure-colored map only
+responds to hover through its categorical channels.
+
+On the FLOW diagrams the legend is the node union, so a hovered entry
+names a NODE: that node's arc / rect takes the usual emphasis, and
+every flow TOUCHING it — as source OR target — stays fully visible
+while unrelated nodes and flows fade. Links keep their own paint (they
+take their source node's color, and repainting a wide translucent flow
+in the highlight color would swamp the node it belongs to), so recolor
+/ outline apply to the node marks only.
+
+Direct mark hover publishes the same way on both families: hovering a
+map mark highlights its category when a CATEGORICAL color is mapped
+(that is exactly when the legend has entries to correspond with), and
+hovering a flow node — or a link, which reports its source node —
+highlights that node's series.
 
 Per-channel visibility lives in the "Legends shown" toggles. Every
 mapped channel defaults to shown, EXCEPT the Size (area) legend in
@@ -1731,11 +1870,12 @@ from the default — restores that default.
 ## 11. Annotations
 
 A top-level "Annotations" section in the sidebar. Users can add
-**rectangle**, **circle**, and **line-segment** annotations to
-highlight regions of the chart. Each annotation's editor is
+**rectangle**, **circle**, **line-segment**, and **text** annotations
+to highlight regions of the chart. Each annotation's editor is
 individually collapsible: a chevron in its header row toggles the
-body, while the name box and remove link stay visible so a long list
-remains scannable. Existing annotations start collapsed when the
+body, while a glyph of the kind (box / circle / diagonal stroke / "T"),
+the name box, and the remove link stay visible so a long list remains
+scannable by shape as well as by name. Existing annotations start collapsed when the
 panel mounts; a freshly added annotation starts expanded. Each
 rectangle has:
 
@@ -1769,17 +1909,39 @@ placed and renders nothing). **Line segments**
 each in Percent or Values coordinates. Both share the rectangle's
 fill/border/layer styling controls.
 
+**Text annotations** (`lib/textAnnotationGeometry.ts`) are plain text
+drawn on the chart rather than a shape that contains text. They carry
+the rectangle's full text, fill, and border controls plus a **corner
+radius**, but their background box is auto-sized to the rendered label
+(measured at its actual font) plus the text padding — the user never
+sizes it. That's why position is a single anchor point, x and y, with
+the same Percent / Values toggle every other kind has:
+
+- `y` always centers the box vertically on the anchor.
+- **Alignment** picks which horizontal edge lands on `x` — `left`
+  starts the box there, `center` straddles it, `right` ends there — in
+  addition to aligning the lines of multi-line text. So the control
+  stays meaningful for a one-line label, where line alignment alone
+  would be invisible.
+
+A text annotation with a blank label draws nothing at all, box
+included (there is nothing to size the box to).
+
 New annotations seed their style (fill, border, text font, line
 stroke) from the active theme's **Annotations** defaults (§12), and
 each style control's reset link compares against and restores those
-theme values.
+theme values. Text annotations read the theme's *Text annotations*
+box defaults — separate from the shape fill so a text label can
+default to no background — and share the theme's annotation *text*
+font with the rectangle's inner label.
 
-All three shapes render per-panel in PlotCanvas, using each panel's
-own position scales in Values mode and clipping to the panel's plot
-area. The exception is radar: value-mode circles are rendered inside
+All four kinds render per-panel in PlotCanvas, using each panel's own
+position scales in Values mode and clipping to the panel's plot area.
+The exception is radar: value-mode circles are rendered inside
 RadarPlot itself (via `computePolarCirclePixels`, since RadarPlot owns
-the radial scales), and value-mode line segments are skipped on radar
-entirely; percent-mode shapes still render normally there.
+the radial scales), and value-mode line segments and text annotations
+are skipped on radar entirely; percent-mode shapes still render
+normally there.
 
 Annotations are per-chart and persist with the visual.
 
@@ -1812,7 +1974,11 @@ Theme settings:
 - **Annotations** — the initial style newly added annotations get:
   fill color + opacity, border color / thickness / opacity / dash for
   rectangles and circles; font family / size / color / weight,
-  alignment, and padding for rectangle text; and color / thickness /
+  alignment, and padding for annotation text (shared by the
+  rectangle's inner label and text annotations); fill, border, and
+  corner radius for the text annotation's background box — its own
+  section, so text can default to no box while shapes stay filled;
+  and color / thickness /
   opacity / dash for line annotations. The dash controls are the same
   None / swatch / Custom button rows the annotation editors use. Existing annotations keep the
   style they were authored with (re-theming never restyles them); the
@@ -1900,7 +2066,26 @@ that drags as a set, and folders drag onto other folders to re-nest
 (cycles and no-op moves are rejected — no highlight, drop ignored).
 Selecting a folder in the sidebar shows the visuals of its entire
 subtree — descendant folders included — in both the grid and table
-views. The folder sidebar is drag-resizable via the handle on its
+views. Checking one or more visuals (the card checkbox in grid view,
+the row checkbox in table view) raises a bulk-action bar above the
+listing with **Move…**, **Duplicate**, **Download**, **Delete…** and
+**Clear**. The first three are ordinary (brand-colored) buttons,
+**Delete…** is red throughout — including the edges the filled button
+would otherwise inherit from the brand style — and **Clear**, which
+only undoes a selection, is a plain text link. **Download** writes the
+checked visuals — with their data
+sets, folder chains and custom themes — as a library bundle, the same
+JSON Settings → Sharing imports (see "Single-file distribution &
+library bundles"), so a single chart can be handed to a colleague
+without exporting the whole library. One checked visual downloads as
+its own name sanitized to a filename (`q3-revenue.json`); any other
+count downloads as `library-bundle.json`. The bundle is read through
+the storage adapter, so it is correct in server mode as well; the
+button reads "Downloading…" while it builds and reports a failure
+beside itself rather than losing the selection. Selection is scoped to
+what's visible: changing folder, filter or search drops any checked
+visual that scrolls out of the result set, so a bulk action can never
+catch a hidden row. The folder sidebar is drag-resizable via the handle on its
 right edge (208–480 px; width persists across reloads, independent
 of the editor sidebar's width). Embedded iframes
 sync via an embed-instances mechanism so live previews update when
@@ -1909,7 +2094,13 @@ the source visual's dataset version changes.
 ### Export & embed
 
 One modal ("Export this visualization", `components/ExportModal.tsx`)
-with two tabs.
+with two tabs and, at the left of the tab row, a **Download JSON**
+button. Download JSON isn't a tab — it writes this one visualization
+(with its data set, folder chain and custom theme) as a library bundle
+immediately, the same file the library page's bulk **Download**
+produces and Settings → Sharing imports, named after the *saved*
+visual. The build reads through the storage adapter, so it is correct
+in server mode too; failures report beside the button.
 
 **Embed** produces `<iframe>` snippets pointing at
 `/embed/<visualId>` on the same origin (cross-origin embedding is not
@@ -1963,7 +2154,7 @@ This is the other half of the points convention in §7: physical export
 sizing + DPI stamping is what makes a size-12 label land as true 12pt
 in the destination document.
 
-### Single-file distribution & bundled examples
+### Single-file distribution & library bundles
 
 `pnpm build` emits ONE self-contained `dist/index.html` (JS + CSS
 inlined, unminified so checked-in diffs stay reviewable) meant to be
@@ -1973,15 +2164,83 @@ served over http(s) it keeps clean paths. The header shows a version
 chip (`v1.0`, from package.json via a compile-time define) whose
 tooltip is the build timestamp, so any shared copy self-identifies.
 
-Builds can carry **bundled examples**: Settings → Sharing →
-"Download examples bundle" exports the author's current library
-(visuals with previews, datasets, folders, custom themes) as
-`examples.json`; saved over `src/seed/examples.json` and rebuilt, the
-bundle hydrates storage on a recipient's FIRST launch only. A library
-that already has visuals is never touched, and a recipient who
-deletes the examples stays clean (an applied-seed marker keyed on the
-export timestamp prevents re-seeding until a genuinely new export
-ships). The checked-in seed is empty, which makes seeding a no-op.
+**Bundle your library as JSON** (Settings → Sharing → "Download
+bundle") serializes the whole library — visuals with previews, their
+data sets, the folder tree, custom themes — into one
+`library-bundle.json`. It is a backup, a share artifact, and a build
+seed, all the same file. The ephemeral sandbox examples (below) are
+NOT included — a backup is the user's own work; adopted examples are
+the user's and export like anything else. (The library page's
+per-visual Download, by contrast, happily bundles a sandbox example
+the user explicitly selected.)
+
+**Import a bundle** (same page) reads one back in, always
+ADDITIVELY — an import can never replace or overwrite work already
+in the library:
+
+- **Folders** match existing ones by full path (the chain of names
+  from the root), so a shared "Q3 ▸ Drafts" lands in the recipient's
+  own "Q3 ▸ Drafts" rather than a second copy; anything unmatched is
+  created under the resolved parent, nesting intact.
+- **Visuals** are always added. An incoming id survives when it's
+  free locally (restoring your own backup into an empty library keeps
+  stable ids) and takes a fresh one on collision. Importing the same
+  bundle twice therefore yields duplicate visuals — accepted, because
+  the alternative is silently overwriting the user's edits.
+- **Data sets** dedupe byte-identically against the store (same rule
+  as upload dedup), so re-shared data never multiplies; visuals
+  repoint to whichever copy won, version pin included.
+- **Themes** merge by id: an id the recipient already has is skipped,
+  never overwritten. System themes are ignored — every build ships
+  them. The starred default theme is adopted only when the recipient
+  has never picked one.
+- A malformed file is rejected with a readable message and changes
+  nothing. The merge is pure; the caller lands the result through the
+  Jotai atoms, so the library updates without a reload and, in server
+  mode, the diffing HTTP adapter transmits only the imported items.
+
+The same file also ships **bundled examples**: renamed to
+`src/seed/examples.json` (the public seed) or the gitignored
+`examples.local.json` (a private override for internally shared
+builds) and rebuilt, it puts a populated library in front of a
+first-run user. How it lands depends on which seed and which mode:
+
+- **Public seed, browser-local — an ephemeral sandbox.** The examples
+  are overlaid in memory at boot and never written to storage
+  (`lib/exampleOverlay.ts`). They appear in the library, open, edit,
+  re-theme, move between folders and delete exactly like real work —
+  and every bit of that is session-only: a reload brings the shipped
+  examples back precisely as shipped. Seed rows are recognized by an
+  id set derived from the bundle (nothing is flagged onto the objects
+  themselves): the storage layer merges them into the visuals /
+  folders / datasets reads and strips them out of the matching
+  writes, so editing one dirties memory alone. Their thumbnails come
+  from the bundle too, never from the thumbnail side-table. The
+  user's own work is untouched by any of this and persists exactly as
+  it always has.
+  - **Copies are real work.** Duplicating an example (or otherwise
+    saving something of your own that points at one) persists in
+    full, so whatever it still references in the overlay — its data
+    set, its theme, the folder it sits in, and that folder's parent
+    chain — is *promoted* into durable storage at that moment.
+    Without it the copy would dangle on the next reload, when the
+    overlay no longer supplies them.
+  - **A library seeded by the older behaviour keeps one copy.** Any
+    bundled row whose id is already in storage is adopted at install:
+    never overlaid, never stripped, simply the user's. Under the new
+    semantics examples someone deleted long ago do come back — the
+    sandbox is permanent — but never as a second copy.
+- **Private override, or server mode — persisted once.** Writes go
+  through the storage adapter, so a self-hosted library gets the
+  examples in SQL and backed up with everything else. A library that
+  already has visuals is never touched, and a recipient who deletes
+  the examples stays clean (an applied-seed marker keyed on the
+  export timestamp prevents re-seeding until a genuinely new export
+  ships).
+
+Either way, bundles exported before the 2026-08 px→pt font switch get
+the same font-size reset a stored library gets on migration. The
+checked-in public seed may be empty, which makes both paths a no-op.
 
 ---
 
@@ -1998,7 +2257,11 @@ These are intentional design decisions worth pinning explicitly:
 3. **Default pattern on points in line charts** — when pattern field
    is mapped in a line chart, point fill defaults to "None"; user
    opts in per-category via the Point-fill swatches. Lines auto-cycle
-   dash styles regardless.
+   dash styles regardless. The same rule follows the connection field
+   into areas: a line chart converted to areas keeps its connection
+   mapping, so its layer fills also stay clean until per-category
+   patterns are explicitly picked (matching the Pattern panel's
+   compound form).
 4. **DASH_CYCLE is 3 entries** (`dashed`, `dotted`, `dash-dot`); the
    "None" button maps to solid. Custom dash patterns extend this via
    the "Custom" text input on every dash row (per-category, the
