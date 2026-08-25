@@ -471,6 +471,20 @@ export const themeAtom = persistedAtom<Theme>(() => {
 const newThemeId = (): string =>
 	`th-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
+/** Ensure the read-only system themes exist in the array, in case a user
+ *  wiped them or an older save dropped them. Applies to BOTH the local
+ *  bootstrap and a remote load — a backend's themes collection can be missing
+ *  them just as easily, and readers assume they're present. */
+const withSystemThemes = (themes: SavedTheme[]): SavedTheme[] => {
+	const result = [...themes]
+	if (!result.some((t) => t.id === "system-light")) result.unshift(SYSTEM_THEMES[0])
+	if (!result.some((t) => t.id === "system-dark")) {
+		const lightIdx = result.findIndex((t) => t.id === "system-light")
+		result.splice(lightIdx + 1, 0, SYSTEM_THEMES[1])
+	}
+	return result
+}
+
 /** First-load migration: if the user has an old single-theme blob in
  * `localStorage`, wrap it as a user theme alongside the bundled system
  * themes so multi-theme UI sees both. Without this, returning users
@@ -482,18 +496,7 @@ const buildInitialThemes = (): SavedTheme[] => {
 		// Backfill fields the stored themes predate (and refresh the read-only
 		// system entries from the bundled copies) — readers take this atom's
 		// entries as-is, so sparse persisted themes must be completed here.
-		const normalized = normalizeSavedThemes(stored)
-		// Ensure system themes always exist in the array, in case a future
-		// user wipes them or an older save dropped them.
-		const haveLight = normalized.some((t) => t.id === "system-light")
-		const haveDark = normalized.some((t) => t.id === "system-dark")
-		const result = [...normalized]
-		if (!haveLight) result.unshift(SYSTEM_THEMES[0])
-		if (!haveDark) {
-			const lightIdx = result.findIndex((t) => t.id === "system-light")
-			result.splice(lightIdx + 1, 0, SYSTEM_THEMES[1])
-		}
-		return result
+		return withSystemThemes(normalizeSavedThemes(stored))
 	}
 	const legacy = loadTheme()
 	if (legacy) {
@@ -518,13 +521,17 @@ export const themesAtom = contentAtom<SavedTheme[]>(
 	// tells `buildInitialThemes` a library has never been initialized, and an
 	// overlay must not disguise a first run as an existing one.
 	() => overlayThemes(buildInitialThemes()),
-	// A hosted backend stores the raw saved-themes list; the local first-run
-	// migration in `buildInitialThemes` only applies to the synchronous local
-	// bootstrap. Normalization, however, applies to BOTH paths — remote lists
-	// can be just as sparse as local ones (they're the same JSON, synced).
+	// A hosted backend stores the raw saved-themes list. What's local-only is
+	// the one-shot legacy single-`theme`-key upgrade inside
+	// `buildInitialThemes` (a backend never held that key). Normalization and
+	// the system-theme guarantee apply to BOTH paths — remote lists can be
+	// just as sparse as local ones (they're the same JSON, synced) — and the
+	// `_v` content migrations are handled a layer down, in httpAdapter.
 	async (adapter) => {
 		const stored = await adapter.loadThemes()
-		return stored ? normalizeSavedThemes(stored) : buildInitialThemes()
+		return stored
+			? withSystemThemes(normalizeSavedThemes(stored))
+			: buildInitialThemes()
 	},
 	(adapter, themes) => adapter.saveThemes(themes)
 )
