@@ -31,6 +31,7 @@ vi.mock("./storage/idb", () => ({
 	idbDelete: idb.idbDelete,
 }))
 
+import * as storage from "./storage"
 import {
 	loadThumbnailsAsync,
 	mergeThumbnails,
@@ -170,5 +171,36 @@ describe("draft-state snapshot", () => {
 		expect(localStorage.getItem("vis-components:visuals")).toBe(
 			'{"_v":3,"data":[]}'
 		)
+	})
+
+	it("keeps an unsaved wide\u2192long reshape draft", () => {
+		localStorage.setItem(
+			"vis-components:currentReshapeConfig",
+			'{"_v":1,"data":{"applied":true}}'
+		)
+		const snapshot = snapshotDraftState()
+
+		// The backfill iframe loads a visual with no reshape of its own, which
+		// clears the key rather than overwriting it.
+		localStorage.removeItem("vis-components:currentReshapeConfig")
+
+		restoreDraftState(snapshot)
+		expect(localStorage.getItem("vis-components:currentReshapeConfig")).toBe(
+			'{"_v":1,"data":{"applied":true}}'
+		)
+	})
+
+	/** Drift guard: a new `current*` draft key added to storage.ts without a
+	 *  matching DRAFT_STATE_KEYS entry silently loses that draft on every
+	 *  thumbnail backfill \u2014 which is exactly how the reshape key was missed.
+	 *  Every draft writer is a thin pass-through, so any value makes it write. */
+	it("snapshots every draft key the module can write", () => {
+		const store = installInMemoryLocalStorage()
+		for (const [name, exported] of Object.entries(storage)) {
+			if (!/^save(Current|PreviewVersionId)/.test(name)) continue
+			;(exported as (value: unknown) => void)("x")
+		}
+		const covered = new Set(Object.keys(snapshotDraftState()))
+		expect([...store.keys()].filter((k) => !covered.has(k))).toEqual([])
 	})
 })
