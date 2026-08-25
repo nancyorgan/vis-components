@@ -171,3 +171,58 @@ describe("buildBarAnchors — sparse value column (valueFieldMapped)", () => {
 		expect(anchors.find((a) => a.key === "B|")?.label).toBe("20")
 	})
 })
+
+describe("buildBarAnchors — negative slices", () => {
+	// One category, one positive and one negative slice, grouped so each
+	// runs from the zero baseline in its own direction.
+	const mixed = [
+		{
+			category: "A",
+			slices: [
+				{ key: "up", groupValues: { hue: "up" }, value: 20 },
+				{ key: "down", groupValues: { hue: "down" }, value: -20 },
+			],
+		},
+	]
+	const mixedAggregation = {
+		...aggregation,
+		stacks: mixed,
+		categories: ["A"],
+		measureMin: -100,
+	}
+	// Domain now spans both signs: measureScale(0) = 200 (mid-plot),
+	// measureScale(20) = 160 (above), measureScale(-20) = 240 (below).
+	const divergingScale = scaleLinear().domain([-100, 100]).range([400, 0])
+	const anchorsAt = (position: "center" | "inside-base" | "inside-end" | "outside-end") =>
+		Object.fromEntries(
+			buildBarAnchors({
+				aggregation: mixedAggregation as any,
+				categoryScale: scaleBand<string>().domain(["A"]).range([0, 100]).padding(0),
+				measureScale: divergingScale,
+				modes: [{ channel: "hue", mode: "group" }],
+				decimals: null,
+				position,
+				outsideOffsetPx: 4,
+			}).map((a) => [a.key, a])
+		)
+
+	it("centers each label inside its own bar, above or below the baseline", () => {
+		const at = anchorsAt("center")
+		expect(at["A|up"].cy).toBeCloseTo(180, 5) // midpoint of 200→160
+		expect(at["A|down"].cy).toBeCloseTo(220, 5) // midpoint of 200→240
+	})
+
+	it("inside-base sits just inside the baseline on the bar's own side", () => {
+		const at = anchorsAt("inside-base")
+		// Positive bar grows up, so "inside" is above the baseline; the
+		// negative bar's inside is below it.
+		expect(at["A|up"].cy).toBeCloseTo(196, 5)
+		expect(at["A|down"].cy).toBeCloseTo(204, 5)
+	})
+
+	it("outside-end clears the far tip in the direction the bar points", () => {
+		const at = anchorsAt("outside-end")
+		expect(at["A|up"].cy).toBeCloseTo(156, 5) // above the +20 tip
+		expect(at["A|down"].cy).toBeCloseTo(244, 5) // below the -20 tip
+	})
+})

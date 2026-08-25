@@ -389,7 +389,9 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 		const measureMax =
 			props.measureMaxOverride ??
 			computeBarMeasureMax(isDensity ? renderStacks : measureStacks, modes)
-		const measureMin = props.measureMinOverride ?? 0
+		const measureMin =
+			props.measureMinOverride ??
+			computeBarMeasureMin(isDensity ? renderStacks : measureStacks, modes)
 
 		return {
 			kind: "ok",
@@ -1147,8 +1149,10 @@ const buildRects = ({
 	// Clamp bar extents to the measure-axis domain. When the user has set a
 	// non-default `measureMin` / `measureMax`, slice portions falling outside
 	// that range collapse to zero height (stacks below a raised floor or
-	// above a lowered ceiling). Default [0, measureMax] leaves behavior
-	// unchanged because slice values are non-negative.
+	// above a lowered ceiling). The auto domain is derived from the bars
+	// themselves — [min(0, lowest), max(1, highest)] — so it never clips them:
+	// an all-positive chart keeps its zero floor, and negative measures widen
+	// the floor rather than flattening the bar against it.
 	const { measureMin, measureMax } = aggregation
 	const clampToDomain = (v: number) =>
 		Math.max(measureMin, Math.min(measureMax, v))
@@ -1211,16 +1215,25 @@ const buildRects = ({
 				: outlineWidth
 			const sliceStrokeOpacity = mh.outline ? 1 : borderOpacity
 
+			// Rect geometry is sign-agnostic: a negative slice runs from the
+			// zero baseline AWAY from the positive direction, so its end pixel
+			// lands on the near side of its start. Take the nearer pixel as the
+			// origin and the absolute span as the extent rather than assuming
+			// the end is always the far edge — subtracting in a fixed order
+			// yields a negative extent, which SVG floors to an invisible rect.
+			const startPx = measureScale(sliceStart)
+			const endPx = measureScale(sliceEnd)
+			const nearPx = Math.min(startPx, endPx)
+			const spanPx = Math.abs(endPx - startPx)
+
 			if (aggregation.isVertical) {
-				const y1 = measureScale(sliceStart)
-				const y0 = measureScale(sliceEnd)
 				rects.push(
 					<rect
 						key={`${stack.category}|${slice.key}`}
 						x={sliceCatPos}
-						y={y0}
+						y={nearPx}
 						width={sliceCatSize}
-						height={Math.max(0, y1 - y0)}
+						height={spanPx}
 						fill={fillProp}
 						fillOpacity={opacity}
 						stroke={sliceStroke}
@@ -1232,14 +1245,12 @@ const buildRects = ({
 					/>
 				)
 			} else {
-				const x0 = measureScale(sliceStart)
-				const x1 = measureScale(sliceEnd)
 				rects.push(
 					<rect
 						key={`${stack.category}|${slice.key}`}
-						x={x0}
+						x={nearPx}
 						y={sliceCatPos}
-						width={Math.max(0, x1 - x0)}
+						width={spanPx}
 						height={sliceCatSize}
 						fill={fillProp}
 						fillOpacity={opacity}
@@ -1525,36 +1536,72 @@ const leafKey = (
 	// layoutSlices. Matches the aggregator's GROUP_KEY_SEP convention.
 	groupModeChannels.map((ch) => groupValues[ch] ?? "").join("\u001F")
 
-/** Leaf-aware measure-axis bound for bars. The category axis is partitioned
- *  by `group`-mode channels; within each leaf the measure axis sums `stack`
- *  slices (or takes the max when there is no stack channel). Max across all
- *  leaves, floored at 1. When a `stack`-mode channel is present, every slice
- *  in a leaf is summed — including any `overlay`-mode slices (overlay is
- *  treated as stack in mixed layouts). Pure `overlay`/`group` leaves take the
- *  max slice. */
-export const computeBarMeasureMax = (
+/** Shared leaf walk behind `computeBarMeasureMax` / `computeBarMeasureMin`.
+ *  The category axis is partitioned by `group`-mode channels; within each
+ *  leaf the measure axis sums `stack` slices (or takes the extreme slice when
+ *  there is no stack channel). When a `stack`-mode channel is present, every
+ *  slice in a leaf is summed — including any `overlay`-mode slices (overlay
+ *  is treated as stack in mixed layouts).
+ *
+ *  `sign` picks the direction: +1 walks only the POSITIVE slices, -1 only the
+ *  negatives. The two must stay separate because `layoutSlices` stacks them
+ *  on separate ledgers — summing a mixed-sign leaf's slices together would
+ *  report its net total as the bound and clip whichever half runs taller. */
+const computeBarMeasureBound = (
 	stacks: Stack[],
 	modes: StackModeEntry[],
+	sign: 1 | -1,
 ): number => {
 	const groupModeChannels: GroupChannel[] = modes
 		.filter((m) => m.mode === "group")
 		.map((m) => m.channel)
 	const hasStackChannel = modes.some((m) => m.mode === "stack")
-	let max = 1
+	let bound = 0
 	for (const stack of stacks) {
 		const perLeaf = new Map<string, number>()
 		for (const slice of stack.slices) {
+			// Opposite-sign slices belong to the other direction's ledger.
+			if (slice.value * sign < 0) continue
 			const k = leafKey(slice.groupValues, groupModeChannels)
 			const prev = perLeaf.get(k)
 			const next = hasStackChannel
 				? (prev ?? 0) + slice.value
-				: Math.max(prev ?? 0, slice.value)
+				: sign > 0
+					? Math.max(prev ?? 0, slice.value)
+					: Math.min(prev ?? 0, slice.value)
 			perLeaf.set(k, next)
 		}
-		for (const v of perLeaf.values()) max = Math.max(max, v)
+		for (const v of perLeaf.values())
+			bound = sign > 0 ? Math.max(bound, v) : Math.min(bound, v)
 	}
-	return max
+	return bound
 }
+
+/** Leaf-aware measure-axis CEILING for bars: the highest point any bar
+ *  reaches, floored at 1 so a chart with nothing to draw still gets a usable
+ *  axis (and so a density histogram, whose bars are shares ≤ 1, keeps its
+ *  0–1 axis). */
+export const computeBarMeasureMax = (
+	stacks: Stack[],
+	modes: StackModeEntry[],
+): number => {
+	const max = computeBarMeasureBound(stacks, modes, 1)
+	// All-negative data tops out AT the zero baseline: every bar hangs below
+	// it, so the usual floor of 1 would strand a unit of empty axis above the
+	// whole chart. The floor still applies when there's nothing below zero
+	// either — that's the empty chart the floor exists for.
+	if (max === 0 && computeBarMeasureBound(stacks, modes, -1) < 0) return 0
+	return Math.max(1, max)
+}
+
+/** Leaf-aware measure-axis FLOOR for bars: the lowest point any bar reaches,
+ *  capped at 0. Negative measures pull the axis below zero so the bar has
+ *  somewhere to point; all-positive data keeps the zero-based axis bars have
+ *  always had. */
+export const computeBarMeasureMin = (
+	stacks: Stack[],
+	modes: StackModeEntry[],
+): number => Math.min(0, computeBarMeasureBound(stacks, modes, -1))
 
 export type SliceGeometry = {
 	key: string
@@ -1598,12 +1645,19 @@ export const layoutSlices = (
 		leafPos.set(k, bandPos + centerOffset + i * subBand)
 	})
 
-	const runningByLeaf = new Map<string, number>()
+	// Diverging stacks: within a leaf, positive slices cumulate UP from zero
+	// and negative slices cumulate DOWN from zero, each on its own ledger.
+	// All-positive data is unaffected (the negative ledger stays empty); a
+	// mixed-sign leaf grows in both directions off the shared zero baseline
+	// instead of letting a negative slice eat into the positive stack.
+	const runningPosByLeaf = new Map<string, number>()
+	const runningNegByLeaf = new Map<string, number>()
 	return stack.slices.map((slice) => {
 		const k = leafKey(slice.groupValues, groupModeChannels)
-		const start = hasStack ? runningByLeaf.get(k) ?? 0 : 0
+		const ledger = slice.value < 0 ? runningNegByLeaf : runningPosByLeaf
+		const start = hasStack ? ledger.get(k) ?? 0 : 0
 		const end = start + slice.value
-		if (hasStack) runningByLeaf.set(k, end)
+		if (hasStack) ledger.set(k, end)
 		return {
 			key: slice.key,
 			catPos: leafPos.get(k) ?? bandPos,

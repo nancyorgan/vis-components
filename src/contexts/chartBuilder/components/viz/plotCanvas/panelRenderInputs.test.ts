@@ -104,6 +104,7 @@ const runPanel = ({
 	axisFields = AXIS_CAT_X_QUANT_Y,
 	channelConfigs = {},
 	groupMeasureMaxByKey = new Map<string, number>(),
+	groupMeasureMinByKey = new Map<string, number>(),
 	panelRadiusScale = new Map<string, number>(),
 }: {
 	key: string
@@ -117,6 +118,7 @@ const runPanel = ({
 	axisFields?: AxisFieldsArg
 	channelConfigs?: Args["channelConfigs"]
 	groupMeasureMaxByKey?: Map<string, number>
+	groupMeasureMinByKey?: Map<string, number>
 	panelRadiusScale?: Map<string, number>
 }) => {
 	const dataset = view(rows)
@@ -150,6 +152,7 @@ const runPanel = ({
 		channelConfigs,
 		facetCfg,
 		groupMeasureMaxByKey,
+		groupMeasureMinByKey,
 		panelRadiusScale,
 	})
 }

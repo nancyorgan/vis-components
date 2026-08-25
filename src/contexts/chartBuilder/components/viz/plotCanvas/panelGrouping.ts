@@ -91,8 +91,44 @@ export const computePanelMeasureMax = (
 	measureField: string | null,
 	modes: StackModeEntry[],
 	groupModeFields: string[]
+): number =>
+	Math.max(
+		1,
+		panelMeasureBound(rows, categoryField, measureField, modes, groupModeFields, 1)
+	)
+
+/** Per-panel measure-axis MIN, the mirror of `computePanelMeasureMax` — the
+ *  lowest point any bar in the panel reaches, capped at 0. Feeds the shared
+ *  measure-axis floor so every panel in a share group agrees on how far below
+ *  zero the axis runs (each panel computing its own would leave a "shared"
+ *  axis with per-panel floors). All-positive panels return 0, the floor bars
+ *  have always had. Mirrors BarPlot's `computeBarMeasureMin` on raw rows. */
+export const computePanelMeasureMin = (
+	rows: ReadonlyArray<Record<string, unknown>>,
+	categoryField: string | null,
+	measureField: string | null,
+	modes: StackModeEntry[],
+	groupModeFields: string[]
+): number =>
+	Math.min(
+		0,
+		panelMeasureBound(rows, categoryField, measureField, modes, groupModeFields, -1)
+	)
+
+/** Shared row walk behind the two bounds above. `sign` picks the direction:
+ *  +1 accumulates only POSITIVE measures, -1 only negatives. Diverging bars
+ *  stack the two directions on separate ledgers (see BarPlot's
+ *  `layoutSlices`), so mixing them here would report a leaf's net total and
+ *  under-bound whichever half runs further from zero. */
+const panelMeasureBound = (
+	rows: ReadonlyArray<Record<string, unknown>>,
+	categoryField: string | null,
+	measureField: string | null,
+	modes: StackModeEntry[],
+	groupModeFields: string[],
+	sign: 1 | -1
 ): number => {
-	if (!rows.length || !categoryField || !measureField) return 1
+	if (!rows.length || !categoryField || !measureField) return 0
 	const hasStack = modes.some((m) => m.mode === "stack")
 	// Unit separator (U+001F) prevents leaf-key collisions across value
 	// boundaries — consistent with BarPlot's leafKey and the aggregator.
@@ -104,11 +140,21 @@ export const computePanelMeasureMax = (
 		const raw = r[measureField]
 		const n = typeof raw === "number" ? raw : Number(raw)
 		if (!Number.isFinite(n)) continue
+		if (n * sign < 0) continue
 		const leaf =
 			String(cv) + SEP + groupModeFields.map((f) => String(r[f] ?? "")).join(SEP)
 		const prev = perLeaf.get(leaf)
-		perLeaf.set(leaf, hasStack ? (prev ?? 0) + n : Math.max(prev ?? 0, n))
+		perLeaf.set(
+			leaf,
+			hasStack
+				? (prev ?? 0) + n
+				: sign > 0
+					? Math.max(prev ?? 0, n)
+					: Math.min(prev ?? 0, n)
+		)
 	}
-	if (perLeaf.size === 0) return 1
-	return Math.max(1, ...perLeaf.values())
+	if (perLeaf.size === 0) return 0
+	return sign > 0
+		? Math.max(0, ...perLeaf.values())
+		: Math.min(0, ...perLeaf.values())
 }

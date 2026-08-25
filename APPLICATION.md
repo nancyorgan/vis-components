@@ -1313,9 +1313,22 @@ padding so the inner rects stay aligned.
   **hue > pattern > brightness > opacity > saturation** orders
   outer→inner), while `stack`/`overlay`-mode channels partition the
   measure axis within each leaf sub-band. "Grouped by color, stacked
-  by pattern" is hue=group + pattern=stack. `computeBarMeasureMax`
-  is leaf-aware so the axis bound matches the bars. Data labels show
-  per-bar values.
+  by pattern" is hue=group + pattern=stack. `computeBarMeasureMax` /
+  `computeBarMeasureMin` are leaf-aware so the axis bounds match the
+  bars. Data labels show per-bar values.
+  **Negative measures point the bar the other way.** The measure axis
+  auto-fits to `[min(0, lowest), max(1, highest)]`, so a negative value
+  draws from the zero baseline away from the positive direction (down
+  on `bars-x`, left on `bars-y`) instead of collapsing to nothing. Bars
+  stack DIVERGING: within a leaf, positives cumulate up from zero and
+  negatives down from zero on separate ledgers, so neither side eats
+  into the other. An all-positive chart is unchanged (floor stays 0);
+  an all-negative chart tops out at 0 rather than stranding empty axis
+  above every bar. Faceted panels sharing a measure axis share the
+  floor too, so a panel with no negative values still sits on the
+  group's baseline. Areas keep the zero floor for now — the behavior is
+  gated on the `canvas.supportsNegativeMeasure` mode trait, which only
+  the bar modes declare.
 - **ScatterPlot** — points at (x, y), sized by area, colored by hue,
   shaped by shape. When `connection` is mapped, renders polyline
   overlays (line chart). The Connection panel's "Show points" control

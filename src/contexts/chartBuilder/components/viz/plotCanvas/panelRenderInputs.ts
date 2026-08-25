@@ -35,6 +35,7 @@ export const resolvePanelRenderInputs = ({
 	channelConfigs,
 	facetCfg,
 	groupMeasureMaxByKey,
+	groupMeasureMinByKey,
 	panelRadiusScale,
 }: {
 	p: SolverPanelOutput
@@ -55,6 +56,9 @@ export const resolvePanelRenderInputs = ({
 	channelConfigs: ChannelConfigs
 	facetCfg: FacetConfig
 	groupMeasureMaxByKey: Map<string, number>
+	/** Shared measure-axis FLOOR per panel (see `computeGroupMeasureMin`).
+	 *  Empty for modes that floor the measure axis at zero. */
+	groupMeasureMinByKey: Map<string, number>
 	panelRadiusScale: Map<string, number>
 }) => {
 	// Share-group keys + original facet values for this panel.
@@ -258,11 +262,16 @@ export const resolvePanelRenderInputs = ({
 	// the measure axis; bars-y / areas-y → x is the measure
 	// axis. Translate the per-axis overrides here so the
 	// renderer doesn't have to know about modes.
+	// User-set per-group min wins; otherwise fall back to the share group's
+	// floor, so every panel on a shared measure axis sits on the same
+	// baseline even when only some of them hold negative values. Empty map
+	// (zero-floored modes) → undefined → the renderer's own floor.
+	const sharedGroupMin = groupMeasureMinByKey.get(p.key)
 	const measureMinOverride =
 		measureAxis === "y"
-			? yMinOverride
+			? yMinOverride ?? sharedGroupMin
 			: measureAxis === "x"
-				? xMinOverride
+				? xMinOverride ?? sharedGroupMin
 				: undefined
 	// User-set per-group min/max wins; otherwise fall back to the
 	// shared-group max computed above (so an unset override on a

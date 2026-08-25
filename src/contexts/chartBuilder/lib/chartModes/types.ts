@@ -131,6 +131,14 @@ export type ChartModeCanvasTraits = {
 	 * max. Declared only by measure-axis modes; encodes each mode's own
 	 * fallback chain (e.g. areas-x reads `length` then `y`). */
 	resolveMeasureField?: (encodings: Encodings) => string | null
+	/** True when this mode's marks can point BELOW zero: the measure axis
+	 * extends down to the lowest value in the data and marks grow from the
+	 * zero baseline in whichever direction their value points. Absent /
+	 * false = the measure axis floors at zero and a negative value collapses
+	 * to nothing, which is the historical behavior for every measure-axis
+	 * mode. Only bars implement the diverging geometry today; areas keep the
+	 * zero floor until their path builder grows the same handling. */
+	supportsNegativeMeasure?: boolean
 	/** Polar-only: what "size panels by unit" uses as a panel's unit.
 	 * `"rAxisMax"` (radar) = the R-axis data max, honoring R-range
 	 * overrides and shareR group folding. `"angleSum"` (pies) = the sum

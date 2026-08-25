@@ -53,6 +53,7 @@ import { buildSolverPanelInputs } from "./plotCanvas/solverPanelInputs"
 import { buildSolverInput } from "./plotCanvas/solverSpec"
 import {
 	computeGroupMeasureMax,
+	computeGroupMeasureMin,
 	computePanelRadiusScale,
 } from "./plotCanvas/shareScales"
 import {
@@ -535,6 +536,18 @@ export const PlotCanvas = () => {
 		panelData,
 		getType,
 	})
+	// Its mirror for the axis floor — non-empty only for modes whose marks
+	// can point below zero (bars). See computeGroupMeasureMin.
+	const groupMeasureMinByKey = computeGroupMeasureMin({
+		mode,
+		measureAxis,
+		shareXMode,
+		shareYMode,
+		encodings,
+		channelConfigs,
+		panelData,
+		getType,
+	})
 
 	// Histogram measure-color (Fill color / opacity varying by Count /
 	// Density): ONE global [0, max] domain shared by every panel's bars and
@@ -742,6 +755,7 @@ export const PlotCanvas = () => {
 					channelConfigs,
 					facetCfg,
 					groupMeasureMaxByKey,
+					groupMeasureMinByKey,
 					panelRadiusScale,
 				})
 

@@ -157,10 +157,11 @@ const fieldKey = (name: string) => `f:${name}`
 const keyToField = (key: string) =>
 	key.startsWith("f:") ? key.slice(2) : null
 
-/** Renders the levels of a categorical/ordinal field with up/down arrows so
- * the user can pin a specific axis order. The default order is smart-sort
- * (numeric for ordinal-numerics, alpha otherwise); explicit reordering
- * persists into `currentFieldLevelOrdersAtom`.
+/** Renders the levels of a categorical/ordinal field with up/down arrows —
+ * and drag-to-reorder on the rows themselves — so the user can pin a
+ * specific axis order. The default order is smart-sort (numeric for
+ * ordinal-numerics, alpha otherwise); explicit reordering persists into
+ * `currentFieldLevelOrdersAtom`.
  *
  * "Order by" is one-shot: picking a quantitative/temporal field, an
  * "in <level> of <variable>" scope, or Alphabetical (or toggling Decreasing)
@@ -186,6 +187,13 @@ const LevelReorderPanel = ({
 	const [scopeVar, setScopeVar] = useState("")
 	const [scopeLevel, setScopeLevel] = useState("")
 	const [decreasing, setDecreasing] = useState(false)
+	// Drag state lives here rather than in dataTransfer so only rows from
+	// THIS field's panel can accept the drop — a level drag is meaningless
+	// in another field's list, and a foreign drag (library folder/visual)
+	// never sets it.
+	const [dragIndex, setDragIndex] = useState<number | null>(null)
+	// Insertion SLOT, 0…length: the gap the dragged row would land in.
+	const [dropSlot, setDropSlot] = useState<number | null>(null)
 	if (!dataset) return null
 
 	// Discover the unique values for this field, then apply the user's
@@ -253,6 +261,23 @@ const LevelReorderPanel = ({
 		clearPicker()
 	}
 
+	/** Drag reorder: pull the row out and re-insert it at `slot`, an
+	 * insertion gap indexed against the ORIGINAL list (so slot n appends). */
+	const moveTo = (from: number, slot: number) => {
+		if (slot === from || slot === from + 1) return
+		const next = [...ordered]
+		const [item] = next.splice(from, 1)
+		if (item === undefined) return
+		next.splice(slot > from ? slot - 1 : slot, 0, item)
+		setPinnedOrder(next)
+		clearPicker()
+	}
+
+	const endDrag = () => {
+		setDragIndex(null)
+		setDropSlot(null)
+	}
+
 	/** Re-pin with the given picker settings. A half-picked scope (variable
 	 * chosen, level not yet) applies UNSCOPED rather than going inert, so the
 	 * chart order never lags the controls. */
@@ -285,6 +310,16 @@ const LevelReorderPanel = ({
 	}
 
 	const hasOverride = !!pinnedOrder && pinnedOrder.length > 0
+
+	// The indicator is suppressed for the two no-op slots (either side of the
+	// dragged row) so a drag that changes nothing doesn't look like it will.
+	const activeSlot =
+		dragIndex !== null &&
+		dropSlot !== null &&
+		dropSlot !== dragIndex &&
+		dropSlot !== dragIndex + 1
+			? dropSlot
+			: null
 
 	return (
 		<div className="mt-1 rounded border border-stone-200 bg-stone-50 p-2 dark:border-stone-700 dark:bg-stone-900/50">
@@ -407,8 +442,48 @@ const LevelReorderPanel = ({
 					{ordered.map((value, i) => (
 						<li
 							key={value}
-							className="flex items-center gap-1 rounded bg-white px-1.5 py-0.5 text-xs text-stone-700 dark:bg-stone-800 dark:text-stone-200"
+							draggable
+							title="Drag to reorder"
+							onDragStart={(e) => {
+								setDragIndex(i)
+								setDropSlot(null)
+								// Firefox refuses to start a drag with no payload, even
+								// though the drop reads the index from local state.
+								e.dataTransfer.setData("text/plain", value)
+								e.dataTransfer.effectAllowed = "move"
+							}}
+							onDragOver={(e) => {
+								if (dragIndex === null) return
+								// preventDefault is what marks this row a valid target.
+								e.preventDefault()
+								e.dataTransfer.dropEffect = "move"
+								const rect = e.currentTarget.getBoundingClientRect()
+								const after = e.clientY - rect.top > rect.height / 2
+								setDropSlot(after ? i + 1 : i)
+							}}
+							onDrop={(e) => {
+								if (dragIndex === null) return
+								e.preventDefault()
+								if (dropSlot !== null) moveTo(dragIndex, dropSlot)
+								endDrag()
+							}}
+							onDragEnd={endDrag}
+							className={`flex cursor-grab items-center gap-1 rounded border-y-2 bg-white px-1.5 py-0.5 text-xs text-stone-700 dark:bg-stone-800 dark:text-stone-200 ${
+								activeSlot === i
+									? "border-t-indigo-500"
+									: "border-t-transparent"
+							} ${
+								activeSlot === ordered.length && i === ordered.length - 1
+									? "border-b-indigo-500"
+									: "border-b-transparent"
+							} ${dragIndex === i ? "opacity-50" : ""}`}
 						>
+							<span
+								aria-hidden
+								className="flex-shrink-0 select-none leading-none text-stone-400 dark:text-stone-500"
+							>
+								⠿
+							</span>
 							<span className="min-w-0 flex-1 truncate" title={value}>
 								{value}
 							</span>

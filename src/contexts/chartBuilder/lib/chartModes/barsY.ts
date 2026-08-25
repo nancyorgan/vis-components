@@ -50,5 +50,8 @@ export const BarsYMode: ChartModeDef = {
 		// lives on the length channel — bars-y detection requires x unmapped.
 		measureAxis: "x",
 		resolveMeasureField: (encodings) => encodings.length?.field ?? null,
+		// A negative length points the bar the other way off the zero
+		// baseline instead of collapsing it.
+		supportsNegativeMeasure: true,
 	},
 }

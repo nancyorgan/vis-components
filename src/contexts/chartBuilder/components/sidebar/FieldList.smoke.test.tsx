@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react"
+import { cleanup, createEvent, fireEvent, render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
@@ -96,6 +96,58 @@ const pickOrderBy = (utils: ReturnType<typeof render>, value: string) => {
 	fireEvent.change(utils.getByLabelText("Order by"), { target: { value } })
 }
 
+/** The draggable level rows, in display order. */
+const levelRows = (container: HTMLElement): HTMLElement[] =>
+	[...container.querySelectorAll("li li")] as HTMLElement[]
+
+/** happy-dom's DataTransfer has no usable setData and its DragEvent drops
+ *  clientY, so both are supplied by hand — same shape as the FolderTree
+ *  drag tests. */
+const makeFakeDataTransfer = () => {
+	const data = new Map<string, string>()
+	return {
+		setData: (type: string, value: string) => {
+			data.set(type, value)
+		},
+		getData: (type: string) => data.get(type) ?? "",
+		setDragImage: () => {},
+	}
+}
+
+/** Drag `source` onto `target`, landing in its top or bottom half — the
+ *  half is what picks the insertion gap, so happy-dom's all-zero rect has
+ *  to be replaced with a real one. */
+const dragTo = (
+	source: HTMLElement,
+	target: HTMLElement,
+	half: "top" | "bottom"
+) => {
+	const dataTransfer = makeFakeDataTransfer()
+	const top = 100
+	const height = 20
+	target.getBoundingClientRect = () =>
+		({
+			top,
+			height,
+			bottom: top + height,
+			left: 0,
+			right: 0,
+			width: 100,
+			x: 0,
+			y: top,
+		}) as DOMRect
+	const clientY = half === "top" ? top + 1 : top + height - 1
+	const dragEvent = (kind: "dragOver" | "drop", node: HTMLElement) => {
+		const event = createEvent[kind](node, { dataTransfer })
+		Object.defineProperty(event, "clientY", { value: clientY })
+		fireEvent(node, event)
+	}
+	fireEvent.dragStart(source, { dataTransfer })
+	dragEvent("dragOver", target)
+	dragEvent("drop", target)
+	fireEvent.dragEnd(source, { dataTransfer })
+}
+
 describe("FieldList — Order by picker", () => {
 	it("offers Alphabetical plus the quantitative/temporal fields", () => {
 		const utils = mount()
@@ -189,5 +241,46 @@ describe("FieldList — Order by picker", () => {
 		])
 		openRegionPanel(utils)
 		expect(utils.queryByLabelText("Order by")).toBeNull()
+	})
+})
+
+describe("FieldList — drag to reorder levels", () => {
+	it("drops a row into the gap above the target", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		expect(levelValues(utils.container)).toEqual(["B", "A", "C"])
+		const rows = levelRows(utils.container)
+		// Drag "C" onto the top half of "B" → C, B, A.
+		dragTo(rows[2]!, rows[0]!, "top")
+		expect(levelValues(utils.container)).toEqual(["C", "B", "A"])
+	})
+
+	it("drops a row into the gap below the target", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		const rows = levelRows(utils.container)
+		// Drag "B" onto the bottom half of "C" → A, C, B.
+		dragTo(rows[0]!, rows[2]!, "bottom")
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+	})
+
+	it("resets the Order by picker like a manual arrow move does", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		const select = utils.getByLabelText("Order by") as HTMLSelectElement
+		pickOrderBy(utils, "f:sales")
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+		const rows = levelRows(utils.container)
+		dragTo(rows[2]!, rows[0]!, "top")
+		expect(levelValues(utils.container)).toEqual(["B", "A", "C"])
+		expect(select.value).toBe("")
+	})
+
+	it("leaves the order alone when a row is dropped on itself", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		const rows = levelRows(utils.container)
+		dragTo(rows[1]!, rows[1]!, "top")
+		expect(levelValues(utils.container)).toEqual(["B", "A", "C"])
 	})
 })

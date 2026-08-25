@@ -11,7 +11,11 @@ import {
 } from "../../../lib/resolveFacetPanels"
 import { resolveStackModes } from "../../../lib/stackMode"
 import type { Encodings, FieldType } from "../../../lib/types"
-import { computePanelMeasureMax, panelGroupKeys } from "./panelGrouping"
+import {
+	computePanelMeasureMax,
+	computePanelMeasureMin,
+	panelGroupKeys,
+} from "./panelGrouping"
 
 /** For bar / area charts under shared measure-axis modes ("all" or
  *  "perGroup"), pre-compute each panel's shared measure max. Pooling rows
@@ -120,6 +124,11 @@ if (isBarOrArea) {
 			})
 		}
 		if (measureShareMode === "all") {
+			// Floor of 1, unlike BarPlot's own ceiling, which drops to 0 when
+			// every bar hangs below zero: this fold is shared with areas, whose
+			// zero-floored domain would go degenerate ([0, 0]) on all-negative
+			// data. The cost is a unit of headroom on a faceted, shared-axis,
+			// ALL-negative bar chart — cosmetic, and only in that corner.
 			const allMax = Math.max(1, ...panelMeasureMax.values())
 			for (const key of panelData.values)
 				groupMeasureMaxByKey.set(key, allMax)
@@ -145,6 +154,103 @@ if (isBarOrArea) {
 	}
 }
 	return groupMeasureMaxByKey
+}
+
+/** Shared measure-axis FLOOR per panel, the mirror of
+ *  `computeGroupMeasureMax`. Only modes that declare
+ *  `canvas.supportsNegativeMeasure` get one: everywhere else the measure axis
+ *  floors at zero, and handing the renderer a negative override would drop
+ *  marks below a baseline it doesn't draw. Returns an empty map for those
+ *  modes, for share mode "none", and for histograms (row counts and density
+ *  shares are never negative) — an absent key leaves the renderer on its own
+ *  per-panel floor, which is what those cases want.
+ *
+ *  Without this, panels sharing a measure axis would each derive their own
+ *  floor from their own rows, so a panel with no negative values would sit on
+ *  zero while its neighbour dipped below it — the axis would be shared in
+ *  name only. */
+export const computeGroupMeasureMin = ({
+	mode,
+	measureAxis,
+	shareXMode,
+	shareYMode,
+	encodings,
+	channelConfigs,
+	panelData,
+	getType,
+}: {
+	mode: ChartModeDef
+	measureAxis: ChartModeDef["canvas"]["measureAxis"]
+	shareXMode: "none" | "perGroup" | "all"
+	shareYMode: "none" | "perGroup" | "all"
+	encodings: Encodings
+	channelConfigs: ChannelConfigs
+	panelData: FacetPanels
+	getType: (fieldName: string) => FieldType | undefined
+}): Map<string, number> => {
+	const groupMeasureMinByKey = new Map<string, number>()
+	if (measureAxis === null || !mode.canvas.supportsNegativeMeasure)
+		return groupMeasureMinByKey
+	const isVertical = measureAxis === "y"
+	const measureShareMode = isVertical ? shareYMode : shareXMode
+	if (measureShareMode === "none") return groupMeasureMinByKey
+
+	const categoryField = isVertical
+		? encodings.x?.field ?? null
+		: encodings.y?.field ?? null
+	// Histogram: the measure is a row count (or a density share) — always ≥ 0,
+	// so the zero floor stands and no override is needed.
+	const catChannel = isVertical ? "x" : "y"
+	const histogramCfg = channelConfigs[catChannel]?.histogram
+	if (
+		histogramCfg?.enabled === true &&
+		!!categoryField &&
+		getType(categoryField) === "quantitative"
+	)
+		return groupMeasureMinByKey
+
+	const measureField = mode.canvas.resolveMeasureField?.(encodings) ?? null
+	const modes = resolveStackModes(channelConfigs, encodings)
+	const groupModeFields = modes
+		.filter((m) => m.mode === "group")
+		.map((m) => encodings[m.channel]?.field)
+		.filter((f): f is string => !!f)
+	const panelMeasureMin = new Map<string, number>()
+	panelData.values.forEach((key) => {
+		const panelRows = panelData.rowsByValue.get(key) ?? []
+		panelMeasureMin.set(
+			key,
+			computePanelMeasureMin(
+				panelRows,
+				categoryField,
+				measureField,
+				modes,
+				groupModeFields,
+			)
+		)
+	})
+
+	if (measureShareMode === "all") {
+		const allMin = Math.min(0, ...panelMeasureMin.values())
+		for (const key of panelData.values) groupMeasureMinByKey.set(key, allMin)
+	} else {
+		// perGroup: same folding as the max path — vertical bars share Y per
+		// row, horizontal share X per col.
+		const groupMin = new Map<string, number>()
+		panelData.values.forEach((key, i) => {
+			const { rowKey, colKey } = panelGroupKeys(panelData, key, i)
+			const groupKey = isVertical ? rowKey : colKey
+			const v = panelMeasureMin.get(key) ?? 0
+			const cur = groupMin.get(groupKey) ?? 0
+			if (v < cur) groupMin.set(groupKey, v)
+		})
+		panelData.values.forEach((key, i) => {
+			const { rowKey, colKey } = panelGroupKeys(panelData, key, i)
+			const groupKey = isVertical ? rowKey : colKey
+			groupMeasureMinByKey.set(key, groupMin.get(groupKey) ?? 0)
+		})
+	}
+	return groupMeasureMinByKey
 }
 
 /** "Size panels by unit" for polar (radar / pie): compute a 0..1

@@ -181,3 +181,45 @@ describe("single-channel regression guardrail", () => {
 		expect(geo.map((g) => g.measureEnd)).toEqual([2, 3, 5])
 	})
 })
+
+describe("layoutSlices — negative values", () => {
+	// One category, one leaf, mixed signs in slice order.
+	const mixedStack: Stack = {
+		category: "A",
+		slices: [
+			{ key: "p1", value: 5, groupValues: { pattern: "p1" } },
+			{ key: "p2", value: -2, groupValues: { pattern: "p2" } },
+			{ key: "p3", value: 3, groupValues: { pattern: "p3" } },
+			{ key: "p4", value: -4, groupValues: { pattern: "p4" } },
+		],
+	}
+
+	it("stack: positives cumulate up and negatives down on separate ledgers", () => {
+		const geo = layoutSlices(
+			mixedStack,
+			[{ channel: "pattern", mode: "stack" }],
+			0,
+			100,
+			1
+		)
+		const byKey = Object.fromEntries(geo.map((g) => [g.key, g]))
+		// Positive column: 0→5 then 5→8. Negative column: 0→-2 then -2→-6.
+		// Neither eats into the other.
+		expect(byKey.p1).toMatchObject({ measureStart: 0, measureEnd: 5 })
+		expect(byKey.p2).toMatchObject({ measureStart: 0, measureEnd: -2 })
+		expect(byKey.p3).toMatchObject({ measureStart: 5, measureEnd: 8 })
+		expect(byKey.p4).toMatchObject({ measureStart: -2, measureEnd: -6 })
+	})
+
+	it("group: every slice runs from the zero baseline to its own value", () => {
+		const geo = layoutSlices(
+			mixedStack,
+			[{ channel: "pattern", mode: "group" }],
+			0,
+			100,
+			4
+		)
+		expect(geo.every((g) => g.measureStart === 0)).toBe(true)
+		expect(geo.map((g) => g.measureEnd)).toEqual([5, -2, 3, -4])
+	})
+})
