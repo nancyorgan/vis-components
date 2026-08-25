@@ -172,3 +172,33 @@ export const themeOf = (saved: SavedTheme): Theme => {
 	const { id: _id, name: _name, isSystem: _isSystem, ...rest } = saved
 	return { ...LIGHT_THEME_BASE, ...rest }
 }
+
+/** Rehydrate one persisted theme entry: keep its identity, backfill any
+ * missing `Theme` fields via `themeOf`. Persisted custom themes can predate
+ * fields that were later added to `LIGHT_THEME_BASE` (and old theme-export
+ * files re-import that sparseness), so entries must be completed BEFORE they
+ * reach `themesAtom` — most readers (`useCurrentTheme`, `useResetVisual`,
+ * Legend, the dash/pattern panels) take the atom's entries as-is, without a
+ * `themeOf` call, and an `undefined` number field renders as NaN.
+ *
+ * Backfilling from the LIGHT base is intent-preserving, not a light-theme
+ * bias: every field where the dark base differs has existed since the dark
+ * theme shipped, so a theme can only be missing fields whose value is shared
+ * by both bases. (A future field that differs per-base needs its own
+ * migration — clones carry no record of which base they came from.) */
+export const normalizeSavedTheme = (saved: SavedTheme): SavedTheme => ({
+	...themeOf(saved),
+	id: saved.id,
+	name: saved.name,
+	isSystem: saved.isSystem,
+})
+
+/** Normalize a persisted themes list for `themesAtom`. System entries are
+ * re-stamped from the bundled `SYSTEM_THEMES` (they're read-only in the UI,
+ * so the code copy is authoritative and a stale stored copy is never a user
+ * edit); user themes keep their values and get missing fields backfilled. */
+export const normalizeSavedThemes = (stored: SavedTheme[]): SavedTheme[] =>
+	stored.map((t) => {
+		const bundled = SYSTEM_THEMES.find((s) => s.id === t.id)
+		return bundled ?? normalizeSavedTheme(t)
+	})

@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import { Link, Outlet } from "@tanstack/react-router"
 import { useAtom } from "jotai"
 import {
+	normalizeSavedTheme,
 	SYSTEM_LIGHT_THEME,
 	themeOf,
 } from "../../chartBuilder/lib/systemThemes"
@@ -69,12 +70,17 @@ const ThemesSubNav = () => {
 				window.alert("That doesn't look like a theme export file.")
 				return
 			}
-			const reKeyed = candidates.map((t) => ({
-				...t,
-				id: newThemeId(),
-				isSystem: false,
-				name: t.name ? `${t.name} (imported)` : "Imported theme",
-			}))
+			// `normalizeSavedTheme` backfills fields the export file predates —
+			// `themesAtom` readers take entries as-is, so a sparse import must
+			// be completed before it lands in the list.
+			const reKeyed = candidates.map((t) =>
+				normalizeSavedTheme({
+					...t,
+					id: newThemeId(),
+					isSystem: false,
+					name: t.name ? `${t.name} (imported)` : "Imported theme",
+				})
+			)
 			setThemes((prev) => [...prev, ...reKeyed])
 			// Jump to the first imported theme so the user can see what they got.
 			const first = reKeyed[0]

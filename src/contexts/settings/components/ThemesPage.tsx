@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react"
 import { useAtom } from "jotai"
 import {
+	normalizeSavedTheme,
 	SYSTEM_LIGHT_THEME,
 	themeOf,
 } from "../../chartBuilder/lib/systemThemes"
@@ -166,15 +167,18 @@ export const ThemesPage = () => {
 			// Override the current theme's content but keep its id, name, and
 			// isSystem-status. System themes can't be imported into directly —
 			// the toggle UI suppresses the button when read-only.
+			// `normalizeSavedTheme` backfills fields the export file predates —
+			// `themesAtom` readers take entries as-is, so a sparse import must
+			// be completed before it lands in the list.
 			setThemes((prev) =>
 				prev.map((t) =>
 					t.id === editingTheme.id
-						? {
+						? normalizeSavedTheme({
 								...candidate,
 								id: editingTheme.id,
 								name: editingTheme.name,
 								isSystem: false,
-							}
+							})
 						: t
 				)
 			)

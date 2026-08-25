@@ -82,6 +82,7 @@ import type { StorageContentAdapter } from "../lib/storage/adapter"
 import { getStorageAdapter } from "../lib/storage/registry"
 import {
 	LIGHT_THEME_BASE,
+	normalizeSavedThemes,
 	SYSTEM_LIGHT_THEME,
 	SYSTEM_THEMES,
 } from "../lib/systemThemes"
@@ -459,11 +460,15 @@ const newThemeId = (): string =>
 const buildInitialThemes = (): SavedTheme[] => {
 	const stored = loadThemes()
 	if (stored && stored.length > 0) {
+		// Backfill fields the stored themes predate (and refresh the read-only
+		// system entries from the bundled copies) — readers take this atom's
+		// entries as-is, so sparse persisted themes must be completed here.
+		const normalized = normalizeSavedThemes(stored)
 		// Ensure system themes always exist in the array, in case a future
 		// user wipes them or an older save dropped them.
-		const haveLight = stored.some((t) => t.id === "system-light")
-		const haveDark = stored.some((t) => t.id === "system-dark")
-		const result = [...stored]
+		const haveLight = normalized.some((t) => t.id === "system-light")
+		const haveDark = normalized.some((t) => t.id === "system-dark")
+		const result = [...normalized]
 		if (!haveLight) result.unshift(SYSTEM_THEMES[0])
 		if (!haveDark) {
 			const lightIdx = result.findIndex((t) => t.id === "system-light")
@@ -492,8 +497,12 @@ export const themesAtom = contentAtom<SavedTheme[]>(
 	buildInitialThemes,
 	// A hosted backend stores the raw saved-themes list; the local first-run
 	// migration in `buildInitialThemes` only applies to the synchronous local
-	// bootstrap.
-	async (adapter) => (await adapter.loadThemes()) ?? buildInitialThemes(),
+	// bootstrap. Normalization, however, applies to BOTH paths — remote lists
+	// can be just as sparse as local ones (they're the same JSON, synced).
+	async (adapter) => {
+		const stored = await adapter.loadThemes()
+		return stored ? normalizeSavedThemes(stored) : buildInitialThemes()
+	},
 	(adapter, themes) => adapter.saveThemes(themes)
 )
 
