@@ -51,13 +51,34 @@ const seed = (brightnessField: string) => {
 	/* eslint-enable @th/use-wrapped-json-functions */
 }
 
+/** Same fixture with NO field on either modulation channel — the panels then
+ *  show the single-level default editor instead of the per-category one. */
+const seedUnmapped = () => {
+	const store = installInMemoryLocalStorage()
+	/* eslint-disable @th/use-wrapped-json-functions */
+	store.set(
+		"vis-components:datasets",
+		JSON.stringify({ [DATASET_ID]: buildDataset() })
+	)
+	store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+	store.set("vis-components:previewVersionId", JSON.stringify(null))
+	store.set(
+		"vis-components:currentEncodings",
+		JSON.stringify(emptyEncodings())
+	)
+	/* eslint-enable @th/use-wrapped-json-functions */
+}
+
 /** Surfaces the live channel configs so assertions can read them. */
 const ConfigsProbe = () => {
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	return (
 		<div data-testid="configs">
 			{/* eslint-disable-next-line @th/use-wrapped-json-functions */}
-			{JSON.stringify({ brightness: configs.brightness })}
+			{JSON.stringify({
+				brightness: configs.brightness,
+				defaultBrightness: configs.defaultBrightness,
+			})}
 		</div>
 	)
 }
@@ -86,9 +107,11 @@ describe("BrightnessOptionsPanel — categorical field", () => {
 				<BrightnessOptionsPanel />
 			</TestProvider>
 		)
-		// Theme default brightness range 0.25–0.85, 3 categories → 0.25/0.55/0.85.
-		expect((getByLabelText("A") as HTMLInputElement).value).toBe("0.25")
-		expect((getByLabelText("B") as HTMLInputElement).value).toBe("0.55")
+		// Theme default brightness range 0.15–0.85, 3 categories → 0.15/0.5/0.85.
+		// The range is symmetric about the 0.5 anchor by design, so the middle
+		// category lands ON the palette color and the outer two bracket it.
+		expect((getByLabelText("A") as HTMLInputElement).value).toBe("0.15")
+		expect((getByLabelText("B") as HTMLInputElement).value).toBe("0.5")
 		expect((getByLabelText("C") as HTMLInputElement).value).toBe("0.85")
 	})
 
@@ -127,5 +150,47 @@ describe("SaturationOptionsPanel — categorical field", () => {
 		)
 		expect(getByLabelText("A")).toBeTruthy()
 		expect(queryByLabelText("Min")).toBeNull()
+	})
+})
+
+
+describe("BrightnessOptionsPanel — unmapped channel default level", () => {
+	it("enabling the override starts ON the anchor, so the chart doesn't jump", () => {
+		// Levels are anchored: 0.5 IS the palette color. Switching the
+		// override on at any other level would recolor every mark the
+		// instant it's enabled.
+		seedUnmapped()
+		const { getByText, getByTestId } = render(
+			<TestProvider>
+				<BrightnessOptionsPanel />
+				<ConfigsProbe />
+			</TestProvider>
+		)
+		// Unset (the channel is off) — the key isn't written until enabled.
+		expect(getByTestId("configs").textContent).not.toContain(
+			'"defaultBrightness"'
+		)
+		fireEvent.click(getByText("Enable override"))
+		expect(getByTestId("configs").textContent).toContain(
+			'"defaultBrightness":0.5'
+		)
+	})
+
+	it("offers a way back to the palette color once the level is dialed off the anchor", () => {
+		seedUnmapped()
+		const { getByText, queryByText, getByRole, getByTestId } = render(
+			<TestProvider>
+				<BrightnessOptionsPanel />
+				<ConfigsProbe />
+			</TestProvider>
+		)
+		fireEvent.click(getByText("Enable override"))
+		// At the anchor there is nothing to get back TO.
+		expect(queryByText("Back to palette color")).toBeNull()
+		fireEvent.change(getByRole("slider"), { target: { value: "0.8" } })
+		fireEvent.click(getByText("Back to palette color"))
+		expect(getByTestId("configs").textContent).toContain(
+			'"defaultBrightness":0.5'
+		)
 	})
 })

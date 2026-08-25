@@ -461,6 +461,9 @@ export type AreaConfig = {
 export const DEFAULT_AREA_CONFIG: AreaConfig = { minRadius: 3, maxRadius: 18 }
 
 export type SaturationConfig = {
+	/** Anchored levels, NOT absolute HSL components: 0.5 leaves the base
+	 *  color's saturation alone, 0 is fully gray, 1 fully saturated. See
+	 *  `anchoredComponent` in lib/scales. */
 	min: number
 	max: number
 	stackMode?: StackMode
@@ -472,17 +475,26 @@ export type SaturationConfig = {
 	 * saved configs load unchanged. */
 	overrides?: Record<string, number>
 }
-export const DEFAULT_SATURATION_CONFIG: SaturationConfig = { min: 0.2, max: 1 }
+/** Symmetric about the anchor (`MODULATION_ANCHOR` = 0.5 = the palette color
+ *  untouched), so the middle of an even category spread draws the real
+ *  color, grayer below it and more saturated above. */
+export const DEFAULT_SATURATION_CONFIG: SaturationConfig = {
+	min: 0.15,
+	max: 0.85,
+}
 
 export type BrightnessConfig = {
+	/** Anchored levels like `SaturationConfig`: 0.5 leaves the base color's
+	 *  lightness alone, 0 is black, 1 is white. */
 	min: number
 	max: number
 	stackMode?: StackMode
 	/** Same as `SaturationConfig.overrides`. */
 	overrides?: Record<string, number>
 }
+/** Symmetric about the anchor, like `DEFAULT_SATURATION_CONFIG`. */
 export const DEFAULT_BRIGHTNESS_CONFIG: BrightnessConfig = {
-	min: 0.25,
+	min: 0.15,
 	max: 0.85,
 }
 
@@ -1486,6 +1498,8 @@ export type ChannelConfigs = Partial<{
 	defaultRadius: number // DEFAULT_RADIUS
 	defaultOpacity: number // DEFAULT_OPACITY (the Fill / overall opacity)
 	defaultShape: number // DEFAULT_SHAPE (palette index)
+	// Anchored levels (see SaturationConfig): null = channel off, 0.5 = the
+	// palette color untouched, which is the same thing by a different route.
 	defaultSaturation: number | null // null = no modulation
 	defaultBrightness: number | null // null = no modulation
 	defaultPattern: number | null // null = no pattern

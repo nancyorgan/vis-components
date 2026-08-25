@@ -85,13 +85,9 @@ export const DeleteVisualButton = ({
 						<Button compact outline onClick={() => setOpen(false)}>
 							Cancel
 						</Button>
-						<button
-							type="button"
-							onClick={onConfirm}
-							className="rounded-sm bg-red-600 px-3 py-1.5 text-sm font-medium tracking-wider text-white shadow transition-all hover:bg-red-700 hover:shadow-lg"
-						>
+						<Button compact danger onClick={onConfirm}>
 							Yes, delete this visualization
-						</button>
+						</Button>
 					</div>
 				</div>
 			</Modal>

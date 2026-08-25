@@ -978,6 +978,21 @@ indices stable; anything still referencing the deleted slot falls back
 to the circle. Custom glyphs render on chart marks (scatter/line
 points, radar dots) and in the legends that show the shape encoding.
 
+**Saturation / Brightness levels are ANCHORED on the palette color,
+not absolute HSL components.** `0.5` (`MODULATION_ANCHOR` in lib/scales)
+means "draw the base color exactly as the palette has it" — and returns
+the base hex string untouched, so the legend's un-modulated swatch and
+the mark's fill are literally the same color. Below 0.5 the component is
+pulled toward 0 (grayer / darker), above it toward 1 (more saturated /
+lighter), linearly on each side. The anchor is the same number for every
+hue, which is the point: modulation used to ASSIGN the level onto the
+HSL component, so it overwrote each palette color's own saturation /
+lightness. Since every swatch has a different one, no level reproduced
+the palette, and swatches outside the configured range were unreachable
+at any level. Theme ranges default symmetric about the anchor
+(0.15–0.85), so the middle of an even category spread draws the real
+color with the outer categories bracketing it.
+
 **Saturation / Brightness** follow the field's type, like Opacity and
 Area do: a quantitative / temporal / numeric-ordinal field modulates
 continuously and gets the min/max range editor; a categorical (or
@@ -1725,6 +1740,26 @@ horizontally" toggle instead).
 Position options: left, right, top, bottom, inside. Inside placement
 uses two number inputs labeled "X" and "Y" (0–1, relative to plot
 rect corners).
+
+**Orientation and Legend columns are independent controls, and each
+owns exactly one axis of the layout.** Orientation (Stacked /
+Horizontal) governs how the ENTRIES flow inside a single legend
+section. "Legend columns" (1–6) governs how the SECTIONS themselves
+are arranged, and nothing else does: `1` — the default — always means
+one column, so several legends stack whatever the position or
+orientation; `N > 1` packs the sections into N content-hugging
+columns, balanced by count, separated by the "Column gap" (px, may be
+negative, so columns can be pulled together or overlapped). Every
+combination is therefore expressible — notably two horizontal legends
+stacked in one column, and any column count at the top / bottom
+positions.
+
+The one exception, because it can't be otherwise: when a SINGLE
+legend is mapped, columns > 1 wraps that legend's entry ROWS across
+the columns instead of packing sections, which requires stacked
+entries — so the orientation reads as Stacked there regardless. A
+quantitative gradient / ramp section is a bar rather than a list, so
+it has no rows to wrap and opts out entirely.
 
 Channels mapped to the **same field** combine into one legend section
 with composed swatches (color + shape + pattern + opacity). The

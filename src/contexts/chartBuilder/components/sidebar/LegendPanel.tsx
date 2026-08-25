@@ -789,6 +789,10 @@ export const LegendPanel = () => {
 							options={ORIENTATION_OPTIONS}
 							onChange={(orientation) => update({ orientation })}
 						/>
+						<p className="vc-help">
+							How entries flow within each legend. Use Legend columns below
+							to arrange the legends themselves.
+						</p>
 					</div>
 
 					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
@@ -901,8 +905,10 @@ export const LegendPanel = () => {
 							)}
 						</div>
 						<p className="vc-help">
-							Splits several legends into their own columns, or wraps a
-							single legend&apos;s entries across columns.
+							How the legends are arranged: 1 stacks them in a single
+							column, higher values split them into that many side-by-side
+							columns. With one legend mapped, its entries wrap across the
+							columns instead.
 						</p>
 						{(merged.columns ?? 1) > 1 && (
 							<div className="flex items-center gap-2">

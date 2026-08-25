@@ -154,7 +154,10 @@ describe("buildPatternDefs", () => {
 				...EMPTY_CHANNEL_CONFIGS,
 				categoricalPalette: palette,
 				categoricalPalettePatternInks: ["#ff0000", "#00ff00"],
-				defaultSaturation: 0.7,
+				// Well BELOW the 0.5 anchor: levels are relative now, so a
+				// level near the anchor barely moves a near-white swatch's
+				// hex — this one has to actually leave the palette.
+				defaultSaturation: 0.1,
 			},
 			"#000",
 			"#fff"

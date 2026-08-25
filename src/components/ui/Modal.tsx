@@ -23,6 +23,10 @@ type ModalProps = {
 	 * max-width when set — used by the export modal to grow the popup to the
 	 * chosen image size. Still bounded by the viewport via `w-full`. */
 	maxWidthPx?: number
+	/** Extra classes on the panel itself — for a dialog that needs to look
+	 * different from the neutral default (e.g. the red frame on a warning).
+	 * Appended last, so a border/ring here overrides the default one. */
+	panelClassName?: string
 }
 
 export const Modal = ({
@@ -33,6 +37,7 @@ export const Modal = ({
 	widthClass = "max-w-md",
 	maxWidthPx,
 	dismissOnBackdrop = true,
+	panelClassName,
 }: ModalProps) => {
 	useEffect(() => {
 		if (!open) return
@@ -55,7 +60,8 @@ export const Modal = ({
 			<div
 				className={c(
 					"w-full overflow-hidden rounded-md border border-stone-200 bg-white shadow-xl dark:border-stone-700 dark:bg-stone-900",
-					maxWidthPx === undefined && widthClass
+					maxWidthPx === undefined && widthClass,
+					panelClassName
 				)}
 				style={
 					maxWidthPx === undefined ? undefined : { maxWidth: maxWidthPx }
@@ -86,6 +92,7 @@ export const ConfirmDialog = ({
 	confirmLabel = "Confirm",
 	cancelLabel = "Cancel",
 	destructive = false,
+	warning = false,
 	onCancel,
 	onConfirm,
 }: {
@@ -96,10 +103,33 @@ export const ConfirmDialog = ({
 	cancelLabel?: string
 	/** When true, the confirm button uses the red destructive style. */
 	destructive?: boolean
+	/** When true, the WHOLE dialog reads as a warning — red frame and title
+	 * rule, not just a red button. For a dialog that cautions about what
+	 * you're stepping into rather than confirming one destructive act.
+	 * Implies the destructive confirm button. */
+	warning?: boolean
 	onCancel: () => void
 	onConfirm: () => void
 }) => (
-	<Modal open={open} onClose={onCancel} title={title}>
+	<Modal
+		open={open}
+		onClose={onCancel}
+		title={
+			warning ? (
+				<span className="text-red-700 dark:text-red-300">{title}</span>
+			) : (
+				title
+			)
+		}
+		// `!` because these fight the panel's own neutral border utilities,
+		// which Tailwind emits at the same specificity — source order in the
+		// class attribute wouldn't decide the winner.
+		panelClassName={
+			warning
+				? "!border-2 !border-red-500 [&>div:first-child]:!border-red-300 dark:[&>div:first-child]:!border-red-800"
+				: undefined
+		}
+	>
 		<div className="flex flex-col gap-4">
 			<div className="text-sm text-stone-700 dark:text-stone-300">
 				{message}
@@ -108,15 +138,7 @@ export const ConfirmDialog = ({
 				<Button compact outline onClick={onCancel}>
 					{cancelLabel}
 				</Button>
-				<Button
-					compact
-					onClick={onConfirm}
-					className={
-						destructive
-							? "!bg-red-600 !text-white hover:!bg-red-700 dark:!bg-red-700 dark:hover:!bg-red-600"
-							: undefined
-					}
-				>
+				<Button compact danger={destructive || warning} onClick={onConfirm}>
 					{confirmLabel}
 				</Button>
 			</div>

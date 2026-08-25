@@ -79,7 +79,8 @@ describe("resolveMarkAesthetics", () => {
 		const palette = ["#e0f2fe", "#7dd3fc"]
 		const r = resolveMarkAesthetics({ grp: "A" }, hueScales(palette), {
 			...EMPTY_CHANNEL_CONFIGS,
-			defaultSaturation: 0.7,
+			// Below the anchor — see the note in buildPatternDefs.test.ts.
+			defaultSaturation: 0.1,
 		})
 		expect(r.preModulationHue).toBe(palette[0])
 		expect(r.fill).not.toBe(palette[0])
@@ -144,9 +145,10 @@ describe("resolveMarkAesthetics", () => {
 		}
 		const r = resolveMarkAesthetics({ grp: "A", sat: "junk" }, scales, {
 			...EMPTY_CHANNEL_CONFIGS,
-			defaultSaturation: 0.7,
+			// Below the anchor — see the note in buildPatternDefs.test.ts.
+			defaultSaturation: 0.1,
 		})
-		expect(r.satUnit).toBe(0.7)
+		expect(r.satUnit).toBe(0.1)
 		// Modulation happened (the fill left the palette swatch)…
 		expect(r.fill).not.toBe(palette[0])
 		// …but the pattern-ink key stays the pre-modulation palette hex.

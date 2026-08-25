@@ -253,7 +253,14 @@ export const Legend = ({
 									]
 								}
 								reverseCategorical={reverseCategorical}
-								orientation={columnsApply ? "vertical" : legendCfg.orientation}
+								// The user's orientation governs how ENTRIES flow inside
+								// this section, independently of how many columns the
+								// sections are packed into. The lone exception is the
+								// single-legend entry-wrap case (`entryColumns > 1`),
+								// which needs stacked rows to have anything to wrap.
+								orientation={
+									entryColumns > 1 ? "vertical" : legendCfg.orientation
+								}
 								gradientLegendStyle={legendCfg.gradientLegendStyle ?? "bar"}
 								gradientBarStyle={resolveGradientBarStyle(legendCfg)}
 								legendFillColor={legendCfg.shapeLegendFillColor}
@@ -341,10 +348,10 @@ export const Legend = ({
 						)
 						return node
 					})
-					// ≥2 legends: distribute whole sections into content-hugging flex
-					// columns (balanced by count). 1 legend: its sub-legend already
-					// laid its entries out in columns, so just render it in the normal
-					// stack container.
+					// ≥2 legends + >1 column: distribute whole sections into
+					// content-hugging flex columns (balanced by count). Otherwise the
+					// sections stack in a single column — and a lone legend asked for
+					// columns already laid its own entries out in them.
 					return packSections ? (
 						<LegendColumns
 							groups={chunkColumns(sectionNodes, effectiveCols)}

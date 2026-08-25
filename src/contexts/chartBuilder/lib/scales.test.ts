@@ -1,3 +1,4 @@
+import { hsl } from "d3-color"
 import { interpolateRdBu } from "d3-scale-chromatic"
 import { describe, expect, it } from "vitest"
 
@@ -12,6 +13,8 @@ import {
 	makeHueScale,
 	makePositionScale,
 	makeSaturationScale,
+	MODULATION_ANCHOR,
+	modulateColor,
 	outlinePaletteForHueType,
 	parseNumericCell,
 } from "./scales"
@@ -235,6 +238,63 @@ describe("makeAreaScale — non-numeric ordinal", () => {
 		})
 		if (areaScale.kind !== "numeric") throw new Error("expected numeric scale")
 		expect(areaScale.scale(50)).toBeCloseTo(5)
+	})
+})
+
+describe("modulateColor — anchored levels", () => {
+	// The bundled palette's swatches sit at very different HSL lightnesses
+	// (0.62–0.90), which is exactly why levels can't be absolute: no single
+	// absolute lightness reproduces the palette across hues.
+	const PALETTE = ["#8DD3C7", "#FB8072", "#BC80BD", "#FCCDE5"]
+
+	it("returns the EXACT base hex at the anchor, for every hue", () => {
+		// Load-bearing: "0.5 is the real color" has to be literally true —
+		// the swatch the legend paints and the mark's fill must be the same
+		// string, not two hexes a rounding step apart.
+		for (const c of PALETTE) {
+			expect(modulateColor(c, MODULATION_ANCHOR, MODULATION_ANCHOR)).toBe(c)
+			expect(modulateColor(c, MODULATION_ANCHOR, null)).toBe(c)
+			expect(modulateColor(c, null, MODULATION_ANCHOR)).toBe(c)
+		}
+	})
+
+	it("leaves the base untouched when neither channel modulates", () => {
+		expect(modulateColor("#FB8072", null, null)).toBe("#FB8072")
+	})
+
+	it("darkens below the anchor and lightens above it", () => {
+		const base = "#FB8072"
+		const lFor = (v: number) => hsl(modulateColor(base, null, v)).l
+		const baseL = hsl(base).l
+		expect(lFor(0.25)).toBeLessThan(baseL)
+		expect(lFor(0.75)).toBeGreaterThan(baseL)
+		// Monotone across the whole dial, and the ends are the extremes.
+		expect(lFor(0)).toBeCloseTo(0, 2)
+		expect(lFor(1)).toBeCloseTo(1, 2)
+		expect(lFor(0.25)).toBeLessThan(lFor(0.4))
+		expect(lFor(0.6)).toBeLessThan(lFor(0.9))
+	})
+
+	it("desaturates below the anchor and saturates above it", () => {
+		const base = "#BC80BD"
+		const sFor = (v: number) => hsl(modulateColor(base, v, null)).s
+		const baseS = hsl(base).s
+		expect(sFor(0.2)).toBeLessThan(baseS)
+		expect(sFor(0.8)).toBeGreaterThan(baseS)
+		expect(sFor(0)).toBeCloseTo(0, 2)
+	})
+
+	it("holds the anchor identity for a swatch outside the old absolute range", () => {
+		// #FCCDE5 sits at L = 0.90 — above the old 0.85 brightness ceiling,
+		// so under absolute lightness it was unreachable at ANY level. The
+		// anchor reaches it by definition.
+		expect(modulateColor("#FCCDE5", null, MODULATION_ANCHOR)).toBe("#FCCDE5")
+	})
+
+	it("keeps a neutral gray neutral at the anchor", () => {
+		// HSL grays carry a NaN hue; raising saturation on them swings to
+		// red. At the anchor nothing is touched, so gray stays gray.
+		expect(modulateColor("#D9D9D9", MODULATION_ANCHOR, 0.3)).toBe("#828282")
 	})
 })
 

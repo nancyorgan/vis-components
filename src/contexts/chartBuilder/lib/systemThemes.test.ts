@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { createStore } from "jotai"
 
 import {
+	isManagedTheme,
 	LIGHT_THEME_BASE,
 	normalizeSavedTheme,
 	normalizeSavedThemes,
 	SYSTEM_DARK_THEME,
 	SYSTEM_LIGHT_THEME,
 	themeOf,
+	withManaged,
 } from "./systemThemes"
 import type { SavedTheme } from "./types"
 import { saveThemes } from "./storage"
@@ -27,6 +29,9 @@ const sparseDarkClone = (): SavedTheme => {
 		isSystem: false,
 	}
 	const raw = full as unknown as Record<string, unknown>
+	// Predates the Managed/Custom folders entirely — the spread above picked
+	// the flag up from the system theme it was cloned from.
+	delete raw.managed
 	// Added to LIGHT_THEME_BASE after this theme's era.
 	delete raw.dataLabelsFontSize
 	delete raw.dataLabelsFontWeight
@@ -77,7 +82,7 @@ describe("normalizeSavedTheme", () => {
 })
 
 describe("normalizeSavedThemes", () => {
-	it("re-stamps stored system entries from the bundled copies", () => {
+	it("backfills a sparse stored system entry to the bundled values", () => {
 		const staleSystemLight = {
 			...SYSTEM_LIGHT_THEME,
 		} as unknown as Record<string, unknown>
@@ -92,6 +97,65 @@ describe("normalizeSavedThemes", () => {
 		expect(out[1]!.textEncodingFontSize).toBe(
 			LIGHT_THEME_BASE.textEncodingFontSize
 		)
+	})
+
+	it("re-stamps a stored system entry from the bundled copy", () => {
+		// System themes stay read-only even though they sit in the Managed
+		// Themes folder — the gate unlocks the OTHER managed themes. So a
+		// stored copy that diverges is staleness (or tampering), never an
+		// edit worth keeping.
+		const divergent: SavedTheme = {
+			...SYSTEM_LIGHT_THEME,
+			name: "Renamed",
+			defaultFill: "#ff0000",
+		}
+		const out = normalizeSavedThemes([divergent])
+		expect(out[0]).toEqual(SYSTEM_LIGHT_THEME)
+	})
+
+	it("restores isSystem and the Managed folder for a bundled id", () => {
+		const tampered = {
+			...SYSTEM_DARK_THEME,
+			isSystem: false,
+			managed: false,
+		} as SavedTheme
+		const out = normalizeSavedThemes([tampered])
+		expect(out[0]!.isSystem).toBe(true)
+		expect(isManagedTheme(out[0]!)).toBe(true)
+	})
+})
+
+describe("isManagedTheme", () => {
+	it("defaults to isSystem when the flag was never written", () => {
+		const legacyCustom = { ...sparseDarkClone() } as unknown as Record<
+			string,
+			unknown
+		>
+		delete legacyCustom.managed
+		expect(isManagedTheme(legacyCustom as unknown as SavedTheme)).toBe(false)
+
+		const legacySystem = { ...SYSTEM_LIGHT_THEME } as unknown as Record<
+			string,
+			unknown
+		>
+		delete legacySystem.managed
+		expect(isManagedTheme(legacySystem as unknown as SavedTheme)).toBe(true)
+	})
+
+	it("lets an explicit flag win in both directions", () => {
+		expect(isManagedTheme(withManaged(SYSTEM_LIGHT_THEME, false))).toBe(false)
+		expect(isManagedTheme(withManaged(sparseDarkClone(), true))).toBe(true)
+	})
+})
+
+describe("normalizeSavedTheme + managed", () => {
+	it("carries an explicit flag through and leaves an absent one absent", () => {
+		expect(normalizeSavedTheme(withManaged(sparseDarkClone(), true)).managed).toBe(
+			true
+		)
+		// Absent must stay absent: an explicit `false` would pin the bundled
+		// themes into Custom Themes on the first rehydrate.
+		expect(normalizeSavedTheme(sparseDarkClone()).managed).toBeUndefined()
 	})
 })
 

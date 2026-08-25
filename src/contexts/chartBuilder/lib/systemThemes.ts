@@ -1,4 +1,4 @@
-import type { SavedTheme, Theme } from "./types"
+import type { SavedTheme, SavedThemeMeta, Theme } from "./types"
 
 /** The bundled categorical palette. Sole declaration — `store/atoms.ts`
  *  reaches it through `LIGHT_THEME_BASE` rather than keeping a copy. */
@@ -107,9 +107,13 @@ export const LIGHT_THEME_BASE: Theme = {
 	angleMax: 180,
 	areaMin: 3,
 	areaMax: 18,
-	saturationMin: 0.2,
-	saturationMax: 1,
-	brightnessMin: 0.25,
+	// Saturation / brightness levels are ANCHORED on 0.5 = the palette color
+	// itself (see `anchoredComponent` in lib/scales), so these ranges are
+	// symmetric about it: the middle of a category spread lands on the real
+	// color, with darker/grayer below and lighter/more saturated above.
+	saturationMin: 0.15,
+	saturationMax: 0.85,
+	brightnessMin: 0.15,
 	brightnessMax: 0.85,
 	chartBackgroundColor: null,
 	legendBackgroundColor: "#ffffff",
@@ -142,6 +146,7 @@ export const SYSTEM_LIGHT_THEME: SavedTheme = {
 	id: "system-light",
 	name: "System (Light)",
 	isSystem: true,
+	managed: true,
 	...LIGHT_THEME_BASE,
 }
 
@@ -149,11 +154,13 @@ export const SYSTEM_DARK_THEME: SavedTheme = {
 	id: "system-dark",
 	name: "System (Dark)",
 	isSystem: true,
+	managed: true,
 	...DARK_THEME_BASE,
 }
 
-/** Bundled with the app — these always exist in `themesAtom` and aren't
- * editable by the user. */
+/** Bundled with the app — these always exist in `themesAtom` and start out
+ * in the Managed Themes folder, so editing them goes through the
+ * administrator gate. */
 export const SYSTEM_THEMES: readonly SavedTheme[] = [
 	SYSTEM_LIGHT_THEME,
 	SYSTEM_DARK_THEME,
@@ -169,9 +176,35 @@ export const SYSTEM_THEMES: readonly SavedTheme[] = [
  * starting from the theme's number. Merging the base defaults under the
  * saved values guarantees every field resolves to a real value. */
 export const themeOf = (saved: SavedTheme): Theme => {
-	const { id: _id, name: _name, isSystem: _isSystem, ...rest } = saved
+	const {
+		id: _id,
+		name: _name,
+		isSystem: _isSystem,
+		managed: _managed,
+		...rest
+	} = saved
 	return { ...LIGHT_THEME_BASE, ...rest }
 }
+
+/** Whether a theme lives in the "Managed Themes" folder. The stored flag
+ *  wins; an absent one falls back to `isSystem`, which makes the two
+ *  bundled themes managed on a fresh install and leaves every theme saved
+ *  before the folders existed in Custom. Sole reader of `.managed` — the
+ *  fallback only holds if nothing tests the raw field.
+ *
+ *  Managed is about the ADMINISTRATOR gate, not about editability: the two
+ *  system themes are managed AND permanently read-only (`isSystem`), while
+ *  a promoted user theme is editable once the gate is passed. */
+export const isManagedTheme = (theme: SavedThemeMeta): boolean =>
+	theme.managed ?? theme.isSystem
+
+/** Move a theme between the two folders. Writes the flag EXPLICITLY (both
+ *  ways) so a promotion isn't undone by the `isSystem` fallback on the way
+ *  back in. Callers refuse system themes, which are pinned to Managed. */
+export const withManaged = <T extends SavedThemeMeta>(
+	theme: T,
+	managed: boolean
+): T => ({ ...theme, managed })
 
 /** Rehydrate one persisted theme entry: keep its identity, backfill any
  * missing `Theme` fields via `themeOf`. Persisted custom themes can predate
@@ -191,12 +224,19 @@ export const normalizeSavedTheme = (saved: SavedTheme): SavedTheme => ({
 	id: saved.id,
 	name: saved.name,
 	isSystem: saved.isSystem,
+	// Left absent when absent: that's what makes a pre-folders theme read
+	// as custom rather than as an explicit `managed: false`.
+	...(saved.managed === undefined ? {} : { managed: saved.managed }),
 })
 
 /** Normalize a persisted themes list for `themesAtom`. System entries are
  * re-stamped from the bundled `SYSTEM_THEMES` (they're read-only in the UI,
  * so the code copy is authoritative and a stale stored copy is never a user
- * edit); user themes keep their values and get missing fields backfilled. */
+ * edit); user themes keep their values and get missing fields backfilled.
+ *
+ * This holds even though system themes sit in the Managed Themes folder:
+ * passing the administrator gate unlocks the OTHER managed themes for
+ * editing, never these two. */
 export const normalizeSavedThemes = (stored: SavedTheme[]): SavedTheme[] =>
 	stored.map((t) => {
 		const bundled = SYSTEM_THEMES.find((s) => s.id === t.id)

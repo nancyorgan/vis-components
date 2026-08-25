@@ -101,6 +101,12 @@ export const AestheticRangesSection = ({
 					step={0.05}
 				/>
 			</div>
+			<p className="text-sm text-stone-600 dark:text-stone-400">
+				Saturation and brightness are levels relative to the palette color,
+				not absolute values: 0.5 draws the palette color untouched, lower is
+				grayer / darker, higher is more saturated / lighter. A range that
+				straddles 0.5 puts the real color in the middle of the spread.
+			</p>
 		</Section>
 	</SectionGroup>
 )

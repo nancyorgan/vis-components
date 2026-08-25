@@ -787,18 +787,48 @@ export const makeOpacityScale = (
 	}
 }
 
-// Modulate a base color using saturation/brightness scale outputs. The scale
-// outputs are already in their final HSL-component range (set by config), so
-// assign directly — no additional remapping.
+/** The level at which saturation / brightness leave the base color ALONE.
+ *  Levels are anchored, not absolute: `MODULATION_ANCHOR` is the palette
+ *  color itself, below it pulls the HSL component toward 0 (gray / black),
+ *  above it toward 1 (full saturation / white). */
+export const MODULATION_ANCHOR = 0.5
+
+/** Anchored adjustment of one HSL component. Linear on each side of the
+ *  anchor, so the level reads as a dial from "none" (0) through "as the
+ *  palette has it" (0.5) to "all the way" (1).
+ *
+ *  Why anchored rather than absolute: the old behavior ASSIGNED the level
+ *  onto the component (`c.l = briOut`), which overwrote the palette color's
+ *  own lightness. Every swatch has a different lightness (the bundled
+ *  palette spans 0.62–0.90), so with hue also mapped there was NO level
+ *  that reproduced the palette — and some swatches sat outside the default
+ *  range entirely, so they were unreachable at any level. Anchoring gives
+ *  one level, the same for every hue, that means "the real color", which
+ *  is also what makes the hue legend's un-modulated swatch honest. */
+const anchoredComponent = (base: number, level: number): number => {
+	const v = Math.max(0, Math.min(1, level))
+	return v < MODULATION_ANCHOR
+		? base * (v / MODULATION_ANCHOR)
+		: base + (1 - base) * ((v - MODULATION_ANCHOR) / (1 - MODULATION_ANCHOR))
+}
+
+// Modulate a base color using saturation/brightness scale outputs, each read
+// as an anchored level (see `anchoredComponent`).
 export const modulateColor = (
 	base: string,
 	satOut: number | null,
 	briOut: number | null
 ): string => {
-	if (satOut === null && briOut === null) return base
+	// A level sitting exactly ON the anchor is a no-op, so return the base
+	// string untouched rather than round-tripping it through HSL — the
+	// anchor must yield the palette's EXACT hex, not one off by a rounding
+	// step, or "0.5 is the real color" stops being literally true.
+	const satActive = satOut !== null && satOut !== MODULATION_ANCHOR
+	const briActive = briOut !== null && briOut !== MODULATION_ANCHOR
+	if (!satActive && !briActive) return base
 	const c = hsl(base)
-	if (satOut !== null) c.s = satOut
-	if (briOut !== null) c.l = briOut
+	if (satActive) c.s = anchoredComponent(c.s, satOut)
+	if (briActive) c.l = anchoredComponent(c.l, briOut)
 	return c.formatHex()
 }
 

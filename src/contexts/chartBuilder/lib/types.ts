@@ -561,13 +561,23 @@ export type Theme = {
 }
 
 /** Identity attached to a saved theme so the editor can list them, set
- * defaults, and reference them per-visual. `isSystem` themes are read-
- * only; we ship them with the app and the user can pick from / star them
- * but not edit or delete them. */
+ * defaults, and reference them per-visual.
+ *
+ * `isSystem` marks the two themes bundled with the app (System Light /
+ * System Dark). They can't be deleted — the bootstrap re-adds them — but
+ * they ARE editable, like any other managed theme, once the administrator
+ * gate has been passed.
+ *
+ * `managed` puts the theme in Settings → Themes' "Managed Themes" folder:
+ * a shared, team-wide theme that only an administrator should change.
+ * Absent means "inherit from `isSystem`", so the bundled themes are
+ * managed out of the box and every theme saved before this field existed
+ * stays custom. Read it through `isManagedTheme`, never bare. */
 export type SavedThemeMeta = {
 	id: string
 	name: string
 	isSystem: boolean
+	managed?: boolean
 }
 
 /** A user-saveable theme combines a SavedThemeMeta with the underlying

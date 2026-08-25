@@ -1470,9 +1470,14 @@ describe("CombinedGroupLegend — standalone pattern section", () => {
 		)
 		expect(bgFills.length).toBe(3)
 		// Auto brightness levels spread across the range → three distinct
-		// shades, none of them the flat unmodulated background.
+		// shades bracketing the background. Levels are ANCHORED on 0.5, and
+		// the default range is symmetric about it, so the middle category
+		// sits exactly on the anchor and correctly draws the unmodulated
+		// background — the outer two are the darker / lighter variations.
 		expect(new Set(bgFills).size).toBe(3)
-		expect(bgFills).not.toContain("#888888")
+		expect(bgFills[1]).toBe("#888888")
+		expect(d3Rgb(bgFills[0]!).r).toBeLessThan(d3Rgb("#888888").r)
+		expect(d3Rgb(bgFills[2]!).r).toBeGreaterThan(d3Rgb("#888888").r)
 	})
 
 	it("dash overlay (line-chart context) strokes with the THEME swatch default, not the aux override", () => {
@@ -1727,5 +1732,159 @@ describe("ShapeLegend — custom glyphs", () => {
 		expect(container.querySelectorAll("image").length).toBe(0)
 		expect(container.querySelectorAll("text").length).toBe(0)
 		expect(container.querySelectorAll("path").length).toBe(1)
+	})
+})
+
+/** Section arrangement vs. entry orientation — they are independent controls.
+ *
+ *  Regression (Nancy report): "two horizontal legends arranged in 1 column"
+ *  was impossible, and top/bottom legends ignored the columns ticker. Both
+ *  came from ONE cause — the section flow was derived from
+ *  `position`/`orientation` (`horizontalSections`) instead of from
+ *  "Legend columns", and columns > 1 then force-overrode the user's
+ *  horizontal orientation back to vertical. Now `columns` alone arranges the
+ *  sections (1 = a single stacked column, always) and `orientation` alone
+ *  flows the entries inside each one. */
+describe("Legend — columns arrange sections, orientation flows entries", () => {
+	const DATASET_ID = "ds-legend-columns-vs-orientation"
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "tiers",
+			filename: "tiers.csv",
+			fields: [
+				{ name: "Tier", inferredType: "categorical" },
+				{ name: "Region", inferredType: "categorical" },
+			],
+			rows: [
+				{ Tier: "A", Region: "east" },
+				{ Tier: "B", Region: "west" },
+				{ Tier: "C", Region: "north" },
+			],
+		})
+
+	/** `twoLegends: false` maps hue only — the single-section case, where
+	 *  columns wrap that legend's ENTRIES instead of packing sections. */
+	const mountLegend = (
+		legend: Partial<LegendConfig>,
+		twoLegends = true
+	) => {
+		const store = installInMemoryLocalStorage()
+		const encodings = {
+			...emptyEncodings(),
+			hue: { field: "Tier" },
+			...(twoLegends ? { shape: { field: "Region" } } : {}),
+		}
+		const channelConfigs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			shape: DEFAULT_SHAPE_CONFIG,
+		}
+		const legendCfg: LegendConfig = { ...DEFAULT_LEGEND_CONFIG, ...legend }
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		store.set(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify(channelConfigs)
+		)
+		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, channelConfigs)
+			snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+			snap.set(currentLegendConfigAtom, legendCfg)
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+
+	/** The wrapper the section nodes are rendered into: `[data-legend-root]`
+	 *  → the padded inner box → the section container. */
+	const sectionContainer = (container: HTMLElement): HTMLElement =>
+		container.querySelector<HTMLElement>(
+			"[data-legend-root] > div > div"
+		) as HTMLElement
+
+	/** Horizontal entry lists render `flex-row flex-nowrap`; the column
+	 *  packer renders `flex-row items-start`, so the two never collide. */
+	const horizontalEntryRows = (container: HTMLElement): number =>
+		container.querySelectorAll("div.flex.flex-row.flex-nowrap").length
+
+	it("stacks two horizontal legends in one column (columns = 1)", () => {
+		const { container } = mountLegend({
+			orientation: "horizontal",
+			columns: 1,
+			position: "right",
+		})
+		const sections = sectionContainer(container)
+		// One column: the sections stack, they don't flow side by side.
+		expect(sections.className).toContain("flex-col")
+		expect(sections.className).not.toContain("flex-row")
+		expect(sections.children.length).toBe(2)
+		// ...and each legend still lays its own entries out horizontally.
+		expect(horizontalEntryRows(container)).toBeGreaterThanOrEqual(2)
+	})
+
+	it("a top legend honors columns = 1 (was always a row of sections)", () => {
+		const { container } = mountLegend({ columns: 1, position: "top" })
+		const sections = sectionContainer(container)
+		expect(sections.className).toContain("flex-col")
+		expect(sections.className).not.toContain("flex-row")
+		expect(sections.children.length).toBe(2)
+	})
+
+	it("a top legend honors columns = 2 by packing the sections into columns", () => {
+		const { container } = mountLegend({ columns: 2, position: "top" })
+		const sections = sectionContainer(container)
+		expect(sections.className).toContain("flex-row")
+		expect(sections.className).toContain("items-start")
+		expect(sections.children.length).toBe(2)
+	})
+
+	it("keeps horizontal entries when columns > 1 packs the sections", () => {
+		const { container } = mountLegend({
+			orientation: "horizontal",
+			columns: 2,
+			position: "right",
+		})
+		expect(sectionContainer(container).children.length).toBe(2)
+		// Regression: packing used to force every section back to vertical.
+		expect(horizontalEntryRows(container)).toBeGreaterThanOrEqual(2)
+	})
+
+	it("still stacks entries for the single-legend entry-wrap case", () => {
+		// The one place columns must override orientation: wrapping ONE
+		// legend's rows across columns needs rows to wrap.
+		const { container } = mountLegend(
+			{ orientation: "horizontal", columns: 2, position: "right" },
+			false
+		)
+		expect(horizontalEntryRows(container)).toBe(0)
+		// The entry rows sit in two stacked columns (the `LegendColumns`
+		// packer), not in one wide row.
+		const colRow = container.querySelector<HTMLElement>(
+			"div.flex.flex-row.items-start"
+		) as HTMLElement
+		expect(colRow).not.toBeNull()
+		expect(colRow.children.length).toBe(2)
+		expect(
+			[...colRow.children].every((c) =>
+				(c as HTMLElement).className.includes("flex-col")
+			)
+		).toBe(true)
 	})
 })

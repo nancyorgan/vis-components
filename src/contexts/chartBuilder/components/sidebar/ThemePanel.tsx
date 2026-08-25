@@ -1,7 +1,7 @@
 import { useAtomValue } from "jotai"
 import { useAtomCallback } from "jotai/utils"
-import { useCallback } from "react"
-import { themeOf } from "../../lib/systemThemes"
+import { useCallback, useState } from "react"
+import { isManagedTheme, themeOf } from "../../lib/systemThemes"
 import {
 	configsFromTheme,
 	dataLabelsConfigFromTheme,
@@ -22,6 +22,8 @@ import {
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 
+import { ManagedThemeGate } from "../ManagedThemeGate"
+
 /** Per-visual theme picker. Picking a theme snapshots the saved theme's
  * values into the live editor atoms (theme, channelConfigs, labels,
  * legend) — the visual is "re-skinned" to match the chosen theme.
@@ -34,6 +36,7 @@ export const ThemePanel = () => {
 	const themes = useAtomValue(themesAtom)
 	const currentThemeId = useAtomValue(currentThemeIdAtom)
 	const userDefaultThemeId = useAtomValue(userDefaultThemeIdAtom)
+	const [gateOpen, setGateOpen] = useState(false)
 
 	const applyTheme = useAtomCallback(
 		useCallback(
@@ -148,10 +151,20 @@ export const ThemePanel = () => {
 	)
 
 	const activeId = currentThemeId ?? userDefaultThemeId
+	// The default theme seeds every new visualization on this server, so
+	// only a managed theme can hold the slot — and claiming it goes through
+	// the administrator dialog EVERY time, like every other reach for a
+	// managed theme. (Settings → Themes has the matching toggle; the two
+	// must agree.)
+	const activeTheme = themes.find((t) => t.id === activeId)
+	const canBecomeDefault =
+		activeTheme !== undefined &&
+		activeTheme.id !== userDefaultThemeId &&
+		isManagedTheme(activeTheme)
 
 	const themeOptions = themes.map((t) => ({
 		value: t.id,
-		label: `${t.name}${t.isSystem ? " (system)" : ""}${
+		label: `${t.name}${isManagedTheme(t) ? " (managed)" : ""}${
 			t.id === userDefaultThemeId ? " ★" : ""
 		}`,
 	}))
@@ -167,15 +180,23 @@ export const ThemePanel = () => {
 					onChange={(id) => applyTheme(id)}
 					selectClassName="flex-1"
 				/>
-				{activeId && activeId !== userDefaultThemeId && (
+				{canBecomeDefault && activeId && (
 					<button
 						type="button"
-						onClick={() => setDefault(activeId)}
+						onClick={() => setGateOpen(true)}
 						className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
 					>
-						Make this my default theme
+						Make this the default theme
 					</button>
 				)}
+				<ManagedThemeGate
+					open={gateOpen}
+					onCancel={() => setGateOpen(false)}
+					onConfirm={() => {
+						setGateOpen(false)
+						if (activeId) setDefault(activeId)
+					}}
+				/>
 				<p className="vc-help">
 					Picking a theme re-themes this visualization with the theme&apos;s palette,
 					fonts, and gridline colors. Edits to a saved theme <b>don&apos;t</b> retroactively

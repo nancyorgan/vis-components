@@ -565,6 +565,17 @@ export const userDefaultThemeIdAtom = contentAtom<string | null>(
  * custom theme exists yet. */
 export const editingThemeIdAtom = atom<string | null>(null)
 
+/** Which single managed theme the user has been granted edit access to,
+ * after answering the administrator dialog for it.
+ *
+ * The honor-system half of managed themes: the app has no accounts, so the
+ * gate is a dialog rather than an authorization check. Scoped to ONE theme
+ * on purpose — a session-wide "unlocked" latch would let one "Yes,
+ * proceed" quietly disarm the warning for every shared theme afterwards.
+ * Deliberately NOT persisted, so a fresh tab re-locks. The two `isSystem`
+ * themes are read-only regardless of what this holds. */
+export const unlockedThemeIdAtom = atom<string | null>(null)
+
 /** Which saved theme is applied to the visual currently being edited.
  * Persisted to the visual via {@link Visual.themeId}; the editor mirrors
  * the value here so the sidebar dropdown can read/write it without going

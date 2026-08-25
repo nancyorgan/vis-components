@@ -389,7 +389,8 @@ export type LegendConfig = {
 	/** Master toggle. When false, the legend doesn't render at all. */
 	enabled: boolean
 	position: LegendPosition
-	/** Layout direction within each section's swatch list. */
+	/** Layout direction within each section's swatch list — entries only.
+	 * How the SECTIONS themselves are arranged is `columns`. */
 	orientation: LegendOrientation
 	/** When `position === "inside"`, plot-area-normalized coordinates of the
 	 * legend's top-left corner. (0, 0) is the bottom-left corner of the plot
@@ -535,12 +536,14 @@ export type LegendConfig = {
 	 * scale-building code reads `breaks` to override its domain; the legend
 	 * renderer reads `format` + `breakCount` to lay out labels. */
 	channels?: Partial<Record<QuantitativeLegendChannel, LegendChannelConfig>>
-	/** How many columns the legend lays its content out in. `1` (default)
-	 * is the classic single stack. With ≥2 legends mapped (e.g. color +
-	 * shape), each legend section is packed into its own column, balanced
-	 * so the columns stay roughly the same length. With a single legend,
-	 * its entries wrap across the columns instead. Columns take precedence
-	 * over the horizontal orientation (entries stack within each column). */
+	/** How many columns the legend arranges its SECTIONS in — the sole
+	 * control over that arrangement (`orientation` only governs how entries
+	 * flow inside one section). `1` (default) always means a single column:
+	 * the sections stack, whatever the position or orientation. With ≥2
+	 * legends mapped (e.g. color + shape) and `columns > 1`, each section is
+	 * packed into its own column, balanced so the columns stay roughly the
+	 * same length. With a single legend, its entries wrap across the columns
+	 * instead — the one case that forces entries to stack. */
 	columns?: number
 	/** Horizontal gap, in pixels, between legend columns. Only meaningful when
 	 * `columns > 1`. Defaults to 24. */

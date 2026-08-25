@@ -21,6 +21,7 @@ import {
 	makeAreaScale,
 	makeBrightnessScale,
 	makeSaturationScale,
+	MODULATION_ANCHOR,
 	parseValue,
 } from "../../../lib/scales"
 import type { FieldType } from "../../../lib/types"
@@ -86,6 +87,14 @@ const BRIGHTNESS_BASE = {
 	hardMax: 1,
 	suffix: "",
 } as const
+
+/** The one sentence every saturation / brightness level editor shows: which
+ *  number draws the palette color untouched, and which way the dial runs.
+ *  Levels are anchored, not absolute HSL components — see `modulateColor`. */
+const anchorHelp = (channel: "saturation" | "brightness") =>
+	channel === "saturation"
+		? `${MODULATION_ANCHOR} is the palette color as-is — lower is grayer, higher is more saturated.`
+		: `${MODULATION_ANCHOR} is the palette color as-is — lower is darker, higher is lighter.`
 
 /** Distinct categories of a NON-numeric ordinal field mapped to area, in
  *  first-seen order (matching `makeAreaScale`'s ordinal spread). Returns null
@@ -318,7 +327,6 @@ export const SaturationOptionsPanel = () => {
 				channel="saturation"
 				label="Saturation"
 				configKey="defaultSaturation"
-				startValue={0.6}
 			/>
 		)
 	// Categorical / ordinal fields modulate by category, not magnitude — a
@@ -366,7 +374,6 @@ export const BrightnessOptionsPanel = () => {
 				channel="brightness"
 				label="Brightness"
 				configKey="defaultBrightness"
-				startValue={0.5}
 			/>
 		)
 	if (discrete)
@@ -503,7 +510,7 @@ const ModulationLevelsPanel = ({
 			<p className="vc-help">
 				Each category gets an evenly-spaced {label.toLowerCase()} ({min}–{max})
 				in the order it appears in the data. Edit any value to set an exact
-				level.
+				level. {anchorHelp(channel)}
 			</p>
 			<StackModeRow channel={channel} />
 		</div>
@@ -603,7 +610,8 @@ const DerivedLevelsPanel = ({
 			<p className="vc-help">
 				Varying by {PACKED_DERIVED_LABELS[source].toLowerCase()}. Unset
 				values spread evenly from {min} to {max}
-				{source === "depth" ? " (outermost → deepest)" : ""}.
+				{source === "depth" ? " (outermost → deepest)" : ""}.{" "}
+				{anchorHelp(channel)}
 			</p>
 		</div>
 	)
@@ -683,6 +691,10 @@ const RangePanel = ({
 				Defaults: {variant.min}
 				{variant.suffix} – {variant.max}
 				{variant.suffix}
+				{(variant.channel === "saturation" ||
+					variant.channel === "brightness") && (
+					<> — {anchorHelp(variant.channel)}</>
+				)}
 			</div>
 			<ResetLink
 				onClick={() => update({ min: variant.min, max: variant.max })}
@@ -740,16 +752,14 @@ const AreaDefaultPanel = () => {
 }
 
 const ModulationDefaultPanel = ({
+	channel,
 	label,
 	configKey,
-	startValue,
 	header,
 }: {
 	channel: "saturation" | "brightness"
 	label: string
 	configKey: "defaultSaturation" | "defaultBrightness"
-	/** Slider position to show when the user first enables the override. */
-	startValue: number
 	/** Optional row rendered at the top of the panel (the packed-circles
 	 * "Vary by nesting depth" toggle). */
 	header?: React.ReactNode
@@ -757,7 +767,10 @@ const ModulationDefaultPanel = ({
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const stored = configs[configKey]
 	const enabled = stored != null
-	const currentValue = stored ?? startValue
+	// Enabling starts ON the anchor — a no-op the user then dials away from —
+	// so switching the override on never jolts the chart's colors.
+	const currentValue = stored ?? MODULATION_ANCHOR
+	const atAnchor = currentValue === MODULATION_ANCHOR
 
 	return (
 		<div className="vc-option-panel">
@@ -784,16 +797,31 @@ const ModulationDefaultPanel = ({
 				</span>
 			</label>
 			<div className="vc-help">
-				{enabled
-					? `Forces every mark's ${label.toLowerCase()} to this HSL value, overriding the palette.`
-					: `Off — marks use their palette colors as-is.`}
+				{!enabled
+					? "Off — marks use their palette colors as-is."
+					: atAnchor
+						? `On, at ${MODULATION_ANCHOR} — every mark's palette color, unchanged. Dial away from ${MODULATION_ANCHOR} to shift it.`
+						: `Shifts every mark's ${label.toLowerCase()} relative to its palette color. ${anchorHelp(channel)}`}
 			</div>
+			{enabled && !atAnchor && (
+				<ResetLink
+					label="Back to palette color"
+					onClick={() =>
+						setConfigs((prev) => ({
+							...prev,
+							[configKey]: MODULATION_ANCHOR,
+						}))
+					}
+					underline
+					className="self-start"
+				/>
+			)}
 			<button
 				type="button"
 				onClick={() =>
 					setConfigs((prev) => ({
 						...prev,
-						[configKey]: enabled ? null : startValue,
+						[configKey]: enabled ? null : MODULATION_ANCHOR,
 					}))
 				}
 				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"

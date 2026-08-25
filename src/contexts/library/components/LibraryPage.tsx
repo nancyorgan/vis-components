@@ -418,13 +418,7 @@ export const LibraryPage = () => {
 									Duplicate
 								</Button>
 								<DownloadVisualsButton selected={selectedVisuals} />
-								{/* Destructive action: red all the way through, including the
-								    brand-colored top/bottom edges the filled button inherits. */}
-								<Button
-									compact
-									onClick={() => setBulkDeleteOpen(true)}
-									className="!border-t-red-500 !border-b-red-800 !bg-red-600 !text-white hover:!bg-red-700 dark:!border-t-red-600 dark:!border-b-red-900 dark:!bg-red-700 dark:hover:!bg-red-600"
-								>
+								<Button compact danger onClick={() => setBulkDeleteOpen(true)}>
 									Delete…
 								</Button>
 								<ResetLink label="Clear" onClick={clearSelection} />
@@ -594,13 +588,9 @@ export const LibraryPage = () => {
 						<Button compact outline onClick={() => setBulkDeleteOpen(false)}>
 							Cancel
 						</Button>
-						<button
-							type="button"
-							onClick={onBulkDelete}
-							className="rounded-sm bg-red-600 px-3 py-1.5 text-sm font-medium tracking-wider text-white shadow transition-all hover:bg-red-700 hover:shadow-lg"
-						>
+						<Button compact danger onClick={onBulkDelete}>
 							Yes, delete {selectedCount === 1 ? "it" : "them"}
-						</button>
+						</Button>
 					</div>
 				</div>
 			</Modal>

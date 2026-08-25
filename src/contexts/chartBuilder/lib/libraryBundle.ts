@@ -403,8 +403,13 @@ export const mergeBundleIntoLibrary = (
 		themeIds.add(t.id)
 		themeIdByName.set(themeNameKey(t.name), t.id)
 		// Backfill anything a bundle from an older build predates — themesAtom
-		// readers take entries as-is.
-		incomingThemes.push(normalizeSavedTheme({ ...t, isSystem: false }))
+		// readers take entries as-is. A theme that was managed in the SENDER's
+		// library arrives as custom: "managed" is a claim about this
+		// deployment's administrator, and a bundle can't make it on their
+		// behalf. The recipient promotes it by dragging it into the folder.
+		incomingThemes.push(
+			normalizeSavedTheme({ ...t, isSystem: false, managed: false })
+		)
 	}
 	const themes =
 		incomingThemes.length > 0

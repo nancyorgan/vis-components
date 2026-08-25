@@ -808,23 +808,23 @@ export const planLegendSections = ({
 	const isOutsideHorizontal =
 		legendCfg.position === "top" || legendCfg.position === "bottom"
 	const isInside = legendCfg.position === "inside"
-	// Section layout: rows when the legend itself sits horizontally OR when
-	// the user explicitly picked horizontal orientation; columns otherwise.
-	const horizontalSections =
-		isOutsideHorizontal || legendCfg.orientation === "horizontal"
 
 	// --- Multi-column layout (user's "Legend columns" ticker) ---
-	// Two shapes, per the requested behavior:
-	//   • ≥2 legend sections  → pack whole sections into their own columns,
-	//     each kept intact (`break-inside-avoid`) and balanced by the CSS
-	//     column filler so the columns end up roughly the same length.
+	// "Legend columns" is the ONLY control over how the legend SECTIONS are
+	// arranged; `orientation` only ever governs how ENTRIES flow inside one
+	// section (matplotlib's `ncol` + a per-legend orientation). The two are
+	// deliberately independent, so "two horizontal legends stacked in one
+	// column" is expressible — it was not while horizontal orientation (or a
+	// top/bottom position) implicitly rowed the sections too.
+	// Two shapes:
+	//   • ≥2 legend sections  → pack whole sections into `effectiveCols`
+	//     content-hugging columns, balanced by count. `1` means exactly one
+	//     column: the sections stack, whatever the position/orientation.
 	//   • exactly 1 section    → wrap that legend's ENTRY ROWS across the
-	//     columns (handled inside the sub-legend via `entryColumns`).
-	// Columns TAKE PRECEDENCE over the horizontal orientation / top-bottom
-	// position: within each column entries always stack vertically (matching
-	// the matplotlib `ncol` mental model), so the feature works no matter the
-	// orientation the user picked. Quantitative gradient/ramp single sections
-	// (a bar, not a list) still opt out — there are no rows to wrap.
+	//     columns (handled inside the sub-legend via `entryColumns`). This is
+	//     the one case that still forces vertical entries — there are no rows
+	//     to wrap when they already flow in a line. Quantitative gradient /
+	//     ramp sections (a bar, not a list) opt out for the same reason.
 	const requestedColumns = Math.max(
 		1,
 		Math.min(6, Math.round(legendCfg.columns ?? 1)),
@@ -903,9 +903,10 @@ export const planLegendSections = ({
 		: wantsInnerXScroll
 			? "block p-4 overflow-x-auto"
 			: "block p-4"
-	const sectionLayoutClass = horizontalSections
-		? "flex flex-row flex-wrap gap-6"
-		: "flex flex-col gap-4"
+	// One column of sections. Multi-column packing goes through
+	// `LegendColumns` instead (see `packSections`), and the single-section
+	// entry-wrap case renders its own columns — so this is always the stack.
+	const sectionLayoutClass = "flex flex-col gap-4"
 	// Inter-column gutter for both packed sections and wrapped entries — the
 	// user's "Column gap" control. Published to descendants as the
 	// `--vc-legend-col-gap` CSS variable (see `innerStyle`); the flex column
