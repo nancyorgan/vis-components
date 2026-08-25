@@ -7,7 +7,7 @@
 import { useAtomValue } from "jotai"
 import { DEFAULT_SHAPE_CONFIG } from "../../lib/channelConfig"
 import type { UniversalRendererProps } from "../../lib/chartRendererProps"
-import { cartesian } from "../../lib/coords"
+import { cartesian } from "./coords"
 import { effectiveType } from "../../lib/fieldType"
 import {
 	DEFAULT_HEXBIN_BIN_COUNT,

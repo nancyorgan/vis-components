@@ -4,21 +4,25 @@ import type {
 	AngleConfig,
 	AxisConfig,
 	GridlineConfig,
-} from "../channelConfig"
+} from "../../../lib/channelConfig"
 import {
 	DEFAULT_GRIDLINE_CONFIG,
 	DEFAULT_SPINE_CONFIG,
-} from "../channelConfig"
-import { estimateLongestLineWidth } from "../estimateMargins"
-import type { FontConfig, TextFontConfig } from "../labelsConfig"
+} from "../../../lib/channelConfig"
+import { estimateLongestLineWidth } from "../../../lib/estimateMargins"
+import type { FontConfig, TextFontConfig } from "../../../lib/labelsConfig"
 import {
 	renderWrappedTickLabel,
 	tickWrapMaxPx,
 	wrapTickLabel,
-} from "../tickLabelWrap"
-import type { PlotInner } from "../plotLayout"
-import { resolveTickFontSizePx } from "../fontUnit"
-import type { AxisLayer, CoordSystem, RadialScales } from "./types"
+} from "../../../lib/tickLabelWrap"
+import type { PlotInner } from "../../../lib/plotLayout"
+import { resolveTickFontSizePx } from "../../../lib/fontUnit"
+import type {
+	AxisLayer,
+	CoordSystem,
+	RadialScales,
+} from "../../../lib/coords/types"
 
 export type RadialInput = {
 	scales: RadialScales

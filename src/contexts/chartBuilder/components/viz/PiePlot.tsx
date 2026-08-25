@@ -14,7 +14,7 @@ import {
 } from "../../lib/channelConfig"
 import { getChartMode } from "../../lib/chartMode"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
-import { cartesian } from "../../lib/coords"
+import { cartesian } from "./coords"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import type { PatternDefSpec } from "../../lib/patternDefs"

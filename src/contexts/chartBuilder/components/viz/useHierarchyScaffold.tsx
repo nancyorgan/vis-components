@@ -17,7 +17,7 @@ import {
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import { ptToPx } from "../../lib/fontUnit"
 import { charWidthConservativeFactor } from "../../lib/estimateMargins"
-import { cartesian } from "../../lib/coords"
+import { cartesian } from "./coords"
 import {
 	formatSingleLabel,
 	labelHueScaleParts,

@@ -1,3 +1,10 @@
+/** Coordinate-system CONTRACTS. This module is deliberately the only part
+ *  of `coords/` still under `lib/`: it holds nothing but types, so pure
+ *  consumers (`lib/radarScales.ts` builds a `RadialScales`) can import it
+ *  without dragging a component tree along. The factories that implement
+ *  these contracts — `cartesian` / `radial` / `geographic` — render axis
+ *  JSX, so they live in `components/viz/coords/`. Import them from there. */
+
 import type { ReactNode } from "react"
 
 import type { PlotInner } from "../plotLayout"

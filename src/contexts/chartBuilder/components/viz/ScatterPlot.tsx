@@ -6,7 +6,7 @@ import {
 	type DistributionOverlayConfig,
 } from "../../lib/channelConfig"
 import type { ScatterRendererProps } from "../../lib/chartRendererProps"
-import { cartesian } from "../../lib/coords"
+import { cartesian } from "./coords"
 import { buildPatternDefsFromItems } from "../../lib/buildPatternDefs"
 import { sampleMarkersByConnection } from "../../lib/connectionSampling"
 import { densityCurveGroupField } from "../../lib/colorSlots"

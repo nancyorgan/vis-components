@@ -1,8 +1,8 @@
 import type { FeatureCollection } from "geojson"
 import { describe, expect, it } from "vitest"
 
-import { loadGeometry } from "../geo/loadGeometry"
-import type { PlotInner } from "../plotLayout"
+import { loadGeometry } from "../../../lib/geo/loadGeometry"
+import type { PlotInner } from "../../../lib/plotLayout"
 import { geographic } from "./geographic"
 
 const inner: PlotInner = { x0: 0, y0: 0, x1: 800, y1: 500 }

@@ -8,7 +8,7 @@ import {
 	type TextConfig,
 } from "../../lib/channelConfig"
 import type { PerAxisScalesRendererProps } from "../../lib/chartRendererProps"
-import { cartesian } from "../../lib/coords"
+import { cartesian } from "./coords"
 import { ptToPx } from "../../lib/fontUnit"
 import { effectiveType } from "../../lib/fieldType"
 import type { FieldType } from "../../lib/types"

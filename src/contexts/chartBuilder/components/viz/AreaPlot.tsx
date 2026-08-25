@@ -21,7 +21,7 @@ import { getChartMode } from "../../lib/chartMode"
 import type { MeasureAxisRendererProps } from "../../lib/chartRendererProps"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
-import { cartesian } from "../../lib/coords"
+import { cartesian } from "./coords"
 import {
 	dashArrayFor,
 	dashSpecForPatternValue,

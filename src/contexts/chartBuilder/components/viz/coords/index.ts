@@ -4,7 +4,7 @@ export type {
 	CoordSystem,
 	GeoScales,
 	RadialScales,
-} from "./types"
+} from "../../../lib/coords/types"
 export { cartesian, type CartesianInput } from "./cartesian"
 export { geographic, type GeoInput } from "./geographic"
 export { radial, type RadialInput } from "./radial"

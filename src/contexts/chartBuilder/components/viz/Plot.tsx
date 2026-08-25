@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import type { CoordSystem } from "../../lib/coords"
+import type { CoordSystem } from "./coords"
 import { PatternDefs, type PatternDefSpec } from "../../lib/patternDefs"
 import { DEFAULT_RENDERER_INNER, type PlotInner } from "../../lib/plotLayout"
 

@@ -7,7 +7,7 @@ import {
 	type ChannelConfigs,
 } from "../../lib/channelConfig"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
-import { geographic } from "../../lib/coords/geographic"
+import { geographic } from "./coords/geographic"
 import type { GeoScales } from "../../lib/coords/types"
 import { regionViewport, viewportGeoJson } from "../../lib/geo/focusRegion"
 import { DEFAULT_OUTLINE_COLOR } from "../../lib/geo/geoMarkStyle"

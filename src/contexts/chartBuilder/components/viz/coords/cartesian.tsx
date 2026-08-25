@@ -1,16 +1,20 @@
 import type { ReactNode } from "react"
 
-import { Axis } from "../../components/viz/Axes"
-import type { AxisConfig } from "../channelConfig"
+import { Axis } from "../Axes"
+import type { AxisConfig } from "../../../lib/channelConfig"
 import type {
 	FontConfig,
 	LabelAlignment,
 	TextFontConfig,
-} from "../labelsConfig"
-import type { PlotInner } from "../plotLayout"
-import type { PositionScale } from "../scales"
-import type { FieldType } from "../types"
-import type { AxisLayer, CartesianScales, CoordSystem } from "./types"
+} from "../../../lib/labelsConfig"
+import type { PlotInner } from "../../../lib/plotLayout"
+import type { PositionScale } from "../../../lib/scales"
+import type { FieldType } from "../../../lib/types"
+import type {
+	AxisLayer,
+	CartesianScales,
+	CoordSystem,
+} from "../../../lib/coords/types"
 
 export type CartesianInput = {
 	xScale: PositionScale | null

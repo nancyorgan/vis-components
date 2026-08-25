@@ -6,9 +6,9 @@ import {
 	geoPath,
 } from "d3-geo"
 
-import type { ProjectionName } from "../mapConfig"
-import type { PlotInner } from "../plotLayout"
-import type { CoordSystem, GeoScales } from "./types"
+import type { ProjectionName } from "../../../lib/mapConfig"
+import type { PlotInner } from "../../../lib/plotLayout"
+import type { CoordSystem, GeoScales } from "../../../lib/coords/types"
 
 export type GeoInput = {
 	/** Which d3-geo projection to build. `"auto"` resolves to albersUsa for
@@ -103,10 +103,26 @@ export const geographic = (input: GeoInput): CoordSystem => {
 		proj.clipExtent(clipRect)
 	}
 	const path = geoPath(proj)
+	// Per-instance path memo: `path(feature)` serializes every arc of the
+	// feature, which at the ZCTA level (~33k polygons) is the dominant render
+	// cost. Features are decoded once and cached (loadGeometry), so their
+	// object identity is a sound cache key; the cache lives on THIS coord
+	// instance, so any projection/fit change (a new `geographic(...)` call)
+	// naturally starts fresh. WeakMap so dropped features don't pin their "d"
+	// strings.
+	const pathCache = new WeakMap<object, string | null>()
 	const scales: GeoScales = {
 		project: (ll) => proj(ll) ?? null,
 		invert: (px) => proj.invert?.(px) ?? null,
-		path: (f) => path(f as GeoPermissibleObjects) ?? null,
+		path: (f) => {
+			if (typeof f !== "object" || f === null)
+				return path(f as GeoPermissibleObjects) ?? null
+			const hit = pathCache.get(f)
+			if (hit !== undefined) return hit
+			const d = path(f as GeoPermissibleObjects) ?? null
+			pathCache.set(f, d)
+			return d
+		},
 		pathBounds: (f) => path.bounds(f as GeoPermissibleObjects),
 		clipRect,
 	}

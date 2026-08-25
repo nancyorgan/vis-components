@@ -8,14 +8,15 @@ import { describe, expect, it } from "vitest"
  *  (`components/viz/rendererRegistry.ts`,
  *  `components/sidebar/channelOptions/channelPanels.ts`).
  *
- *  Known exception: `lib/coords/` builds axis-layer JSX and imports the
- *  Axis component. Its barrel is imported ONLY by components (renderers +
- *  Plot), so the edge contaminates no pure consumer — it's tolerated
- *  until coords moves to the components side. Do NOT add new exceptions;
- *  put component-importing code in components/ instead. */
+ *  There are NO exceptions. The coord factories (`cartesian`/`radial`/
+ *  `geographic`) used to live here and imported the Axis component; they
+ *  now live in `components/viz/coords/`. Only their pure scale/render
+ *  contracts stayed behind in `lib/coords/types.ts`, which pure consumers
+ *  (e.g. `lib/radarScales.ts`) still import. Put component-importing code
+ *  in components/ instead of re-opening an allowlist. */
 
 const LIB_DIR = join(__dirname)
-const ALLOWED = new Set(["coords/cartesian.tsx"])
+const ALLOWED = new Set<string>()
 
 const walk = (dir: string): string[] =>
 	readdirSync(dir).flatMap((name) => {
