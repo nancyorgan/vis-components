@@ -4,13 +4,19 @@ import {
 	type CircleAnnotation,
 	type LineSegmentAnnotation,
 	type RectangleAnnotation,
+	type TextAnnotation,
 } from "../../../lib/annotationsConfig"
 import type { LineDashPattern } from "../../../lib/channelConfig"
 import { computeCirclePixels } from "../../../lib/circleAnnotationGeometry"
 import { computeLineSegmentPixels } from "../../../lib/lineSegmentAnnotationGeometry"
+import {
+	computeTextAnnotationAnchor,
+	layoutTextAnnotationBox,
+} from "../../../lib/textAnnotationGeometry"
 import { dashArrayFor, sanitizeCustomDasharray } from "../../../lib/dashPatterns"
 import type { Rect } from "../../../lib/facetLayoutSolver"
 import { ptToPx } from "../../../lib/fontUnit"
+import { estimateLongestLineWidth } from "../../../lib/estimateMargins"
 import { lineCount, renderMultilineTspans } from "../../../lib/multilineText"
 import {
 	applyPositionScale,
@@ -18,6 +24,7 @@ import {
 	type PositionScale,
 } from "../../../lib/scales"
 import type { FieldType } from "../../../lib/types"
+import { measureMaxLabelWidth } from "./measureText"
 
 /** Whether an annotation is drawn on the panel with the given key.
  *  `facetKeys` null/undefined ⇒ all facets (legacy default); an array
@@ -125,6 +132,91 @@ const AnnotationText = ({
 	)
 }
 
+/** Draws one free-standing text annotation: the auto-sized background box
+ *  (fill, border, corner radius) plus the label itself. Position is a single
+ *  anchor point — `y` centers the box vertically, `textAlign` picks which
+ *  horizontal edge lands on `x` — so the box size comes entirely from the
+ *  measured text plus `textPadding`. See `lib/textAnnotationGeometry.ts`.
+ *
+ *  Width comes from canvas `measureText` against the label's actual face, so
+ *  the box hugs the glyphs; a headless render (no canvas) falls back to the
+ *  shared character-count estimate rather than collapsing to zero width.
+ *  Returns null when a value-mode anchor can't be projected. */
+const TextAnnotationMark = ({
+	anno,
+	inner,
+	xScale,
+	yScale,
+	xType,
+	yType,
+}: {
+	anno: TextAnnotation
+	inner: Rect
+	xScale: PositionScale | null
+	yScale: PositionScale | null
+	xType: FieldType | null
+	yType: FieldType | null
+}) => {
+	const point = computeTextAnnotationAnchor(anno, inner, {
+		xScale,
+		yScale,
+		xType,
+		yType,
+	})
+	if (point === null) return null
+	const fontSize = ptToPx(anno.textFontSize)
+	const measured = measureMaxLabelWidth(
+		[anno.text],
+		anno.textFontFamily,
+		fontSize,
+		anno.textFontWeight
+	)
+	const textWidthPx =
+		measured > 0 ? measured : estimateLongestLineWidth(anno.text, fontSize)
+	const box = layoutTextAnnotationBox({
+		anchorX: point.x,
+		anchorY: point.y,
+		textWidthPx,
+		lines: lineCount(anno.text),
+		fontSizePx: fontSize,
+		padding: anno.textPadding,
+		align: anno.textAlign,
+	})
+	const dash = annotationDasharray(anno.borderDasharray, anno.borderDash)
+	return (
+		<g>
+			<rect
+				data-annotation-text-box={anno.id}
+				data-annotation-coord={anno.coordSystem}
+				x={box.left}
+				y={box.top}
+				width={box.width}
+				height={box.height}
+				rx={anno.cornerRadius || undefined}
+				ry={anno.cornerRadius || undefined}
+				fill={anno.backgroundColor}
+				fillOpacity={anno.backgroundOpacity}
+				stroke={anno.borderColor}
+				strokeWidth={anno.borderThickness}
+				strokeOpacity={anno.borderOpacity}
+				strokeDasharray={dash}
+			/>
+			<text
+				data-annotation-text={anno.id}
+				x={box.textX}
+				y={box.firstBaseline}
+				textAnchor={box.anchor}
+				fontFamily={anno.textFontFamily}
+				fontSize={fontSize}
+				fontWeight={anno.textFontWeight}
+				fill={anno.textColor}
+			>
+				{renderMultilineTspans(anno.text, box.textX)}
+			</text>
+		</g>
+	)
+}
+
 /** Renders user-defined rectangle annotations against a panel's inner
  *  rect. Percent-mode coordinates are plot-area-normalized:
  *    xMin=0 → left edge of plot   |   xMax=1 → right edge of plot
@@ -138,12 +230,15 @@ const AnnotationText = ({
  *  rectangle drifts from the marks: under shared axes it would otherwise
  *  be built from the panel's own (narrower) extent and land "all over the
  *  place" across panels.
- *  `layer` filters to only the rectangles requesting "behind" or "front"
- *  so the caller can interleave the renderer's marks between them. */
+ *  Circles, line segments, and free-standing text labels ride the same
+ *  scales and clip region. `layer` filters to only the annotations requesting
+ *  "behind" or "front" so the caller can interleave the renderer's marks
+ *  between them. */
 export const AnnotationRects = ({
 	rectangles,
 	circles,
 	lineSegments,
+	texts,
 	inner,
 	layer,
 	xScaleRows,
@@ -160,6 +255,7 @@ export const AnnotationRects = ({
 	rectangles: readonly RectangleAnnotation[]
 	circles: readonly CircleAnnotation[]
 	lineSegments: readonly LineSegmentAnnotation[]
+	texts: readonly TextAnnotation[]
 	inner: Rect
 	layer: "behind" | "front"
 	xScaleRows: readonly Record<string, unknown>[]
@@ -201,10 +297,21 @@ export const AnnotationRects = ({
 	const visibleLines = lineSegments.filter(
 		(l) => l.zOrder === layer && !(isRadar && l.coordSystem === "values")
 	)
+	// Same radar carve-out as lines: RadarPlot owns the polar scales, so a
+	// value-mode label would render at the wrong (percent-fallback) spot.
+	// Blank labels draw nothing at all — not even their box, since the box is
+	// sized to the text.
+	const visibleTexts = texts.filter(
+		(t) =>
+			t.zOrder === layer &&
+			t.text.trim().length > 0 &&
+			!(isRadar && t.coordSystem === "values")
+	)
 	if (
 		visibleRects.length === 0 &&
 		visibleCircles.length === 0 &&
-		visibleLines.length === 0
+		visibleLines.length === 0 &&
+		visibleTexts.length === 0
 	)
 		return null
 	// Lazily-built position scales for value-mode annotations. Match the
@@ -219,7 +326,8 @@ export const AnnotationRects = ({
 	const needValues =
 		visibleRects.some((r) => r.coordSystem === "values") ||
 		visibleCircles.some((c) => c.coordSystem === "values") ||
-		visibleLines.some((l) => l.coordSystem === "values")
+		visibleLines.some((l) => l.coordSystem === "values") ||
+		visibleTexts.some((t) => t.coordSystem === "values")
 	if (needValues && axisFields.xField && axisFields.xType) {
 		const raws = xScaleRows.map((r) => r[axisFields.xField as string])
 		xScale = overrideLinearDomain(
@@ -404,6 +512,17 @@ export const AnnotationRects = ({
 						/>
 					)
 				})}
+				{visibleTexts.map((t) => (
+					<TextAnnotationMark
+						key={t.id}
+						anno={t}
+						inner={inner}
+						xScale={xScale}
+						yScale={yScale}
+						xType={axisFields.xType}
+						yType={axisFields.yType}
+					/>
+				))}
 				</g>
 			</g>
 		</g>

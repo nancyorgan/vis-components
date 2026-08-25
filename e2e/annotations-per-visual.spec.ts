@@ -101,7 +101,7 @@ test("rectangle annotations are scoped per-visual", async ({ page }) => {
 	await expect(page.locator(annotRect)).toHaveCount(0)
 
 	await page.getByText("Annotations", { exact: true }).click() // expand the section
-	await page.getByRole("button", { name: "+ Add rectangle" }).click()
+	await page.getByRole("button", { name: "+ Rectangle" }).click()
 	await expect(page.locator(annotRect).first()).toBeVisible()
 
 	// Let the debounced autosave (800ms) persist the annotation into visual A.

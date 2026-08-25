@@ -3,6 +3,7 @@ import { useFontFamilyOptions } from "../../../chartBuilder/store/useFontOptions
 import {
 	lineAnnotationStyleFromTheme,
 	rectangleStyleFromTheme,
+	textAnnotationStyleFromTheme,
 } from "../../../chartBuilder/lib/themeConfig"
 
 import {
@@ -27,6 +28,7 @@ export const AnnotationsSection = ({
 	// same builders the Annotations panel seeds and resets from).
 	const box = rectangleStyleFromTheme(theme)
 	const line = lineAnnotationStyleFromTheme(theme)
+	const textBox = textAnnotationStyleFromTheme(theme)
 	const familyOptions = useFontFamilyOptions()
 	return (
 		<SectionGroup title="Annotations" isReadOnly={isReadOnly}>
@@ -86,9 +88,10 @@ export const AnnotationsSection = ({
 				</div>
 			</Section>
 
-			<Section title="Rectangle text">
+			<Section title="Annotation text">
 				<p className="text-sm text-stone-600 dark:text-stone-400">
-					Initial font for the text drawn inside rectangle annotations.
+					Initial font for annotation text — both the label drawn inside a
+					rectangle and free-standing text annotations.
 				</p>
 				<SelectInput
 					label="Family"
@@ -125,6 +128,72 @@ export const AnnotationsSection = ({
 					label="Padding"
 					value={box.textPadding}
 					onChange={(v) => set("annotationTextPadding", v)}
+					min={0}
+					max={64}
+					step={1}
+					suffix="px"
+				/>
+			</Section>
+
+			<Section title="Text annotations">
+				<p className="text-sm text-stone-600 dark:text-stone-400">
+					Initial background box behind newly added text annotations. Kept
+					separate from the shape fill above so text can default to no box;
+					raise the fill opacity to give it one.
+				</p>
+				<ColorInput
+					label="Fill color"
+					value={textBox.backgroundColor}
+					onChange={(v) => set("annotationTextBoxFillColor", v)}
+				/>
+				<NumberInput
+					label="Fill opacity"
+					value={textBox.backgroundOpacity}
+					onChange={(v) => set("annotationTextBoxFillOpacity", v)}
+					min={0}
+					max={1}
+					step={0.05}
+				/>
+				<ColorInput
+					label="Border color"
+					value={textBox.borderColor}
+					onChange={(v) => set("annotationTextBoxBorderColor", v)}
+				/>
+				<NumberInput
+					label="Border thickness"
+					value={textBox.borderThickness}
+					onChange={(v) => set("annotationTextBoxBorderThickness", v)}
+					min={0}
+					max={20}
+					step={0.5}
+					suffix="px"
+				/>
+				<NumberInput
+					label="Border opacity"
+					value={textBox.borderOpacity}
+					onChange={(v) => set("annotationTextBoxBorderOpacity", v)}
+					min={0}
+					max={1}
+					step={0.05}
+				/>
+				<div className="flex items-start gap-2 text-sm">
+					<span className={`${THEME_LABEL_CLASS} shrink-0 pt-1.5`}>
+						Border dash
+					</span>
+					<DashStylePicker
+						pattern={textBox.borderDash}
+						customDasharray={textBox.borderDasharray}
+						onChange={({ pattern, customDasharray }) => {
+							set("annotationTextBoxBorderDash", pattern)
+							set("annotationTextBoxBorderDasharray", customDasharray)
+						}}
+						ariaContext="text annotation border"
+					/>
+				</div>
+				<NumberInput
+					label="Corner radius"
+					value={textBox.cornerRadius}
+					onChange={(v) => set("annotationTextBoxCornerRadius", v)}
 					min={0}
 					max={64}
 					step={1}

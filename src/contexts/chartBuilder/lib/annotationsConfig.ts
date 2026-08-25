@@ -130,6 +130,85 @@ export type RectangleTextStyle = Omit<typeof DEFAULT_RECTANGLE_TEXT, "text">
 /** The line segment's stroke styling. */
 export type LineAnnotationStyle = typeof DEFAULT_LINE_ANNOTATION_STYLE
 
+/** Built-in fill + border + corner seed for TEXT annotations — the box drawn
+ *  behind a free-standing text label. Separate from
+ *  `DEFAULT_BOX_ANNOTATION_STYLE` because a text annotation is text FIRST: it
+ *  arrives with an invisible background (opacity 0) so it reads as plain text
+ *  on the chart, and the user (or the theme's Text annotations defaults)
+ *  dials a background in. These are the `??` fallbacks behind the theme's
+ *  `annotationTextBox*` fields — see `textAnnotationStyleFromTheme`. */
+export const DEFAULT_TEXT_ANNOTATION_STYLE = {
+	backgroundColor: "#ffffff",
+	backgroundOpacity: 0,
+	borderColor: "#44403c",
+	borderThickness: 1,
+	borderOpacity: 0,
+	borderDash: "solid" as LineDashPattern,
+	borderDasharray: null as string | null,
+	/** Rounded-corner radius for the background box, in px. 0 = square. */
+	cornerRadius: 4,
+}
+
+/** The text annotation's box styling (fill + border + corner radius). */
+export type TextAnnotationBoxStyle = typeof DEFAULT_TEXT_ANNOTATION_STYLE
+
+/** A free-standing text label drawn on the plot. Unlike a rectangle (which is
+ *  a shape that may CONTAIN text), a text annotation is text first: the box
+ *  behind it is auto-sized to the rendered text plus `textPadding`, so the
+ *  user never sizes it. That's why position is a single anchor point rather
+ *  than four edges.
+ *
+ *  The anchor: `y` always centers the box vertically; `textAlign` decides
+ *  which horizontal edge lands on `x` — left ⇒ the box starts at `x`, center
+ *  ⇒ it straddles `x`, right ⇒ it ends at `x`. So the alignment control does
+ *  double duty (it also aligns the lines of multi-line text), which keeps it
+ *  meaningful for the common single-line case. See
+ *  `lib/textAnnotationGeometry.ts` for the math. */
+export type TextAnnotation = {
+	/** Stable id for keying and removal. */
+	id: string
+	/** Optional human label shown in the sidebar list. */
+	name: string
+	/** Anchor x. In `"percent"` coordSystem a 0–1 plot-area-normalized number
+	 *  (0 hugs the y-axis spine, 1 the right edge). In `"values"` a raw axis
+	 *  value — number for quantitative/temporal/numeric-ordinal, string for
+	 *  categorical — fed through the chart's x position scale. */
+	x: number | string
+	/** Anchor y. Same rules as `x`; in `"percent"` mode 0 hugs the BOTTOM
+	 *  spine (cartesian convention) and 1 the top. */
+	y: number | string
+	/** The label itself. A literal `\n` forces a line break. */
+	text: string
+	textFontFamily: string
+	textFontSize: number
+	textColor: string
+	textFontWeight: number
+	/** Line alignment AND the horizontal anchor edge — see the type doc. */
+	textAlign: "left" | "center" | "right"
+	/** Inner padding between the text and the background box edge, in px.
+	 *  Also what the box grows by, since it's sized to the text. */
+	textPadding: number
+	backgroundColor: string
+	/** 0..1 fill alpha applied on top of the fill color. */
+	backgroundOpacity: number
+	borderColor: string
+	borderThickness: number
+	/** 0..1 alpha applied to the border stroke. */
+	borderOpacity: number
+	borderDash: LineDashPattern
+	/** Custom dasharray override — see `RectangleAnnotation.borderDasharray`. */
+	borderDasharray?: string | null
+	/** Rounded-corner radius for the background box, in px. 0 = square. */
+	cornerRadius: number
+	/** "behind" draws under the chart marks; "front" draws above them. */
+	zOrder: "behind" | "front"
+	/** How `x`/`y` are interpreted — see the field docs above. */
+	coordSystem: "percent" | "values"
+	/** Which facet panels the annotation is drawn on — see
+	 *  `RectangleAnnotation.facetKeys`. */
+	facetKeys?: string[] | null
+}
+
 /** A user-defined circle drawn on top of (or behind) the plot. Always
  *  renders as a TRUE on-screen circle; `radiusAxis` only selects which axis
  *  the radius is measured against (since x and y usually have different
@@ -219,12 +298,14 @@ export type AnnotationsConfig = {
 	rectangles: RectangleAnnotation[]
 	circles: CircleAnnotation[]
 	lineSegments: LineSegmentAnnotation[]
+	texts: TextAnnotation[]
 }
 
 export const DEFAULT_ANNOTATIONS_CONFIG: AnnotationsConfig = {
 	rectangles: [],
 	circles: [],
 	lineSegments: [],
+	texts: [],
 }
 
 /** Build a new rectangle with sensible defaults — placed in the
@@ -289,5 +370,26 @@ export const newCircle = (
 	zOrder: "behind",
 	coordSystem: "percent",
 	...DEFAULT_BOX_ANNOTATION_STYLE,
+	...style,
+})
+
+/** Build a new text annotation with sensible defaults — anchored at the
+ *  center of the plot with empty text, so the user's first move is typing the
+ *  label. `style` carries the theme's text-annotation defaults (see
+ *  `textAnnotationStyleFromTheme`): the box fill / border / corner radius plus
+ *  the shared annotation text font. */
+export const newTextAnnotation = (
+	id: string,
+	style?: TextAnnotationBoxStyle & RectangleTextStyle
+): TextAnnotation => ({
+	id,
+	// Blank — see `newRectangle` (sidebar shows an iterating suggestion).
+	name: "",
+	x: 0.5,
+	y: 0.5,
+	zOrder: "front",
+	coordSystem: "percent",
+	...DEFAULT_RECTANGLE_TEXT,
+	...DEFAULT_TEXT_ANNOTATION_STYLE,
 	...style,
 })

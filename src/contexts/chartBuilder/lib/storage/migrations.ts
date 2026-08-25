@@ -35,7 +35,7 @@ export const THEMES_VERSION = 2
 export const EMBED_INSTANCES_VERSION = 1
 export const FIELD_OVERRIDES_VERSION = 1
 export const FIELD_LEVEL_ORDERS_VERSION = 1
-export const ANNOTATIONS_VERSION = 3
+export const ANNOTATIONS_VERSION = 4
 export const CAPTION_VERSION = 1
 export const MAP_CONFIG_VERSION = 7
 export const RESHAPE_CONFIG_VERSION = 1
@@ -551,6 +551,7 @@ export const fieldOverridesMigrations = identityMigrations
 export const fieldLevelOrdersMigrations = identityMigrations
 /** Annotations v1 → v2: backfill the `circles` list for configs saved before
  *  circle annotations shipped. v2 → v3: same for the `lineSegments` list.
+ *  v3 → v4: same for the `texts` list (free-standing text labels).
  *  Each step is idempotent — re-running on an already-shaped value leaves the
  *  existing array untouched. */
 export const annotationsMigrations: Migration[] = [
@@ -567,5 +568,10 @@ export const annotationsMigrations: Migration[] = [
 			...o,
 			lineSegments: Array.isArray(o.lineSegments) ? o.lineSegments : [],
 		}
+	},
+	(raw) => {
+		if (typeof raw !== "object" || raw === null) return raw
+		const o = raw as Record<string, unknown>
+		return { ...o, texts: Array.isArray(o.texts) ? o.texts : [] }
 	},
 ]

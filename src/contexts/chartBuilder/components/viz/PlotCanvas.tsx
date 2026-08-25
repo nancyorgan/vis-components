@@ -842,6 +842,9 @@ export const PlotCanvas = () => {
 				const panelLineSegments = (annotations.lineSegments ?? []).filter(
 					(l) => annotationOnPanel(l, p.key),
 				)
+				const panelTexts = (annotations.texts ?? []).filter((t) =>
+					annotationOnPanel(t, p.key),
+				)
 				// Per-panel title text. Compacted grid panels carry their
 				// compact label (row value / col value / "row · col"
 				// depending on which strip survived); wrap mode keeps the
@@ -915,6 +918,7 @@ export const PlotCanvas = () => {
 							rectangles={panelRectangles}
 							circles={panelCircles}
 							lineSegments={panelLineSegments}
+							texts={panelTexts}
 							inner={p.inner}
 							layer="behind"
 							xScaleRows={annoXScaleRows}
@@ -936,6 +940,7 @@ export const PlotCanvas = () => {
 							rectangles={panelRectangles}
 							circles={panelCircles}
 							lineSegments={panelLineSegments}
+							texts={panelTexts}
 							inner={p.inner}
 							layer="front"
 							xScaleRows={annoXScaleRows}

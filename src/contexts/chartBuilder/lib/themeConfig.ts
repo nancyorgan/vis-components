@@ -30,9 +30,11 @@ import {
 	DEFAULT_BOX_ANNOTATION_STYLE,
 	DEFAULT_LINE_ANNOTATION_STYLE,
 	DEFAULT_RECTANGLE_TEXT,
+	DEFAULT_TEXT_ANNOTATION_STYLE,
 	type BoxAnnotationStyle,
 	type LineAnnotationStyle,
 	type RectangleTextStyle,
+	type TextAnnotationBoxStyle,
 } from "./annotationsConfig"
 import { DEFAULT_HEXBIN_BIN_COUNT } from "./hexbins"
 import {
@@ -260,13 +262,10 @@ export const boxAnnotationStyleFromTheme = (t: Theme): BoxAnnotationStyle => ({
 	borderDasharray: t.annotationBorderDasharray ?? null,
 })
 
-/** Theme-seeded style for NEW rectangle annotations: the shared fill + border
- * plus the rectangle-only text styling. Also the reset baseline the
- * Annotations panel's style controls compare against / restore to. */
-export const rectangleStyleFromTheme = (
-	t: Theme
-): BoxAnnotationStyle & RectangleTextStyle => ({
-	...boxAnnotationStyleFromTheme(t),
+/** Theme-seeded annotation TEXT styling — shared by the rectangle's inner
+ * label and free-standing text annotations, so both honor one set of theme
+ * font fields. */
+const annotationTextFromTheme = (t: Theme): RectangleTextStyle => ({
 	textFontFamily:
 		t.annotationTextFontFamily ?? DEFAULT_RECTANGLE_TEXT.textFontFamily,
 	textFontSize: t.annotationTextFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize,
@@ -275,6 +274,50 @@ export const rectangleStyleFromTheme = (
 		t.annotationTextFontWeight ?? DEFAULT_RECTANGLE_TEXT.textFontWeight,
 	textAlign: t.annotationTextAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign,
 	textPadding: t.annotationTextPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding,
+})
+
+/** Theme-seeded style for NEW rectangle annotations: the shared fill + border
+ * plus the annotation text styling. Also the reset baseline the Annotations
+ * panel's style controls compare against / restore to. */
+export const rectangleStyleFromTheme = (
+	t: Theme
+): BoxAnnotationStyle & RectangleTextStyle => ({
+	...boxAnnotationStyleFromTheme(t),
+	...annotationTextFromTheme(t),
+})
+
+/** Theme-seeded style for NEW text annotations: the box (fill + border +
+ * corner radius) drawn behind the label, plus the SHARED annotation text
+ * styling — a text annotation offers the same font controls the rectangle's
+ * inner label does, so both read the `annotationText*` theme fields. The box
+ * fields are their own (`annotationTextBox*`) so a theme can leave text
+ * annotations background-free while shapes stay filled. Also the reset
+ * baseline the panel's style controls compare against / restore to. */
+export const textAnnotationStyleFromTheme = (
+	t: Theme
+): TextAnnotationBoxStyle & RectangleTextStyle => ({
+	backgroundColor:
+		t.annotationTextBoxFillColor ??
+		DEFAULT_TEXT_ANNOTATION_STYLE.backgroundColor,
+	backgroundOpacity:
+		t.annotationTextBoxFillOpacity ??
+		DEFAULT_TEXT_ANNOTATION_STYLE.backgroundOpacity,
+	borderColor:
+		t.annotationTextBoxBorderColor ??
+		DEFAULT_TEXT_ANNOTATION_STYLE.borderColor,
+	borderThickness:
+		t.annotationTextBoxBorderThickness ??
+		DEFAULT_TEXT_ANNOTATION_STYLE.borderThickness,
+	borderOpacity:
+		t.annotationTextBoxBorderOpacity ??
+		DEFAULT_TEXT_ANNOTATION_STYLE.borderOpacity,
+	borderDash:
+		t.annotationTextBoxBorderDash ?? DEFAULT_TEXT_ANNOTATION_STYLE.borderDash,
+	borderDasharray: t.annotationTextBoxBorderDasharray ?? null,
+	cornerRadius:
+		t.annotationTextBoxCornerRadius ??
+		DEFAULT_TEXT_ANNOTATION_STYLE.cornerRadius,
+	...annotationTextFromTheme(t),
 })
 
 /** Theme-seeded stroke style for NEW line-segment annotations. */

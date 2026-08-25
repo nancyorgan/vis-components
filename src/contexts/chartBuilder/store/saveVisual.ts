@@ -127,6 +127,7 @@ export const useSaveVisual = () => {
 				rectangles: [...annotationsConfig.rectangles],
 				circles: [...(annotationsConfig.circles ?? [])],
 				lineSegments: [...(annotationsConfig.lineSegments ?? [])],
+				texts: [...(annotationsConfig.texts ?? [])],
 			},
 			captionConfig: { ...captionConfig },
 			mapConfig: { ...mapConfig },

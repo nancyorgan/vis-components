@@ -452,12 +452,16 @@ export type Theme = {
 	dataLabelsItalic?: boolean
 	dataLabelsUnderline?: boolean
 	// Annotation defaults — seed the style of NEWLY ADDED annotations (the
-	// sidebar's rectangles / circles / lines). Existing annotations keep the
-	// style they were authored with. All optional: themes saved before these
-	// fields existed fall back to the built-in seed values. Fill + border
-	// apply to rectangles AND circles; the text fields are rectangle-only
-	// (circles have no text). An unset border color follows the fill color
-	// (the historical seed tied them together).
+	// sidebar's rectangles / circles / lines / text). Existing annotations keep
+	// the style they were authored with. All optional: themes saved before
+	// these fields existed fall back to the built-in seed values. Fill +
+	// border apply to rectangles AND circles; the `annotationText*` font
+	// fields are shared by the rectangle's inner label and text annotations
+	// (circles have no text); the `annotationTextBox*` fields style the box
+	// behind a text annotation, which is deliberately separate so a text
+	// label can default to no background while shapes default to a fill. An
+	// unset border color follows the fill color (the historical seed tied
+	// them together).
 	annotationFillColor?: string
 	annotationFillOpacity?: number
 	annotationBorderColor?: string
@@ -474,8 +478,24 @@ export type Theme = {
 	annotationTextColor?: string
 	annotationTextFontWeight?: number
 	annotationTextAlign?: "left" | "center" | "right"
-	/** Inner padding between the rectangle edge and its text, in px. */
+	/** Inner padding between the box edge and its text, in px — the
+	 * rectangle's inner label and, for text annotations, how far the
+	 * auto-sized background box extends past the text. */
 	annotationTextPadding?: number
+	// Text-annotation box defaults — the background drawn behind a
+	// free-standing text label. Separate from the shape fill/border above so
+	// a text annotation can default to "plain text, no box".
+	annotationTextBoxFillColor?: string
+	annotationTextBoxFillOpacity?: number
+	annotationTextBoxBorderColor?: string
+	annotationTextBoxBorderThickness?: number
+	annotationTextBoxBorderOpacity?: number
+	annotationTextBoxBorderDash?: LineDashPattern
+	/** Custom SVG dasharray for the text-annotation box border — wins over
+	 * `annotationTextBoxBorderDash` when set. */
+	annotationTextBoxBorderDasharray?: string | null
+	/** Rounded-corner radius of the text-annotation box, in px. */
+	annotationTextBoxCornerRadius?: number
 	annotationLineColor?: string
 	annotationLineThickness?: number
 	annotationLineOpacity?: number
