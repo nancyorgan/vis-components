@@ -309,6 +309,14 @@ const LevelReorderPanel = ({
 		clearPicker()
 	}
 
+	/** Flip the CURRENT displayed order — pinned, computed, or the smart-sort
+	 * default — and pin the result, like any other manual move. Distinct from
+	 * the picker's Decreasing box, which only flips a computed order. */
+	const reverse = () => {
+		setPinnedOrder([...ordered].reverse())
+		clearPicker()
+	}
+
 	const hasOverride = !!pinnedOrder && pinnedOrder.length > 0
 
 	// The indicator is suppressed for the two no-op slots (either side of the
@@ -418,6 +426,16 @@ const LevelReorderPanel = ({
 					Levels ({ordered.length})
 				</span>
 				<div className="flex items-center gap-2 text-xs">
+					{ordered.length > 1 && (
+						<button
+							type="button"
+							onClick={reverse}
+							className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							title="Flip the current level order end to end"
+						>
+							reverse
+						</button>
+					)}
 					{hasOverride && (
 						<button
 							type="button"

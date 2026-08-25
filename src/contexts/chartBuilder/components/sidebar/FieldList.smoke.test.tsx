@@ -284,3 +284,24 @@ describe("FieldList — drag to reorder levels", () => {
 		expect(levelValues(utils.container)).toEqual(["B", "A", "C"])
 	})
 })
+
+describe("FieldList — reverse link", () => {
+	it("flips the smart-sort default order in one click", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		expect(levelValues(utils.container)).toEqual(["B", "A", "C"])
+		fireEvent.click(utils.getByText("reverse"))
+		expect(levelValues(utils.container)).toEqual(["C", "A", "B"])
+	})
+
+	it("flips a computed order and drops the picker back to —", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		const select = utils.getByLabelText("Order by") as HTMLSelectElement
+		pickOrderBy(utils, "f:sales")
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+		fireEvent.click(utils.getByText("reverse"))
+		expect(levelValues(utils.container)).toEqual(["B", "C", "A"])
+		expect(select.value).toBe("")
+	})
+})
