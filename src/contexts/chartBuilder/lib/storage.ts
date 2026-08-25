@@ -415,8 +415,11 @@ export const loadDrawerHeight = (): number =>
 export const saveDrawerHeight = (h: number): void =>
 	safeSet(KEY_DRAWER_HEIGHT, h)
 
+/** 344 = the sidebar content floor (Sidebar's `min-w-80`, 320px) + the
+ * aside's `px-2` (16px) + 8px of slack, so a fresh editor opens showing every
+ * control row in full rather than with a horizontal scrollbar. */
 export const loadSidebarWidth = (): number =>
-	safeGet<number>(KEY_SIDEBAR_WIDTH, 320)
+	safeGet<number>(KEY_SIDEBAR_WIDTH, 344)
 export const saveSidebarWidth = (w: number): void =>
 	safeSet(KEY_SIDEBAR_WIDTH, w)
 

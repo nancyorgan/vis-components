@@ -13,6 +13,8 @@ import { SaveBar } from "./SaveBar"
 import { Sidebar } from "./sidebar/Sidebar"
 import { ChartCanvas } from "./viz/ChartCanvas"
 
+// Narrowing past the sidebar's content floor (Sidebar's `min-w-80`) is safe:
+// the aside scrolls horizontally rather than squeezing its control rows.
 const MIN_WIDTH = 240
 const MAX_WIDTH = 560
 
@@ -74,6 +76,7 @@ export const EditorLayout = () => {
 				<div
 					role="separator"
 					aria-orientation="vertical"
+					aria-label="Resize sidebar"
 					onPointerDown={onPointerDown}
 					className="group flex w-1.5 cursor-ew-resize items-center justify-center border-r border-stone-200 bg-stone-50 hover:bg-stone-200 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-700"
 				>
