@@ -35,6 +35,11 @@ export const PackedCirclesMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		xValueChannel: "x",
+		yValueChannel: "y",
+		polarValueCoords: false,
+	},
 	canvas: {
 		// Axis-less cartesian panel (like tile): the renderer passes null
 		// position scales so no axes draw; the pack layout fills the inner

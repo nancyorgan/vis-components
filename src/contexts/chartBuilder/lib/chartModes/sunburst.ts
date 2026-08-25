@@ -30,6 +30,11 @@ export const SunburstMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		xValueChannel: "x",
+		yValueChannel: "y",
+		polarValueCoords: false,
+	},
 	canvas: {
 		coordFamily: "cartesian",
 		measureAxis: null,

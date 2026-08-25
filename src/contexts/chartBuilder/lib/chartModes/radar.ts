@@ -32,6 +32,13 @@ export const RadarMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		// Value-mode coords are polar: x reads the angle field, y the r
+		// field, and circle radii always measure on the r axis.
+		xValueChannel: "angle",
+		yValueChannel: "r",
+		polarValueCoords: true,
+	},
 	canvas: {
 		coordFamily: "polar",
 		measureAxis: null,

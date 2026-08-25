@@ -35,6 +35,33 @@ export type ChartModeLegendConfig = {
 	reverseCategoricalOrder: boolean
 }
 
+/** How the Annotations sidebar panel maps its coordinate inputs onto this
+ * mode's encodings. The panel must NEVER compare mode ids — like the canvas
+ * traits below, a new chart mode declares these and the panel honors them
+ * without edits. */
+export type ChartModeAnnotationTraits = {
+	/** Encoding channel whose mapped field backs the HORIZONTAL axis for
+	 * value-mode ("data units") annotation coordinates. Mirrors what the
+	 * renderer scales against: `"x"` for cartesian modes, `"length"` when
+	 * the measure runs horizontally (bars-y / areas-y), `"angle"` on radar
+	 * (value-mode x IS the angle position). `null` = no field drives the
+	 * horizontal value axis in this mode (pies / pies-y — the slice angle
+	 * consumed it), so the panel falls back to a bare number input. */
+	xValueChannel: "x" | "length" | "angle" | null
+	/** Vertical counterpart: `"y"` for cartesian modes, `"length"` when the
+	 * measure runs vertically (bars-x / areas-x), `"r"` on radar. `null` =
+	 * no vertical value axis (pies / pies-x). */
+	yValueChannel: "y" | "r" | "length" | null
+	/** True when value-mode annotation coordinates are POLAR (radar):
+	 * x reads as the angle position and y as the radial distance, so circle
+	 * editors relabel their center inputs ("center angle" / "center r"),
+	 * always measure the radius on the r axis, and hide the x/y radius-axis
+	 * toggle. Polar modes WITHOUT value axes (the pie variants) leave this
+	 * false — they disable value mode entirely instead (the panel derives
+	 * that from `canvas.coordFamily === "polar"`). */
+	polarValueCoords: boolean
+}
+
 /** Shape of a chart-type definition. Registering a new mode means adding
  * one of these to the registry (`chartModes/index.ts`) AND binding its
  * renderer component in `components/viz/rendererRegistry.ts` (keyed by
@@ -75,6 +102,9 @@ export type ChartModeDef = {
 		 * facet panels (bar modes). False for scatter/pie. */
 		supportsSharedMeasureMax: boolean
 	}
+	/** Declarative traits the Annotations sidebar panel reads — see
+	 * `ChartModeAnnotationTraits`. */
+	annotations: ChartModeAnnotationTraits
 	/** Declarative traits PlotCanvas branches on. PlotCanvas must NEVER
 	 * compare mode ids — a new chart mode declares its traits here and the
 	 * canvas honors them without edits. (The sidebar equivalent is the

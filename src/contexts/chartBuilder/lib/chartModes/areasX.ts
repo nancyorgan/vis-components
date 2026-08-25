@@ -37,6 +37,12 @@ export const AreasXMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: true,
 	},
+	annotations: {
+		// The vertical value axis is the measure (length), not y.
+		xValueChannel: "x",
+		yValueChannel: "length",
+		polarValueCoords: false,
+	},
 	canvas: {
 		coordFamily: "cartesian",
 		measureAxis: "y",

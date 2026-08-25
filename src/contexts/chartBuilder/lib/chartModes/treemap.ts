@@ -26,6 +26,11 @@ export const TreemapMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		xValueChannel: "x",
+		yValueChannel: "y",
+		polarValueCoords: false,
+	},
 	canvas: {
 		// Axis-less cartesian panel (like packed circles / tile): the
 		// renderer passes null position scales so no axes draw.

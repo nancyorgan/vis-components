@@ -30,6 +30,13 @@ export const PiesMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		// No value axes — the slice angle consumed the measure and there is
+		// no positional field; value mode is disabled (polar coordFamily).
+		xValueChannel: null,
+		yValueChannel: null,
+		polarValueCoords: false,
+	},
 	canvas: {
 		coordFamily: "polar",
 		measureAxis: null,

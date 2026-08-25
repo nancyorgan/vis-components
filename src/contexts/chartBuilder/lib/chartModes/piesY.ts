@@ -20,6 +20,13 @@ export const PiesYMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		// Only the categorical y position remains a real axis; the slice
+		// angle consumed x. Value mode is disabled (polar coordFamily).
+		xValueChannel: null,
+		yValueChannel: "y",
+		polarValueCoords: false,
+	},
 	canvas: {
 		coordFamily: "polar",
 		measureAxis: null,

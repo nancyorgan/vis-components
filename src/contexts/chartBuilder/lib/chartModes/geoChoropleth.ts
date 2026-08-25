@@ -29,6 +29,11 @@ export const GeoChoroplethMode: ChartModeDef = {
 	facet: {
 		supportsSharedMeasureMax: false,
 	},
+	annotations: {
+		xValueChannel: "x",
+		yValueChannel: "y",
+		polarValueCoords: false,
+	},
 	canvas: {
 		coordFamily: "geo",
 		measureAxis: null,
