@@ -107,7 +107,6 @@ export const SaveBar = () => {
 			{visualId && (
 				<Button
 					compact
-					outline
 					onClick={() => setExportOpen(true)}
 					title="Embed or export this visualization"
 				>
