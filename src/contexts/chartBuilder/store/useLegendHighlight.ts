@@ -43,6 +43,13 @@ export const NEUTRAL_HIGHLIGHT: MarkHighlight = {
 	outlineWidth: DEFAULT_HOVER_OUTLINE_WIDTH,
 }
 
+/** Sentinel passed to `resolve` for marks that can NEVER be a member of the
+ * hovered category (see `unmatchedHighlight`). Its stringification is
+ * irrelevant — the caller forces the non-matching fields regardless — it exists
+ * only so the faded opacity comes from the user's own appearance options rather
+ * than a second copy of that math. */
+const NEVER_MATCHES = Symbol("vc-never-matches")
+
 export type LegendHighlight = {
 	/** Encoded field name of the hovered legend entry. */
 	field: string
@@ -137,6 +144,23 @@ export const rowHighlight = (
 ): MarkHighlight =>
 	highlight && highlight.field in row
 		? highlight.resolve(row[highlight.field])
+		: NEUTRAL_HIGHLIGHT
+
+/** Highlight for a mark that can never MATCH the hovered entry but must still
+ * recede with the rest of the chart — a choropleth's no-data regions (absent
+ * from the dataset, or a blank measure cell), which carry no category to be a
+ * member of. Fades exactly like a non-matching mark, and never picks up the
+ * recolor / outline emphasis. Neutral when nothing is hovered. */
+export const unmatchedHighlight = (
+	highlight: LegendHighlight | null
+): MarkHighlight =>
+	highlight
+		? {
+				...highlight.resolve(NEVER_MATCHES),
+				matched: false,
+				fill: null,
+				outline: null,
+			}
 		: NEUTRAL_HIGHLIGHT
 
 /** Field name mapped to a group channel via the aesthetic scales, or

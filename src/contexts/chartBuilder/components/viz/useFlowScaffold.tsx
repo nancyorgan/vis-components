@@ -37,6 +37,13 @@ import {
 	currentLabelsAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import {
+	NEUTRAL_HIGHLIGHT,
+	unmatchedHighlight,
+	useLegendHighlight,
+	useMarkHoverHighlight,
+	type MarkHighlight,
+} from "../../store/useLegendHighlight"
 
 import { HoverTooltip, type TooltipState } from "./HoverTooltip"
 import type { CoordFactory } from "./Plot"
@@ -177,13 +184,59 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		channelConfigs.opacitySlots?.ribbon?.level ??
 		OPACITY_SLOT_DEFS.ribbon.defaultLevel
 
+	// --- Legend-hover highlight ---------------------------------------------
+	// A flow legend is the node UNION (hue and/or pattern mapped to an endpoint
+	// column), so a hovered entry names a NODE. Node marks take the same
+	// treatment as any other mark — fade / recolor / outline per the user's
+	// Hover options — and the links follow the flow convention below.
+	const legendHighlight = useLegendHighlight()
+	const nodeEntryHovered =
+		legendHighlight !== null &&
+		(legendHighlight.field === sourceField ||
+			legendHighlight.field === targetField)
+	const hoveredNode = nodeEntryHovered ? legendHighlight.value : null
+	/** How one node mark (chord arc / sankey rect) should render under the
+	 * current hover. Neutral when the hovered entry belongs to some other
+	 * field — nodes aren't colored by it, so nothing should change. */
+	const nodeHighlight = (name: string): MarkHighlight =>
+		nodeEntryHovered && legendHighlight
+			? legendHighlight.resolve(name)
+			: NEUTRAL_HIGHLIGHT
+	// The fade every non-matching mark drops to (1 when the user turned fade
+	// off, or nothing is hovered).
+	const fadeMul = unmatchedHighlight(legendHighlight).opacityMul
+	/** LINK rule: a flow TOUCHING the hovered node (as source OR target) stays
+	 * fully visible — that's what "highlight this node" means on a flow diagram,
+	 * where a node's meaning IS its flows — and every unrelated link fades by
+	 * the same amount non-matching marks do. Links keep their own paint (no
+	 * recolor / outline): a ribbon is not the node, and repainting a wide
+	 * translucent flow in the highlight color would swamp the node it belongs
+	 * to. */
+	const edgeFadeMul = (edge: FlowEdge): number =>
+		hoveredNode === null ||
+		edge.source === hoveredNode ||
+		edge.target === hoveredNode
+			? 1
+			: fadeMul
+	// Reverse direction (hover a mark → highlight it exactly like its legend
+	// entry), published on whichever field carries the node legend entries.
+	// Hovering a LINK publishes its source node: links take their source's
+	// paint, so that's the series they belong to.
+	const nodeHoverField = hueOnNodes
+		? hueField
+		: patternOnNodes
+			? patternField
+			: null
+	const markHover = useMarkHoverHighlight(nodeHoverField)
+
 	/** Per-edge fill + opacity: ribbons / links take their SOURCE node's
 	 * paint (pattern-aware) at the Ribbons slot's opacity. No derived
 	 * sources in flows — the graph has no depth levels or top-level groups
-	 * to vary by. */
+	 * to vary by. A legend hover folds its fade into the opacity, so both
+	 * renderers pick it up through the value they already read. */
 	const edgeStyleFor = (edge: FlowEdge): FlowEdgeStyle => ({
 		fill: nodeFillFor(edge.source),
-		opacity: ribbonOpacity,
+		opacity: ribbonOpacity * edgeFadeMul(edge),
 	})
 
 	const tickFont = resolveTextFont(labels.baseFont)
@@ -238,7 +291,10 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		})
 
 	const tooltip = hovered ? <HoverTooltip state={hovered} /> : null
-	const clearHover = () => setHovered(null)
+	const clearHover = () => {
+		setHovered(null)
+		markHover.leave()
+	}
 	/** Standard edge hover: source / target / summed value. */
 	const hoverEdge = (edge: FlowEdge) => (e: React.MouseEvent) => {
 		const fields: TooltipState["fields"] = []
@@ -246,6 +302,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		if (targetField) fields.push({ name: targetField, value: edge.target })
 		if (valueField) fields.push({ name: valueField, value: edge.value })
 		setHovered({ clientX: e.clientX, clientY: e.clientY, fields })
+		markHover.enter(edge.source)
 	}
 	/** Standard node hover: name (under the source column's label) and the
 	 * node's total flow. */
@@ -254,6 +311,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		if (sourceField) fields.push({ name: sourceField, value: name })
 		if (valueField) fields.push({ name: valueField, value: total })
 		setHovered({ clientX: e.clientX, clientY: e.clientY, fields })
+		markHover.enter(name)
 	}
 
 	return {
@@ -272,6 +330,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		nodeOpacity,
 		patternDefs,
 		edgeStyleFor,
+		nodeHighlight,
 		textCfg,
 		tickFont,
 		nodeLabelFont,

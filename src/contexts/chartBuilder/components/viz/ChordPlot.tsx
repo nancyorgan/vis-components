@@ -194,6 +194,9 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 			const name = nodes[group.index]
 			const path = arcGen(group)
 			if (!path) continue
+			// Legend-hover highlight: this node's own emphasis / fade (its
+			// ribbons follow via `edgeStyleFor`'s opacity).
+			const mh = scaffold.nodeHighlight(name)
 			groupArcs.push(
 				<path
 					key={`arc-${name}`}
@@ -201,10 +204,12 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 					transform={`translate(${cx}, ${cy})`}
 					data-kind="chord-arc"
 					data-node={name}
-					fill={scaffold.nodeFillFor(name)}
-					fillOpacity={scaffold.nodeOpacity}
-					stroke={outlineColor}
-					strokeWidth={outlineWidth}
+					fill={mh.fill ?? scaffold.nodeFillFor(name)}
+					fillOpacity={scaffold.nodeOpacity * mh.opacityMul}
+					stroke={mh.outline ?? outlineColor}
+					strokeWidth={
+						mh.outline ? Math.max(outlineWidth, mh.outlineWidth) : outlineWidth
+					}
 					onMouseEnter={scaffold.hoverNode(name, group.value)}
 				/>
 			)

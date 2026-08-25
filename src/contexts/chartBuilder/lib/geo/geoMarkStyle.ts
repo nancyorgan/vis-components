@@ -189,6 +189,13 @@ export type RegionStyleResolvers = {
 	fillFor: (feature: Feature) => string
 	fillOpacityFor: (feature: Feature) => number | undefined
 	strokeFor: (feature: Feature) => string
+	/** True when the feature draws in the NO-DATA paint: absent from the dataset
+	 *  entirely, or a matched row whose measure value didn't resolve (blank/NA)
+	 *  and whose own pattern category doesn't already paint it. Legend-hover
+	 *  highlighting reads this to keep such regions out of the matched set —
+	 *  they carry no measure to be a member of the hovered category (see
+	 *  `unmatchedHighlight`). */
+	noDataFor: (feature: Feature) => boolean
 }
 
 /**
@@ -243,22 +250,31 @@ export const buildRegionStyleResolvers = ({
 	const noDataPaint = noDataPatternDef
 		? `url(#${noDataPatternDef.svgId})`
 		: noDataFill
+	/** One resolution of a MATCHED row's region paint: what it draws with, plus
+	 *  whether that landed on the no-data paint (so `fillFor` and `noDataFor`
+	 *  can't drift apart). */
+	const paintOf = (
+		row: Record<string, unknown>
+	): { paint: string; noData: boolean } => {
+		const { fill, measureMissing } = resolveGeoFill(
+			noDataFill,
+			row,
+			measureField,
+			hueScale,
+			opacityScale
+		)
+		const paint = geoPatternFill(row, fill, aestheticScales, channelConfigs)
+		// The row's own pattern-channel paint (an encoding) wins; otherwise a
+		// blank/NA measure renders like an unmatched region.
+		if (paint !== fill) return { paint, noData: false }
+		return measureMissing
+			? { paint: noDataPaint, noData: true }
+			: { paint: fill, noData: false }
+	}
 	return {
 		fillFor: (feature) => {
 			const row = rowFor(feature)
-			if (!row) return noDataPaint
-			const { fill, measureMissing } = resolveGeoFill(
-				noDataFill,
-				row,
-				measureField,
-				hueScale,
-				opacityScale
-			)
-			const paint = geoPatternFill(row, fill, aestheticScales, channelConfigs)
-			// The row's own pattern-channel paint (an encoding) wins; otherwise a
-			// blank/NA measure renders like an unmatched region.
-			if (paint !== fill) return paint
-			return measureMissing ? noDataPaint : fill
+			return row ? paintOf(row).paint : noDataPaint
 		},
 		fillOpacityFor: (feature) => {
 			const row = rowFor(feature)
@@ -277,6 +293,10 @@ export const buildRegionStyleResolvers = ({
 						outlineColorRules
 					)
 				: baseOutlineColor
+		},
+		noDataFor: (feature) => {
+			const row = rowFor(feature)
+			return row ? paintOf(row).noData : true
 		},
 	}
 }

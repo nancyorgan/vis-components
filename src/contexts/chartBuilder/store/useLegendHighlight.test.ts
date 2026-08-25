@@ -5,6 +5,7 @@ import type { AestheticScales } from "./useAestheticScales"
 import {
 	groupHighlight,
 	rowHighlight,
+	unmatchedHighlight,
 	LEGEND_HIGHLIGHT_DIM,
 	NEUTRAL_HIGHLIGHT,
 	type LegendHighlight,
@@ -84,6 +85,30 @@ describe("rowHighlight", () => {
 		const hl = highlightFor("year", "2024")
 		expect(rowHighlight(hl, { year: 2024 }).matched).toBe(true)
 		expect(rowHighlight(hl, { year: 2023 }).matched).toBe(false)
+	})
+})
+
+describe("unmatchedHighlight", () => {
+	// The choropleth's no-data regions (and any other mark that belongs to no
+	// category) fade with the rest but can never be the emphasized mark.
+	it("returns the neutral result when nothing is hovered", () => {
+		expect(unmatchedHighlight(null)).toEqual(NEUTRAL_HIGHLIGHT)
+	})
+
+	it("fades like a non-matching mark and never carries emphasis", () => {
+		const hl = highlightFor("region", "West", { recolor: true, outline: true })
+		expect(unmatchedHighlight(hl)).toEqual({
+			matched: false,
+			opacityMul: LEGEND_HIGHLIGHT_DIM,
+			fill: null,
+			outline: null,
+			outlineWidth: 2,
+		})
+	})
+
+	it("follows the user's fade amount", () => {
+		const hl = highlightFor("region", "West", { fadedOpacity: 0.5 })
+		expect(unmatchedHighlight(hl).opacityMul).toBe(0.5)
 	})
 })
 

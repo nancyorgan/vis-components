@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode, SVGProps } from "react"
-import type { FeatureCollection } from "geojson"
+import type { Feature, FeatureCollection } from "geojson"
 import { useAtomValue, useSetAtom } from "jotai"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -12,7 +12,7 @@ import type { GeoScales } from "../../lib/coords/types"
 import { regionViewport, viewportGeoJson } from "../../lib/geo/focusRegion"
 import { DEFAULT_OUTLINE_COLOR } from "../../lib/geo/geoMarkStyle"
 import { resolveGeoProjection } from "../../lib/geo/geoProjection"
-import type { GeometryBundle } from "../../lib/geo/loadGeometry"
+import { featureId, type GeometryBundle } from "../../lib/geo/loadGeometry"
 import { buildOpenSpacePredicate } from "../../lib/geo/openSpace"
 import { worldBackdropFeatures } from "../../lib/geo/worldBackdrop"
 import type {
@@ -42,6 +42,14 @@ import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLev
 import { useGeoJoin } from "../../store/useGeoJoin"
 import { useGeoLabelLevel } from "../../store/useGeoLabelLevel"
 import { useGeometry } from "../../store/useGeometry"
+import {
+	NEUTRAL_HIGHLIGHT,
+	rowHighlight,
+	unmatchedHighlight,
+	useLegendHighlight,
+	useMarkHoverHighlight,
+	type MarkHighlight,
+} from "../../store/useLegendHighlight"
 
 import { DataLabelsLayer } from "./DataLabelsLayer"
 import { GeoBasemap } from "./GeoBasemap"
@@ -124,11 +132,28 @@ export type GeoMapScaffold = {
 	 *  when the channel isn't in use. */
 	renderDataLabels: (m: GeoMarksReady) => ReactNode
 	/** Mouse handler that records the hovered row + pointer position (wired to
-	 *  both onMouseEnter and onMouseMove for a follow-cursor feel). */
+	 *  both onMouseEnter and onMouseMove for a follow-cursor feel). Also
+	 *  publishes the row's category to the legend-highlight atom, so hovering a
+	 *  mark emphasizes its whole series exactly like hovering the matching legend
+	 *  entry (the same reverse direction the cartesian renderers have). */
 	hoverHandler: (
 		row: Record<string, unknown>
 	) => (e: React.MouseEvent) => void
 	clearHover: () => void
+	/** Legend-hover highlight for a mark backed by a DATA ROW (a dot, a bubble,
+	 *  a matched region): how to fade / recolor / outline it under the currently
+	 *  hovered legend entry. Neutral when nothing is hovered, or when the hovered
+	 *  field isn't a column of the row (an unrelated legend). */
+	markHighlight: (row: Record<string, unknown>) => MarkHighlight
+	/** Legend-hover highlight for a REGION path. A region drawn in the no-data
+	 *  paint never matches — it carries no measure to be a member of the hovered
+	 *  category — so it fades with the rest. `isNoData` is a thunk because it is
+	 *  only consulted while an entry is actually hovered: the normal render path
+	 *  pays nothing extra. */
+	regionHighlight: (
+		feature: Feature,
+		isNoData: () => boolean
+	) => MarkHighlight
 	/** Wiring for the shared `Plot` wrapper: the measured inner rect, the geo
 	 *  coord factory, and the hover tooltip overlay. */
 	plotProps: Pick<PlotProps, "inner" | "coord" | "tooltip">
@@ -168,6 +193,28 @@ export const useGeoMapScaffold = (
 	const dataset = useCurrentDatasetView()
 	const aestheticScales = useAestheticScales()
 	const [hovered, setHovered] = useState<HoverState | null>(null)
+
+	// --- Legend-hover highlight ---------------------------------------------
+	// Same treatment as the cartesian renderers: a hovered categorical legend
+	// entry emphasizes matching marks (opacity / recolor / outline, per the
+	// user's Hover options) and fades the rest. Purely presentational — nothing
+	// here touches the projection, the coord cache, or the per-feature path
+	// strings, so hovering can't invalidate the geometry caches.
+	const legendHighlight = useLegendHighlight()
+	// The reverse direction (mark hover → highlight its series), wired only for
+	// a CATEGORICAL hue: that's exactly when the legend has discrete entries to
+	// correspond with. A quantitative measure legend is a gradient and never
+	// publishes, so a numeric value could only ever light up its own mark.
+	const hueFieldInfo = aestheticScales.hue?.field
+	const markHoverField =
+		hueFieldInfo && hueFieldInfo.type === "categorical"
+			? hueFieldInfo.name
+			: null
+	const markHover = useMarkHoverHighlight(markHoverField)
+	// Both onMouseEnter and onMouseMove share one hover handler (follow-cursor
+	// tooltips), so remember what we last published and skip re-publishing the
+	// same category on every pixel of movement.
+	const publishedMarkValue = useRef<string | null>(null)
 
 	// Drag-to-pan/zoom focus. ANY focus (a named region OR custom) is
 	// interactive; the box the projection fits comes from the custom viewport,
@@ -273,6 +320,28 @@ export const useGeoMapScaffold = (
 		mapConfig.keyType
 	)
 
+	// A no-data region belongs to no category, so it fades with the rest rather
+	// than ever lighting up. Guarded on the hovered field being a column of this
+	// chart's data (within one visual it always is — the legend and the marks
+	// read the same dataset — but an unrelated hover must never dim the map).
+	const noDataHighlight = unmatchedHighlight(
+		legendHighlight &&
+			(dataset?.fields.some((f) => f.name === legendHighlight.field) ?? false)
+			? legendHighlight
+			: null
+	)
+	const markHighlight = (row: Record<string, unknown>): MarkHighlight =>
+		rowHighlight(legendHighlight, row)
+	const regionHighlight = (
+		feature: Feature,
+		isNoData: () => boolean
+	): MarkHighlight => {
+		if (!legendHighlight) return NEUTRAL_HIGHLIGHT
+		if (isNoData()) return noDataHighlight
+		const row = featureToRow.get(featureId(feature))
+		return row ? rowHighlight(legendHighlight, row) : noDataHighlight
+	}
+
 	// --- Data labels on maps -------------------------------------------------
 	// The labels' `geography` channel joins independently of the map's own
 	// region field, at its OWN auto-detected level — so a county map can carry
@@ -356,27 +425,82 @@ export const useGeoMapScaffold = (
 	// Fit the projection to the level's whole feature collection so every
 	// region lands in the panel even when only a few are data-matched. When
 	// geometry hasn't resolved yet this is an empty collection (no marks draw).
-	const fitTo: FeatureCollection = {
-		type: "FeatureCollection",
-		features: bundle?.features ?? [],
-	}
+	// Memoized on the bundle: the collection's IDENTITY keys the coord cache
+	// below, so it must only change when the geometry actually does.
+	const fitTo: FeatureCollection = useMemo(
+		() => ({
+			type: "FeatureCollection",
+			features: bundle?.features ?? [],
+		}),
+		[bundle]
+	)
 
 	// When a focus is active, fit the projection to its box instead of the
 	// loaded geometry — pans + zooms the map there. `pan.viewport` is the live
 	// (possibly mid-drag) box for any focus (region or custom); null for "auto".
-	const focusGeo = pan.viewport ? viewportGeoJson(pan.viewport) : null
+	// Memoized on the viewport for the same identity-keying reason as fitTo.
+	const focusGeo = useMemo(
+		() => (pan.viewport ? viewportGeoJson(pan.viewport) : null),
+		[pan.viewport]
+	)
 
 	// Coord factory — defers the projection build to after measurement so the
 	// projection fits the SAME inner rect Plot hands the marks callback.
-	const coord: CoordFactory = (inner) =>
-		geographic({
+	//
+	// Plot invokes the factory on EVERY render, but building the geographic
+	// coord streams the whole fit geometry (fitExtent bounds) — at the ZCTA
+	// level that's ~33k polygons — and dropping the old coord instance also
+	// drops its per-feature path cache, forcing every "d" string to
+	// re-serialize. So memoize the built coord on its actual inputs
+	// (projection, fit target identity, clip flag, inner rect) and hand back
+	// the SAME instance until one of them really changes: unrelated re-renders
+	// (hover, sidebar tweaks, label edits) then cost nothing geographic.
+	const coordCacheRef = useRef<{
+		projection: typeof resolvedProjection
+		fit: GeoJSON.GeoJsonObject
+		clip: boolean
+		x0: number
+		y0: number
+		x1: number
+		y1: number
+		coord: ReturnType<typeof geographic>
+	} | null>(null)
+	const coord: CoordFactory = (inner) => {
+		// Clip to the focus box so neighboring geography doesn't bleed into
+		// fitSize's margin (e.g. South America under a North-America focus).
+		const fit = focusGeo ?? fitTo
+		const clip = focusGeo !== null
+		const c = coordCacheRef.current
+		if (
+			c &&
+			c.projection === resolvedProjection &&
+			c.fit === fit &&
+			c.clip === clip &&
+			c.x0 === inner.x0 &&
+			c.y0 === inner.y0 &&
+			c.x1 === inner.x1 &&
+			c.y1 === inner.y1
+		) {
+			return c.coord
+		}
+		const built = geographic({
 			projection: resolvedProjection,
 			inner,
-			fitTo: focusGeo ?? fitTo,
-			// Clip to the focus box so neighboring geography doesn't bleed into
-			// fitSize's margin (e.g. South America under a North-America focus).
-			clipToFit: focusGeo !== null,
+			fitTo: fit,
+			clipToFit: clip,
 		})
+		coordCacheRef.current = {
+			projection: resolvedProjection,
+			fit,
+			clip,
+			x0: inner.x0,
+			y0: inner.y0,
+			x1: inner.x1,
+			y1: inner.y1,
+			coord: built,
+		}
+		return built
+	}
 
 	const beginMarks = (ctx: PlotContext): GeoMarks => {
 		if (ctx.coord.kind !== "geographic")
@@ -462,9 +586,25 @@ export const useGeoMapScaffold = (
 	// mark for a nicer follow-cursor feel — renderers wire the same handler to
 	// both enter and move.
 	const hoverHandler =
-		(row: Record<string, unknown>) => (e: React.MouseEvent) =>
+		(row: Record<string, unknown>) => (e: React.MouseEvent) => {
 			setHovered({ row, clientX: e.clientX, clientY: e.clientY })
-	const clearHover = () => setHovered(null)
+			// Publish this mark's category so its whole series highlights, exactly
+			// like hovering the matching legend entry (no-ops when no categorical
+			// hue is mapped, or the value hasn't changed since the last move).
+			if (markHoverField !== null) {
+				const raw = row[markHoverField]
+				const key = raw === undefined || raw === null ? null : String(raw)
+				if (key !== publishedMarkValue.current) {
+					publishedMarkValue.current = key
+					markHover.enter(raw)
+				}
+			}
+		}
+	const clearHover = () => {
+		setHovered(null)
+		publishedMarkValue.current = null
+		markHover.leave()
+	}
 
 	// Tooltip overlay — `HoverTooltip` portals itself to document.body and
 	// positions via viewport coords so it isn't clipped by panel or chart
@@ -505,6 +645,8 @@ export const useGeoMapScaffold = (
 		renderDataLabels,
 		hoverHandler,
 		clearHover,
+		markHighlight,
+		regionHighlight,
 		plotProps: { inner: props.inner, coord, tooltip },
 	}
 }

@@ -187,6 +187,7 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 					outlineWidth={geo.outlineWidth}
 					hoverHandler={geo.hoverHandler}
 					preserveOrder={drawOrder !== null}
+					highlightFor={geo.markHighlight}
 				/>
 				{geo.renderDataLabels(m)}
 			</>,

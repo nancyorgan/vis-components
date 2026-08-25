@@ -139,6 +139,9 @@ export const SankeyPlot = (props: SankeyPlotProps = {}) => {
 			const y0 = node.y0 ?? 0
 			const width = (node.x1 ?? 0) - x0
 			const height = (node.y1 ?? 0) - y0
+			// Legend-hover highlight: this node's own emphasis / fade (its links
+			// follow via `edgeStyleFor`'s opacity).
+			const mh = scaffold.nodeHighlight(name)
 			nodeRects.push(
 				<rect
 					key={`node-${name}`}
@@ -148,10 +151,12 @@ export const SankeyPlot = (props: SankeyPlotProps = {}) => {
 					height={height}
 					data-kind="sankey-node"
 					data-node={name}
-					fill={scaffold.nodeFillFor(name)}
-					fillOpacity={scaffold.nodeOpacity}
-					stroke={outlineColor}
-					strokeWidth={outlineWidth}
+					fill={mh.fill ?? scaffold.nodeFillFor(name)}
+					fillOpacity={scaffold.nodeOpacity * mh.opacityMul}
+					stroke={mh.outline ?? outlineColor}
+					strokeWidth={
+						mh.outline ? Math.max(outlineWidth, mh.outlineWidth) : outlineWidth
+					}
 					onMouseEnter={scaffold.hoverNode(name, node.value ?? 0)}
 				/>
 			)

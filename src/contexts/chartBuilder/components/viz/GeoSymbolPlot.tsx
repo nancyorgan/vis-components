@@ -142,6 +142,12 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 				fillFor={regionStyle.fillFor}
 				fillOpacityFor={regionStyle.fillOpacityFor}
 				strokeFor={regionStyle.strokeFor}
+				// The region layer here IS a choropleth (measure-driven), so it
+				// follows the legend hover like the choropleth renderer's own
+				// paths; no-data regions fade and never light up.
+				highlightFor={(feature) =>
+					geo.regionHighlight(feature, () => regionStyle.noDataFor(feature))
+				}
 			/>
 		) : null
 
@@ -216,6 +222,7 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 					outlineWidth={geo.outlineWidth}
 					hoverHandler={geo.hoverHandler}
 					preserveOrder={drawOrder !== null}
+					highlightFor={geo.markHighlight}
 				/>
 				{geo.renderDataLabels(m)}
 			</>,

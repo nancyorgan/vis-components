@@ -2,6 +2,10 @@ import type { Feature } from "geojson"
 
 import type { GeoScales } from "../../lib/coords/types"
 import { featureId } from "../../lib/geo/loadGeometry"
+import {
+	NEUTRAL_HIGHLIGHT,
+	type MarkHighlight,
+} from "../../store/useLegendHighlight"
 
 type GeoBasemapProps = {
 	/** The geography's features (one per region). */
@@ -26,6 +30,11 @@ type GeoBasemapProps = {
 	/** Optional per-feature fill-opacity override (e.g. an opacity-only measure
 	 *  choropleth). Omit → no `fillOpacity` attribute (full opacity). */
 	fillOpacityFor?: (feature: Feature) => number | undefined
+	/** Optional legend-hover highlight per feature (see `regionHighlight` on the
+	 *  geo scaffold). Supplied only when the backdrop is DATA-DRIVEN — the bubble
+	 *  map's region choropleth — so the plain geography backdrops (the dot map's
+	 *  basemap, the world-countries backdrop) keep rendering untouched. */
+	highlightFor?: (feature: Feature) => MarkHighlight
 }
 
 /**
@@ -54,19 +63,26 @@ export const GeoBasemap = ({
 	fillFor,
 	strokeFor,
 	fillOpacityFor,
+	highlightFor,
 }: GeoBasemapProps) => (
 	<>
 		{features.map((feature: Feature) => {
 			const d = path(feature)
 			if (d === null) return null
+			// Legend-hover highlight (data-driven backdrops only). Neutral leaves
+			// every attribute exactly as it was without a hover.
+			const mh = highlightFor ? highlightFor(feature) : NEUTRAL_HIGHLIGHT
 			return (
 				<path
 					key={`base-${featureId(feature)}`}
 					d={d}
-					fill={fillFor ? fillFor(feature) : fill}
+					fill={mh.fill ?? (fillFor ? fillFor(feature) : fill)}
 					fillOpacity={fillOpacityFor ? fillOpacityFor(feature) : undefined}
-					stroke={strokeFor ? strokeFor(feature) : stroke}
-					strokeWidth={strokeWidth}
+					stroke={mh.outline ?? (strokeFor ? strokeFor(feature) : stroke)}
+					strokeWidth={
+						mh.outline ? Math.max(strokeWidth, mh.outlineWidth) : strokeWidth
+					}
+					opacity={mh.opacityMul === 1 ? undefined : mh.opacityMul}
 				/>
 			)
 		})}

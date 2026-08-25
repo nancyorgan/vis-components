@@ -119,14 +119,27 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 						// hovering empty space.
 						const onHover =
 							row === undefined ? undefined : geo.hoverHandler(row)
+						// Legend-hover highlight: fade / recolor / outline this region
+						// under the hovered legend entry. A region drawn in the no-data
+						// paint never matches — it fades with the rest. Presentation
+						// only: `d` and the projection are untouched, so the coord's
+						// per-feature path cache survives a hover.
+						const mh = geo.regionHighlight(feature, () =>
+							regionStyle.noDataFor(feature)
+						)
 						return (
 							<path
 								key={id}
 								d={d}
-								fill={regionStyle.fillFor(feature)}
+								fill={mh.fill ?? regionStyle.fillFor(feature)}
 								fillOpacity={regionStyle.fillOpacityFor(feature)}
-								stroke={regionStyle.strokeFor(feature)}
-								strokeWidth={geo.outlineWidth}
+								stroke={mh.outline ?? regionStyle.strokeFor(feature)}
+								strokeWidth={
+									mh.outline
+										? Math.max(geo.outlineWidth, mh.outlineWidth)
+										: geo.outlineWidth
+								}
+								opacity={mh.opacityMul === 1 ? undefined : mh.opacityMul}
 								onMouseEnter={onHover}
 								onMouseMove={onHover}
 							/>
