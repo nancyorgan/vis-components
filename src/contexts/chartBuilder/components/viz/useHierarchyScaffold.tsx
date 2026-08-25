@@ -580,31 +580,40 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			// channel default. No automatic container translucency — how
 			// nested levels distinguish themselves (depth-driven opacity,
 			// brightness, saturation, or none) is the user's call.
+			// Mapped-but-unresolvable values fall back to the channel's default
+			// level, matching `resolveMarkAesthetics` / `resolveGroupFill` (the
+			// same convention hue follows with `defaultFill`).
 			const sat = aestheticScales.saturation
 			const satUnit =
-				satSource && satDerivedScale
+				(satSource && satDerivedScale
 					? satDerivedScale(derivedValueOf(satSource, node))
 					: sat && row
 						? sat.scale(row[sat.field.name])
-						: (channelConfigs.defaultSaturation ?? null)
+						: null) ??
+				channelConfigs.defaultSaturation ??
+				null
 			const bri = aestheticScales.brightness
 			const briUnit =
-				briSource && briDerivedScale
+				(briSource && briDerivedScale
 					? briDerivedScale(derivedValueOf(briSource, node))
 					: bri && row
 						? bri.scale(row[bri.field.name])
-						: (channelConfigs.defaultBrightness ?? null)
+						: null) ??
+				channelConfigs.defaultBrightness ??
+				null
 			if (satUnit !== null || briUnit !== null) {
 				fill = modulateColor(fill, satUnit, briUnit)
 			}
 
 			const opa = aestheticScales.opacity
 			const baseOpacity =
-				opaSource && opaDerivedScale
-					? (opaDerivedScale(derivedValueOf(opaSource, node)) ?? 1)
+				(opaSource && opaDerivedScale
+					? opaDerivedScale(derivedValueOf(opaSource, node))
 					: opa && row
-						? (opa.scale(row[opa.field.name]) ?? 1)
-						: (channelConfigs.defaultOpacity ?? DEFAULT_OPACITY)
+						? opa.scale(row[opa.field.name])
+						: null) ??
+				channelConfigs.defaultOpacity ??
+				DEFAULT_OPACITY
 			// Legend-hover highlight: recolor / fade a leaf per the hovered
 			// legend entry. Containers (no row) resolve to the neutral result, so
 			// they never change. (Outline isn't applied here — hierarchy cells

@@ -22,8 +22,9 @@ export type MarkAesthetics = {
 	opacity: number
 	/** Resolved point radius in pixels (area-encoded or the default). */
 	radius: number
-	/** Sat/bri unit values applied to `fill` (scale value when mapped, else
-	 *  the channel's default), `null` when no modulation applied. The
+	/** Sat/bri unit values applied to `fill` (scale value when mapped and
+	 *  resolvable, else the channel's default), `null` when no modulation
+	 *  applied. The
 	 *  pattern-defs pass uses these to modulate the NO-HUE pattern
 	 *  background the same way the fill is modulated (see
 	 *  `modulatedPatternBg` in lib/resolveLayerColor). */
@@ -55,19 +56,27 @@ export const resolveMarkAesthetics = (
 	}
 	const preModulationHue = fill
 
-	const satUnit = sat
-		? sat.scale(row[sat.field.name])
-		: (channelConfigs.defaultSaturation ?? null)
-	const briUnit = bri
-		? bri.scale(row[bri.field.name])
-		: (channelConfigs.defaultBrightness ?? null)
+	// Mapped-but-unresolvable rows (blank/NA cell, value outside the scale's
+	// domain) fall back to the channel's DEFAULT level, exactly like an
+	// unmapped channel — the same convention hue follows with `defaultFill`.
+	// Shared with the GroupValues sibling (`resolveGroupFill` /
+	// `resolveLayerColor`), so row- and group-based renderers can't drift.
+	const satUnit =
+		(sat ? sat.scale(row[sat.field.name]) : null) ??
+		channelConfigs.defaultSaturation ??
+		null
+	const briUnit =
+		(bri ? bri.scale(row[bri.field.name]) : null) ??
+		channelConfigs.defaultBrightness ??
+		null
 	if (satUnit !== null || briUnit !== null) {
 		fill = modulateColor(fill, satUnit, briUnit)
 	}
 
-	const opacity = opacityAes
-		? (opacityAes.scale(row[opacityAes.field.name]) ?? 1)
-		: (channelConfigs.defaultOpacity ?? DEFAULT_OPACITY)
+	const opacity =
+		(opacityAes ? opacityAes.scale(row[opacityAes.field.name]) : null) ??
+		channelConfigs.defaultOpacity ??
+		DEFAULT_OPACITY
 
 	let radius = channelConfigs.defaultRadius ?? DEFAULT_RADIUS
 	if (area) {

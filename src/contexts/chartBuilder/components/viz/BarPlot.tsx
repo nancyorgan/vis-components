@@ -10,6 +10,7 @@ import {
 import {
 	buildPatternDefs,
 	stacksToGroupValues,
+	type PatternDefOptions,
 } from "../../lib/buildPatternDefs"
 import {
 	AUTO_BAR_GAP_FRACTION,
@@ -432,7 +433,10 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 
 	// Pattern defs depend only on aesthetic categories + slice group values +
 	// channelConfigs — not on the measured rect. Pre-compute so they can be
-	// registered in `<defs>` before marks render.
+	// registered in `<defs>` before marks render. The options MUST match the
+	// ones `buildRects` hands `resolveLayerColor` below (same default-pattern
+	// opt-in + line-context default-to-none as ScatterPlot).
+	const connectionMapped = !!encodings.connection?.field
 	const patternDefs = useMemo<PatternDefSpec[]>(() => {
 		if (!aggregation || aggregation.kind === "error") return []
 		return buildPatternDefs(
@@ -440,9 +444,10 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			aestheticScales,
 			channelConfigs,
 			channelConfigs.defaultFill ?? FALLBACK_FILL,
-			channelConfigs.pattern?.backgroundColor ?? "#e2e8f0"
+			channelConfigs.pattern?.backgroundColor ?? "#e2e8f0",
+			{ defaultToNone: connectionMapped, includeDefaultPattern: true }
 		)
-	}, [aggregation, aestheticScales, channelConfigs])
+	}, [aggregation, aestheticScales, channelConfigs, connectionMapped])
 
 	const tickFont = resolveTextFont(labels.baseFont)
 	const xAxisTitleFont = resolveTitleFont(
@@ -696,6 +701,10 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 					measureHueScale,
 					measureOpacityScale,
 					highlight: legendHighlight,
+					patternOptions: {
+						defaultToNone: connectionMapped,
+						includeDefaultPattern: true,
+					},
 				})}
 				{rugHistogram?.showRug &&
 					buildRug({
@@ -829,6 +838,10 @@ type BuildRectsArgs = {
 	/** Legend-hover highlight state; slices whose group value doesn't match
 	 * the hovered legend entry are dimmed. `null` = nothing hovered. */
 	highlight: LegendHighlight | null
+	/** Pattern-channel context flags (default-pattern opt-in + line-context
+	 * default-to-none). MUST match the options the component's pattern-defs
+	 * memo passes to `buildPatternDefs`. */
+	patternOptions?: PatternDefOptions
 }
 
 /** Default total length (px) of a rug tick, centered on the axis baseline.
@@ -1102,6 +1115,7 @@ const buildRects = ({
 	measureHueScale,
 	measureOpacityScale,
 	highlight,
+	patternOptions,
 }: BuildRectsArgs): React.ReactNode[] => {
 	// Legend-hover highlight: recolor / outline the matched slice and fade the
 	// rest. Maps the hovered field back to whichever group channel carries it
@@ -1169,12 +1183,14 @@ const buildRects = ({
 				patternBgFallback,
 				aestheticScales,
 				channelConfigs,
+				patternOptions,
 			})
 			// Vary-by-measure (histogram Count/Density) overrides the normal
 			// fill / opacity for this bin, mapping its measure (`slice.value`,
 			// already density-rescaled in density mode) through the scale built
-			// over `[0, measureMax]`. Falls back to the resolved layer value when
-			// the scale can't place the value.
+			// over the global `[0, measureColorMax]` domain the legend shares.
+			// Falls back to the resolved layer value when the scale can't
+			// place the value.
 			const measureFill = measureHueScale
 				? applyHueScale(measureHueScale, slice.value, "quantitative")
 				: null

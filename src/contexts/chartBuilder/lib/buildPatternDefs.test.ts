@@ -263,9 +263,51 @@ describe("buildPatternDefsFromItems / resolvePatternDefForItem", () => {
 		})
 		expect(defs).toHaveLength(1)
 		expect(defs[0]?.paletteIdx).toBe(3)
-		// Without the opt-in (bars/areas/pies), no default-pattern defs.
+		// Without the opt-in (geo / structure renderers, which keep their own
+		// pattern semantics), no default-pattern defs.
 		expect(
 			buildPatternDefsFromItems([item], emptyScales, configs, "#fff")
+		).toEqual([])
+	})
+
+	it("GroupValues wrapper emits default-pattern defs when the renderer opts in", () => {
+		// UNIFIED CONVENTION (2026-08): bars/areas/pies pass the same options
+		// ScatterPlot does, so a configured `defaultPattern` (no pattern field
+		// mapped) fills their marks too. The svgId varies with each slice's
+		// hue color, so hue-mapped slices each contribute their own def.
+		const palette = ["#e0f2fe", "#7dd3fc"]
+		const scales: AestheticScales = {
+			...emptyScales,
+			hue: {
+				field: { name: "grp", type: "categorical" },
+				scale: {
+					kind: "categorical",
+					scale: scaleOrdinal<string, string>()
+						.domain(["A", "B"])
+						.range(palette),
+				},
+			},
+		}
+		const configs = { ...EMPTY_CHANNEL_CONFIGS, defaultPattern: 3 }
+		const defs = buildPatternDefs(
+			[{ hue: "A" } as GroupValues, { hue: "B" } as GroupValues],
+			scales,
+			configs,
+			"#000",
+			"#fff",
+			{ includeDefaultPattern: true }
+		)
+		expect(defs).toHaveLength(2)
+		expect(defs.every((d) => d.paletteIdx === 3)).toBe(true)
+		// Without options (geo-style callers), the wrapper stays empty.
+		expect(
+			buildPatternDefs(
+				[{ hue: "A" } as GroupValues],
+				scales,
+				configs,
+				"#000",
+				"#fff"
+			)
 		).toEqual([])
 	})
 })

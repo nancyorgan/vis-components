@@ -9,6 +9,7 @@ import {
 import {
 	buildPatternDefs,
 	stacksToGroupValues,
+	type PatternDefOptions,
 } from "../../lib/buildPatternDefs"
 import { buildLinePath } from "../../lib/linePath"
 import {
@@ -320,6 +321,13 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 		dataLabels?.value?.field,
 	])
 
+	// Pattern-defs options MUST match the ones `buildAreas` hands
+	// `resolveLayerColor` below (same default-pattern opt-in + line-context
+	// default-to-none as ScatterPlot — a line chart converted to areas keeps
+	// its connection field, so its fills stay clean until per-category
+	// patterns are explicitly picked, matching the Pattern panel's compound
+	// form).
+	const connectionMapped = !!encodings.connection?.field
 	const patternDefs = useMemo<PatternDefSpec[]>(() => {
 		if (!aggregation || aggregation.kind === "error") return []
 		return buildPatternDefs(
@@ -327,9 +335,10 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 			aestheticScales,
 			channelConfigs,
 			channelConfigs.defaultFill ?? FALLBACK_FILL,
-			channelConfigs.pattern?.backgroundColor ?? "#e2e8f0"
+			channelConfigs.pattern?.backgroundColor ?? "#e2e8f0",
+			{ defaultToNone: connectionMapped, includeDefaultPattern: true }
 		)
-	}, [aggregation, aestheticScales, channelConfigs])
+	}, [aggregation, aestheticScales, channelConfigs, connectionMapped])
 
 	const tickFont = resolveTextFont(labels.baseFont)
 	const xAxisTitleFont = resolveTitleFont(
@@ -499,6 +508,10 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 					drawOrderLevels: channelConfigs.drawOrder?.field
 						? levelOrders[channelConfigs.drawOrder.field]
 						: undefined,
+					patternOptions: {
+						defaultToNone: connectionMapped,
+						includeDefaultPattern: true,
+					},
 				})}
 				{anyDataLabelsMapped && (
 					<DataLabelsLayer
@@ -659,6 +672,10 @@ type BuildAreasArgs = {
 	/** User-defined category order for the draw-order field (if any), so
 	 * layers rank by legend order rather than alphabetically. */
 	drawOrderLevels: readonly string[] | undefined
+	/** Pattern-channel context flags (default-pattern opt-in + line-context
+	 * default-to-none). MUST match the options the component's pattern-defs
+	 * memo passes to `buildPatternDefs`. */
+	patternOptions?: PatternDefOptions
 }
 
 /** Build one `<path>` per layer (= one per unique slice-tuple). For `stack`
@@ -683,6 +700,7 @@ const buildAreas = ({
 	highlight,
 	dataset,
 	drawOrderLevels,
+	patternOptions,
 }: BuildAreasArgs): React.ReactNode[] => {
 	// Legend-hover highlight: dim a layer whose group value doesn't match the
 	// hovered legend entry, mapping the hovered field back to its group channel.
@@ -965,6 +983,7 @@ const buildAreas = ({
 			patternBgFallback,
 			aestheticScales,
 			channelConfigs,
+			patternOptions,
 		})
 
 		// Compute per-stack tops and the pixel coords for this layer.

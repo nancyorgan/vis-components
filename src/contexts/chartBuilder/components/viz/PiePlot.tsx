@@ -21,6 +21,7 @@ import type { PatternDefSpec } from "../../lib/patternDefs"
 import {
 	buildPatternDefs,
 	stacksToGroupValues,
+	type PatternDefOptions,
 } from "../../lib/buildPatternDefs"
 import {
 	layerFillProp,
@@ -322,7 +323,10 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 
 	// Pattern defs depend only on aesthetic categories + slice group values +
 	// channelConfigs — not on the measured rect. Pre-compute so they can be
-	// registered in `<defs>` before marks render.
+	// registered in `<defs>` before marks render. The options MUST match the
+	// ones `resolveWedgeDeps` hands `resolveLayerColor` (same default-pattern
+	// opt-in + line-context default-to-none as ScatterPlot).
+	const connectionMapped = !!encodings.connection?.field
 	const patternDefs = useMemo<PatternDefSpec[]>(() => {
 		if (!aggregation || aggregation.kind === "error") return []
 		return buildPatternDefs(
@@ -330,9 +334,10 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 			aestheticScales,
 			channelConfigs,
 			channelConfigs.defaultFill ?? FALLBACK_FILL,
-			channelConfigs.pattern?.backgroundColor ?? "#e2e8f0"
+			channelConfigs.pattern?.backgroundColor ?? "#e2e8f0",
+			{ defaultToNone: connectionMapped, includeDefaultPattern: true }
 		)
-	}, [aggregation, aestheticScales, channelConfigs])
+	}, [aggregation, aestheticScales, channelConfigs, connectionMapped])
 
 	const tickFont = resolveTextFont(labels.baseFont)
 	const xAxisTitleFont = resolveTitleFont(
@@ -487,6 +492,10 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 						pieRadius,
 						onSliceHover,
 						highlight: legendHighlight,
+						patternOptions: {
+							defaultToNone: connectionMapped,
+							includeDefaultPattern: true,
+						},
 					})}
 					{anyDataLabelsMapped && (
 						<DataLabelsLayer
@@ -566,6 +575,10 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 					perpCenter,
 					onSliceHover,
 					highlight: legendHighlight,
+					patternOptions: {
+						defaultToNone: connectionMapped,
+						includeDefaultPattern: true,
+					},
 				})}
 				{anyDataLabelsMapped && (
 					<DataLabelsLayer
@@ -622,6 +635,7 @@ type BuildWedgesArgs = {
 	perpCenter: number
 	onSliceHover?: SliceHoverHandler
 	highlight: LegendHighlight | null
+	patternOptions?: PatternDefOptions
 }
 
 /** Callback fired when a wedge is hovered. The event carries viewport
@@ -648,12 +662,14 @@ const buildWedges = ({
 	perpCenter,
 	onSliceHover,
 	highlight,
+	patternOptions,
 }: BuildWedgesArgs): React.ReactNode[] => {
 	const deps = resolveWedgeDeps(
 		aestheticScales,
 		channelConfigs,
 		pieRadius,
-		highlight
+		highlight,
+		patternOptions
 	)
 	const wedges: React.ReactNode[] = []
 	aggregation.stacks.forEach((stack) => {
@@ -675,6 +691,7 @@ type SinglePieArgs = {
 	pieRadius: number
 	onSliceHover?: SliceHoverHandler
 	highlight: LegendHighlight | null
+	patternOptions?: PatternDefOptions
 }
 
 /** Render the wedges for a single centered pie. Used by `pies` mode (no x/y
@@ -689,12 +706,14 @@ const buildSinglePieWedges = ({
 	pieRadius,
 	onSliceHover,
 	highlight,
+	patternOptions,
 }: SinglePieArgs): React.ReactNode[] => {
 	const deps = resolveWedgeDeps(
 		aestheticScales,
 		channelConfigs,
 		pieRadius,
-		highlight
+		highlight,
+		patternOptions
 	)
 	const wedges: React.ReactNode[] = []
 	stacks.forEach((stack) => {
@@ -864,6 +883,10 @@ type WedgeDeps = {
 	/** Legend-hover highlight state; wedges whose group value doesn't match the
 	 * hovered legend entry are dimmed. `null` = nothing hovered. */
 	highlight: LegendHighlight | null
+	/** Pattern-channel context flags (default-pattern opt-in + line-context
+	 * default-to-none). MUST match the options the component's pattern-defs
+	 * memo passes to `buildPatternDefs`. */
+	patternOptions?: PatternDefOptions
 }
 
 /** Angular bounds (radians) for a pie/donut, derived from the Angle
@@ -892,9 +915,11 @@ const resolveWedgeDeps = (
 	aestheticScales: AestheticScales,
 	channelConfigs: ChannelConfigs,
 	pieRadius: number,
-	highlight: LegendHighlight | null
+	highlight: LegendHighlight | null,
+	patternOptions?: PatternDefOptions
 ): WedgeDeps => ({
 	highlight,
+	patternOptions,
 	outlineColor:
 		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
 	outlineWidth: channelConfigs.shape?.outlineWidth ?? 1,
@@ -948,6 +973,7 @@ const renderWedgesForStack = (
 			patternBgFallback: deps.patternBgFallback,
 			aestheticScales: deps.aestheticScales,
 			channelConfigs: deps.channelConfigs,
+			patternOptions: deps.patternOptions,
 		})
 		const baseFillProp = layerFillProp(resolved)
 		// Legend-hover highlight: recolor / outline the matched wedge, fade rest.

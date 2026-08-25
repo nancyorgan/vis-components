@@ -133,6 +133,50 @@ describe("resolveLayerColor", () => {
 		expect(r.opacity).toBe(0.3)
 	})
 
+	it("falls back to defaultOpacity when the mapped opacity scale can't resolve", () => {
+		// UNIFIED CONVENTION (2026-08): mapped-but-unresolvable values fall
+		// back to the channel's DEFAULT level — the same rule hue follows with
+		// `defaultFill`, shared with the per-row `resolveMarkAesthetics` so
+		// row- and group-based renderers can't drift apart again.
+		const scales: AestheticScales = {
+			...emptyScales,
+			opacity: {
+				field: { name: "op", type: "quantitative" },
+				scale: () => null,
+			},
+		}
+		const r = resolveLayerColor({
+			groupValues: { opacity: "junk" },
+			defaultFill: "#fff",
+			patternBgFallback: "#fff",
+			aestheticScales: scales,
+			channelConfigs: { ...EMPTY_CHANNEL_CONFIGS, defaultOpacity: 0.3 },
+		})
+		expect(r.opacity).toBe(0.3)
+	})
+
+	it("falls back to defaultSaturation when the mapped saturation scale can't resolve", () => {
+		// Same unified convention for sat/bri: unresolvable-mapped degrades to
+		// the channel default (modulation still applies) rather than silently
+		// skipping modulation for one slice.
+		const scales: AestheticScales = {
+			...emptyScales,
+			saturation: {
+				field: { name: "sat", type: "quantitative" },
+				scale: () => null,
+			},
+		}
+		const r = resolveLayerColor({
+			groupValues: { saturation: "junk" },
+			defaultFill: "#6699cc",
+			patternBgFallback: "#fff",
+			aestheticScales: scales,
+			channelConfigs: { ...EMPTY_CHANNEL_CONFIGS, defaultSaturation: 0.9 },
+		})
+		// Modulation at the default level happened (fill left the base color).
+		expect(r.fill).not.toBe("#6699cc")
+	})
+
 	it("returns patternId=null when pattern channel isn't mapped", () => {
 		const r = resolveLayerColor({
 			groupValues: { pattern: "X" },
@@ -142,6 +186,58 @@ describe("resolveLayerColor", () => {
 			channelConfigs: EMPTY_CHANNEL_CONFIGS,
 		})
 		expect(r.patternId).toBeNull()
+	})
+
+	it("honors defaultPattern when the renderer opts in via patternOptions", () => {
+		// UNIFIED CONVENTION (2026-08): the configured default pattern (no
+		// pattern field mapped) applies to every mark-fill renderer — bars,
+		// areas, pies AND scatter — via the same `includeDefaultPattern`
+		// opt-in ScatterPlot already used. Without the opt-in (geo/structure
+		// renderers keep their own pattern semantics) nothing changes.
+		const configs = { ...EMPTY_CHANNEL_CONFIGS, defaultPattern: 3 }
+		const withOptIn = resolveLayerColor({
+			groupValues: {},
+			defaultFill: "#fff",
+			patternBgFallback: "#fff",
+			aestheticScales: emptyScales,
+			channelConfigs: configs,
+			patternOptions: { includeDefaultPattern: true },
+		})
+		expect(withOptIn.patternId).toContain("vc-pat-3")
+		const withoutOptIn = resolveLayerColor({
+			groupValues: {},
+			defaultFill: "#fff",
+			patternBgFallback: "#fff",
+			aestheticScales: emptyScales,
+			channelConfigs: configs,
+		})
+		expect(withoutOptIn.patternId).toBeNull()
+	})
+
+	it("defaultToNone suppresses auto-cycled field-mapped patterns (line-chart context)", () => {
+		const scales: AestheticScales = {
+			...emptyScales,
+			pattern: {
+				field: { name: "p", type: "categorical" },
+				categories: ["A", "B"],
+			},
+		}
+		const base = {
+			groupValues: { pattern: "A" },
+			defaultFill: "#fff",
+			patternBgFallback: "#fff",
+			aestheticScales: scales,
+			channelConfigs: EMPTY_CHANNEL_CONFIGS,
+		}
+		// Without the flag the palette auto-cycles by category position…
+		expect(resolveLayerColor(base).patternId).not.toBeNull()
+		// …with it, no per-category override means no pattern.
+		expect(
+			resolveLayerColor({
+				...base,
+				patternOptions: { defaultToNone: true },
+			}).patternId
+		).toBeNull()
 	})
 
 	it("keeps the palette-paired pattern ink when sat/bri modulation rewrites the fill", () => {

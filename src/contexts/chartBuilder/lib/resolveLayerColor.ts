@@ -1,13 +1,16 @@
 import type { AestheticScales } from "../store/useAestheticScales"
 
-import type {
-	ChannelConfigs,
-	ColorSlotConfig,
-	ColorSlotKey,
-	OpacitySlotConfig,
-	OpacitySlotKey,
-} from "./channelConfig"
 import {
+	DEFAULT_PATTERN_CONFIG,
+	type ChannelConfigs,
+	type ColorSlotConfig,
+	type ColorSlotKey,
+	type OpacitySlotConfig,
+	type OpacitySlotKey,
+} from "./channelConfig"
+import type { PatternDefSpec } from "./patternDefs"
+import {
+	DEFAULT_PATTERN_INK,
 	inkForHueColor,
 	inkPaletteForHue,
 	resolvePatternForMark,
@@ -52,6 +55,11 @@ export type ResolveLayerColorArgs = {
 	patternBgFallback: string
 	aestheticScales: AestheticScales
 	channelConfigs: ChannelConfigs
+	/** Pattern-channel context flags (default pattern opt-in, line-chart
+	 *  default-to-none). MUST match the options the renderer passes to its
+	 *  defs pass (`buildPatternDefs`) or marks reference defs that were
+	 *  never emitted. */
+	patternOptions?: PatternDefOptions
 }
 
 /** The hue → sat/bri slice of the pipeline for one set of `GroupValues`:
@@ -74,8 +82,9 @@ export const resolveGroupFill = (
 ): {
 	fill: string
 	preModulationHue: string
-	/** Sat/bri unit values applied to `fill` (scale value when mapped, else
-	 *  the channel's default), `null` when no modulation applied. Exposed so
+	/** Sat/bri unit values applied to `fill` (scale value when mapped and
+	 *  resolvable, else the channel's default), `null` when no modulation
+	 *  applied. Exposed so
 	 *  the pattern-defs pass can modulate the NO-HUE pattern background the
 	 *  same way the fill is modulated — otherwise sat/bri encodings vanish
 	 *  on patterned marks the moment hue is unmapped. */
@@ -96,14 +105,25 @@ export const resolveGroupFill = (
 	}
 	const preModulationHue = color
 
+	// Sat/bri fallback convention (shared with the per-row sibling,
+	// `resolveMarkAesthetics`): a mapped channel whose value can't resolve —
+	// missing slice key, blank/NA cell, value outside the scale's domain —
+	// falls back to the channel's DEFAULT level, exactly like an unmapped
+	// channel. Mirrors how hue degrades to `defaultFill` (and opacity to
+	// `defaultOpacity`): a scale with no answer never silently disables the
+	// channel for one slice while its siblings stay modulated.
 	const satUnit =
-		satScale && satG && groupValues.saturation !== undefined
+		(satScale && satG && groupValues.saturation !== undefined
 			? satScale(groupValues.saturation as never)
-			: (channelConfigs.defaultSaturation ?? null)
+			: null) ??
+		channelConfigs.defaultSaturation ??
+		null
 	const briUnit =
-		briScale && briG && groupValues.brightness !== undefined
+		(briScale && briG && groupValues.brightness !== undefined
 			? briScale(groupValues.brightness as never)
-			: (channelConfigs.defaultBrightness ?? null)
+			: null) ??
+		channelConfigs.defaultBrightness ??
+		null
 	if (satUnit !== null || briUnit !== null) {
 		color = modulateColor(color, satUnit, briUnit)
 	}
@@ -126,6 +146,111 @@ export const modulatedPatternBg = (
 		? modulateColor(patternBgFallback, satUnit, briUnit)
 		: patternBgFallback
 
+/** One mark's inputs to the pattern-def resolution, with the fill colors
+ *  already resolved. Renderers with per-row pipelines (ScatterPlot) build
+ *  these from `resolveMarkAesthetics`; GroupValues-based renderers go
+ *  through the `buildPatternDefs` wrapper (lib/buildPatternDefs), which
+ *  resolves the colors via `resolveGroupFill`. Either way the SAME
+ *  resolution the marks use feeds the defs pass, so svgIds always agree. */
+export type PatternDefItem = {
+	/** Raw pattern-channel value for the mark (undefined / null / "" mean
+	 *  "no pattern category on this mark"). */
+	patternValue: unknown
+	/** The mark's drawn fill AFTER sat/bri modulation — the pattern's
+	 *  background tile color (when hue is mapped). */
+	fill: string
+	/** Hue color BEFORE sat/bri modulation. INVARIANT: pattern-ink lookups
+	 *  match against the theme palette's exact swatch hexes, so they must
+	 *  key on this un-modulated color — modulation rewrites the fill hex
+	 *  out of the palette (and per-value hue overrides likewise miss the
+	 *  palette, falling back to the default ink). */
+	preModulationHue: string
+	/** Sat/bri unit values applied to `fill` (from `resolveMarkAesthetics` /
+	 *  `resolveGroupFill`). When hue is UNMAPPED they modulate the pattern's
+	 *  background tile the same way the fill is modulated, so sat/bri
+	 *  encodings stay visible on patterned marks. Omitted / null = no
+	 *  modulation. */
+	satUnit?: number | null
+	briUnit?: number | null
+}
+
+export type PatternDefOptions = {
+	/** Line-chart context (a connection field is mapped): treat the ABSENCE
+	 *  of a per-category override as "no pattern" instead of auto-cycling
+	 *  the palette — marks stay clean by default; users opt in per
+	 *  category via the Point-fill swatches. */
+	defaultToNone?: boolean
+	/** When no pattern FIELD is mapped but `channelConfigs.defaultPattern`
+	 *  is set, emit the single `__default__` def each mark references. All
+	 *  cartesian mark-fill renderers (scatter points, bars, areas, pies)
+	 *  opt in; geo and the structure renderers (hierarchy, flows) keep
+	 *  their own separately-designed pattern semantics and don't. */
+	includeDefaultPattern?: boolean
+}
+
+/** Resolve the pattern `<defs>` spec (or null) for a single mark. Shared by
+ *  the upfront defs passes (`buildPatternDefsFromItems` / `buildPatternDefs`
+ *  in lib/buildPatternDefs), ScatterPlot's per-mark render loop, and the
+ *  GroupValues renderers' `resolveLayerColor` below — one resolver for all
+ *  of them guarantees marks never reference defs that were never emitted. */
+export const resolvePatternDefForItem = (
+	item: PatternDefItem,
+	aestheticScales: AestheticScales,
+	channelConfigs: ChannelConfigs,
+	patternBgFallback: string,
+	options?: PatternDefOptions
+): PatternDefSpec | null => {
+	const patG = aestheticScales.pattern?.field ?? null
+	const patternCategories = aestheticScales.pattern?.categories ?? null
+	const hueG = aestheticScales.hue?.field ?? null
+
+	if (patternCategories && patG) {
+		const raw = item.patternValue
+		if (raw === undefined || raw === null || String(raw) === "") return null
+		const catStr = String(raw)
+		const catIdx = patternCategories.indexOf(catStr)
+		if (catIdx === -1) return null
+		const bgColor = hueG
+			? item.fill
+			: modulatedPatternBg(
+					patternBgFallback,
+					item.satUnit ?? null,
+					item.briUnit ?? null
+				)
+		const huePalette = inkPaletteForHue(channelConfigs, hueG?.type)
+		// Ink lookup keys on the PRE-modulation hue color (see
+		// `PatternDefItem.preModulationHue`).
+		const preferredInk = inkForHueColor(
+			hueG ? item.preModulationHue : patternBgFallback,
+			huePalette.palette,
+			huePalette.inks
+		)
+		return resolvePatternForMark(
+			catStr,
+			catIdx,
+			bgColor,
+			channelConfigs.pattern,
+			preferredInk,
+			options?.defaultToNone
+		)
+	}
+
+	if (options?.includeDefaultPattern && channelConfigs.defaultPattern != null) {
+		// Background swatch applies only when hue isn't driving the fill;
+		// with hue mapped the pattern sits on the mark's hue color (matches
+		// the field-mapped path above).
+		const bgColor = hueG ? item.fill : patternBgFallback
+		const inkColor = channelConfigs.defaultPatternInk ?? DEFAULT_PATTERN_INK
+		return resolvePatternForMark("__default__", 0, bgColor, {
+			...DEFAULT_PATTERN_CONFIG,
+			overrides: { __default__: channelConfigs.defaultPattern },
+			inkColors: { __default__: inkColor },
+		})
+	}
+
+	return null
+}
+
 /** Single source of truth for "what color does this slice/layer/row draw
  *  with?" Every aggregating chart renderer (BarPlot, AreaPlot, PiePlot,
  *  ScatterPlot's marks) used to inline this pipeline; small drifts
@@ -138,28 +263,30 @@ export const modulatedPatternBg = (
  *       otherwise use `defaultFill`.
  *    2. **Saturation / brightness** — modulate the color via HSL,
  *       sourcing the unit value from the per-row scale when the channel
- *       is mapped or from `channelConfigs.defaultSaturation` /
- *       `defaultBrightness` when it's not.
+ *       is mapped and the value resolves, or from
+ *       `channelConfigs.defaultSaturation` / `defaultBrightness`
+ *       otherwise (unmapped OR mapped-but-unresolvable).
  *    3. **Pattern** — if a pattern channel is mapped AND the row's
  *       pattern value is one of the discovered categories, resolve a
- *       `<pattern>` element id. The pattern's ink color is derived
- *       from the (modulated) fill or the `patternBgFallback`.
- *    4. **Opacity** — same precedence as sat/bri: scale value if
- *       mapped, default otherwise. */
+ *       `<pattern>` element id (honoring `patternOptions.defaultToNone`);
+ *       with no pattern field but `defaultPattern` configured (and the
+ *       renderer opted in via `patternOptions.includeDefaultPattern`),
+ *       resolve the shared `__default__` def instead. The pattern's ink
+ *       color is derived from the (modulated) fill or `patternBgFallback`.
+ *    4. **Opacity** — same precedence as sat/bri: scale value if mapped
+ *       and resolvable, the channel's `defaultOpacity` otherwise. */
 export const resolveLayerColor = ({
 	groupValues,
 	defaultFill,
 	patternBgFallback,
 	aestheticScales,
 	channelConfigs,
+	patternOptions,
 }: ResolveLayerColorArgs): LayerResolved => {
-	const hueG = aestheticScales.hue?.field ?? null
 	const outlineG = aestheticScales.outlineHue?.field ?? null
 	const outlineScale = aestheticScales.outlineHue?.scale ?? null
-	const patG = aestheticScales.pattern?.field ?? null
 	const opG = aestheticScales.opacity?.field ?? null
 	const opacityScale = aestheticScales.opacity?.scale ?? null
-	const patternCategories = aestheticScales.pattern?.categories ?? null
 
 	// Hue → sat/bri modulation, with the pre-modulation hue color captured
 	// for the pattern-ink lookup below (see `resolveGroupFill`'s invariant).
@@ -170,35 +297,33 @@ export const resolveLayerColor = ({
 		briUnit,
 	} = resolveGroupFill(groupValues, defaultFill, aestheticScales, channelConfigs)
 
-	let patternId: string | null = null
-	if (patternCategories && patG && groupValues.pattern !== undefined) {
-		const catStr = String(groupValues.pattern)
-		const catIdx = patternCategories.indexOf(catStr)
-		if (catIdx !== -1) {
-			const bgColor = hueG
-				? color
-				: modulatedPatternBg(patternBgFallback, satUnit, briUnit)
-			const huePalette = inkPaletteForHue(channelConfigs, hueG?.type)
-			const preferredInk = inkForHueColor(
-				hueG ? paletteHueColor : patternBgFallback,
-				huePalette.palette,
-				huePalette.inks
-			)
-			const resolved = resolvePatternForMark(
-				catStr,
-				catIdx,
-				bgColor,
-				channelConfigs.pattern,
-				preferredInk
-			)
-			if (resolved !== null) patternId = resolved.svgId
-		}
-	}
+	// Same per-item resolver the upfront defs passes use, so a mark's svgId
+	// always references an emitted def (pattern ink keyed on the
+	// PRE-modulation hue color — see `PatternDefItem.preModulationHue`).
+	const patternDef = resolvePatternDefForItem(
+		{
+			patternValue: groupValues.pattern,
+			fill: color,
+			preModulationHue: paletteHueColor,
+			satUnit,
+			briUnit,
+		},
+		aestheticScales,
+		channelConfigs,
+		patternBgFallback,
+		patternOptions
+	)
+	const patternId = patternDef?.svgId ?? null
 
+	// Mapped-but-unresolvable rows fall back to the channel's default level
+	// — the same convention hue (defaultFill) and sat/bri (defaultSaturation
+	// / defaultBrightness) follow, shared with `resolveMarkAesthetics`.
 	const opacity =
-		opacityScale && opG && groupValues.opacity !== undefined
-			? (opacityScale(groupValues.opacity as never) ?? 1)
-			: (channelConfigs.defaultOpacity ?? 1)
+		(opacityScale && opG && groupValues.opacity !== undefined
+			? opacityScale(groupValues.opacity as never)
+			: null) ??
+		channelConfigs.defaultOpacity ??
+		1
 
 	let outline: string | null = null
 	if (outlineScale && outlineG && groupValues.outlineHue !== undefined) {
