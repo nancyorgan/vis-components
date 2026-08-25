@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import type { ChannelConfigs } from "./channelConfig"
+import {
+	DEFAULT_AXIS_CONFIG,
+	DEFAULT_HISTOGRAM_CONFIG,
+	type ChannelConfigs,
+} from "./channelConfig"
 import type { GeoFieldDetection } from "./geo/detectGeoFields"
 import { DEFAULT_MAP_CONFIG } from "./mapConfig"
 import {
@@ -783,6 +787,76 @@ describe("dumbbell variations (QUICK_START_VARIATIONS.dumbbell)", () => {
 		const { encodings } = applyVariation(vertical, assignments!, {})
 		expect(encodings.x.field).toBe("category")
 		expect(encodings.connection.field).toBe("category")
+	})
+})
+
+describe("density variations (QUICK_START_VARIATIONS.density)", () => {
+	const curve = QUICK_START_VARIATIONS.density[0]!
+	const filled = QUICK_START_VARIATIONS.density[1]!
+	const fields = [
+		field("score", "quantitative"),
+		field("region", "categorical"),
+	]
+
+	it("scaffolds a lone quantitative x with the standalone density curve on", () => {
+		const assignments = assignFields(curve, fields, {}, undefined, "density")
+		expect(assignments).not.toBeNull()
+		const { encodings, configs } = applyVariation(curve, assignments!, {})
+		expect(encodings.x.field).toBe("score")
+		// The density axis is implied — nothing may land on y (or anywhere
+		// else): a second position field would kill the single-variable
+		// distribution render path, and hue/aesthetics have nothing to color.
+		expect(encodings.y.field).toBeNull()
+		expect(encodings.hue.field).toBeNull()
+		expect(configs.x?.distributionOverlay?.showDensityCurve).toBe(true)
+		expect(configs.x?.distributionOverlay?.showDensityViolin).toBe(false)
+		expect(configs.x?.distributionOverlay?.showBoxPlot).toBe(false)
+		// Line-only variation: fill under the curve stays off.
+		expect(configs.x?.histogram?.densityFill).toBe(false)
+	})
+
+	it("filled variation turns on the under-curve fill (histogram.densityFill)", () => {
+		const assignments = assignFields(filled, fields, {}, undefined, "density")
+		const { configs } = applyVariation(filled, assignments!, {})
+		expect(configs.x?.distributionOverlay?.showDensityCurve).toBe(true)
+		expect(configs.x?.histogram?.densityFill).toBe(true)
+	})
+
+	it("disables a leftover ENABLED histogram so it can't shadow the curve", () => {
+		const assignments = assignFields(curve, fields, {}, undefined, "density")
+		const current: ChannelConfigs = {
+			x: {
+				...DEFAULT_AXIS_CONFIG,
+				histogram: { ...DEFAULT_HISTOGRAM_CONFIG, enabled: true, binCount: 25 },
+			},
+		}
+		const { configs } = applyVariation(curve, assignments!, current)
+		expect(configs.x?.histogram?.enabled).toBe(false)
+		// Unrelated histogram settings survive (only the exclusivity + fill
+		// knobs are stamped).
+		expect(configs.x?.histogram?.binCount).toBe(25)
+	})
+
+	it("is satisfiable with a single quantitative field and not without one", () => {
+		expect(
+			isVariationSatisfiable(curve, [field("v", "quantitative")], {})
+		).toBe(true)
+		expect(
+			isVariationSatisfiable(curve, [field("c", "categorical")], {})
+		).toBe(false)
+	})
+
+	it("a later non-distribution scaffold clears the leftover density curve", () => {
+		const assignments = assignFields(curve, fields, {}, undefined, "density")
+		const { configs } = applyVariation(curve, assignments!, {})
+		const scatter = QUICK_START_VARIATIONS.scatter[0]!
+		const scatterAssignments = assignFields(scatter, fields, {})
+		const { configs: next } = applyVariation(
+			scatter,
+			scatterAssignments!,
+			configs
+		)
+		expect(next.x?.distributionOverlay?.showDensityCurve).toBe(false)
 	})
 })
 

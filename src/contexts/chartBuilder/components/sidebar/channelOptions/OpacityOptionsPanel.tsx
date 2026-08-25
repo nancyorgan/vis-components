@@ -38,6 +38,7 @@ import {
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
+import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
@@ -55,7 +56,14 @@ export const OpacityOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const mode = useChartModeDef().id as ChartMode
-	const slots = applicableOpacitySlots(mode, encodings, configs)
+	// PURE density curve (standalone "Density" display): the renderer suppresses
+	// the scatter marks, so the overall Fill opacity and the mark Outline
+	// (border) slot have nothing to act on — hidden, mirroring the Color menu.
+	// Histogram + curve keeps them (the bars still render).
+	const pureDensityCurve = usePureDensityCurve()
+	const slots = applicableOpacitySlots(mode, encodings, configs).filter(
+		(d) => !(pureDensityCurve && d.key === "border")
+	)
 	// Area / filled-radar link the fill and outline to the series (one layer =
 	// one value), mirroring the Color menu: the in-panel "Vary by" duplicates
 	// the shelf's Opacity row, and the outline (Border) opacity is per-layer
@@ -80,7 +88,9 @@ export const OpacityOptionsPanel = () => {
 	// Flow diagrams (chord / sankey) draw NOTHING from the overall opacity —
 	// node arcs/rects and ribbons/links each read their own slot (Nodes /
 	// Ribbons below), so a Fill section here would show a level no mark uses.
-	const hideFill = isFlowModeId(mode)
+	// Likewise the pure density curve: its fill opacity is the Density Curve
+	// Fill slot, not the overall mark opacity.
+	const hideFill = isFlowModeId(mode) || pureDensityCurve
 
 	return (
 		<div className="vc-option-panel">

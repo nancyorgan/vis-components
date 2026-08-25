@@ -1,6 +1,7 @@
 import type { ChannelConfigs, OpacitySlotKey } from "./channelConfig"
 import type { ChartMode } from "./chartMode"
 import {
+	densityCurveFillOn,
 	densityCurveOn,
 	histogramOn,
 	overlayOn,
@@ -95,7 +96,8 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 		key: "densityCurveFill",
 		label: "Density Curve Fill",
 		modes: m("scatter", "bars-x", "bars-y"),
-		isApplicable: (_encodings, configs) => densityCurveOn(configs),
+		// Mirrors the color slot's gate: only when "Fill under curve" is on.
+		isApplicable: (_encodings, configs) => densityCurveFillOn(configs),
 		defaultLevel: 0.25,
 		acceptsFieldMapping: false,
 	},

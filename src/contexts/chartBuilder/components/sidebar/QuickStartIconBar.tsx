@@ -154,6 +154,26 @@ const ViolinIcon = ({ className }: IconProps) => (
 	</svg>
 )
 
+const DensityIcon = ({ className }: IconProps) => (
+	<svg viewBox="0 0 16 16" className={className} aria-hidden="true">
+		{/* Smooth bell curve with a translucent fill under it — smooth (unlike
+		 * the jagged Line/Area polylines) and a single lobe rising off a
+		 * baseline (unlike the mirrored Violin lobes). */}
+		<path
+			d="M2 13 C 5.5 13, 5.5 3, 8 3 C 10.5 3, 10.5 13, 14 13 Z"
+			fillOpacity={0.35}
+			stroke="none"
+		/>
+		<path
+			d="M2 13 C 5.5 13, 5.5 3, 8 3 C 10.5 3, 10.5 13, 14 13"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.5}
+			strokeLinecap="round"
+		/>
+	</svg>
+)
+
 const TileIcon = ({ className }: IconProps) => (
 	<svg viewBox="0 0 16 16" className={className} aria-hidden="true">
 		{/* 3x3 heatmap grid with varying fill opacities. */}
@@ -284,6 +304,7 @@ const ICONS: Record<QuickStartChartType, (p: IconProps) => JSX.Element> = {
 	pie: PieIcon,
 	radar: RadarIcon,
 	violin: ViolinIcon,
+	density: DensityIcon,
 	tile: TileIcon,
 	map: MapIcon,
 	circles: CirclesIcon,
@@ -301,6 +322,7 @@ const LABELS: Record<QuickStartChartType, string> = {
 	pie: "Pie chart",
 	radar: "Radar chart",
 	violin: "Violin / box plot",
+	density: "Density curve",
 	tile: "Tile heatmap",
 	map: "Map",
 	circles: "Packed circles",
@@ -321,6 +343,7 @@ const MISSING_TYPE_HINT: Record<QuickStartChartType, string> = {
 	pie: "Needs a categorical field and a quantitative field.",
 	radar: "Needs a categorical field and a quantitative field.",
 	violin: "Needs a categorical field and a quantitative field.",
+	density: "Needs a quantitative field.",
 	tile: "Needs two categorical fields and a quantitative field.",
 	map: "Needs a geographic field (state/country names or codes) or latitude/longitude columns.",
 	circles: "Needs a quantitative field and a categorical grouping field.",

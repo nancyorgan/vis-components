@@ -91,6 +91,67 @@ describe("applicableColorSlots", () => {
 		expect(withOverlay.map((s) => s.key)).toContain("violinFill")
 	})
 
+	it("hides both density curve slots when no curve is shown (plain histogram / plain scatter)", () => {
+		// Histogram bars without the density overlay → no curve slots.
+		const plainHistogram = applicableColorSlots("bars-x", {} as never, {
+			x: { histogram: { enabled: true } } as never,
+		}).map((s) => s.key)
+		expect(plainHistogram).not.toContain("densityCurveFill")
+		expect(plainHistogram).not.toContain("densityCurveStroke")
+		// Plain scatter → no curve slots either.
+		const plainScatter = applicableColorSlots("scatter", {} as never, {}).map(
+			(s) => s.key
+		)
+		expect(plainScatter).not.toContain("densityCurveFill")
+		expect(plainScatter).not.toContain("densityCurveStroke")
+	})
+
+	it("offers only the curve OUTLINE slot when the curve is shown without 'Fill under curve'", () => {
+		// Histogram + density overlay, fill unchecked → outline only.
+		const overlayNoFill = applicableColorSlots("bars-x", {} as never, {
+			x: { histogram: { enabled: true, showDensity: true } } as never,
+		}).map((s) => s.key)
+		expect(overlayNoFill).toContain("densityCurveStroke")
+		expect(overlayNoFill).not.toContain("densityCurveFill")
+		// Standalone density curve, fill unchecked → outline only.
+		const standaloneNoFill = applicableColorSlots("scatter", {} as never, {
+			x: { distributionOverlay: { showDensityCurve: true } } as never,
+		}).map((s) => s.key)
+		expect(standaloneNoFill).toContain("densityCurveStroke")
+		expect(standaloneNoFill).not.toContain("densityCurveFill")
+	})
+
+	it("offers the curve FILL slot only once 'Fill under curve' is checked", () => {
+		// Histogram + density overlay + fill → both curve slots.
+		const overlayFilled = applicableColorSlots("bars-x", {} as never, {
+			x: {
+				histogram: { enabled: true, showDensity: true, densityFill: true },
+			} as never,
+		}).map((s) => s.key)
+		expect(overlayFilled).toContain("densityCurveStroke")
+		expect(overlayFilled).toContain("densityCurveFill")
+		// Standalone curve + fill (the shared `densityFill` flag lives on the
+		// axis's histogram config even for the standalone Density display).
+		const standaloneFilled = applicableColorSlots("scatter", {} as never, {
+			x: {
+				distributionOverlay: { showDensityCurve: true },
+				histogram: { densityFill: true },
+			} as never,
+		}).map((s) => s.key)
+		expect(standaloneFilled).toContain("densityCurveStroke")
+		expect(standaloneFilled).toContain("densityCurveFill")
+	})
+
+	it("does not let a stale densityFill flag surface the fill slot without a curve", () => {
+		// `densityFill` left true from an earlier session, but the curve itself is
+		// off → neither slot.
+		const keys = applicableColorSlots("bars-x", {} as never, {
+			x: { histogram: { enabled: true, densityFill: true } } as never,
+		}).map((s) => s.key)
+		expect(keys).not.toContain("densityCurveFill")
+		expect(keys).not.toContain("densityCurveStroke")
+	})
+
 	it("offers the geo point fill + outline slots in geo-symbols (bubble map) mode", () => {
 		const keys = applicableColorSlots("geo-symbols", {} as never, {}).map(
 			(s) => s.key

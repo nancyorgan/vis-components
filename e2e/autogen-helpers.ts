@@ -14,6 +14,7 @@ export const CHART_TYPES = [
 	"Area chart",
 	"Pie chart",
 	"Violin / box plot",
+	"Density curve",
 	"Tile heatmap",
 ] as const
 

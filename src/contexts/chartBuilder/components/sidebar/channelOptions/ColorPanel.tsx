@@ -23,6 +23,7 @@ import {
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
+import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
 
 import {
 	axisConfigFromTheme,
@@ -62,6 +63,10 @@ export const ColorPanel = () => {
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const mode = useChartModeDef().id as ChartMode
 	const slots = applicableColorSlots(mode, encodings, configs)
+	// PURE density curve (standalone "Density" display, marks suppressed) → the
+	// mark Fill / Outline groups have nothing to style and are hidden; the
+	// Density Curve slots take over. Histogram + curve keeps them (bars render).
+	const pureDensityCurve = usePureDensityCurve()
 	// Area / filled-radar color the OUTLINE per layer by the same hue field as
 	// the fill (linked), via `connection`-based palettes — so they get the
 	// dedicated `AreaRadarOutlinePanel` instead of the independent-field
@@ -69,9 +74,10 @@ export const ColorPanel = () => {
 	const isAreaMode = mode === "areas-x" || mode === "areas-y"
 	const isRadarFilled = mode === "radar" && configs.connection?.fillPolygon === true
 	const useLinkedOutline = isAreaMode || isRadarFilled
-	// Scatter-style independent outline (own field) for every other mode.
+	// Scatter-style independent outline (own field) for every other mode —
+	// except the pure density curve, whose marks (the styling target) are gone.
 	const showIndependentOutline =
-		mode !== "areas-x" && mode !== "areas-y" && mode !== "radar"
+		mode !== "areas-x" && mode !== "areas-y" && mode !== "radar" && !pureDensityCurve
 
 	// Subsection dots — reuse the SAME change data the top-level Color dot uses
 	// (so they can't disagree). The hue registry labels map to the subheaders.
@@ -96,9 +102,11 @@ export const ColorPanel = () => {
 
 	return (
 		<div className="vc-option-panel">
-			<CollapsibleSubsection title="Fill" defaultOpen changed={fillChanged}>
-				<HueOptionsPanel hideVaryBy={useLinkedOutline} />
-			</CollapsibleSubsection>
+			{!pureDensityCurve && (
+				<CollapsibleSubsection title="Fill" defaultOpen changed={fillChanged}>
+					<HueOptionsPanel hideVaryBy={useLinkedOutline} />
+				</CollapsibleSubsection>
+			)}
 			{useLinkedOutline && (
 				<CollapsibleSubsection title="Outline" changed={outlineAreaChanged}>
 					<AreaRadarOutlinePanel />

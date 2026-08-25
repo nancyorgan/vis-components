@@ -107,6 +107,38 @@ describe("single-variable distribution (one quant axis, no other)", () => {
 		expect(withFill).toBeGreaterThan(without)
 	})
 
+	it("the standalone curve's filled area honors the Density Curve Fill opacity slot", () => {
+		installInMemoryLocalStorage()
+		/* eslint-disable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+		const set = (k: string, v: unknown) => localStorage.setItem(k, JSON.stringify(v))
+		set("vis-components:datasets", { [DATASET_ID]: buildDataset() })
+		set("vis-components:currentDatasetId", DATASET_ID)
+		set("vis-components:previewVersionId", null)
+		set("vis-components:currentEncodings", {
+			...emptyEncodings(),
+			x: { field: "score" },
+		})
+		set("vis-components:currentChannelConfigs", {
+			x: {
+				...DEFAULT_AXIS_CONFIG,
+				distributionOverlay: {
+					...DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
+					showDensityCurve: true,
+				},
+				histogram: { ...DEFAULT_AXIS_CONFIG.histogram, densityFill: true },
+			},
+			opacitySlots: { densityCurveFill: { field: null, level: 0.8 } },
+		})
+		set("vis-components:currentLabels", { _v: 1, data: DEFAULT_LABELS_CONFIG })
+		/* eslint-enable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+		const { container } = mount()
+		const area = [...container.querySelectorAll("path")].find(
+			(p) => p.getAttribute("stroke") === "none" && p.getAttribute("fill") !== "none"
+		)
+		expect(area).toBeTruthy()
+		expect(area?.getAttribute("fill-opacity")).toBe("0.8")
+	})
+
 	it("draws the rug as tassels (lines), reusing the shared histogram rug config", () => {
 		// Density + the shared histogram rug toggle → tassel <line>s along the
 		// floor (not scatter circles). This is what makes the rug + its sizes

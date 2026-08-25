@@ -12,6 +12,7 @@ export type QuickStartChartType =
 	| "pie"
 	| "radar"
 	| "violin"
+	| "density"
 	| "tile"
 	| "map"
 	| "circles"
@@ -28,6 +29,7 @@ export const QUICK_START_CHART_TYPES: readonly QuickStartChartType[] = [
 	"pie",
 	"radar",
 	"violin",
+	"density",
 	"tile",
 	"map",
 	"circles",
@@ -65,11 +67,18 @@ export type QuickStartVariation = {
 	 * whether an areas-family render draws a filled area ("area") or a
 	 * polyline on the top edge only ("line"). */
 	connectionFill?: "line" | "area"
-	/** Turn on a violin or box overlay on the named axis. Only meaningful for
-	 * strip-plot variations (categorical x with quant y, or vice versa). The
-	 * overlay sits on the *value* axis — the opposite side from the category
-	 * axis the user named in `channels`. */
-	distributionOverlay?: { axis: "x" | "y"; mode: "violin" | "box" }
+	/** Turn on a distribution display on the named axis.
+	 *   - `"violin"` / `"box"`: strip-plot variations (categorical x with
+	 *     quant y, or vice versa). The overlay sits on the *value* axis — the
+	 *     opposite side from the category axis the user named in `channels`.
+	 *   - `"density"`: a standalone KDE curve of a LONE quantitative axis (no
+	 *     opposite position axis at all — the density axis is implied), the
+	 *     same config the manual Distribution → "Density" segment writes. */
+	distributionOverlay?: { axis: "x" | "y"; mode: "violin" | "box" | "density" }
+	/** Density-mode only: fill the area under the KDE curve (the manual "Fill
+	 * under curve" checkbox, stored on the axis's shared histogram config as
+	 * `densityFill`). Unset/false leaves the curve as a stroked line. */
+	densityFill?: boolean
 	/** Radar-only: when true, the auto-gen turns on
 	 *  `connection.fillPolygon` so the closed polygon renders filled (the
 	 *  classic "watercolor" radar look). No effect on non-radar variations
@@ -432,6 +441,34 @@ export const QUICK_START_VARIATIONS: Record<
 				x: QUANTITATIVE_LIKE,
 			},
 			distributionOverlay: { axis: "x", mode: "violin" },
+			allowOpportunisticHue: false,
+		},
+	],
+	// Density curve: a lone quantitative field on one position axis, rendered
+	// as a standalone KDE curve (the manual Distribution → "Density" segment).
+	// Only "quantitative" qualifies — the density display shares the
+	// histogram's gate, which requires a strictly quantitative effective type
+	// (ordinals read better as bars). Hue stays off: the single curve has
+	// nothing to color per category, and the scatter marks are replaced by the
+	// (optional) rug, so a random hue field would color nothing.
+	density: [
+		{
+			name: "Density curve",
+			channels: {
+				x: ["quantitative"],
+			},
+			distributionOverlay: { axis: "x", mode: "density" },
+			allowOpportunisticHue: false,
+		},
+		{
+			// Same curve with the area under it filled — the manual "Fill under
+			// curve" checkbox.
+			name: "Filled density curve",
+			channels: {
+				x: ["quantitative"],
+			},
+			distributionOverlay: { axis: "x", mode: "density" },
+			densityFill: true,
 			allowOpportunisticHue: false,
 		},
 	],

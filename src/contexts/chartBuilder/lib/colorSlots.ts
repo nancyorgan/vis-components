@@ -57,6 +57,19 @@ export const densityCurveOn = (configs: ChannelConfigs): boolean => {
 	)
 }
 
+/** True when an active density curve's under-curve fill is on. The "Fill under
+ * curve" flag lives on `HistogramConfig.densityFill` for BOTH curve forms (the
+ * standalone Density display and the histogram overlay share it, so the choice
+ * persists across the Histogram ⇄ Density switch). Gates the Density Curve
+ * Fill color/opacity slots — an unfilled curve has no fill to style. */
+export const densityCurveFillOn = (configs: ChannelConfigs): boolean => {
+	const on = (c: typeof configs.x) =>
+		(c?.distributionOverlay?.showDensityCurve === true ||
+			(c?.histogram?.enabled === true && c?.histogram?.showDensity === true)) &&
+		c?.histogram?.densityFill === true
+	return on(configs.x) || on(configs.y)
+}
+
 /** True when the scatter regression-line overlay is on. Exported so the
  * opacity-slot registry and the renderer reuse the same gate. */
 export const regressionOn = (configs: ChannelConfigs): boolean =>
@@ -124,7 +137,9 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		// Standalone curve renders in scatter (single-variable distribution);
 		// the histogram overlay renders in bars-x / bars-y.
 		modes: m("scatter", "bars-x", "bars-y"),
-		isApplicable: (_encodings, configs) => densityCurveOn(configs),
+		// Only when "Fill under curve" is on — an unfilled curve has no fill to
+		// color (the outline slot below stays whenever the curve is shown).
+		isApplicable: (_encodings, configs) => densityCurveFillOn(configs),
 		themeColor: (t) => t.distributionOverlayFill,
 		// "Vary by" a field splits the curve into one KDE per category, each
 		// filled with its category color.

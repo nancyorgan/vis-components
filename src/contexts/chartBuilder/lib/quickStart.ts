@@ -3,6 +3,7 @@ import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
+	DEFAULT_HISTOGRAM_CONFIG,
 	type AxisConfig,
 	type ChannelConfigs,
 } from "./channelConfig"
@@ -117,6 +118,10 @@ const AESTHETIC_FILL: Record<
 		decorativeCat: ["pattern", "shape"],
 		colorModQuant: ["brightness", "saturation", "opacity"],
 	},
+	// Density curve: the chart is a single stroked/filled KDE line with no
+	// point marks (points show only as optional rug tassels), so none of the
+	// showcase aesthetics would land on anything the renderer draws.
+	density: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
 	tile: {
 		alwaysQuant: [],
 		decorativeCat: ["pattern"],
@@ -557,19 +562,38 @@ export const applyVariation = (
 		}
 	}
 
-	// Strip-plot variants enable a violin or box overlay on the value axis.
-	// We re-stamp the entire axis config from defaults so a previous chart's
+	// Distribution variants enable a violin/box overlay on the value axis, or
+	// a standalone density curve on a lone quantitative axis.
+	// We re-stamp the entire overlay config from defaults so a previous chart's
 	// custom gridline / spine settings don't leak in unexpected ways.
 	if (variation.distributionOverlay) {
 		const axis = variation.distributionOverlay.axis
+		const mode = variation.distributionOverlay.mode
 		const previous: AxisConfig = configs[axis] ?? DEFAULT_AXIS_CONFIG
 		configs[axis] = {
 			...previous,
 			distributionOverlay: {
 				...DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
-				showDensityViolin: variation.distributionOverlay.mode === "violin",
-				showBoxPlot: variation.distributionOverlay.mode === "box",
+				showDensityViolin: mode === "violin",
+				showBoxPlot: mode === "box",
+				showDensityCurve: mode === "density",
 			},
+			// The density curve's fill (and smoothing) live on the axis's shared
+			// histogram config — the same storage the manual "Fill under curve"
+			// checkbox writes. Stamp it for density scaffolds so (a) a leftover
+			// ENABLED histogram can't shadow the curve (the two displays are
+			// mutually exclusive, exactly what the manual segmented control
+			// enforces) and (b) the fill matches the variation deterministically.
+			...(mode === "density"
+				? {
+						histogram: {
+							...(previous.histogram ?? DEFAULT_HISTOGRAM_CONFIG),
+							enabled: false,
+							showDensity: false,
+							densityFill: variation.densityFill === true,
+						},
+					}
+				: {}),
 		}
 		// The opposite axis must NOT also have an overlay — clear it in case a
 		// previous variation left one behind.
@@ -582,12 +606,13 @@ export const applyVariation = (
 					...other.distributionOverlay,
 					showDensityViolin: false,
 					showBoxPlot: false,
+					showDensityCurve: false,
 				},
 			}
 		}
 	} else {
-		// Non-strip variations should clear any leftover overlay from a prior
-		// strip-plot click — without this, switching from "violin" to "scatter"
+		// Non-distribution variations should clear any leftover overlay from a
+		// prior click — without this, switching from "violin" to "scatter"
 		// keeps the violins floating around.
 		for (const axis of ["x", "y"] as const) {
 			const cfg = configs[axis]
@@ -598,6 +623,7 @@ export const applyVariation = (
 						...cfg.distributionOverlay,
 						showDensityViolin: false,
 						showBoxPlot: false,
+						showDensityCurve: false,
 					},
 				}
 			}

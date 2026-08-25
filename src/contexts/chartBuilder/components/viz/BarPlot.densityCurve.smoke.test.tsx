@@ -90,6 +90,40 @@ describe("BarPlot — histogram density curve overlay", () => {
 		expect(withFill).toBeGreaterThan(without)
 	})
 
+	it("the filled area honors the Density Curve Fill opacity slot", () => {
+		installInMemoryLocalStorage()
+		/* eslint-disable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+		const set = (k: string, v: unknown) => localStorage.setItem(k, JSON.stringify(v))
+		set("vis-components:datasets", { [DATASET_ID]: buildDataset() })
+		set("vis-components:currentDatasetId", DATASET_ID)
+		set("vis-components:previewVersionId", null)
+		set("vis-components:currentEncodings", {
+			...emptyEncodings(),
+			x: { field: "score" },
+		})
+		set("vis-components:currentChannelConfigs", {
+			x: {
+				...DEFAULT_AXIS_CONFIG,
+				histogram: {
+					enabled: true,
+					binCount: 8,
+					mode: "count",
+					showDensity: true,
+					densityFill: true,
+				},
+			},
+			opacitySlots: { densityCurveFill: { field: null, level: 0.8 } },
+		})
+		set("vis-components:currentLabels", { _v: 1, data: DEFAULT_LABELS_CONFIG })
+		/* eslint-enable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+		const { container } = mount()
+		const areas = [...container.querySelectorAll("path")].filter(
+			(p) => p.getAttribute("stroke") === "none" && p.getAttribute("fill") !== "none"
+		)
+		expect(areas.length).toBeGreaterThan(0)
+		expect(areas[0]?.getAttribute("fill-opacity")).toBe("0.8")
+	})
+
 	it("'vary by' a field draws one curve per category (grouped density)", () => {
 		// Dataset with a 3-level categorical field; map it to the density curve
 		// outline color so the curve splits into one KDE per category.
@@ -123,7 +157,15 @@ describe("BarPlot — histogram density curve overlay", () => {
 		set("vis-components:previewVersionId", null)
 		set("vis-components:currentEncodings", { ...emptyEncodings(), x: { field: "score" } })
 		set("vis-components:currentChannelConfigs", {
-			x: { ...DEFAULT_AXIS_CONFIG, histogram: { enabled: true, binCount: 8, showDensity: true } },
+			x: {
+				...DEFAULT_AXIS_CONFIG,
+				histogram: {
+					enabled: true,
+					binCount: 8,
+					showDensity: true,
+					densityFill: true,
+				},
+			},
 			colorSlots: {
 				densityCurveStroke: {
 					field: "grp",
@@ -133,13 +175,22 @@ describe("BarPlot — histogram density curve overlay", () => {
 					hue: { type: "categorical", colors: {} },
 				},
 			},
+			opacitySlots: { densityCurveFill: { field: null, level: 0.7 } },
 		})
 		set("vis-components:currentLabels", { _v: 1, data: DEFAULT_LABELS_CONFIG })
 		/* eslint-enable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
 		// Three categories → three curve paths, each a distinct stroke color.
-		const curves = curvePaths(mount().container)
+		const { container } = mount()
+		const curves = curvePaths(container)
 		expect(curves.length).toBe(3)
 		const strokes = new Set(curves.map((p) => p.getAttribute("stroke")))
 		expect(strokes.size).toBe(3)
+		// Grouped curves each fill their area at the Density Curve Fill slot's
+		// opacity level.
+		const areas = [...container.querySelectorAll("path")].filter(
+			(p) => p.getAttribute("stroke") === "none" && p.getAttribute("fill") !== "none"
+		)
+		expect(areas.length).toBe(3)
+		for (const a of areas) expect(a.getAttribute("fill-opacity")).toBe("0.7")
 	})
 })

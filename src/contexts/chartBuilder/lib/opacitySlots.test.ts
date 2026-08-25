@@ -45,6 +45,23 @@ describe("applicableOpacitySlots", () => {
 		).toContain("violinFill")
 	})
 
+	it("gates the density-curve fill slot on 'Fill under curve' (outline follows the curve alone)", () => {
+		// Curve on, fill unchecked → outline opacity only.
+		const noFill = applicableOpacitySlots("bars-x", {} as never, {
+			x: { histogram: { enabled: true, showDensity: true } } as never,
+		}).map((d) => d.key)
+		expect(noFill).toContain("densityCurveStroke")
+		expect(noFill).not.toContain("densityCurveFill")
+		// Fill checked → both.
+		const filled = applicableOpacitySlots("bars-x", {} as never, {
+			x: {
+				histogram: { enabled: true, showDensity: true, densityFill: true },
+			} as never,
+		}).map((d) => d.key)
+		expect(filled).toContain("densityCurveStroke")
+		expect(filled).toContain("densityCurveFill")
+	})
+
 	it("offers the node + ribbon slots on the flow modes only", () => {
 		for (const mode of ["chord", "sankey"] as const) {
 			const keys = applicableOpacitySlots(mode, {} as never, {}).map(
