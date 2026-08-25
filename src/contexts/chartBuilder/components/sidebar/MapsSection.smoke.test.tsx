@@ -47,6 +47,32 @@ const seed = (
 	/* eslint-enable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
 }
 
+/** Seed a lon/lat dataset for the outside-the-projection hint tests. Must run
+ *  AFTER `seed(...)` (which resets the in-memory localStorage). Mirrors the
+ *  viz smoke tests' dataset seeding (GeoPointPlot.smoke.test.tsx). */
+const OUTSIDE_DATASET_ID = "ds-maps-outside"
+const seedPointDataset = (rows: Record<string, string>[]) => {
+	/* eslint-disable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+	const set = (k: string, v: unknown) =>
+		localStorage.setItem(k, JSON.stringify(v))
+	set("vis-components:datasets", {
+		[OUTSIDE_DATASET_ID]: buildDatasetFixture({
+			id: OUTSIDE_DATASET_ID,
+			name: "cities",
+			filename: "cities.csv",
+			fields: [
+				{ name: "city", inferredType: "categorical" },
+				{ name: "lon", inferredType: "quantitative" },
+				{ name: "lat", inferredType: "quantitative" },
+			],
+			rows,
+		}),
+	})
+	set("vis-components:currentDatasetId", OUTSIDE_DATASET_ID)
+	set("vis-components:previewVersionId", null)
+	/* eslint-enable no-restricted-globals, @th/no-storage-outside-try, @th/use-wrapped-json-functions */
+}
+
 /** Encoding shorthands for the two geographic modes. */
 const CHOROPLETH_ENC = { connection: { field: "state" } }
 const SYMBOLS_ENC = {
@@ -341,5 +367,50 @@ describe("MapsSection", () => {
 		seed("geographic", {}, CHOROPLETH_ENC)
 		mount()
 		expect(screen.queryByText(/X = longitude and Y = latitude/i)).toBeNull()
+	})
+
+	// --- Outside-the-projection hint: albersUsa returns null for points
+	// outside the US, so they silently vanish from the dot map. The hint says
+	// so, with counts, and names the fix. Rendered only when a mark dropped. ---
+
+	it("warns when points fall outside the mapped area (albersUsa drops them)", () => {
+		// Explicit states level: no async auto-detection, so the count (and
+		// the resolved albersUsa projection) is available synchronously.
+		seed("geographic", { geographyLevel: "states" }, X_Y_ENC)
+		seedPointDataset([
+			{ city: "NYC", lon: "-74", lat: "40.7" },
+			{ city: "LA", lon: "-118", lat: "34" },
+			{ city: "Tokyo", lon: "139.7", lat: "35.7" },
+		])
+		mount()
+		expect(
+			screen.getByText(/1 of 3 points falls outside the mapped area/i)
+		).toBeTruthy()
+		// The fix is named: albersUsa is the projection doing the clipping.
+		expect(screen.getByText(/Albers USA covers only the US/i)).toBeTruthy()
+	})
+
+	it("hides the outside-points hint when every point projects (inert control)", () => {
+		seed("geographic", { geographyLevel: "states" }, X_Y_ENC)
+		seedPointDataset([
+			{ city: "NYC", lon: "-74", lat: "40.7" },
+			{ city: "LA", lon: "-118", lat: "34" },
+		])
+		mount()
+		expect(screen.queryByText(/outside the mapped area/i)).toBeNull()
+	})
+
+	it("hides the outside-points hint under a world projection (nothing drops)", () => {
+		seed(
+			"geographic",
+			{ geographyLevel: "states", projection: "naturalEarth" },
+			X_Y_ENC
+		)
+		seedPointDataset([
+			{ city: "NYC", lon: "-74", lat: "40.7" },
+			{ city: "Tokyo", lon: "139.7", lat: "35.7" },
+		])
+		mount()
+		expect(screen.queryByText(/outside the mapped area/i)).toBeNull()
 	})
 })

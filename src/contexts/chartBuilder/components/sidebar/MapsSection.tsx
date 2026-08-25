@@ -31,6 +31,7 @@ import { PATTERN_PALETTE } from "../../lib/patterns"
 import { currentMapConfigAtom } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
+import { useGeoOutsideCount } from "../../store/useGeoOutsideCount"
 import { useGeoResolution } from "../../store/useGeoResolution"
 
 
@@ -323,6 +324,13 @@ export const MapsSection = () => {
 	// the right fields. Other map modes key off `connection`, not x/y.
 	const showLonLatHint = modeId === "geo-points"
 
+	// Point marks the projection silently drops: albersUsa returns null for
+	// anything outside the US, so world-wide dots (or joined-region centroids
+	// on the bubble map) just vanish. `useGeoResolution` explains rows that
+	// didn't JOIN; this is its projection-side companion for the mark modes.
+	// Rendered only when at least one mark actually dropped (inert otherwise).
+	const outsideCount = useGeoOutsideCount()
+
 	// Country geometry uses Natural-Earth SHORT names ("Dem. Rep. Congo",
 	// "Bosnia and Herz."), so joining by full country name often misses. Steer
 	// users toward ISO codes, which join reliably.
@@ -368,6 +376,17 @@ export const MapsSection = () => {
 						{showLonLatHint && (
 							<p className="vc-help">
 								On point maps, X = longitude and Y = latitude.
+							</p>
+						)}
+						{outsideCount.outside > 0 && (
+							<p className="vc-help">
+								{outsideCount.outside} of {outsideCount.total}{" "}
+								{outsideCount.kind === "regions" ? "regions" : "points"}{" "}
+								{outsideCount.outside === 1 ? "falls" : "fall"} outside
+								the mapped area and{" "}
+								{outsideCount.outside === 1 ? "isn't" : "aren't"} shown.
+								{outsideCount.projection === "albersUsa" &&
+									" Albers USA covers only the US — choose the Natural Earth or Mercator projection to show them."}
 							</p>
 						)}
 						<SelectInput
