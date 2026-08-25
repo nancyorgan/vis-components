@@ -5,8 +5,10 @@ import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import {
 	deleteBody,
+	listContentVersions,
 	listRows,
 	openDb,
+	setContentVersion,
 	upsertBody,
 } from "./db.js"
 import type { DatabaseSync } from "node:sqlite"
@@ -56,6 +58,35 @@ describe("openDb", () => {
 		).run()
 		db.close()
 		expect(() => openDb(dir)).toThrow(/newer/i)
+	})
+})
+
+describe("content versions", () => {
+	it("upserts one row per collection", () => {
+		const db = openTracked(freshDir())
+		expect(listContentVersions(db)).toEqual({})
+		setContentVersion(db, "visuals", 4)
+		setContentVersion(db, "themes", 2)
+		setContentVersion(db, "visuals", 5)
+		expect(listContentVersions(db)).toEqual({ visuals: 5, themes: 2 })
+	})
+
+	// The whole point of the feature: a database created by an earlier server
+	// build gains the table on reopen, with the existing rows intact and no
+	// stamps — which the client reads as "already at the current shape".
+	it("is added to a database created before it existed, without stamps", () => {
+		const dir = freshDir()
+		const first = openTracked(dir)
+		upsertBody(first, "folders", "f1", `{"id":"f1"}`)
+		first.exec("DROP TABLE content_versions")
+		first.exec("DELETE FROM schema_migrations WHERE version = 3")
+		first.close()
+
+		const second = openTracked(dir)
+		expect(listContentVersions(second)).toEqual({})
+		expect(listRows(second, "folders")).toEqual([
+			{ id: "f1", body: `{"id":"f1"}` },
+		])
 	})
 })
 

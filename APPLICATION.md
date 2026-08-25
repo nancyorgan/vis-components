@@ -2064,8 +2064,11 @@ A small catch-all panel:
 
 ## 14. Persistence & state
 
-All editor state lives in Jotai atoms and persists to the browser
-(no server / external database). Most state persists to localStorage:
+All editor state lives in Jotai atoms. In the default browser-local
+mode it persists to the browser with no server or external database;
+in server mode the same atoms route their content through the storage
+adapter instead (see "Schema upgrades" below). Most state persists to
+localStorage:
 encodings, channel configs, labels, legend, tooltip, data labels,
 annotations, theme, and the Visuals library. Each atom has a versioned
 migration list so future schema changes don't break old saves.
@@ -2078,6 +2081,31 @@ on quota overflow. IndexedDB is durable, browser-built-in, and far
 larger. Loads prefer IndexedDB with a synchronous localStorage
 bootstrap for first paint and tests; a one-time migration moves any
 legacy localStorage datasets blob into IndexedDB on first load.
+
+**Schema upgrades reach server-stored work too.** In browser-local
+mode every persisted key carries its own version stamp, so an app
+update that reshapes saved data migrates it on the next read. A
+self-host server stores bare items with no stamp, so the version is
+carried out of band: `/api/content-versions` holds one number per
+collection, the client applies any missing migrations on load, then
+writes the upgraded items and the new stamp once — so the upgrade
+happens once per server, not once per page load. Folders are the one
+collection with no version (they have never needed a migration) and
+are passed through untouched.
+
+Two cases deliberately refuse to load rather than guess. A collection
+stamped NEWER than the running build means an older bundle is looking
+at newer data: migrations only run forward, and saving back what the
+old build made of the new shape would drop whatever the new shape
+added — so it errors, the same way the server refuses to start against
+a future database schema. (Practically: after a deploy, anyone still on
+the previous bundle must reload.) A migration that throws also fails
+the load, so a half-migrated collection is never written over the
+user's work. A collection with no stamp at all is read as *already
+current*, not as version zero — the stamp shipped with the first
+server able to outlive an app update, so an unstamped server's rows
+were written at the current shape, and re-running migrations over them
+would corrupt data rather than repair it.
 
 Visuals are listed in a Visuals library (separate page) — load,
 rename, duplicate, delete, organize into folders. Folder organization

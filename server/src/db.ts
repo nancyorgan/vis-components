@@ -47,6 +47,16 @@ const MIGRATIONS: readonly string[] = [
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// v3 — content-schema version per collection. NOT this table's own schema
+	// version (that's schema_migrations above): these track which version of
+	// the FRONTEND's persisted shapes the stored bodies are at, so a client
+	// running a newer build knows which of its content migrations to apply.
+	// See lib/storage/httpAdapter.ts.
+	`CREATE TABLE content_versions (
+		collection TEXT PRIMARY KEY,
+		version INTEGER NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 ]
 
 /** The JSON-body tables, keyed by the API's collection segment. Table names
@@ -63,6 +73,47 @@ export type JsonCollection = keyof typeof JSON_TABLES
 
 export const isJsonCollection = (value: string): value is JsonCollection =>
 	value in JSON_TABLES
+
+/** Collections whose stored bodies carry a frontend content-schema version.
+ *  `datasets` is here despite living in files rather than a JSON table, and
+ *  `folders` is absent because the frontend never versioned folders (they're
+ *  read unversioned; if that changes, add it here AND to the client registry
+ *  in lib/storage/migrations.ts). The server never interprets these numbers —
+ *  it only stores what the client stamps. */
+const CONTENT_VERSION_COLLECTIONS = new Set([
+	"visuals",
+	"datasets",
+	"embed-instances",
+	"themes",
+	"fonts",
+])
+
+export const isContentVersionCollection = (value: string): boolean =>
+	CONTENT_VERSION_COLLECTIONS.has(value)
+
+/** Every stamped content version, keyed by collection. A collection with no
+ *  row is simply absent — the client decides what an absent stamp means. */
+export const listContentVersions = (db: DatabaseSync): Record<string, number> => {
+	const rows = db
+		.prepare("SELECT collection, version FROM content_versions")
+		.all() as { collection: string; version: number }[]
+	const out: Record<string, number> = {}
+	for (const { collection, version } of rows) out[collection] = version
+	return out
+}
+
+export const setContentVersion = (
+	db: DatabaseSync,
+	collection: string,
+	version: number
+): void => {
+	db.prepare(
+		`INSERT INTO content_versions (collection, version, updated_at)
+		 VALUES (?, ?, ?)
+		 ON CONFLICT(collection) DO UPDATE SET version=excluded.version,
+		   updated_at=excluded.updated_at`
+	).run(collection, version, new Date().toISOString())
+}
 
 /** Open (or initialize) the database and bring the schema up to date.
  *  Fail-fast contract: an unreadable/corrupt DB file, or a schema version

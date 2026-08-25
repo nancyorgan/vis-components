@@ -13,9 +13,12 @@ import type { ServerConfig } from "./config.js"
 import {
 	deleteBody,
 	deleteDatasetRow,
+	isContentVersionCollection,
 	isJsonCollection,
+	listContentVersions,
 	listDatasetIds,
 	listRows,
+	setContentVersion,
 	upsertBody,
 	upsertDatasetRow,
 	type JsonCollection,
@@ -105,6 +108,21 @@ const handleApi = async (
 		throw new HttpError(405, "Method not allowed")
 	}
 
+	// Content-schema versions. Deliberately its own branch rather than a
+	// JSON collection: the ids are collection NAMES from a fixed whitelist,
+	// not user-generated item ids, and the bodies are a single number.
+	if (collection === "content-versions") {
+		if (!id) {
+			if (method !== "GET") throw new HttpError(405, "Method not allowed")
+			return sendJson(res, 200, JSON.stringify(listContentVersions(db)))
+		}
+		if (method !== "PUT") throw new HttpError(405, "Method not allowed")
+		if (!isContentVersionCollection(id)) throw new HttpError(404, "Not found")
+		const raw = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
+		setContentVersion(db, id, parseVersionBody(raw))
+		return sendEmpty(res, 204)
+	}
+
 	if (!isJsonCollection(collection)) throw new HttpError(404, "Not found")
 
 	if (!id) {
@@ -187,6 +205,22 @@ const listDatasets = async (
 	}
 	await write("}")
 	out.end()
+}
+
+/** A content-version PUT body is `{ "v": <non-negative integer> }`. Anything
+ *  else is a confused client; storing it would make the stamp meaningless. */
+const parseVersionBody = (raw: string): number => {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(raw)
+	} catch {
+		throw new HttpError(400, "Body must be valid JSON")
+	}
+	const v = (parsed as { v?: unknown } | null)?.v
+	if (typeof v !== "number" || !Number.isInteger(v) || v < 0) {
+		throw new HttpError(400, "Body must be { v: non-negative integer }")
+	}
+	return v
 }
 
 /** A JSON-collection PUT body must be a JSON object whose `id` (when present)

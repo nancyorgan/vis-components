@@ -575,3 +575,30 @@ export const annotationsMigrations: Migration[] = [
 		return { ...o, texts: Array.isArray(o.texts) ? o.texts : [] }
 	},
 ]
+
+/** The content-schema registry for the adapter-backed collections, keyed by
+ *  the API's collection segment.
+ *
+ *  The localStorage path reaches migrations through `loadVersioned`, which
+ *  reads the `{_v,data}` envelope off each key. A remote backend stores bare
+ *  items with no envelope, so `httpAdapter` needs the same (currentVersion,
+ *  migrations) pair looked up by collection instead — that's this table.
+ *
+ *  **Bumping a version means adding its migration here too**, or server-stored
+ *  data silently stays a schema behind. `folders` is absent on purpose: the
+ *  frontend reads folders unversioned (`loadFolders` is a bare `safeGet`); if
+ *  folders ever gain a version, add them here and to
+ *  `CONTENT_VERSION_COLLECTIONS` in server/src/db.ts. */
+export const CONTENT_MIGRATIONS: Record<
+	string,
+	{ currentVersion: number; migrations: Migration[] }
+> = {
+	visuals: { currentVersion: VISUALS_VERSION, migrations: visualsMigrations },
+	datasets: { currentVersion: DATASETS_VERSION, migrations: datasetsMigrations },
+	"embed-instances": {
+		currentVersion: EMBED_INSTANCES_VERSION,
+		migrations: embedInstancesMigrations,
+	},
+	themes: { currentVersion: THEMES_VERSION, migrations: themesMigrations },
+	fonts: { currentVersion: USER_FONTS_VERSION, migrations: userFontsMigrations },
+}

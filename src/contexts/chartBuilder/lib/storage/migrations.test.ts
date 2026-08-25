@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 
 import {
+	CONTENT_MIGRATIONS,
 	datasetsMigrations,
 	readThemeFontSizesV2,
 	resetVisualFontSizesV1ToV2,
@@ -381,5 +382,34 @@ describe("visualsMigrations v3 -> v4 (showNoDataRegions reset to true)", () => {
 	it("tolerates non-array input and non-object entries", () => {
 		expect(upgrade("junk")).toBe("junk")
 		expect(upgrade([null, "x"])).toEqual([null, "x"])
+	})
+})
+
+describe("CONTENT_MIGRATIONS", () => {
+	// Migration N upgrades vN to vN+1, so reaching `currentVersion` needs
+	// exactly that many steps. This is the guard against the failure mode the
+	// registry exists for: bumping a version and forgetting that server-stored
+	// data now needs a step to get there.
+	it("has one migration per version for every collection", () => {
+		for (const [collection, spec] of Object.entries(CONTENT_MIGRATIONS)) {
+			expect(
+				{ collection, steps: spec.migrations.length },
+				`${collection} has ${spec.migrations.length} migrations for v${spec.currentVersion}`
+			).toEqual({ collection, steps: spec.currentVersion })
+		}
+	})
+
+	// Deliberately spelled out: if a collection is added or its name changes,
+	// this fails and points at the matching whitelist in server/src/db.ts
+	// (CONTENT_VERSION_COLLECTIONS) — the two must agree or the stamp write
+	// 404s. `folders` is absent from both because folders are unversioned.
+	it("covers exactly the versioned adapter-backed collections", () => {
+		expect(Object.keys(CONTENT_MIGRATIONS).sort()).toEqual([
+			"datasets",
+			"embed-instances",
+			"fonts",
+			"themes",
+			"visuals",
+		])
 	})
 })

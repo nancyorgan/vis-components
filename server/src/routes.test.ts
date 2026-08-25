@@ -123,6 +123,83 @@ describe("JSON collections over HTTP", () => {
 	})
 })
 
+describe("content versions over HTTP", () => {
+	it("starts empty, so a client reads an unstamped server", async () => {
+		const res = await fetch(`${base}/api/content-versions`)
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({})
+	})
+
+	it("stores a stamp per collection and reads them all back", async () => {
+		for (const [collection, v] of [
+			["visuals", 4],
+			["themes", 2],
+		] as const) {
+			const put = await fetch(`${base}/api/content-versions/${collection}`, {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body: `{"v":${v}}`,
+			})
+			expect(put.status).toBe(204)
+		}
+		expect(await (await fetch(`${base}/api/content-versions`)).json()).toEqual({
+			visuals: 4,
+			themes: 2,
+		})
+	})
+
+	it("overwrites a collection's stamp rather than accumulating rows", async () => {
+		await fetch(`${base}/api/content-versions/fonts`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: '{"v":1}',
+		})
+		await fetch(`${base}/api/content-versions/fonts`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: '{"v":2}',
+		})
+		const all = (await (await fetch(`${base}/api/content-versions`)).json()) as
+			Record<string, number>
+		expect(all.fonts).toBe(2)
+	})
+
+	// The id segment is a collection NAME, so it comes from a whitelist —
+	// a typo must not quietly create a stamp nothing will ever read.
+	it("404s an unknown collection", async () => {
+		const res = await fetch(`${base}/api/content-versions/nope`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: '{"v":1}',
+		})
+		expect(res.status).toBe(404)
+	})
+
+	it("rejects bodies that aren't a non-negative integer version", async () => {
+		for (const body of ['{"v":"4"}', '{"v":-1}', '{"v":1.5}', "{}", "nope"]) {
+			const res = await fetch(`${base}/api/content-versions/visuals`, {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body,
+			})
+			expect(res.status).toBe(400)
+		}
+	})
+
+	it("rejects DELETE and a collection-level write", async () => {
+		expect(
+			(
+				await fetch(`${base}/api/content-versions/visuals`, {
+					method: "DELETE",
+				})
+			).status
+		).toBe(405)
+		expect(
+			(await fetch(`${base}/api/content-versions`, { method: "PUT" })).status
+		).toBe(405)
+	})
+})
+
 describe("datasets over HTTP", () => {
 	it("stores a client-gzipped body and streams the record back", async () => {
 		const dataset = { id: "ds-1", name: "Numbers", rows: [{ a: 1 }, { a: 2 }] }

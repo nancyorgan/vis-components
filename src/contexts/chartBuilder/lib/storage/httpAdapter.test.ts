@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createHttpStorageAdapter } from "./httpAdapter"
+import { CONTENT_MIGRATIONS } from "./migrations"
+
+/** The content-version stamps a server written by THIS build carries — i.e.
+ *  nothing to migrate. Tests about diffing shouldn't also be tests about
+ *  migration, so the default stub serves these. */
+const currentVersions = (): Record<string, number> =>
+	Object.fromEntries(
+		Object.entries(CONTENT_MIGRATIONS).map(([c, spec]) => [
+			c,
+			spec.currentVersion,
+		])
+	)
 
 /** Every call fetch received, as "<METHOD> <path>". */
 const calls = (mock: ReturnType<typeof vi.fn>): string[] =>
@@ -18,10 +30,15 @@ const okEmpty = () => ({ ok: true, status: 204 }) as unknown as Response
 
 const failed = () => ({ ok: false, status: 500 }) as unknown as Response
 
+/** `versions` is what GET /api/content-versions answers; pass a partial
+ *  record (or `{}`) to exercise the migration paths. */
 const stubFetch = (
-	impl: (path: string, init?: RequestInit) => Response | Promise<Response>
+	impl: (path: string, init?: RequestInit) => Response | Promise<Response>,
+	versions: Record<string, number> = currentVersions()
 ) => {
-	const mock = vi.fn(async (path: string, init?: RequestInit) => impl(path, init))
+	const mock = vi.fn(async (path: string, init?: RequestInit) =>
+		path === "/api/content-versions" ? okJson(versions) : impl(path, init)
+	)
 	vi.stubGlobal("fetch", mock)
 	return mock
 }
@@ -39,7 +56,10 @@ describe("diffing saves", () => {
 		)
 		const adapter = createHttpStorageAdapter()
 		await adapter.loadVisuals()
-		expect(calls(mock)).toEqual(["GET /api/visuals"])
+		expect(calls(mock)).toEqual([
+			"GET /api/visuals",
+			"GET /api/content-versions",
+		])
 
 		// v1 edited, v2 dropped, v3 added — the stale-but-unchanged case is the
 		// point: nothing about v2's absence deletes anything another user made.
@@ -121,6 +141,149 @@ describe("themes", () => {
 		stubFetch(() => okJson(themes))
 		const adapter = createHttpStorageAdapter()
 		expect(await adapter.loadThemes()).toEqual(themes)
+	})
+})
+
+describe("content migrations", () => {
+	// Themes v1 -> v2 backfills the ordinal-palette fields, so a v1-stamped
+	// server is a real, shipped migration to assert against.
+	const v1Theme = { id: "t1", name: "Custom" }
+
+	it("migrates server data forward and returns the upgraded shape", async () => {
+		stubFetch((path) => (path === "/api/themes" ? okJson([v1Theme]) : okEmpty()), {
+			themes: 1,
+		})
+		const themes = await createHttpStorageAdapter().loadThemes()
+		const migrated = themes?.[0] as unknown as Record<string, unknown>
+		expect(Array.isArray(migrated.ordinalPalettes)).toBe(true)
+		expect(typeof migrated.defaultOrdinalPaletteId).toBe("string")
+	})
+
+	it("persists the upgrade and the new stamp, so it happens once per server", async () => {
+		const mock = stubFetch(
+			(path) => (path === "/api/themes" ? okJson([v1Theme]) : okEmpty()),
+			{ themes: 1 }
+		)
+		await createHttpStorageAdapter().loadThemes()
+		expect(calls(mock)).toEqual([
+			"GET /api/themes",
+			"GET /api/content-versions",
+			"PUT /api/themes/t1",
+			"PUT /api/content-versions/themes",
+		])
+		const stamp = mock.mock.calls.at(-1)?.[1] as RequestInit
+		expect(stamp.body).toBe(`{"v":${CONTENT_MIGRATIONS.themes.currentVersion}}`)
+	})
+
+	it("re-reads as a no-op once the server is stamped current", async () => {
+		const mock = stubFetch((path) =>
+			path === "/api/themes" ? okJson([v1Theme]) : okEmpty()
+		)
+		await createHttpStorageAdapter().loadThemes()
+		expect(calls(mock)).toEqual(["GET /api/themes", "GET /api/content-versions"])
+	})
+
+	// An unstamped server can only hold rows written by a build at the current
+	// shape (the stamp shipped with the first server that could outlive an app
+	// update). Reading that as v0 would re-run every migration over
+	// already-current data, so it must adopt instead — no item writes.
+	it("adopts the current version when the server has no stamp", async () => {
+		const mock = stubFetch(
+			(path) => (path === "/api/themes" ? okJson([v1Theme]) : okEmpty()),
+			{}
+		)
+		const themes = await createHttpStorageAdapter().loadThemes()
+		expect(themes).toEqual([v1Theme])
+		expect(calls(mock)).toEqual([
+			"GET /api/themes",
+			"GET /api/content-versions",
+			"PUT /api/content-versions/themes",
+		])
+	})
+
+	it("refuses to load data stamped newer than this build", async () => {
+		const ahead = CONTENT_MIGRATIONS.visuals.currentVersion + 1
+		stubFetch((path) => (path === "/api/visuals" ? okJson([]) : okEmpty()), {
+			visuals: ahead,
+		})
+		await expect(createHttpStorageAdapter().loadVisuals()).rejects.toThrow(
+			/content version/
+		)
+	})
+
+	it("never writes when it refuses a newer-stamped collection", async () => {
+		const mock = stubFetch(
+			(path) => (path === "/api/visuals" ? okJson([{ id: "v1" }]) : okEmpty()),
+			{ visuals: CONTENT_MIGRATIONS.visuals.currentVersion + 1 }
+		)
+		await createHttpStorageAdapter().loadVisuals().catch(() => undefined)
+		expect(calls(mock).filter((c) => c.startsWith("PUT"))).toEqual([])
+	})
+
+	it("refuses rather than persisting a half-migrated collection", async () => {
+		// The only unreachable guard otherwise: every shipped migration
+		// succeeds on the shapes it's given, so inject one that throws.
+		const original = CONTENT_MIGRATIONS.themes
+		CONTENT_MIGRATIONS.themes = {
+			currentVersion: 2,
+			migrations: [
+				() => {
+					throw new Error("boom")
+				},
+				(raw) => raw,
+			],
+		}
+		try {
+			const mock = stubFetch(
+				(path) => (path === "/api/themes" ? okJson([v1Theme]) : okEmpty()),
+				{ themes: 0 }
+			)
+			await expect(createHttpStorageAdapter().loadThemes()).rejects.toThrow(
+				/half-migrated/
+			)
+			expect(calls(mock).filter((c) => c.startsWith("PUT"))).toEqual([])
+		} finally {
+			CONTENT_MIGRATIONS.themes = original
+		}
+	})
+
+	it("still returns migrated data when the stamp write fails", async () => {
+		stubFetch(
+			(path) => {
+				if (path === "/api/themes") return okJson([v1Theme])
+				if (path.startsWith("/api/content-versions/")) return failed()
+				return okEmpty()
+			},
+			{ themes: 1 }
+		)
+		const themes = await createHttpStorageAdapter().loadThemes()
+		const migrated = themes?.[0] as unknown as Record<string, unknown>
+		expect(Array.isArray(migrated.ordinalPalettes)).toBe(true)
+	})
+
+	// A server binary older than this bundle has no such route. Same answer as
+	// an unstamped server: adopt current. Stubs fetch directly because
+	// `stubFetch` always answers the route.
+	it("treats a server with no content-versions route as unstamped", async () => {
+		const mock = vi.fn(async (path: string) => {
+			if (path === "/api/content-versions") {
+				return { ok: false, status: 404 } as unknown as Response
+			}
+			return path === "/api/themes" ? okJson([v1Theme]) : okEmpty()
+		})
+		vi.stubGlobal("fetch", mock)
+		const themes = await createHttpStorageAdapter().loadThemes()
+		expect(themes).toEqual([v1Theme])
+		expect(calls(mock)).toContain("PUT /api/content-versions/themes")
+	})
+
+	// Folders are the one collection the frontend never versioned.
+	it("leaves the unversioned folders collection alone", async () => {
+		const mock = stubFetch((path) =>
+			path === "/api/folders" ? okJson([{ id: "f1" }]) : okEmpty()
+		)
+		await createHttpStorageAdapter().loadFolders()
+		expect(calls(mock)).toEqual(["GET /api/folders"])
 	})
 })
 
