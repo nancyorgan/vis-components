@@ -10,6 +10,7 @@ import {
 import { getChartModeDef, type ChartMode } from "../../lib/chartMode"
 import { MODE_RENDERERS } from "./rendererRegistry"
 import { effectiveType } from "../../lib/fieldType"
+import { histogramMeasureColorDomain } from "../../lib/histogramMeasureColor"
 import {
 	solveFacetLayout,
 	type FacetLayoutSpec,
@@ -535,6 +536,29 @@ export const PlotCanvas = () => {
 		getType,
 	})
 
+	// Histogram measure-color (Fill color / opacity varying by Count /
+	// Density): ONE global [0, max] domain shared by every panel's bars and
+	// the legend ramp. Color scales are global in this app (aesthetic scales
+	// build once over the whole dataset), so the measure-color domain must
+	// NOT follow the per-panel / share-group measure axis — it tops out at
+	// the largest per-panel bin across all panels, the same value the legend
+	// section computes (`histogramMeasureColorDomain` is the shared seam).
+	const measureColorActive =
+		encodings.hue?.measureSource === "count" ||
+		encodings.hue?.measureSource === "density" ||
+		encodings.opacity?.measureSource === "count" ||
+		encodings.opacity?.measureSource === "density"
+	const measureColorMaxOverride = measureColorActive
+		? histogramMeasureColorDomain(
+				dataset,
+				encodings,
+				channelConfigs,
+				overrides,
+				levelOrders,
+				panelData
+			)?.max
+		: undefined
+
 	// Polar "Size panels by unit": per-panel 0..1 drawn-radius factors — see
 	// computePanelRadiusScale (empty when the feature is off).
 	const panelRadiusScale = computePanelRadiusScale({
@@ -771,6 +795,9 @@ export const PlotCanvas = () => {
 					yMaxOverride,
 					measureMinOverride,
 					measureMaxOverride,
+					// Histogram measure-color global domain max (undefined
+					// unless a Count/Density color/opacity source is active).
+					measureColorMaxOverride,
 					// Polar-only: R-axis bounds + "size panels by unit"
 					// scaling. RadarPlot/PiePlot ignore these for non-
 					// polar inputs; cartesian renderers ignore them

@@ -238,8 +238,9 @@ export const computeHistogramBins = (
  * (rather than a data field). Returns `[0, maxCount]` in "count" mode and
  * `[0, maxShare]` in "density" mode, where `maxShare = maxCount / total`
  * matches `toDensityStacks` (each bin's share of the grand total of binned
- * rows). Both the renderer and the legend call this so the bar colors and the
- * legend ramp agree on the scale.
+ * rows). Single-panel special case of `histogramMeasureDomainFaceted` below;
+ * renderer + legend both read the shared seam (`histogramMeasureColorDomain`
+ * in histogramMeasureColor.ts) so bar colors and the legend ramp agree.
  *
  * Returns `null` when there's nothing to bin (no finite values) — callers then
  * have no measure to encode. The `binCount` / `bounds` / `labelMode` arguments
@@ -251,26 +252,56 @@ export const histogramMeasureDomain = (
 	mode: "count" | "density",
 	bounds?: { min?: number | null; max?: number | null },
 	labelMode: "range" | "low" | "high" = "range"
+): { min: number; max: number } | null =>
+	histogramMeasureDomainFaceted([values], binCount, mode, bounds, labelMode)
+
+/** Faceted form of `histogramMeasureDomain`: one value array PER FACET PANEL.
+ * Bars are counted panel-by-panel (each panel bins only its own rows), so the
+ * measure-color domain must top out at the largest PER-PANEL bin — not the
+ * pooled count, which sums same-bin rows across panels and would leave every
+ * bar short of the ramp's high end. Bin edges come from the POOLED values so
+ * every panel shares the same buckets — the same convention the shared
+ * measure axis uses (see `computeGroupMeasureMax` in
+ * plotCanvas/shareScales.ts).
+ *
+ * Returns `[0, maxPanelCount]` in "count" mode and `[0, maxPanelShare]` in
+ * "density" mode, where each panel's share uses its OWN row total as the
+ * denominator (matching `toDensityStacks`, which rescales per panel). With a
+ * single panel this reduces exactly to the non-faceted domain. */
+export const histogramMeasureDomainFaceted = (
+	panelValues: ReadonlyArray<readonly unknown[]>,
+	binCount: number,
+	mode: "count" | "density",
+	bounds?: { min?: number | null; max?: number | null },
+	labelMode: "range" | "low" | "high" = "range"
 ): { min: number; max: number } | null => {
+	const pooled = panelValues.flat()
 	const binning = computeHistogramBins(
-		values,
+		pooled,
 		binCount,
 		undefined,
 		bounds,
 		labelMode
 	)
 	if (!binning) return null
-	const counts = binnedCounts(values, binning)
-	let maxCount = 0
-	let total = 0
-	for (const c of counts.values()) {
-		total += c
-		if (c > maxCount) maxCount = c
+	let max = 0
+	for (const values of panelValues) {
+		const counts = binnedCounts(values, binning)
+		let panelMax = 0
+		let panelTotal = 0
+		for (const c of counts.values()) {
+			panelTotal += c
+			if (c > panelMax) panelMax = c
+		}
+		const panelMeasure =
+			mode === "density"
+				? panelTotal > 0
+					? panelMax / panelTotal
+					: 0
+				: panelMax
+		if (panelMeasure > max) max = panelMeasure
 	}
-	if (mode === "density") {
-		return { min: 0, max: total > 0 ? maxCount / total : 0 }
-	}
-	return { min: 0, max: maxCount }
+	return { min: 0, max }
 }
 
 /** Count raw values into a precomputed binning. Values that don't map to a bin

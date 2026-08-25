@@ -22,6 +22,7 @@ import { chunkColumns, planLegendSections } from "../../lib/legendSections"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
@@ -127,6 +128,7 @@ export const Legend = ({
 	const resolvedAuxSwatchStroke =
 		legendCfg.auxLegendSwatchStroke ?? theme.legendSwatchStroke ?? "#ffffff"
 	const dataset = useCurrentDatasetView()
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const modeDef = useChartModeDef()
 	// Fold the mode's default-hidden channels (e.g. the Size legend starts
 	// off in flow / hierarchy modes) into the effective map so every
@@ -163,6 +165,7 @@ export const Legend = ({
 		legendCfg,
 		modeDef,
 		insideExtras,
+		levelOrders,
 	})
 	if (!plan) return null
 	const {

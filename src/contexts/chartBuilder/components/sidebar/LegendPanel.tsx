@@ -7,7 +7,7 @@ import {
 } from "../../lib/colorSlots"
 import { CHIP_INK } from "../../lib/previewInk"
 import { effectiveType } from "../../lib/fieldType"
-import { histogramMeasureDomain } from "../../lib/histogramBins"
+import { histogramMeasureColorDomain } from "../../lib/histogramMeasureColor"
 import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
 import {
 	DEFAULT_GRADIENT_BAR_RADIUS,
@@ -48,6 +48,7 @@ import {
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
 	currentRenderedGradientBarLengthAtom,
@@ -264,6 +265,7 @@ export const LegendPanel = () => {
 	const [cfg, setCfg] = useAtom(currentLegendConfigAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()
 	const theme = useCurrentTheme()
 	const configs = useAtomValue(currentChannelConfigsAtom)
@@ -290,18 +292,16 @@ export const LegendPanel = () => {
 		: null
 	const hueMeasureActive = !!(histMeasure && encodings.hue?.measureSource)
 	const opacityMeasureActive = !!(histMeasure && encodings.opacity?.measureSource)
-	// [0, max] domain for the measure legend, matching the bars + Legend.tsx.
+	// [0, max] domain for the measure legend, matching the bars + Legend.tsx
+	// (shared seam — faceted charts top out at the largest per-panel bin).
 	const measureDomain =
 		histMeasure && dataset
-			? histogramMeasureDomain(
-					dataset.rows.map((r) => r[histMeasure.categoryField]),
-					configs[histMeasure.categoryChannel]?.histogram?.binCount ?? 10,
-					histMeasure.mode,
-					{
-						min: configs[histMeasure.categoryChannel]?.min ?? null,
-						max: configs[histMeasure.categoryChannel]?.max ?? null,
-					},
-					configs[histMeasure.categoryChannel]?.histogram?.labelMode ?? "range"
+			? histogramMeasureColorDomain(
+					dataset,
+					encodings,
+					configs,
+					overrides,
+					levelOrders
 				)
 			: null
 	const measureLabel = histMeasure?.mode === "density" ? "Density" : "Count"

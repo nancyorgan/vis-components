@@ -17,8 +17,7 @@ import {
 	resolveTitleFont,
 	type TextFontConfig,
 } from "./labelsConfig"
-import { histogramMeasureDomain } from "./histogramBins"
-import { resolveHistogramMeasure } from "./histogramMeasure"
+import { histogramMeasureColorDomain } from "./histogramMeasureColor"
 import { DEFAULT_HEXBIN_BIN_COUNT, resolveHexbinCells } from "./hexbins"
 import { HEXBIN_COUNT_LABEL, hexbinEligible } from "./hexbinMeasure"
 import {
@@ -188,6 +187,11 @@ export type PlanLegendSectionsInput = {
 	legendCfg: LegendConfig
 	modeDef: ChartModeDef
 	insideExtras: { top: number; right: number; bottom: number; left: number }
+	/** User-pinned per-field level orders (Fields reorder UI). Only consulted
+	 *  to resolve the facet panel partition for the histogram measure-color
+	 *  domain — ordering decides WHICH wrap-mode panels survive grid
+	 *  truncation. Optional so pure callers/tests can omit it. */
+	levelOrders?: Record<string, readonly string[]>
 }
 
 export type LegendPlan = {
@@ -218,6 +222,7 @@ export const planLegendSections = ({
 	legendCfg,
 	modeDef,
 	insideExtras,
+	levelOrders,
 }: PlanLegendSectionsInput): LegendPlan | null => {
 	const hideLength = modeDef.legend.hideLengthInThisMode
 	const hideAngle = modeDef.legend.hideAngleInThisMode
@@ -401,8 +406,10 @@ export const planLegendSections = ({
 	// field; that has no `encodings[ch].field`, so the loop above skips it. Add
 	// a synthetic quantitative section per active measure source: a gradient /
 	// opacity ramp titled "Count" / "Density" spanning [0, max], where `max`
-	// matches the bars (shared `histogramMeasureDomain`). Honors the per-channel
-	// hide toggle just like a field-backed section.
+	// matches the bars (shared `histogramMeasureColorDomain` — faceted charts
+	// top out at the largest per-panel bin, the same domain PlotCanvas hands
+	// every panel's BarPlot). Honors the per-channel hide toggle just like a
+	// field-backed section.
 	const measureGetType = (n: string) =>
 		effectiveType(
 			dataset.fields.find((f) => f.name === n)?.inferredType,
@@ -422,27 +429,22 @@ export const planLegendSections = ({
 			!legendCfg.hidden[e[0] as LegendChannel]
 	)
 	if (measureSources.length > 0) {
-		const hm = resolveHistogramMeasure(encodings, measureGetType, configs)
-		if (hm) {
-			const axisCfg = configs[hm.categoryChannel]
-			const hist = axisCfg?.histogram
-			const domain = histogramMeasureDomain(
-				dataset.rows.map((r) => r[hm.categoryField]),
-				hist?.binCount ?? 10,
-				hm.mode,
-				{ min: axisCfg?.min ?? null, max: axisCfg?.max ?? null },
-				hist?.labelMode ?? "range"
-			)
-			if (domain && domain.max > 0) {
-				for (const [channel, source] of measureSources) {
-					sections.push({
-						kind: "single",
-						channel,
-						field: source === "density" ? "Density" : "Count",
-						type: "quantitative",
-						values: [domain.min, domain.max],
-					})
-				}
+		const domain = histogramMeasureColorDomain(
+			dataset,
+			encodings,
+			configs,
+			overrides,
+			levelOrders ?? {}
+		)
+		if (domain && domain.max > 0) {
+			for (const [channel, source] of measureSources) {
+				sections.push({
+					kind: "single",
+					channel,
+					field: source === "density" ? "Density" : "Count",
+					type: "quantitative",
+					values: [domain.min, domain.max],
+				})
 			}
 		}
 	}

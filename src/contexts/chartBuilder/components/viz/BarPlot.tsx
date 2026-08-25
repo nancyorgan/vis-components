@@ -649,8 +649,15 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			: undefined
 		// Histogram-only: Fill color / opacity can vary by each bin's derived
 		// measure (Count/Density) instead of a field. Build the quantitative
-		// scales over the SAME `[0, measureMax]` domain the bars span, so the
-		// tallest bin maps to the gradient's high end / max opacity.
+		// scales over the GLOBAL measure-color domain PlotCanvas provides
+		// (`measureColorMaxOverride`, from `histogramMeasureColorDomain`) so
+		// every facet panel AND the legend ramp share one [0, max] scale —
+		// equal counts get equal colors everywhere, and the tallest bin in
+		// any panel maps to the gradient's high end / max opacity. Standalone
+		// renders without the override fall back to this panel's own
+		// measureMax (identical for a single-panel chart).
+		const measureColorMax =
+			props.measureColorMaxOverride ?? aggregation.measureMax
 		const hueMeasureSource = aggregation.isHistogram
 			? encodings.hue?.measureSource
 			: undefined
@@ -659,14 +666,14 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			: undefined
 		const measureHueScale = hueMeasureSource
 			? makeHueScale(
-					[0, aggregation.measureMax],
+					[0, measureColorMax],
 					"quantitative",
 					channelConfigs.hue
 				)
 			: null
 		const measureOpacityScale = opacityMeasureSource
 			? makeOpacityScale(
-					[0, aggregation.measureMax],
+					[0, measureColorMax],
 					"quantitative",
 					channelConfigs.opacity
 				)

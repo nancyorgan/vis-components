@@ -111,6 +111,15 @@ export type MeasureAxisRendererProps = PerAxisScalesRendererProps & {
 	/** Lower bound for the measure axis. Defaults to 0 (the bar-/area-
 	 *  baseline convention) when unset. */
 	measureMinOverride?: number
+	/** Histogram measure-color (Fill color / opacity varying by Count /
+	 *  Density): the GLOBAL domain max every panel's bars AND the legend
+	 *  ramp share. PlotCanvas sets it (via `histogramMeasureColorDomain`)
+	 *  whenever a measure-color source is active, so per-panel bar fills
+	 *  stay comparable across facets and match the single legend gradient
+	 *  regardless of measure-axis share mode or pinned axis bounds. Unset →
+	 *  BarPlot falls back to its own panel-local `measureMax` (standalone
+	 *  renders / tests). */
+	measureColorMaxOverride?: number
 }
 
 /** Scatter's specialized form: per-axis quantitative domain overrides on

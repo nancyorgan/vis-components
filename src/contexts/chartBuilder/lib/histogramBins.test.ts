@@ -4,6 +4,7 @@ import {
 	binnedCounts,
 	computeHistogramBins,
 	histogramMeasureDomain,
+	histogramMeasureDomainFaceted,
 } from "./histogramBins"
 
 describe("computeHistogramBins", () => {
@@ -274,6 +275,60 @@ describe("computeHistogramBins", () => {
 
 		it("returns null when there are no finite values to bin", () => {
 			expect(histogramMeasureDomain([null, "", "x"], 5, "count")).toBeNull()
+		})
+	})
+
+	describe("histogramMeasureDomainFaceted (per-facet-panel measure domain)", () => {
+		// Two panels over the same 0–20 range, two bins (0–10 / 10–20):
+		//   panel A counts [5, 3]  (total 8)
+		//   panel B counts [4, 6]  (total 10)
+		// Pooled counts would be [9, 9] — the faceted domain must instead top
+		// out at the largest PER-PANEL bin (6), because that's the tallest bar
+		// actually drawn.
+		const panelA = [1, 2, 3, 4, 5, 15, 16, 17]
+		const panelB = [1, 2, 3, 4, 11, 12, 13, 14, 15, 16]
+
+		it("count mode: max is the largest per-panel bin, not the pooled sum", () => {
+			expect(
+				histogramMeasureDomainFaceted([panelA, panelB], 2, "count")
+			).toEqual({ min: 0, max: 6 })
+		})
+
+		it("density mode: max is the largest per-panel share (panel-local total)", () => {
+			// Shares: panel A max 5/8, panel B max 6/10 → 5/8 wins.
+			const dom = histogramMeasureDomainFaceted(
+				[panelA, panelB],
+				2,
+				"density"
+			)!
+			expect(dom.min).toBe(0)
+			expect(dom.max).toBeCloseTo(5 / 8)
+		})
+
+		it("bin edges come from the POOLED values (shared-axis convention)", () => {
+			// Panel A alone spans 0–5, panel B alone 10–20. Pooled edges span
+			// the union, so panel A's rows all land in the low bin: its max
+			// count is 5 even though its own extent would bin differently.
+			const a = [1, 2, 3, 4, 5]
+			const b = [11, 12, 19]
+			expect(
+				histogramMeasureDomainFaceted([a, b], 2, "count")
+			).toEqual({ min: 0, max: 5 })
+		})
+
+		it("a single panel reduces exactly to histogramMeasureDomain", () => {
+			expect(histogramMeasureDomainFaceted([panelA], 2, "count")).toEqual(
+				histogramMeasureDomain(panelA, 2, "count")
+			)
+			expect(
+				histogramMeasureDomainFaceted([panelA], 2, "density")
+			).toEqual(histogramMeasureDomain(panelA, 2, "density"))
+		})
+
+		it("returns null when no panel has finite values", () => {
+			expect(
+				histogramMeasureDomainFaceted([[null, ""], ["x"]], 5, "count")
+			).toBeNull()
 		})
 	})
 })
