@@ -18,6 +18,7 @@ import { useDeleteVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 import { Button } from "../../../components/ui/Button"
 import { Input } from "../../../components/ui/Input"
 import { Modal } from "../../../components/ui/Modal"
+import { ResetLink } from "../../../components/ui/ResetLink"
 import { Select } from "../../../components/ui/Select"
 import {
 	parseSort,
@@ -37,6 +38,7 @@ import {
 } from "../lib/thumbnailBackfill"
 import { BulkMoveModal } from "./BulkMoveModal"
 import { DeleteVisualButton } from "./DeleteVisualButton"
+import { DownloadVisualsButton } from "./DownloadVisualsButton"
 import { DuplicateVisualButton } from "./DuplicateVisualButton"
 import { FolderTree } from "./FolderTree"
 import { MoveToFolderButton } from "./MoveToFolderButton"
@@ -324,6 +326,11 @@ export const LibraryPage = () => {
 	}
 
 	const selectedCount = selectedVisualIds.size
+	// Id + name for the selected rows, in library order — the Download action
+	// names a single-visual file after the visual itself.
+	const selectedVisuals = visuals
+		.filter((v) => selectedVisualIds.has(v.id))
+		.map((v) => ({ id: v.id, name: v.name }))
 
 	const selectedFolderName =
 		selectedFolderId === null
@@ -403,27 +410,24 @@ export const LibraryPage = () => {
 							<span className="text-sm font-medium text-blue-900 dark:text-blue-200">
 								{selectedCount} selected
 							</span>
-							<div className="ml-auto flex gap-2">
-								<Button
-									compact
-									outline
-									onClick={() => setBulkMoveOpen(true)}
-								>
+							<div className="ml-auto flex items-center gap-2">
+								<Button compact onClick={() => setBulkMoveOpen(true)}>
 									Move…
 								</Button>
-								<Button compact outline onClick={onBulkDuplicate}>
+								<Button compact onClick={onBulkDuplicate}>
 									Duplicate
 								</Button>
+								<DownloadVisualsButton selected={selectedVisuals} />
+								{/* Destructive action: red all the way through, including the
+								    brand-colored top/bottom edges the filled button inherits. */}
 								<Button
 									compact
 									onClick={() => setBulkDeleteOpen(true)}
-									className="!bg-red-600 !text-white hover:!bg-red-700 dark:!bg-red-700 dark:hover:!bg-red-600"
+									className="!border-t-red-500 !border-b-red-800 !bg-red-600 !text-white hover:!bg-red-700 dark:!border-t-red-600 dark:!border-b-red-900 dark:!bg-red-700 dark:hover:!bg-red-600"
 								>
 									Delete…
 								</Button>
-								<Button compact outline onClick={clearSelection}>
-									Clear
-								</Button>
+								<ResetLink label="Clear" onClick={clearSelection} />
 							</div>
 						</div>
 					)}

@@ -5,12 +5,18 @@ import {
 	chartLayoutReady,
 	serializeEmbedCapture,
 } from "../lib/captureThumbnail"
+import { downloadVisualsBundle } from "../lib/downloadVisuals"
 import { upsertEmbedInstance } from "../lib/embedInstances"
 import { embedFontsInSvg } from "../lib/fontEmbed"
 import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
 import { appOrigin } from "../../../lib/appOrigin"
 import type { ExportUnit } from "../lib/storage"
-import { embedInstancesAtom, exportSizesAtom, exportUnitAtom } from "../store/atoms"
+import {
+	embedInstancesAtom,
+	exportSizesAtom,
+	exportUnitAtom,
+	visualsAtom,
+} from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
 
 import { Button } from "../../../components/ui/Button"
@@ -194,7 +200,14 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 			maxWidthPx={maxWidthPx}
 		>
 			<div className="flex flex-col gap-4">
-				<div className="flex border-b border-stone-200 dark:border-stone-700">
+				<div className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700">
+					{/* Not a tab: the JSON bundle downloads straight away, so it sits
+					    beside the two panes rather than opening one. Wrapped so the
+					    button centers vertically while the tabs stay full height and
+					    keep their active underline flush with the row's border. */}
+					<div className="flex items-center pb-2">
+						<DownloadJsonButton visualId={visualId} />
+					</div>
 					<TabButton active={tab === "embed"} onClick={() => setTab("embed")}>
 						Embed
 					</TabButton>
@@ -219,6 +232,50 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 				)}
 			</div>
 		</Modal>
+	)
+}
+
+/** Download this visualization as a library bundle (JSON) — the same file
+ *  Settings → Sharing writes and imports, so the recipient gets the chart,
+ *  its data set, its folder, and its custom theme in one file. Named after
+ *  the SAVED visual (an unsaved rename isn't in the bundle either). */
+const DownloadJsonButton = ({ visualId }: { visualId: string }) => {
+	const visuals = useAtomValue(visualsAtom)
+	const [busy, setBusy] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+	const name = visuals.find((v) => v.id === visualId)?.name ?? "visualization"
+
+	const onDownload = async () => {
+		if (busy) return
+		setBusy(true)
+		setError(null)
+		try {
+			await downloadVisualsBundle([{ id: visualId, name }])
+		} catch (e) {
+			setError(e instanceof Error ? e.message : String(e))
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	return (
+		<>
+			<Button
+				compact
+				disabled={busy}
+				onClick={() => {
+					void onDownload()
+				}}
+				title="Download this visualization as a JSON bundle someone else can import"
+			>
+				{busy ? "Downloading…" : "Download JSON"}
+			</Button>
+			{error !== null && (
+				<span className="self-center text-sm text-red-700 dark:text-red-300">
+					{error}
+				</span>
+			)}
+		</>
 	)
 }
 
