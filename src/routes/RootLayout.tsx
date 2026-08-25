@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai"
 import { Outlet, useRouterState } from "@tanstack/react-router"
 
 import { Header } from "../components/Header"
+import { UploadNoticeModal } from "../contexts/chartBuilder/components/UploadNoticeModal"
 import { registerUserFonts } from "../contexts/chartBuilder/lib/fontRegistration"
 import { userFontsAtom } from "../contexts/chartBuilder/store/atoms"
 
@@ -54,6 +55,9 @@ export const RootLayout = () => {
 			<main className="flex-1">
 				<Outlet />
 			</main>
+			{/* Above the outlet so an upload notice survives the navigation that
+			 *  creating a new visualization performs. Embeds never upload. */}
+			{!isEmbed && <UploadNoticeModal />}
 		</div>
 	)
 }

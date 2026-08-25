@@ -15,6 +15,10 @@ type ModalProps = {
 	children: ReactNode
 	/** Tailwind width class for the panel. Defaults to max-w-md. */
 	widthClass?: string
+	/** When false, clicking the backdrop does NOT close the modal — for
+	 * notices that must be acknowledged rather than clicked past. Escape and
+	 * the panel's own buttons still close. Defaults to true. */
+	dismissOnBackdrop?: boolean
 	/** Explicit pixel cap for the panel width. Overrides `widthClass`'s
 	 * max-width when set — used by the export modal to grow the popup to the
 	 * chosen image size. Still bounded by the viewport via `w-full`. */
@@ -28,6 +32,7 @@ export const Modal = ({
 	children,
 	widthClass = "max-w-md",
 	maxWidthPx,
+	dismissOnBackdrop = true,
 }: ModalProps) => {
 	useEffect(() => {
 		if (!open) return
@@ -43,7 +48,7 @@ export const Modal = ({
 	return createPortal(
 		<div
 			className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4 dark:bg-stone-950/60"
-			onClick={onClose}
+			onClick={dismissOnBackdrop ? onClose : undefined}
 			role="presentation"
 		>
 			{/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- click here only stops propagation so panel clicks don't hit the backdrop's click-away; Escape closes via the keydown listener above */}

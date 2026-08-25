@@ -355,6 +355,16 @@ export const previewVersionIdAtom = persistedAtom<string | null>(
  * drag-and-drop. Consumed by the shared upload-prompt modal in DataUpload. */
 export const pendingUploadAtom = atom<ParsedUpload | null>(null)
 
+/** An advisory note about the upload that just landed — a big file, or a
+ * column too wide to chart quickly (`lib/datasetLimits.ts`). Deliberately
+ * NOT component state: the "start a new visualization" path navigates, which
+ * remounts the sidebar, and a note held in DataUpload vanished before it
+ * could be read. Deliberately NOT persisted either — it belongs to the
+ * upload that just happened, not to the next session. Rendered by
+ * `UploadNoticeModal` from RootLayout, above the router outlet, and cleared
+ * only when the user dismisses it. */
+export const uploadNoticeAtom = atom<string | null>(null)
+
 export const currentFieldOverridesAtom = persistedAtom<
 	Record<string, FieldType>
 >(loadCurrentFieldOverrides, saveCurrentFieldOverrides)

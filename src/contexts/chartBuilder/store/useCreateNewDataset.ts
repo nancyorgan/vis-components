@@ -2,6 +2,7 @@ import { useAtomCallback } from "jotai/utils"
 import { useCallback } from "react"
 import { datasetContentHash, findDuplicateDataset } from "../lib/datasetDedupe"
 import {
+	datasetPerformanceWarning,
 	datasetRejectMessage,
 	datasetSizeIssue,
 	datasetWarnMessage,
@@ -140,10 +141,15 @@ export const useHandleCsvUpload = () => {
 					} else {
 						createNewDataset(parsed, file.name.replace(/\.csv$/i, ""))
 					}
+					// Both warnings are advisory and can fire together: a modest
+					// file can still carry a column too wide to chart quickly.
+					const warnings = [
+						sizeIssue === "warn" ? datasetWarnMessage(file.size) : null,
+						datasetPerformanceWarning(parsed.fields, parsed.rows),
+					].filter((w): w is string => w !== null)
 					return {
 						ok: true,
-						warning:
-							sizeIssue === "warn" ? datasetWarnMessage(file.size) : undefined,
+						warning: warnings.length > 0 ? warnings.join(" ") : undefined,
 					}
 				} catch (error) {
 					return {

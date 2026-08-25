@@ -57,6 +57,28 @@ is still rejected, and the upload dialog names the offending columns;
 the net-new columns are reported separately as an informational note,
 not as a blocker.
 
+Uploads are also checked for cost, in `lib/datasetLimits.ts`. A file
+over 100 MB is REJECTED outright (the self-host server enforces the
+same limit independently); one over 25 MB imports with a note that
+charts may be slow. Separately, a data set over 50,000 rows, or with
+any column holding over 5,000 distinct values, imports with an
+advisory note suggesting the user pre-aggregate the data before
+importing. These cost notes are advisory ONLY: the data is imported
+whole, and the tool never bins, caps, or samples a column on the
+user's behalf — a wide-open category axis is a legitimate thing to
+ask for, and silently reducing it would misreport the data. Both
+apply in browser-local and server mode alike, since the browser is
+the real constraint.
+
+Cost notes appear in a **centered modal that stays until the user
+dismisses it** ("Got it"; Escape also closes, a backdrop click
+deliberately does not). The notice is held in `uploadNoticeAtom` and
+rendered from `RootLayout`, ABOVE the router outlet — not by the
+upload control, because choosing "start a new visualization"
+navigates, and a note owned by the sidebar was unmounted before it
+could be read. A rejection (over 100 MB) is different: it blocks the
+import, so it stays inline next to the control that triggered it.
+
 ### 2.1b Reshape (wide → long)
 The tool wants long data (one observation per row), but users often
 arrive with wide tables (one column per category — Monday, Tuesday,
