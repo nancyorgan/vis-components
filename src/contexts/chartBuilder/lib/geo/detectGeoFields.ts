@@ -8,20 +8,13 @@ import {
 } from "./resolveGeography"
 import { stateLookup, US_STATES } from "./usStates"
 
-/** The geography levels detection can point a scaffold at.
+/** The geography levels detection can point a scaffold at — a subset of
+ * `GeographyLevel` (no `"zcta"`: ZIP data is recognized by
+ * `detectGeographyLevel`, not by the quick-start field scan).
  *
- * Counties are detected too — by value FORM rather than a table join (see the
- * county section below) — and a county region field carries `"counties"` in
- * `RegionFieldMatch.level` at RUNTIME. The union can't name it yet only
- * because quickStart.ts (edited concurrently) narrows a consumed `level` to
- * `"states" | "countries"` in `mapConfigForVariation`; `"counties"` is a
- * valid `GeographyLevel`, so the value flows through that code correctly.
- * TODO: widen this union and that annotation together. */
-export type DetectedGeoLevel = "states" | "countries"
-
-/** Runtime level value for county region matches — see the DetectedGeoLevel
- * note above for why this is a cast rather than a union member (yet). */
-const COUNTIES_LEVEL = "counties" as unknown as DetectedGeoLevel
+ * Counties are detected by value FORM rather than a table join — see the
+ * county section below. */
+export type DetectedGeoLevel = "states" | "counties" | "countries"
 
 /** One dataset field whose VALUES join against a geography lookup table well
  * enough to drive a region map (choropleth / symbol map). */
@@ -299,7 +292,7 @@ export const detectGeoFields = (
 		) {
 			best = { level: "states", ...states }
 		} else if (counties.matchRate >= countries.matchRate) {
-			best = { level: COUNTIES_LEVEL, ...counties }
+			best = { level: "counties", ...counties }
 		} else {
 			best = { level: "countries", ...countries }
 		}

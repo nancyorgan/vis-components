@@ -7,7 +7,10 @@ import {
 	type AxisConfig,
 	type ChannelConfigs,
 } from "./channelConfig"
-import type { GeoFieldDetection } from "./geo/detectGeoFields"
+import type {
+	DetectedGeoLevel,
+	GeoFieldDetection,
+} from "./geo/detectGeoFields"
 import { DEFAULT_MAP_CONFIG, type MapConfig } from "./mapConfig"
 import type {
 	QuickStartChartType,
@@ -659,7 +662,7 @@ export const mapConfigForVariation = (
 			? { ...current, coordSystem: "noMap" }
 			: current
 	}
-	let level: "states" | "countries"
+	let level: DetectedGeoLevel
 	if (variation.geo === "points") {
 		level = geo?.pointsLevel ?? "states"
 	} else {
