@@ -63,7 +63,17 @@ export const ColorInput = (props: {
 	label: string
 	value: string
 	onChange: (v: string) => void
-}) => <UiColorInput labelClassName={THEME_LABEL_CLASS} {...props} />
+}) => (
+	// No palette picker here: on this page the swatches DEFINE the theme (the
+	// palettes included), so offering "pick a color from the theme palette" to
+	// set a theme color is circular. The chart sidebar's swatches consume the
+	// theme and keep it.
+	<UiColorInput
+		labelClassName={THEME_LABEL_CLASS}
+		showPalettePicker={false}
+		{...props}
+	/>
+)
 
 export const NumberInput = (props: {
 	label: string

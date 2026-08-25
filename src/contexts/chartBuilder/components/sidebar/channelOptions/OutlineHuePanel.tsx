@@ -33,7 +33,6 @@ import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import {
 	CategoricalSwatchList,
-	PalettePickerButton,
 	QuantitativePanel,
 	useQuantFieldExtent,
 } from "./HueOptionsPanel"
@@ -149,9 +148,6 @@ export const OutlineColorRow = () => {
 						value={cfg.outlineColor}
 						onChange={(outlineColor) => updateShape({ outlineColor })}
 						changed={cfg.outlineColor !== defaultColor}
-					/>
-					<PalettePickerButton
-						label="Pick palette outline color"
 						palette={
 							// Outline's own picked palette → fill palette → theme default,
 							// same precedence the outline scale uses when a field IS mapped.
@@ -161,8 +157,7 @@ export const OutlineColorRow = () => {
 							)?.colors ??
 							CATEGORICAL_HUE_PALETTE
 						}
-						current={cfg.outlineColor}
-						onPick={(outlineColor) => updateShape({ outlineColor })}
+						pickerLabel="Pick palette outline color"
 					/>
 					{cfg.outlineColor !== defaultColor && (
 						<ResetLink onClick={() => updateShape({ outlineColor: defaultColor })} />

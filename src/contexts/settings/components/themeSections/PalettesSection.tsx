@@ -66,6 +66,9 @@ const PaletteCard = ({
 					label={`${swatchNoun} ${i + 1}`}
 					labelClassName="sr-only"
 					showHexInput={false}
+					// These swatches ARE the palette — a picker offering the theme's
+					// palette colors to define a palette color is circular.
+					showPalettePicker={false}
 					value={color}
 					onChange={(hex) => {
 						const next = [...palette.colors]

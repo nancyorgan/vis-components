@@ -203,7 +203,7 @@ describe("MapsSection", () => {
 		const none = screen.getByRole("button", { name: "None" })
 		expect(none.getAttribute("aria-pressed")).toBe("true")
 		// Ink color is inert without a pattern → hidden.
-		expect(screen.queryByLabelText(/Pattern ink/i)).toBeNull()
+		expect(screen.queryByLabelText("Pattern ink")).toBeNull()
 		// Picking a pattern selects its chip and reveals the ink input.
 		const chip = screen.getByRole("button", {
 			name: /No-data pattern option 2/i,
@@ -211,7 +211,7 @@ describe("MapsSection", () => {
 		fireEvent.click(chip)
 		expect(chip.getAttribute("aria-pressed")).toBe("true")
 		expect(none.getAttribute("aria-pressed")).toBe("false")
-		expect(screen.getByLabelText(/Pattern ink/i)).toBeTruthy()
+		expect(screen.getByLabelText("Pattern ink")).toBeTruthy()
 	})
 
 	it("reflects a seeded noDataPattern as the selected chip", () => {
@@ -284,19 +284,19 @@ describe("MapsSection", () => {
 		// The toggle is choropleth-only and must stay hidden here…
 		expect(screen.queryByLabelText(/Fill regions with no data/i)).toBeNull()
 		// …but the color control IS present (the basemap renders noDataFill).
-		expect(screen.getByLabelText(/No-data fill/i)).toBeTruthy()
+		expect(screen.getByLabelText("No-data fill")).toBeTruthy()
 	})
 
 	it("hides the no-data-fill color in symbols mode when the basemap is off", () => {
 		seed("geographic", { showBasemap: false }, SYMBOLS_ENC)
 		mount()
-		expect(screen.queryByLabelText(/No-data fill/i)).toBeNull()
+		expect(screen.queryByLabelText("No-data fill")).toBeNull()
 	})
 
 	it("shows the no-data-fill color in choropleth mode", () => {
 		seed("geographic", {}, CHOROPLETH_ENC)
 		mount()
-		expect(screen.getByLabelText(/No-data fill/i)).toBeTruthy()
+		expect(screen.getByLabelText("No-data fill")).toBeTruthy()
 	})
 
 	// --- Point map (geo-points): X = longitude, Y = latitude. The lon/lat hint

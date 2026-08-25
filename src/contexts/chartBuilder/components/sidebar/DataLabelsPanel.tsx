@@ -45,7 +45,7 @@ import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 import { AlignmentControl } from "./LabelsPanel"
 import { DataLabelChannelRow } from "./dataLabels/DataLabelChannelRow"
-import { HuePanel } from "./dataLabels/HuePanel"
+import { ColorPanel } from "./dataLabels/ColorPanel"
 import { SizePanel } from "./dataLabels/SizePanel"
 import { TextBackgroundPanel } from "./dataLabels/TextBackgroundPanel"
 import { TextPositionPanel } from "./dataLabels/TextPositionPanel"
@@ -88,7 +88,7 @@ export const DataLabelsPanel = () => {
 	}
 	const [cfg, setCfg] = useAtom(currentDataLabelsConfigAtom)
 	const merged: DataLabelsConfig = { ...DEFAULT_DATA_LABELS_CONFIG, ...cfg }
-	// Resolve the LIVE theme (same fallback chain as HuePanel) so the
+	// Resolve the LIVE theme (same fallback chain as ColorPanel) so the
 	// font-size / weight / style reset links compare against — and reset to —
 	// the theme's data-label defaults rather than the hardcoded constants.
 	const theme = useCurrentTheme()
@@ -479,7 +479,7 @@ export const DataLabelsPanel = () => {
 				eligible={allEligible}
 				derivedOptions={labelDerivedHueOptions}
 			>
-				<HuePanel
+				<ColorPanel
 					cfg={merged}
 					onChange={updateCfg}
 					hueField={hueField}

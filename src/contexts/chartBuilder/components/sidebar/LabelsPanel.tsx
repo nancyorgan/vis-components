@@ -39,7 +39,6 @@ import {
 	useFontFamilyOptions,
 	useUserFontWeights,
 } from "../../store/useFontOptions"
-import { PalettePickerButton } from "./channelOptions/HueOptionsPanel"
 import { Disclosure } from "@headlessui/react"
 
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
@@ -403,12 +402,8 @@ export const LabelsPanel = () => {
 								value={current ?? baseColor}
 								onChange={(color) => setFacetTitleColor(v, color)}
 								className="contents"
-							/>
-							<PalettePickerButton
-								label={`Pick palette title color for ${v}`}
 								palette={facetSwatchPalette}
-								current={current ?? baseColor}
-								onPick={(color) => setFacetTitleColor(v, color)}
+								pickerLabel={`Pick palette title color for ${v}`}
 							/>
 							{current !== undefined && (
 								<ResetLink onClick={() => setFacetTitleColor(v, null)} />

@@ -23,7 +23,6 @@ import {
 import { ColorSlotControls } from "../channelOptions/ColorPanel"
 import {
 	CategoricalSwatchList,
-	PalettePickerButton,
 } from "../channelOptions/HueOptionsPanel"
 
 const PALETTE_PRESET_NAMES: PaletteName[] = [
@@ -46,7 +45,7 @@ const PALETTE_PRESET_NAMES: PaletteName[] = [
 // user picks a CATEGORICAL palette for discrete fields and a GRADIENT for
 // continuous fields, matching the main hue panel UX.
 // ---------------------------------------------------------------------------
-export const HuePanel = ({
+export const ColorPanel = ({
 	cfg,
 	onChange,
 	hueField,
@@ -129,31 +128,20 @@ export const HuePanel = ({
 					 *  advanced text-color rules drop below it. The circular-arrow
 					 *  palette picker rides along like every other single-color
 					 *  swatch (theme's default categorical palette). */}
-					<div className="flex items-center gap-2">
-						<ColorInput
-							label={
-								(cfg.textColorRules?.length ?? 0) > 0
-									? "Else (fallback)"
-									: usesScale
-										? "Fallback"
-										: "Color"
-							}
-							labelClassName={LABEL_COL}
-							value={cfg.color}
-							onChange={(color) => onChange({ color })}
-						/>
-						<PalettePickerButton
-							label="Pick palette color for label text"
-							palette={
-								theme.categoricalPalettes.find(
-									(p) => p.id === theme.defaultCategoricalPaletteId
-								)?.colors ?? CATEGORICAL_HUE_PALETTE
-							}
-							current={cfg.color}
-							onPick={(color) => onChange({ color })}
-						/>
-					</div>
-					<TextColorRulesRow cfg={cfg} onChange={onChange} />
+					<ColorInput
+						label={
+							(cfg.textColorRules?.length ?? 0) > 0
+								? "Else (fallback)"
+								: usesScale
+									? "Fallback"
+									: "Color"
+						}
+						labelClassName={LABEL_COL}
+						value={cfg.color}
+						onChange={(color) => onChange({ color })}
+						pickerLabel="Pick palette color for label text"
+					/>
+					<TextColorRulesRow cfg={cfg} onChange={onChange} theme={theme} />
 				</>
 			)}
 			{multiFields.length > 0 && (
@@ -294,9 +282,11 @@ const LabelSwatchList = ({
 const TextColorRulesRow = ({
 	cfg,
 	onChange,
+	theme,
 }: {
 	cfg: DataLabelsConfig
 	onChange: (patch: Partial<DataLabelsConfig>) => void
+	theme: AtomValueType<typeof themeAtom>
 }) => {
 	const stored = cfg.textColorRules ?? []
 	const display: TextColorRule[] =
@@ -310,6 +300,13 @@ const TextColorRulesRow = ({
 		update(display.filter((_, idx) => idx !== i))
 	const addRule = () =>
 		update([...display, { condition: "", color: cfg.color }])
+	// Same palette the base label-color swatch offers (theme default
+	// categorical) so a rule color can be picked on-palette like every
+	// other swatch; the popover's chevron reaches the other palettes.
+	const palette =
+		theme.categoricalPalettes.find(
+			(p) => p.id === theme.defaultCategoricalPaletteId
+		)?.colors ?? CATEGORICAL_HUE_PALETTE
 	return (
 		<CollapsibleSubsection
 			title="Text color rules"
@@ -339,6 +336,8 @@ const TextColorRulesRow = ({
 						value={rule.color}
 						onChange={(color) => setRule(i, { color })}
 						showHexInput={false}
+						palette={palette}
+						pickerLabel={`Pick palette color for rule ${i + 1}`}
 					/>
 					{stored.length > 0 && (
 						<button

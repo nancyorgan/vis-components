@@ -2,6 +2,7 @@ import { useId, useState, useEffect } from "react"
 import { combine as c } from "../../lib/cls"
 
 import { LabeledField } from "./LabeledField"
+import { PalettePickerButton } from "./PalettePickerButton"
 
 /** Hex-color regex. Accepts 3-, 6-, or 8-digit hex (rgb / rgba via 8).
  *  Reused for live-validation of the text input — the swatch input only
@@ -28,6 +29,9 @@ export const ColorInput = ({
 	inline,
 	showHexInput = true,
 	changed,
+	palette,
+	pickerLabel,
+	showPalettePicker = true,
 }: {
 	id?: string
 	label: React.ReactNode
@@ -45,6 +49,17 @@ export const ColorInput = ({
 	showHexInput?: boolean
 	/** Shows the per-line "changed" dot in front of the label. */
 	changed?: boolean
+	/** Colors the circular-arrow picker offers beside the swatch. Defaults to
+	 *  the theme's default categorical palette; pass a scheme when the row has
+	 *  its own (a per-value swatch's palette, an outline palette). */
+	palette?: readonly string[]
+	/** a11y label for the picker button. Defaults to "Pick palette color for
+	 *  {label}" when `label` is a plain string. */
+	pickerLabel?: string
+	/** Drops the palette picker. For the theme editor, where these swatches
+	 *  DEFINE the palettes — offering a palette color to set a palette color
+	 *  is circular. */
+	showPalettePicker?: boolean
 }) => {
 	const generatedId = useId()
 	const inputId = id ?? generatedId
@@ -106,6 +121,22 @@ export const ColorInput = ({
 					disabled={disabled}
 					className="h-6 w-10 cursor-pointer rounded border border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700"
 				/>
+				{/* Every swatch in the app carries the on-palette shortcut — the
+				 *  native picker is open-ended, so without this each row is one
+				 *  eyeballed hex away from drifting off the theme. */}
+				{showPalettePicker && !disabled && (
+					<PalettePickerButton
+						label={
+							pickerLabel ??
+							(typeof label === "string"
+								? `Pick palette color for ${label}`
+								: "Pick palette color")
+						}
+						palette={palette}
+						current={value}
+						onPick={onChange}
+					/>
+				)}
 			</div>
 		</LabeledField>
 	)
