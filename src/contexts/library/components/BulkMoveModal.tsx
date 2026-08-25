@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useAtomValue } from "jotai"
 import { foldersAtom } from "../../chartBuilder/store/atoms"
+import { folderTreeOrder } from "../lib/folderOrder"
 
 import { Button } from "../../../components/ui/Button"
 import { Modal } from "../../../components/ui/Modal"
@@ -16,7 +17,9 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 	const folders = useAtomValue(foldersAtom)
 	const [target, setTarget] = useState<string | null>(null)
 
-	const sorted = [...folders].sort((a, b) => a.name.localeCompare(b.name))
+	// Same order the sidebar tree shows — hand-placed first, then
+	// alphabetical — so a destination is where the user expects it.
+	const sorted = folderTreeOrder(folders)
 
 	return (
 		<Modal
@@ -41,7 +44,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 					>
 						Root (no folder)
 					</button>
-					{sorted.map((f) => (
+					{sorted.map(({ folder: f, depth }) => (
 						<button
 							key={f.id}
 							type="button"
@@ -51,9 +54,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 									? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
 									: "text-stone-700 dark:text-stone-300"
 							}`}
-							style={{
-								paddingLeft: `${12 + (f.parentId ? 12 : 0)}px`,
-							}}
+							style={{ paddingLeft: `${12 + depth * 12}px` }}
 						>
 							{f.name}
 						</button>

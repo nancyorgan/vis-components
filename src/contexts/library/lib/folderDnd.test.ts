@@ -8,6 +8,7 @@ import {
 	canDropFolderOn,
 	decodeFolderDrag,
 	decodeVisualsDrag,
+	dropZoneFor,
 	encodeFolderDrag,
 	encodeVisualsDrag,
 	rangeBetween,
@@ -136,5 +137,47 @@ describe("drag payload round-trip", () => {
 		expect(decodeVisualsDrag("not json")).toBeNull()
 		expect(decodeVisualsDrag('{"wrong": true}')).toBeNull()
 		expect(decodeFolderDrag("")).toBeNull()
+	})
+})
+
+describe("dropZoneFor", () => {
+	const row = { top: 100, height: 20 }
+
+	it("reads the top quarter as before and the bottom quarter as after", () => {
+		expect(dropZoneFor(row, 101)).toBe("before")
+		expect(dropZoneFor(row, 119)).toBe("after")
+	})
+
+	it("reads the middle half as nest-inside", () => {
+		expect(dropZoneFor(row, 105)).toBe("inside")
+		expect(dropZoneFor(row, 110)).toBe("inside")
+		expect(dropZoneFor(row, 114)).toBe("inside")
+	})
+
+	it("falls back to inside without a usable coordinate", () => {
+		expect(
+			dropZoneFor(row, undefined as unknown as number)
+		).toBe("inside")
+	})
+
+	it("falls back to inside for a degenerate rect", () => {
+		// happy-dom (and a row measured while hidden) reports all zeros; a
+		// drop there must still mean something safe rather than a stray
+		// re-order.
+		expect(dropZoneFor({ top: 0, height: 0 }, 0)).toBe("inside")
+	})
+})
+
+describe("visibleVisualOrder with hand-placed folders", () => {
+	it("follows sortIndex rather than the folder name", () => {
+		const folders: Folder[] = [
+			{ id: "A", name: "A", parentId: null, createdAt: 1, sortIndex: 1 },
+			{ id: "B", name: "B", parentId: null, createdAt: 1, sortIndex: 0 },
+		]
+		const visuals = [mkVisual("v-a", "A"), mkVisual("v-b", "B")]
+		expect(visibleVisualOrder(folders, visuals, new Set())).toEqual([
+			"v-b",
+			"v-a",
+		])
 	})
 })

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react"
+import { cleanup, createEvent, fireEvent, render } from "@testing-library/react"
 import { TestProvider } from "../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -44,11 +44,17 @@ const makeFakeDataTransfer = () => {
 	}
 }
 
-const mkFolder = (id: string, parentId: string | null, name = id): Folder => ({
+const mkFolder = (
+	id: string,
+	parentId: string | null,
+	name = id,
+	sortIndex?: number
+): Folder => ({
 	id,
 	name,
 	parentId,
 	createdAt: 1,
+	...(sortIndex === undefined ? {} : { sortIndex }),
 })
 
 const mkVisual = (id: string, folderId: string | null, name = id): Visual => ({
@@ -111,15 +117,48 @@ const folderRow = (container: HTMLElement, name: string): HTMLElement => {
 	return row as HTMLElement
 }
 
-/** Simulate a full same-window drag from a source element to a target. */
-const dragTo = (source: HTMLElement, target: HTMLElement) => {
+/** Simulate a full same-window drag from a source element to a target.
+ *  `zone` picks where in the target row the pointer lands: happy-dom
+ *  reports an all-zero rect, so a row has to be given a real one for the
+ *  before/inside/after bands to exist at all. Omitting it leaves the
+ *  degenerate rect, which resolves to "inside". */
+const dragTo = (
+	source: HTMLElement,
+	target: HTMLElement,
+	zone?: "before" | "inside" | "after"
+) => {
 	const dataTransfer = makeFakeDataTransfer()
+	let clientY = 0
+	if (zone) {
+		const top = 100
+		const height = 20
+		target.getBoundingClientRect = () =>
+			({ top, height, bottom: top + height, left: 0, right: 0, width: 100, x: 0, y: top }) as DOMRect
+		clientY = { before: top + 1, inside: top + 10, after: top + 19 }[zone]
+	}
+	// happy-dom's DragEvent constructor ignores clientY, so it has to be
+	// pinned onto the event object after construction or the row's
+	// before/inside/after bands can't be reached at all.
+	const dragEvent = (
+		kind: "dragEnter" | "dragOver" | "drop",
+		node: HTMLElement
+	) => {
+		const event = createEvent[kind](node, { dataTransfer })
+		Object.defineProperty(event, "clientY", { value: clientY })
+		fireEvent(node, event)
+	}
 	fireEvent.dragStart(source, { dataTransfer })
-	fireEvent.dragEnter(target, { dataTransfer })
-	fireEvent.dragOver(target, { dataTransfer })
-	fireEvent.drop(target, { dataTransfer })
+	dragEvent("dragEnter", target)
+	dragEvent("dragOver", target)
+	dragEvent("drop", target)
 	fireEvent.dragEnd(source, { dataTransfer })
 }
+
+/** Folder names in the order their rows appear in the tree. */
+const folderRowOrder = (container: HTMLElement, names: string[]): string[] =>
+	[...container.querySelectorAll('[role="button"]')]
+		.map((r) => names.find((n) => r.textContent?.includes(n)))
+		.filter((n): n is string => n !== undefined)
 
 beforeEach(() => {
 	installInMemoryLocalStorage()
@@ -201,6 +240,59 @@ describe("FolderTree drag-and-drop", () => {
 		expect(readStoredFolders().find((f) => f.id === "fl-b")?.parentId).toBe(
 			"fl-a"
 		)
+	})
+
+	it("renders a hand-placed group in sortIndex order, not alphabetically", () => {
+		seedStorage(
+			[
+				mkFolder("fl-a", null, "Alpha", 2),
+				mkFolder("fl-b", null, "Beta", 0),
+				mkFolder("fl-c", null, "Gamma", 1),
+			],
+			[]
+		)
+		const { container } = renderTree()
+		expect(folderRowOrder(container, ["Alpha", "Beta", "Gamma"])).toEqual([
+			"Beta",
+			"Gamma",
+			"Alpha",
+		])
+	})
+
+	it("dropping on a row's top edge orders the folder there instead of nesting", () => {
+		seedStorage(
+			[
+				mkFolder("fl-a", null, "Alpha"),
+				mkFolder("fl-b", null, "Beta"),
+				mkFolder("fl-c", null, "Gamma"),
+			],
+			[]
+		)
+		const { container } = renderTree()
+		dragTo(folderRow(container, "Gamma"), folderRow(container, "Alpha"), "before")
+		const stored = readStoredFolders()
+		// Still a root folder — an edge drop never re-parents into the row.
+		expect(stored.find((f) => f.id === "fl-c")?.parentId).toBe(null)
+		expect(folderRowOrder(container, ["Alpha", "Beta", "Gamma"])).toEqual([
+			"Gamma",
+			"Alpha",
+			"Beta",
+		])
+	})
+
+	it("dropping on a row's middle still nests, and clears the hand-placed position", () => {
+		seedStorage(
+			[
+				mkFolder("fl-a", null, "Alpha", 0),
+				mkFolder("fl-b", null, "Beta", 1),
+			],
+			[]
+		)
+		const { container } = renderTree()
+		dragTo(folderRow(container, "Beta"), folderRow(container, "Alpha"), "inside")
+		const moved = readStoredFolders().find((f) => f.id === "fl-b")
+		expect(moved?.parentId).toBe("fl-a")
+		expect(moved && "sortIndex" in moved).toBe(false)
 	})
 
 	it("refuses to drop a folder into its own descendant", () => {

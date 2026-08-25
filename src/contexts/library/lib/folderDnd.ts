@@ -1,5 +1,6 @@
 import { stringifyJsonDangerous } from "../../../lib/json"
 import type { Folder, Visual } from "../../chartBuilder/lib/types"
+import { orderedSiblings } from "./folderOrder"
 
 /** Custom dataTransfer MIME types for landing-page drags. Anything else
  *  (files, links, text) is ignored by the sidebar drop targets. */
@@ -92,8 +93,38 @@ export const canDropFolderOn = (
 const byName = <T extends { name: string }>(a: T, b: T) =>
 	a.name.localeCompare(b.name)
 
+/** What a folder drag hovering a folder row means. `"inside"` re-parents
+ *  (the original behavior); `"before"`/`"after"` place the dragged folder
+ *  in the hovered row's OWN sibling group. */
+export type FolderDropZone = "before" | "inside" | "after"
+
+/** Fraction of a row's height at each edge that reads as "place between
+ *  rows" rather than "nest inside". A quarter each leaves the middle half
+ *  for nesting, which is the more destructive action and so gets the
+ *  bigger target. */
+const EDGE_ZONE_FRACTION = 0.25
+
+/** Resolve a hover to a drop zone from the pointer's Y within the row.
+ *  Falls back to "inside" — the pre-ordering behavior — whenever the
+ *  geometry can't be trusted: a zero-height rect (a row measured while
+ *  hidden), or a missing coordinate (happy-dom's DragEvent drops clientY,
+ *  so component tests see undefined). Better to nest than to silently
+ *  re-order somewhere the user didn't aim. */
+export const dropZoneFor = (
+	rect: { top: number; height: number },
+	clientY: number
+): FolderDropZone => {
+	if (rect.height <= 0) return "inside"
+	const offset = (clientY - rect.top) / rect.height
+	if (!Number.isFinite(offset)) return "inside"
+	if (offset < EDGE_ZONE_FRACTION) return "before"
+	if (offset > 1 - EDGE_ZONE_FRACTION) return "after"
+	return "inside"
+}
+
 /** Visual ids in the exact top-to-bottom order FolderTree renders their
- *  rows: folders depth-first (name-sorted), each folder listing its
+ *  rows: folders depth-first (in `orderedSiblings` order — hand-placed
+ *  first, then alphabetical), each folder listing its
  *  subfolder subtrees before its own visuals (name-sorted), and visuals
  *  with no folder flat at the bottom. Collapsed folders contribute no
  *  rows. Shift-click ranges are computed over this order. */
@@ -104,10 +135,7 @@ export const visibleVisualOrder = (
 ): string[] => {
 	const order: string[] = []
 	const walk = (parentId: string | null) => {
-		const children = folders
-			.filter((f) => f.parentId === parentId)
-			.sort(byName)
-		for (const folder of children) {
+		for (const folder of orderedSiblings(folders, parentId)) {
 			if (collapsedFolderIds.has(folder.id)) continue
 			walk(folder.id)
 			for (const v of visuals

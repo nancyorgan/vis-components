@@ -48,6 +48,10 @@ export type BundleMergeResult = LibraryCollections & {
 		folders: number
 		themes: number
 	}
+	/** Incoming themes that resolved to one the library already had (same id,
+	 *  or same name) instead of landing as a second copy. Reported so the
+	 *  import status can say the themes were recognized, not dropped. */
+	reusedThemes: number
 }
 
 export type ParseBundleResult =
@@ -240,6 +244,18 @@ const findDuplicateIndexed = (
 		?.id ?? null
 
 /* ------------------------------------------------------------------ *
+ * Theme identity
+ * ------------------------------------------------------------------ */
+
+/** Match key for "the user already has this theme": the name, trimmed and
+ *  case-folded. Names are how themes are identified in every picker, so two
+ *  entries reading the same are a duplicate to the user however their ids
+ *  diverged — and ids DO diverge in practice (a theme imported through
+ *  Settings → Themes is re-keyed, and two instances of the app that each
+ *  built the theme locally never shared an id in the first place). */
+const themeNameKey = (name: string): string => name.trim().toLowerCase()
+
+/* ------------------------------------------------------------------ *
  * The merge
  * ------------------------------------------------------------------ */
 
@@ -261,11 +277,18 @@ const findDuplicateIndexed = (
  *     re-shared data doesn't multiply. A same-id-but-different data set gets
  *     a fresh id. Visuals repoint to whichever id won, including their
  *     `createdAtVersionId` version pin (positional within a merged pair).
- *   - **Themes** merge by id: an id that already exists locally is skipped
- *     outright (never overwritten), and system themes are ignored because
- *     every build ships them.
+ *   - **Themes** merge by identity, never by copy: an incoming theme is
+ *     matched to an existing one by id, and failing that by name (trimmed,
+ *     case-insensitive) against the recipient's own themes. A match is
+ *     reused as-is — never overwritten — and the imported visuals' `themeId`
+ *     repoints at it, so re-importing a bundle whose themes were built
+ *     independently on both ends stops producing a second "Brand" in every
+ *     picker. Only genuinely new names are added. System themes are ignored
+ *     because every build ships them, and they're excluded from name
+ *     matching so a user theme called "Light" still arrives.
  *   - **userDefaultThemeId** is adopted only when the recipient has no pick
- *     of their own, mirroring `applyExampleSeed`. */
+ *     of their own, mirroring `applyExampleSeed`, and follows the same theme
+ *     remap. */
 export const mergeBundleIntoLibrary = (
 	bundle: SeedBundle,
 	existing: LibraryCollections,
@@ -351,6 +374,43 @@ export const mergeBundleIntoLibrary = (
 		datasetsAdded++
 	}
 
+	// --- themes: match by id then by name, never overwrite -------------
+	const themeIds = new Set(existing.themes.map((t) => t.id))
+	// Name lookup covers the recipient's OWN themes only: a system name is
+	// shipped with every build, so a user theme that happens to share one is
+	// a different thing and still has to arrive.
+	const themeIdByName = new Map<string, string>()
+	for (const t of existing.themes) {
+		if (t.isSystem) continue
+		const key = themeNameKey(t.name)
+		if (!themeIdByName.has(key)) themeIdByName.set(key, t.id)
+	}
+	const themeIdMap = new Map<string, string>()
+	const incomingThemes: SavedTheme[] = []
+	let themesReused = 0
+	for (const t of bundle.themes) {
+		if (t.isSystem) continue
+		if (themeIds.has(t.id)) {
+			themesReused++
+			continue
+		}
+		const matched = themeIdByName.get(themeNameKey(t.name))
+		if (matched !== undefined) {
+			themeIdMap.set(t.id, matched)
+			themesReused++
+			continue
+		}
+		themeIds.add(t.id)
+		themeIdByName.set(themeNameKey(t.name), t.id)
+		// Backfill anything a bundle from an older build predates — themesAtom
+		// readers take entries as-is.
+		incomingThemes.push(normalizeSavedTheme({ ...t, isSystem: false }))
+	}
+	const themes =
+		incomingThemes.length > 0
+			? [...existing.themes, ...incomingThemes]
+			: existing.themes
+
 	// --- visuals: always added, ids remapped ---------------------------
 	const usedVisualIds = new Set(existing.visuals.map((v) => v.id))
 	const imported: Visual[] = []
@@ -368,37 +428,31 @@ export const mergeBundleIntoLibrary = (
 				: versionIdMap.get(v.createdAtVersionId) ?? v.createdAtVersionId
 		const folderId =
 			v.folderId != null ? folderIdMap.get(v.folderId) ?? null : null
+		// `themeId` only tells the editor which dropdown entry to highlight —
+		// the applied values are already snapshotted into the visual — so
+		// repointing a name-matched theme changes nothing about how it draws.
+		const themeId = v.themeId != null ? themeIdMap.get(v.themeId) ?? v.themeId : v.themeId
 		imported.push({
 			...v,
 			id,
 			datasetId,
 			createdAtVersionId,
 			folderId,
+			themeId,
 			createdAt: typeof v.createdAt === "number" ? v.createdAt : now,
 			updatedAt: typeof v.updatedAt === "number" ? v.updatedAt : now,
 		})
 	}
 
-	// --- themes: merge by id, never overwrite --------------------------
-	const themeIds = new Set(existing.themes.map((t) => t.id))
-	const incomingThemes: SavedTheme[] = []
-	for (const t of bundle.themes) {
-		if (t.isSystem || themeIds.has(t.id)) continue
-		themeIds.add(t.id)
-		// Backfill anything a bundle from an older build predates — themesAtom
-		// readers take entries as-is.
-		incomingThemes.push(normalizeSavedTheme({ ...t, isSystem: false }))
-	}
-	const themes =
-		incomingThemes.length > 0
-			? [...existing.themes, ...incomingThemes]
-			: existing.themes
-
+	const bundleDefaultThemeId =
+		bundle.userDefaultThemeId === null
+			? null
+			: themeIdMap.get(bundle.userDefaultThemeId) ?? bundle.userDefaultThemeId
 	const adoptedDefault =
 		existing.userDefaultThemeId === null &&
-		bundle.userDefaultThemeId !== null &&
-		themes.some((t) => t.id === bundle.userDefaultThemeId)
-			? bundle.userDefaultThemeId
+		bundleDefaultThemeId !== null &&
+		themes.some((t) => t.id === bundleDefaultThemeId)
+			? bundleDefaultThemeId
 			: existing.userDefaultThemeId
 
 	return {
@@ -413,6 +467,7 @@ export const mergeBundleIntoLibrary = (
 			folders: foldersAdded,
 			themes: incomingThemes.length,
 		},
+		reusedThemes: themesReused,
 	}
 }
 

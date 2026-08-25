@@ -111,13 +111,22 @@ export const SharingPage = () => {
 				setUserDefaultThemeId(merged.userDefaultThemeId)
 			}
 			const { added } = merged
+			// Themes the library already had are matched, not re-added — say so,
+			// otherwise a bundle whose themes all matched reads as if they were
+			// silently dropped.
 			setImportStatus(
 				`Imported ${plural(added.visuals, "visualization")} and ${plural(
 					added.datasets,
 					"data set"
 				)}; created ${plural(added.folders, "folder")}${
 					added.themes > 0 ? ` and ${plural(added.themes, "theme")}` : ""
-				}.`
+				}.${
+					merged.reusedThemes > 0
+						? ` ${plural(merged.reusedThemes, "theme")} already in your library ${
+								merged.reusedThemes === 1 ? "was" : "were"
+							} reused.`
+						: ""
+				}`
 			)
 		} catch (error) {
 			setImportStatus(

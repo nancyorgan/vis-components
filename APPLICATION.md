@@ -2114,6 +2114,21 @@ grid cards drag onto sidebar folders (or "All visualizations" for the
 root), cmd/ctrl-click and shift-click build a sidebar multi-selection
 that drags as a set, and folders drag onto other folders to re-nest
 (cycles and no-op moves are rejected — no highlight, drop ignored).
+
+Folders are listed alphabetically until the user says otherwise. A
+folder dragged onto the *middle* of another folder's row nests inside
+it, as above; dragged onto the top or bottom quarter of a row it takes
+that position among the row's own siblings instead, and an insertion
+line — rather than the nest highlight — shows where it will land. Hand
+placement sticks: the first such drop in a sibling group freezes the
+alphabetical order everyone was already looking at and moves only the
+dragged folder, so nothing else jumps. Every folder list follows the
+result, the Move… pickers included. Later folders created in that group
+are appended at the end; nesting a folder somewhere else forgets its
+position, returning it to alphabetical among its new siblings. Visuals
+nested under a folder stay alphabetical — the table's own sort controls
+are the way to re-order those.
+
 Selecting a folder in the sidebar shows the visuals of its entire
 subtree — descendant folders included — in both the grid and table
 views. Checking one or more visuals (the card checkbox in grid view,

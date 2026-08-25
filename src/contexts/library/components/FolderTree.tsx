@@ -9,10 +9,12 @@ import {
 } from "../../chartBuilder/store/atoms"
 import {
 	FOLDER_DRAG_TYPE,
+	type FolderDropZone,
 	VISUALS_DRAG_TYPE,
 	canDropFolderOn,
 	decodeFolderDrag,
 	decodeVisualsDrag,
+	dropZoneFor,
 	encodeFolderDrag,
 	encodeVisualsDrag,
 	getCurrentDrag,
@@ -20,49 +22,76 @@ import {
 	setCurrentDrag,
 	visibleVisualOrder,
 } from "../lib/folderDnd"
+import {
+	canReorderFolderInto,
+	clearSortIndex,
+	insertionPointFor,
+	nextSortIndex,
+	orderedSiblings,
+	reorderFolder,
+} from "../lib/folderOrder"
 
 const newFolderId = () =>
 	`fl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
 /** Shared drop-target behavior for folder rows and the "All visualizations"
  *  row. Uses the enter/leave depth-counter pattern from DataDrawer so
- *  hovering child elements doesn't flicker the highlight. `accepts` is
- *  checked against the module-level current drag (dataTransfer payloads are
- *  unreadable during dragover); the authoritative payload is re-read from
- *  dataTransfer at drop time. */
+ *  hovering child elements doesn't flicker the highlight. `resolve` maps a
+ *  hover to the zone it would drop into — or null when this drag isn't
+ *  welcome here — reading the module-level current drag (dataTransfer
+ *  payloads are unreadable during dragover); the authoritative payload is
+ *  re-read from dataTransfer at drop time. */
 const useFolderDropTarget = ({
-	accepts,
+	resolve,
 	onDropPayload,
 }: {
-	accepts: () => boolean
-	onDropPayload: (e: React.DragEvent) => void
+	resolve: (e: React.DragEvent) => FolderDropZone | null
+	onDropPayload: (e: React.DragEvent, zone: FolderDropZone) => void
 }) => {
-	const [dropHover, setDropHover] = useState(false)
+	// Doubles as the highlight state: which zone the pointer is in, or null
+	// for no highlight at all.
+	const [dropZone, setDropZone] = useState<FolderDropZone | null>(null)
 	const depth = useRef(0)
+	// The zone to act on at drop time — `dropZone` state can lag the last
+	// dragover by a render.
+	const zoneRef = useRef<FolderDropZone | null>(null)
+	const track = (e: React.DragEvent) => {
+		const zone = resolve(e)
+		zoneRef.current = zone
+		setDropZone(zone)
+		return zone
+	}
 	return {
-		dropHover,
+		dropZone,
 		dropHandlers: {
 			onDragEnter: (e: React.DragEvent) => {
-				if (!accepts()) return
+				if (track(e) === null) return
 				e.preventDefault()
 				depth.current += 1
-				setDropHover(true)
 			},
 			onDragOver: (e: React.DragEvent) => {
-				if (!accepts()) return
+				// Re-resolved on every move: the pointer crosses between the
+				// nest-inside band and the two edge bands without ever
+				// leaving the row, so enter/leave alone can't track it.
+				if (track(e) === null) return
 				e.preventDefault()
 				e.dataTransfer.dropEffect = "move"
 			},
 			onDragLeave: () => {
 				depth.current = Math.max(0, depth.current - 1)
-				if (depth.current === 0) setDropHover(false)
+				if (depth.current === 0) {
+					zoneRef.current = null
+					setDropZone(null)
+				}
 			},
 			onDrop: (e: React.DragEvent) => {
 				e.preventDefault()
 				e.stopPropagation()
 				depth.current = 0
-				setDropHover(false)
-				onDropPayload(e)
+				const zone = zoneRef.current ?? resolve(e)
+				setDropZone(null)
+				zoneRef.current = null
+				if (zone) onDropPayload(e, zone)
 				// A drop can remount the dragged row (it moved subtrees), and
 				// browsers don't reliably fire dragend on a detached node — so
 				// the source's own dragend can't be trusted to clear this.
@@ -72,9 +101,24 @@ const useFolderDropTarget = ({
 	}
 }
 
-/** Highlight for a row the current drag may drop onto. */
+/** Highlight for a row the current drag may drop INTO (nest / move). */
 const DROP_HOVER_CLASS =
 	"bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40 dark:ring-blue-500"
+
+/** Insertion line for an "order it here" drop, drawn as an inset shadow on
+ *  the row's leading / trailing edge so it can't shift the row's height the
+ *  way a border would. Literal blue-500 — it reads on both themes, so it
+ *  needs no dark variant. */
+const DROP_BEFORE_CLASS = "shadow-[inset_0_2px_0_0_#3b82f6]"
+const DROP_AFTER_CLASS = "shadow-[inset_0_-2px_0_0_#3b82f6]"
+
+/** Row classes for a resolved drop zone (null = not a drop target now). */
+const dropZoneClass = (zone: FolderDropZone | null): string => {
+	if (zone === "inside") return DROP_HOVER_CLASS
+	if (zone === "before") return DROP_BEFORE_CLASS
+	if (zone === "after") return DROP_AFTER_CLASS
+	return ""
+}
 
 /** Replace the browser's default ghost (the full row, or a link preview)
  *  with a compact "N items" badge when dragging a multi-selection. The
@@ -145,8 +189,10 @@ type FolderTreeItemProps = {
 	onToggleExpanded: (id: string) => void
 	selectedVisualIds: ReadonlySet<string>
 	onVisualClick: (visualId: string, e: React.MouseEvent) => void
-	acceptsDropOn: (targetFolderId: string | null) => () => boolean
-	onDropOn: (targetFolderId: string | null) => (e: React.DragEvent) => void
+	resolveDropOn: (folder: Folder) => (e: React.DragEvent) => FolderDropZone | null
+	onDropOn: (
+		folder: Folder
+	) => (e: React.DragEvent, zone: FolderDropZone) => void
 	onVisualDragStart: (visualId: string) => (e: React.DragEvent) => void
 	depth: number
 }
@@ -164,7 +210,7 @@ const FolderTreeItem = ({
 	onToggleExpanded,
 	selectedVisualIds,
 	onVisualClick,
-	acceptsDropOn,
+	resolveDropOn,
 	onDropOn,
 	onVisualDragStart,
 	depth,
@@ -172,11 +218,11 @@ const FolderTreeItem = ({
 	const expanded = !collapsedFolderIds.has(folder.id)
 	const [editing, setEditing] = useState(false)
 	const [editName, setEditName] = useState(folder.name)
-	const { dropHover, dropHandlers } = useFolderDropTarget({
-		accepts: acceptsDropOn(folder.id),
-		onDropPayload: onDropOn(folder.id),
+	const { dropZone, dropHandlers } = useFolderDropTarget({
+		resolve: resolveDropOn(folder),
+		onDropPayload: onDropOn(folder),
 	})
-	const children = folders.filter((f) => f.parentId === folder.id)
+	const children = orderedSiblings(folders, folder.id)
 	const childVisuals = visuals.filter((v) => v.folderId === folder.id)
 	const isSelected = selectedId === folder.id
 	const hasExpandable = children.length > 0 || childVisuals.length > 0
@@ -195,12 +241,11 @@ const FolderTreeItem = ({
 		<div>
 			<div
 				className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
-					dropHover
-						? DROP_HOVER_CLASS
-						: isSelected
-							? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
-							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-				}`}
+					isSelected
+						? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+				} ${dropZoneClass(dropZone)}`}
+				data-drop-zone={dropZone ?? undefined}
 				style={{ paddingLeft: `${depth * 16 + 4}px` }}
 				draggable={!editing}
 				onDragStart={(e) => {
@@ -321,29 +366,27 @@ const FolderTreeItem = ({
 			</div>
 			{expanded && (
 				<>
-					{children
-						.sort((a, b) => a.name.localeCompare(b.name))
-						.map((child) => (
-							<FolderTreeItem
-								key={child.id}
-								folder={child}
-								folders={folders}
-								visuals={visuals}
-								selectedId={selectedId}
-								onSelect={onSelect}
-								onRename={onRename}
-								onDelete={onDelete}
-								onCreateChild={onCreateChild}
-								collapsedFolderIds={collapsedFolderIds}
-								onToggleExpanded={onToggleExpanded}
-								selectedVisualIds={selectedVisualIds}
-								onVisualClick={onVisualClick}
-								acceptsDropOn={acceptsDropOn}
-								onDropOn={onDropOn}
-								onVisualDragStart={onVisualDragStart}
-								depth={depth + 1}
-							/>
-						))}
+					{children.map((child) => (
+						<FolderTreeItem
+							key={child.id}
+							folder={child}
+							folders={folders}
+							visuals={visuals}
+							selectedId={selectedId}
+							onSelect={onSelect}
+							onRename={onRename}
+							onDelete={onDelete}
+							onCreateChild={onCreateChild}
+							collapsedFolderIds={collapsedFolderIds}
+							onToggleExpanded={onToggleExpanded}
+							selectedVisualIds={selectedVisualIds}
+							onVisualClick={onVisualClick}
+							resolveDropOn={resolveDropOn}
+							onDropOn={onDropOn}
+							onVisualDragStart={onVisualDragStart}
+							depth={depth + 1}
+						/>
+					))}
 					{childVisuals
 						.sort((a, b) => a.name.localeCompare(b.name))
 						.map((v) => (
@@ -439,24 +482,68 @@ export const FolderTree = ({
 		setSelectionAnchorId(null)
 	}
 
+	/** Plain re-parent (a nest-inside drop). Clears the folder's hand-placed
+	 *  position: it would otherwise be a stale index in a group it just
+	 *  left, and nesting a folder shouldn't freeze its new group's order. */
 	const reparentFolder = (folderId: string, parentId: string | null) => {
 		setFolders((prev) =>
-			prev.map((f) => (f.id === folderId ? { ...f, parentId } : f))
+			prev.map((f) =>
+				f.id === folderId ? clearSortIndex({ ...f, parentId }) : f
+			)
 		)
 	}
 
-	// Whether the in-flight drag may drop on `targetFolderId` (null = root).
-	const acceptsDropOn = (targetFolderId: string | null) => () => {
+	/** Place a folder in a sibling group at an explicit position — the
+	 *  before/after edge zones. Also re-parents when the anchor row lives in
+	 *  a different group. */
+	const placeFolder = (
+		folderId: string,
+		parentId: string | null,
+		beforeId: string | null
+	) => {
+		setFolders((prev) => reorderFolder(prev, folderId, parentId, beforeId))
+	}
+
+	// What the in-flight drag would do if dropped on `folder`'s row: nest
+	// inside it, or order itself against it. Null = not a drop target.
+	const resolveDropOn = (folder: Folder) => (e: React.DragEvent) => {
 		const drag = getCurrentDrag()
-		if (!drag) return false
-		if (drag.kind === "visuals") return true
-		return canDropFolderOn(folders, drag.folderId, targetFolderId)
+		if (!drag) return null
+		// Visual drags don't order anything (visuals stay alphabetical), so
+		// the whole row remains one "move into this folder" target.
+		if (drag.kind === "visuals") return "inside" as const
+		const rect = e.currentTarget.getBoundingClientRect()
+		const zone = dropZoneFor(rect, e.clientY)
+		if (zone === "inside") {
+			return canDropFolderOn(folders, drag.folderId, folder.id)
+				? ("inside" as const)
+				: null
+		}
+		// An edge zone targets the row's OWN group, so it's legal even when
+		// the row is the dragged folder's current parent (that's the
+		// promote-a-level case) — but never relative to the folder itself.
+		if (folder.id === drag.folderId) return null
+		return canReorderFolderInto(folders, drag.folderId, folder.parentId)
+			? zone
+			: null
+	}
+
+	// "All visualizations" only ever means "move to the root group"; there
+	// are no rows above or below it to order against.
+	const resolveDropOnRoot = () => {
+		const drag = getCurrentDrag()
+		if (!drag) return null
+		if (drag.kind === "visuals") return "inside" as const
+		return canDropFolderOn(folders, drag.folderId, null)
+			? ("inside" as const)
+			: null
 	}
 
 	// Decode from dataTransfer at drop time (readable there, and it survives
 	// even if dragend raced the module-level ref clear).
 	const handleDropOn =
-		(targetFolderId: string | null) => (e: React.DragEvent) => {
+		(target: Folder | null) => (e: React.DragEvent, zone: FolderDropZone) => {
+			const targetFolderId = target?.id ?? null
 			const visualsRaw = e.dataTransfer.getData(VISUALS_DRAG_TYPE)
 			if (visualsRaw) {
 				const payload = decodeVisualsDrag(visualsRaw)
@@ -464,14 +551,23 @@ export const FolderTree = ({
 				return
 			}
 			const folderRaw = e.dataTransfer.getData(FOLDER_DRAG_TYPE)
-			if (folderRaw) {
-				const payload = decodeFolderDrag(folderRaw)
-				if (
-					payload &&
-					canDropFolderOn(folders, payload.folderId, targetFolderId)
-				) {
-					reparentFolder(payload.folderId, targetFolderId)
+			if (!folderRaw) return
+			const payload = decodeFolderDrag(folderRaw)
+			if (!payload) return
+			if (zone !== "inside" && target) {
+				const { parentId, beforeId } = insertionPointFor(
+					folders,
+					payload.folderId,
+					target,
+					zone
+				)
+				if (canReorderFolderInto(folders, payload.folderId, parentId)) {
+					placeFolder(payload.folderId, parentId, beforeId)
 				}
+				return
+			}
+			if (canDropFolderOn(folders, payload.folderId, targetFolderId)) {
+				reparentFolder(payload.folderId, targetFolderId)
 			}
 		}
 
@@ -489,22 +585,27 @@ export const FolderTree = ({
 		}
 
 	const rootDrop = useFolderDropTarget({
-		accepts: acceptsDropOn(null),
+		resolve: resolveDropOnRoot,
 		onDropPayload: handleDropOn(null),
 	})
 
-	const rootFolders = folders
-		.filter((f) => f.parentId === null)
-		.sort((a, b) => a.name.localeCompare(b.name))
+	const rootFolders = orderedSiblings(folders, null)
 
 	const createFolder = (parentId: string | null) => {
-		const folder: Folder = {
-			id: newFolderId(),
-			name: "New folder",
-			parentId,
-			createdAt: Date.now(),
-		}
-		setFolders((prev) => [...prev, folder])
+		setFolders((prev) => {
+			// Appended last in a hand-ordered group (where the user just
+			// watched it appear); left unplaced — and so alphabetical — in a
+			// group that has never been ordered by hand.
+			const sortIndex = nextSortIndex(prev, parentId)
+			const folder: Folder = {
+				id: newFolderId(),
+				name: "New folder",
+				parentId,
+				createdAt: Date.now(),
+				...(sortIndex === undefined ? {} : { sortIndex }),
+			}
+			return [...prev, folder]
+		})
 	}
 
 	const renameFolder = (id: string, name: string) => {
@@ -561,12 +662,10 @@ export const FolderTree = ({
 				{/* "All visualizations" root item */}
 				<div
 					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
-						rootDrop.dropHover
-							? DROP_HOVER_CLASS
-							: selectedFolderId === null
-								? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
-								: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-					}`}
+						selectedFolderId === null
+							? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+					} ${dropZoneClass(rootDrop.dropZone)}`}
 					{...rootDrop.dropHandlers}
 					onClick={() => onSelect(null)}
 					onKeyDown={(e) => {
@@ -596,7 +695,7 @@ export const FolderTree = ({
 						onToggleExpanded={toggleFolderExpanded}
 						selectedVisualIds={selectedVisualIds}
 						onVisualClick={onVisualClick}
-						acceptsDropOn={acceptsDropOn}
+						resolveDropOn={resolveDropOn}
 						onDropOn={handleDropOn}
 						onVisualDragStart={onVisualDragStart}
 						depth={0}

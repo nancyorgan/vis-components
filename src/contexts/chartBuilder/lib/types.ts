@@ -281,6 +281,12 @@ export type Folder = {
 	name: string
 	parentId: string | null // null = root level
 	createdAt: number
+	/** Hand-placed position among siblings, ascending. Absent = never
+	 * hand-placed; those sort after the placed ones, alphabetically. Folders
+	 * are deliberately unversioned, so this stays optional forever: an
+	 * absent field reads as "unordered", exactly like every folder saved
+	 * before manual ordering existed. */
+	sortIndex?: number
 }
 
 /** A lightweight record of an embed code the user has copied. The landing

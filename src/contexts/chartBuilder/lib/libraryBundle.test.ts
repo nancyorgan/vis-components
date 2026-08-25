@@ -46,6 +46,11 @@ const ds = (over: Partial<Dataset> & { id: string }): Dataset => ({
 const theme = (id: string, isSystem = false): SavedTheme =>
 	({ id, name: `Theme ${id}`, isSystem }) as unknown as SavedTheme
 
+/** A theme whose NAME is what matters — the merge matches on it, so ids
+ *  deliberately differ between the two sides. */
+const named = (id: string, name: string, isSystem = false): SavedTheme =>
+	({ id, name, isSystem }) as unknown as SavedTheme
+
 const bundle = (over: Partial<SeedBundle> = {}): SeedBundle => ({
 	exportedAt: "2026-08-24T00:00:00.000Z",
 	visuals: [],
@@ -359,6 +364,56 @@ describe("mergeBundleIntoLibrary — themes", () => {
 		expect(result.themes[2]?.id).toBe("th-2")
 		expect(result.themes[2]?.isSystem).toBe(false)
 		expect(result.added.themes).toBe(1)
+		expect(result.reusedThemes).toBe(1)
+	})
+
+	it("reuses a same-named theme instead of importing a second copy", () => {
+		const result = merge(
+			bundle({
+				visuals: [vis({ id: "v1", themeId: "th-theirs" })],
+				themes: [named("th-theirs", " brand  ")],
+				userDefaultThemeId: "th-theirs",
+			}),
+			library({ themes: [named("th-mine", "Brand")], userDefaultThemeId: null })
+		)
+		// One "Brand" in the library, and the imported visual points at it.
+		expect(result.themes.map((t) => t.id)).toEqual(["th-mine"])
+		expect(result.added.themes).toBe(0)
+		expect(result.reusedThemes).toBe(1)
+		expect(result.visuals[0]?.themeId).toBe("th-mine")
+		// The default-theme pointer follows the same remap.
+		expect(result.userDefaultThemeId).toBe("th-mine")
+	})
+
+	it("still imports a user theme that shares a system theme's name", () => {
+		const result = merge(
+			bundle({ themes: [named("th-1", "Light")] }),
+			library({ themes: [named("system-light", "Light", true)] })
+		)
+		expect(result.themes.map((t) => t.id)).toEqual(["system-light", "th-1"])
+		expect(result.added.themes).toBe(1)
+		expect(result.reusedThemes).toBe(0)
+	})
+
+	it("collapses same-named themes carried twice inside one bundle", () => {
+		const result = merge(
+			bundle({
+				visuals: [vis({ id: "v1", themeId: "th-b" })],
+				themes: [named("th-a", "Brand"), named("th-b", "brand")],
+			}),
+			library()
+		)
+		expect(result.themes.map((t) => t.id)).toEqual(["th-a"])
+		expect(result.reusedThemes).toBe(1)
+		expect(result.visuals[0]?.themeId).toBe("th-a")
+	})
+
+	it("leaves a themeId alone when its theme didn't travel with the bundle", () => {
+		const result = merge(
+			bundle({ visuals: [vis({ id: "v1", themeId: "system-dark" })] }),
+			library()
+		)
+		expect(result.visuals[0]?.themeId).toBe("system-dark")
 	})
 
 	it("keeps a local default-theme pick and only adopts one when there is none", () => {

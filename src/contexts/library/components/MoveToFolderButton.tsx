@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useAtomValue } from "jotai"
 import { foldersAtom } from "../../chartBuilder/store/atoms"
+import { folderTreeOrder } from "../lib/folderOrder"
 
 type MoveToFolderButtonProps = {
 	visualId: string
@@ -55,29 +56,25 @@ export const MoveToFolderButton = ({
 					>
 						Root (no folder)
 					</button>
-					{[...folders]
-						.sort((a, b) => a.name.localeCompare(b.name))
-						.map((f) => (
-							<button
-								key={f.id}
-								type="button"
-								onClick={(e) => {
-									e.preventDefault()
-									onMove(visualId, f.id)
-									setOpen(false)
-								}}
-								className={`w-full px-3 py-1 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
-									currentFolderId === f.id
-										? "font-medium text-blue-600"
-										: "text-stone-700 dark:text-stone-300"
-								}`}
-								style={{
-									paddingLeft: `${12 + (f.parentId ? 12 : 0)}px`,
-								}}
-							>
-								{f.name}
-							</button>
-						))}
+					{folderTreeOrder(folders).map(({ folder: f, depth }) => (
+						<button
+							key={f.id}
+							type="button"
+							onClick={(e) => {
+								e.preventDefault()
+								onMove(visualId, f.id)
+								setOpen(false)
+							}}
+							className={`w-full px-3 py-1 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
+								currentFolderId === f.id
+									? "font-medium text-blue-600"
+									: "text-stone-700 dark:text-stone-300"
+							}`}
+							style={{ paddingLeft: `${12 + depth * 12}px` }}
+						>
+							{f.name}
+						</button>
+					))}
 				</div>
 			)}
 		</div>
