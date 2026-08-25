@@ -396,6 +396,129 @@ describe("GeoSymbolPlot (states bubble map)", () => {
 		expect(new Set(bubbleFills).size).toBeGreaterThan(1)
 	})
 
+	describe("countries level", () => {
+		// Non-US countries only, on purpose: their centroids project to null
+		// under albersUsa (the states default), so a full set of bubbles proves
+		// the countries level resolved BOTH its own geometry bundle and its own
+		// projection (auto → naturalEarth) end to end.
+		const seedCountries = (
+			rows: Record<string, string>[],
+			mapConfigOverrides: Partial<typeof DEFAULT_MAP_CONFIG> = {}
+		) => {
+			installInMemoryLocalStorage()
+			/* eslint-disable @th/use-wrapped-json-functions */
+			const set = (k: string, v: unknown) =>
+				localStorage.setItem(k, JSON.stringify(v))
+			const dataset: Dataset = buildDatasetFixture({
+				id: DATASET_ID,
+				name: "pops",
+				filename: "pops.csv",
+				fields: [
+					{ name: "country", inferredType: "categorical" },
+					{ name: "pop", inferredType: "quantitative" },
+				],
+				rows,
+			})
+			set("vis-components:datasets", { [DATASET_ID]: dataset })
+			set("vis-components:currentDatasetId", DATASET_ID)
+			set("vis-components:previewVersionId", null)
+			set("vis-components:currentEncodings", {
+				...emptyEncodings(),
+				connection: { field: "country" },
+				area: { field: "pop" },
+			})
+			set("vis-components:currentMapConfig", {
+				...DEFAULT_MAP_CONFIG,
+				coordSystem: "geographic",
+				geographyLevel: "countries",
+				...mapConfigOverrides,
+			})
+			/* eslint-enable @th/use-wrapped-json-functions */
+		}
+
+		const ISO3_ROWS = [
+			{ country: "FRA", pop: "68" },
+			{ country: "JPN", pop: "125" },
+			{ country: "BRA", pop: "215" },
+		]
+		const NAME_ROWS = [
+			{ country: "France", pop: "68" },
+			{ country: "Japan", pop: "125" },
+			{ country: "Brazil", pop: "215" },
+		]
+
+		it("joins ISO-3 codes to country centroids and draws the countries basemap", async () => {
+			seedCountries(ISO3_ROWS)
+			const { container } = mount()
+			await waitFor(() => {
+				expect(container.querySelectorAll("circle").length).toBe(3)
+			})
+			// world-atlas countries-110m ships 177 features — far more than the
+			// ~50-feature states basemap, so this pins the bundle too.
+			expect(container.querySelectorAll("path").length).toBeGreaterThanOrEqual(
+				150
+			)
+			// Three DISTINCT centroids: the join mapped each row to its own
+			// feature rather than piling every bubble on one place.
+			const centers = [...container.querySelectorAll("circle")].map(
+				(c) => `${c.getAttribute("cx")},${c.getAttribute("cy")}`
+			)
+			expect(new Set(centers).size).toBe(3)
+		})
+
+		it("joins country NAMES as well as codes", async () => {
+			seedCountries(NAME_ROWS)
+			const { container } = mount()
+			await waitFor(() => {
+				expect(container.querySelectorAll("circle").length).toBe(3)
+			})
+			const centers = [...container.querySelectorAll("circle")].map(
+				(c) => `${c.getAttribute("cx")},${c.getAttribute("cy")}`
+			)
+			expect(new Set(centers).size).toBe(3)
+		})
+
+		it("sizes countries-level bubbles by area (larger pop → larger radius)", async () => {
+			seedCountries(ISO3_ROWS)
+			const { container } = mount()
+			await waitFor(() => {
+				expect(container.querySelectorAll("circle").length).toBe(3)
+			})
+			const radii = [...container.querySelectorAll("circle")]
+				.map((c) => Number(c.getAttribute("r")))
+				.sort((a, b) => a - b)
+			expect(radii[0]).toBeGreaterThan(0)
+			expect(radii[2]).toBeGreaterThan(radii[0])
+		})
+
+		it("auto level detection picks countries from ISO-3 values", async () => {
+			// geographyLevel "auto" → detectGeographyLevel scores the connection
+			// values and lands on countries, so the countries bundle + world
+			// projection come up without the user naming the level.
+			seedCountries(ISO3_ROWS, { geographyLevel: "auto" })
+			const { container } = mount()
+			await waitFor(() => {
+				expect(container.querySelectorAll("circle").length).toBe(3)
+			})
+			expect(container.querySelectorAll("path").length).toBeGreaterThanOrEqual(
+				150
+			)
+		})
+
+		it("drops those same countries at the states level (no join, no bubbles)", async () => {
+			// The control: identical rows against the states bundle join nothing,
+			// so the basemap draws alone.
+			seedCountries(ISO3_ROWS, { geographyLevel: "states" })
+			const { container } = mount()
+			await waitFor(() => {
+				expect(
+					container.querySelectorAll("path").length
+				).toBeGreaterThanOrEqual(50)
+			})
+			expect(container.querySelectorAll("circle").length).toBe(0)
+		})
+	})
+
 	it("clears the tooltip on mouse leave", async () => {
 		seed()
 		const { container } = mount()
