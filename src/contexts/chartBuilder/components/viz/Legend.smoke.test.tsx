@@ -35,7 +35,7 @@ import { AreaLegend, CombinedGroupLegend, Legend, ShapeLegend } from "./Legend"
  *  features were "done" but the wrong code path was firing.
  *
  *  Tests target `CombinedGroupLegend` directly because it's the renderer
- *  that fires for hue-only quantitative encodings — `HueLegend` is dead
+ *  that fires for hue-only quantitative encodings — `ColorLegend` is dead
  *  for that case (hue is a "group channel" so it always routes through
  *  `CombinedGroupLegend`). A test that mounts `CombinedGroupLegend` for
  *  the user's actual data shape catches "I edited the wrong file"
@@ -916,7 +916,7 @@ describe("categorical legend ordering follows the pinned field order", () => {
 			(el) => el.getAttribute("title") ?? ""
 		)
 
-	it("HueLegend (via CombinedGroupLegend) lists swatches in the pinned order", () => {
+	it("ColorLegend (via CombinedGroupLegend) lists swatches in the pinned order", () => {
 		const { container } = render(
 			<CombinedGroupLegend
 				channels={["hue"]}

@@ -22,7 +22,7 @@ import {
 } from "./swatches"
 import type { ReversibleLegendProps } from "./types"
 
-export const HueLegend = ({
+export const ColorLegend = ({
 	type,
 	values,
 	configs,

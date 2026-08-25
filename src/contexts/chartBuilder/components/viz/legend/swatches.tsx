@@ -119,7 +119,7 @@ export type GradientRampStop = {
 
 /** The quantitative color legend's gradient strip: the bar itself, optional
  * tick marks at each break stop, and the break labels. Shared by the
- * hue-only combined section and HueLegend so the two bar render paths can't
+ * hue-only combined section and ColorLegend so the two bar render paths can't
  * drift. Vertical bars run hi-on-top (`to top`) so reading top-to-bottom
  * matches a y-axis; horizontal bars run lo-on-left. */
 export const GradientBarRamp = ({

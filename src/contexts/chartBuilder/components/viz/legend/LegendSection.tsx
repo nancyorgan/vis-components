@@ -14,7 +14,7 @@ import { currentFieldLevelOrdersAtom } from "../../../store/atoms"
 import { AngleLegend } from "./AngleLegend"
 import { AreaLegend } from "./AreaLegend"
 import { CombinedGroupLegend } from "./CombinedGroupLegend"
-import { HueLegend } from "./HueLegend"
+import { ColorLegend } from "./ColorLegend"
 import { LengthLegend } from "./LengthLegend"
 import { OpacityLegend } from "./OpacityLegend"
 import { PatternLegend } from "./PatternLegend"
@@ -70,7 +70,7 @@ export type LegendSectionProps = {
 	patternLegendBgColor?: string | null
 	patternLegendInkColor?: string | null
 	/** Whether the chart mode (areas-x / areas-y / radar) exposes a separate
-	 *  line/outline palette — drives the HueLegend split-outline rendering.
+	 *  line/outline palette — drives the ColorLegend split-outline rendering.
 	 *  Computed by the parent, where the chart mode is resolved (modeDef is
 	 *  not in scope inside this component). */
 	splitOutlineEligible?: boolean
@@ -255,7 +255,7 @@ export const LegendSection = ({
 					/>
 				)}
 				{section.kind === "single" && section.channel === "hue" && (
-					<HueLegend
+					<ColorLegend
 						type={type}
 						values={values}
 						configs={configs}
@@ -272,7 +272,7 @@ export const LegendSection = ({
 						swatchOutline={swatchOutline}
 						defaultSwatchOpacity={defaultSwatchOpacity}
 						// Area + radar charts expose a separate line/outline
-						// palette in the Hue panel. When non-null, HueLegend
+						// palette in the Hue panel. When non-null, ColorLegend
 						// draws each categorical swatch outlined in the
 						// matching stroke color so the user sees "filled with
 						// X, outlined with Y" in the legend.
@@ -291,7 +291,7 @@ export const LegendSection = ({
 				)}
 				{section.kind === "slot" &&
 					(() => {
-						// Render the slot's categorical colors via HueLegend by
+						// Render the slot's categorical colors via ColorLegend by
 						// pointing its hue inputs at the slot's own config + palette,
 						// so the swatches match the colors the feature actually draws.
 						//
@@ -321,7 +321,7 @@ export const LegendSection = ({
 						// Per-category outline colors for the swatch border, resolved
 						// from the outline slot's scale (covers palette OR explicit
 						// per-value colors).
-						let splitOutline: Parameters<typeof HueLegend>[0]["splitOutline"] =
+						let splitOutline: Parameters<typeof ColorLegend>[0]["splitOutline"] =
 							null
 						if (outlineSlot) {
 							const outlineScale = makeHueScale(
@@ -344,7 +344,7 @@ export const LegendSection = ({
 							}
 						}
 						return (
-							<HueLegend
+							<ColorLegend
 								type={type}
 								values={values}
 								configs={slotConfigs}

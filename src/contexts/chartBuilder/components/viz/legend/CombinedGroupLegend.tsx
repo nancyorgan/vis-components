@@ -54,7 +54,7 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	channels: ReadonlyArray<GroupChannel>
 	/** When the section's only group channel is hue and the field is
 	 * quantitative, this controls whether the legend renders as a
-	 * gradient bar or as five sampled swatches. Mirrors HueLegend's
+	 * gradient bar or as five sampled swatches. Mirrors ColorLegend's
 	 * behavior — `CombinedGroupLegend` is the renderer that actually
 	 * fires for hue-only quantitative encodings (hue is a group channel,
 	 * so it always routes through the combined branch). */
