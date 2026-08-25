@@ -33,11 +33,18 @@ vi.mock("./storage/idb", () => ({
 	idbDelete: idb.idbDelete,
 }))
 
-import { applyExampleSeed, buildSeedBundle, type SeedBundle } from "./exampleSeed"
+import { clearExampleOverlay } from "./exampleOverlay"
+import {
+	applyExampleSeed,
+	buildSeedBundle,
+	installEphemeralExamples,
+	type SeedBundle,
+} from "./exampleSeed"
 import {
 	loadDatasets,
 	loadDatasetsAsync,
 	loadExampleSeedApplied,
+	loadFolders,
 	loadThemes,
 	loadThumbnailsAsync,
 	loadVisuals,
@@ -45,6 +52,8 @@ import {
 	saveThemes,
 	saveVisuals,
 } from "./storage"
+import { localStorageAdapter, type StorageContentAdapter } from "./storage/adapter"
+import { setStorageAdapter } from "./storage/registry"
 import { SYSTEM_THEMES } from "./systemThemes"
 
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
@@ -96,6 +105,8 @@ describe("buildSeedBundle", () => {
 		installInMemoryLocalStorage()
 		idb.store.clear()
 		idb.setAvailable(true)
+		clearExampleOverlay()
+		setStorageAdapter(localStorageAdapter)
 	})
 
 	it("exports only datasets referenced by a visual (orphans excluded)", async () => {
@@ -127,6 +138,38 @@ describe("buildSeedBundle", () => {
 			"ds-early",
 		])
 	})
+
+	it("excludes the ephemeral example overlay — a backup is the user's work only", async () => {
+		await saveVisuals([makeVisual("mine", null, "ds-mine")])
+		await saveDatasetsAsync({ "ds-mine": makeDataset("ds-mine") })
+		await installEphemeralExamples(
+			makeSeed({
+				folders: [
+					{ id: "seed-folder", name: "Examples", parentId: null, createdAt: 0 },
+				],
+			})
+		)
+		// Overlaid reads see both…
+		expect(loadVisuals().map((v) => v.id)).toEqual(["mine", "seed-1"])
+
+		// …the export only the user's own rows.
+		const bundle = await buildSeedBundle()
+		expect(bundle.visuals.map((v) => v.id)).toEqual(["mine"])
+		expect(Object.keys(bundle.datasets)).toEqual(["ds-mine"])
+		expect(bundle.folders).toEqual([])
+	})
+
+	it("still exports overlay rows the user has adopted (old persist-once library)", async () => {
+		// Seed persisted under the older behaviour, then the sandbox installs
+		// over it: the rows are adopted — the user's — and export normally.
+		await applyExampleSeed(makeSeed())
+		clearExampleOverlay()
+		await installEphemeralExamples(makeSeed())
+
+		const bundle = await buildSeedBundle()
+		expect(bundle.visuals.map((v) => v.id)).toEqual(["seed-1"])
+		expect(Object.keys(bundle.datasets)).toEqual(["ds-1"])
+	})
 })
 
 describe("applyExampleSeed", () => {
@@ -134,6 +177,8 @@ describe("applyExampleSeed", () => {
 		installInMemoryLocalStorage()
 		idb.store.clear()
 		idb.setAvailable(true)
+		clearExampleOverlay()
+		setStorageAdapter(localStorageAdapter)
 	})
 
 	it("hydrates an empty library: visuals, thumbnails, folders, datasets, marker", async () => {
@@ -203,5 +248,114 @@ describe("applyExampleSeed", () => {
 		expect(names).toContain("Mine")
 		expect(names).toContain("Seeded")
 		expect(names).not.toContain("Clobber")
+	})
+
+	it("writes through the storage ADAPTER, so server mode persists to the backend", async () => {
+		const written: Record<string, unknown> = {}
+		const remote: StorageContentAdapter = {
+			...localStorageAdapter,
+			capabilities: { remoteLoad: true },
+			loadVisuals: async () => [],
+			loadThemes: async () => null,
+			loadUserDefaultThemeId: async () => null,
+			saveVisuals: async (v) => {
+				written.visuals = v
+			},
+			saveFolders: async (f) => {
+				written.folders = f
+			},
+			saveDatasets: async (d) => {
+				written.datasets = d
+			},
+			saveThemes: async (t) => {
+				written.themes = t
+			},
+			saveUserDefaultThemeId: async (id) => {
+				written.userDefaultThemeId = id
+			},
+		}
+		setStorageAdapter(remote)
+
+		const seeded = { ...SYSTEM_THEMES[0]!, id: "th-y", name: "Seeded", isSystem: false }
+		await applyExampleSeed(
+			makeSeed({ themes: [seeded], userDefaultThemeId: "th-y" })
+		)
+
+		expect((written.visuals as Visual[]).map((v) => v.id)).toEqual(["seed-1"])
+		expect(Object.keys(written.datasets as Record<string, Dataset>)).toEqual([
+			"ds-1",
+		])
+		// A never-initialized theme list is at first run: the bundled system
+		// themes go with the seeded one, or the remote list would come back
+		// system-theme-less.
+		expect((written.themes as { id: string }[]).map((t) => t.id)).toEqual([
+			"system-light",
+			"system-dark",
+			"th-y",
+		])
+		expect(written.userDefaultThemeId).toBe("th-y")
+		// The backend is the store — nothing local was written.
+		expect(loadVisuals()).toEqual([])
+		expect(idb.store.size).toBe(0)
+	})
+})
+
+describe("installEphemeralExamples", () => {
+	/** The shim's backing map, so the "nothing was persisted" assertions can
+	 *  read raw localStorage without a bare global. */
+	let local = new Map<string, string>()
+
+	beforeEach(() => {
+		local = installInMemoryLocalStorage()
+		idb.store.clear()
+		idb.setAvailable(true)
+		clearExampleOverlay()
+		setStorageAdapter(localStorageAdapter)
+	})
+
+	it("serves the examples without persisting anything", async () => {
+		await installEphemeralExamples(makeSeed())
+
+		expect(loadVisuals().map((v) => v.id)).toEqual(["seed-1"])
+		expect(loadFolders().map((f) => f.id)).toEqual(["f1"])
+		expect(Object.keys(await loadDatasetsAsync())).toEqual(["ds-1"])
+		expect(local.get("vis-components:visuals")).toBeUndefined()
+		expect(idb.store.size).toBe(0)
+		expect(loadExampleSeedApplied()).toBeNull()
+	})
+
+	it("is a no-op for the checked-in empty seed", async () => {
+		await installEphemeralExamples(makeSeed({ exportedAt: null, visuals: [] }))
+		expect(loadVisuals()).toEqual([])
+	})
+
+	it("runs the px→pt font reset on pre-cutover bundles", async () => {
+		const stale = makeSeed({
+			exportedAt: "2026-07-01T00:00:00.000Z",
+			visuals: [
+				{
+					...makeVisual("seed-1"),
+					dataLabelsConfig: { fontSize: 99 },
+				} as unknown as Visual,
+			],
+		})
+		await installEphemeralExamples(stale)
+		expect(
+			(loadVisuals()[0] as unknown as { dataLabelsConfig: { fontSize: number } })
+				.dataLabelsConfig.fontSize
+		).toBe(11)
+	})
+
+	it("does not duplicate examples a library already holds from the old seeding", async () => {
+		// The persist-once path ran in this browser before the sandbox existed.
+		await applyExampleSeed(makeSeed())
+		clearExampleOverlay()
+		await installEphemeralExamples(makeSeed())
+
+		expect(loadVisuals().map((v) => v.id)).toEqual(["seed-1"])
+		expect(Object.keys(await loadDatasetsAsync())).toEqual(["ds-1"])
+		// And they stay the user's: an edit still persists.
+		await saveVisuals(loadVisuals().map((v) => ({ ...v, name: "Renamed" })))
+		expect(loadVisuals().map((v) => v.name)).toEqual(["Renamed"])
 	})
 })

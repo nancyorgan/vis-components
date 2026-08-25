@@ -19,7 +19,13 @@
  *  When adding a new persisted entity that carries shape, prefer the
  *  versioned pattern — even if the migrations array starts empty. It's
  *  the difference between a future schema change being a 2-minute
- *  append and a panicked half-day of "what shape did we ship?" */
+ *  append and a panicked half-day of "what shape did we ship?"
+ *
+ *  Ephemeral examples: when the public example overlay is installed (see
+ *  ./exampleOverlay.ts), the shipped examples are merged into the visuals /
+ *  folders / datasets reads and stripped out of the matching writes, so they
+ *  behave like ordinary rows in memory and never reach durable storage. Any
+ *  NEW read or write of those entities has to go through the same pair. */
 
 import { stringifyJsonDangerous } from "../../../lib/json"
 import {
@@ -80,6 +86,17 @@ import {
 	VISUALS_VERSION,
 } from "./storage/migrations"
 import { idbAvailable, idbGet, idbSet } from "./storage/idb"
+import {
+	overlayDatasets,
+	overlayFolders,
+	overlayVisuals,
+	promoteSeedReferences,
+	stripSeedDatasets,
+	stripSeedFolders,
+	stripSeedThemes,
+	stripSeedVisuals,
+	type SeedPromotions,
+} from "./exampleOverlay"
 import type { UserFont } from "./fontLibrary"
 import {
 	loadVersioned,
@@ -192,10 +209,17 @@ const safeRawSet = (key: string, raw: string | null): void => {
 
 /* eslint-enable no-restricted-globals */
 
+/** Read visuals — durable rows plus, when the ephemeral example overlay is
+ *  installed, the shipped examples merged in from memory (see
+ *  ./exampleOverlay.ts). The overlay is applied at the storage seam rather
+ *  than in the atoms so the synchronous bootstrap read and the storage
+ *  adapter's async read (which delegates here) see the same library. */
+export const loadVisuals = (): Visual[] => overlayVisuals(loadPersistedVisuals())
+
 /** Read visuals. Handles the legacy "projects" key rename and the
  *  versioned upgrade from pre-versioning shapes via the migrations
  *  registry in storage/migrations.ts. */
-export const loadVisuals = (): Visual[] => {
+const loadPersistedVisuals = (): Visual[] => {
 	const fromCurrent = safeRawGet(KEY_VISUALS)
 	if (fromCurrent !== null) {
 		return loadVersioned<Visual[]>({
@@ -239,19 +263,59 @@ export const loadVisuals = (): Visual[] => {
  *  shared ~5MB quota over the edge once enough visuals accumulated, and the
  *  old quota fallback stripped older previews to make the write fit — the
  *  recurring "all my thumbnails disappeared" bug. The localStorage payload is
- *  now always written thumbnail-free, so it can't outgrow quota on previews. */
+ *  now always written thumbnail-free, so it can't outgrow quota on previews.
+ *
+ *  Ephemeral seed examples are dropped here (and so are their thumbnails,
+ *  which stay served from the in-memory bundle) — editing one dirties memory
+ *  only. A COPY of one is the user's own work and survives the strip, so
+ *  whatever it still points at in the overlay is promoted to real storage
+ *  first or it would dangle after the next reload. */
 export const saveVisuals = (visuals: Visual[]): Promise<void> => {
+	const own = stripSeedVisuals(visuals)
 	saveVersioned({
 		key: KEY_VISUALS,
 		currentVersion: VISUALS_VERSION,
-		data: visuals.map((v) =>
-			v.thumbnail === null ? v : { ...v, thumbnail: null }
-		),
+		data: own.map((v) => (v.thumbnail === null ? v : { ...v, thumbnail: null })),
 	})
 	// Returned so callers that must observe the thumbnail side-table write
 	// (the example-seed bootstrap, which runs before first render) can await
 	// it; regular save paths ignore the promise as before.
-	return saveThumbnailsAsync(visuals)
+	return Promise.all([
+		saveThumbnailsAsync(own),
+		persistSeedPromotions(promoteSeedReferences({ visuals: own })),
+	]).then(() => undefined)
+}
+
+/** Make promoted seed rows durable. Each collection is re-saved through its
+ *  normal path: the ids are adopted by now, so the strip that path performs
+ *  leaves them alone. No-op (and no reads) when nothing was promoted. */
+const persistSeedPromotions = async (
+	promotions: SeedPromotions | null
+): Promise<void> => {
+	if (promotions === null) return
+	if (promotions.folders.length > 0) {
+		const byId = new Map(loadFolders().map((f) => [f.id, f]))
+		for (const folder of promotions.folders) byId.set(folder.id, folder)
+		saveFolders([...byId.values()])
+	}
+	if (promotions.themes.length > 0) {
+		const byId = new Map((loadThemes() ?? []).map((t) => [t.id, t]))
+		for (const theme of promotions.themes) byId.set(theme.id, theme)
+		saveThemes([...byId.values()])
+	}
+	if (Object.keys(promotions.datasets).length > 0) {
+		if (idbAvailable()) {
+			await saveDatasetsAsync({
+				...(await loadDatasetsAsync()),
+				...promotions.datasets,
+			})
+		} else {
+			saveDatasetsLocalFallback({
+				...loadDatasets(),
+				...promotions.datasets,
+			})
+		}
+	}
 }
 
 /** Load the thumbnail side-table (visual id → PNG data URL) from IndexedDB. */
@@ -297,15 +361,26 @@ export const mergeThumbnails = (
 			: { ...v, thumbnail: thumbnails[v.id] }
 	)
 
-export const loadFolders = (): Folder[] => safeGet<Folder[]>(KEY_FOLDERS, [])
-export const saveFolders = (folders: Folder[]): void =>
-	safeSet(KEY_FOLDERS, folders)
+export const loadFolders = (): Folder[] =>
+	overlayFolders(safeGet<Folder[]>(KEY_FOLDERS, []))
+
+/** Ephemeral seed folders never persist; a folder of the user's own nested
+ *  under one promotes that parent chain (see `persistSeedPromotions`) so the
+ *  tree can't lose its root on reload. */
+export const saveFolders = (folders: Folder[]): void => {
+	const own = stripSeedFolders(folders)
+	safeSet(KEY_FOLDERS, own)
+	void persistSeedPromotions(promoteSeedReferences({ folders: own }))
+}
 
 /** Synchronous read of the LEGACY localStorage copy of datasets. Datasets now
  * live in IndexedDB (`loadDatasetsAsync`), but this is still used as a fast
  * synchronous bootstrap on first render and as the source for the one-time
  * localStorage → IndexedDB migration. */
 export const loadDatasets = (): Record<string, Dataset> =>
+	overlayDatasets(loadPersistedDatasets())
+
+const loadPersistedDatasets = (): Record<string, Dataset> =>
 	loadVersioned<Record<string, Dataset>>({
 		key: KEY_DATASETS,
 		currentVersion: DATASETS_VERSION,
@@ -330,23 +405,29 @@ const clearLegacyDatasets = (): void => {
  * localStorage blob and, when found, migrates it into IndexedDB and clears the
  * localStorage copy (only on a confirmed write, so we never drop the legacy
  * data when the IDB write fails).
+ *
+ * Seed datasets from the ephemeral overlay join the result in memory — they
+ * are readable everywhere a stored dataset is, but the IndexedDB migration
+ * below (and every save) works off the persisted copy alone.
  */
 export const loadDatasetsAsync = async (): Promise<Record<string, Dataset>> => {
 	const fromIdb = await idbGet<unknown>(KEY_DATASETS)
 	if (fromIdb !== null) {
 		// Stored as a `{ _v, data }` wrapper; migrate forward defensively.
-		return migrateVersioned<Record<string, Dataset>>(
-			fromIdb,
-			DATASETS_VERSION,
-			datasetsMigrations,
-			{},
-			undefined,
-			undefined,
-			KEY_DATASETS
+		return overlayDatasets(
+			migrateVersioned<Record<string, Dataset>>(
+				fromIdb,
+				DATASETS_VERSION,
+				datasetsMigrations,
+				{},
+				undefined,
+				undefined,
+				KEY_DATASETS
+			)
 		)
 	}
 	// Nothing in IndexedDB yet — migrate the legacy localStorage copy if present.
-	const legacy = loadDatasets()
+	const legacy = loadPersistedDatasets()
 	if (Object.keys(legacy).length > 0) {
 		const wrote = await idbSet(KEY_DATASETS, {
 			_v: DATASETS_VERSION,
@@ -354,19 +435,20 @@ export const loadDatasetsAsync = async (): Promise<Record<string, Dataset>> => {
 		})
 		if (wrote) clearLegacyDatasets()
 	}
-	return legacy
+	return overlayDatasets(legacy)
 }
 
 /** Persist datasets to IndexedDB. No-op (without error noise) when IndexedDB
  * is unavailable — the SSR/test environments, where cross-reload persistence
- * isn't expected. */
+ * isn't expected. Ephemeral seed datasets are stripped: they exist only in
+ * the overlay, so a whole-map save can't leak them into durable storage. */
 export const saveDatasetsAsync = async (
 	datasets: Record<string, Dataset>
 ): Promise<void> => {
 	if (!idbAvailable()) return
 	const wrote = await idbSet(KEY_DATASETS, {
 		_v: DATASETS_VERSION,
-		data: datasets,
+		data: stripSeedDatasets(datasets),
 	})
 	if (!wrote) {
 		// eslint-disable-next-line no-console
@@ -487,7 +569,11 @@ export const saveThemes = (themes: SavedTheme[]): void =>
 	saveVersioned({
 		key: KEY_THEMES,
 		currentVersion: THEMES_VERSION,
-		data: themes,
+		// Themes the ephemeral overlay contributes are session-only. Note the
+		// READ side is overlaid in the themes atom, not here: `null` from
+		// `loadThemes` means "never initialized", which is what drives the
+		// atom's first-run system-theme construction.
+		data: stripSeedThemes(themes),
 	})
 
 /** The user's font library — Google Fonts added once and offered in every
@@ -539,7 +625,7 @@ export const saveDatasetsLocalFallback = (
 	saveVersioned({
 		key: KEY_DATASETS,
 		currentVersion: DATASETS_VERSION,
-		data: datasets,
+		data: stripSeedDatasets(datasets),
 	})
 
 // Draft editor state — persisted so a page refresh doesn't wipe unsaved work.

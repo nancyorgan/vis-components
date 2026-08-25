@@ -77,6 +77,11 @@ import {
 	type ExportUnit,
 } from "../lib/storage"
 import { idbAvailable } from "../lib/storage/idb"
+import {
+	overlayThemes,
+	seedUserDefaultThemeId,
+	stripSeedVisuals,
+} from "../lib/exampleOverlay"
 import type { UserFont } from "../lib/fontLibrary"
 import type { StorageContentAdapter } from "../lib/storage/adapter"
 import { getStorageAdapter } from "../lib/storage/registry"
@@ -203,7 +208,11 @@ visualsBaseAtom.onMount = (setSelf) => {
 	}
 	if (!idbAvailable()) return
 	const boot = loadVisuals()
-	const legacyInline = boot.some((v) => v.thumbnail !== null)
+	// Ephemeral seed examples always carry their thumbnail inline (it's served
+	// from the bundle, never from the side-table), so they must not be read as
+	// the legacy pre-IndexedDB shape — that would fire the migration re-save on
+	// every single boot.
+	const legacyInline = stripSeedVisuals(boot).some((v) => v.thumbnail !== null)
 	void adapter.loadThumbnails().then((thumbnails) => {
 		let merged: Visual[] = boot
 		setSelf((prev) => {
@@ -494,7 +503,11 @@ const buildInitialThemes = (): SavedTheme[] => {
  * multi-theme UI in Settings and the editor sidebar always has a
  * stable list to render. */
 export const themesAtom = contentAtom<SavedTheme[]>(
-	buildInitialThemes,
+	// Themes the ephemeral example overlay contributes join the list here
+	// rather than inside `loadThemes()`: that function's `null` return is what
+	// tells `buildInitialThemes` a library has never been initialized, and an
+	// overlay must not disguise a first run as an existing one.
+	() => overlayThemes(buildInitialThemes()),
 	// A hosted backend stores the raw saved-themes list; the local first-run
 	// migration in `buildInitialThemes` only applies to the synchronous local
 	// bootstrap. Normalization, however, applies to BOTH paths — remote lists
@@ -520,7 +533,10 @@ export const userFontsAtom = contentAtom<UserFont[]>(
  * visualizations. `null` means no explicit pick, in which case
  * `system-light` is used as the implicit default. */
 export const userDefaultThemeIdAtom = contentAtom<string | null>(
-	() => loadUserDefaultThemeId() ?? SYSTEM_LIGHT_THEME.id,
+	// A user pick wins; failing that the ephemeral examples' own default (so
+	// the sandbox opens looking the way it shipped); failing that, system light.
+	() =>
+		loadUserDefaultThemeId() ?? seedUserDefaultThemeId() ?? SYSTEM_LIGHT_THEME.id,
 	async (adapter) => (await adapter.loadUserDefaultThemeId()) ?? SYSTEM_LIGHT_THEME.id,
 	(adapter, id) => adapter.saveUserDefaultThemeId(id)
 )
