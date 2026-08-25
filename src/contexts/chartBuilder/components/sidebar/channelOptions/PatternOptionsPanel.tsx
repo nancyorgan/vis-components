@@ -263,14 +263,10 @@ export const PatternOptionsPanel = () => {
 					className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 				/>
 				{args.override !== null && (
-					<button
-						type="button"
+					<ResetLink
 						onClick={() => args.onChange(null)}
-						aria-label={`Reset ${aria.charAt(0).toLowerCase()}${aria.slice(1)}`}
-						className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-					>
-						reset
-					</button>
+						ariaLabel={`Reset ${aria.charAt(0).toLowerCase()}${aria.slice(1)}`}
+					/>
 				)}
 			</div>
 		)
