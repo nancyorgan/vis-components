@@ -43,6 +43,29 @@ describe("formatField", () => {
 		expect(formatField(null, ".1%", null)).toBe("")
 		expect(formatField(undefined, undefined, 2)).toBe("")
 	})
+
+	// The "country-name" spec (COUNTRY_NAME_FORMAT — the geo Label-format
+	// dropdown's "Full country name" option) resolves recognizable country
+	// values to their preferred long form and passes everything else through.
+	it("expands country values under the 'country-name' spec", () => {
+		expect(formatField("Dem. Rep. Congo", "country-name", null)).toBe(
+			"Democratic Republic of the Congo"
+		)
+		expect(formatField("USA", "country-name", null)).toBe(
+			"United States of America"
+		)
+		// Case-insensitive spec, like "literal".
+		expect(formatField("S. Sudan", "Country-Name", null)).toBe("South Sudan")
+	})
+	it("passes unrecognized values through the 'country-name' spec as-is", () => {
+		expect(formatField("Atlantis", "country-name", null)).toBe("Atlantis")
+		expect(formatField(null, "country-name", null)).toBe("")
+		// Missing single-field values still skip the label entirely.
+		expect(formatSingleLabel(null, "country-name", null)).toBeNull()
+		expect(formatSingleLabel("Congo", "country-name", null)).toBe(
+			"Republic of the Congo"
+		)
+	})
 })
 
 describe("buildLabelText — single-field", () => {

@@ -15,6 +15,7 @@ import {
 	type SpineConfig,
 	type TickmarkConfig,
 } from "../../../lib/channelConfig"
+import { COUNTRY_NAME_FORMAT } from "../../../lib/geo/countryNames"
 import { formatBreaksInput, parseBreaksInput } from "../../../lib/legendBreaks"
 import { naturalWrapAlignFor } from "../../../lib/tickLabelWrap"
 import { axisConfigFromTheme, valueChanged } from "../../../lib/themeConfig"
@@ -577,17 +578,23 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
  *  specs) over a free-typed custom format box. Shared with the chord ring
  *  axis's Ticks section AND the per-field data-label formatting, so the
  *  format mental model matches x / y exactly. `label` overrides the row
- *  label (defaults to "Format") — data labels pass the field name. */
+ *  label (defaults to "Format") — data labels pass the field name.
+ *  `countryNames` adds the Geography preset group ("Full country name" —
+ *  the COUNTRY_NAME_FORMAT label spec); the data-label panels pass it on
+ *  countries-level geo charts only, so the option never pollutes other
+ *  chart types or the axis tick dropdowns. */
 export const TickFormatControl = ({
 	value,
 	changed,
 	onChange,
 	label = "Format",
+	countryNames = false,
 }: {
 	value: string
 	changed: boolean
 	onChange: (customFormat: string) => void
 	label?: string
+	countryNames?: boolean
 }) => (
 	<div className="mb-1.5 flex flex-col gap-1.5">
 		<label className="flex items-center gap-2 text-sm">
@@ -612,6 +619,13 @@ export const TickFormatControl = ({
 				<option value="">— Pick a preset —</option>
 				<option value="__auto__">Auto (scale default)</option>
 					<option value="literal">Literal (show value as-is)</option>
+				{countryNames && (
+					<optgroup label="Geography">
+						<option value={COUNTRY_NAME_FORMAT}>
+							Full country name (Democratic Republic of the Congo)
+						</option>
+					</optgroup>
+				)}
 				<optgroup label="Numeric">
 					<option value=",">Thousands separator (1,234)</option>
 					<option value=".2f">Two decimals (12.34)</option>

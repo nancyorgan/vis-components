@@ -178,12 +178,12 @@ const buildIndex = (
 		}
 	}
 	for (const row of table) {
-		// The "iso" keyType draws from EVERY ISO-ish field present on the row —
-		// the legacy `iso` plus alpha-2/alpha-3 (uppercased) and the numeric form
-		// (zero-padded to 3) — so country codes match in any of their ISO-3166
-		// forms. The other key types read their single same-named field.
+		// The "iso" keyType draws from EVERY ISO field present on the row —
+		// alpha-2/alpha-3 (uppercased) and the numeric form (zero-padded to 3)
+		// — so country codes match in any of their ISO-3166 forms. The other
+		// key types read their single same-named field.
 		if (keyType === "iso") {
-			for (const f of [row.keys.iso, row.keys.iso2, row.keys.iso3]) {
+			for (const f of [row.keys.iso2, row.keys.iso3]) {
 				if (f == null) continue
 				add(f.trim().toUpperCase(), row.featureId)
 			}
@@ -210,6 +210,12 @@ const buildIndex = (
 				// bare "washington" is ambiguous.
 				if (row.keys.stateFips) {
 					add(`${key}|${row.keys.stateFips}`, row.featureId)
+				}
+				// Alias names (long-form / variant country names) index
+				// alongside the primary name, through the same ambiguity
+				// guard — an alias claimed by two features matches nothing.
+				for (const alias of row.keys.nameAliases ?? []) {
+					add(normalizeName(alias), row.featureId)
 				}
 				break
 			default: {

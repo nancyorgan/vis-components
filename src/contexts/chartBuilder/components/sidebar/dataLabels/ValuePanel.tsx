@@ -18,12 +18,16 @@ export const ValuePanel = ({
 	fields,
 	allFields,
 	onFieldsChange,
+	countryNames = false,
 }: {
 	cfg: DataLabelsConfig
 	onChange: (patch: Partial<DataLabelsConfig>) => void
 	fields: string[]
 	allFields: string[]
 	onFieldsChange: (fields: string[]) => void
+	/** Offer the Geography "Full country name" preset in the per-field
+	 *  format dropdowns — countries-level geo charts only. */
+	countryNames?: boolean
 }) => {
 	const toggleField = (name: string, on: boolean) =>
 		onFieldsChange(on ? [...fields, name] : fields.filter((f) => f !== name))
@@ -116,6 +120,7 @@ export const ValuePanel = ({
 							label={name}
 							value={cfg.fieldFormats?.[name] ?? ""}
 							changed={(cfg.fieldFormats?.[name] ?? "") !== ""}
+							countryNames={countryNames}
 							onChange={(spec) => {
 								const next = { ...(cfg.fieldFormats ?? {}) }
 								if (spec === "") delete next[name]
@@ -139,10 +144,14 @@ export const SingleValuePanel = ({
 	field,
 	cfg,
 	onChange,
+	countryNames = false,
 }: {
 	field: string
 	cfg: DataLabelsConfig
 	onChange: (patch: Partial<DataLabelsConfig>) => void
+	/** Offer the Geography "Full country name" preset in the format
+	 *  dropdown — countries-level geo charts only. */
+	countryNames?: boolean
 }) => (
 	<div className="flex flex-col gap-1">
 		<span className="vc-group-header">Label format</span>
@@ -150,6 +159,7 @@ export const SingleValuePanel = ({
 			label={field}
 			value={cfg.fieldFormats?.[field] ?? ""}
 			changed={(cfg.fieldFormats?.[field] ?? "") !== ""}
+			countryNames={countryNames}
 			onChange={(spec) => {
 				const next = { ...(cfg.fieldFormats ?? {}) }
 				if (spec === "") delete next[field]

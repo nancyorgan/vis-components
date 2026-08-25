@@ -14,6 +14,7 @@ import countriesTopology from "world-atlas/countries-110m.json"
 import type { GeographyLevel } from "../mapConfig"
 import { stateLookup } from "./usStates"
 import { countryLookup } from "./isoCountries"
+import { countryNameAliases } from "./countryNames"
 import type { GeoLookupRow } from "./resolveGeography"
 
 /**
@@ -150,6 +151,9 @@ const buildCountriesBundle = (): GeometryBundle => {
 
 		// Omit empty iso2/iso3 (N. Cyprus / Somaliland have "") so they don't
 		// pollute the "iso" index; name + isoNumeric still let them join.
+		// nameAliases carries the long-form / variant names (countryNames.ts)
+		// so full names ("Democratic Republic of the Congo") and common
+		// variants ("USA", "Republic of Korea") join the short atlas names.
 		table.push({
 			featureId: id,
 			keys: {
@@ -157,6 +161,7 @@ const buildCountriesBundle = (): GeometryBundle => {
 				iso3: row?.iso3 || undefined,
 				isoNumeric: id,
 				name: row?.name ?? rawName,
+				nameAliases: countryNameAliases(id),
 			},
 		})
 		centroids.set(id, path.centroid(f) as [number, number])

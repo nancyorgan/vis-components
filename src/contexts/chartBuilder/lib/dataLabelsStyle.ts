@@ -15,6 +15,7 @@ import {
 import { buildLabelHueConfig } from "./dataLabelsHue"
 import { ptToPx } from "./fontUnit"
 import { buildTickFormatter } from "./formatTick"
+import { COUNTRY_NAME_FORMAT, fullCountryName } from "./geo/countryNames"
 import { resolveRuleColor } from "./textColorRules"
 import type { DataLabelsEncodings, FieldType } from "./types"
 
@@ -48,6 +49,16 @@ export const formatField = (
 ): string => {
 	const trimmed = spec?.trim()
 	if (trimmed) {
+		// "Full country name": resolve any recognizable country value (atlas
+		// short name, variant, ISO code) to its long form; unrecognized values
+		// print as-is. A LABEL-only spec — offered in the Label-format dropdown
+		// on countries-level geo charts — so it routes here, before the d3
+		// spec formatters, and never touches the axis tick path.
+		if (trimmed.toLowerCase() === COUNTRY_NAME_FORMAT) {
+			const s = raw == null ? "" : String(raw)
+			if (s.trim() === "") return ""
+			return fullCountryName(s) ?? s
+		}
 		const fmt = buildTickFormatter({ customFormat: trimmed }, "quantitative")
 		if (fmt) return fmt(raw)
 	}

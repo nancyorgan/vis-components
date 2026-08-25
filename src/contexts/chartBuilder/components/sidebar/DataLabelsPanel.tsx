@@ -32,6 +32,7 @@ import {
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
+import { useGeoLabelLevel } from "../../store/useGeoLabelLevel"
 
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
@@ -154,6 +155,18 @@ export const DataLabelsPanel = () => {
 	const isBarMode = chartMode === "bars-x" || chartMode === "bars-y"
 	const chartXField = chartEncodings.x?.field ?? null
 	const chartYField = chartEncodings.y?.field ?? null
+
+	// Countries-level geo labels get the "Full country name" preset in the
+	// Label-format dropdowns (region labels can spell out the atlas's
+	// abbreviated names — "Dem. Rep. Congo" → "Democratic Republic of the
+	// Congo"). The level is auto-detected from the label layer's own
+	// geography field, same as the render join (useGeoLabelLevel); the
+	// option never appears outside geo modes, so other chart types keep
+	// their dropdown unchanged.
+	const geoLabelLevel = useGeoLabelLevel(
+		isGeoMode ? (encodings.geography?.field ?? null) : null
+	)
+	const countryNameFormats = isGeoMode && geoLabelLevel === "countries"
 
 	const updateCfg = (next: Partial<DataLabelsConfig>) =>
 		setCfg({ ...merged, ...next })
@@ -457,12 +470,14 @@ export const DataLabelsPanel = () => {
 						fields={encodings.value.fields ?? []}
 						allFields={allEligible.map((f) => f.name)}
 						onFieldsChange={setValueFields}
+						countryNames={countryNameFormats}
 					/>
 				) : encodings.value.field ? (
 					<SingleValuePanel
 						field={encodings.value.field}
 						cfg={merged}
 						onChange={updateCfg}
+						countryNames={countryNameFormats}
 					/>
 				) : null}
 			</DataLabelChannelRow>

@@ -129,6 +129,35 @@ describe("buildGeoLabelAnchors", () => {
 		expect(anchors[0]?.labelValue).toBeUndefined()
 	})
 
+	it("renders full country names via the 'country-name' format spec", () => {
+		// Countries-style bundle: atlas short names + long-form aliases (the
+		// real bundle attaches these from countryNames.ts).
+		const countries: GeometryBundle = {
+			features: [],
+			table: [
+				{
+					featureId: "728",
+					keys: {
+						name: "S. Sudan",
+						nameAliases: ["South Sudan"],
+					},
+				},
+			],
+			centroids: new Map([["728", [30, 7]]]),
+		}
+		const anchors = buildGeoLabelAnchors({
+			...base,
+			bundle: countries,
+			geographyField: "country",
+			value: { field: "country" },
+			cfg: { ...base.cfg, fieldFormats: { country: "country-name" } },
+			rows: [{ country: "S. Sudan" }],
+		})
+		expect(anchors).toHaveLength(1)
+		// The atlas's abbreviated name joins AND displays as the full form.
+		expect(anchors[0]?.label).toBe("South Sudan")
+	})
+
 	it("carries hue / size values from the representative row", () => {
 		const anchors = buildGeoLabelAnchors({
 			...base,
