@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { featureId, loadGeometry } from "./loadGeometry"
+import { resolveGeography } from "./resolveGeography"
+import {
+	setZctaTopologyLoader,
+	zctaTopologyAvailable,
+	type ZctaTopology,
+} from "./zctaTopology"
 
 describe("loadGeometry(states)", () => {
 	it("decodes 51 state features with FIPS ids", async () => {
@@ -35,8 +41,13 @@ describe("loadGeometry(states)", () => {
 		const ca = b.features.find((f) => featureId(f) === "06")
 		expect(ca).toBeDefined()
 	})
-	it("rejects for unimplemented levels (zcta)", async () => {
-		await expect(loadGeometry("zcta")).rejects.toThrow(/not implemented/)
+	it("reports no zcta topology source until one is registered", () => {
+		// The three atlas levels above are always present; zcta alone is
+		// conditional (a served sidecar file — see zctaTopology.ts), and under
+		// Vitest that route is off, so the seam's own answer is a clean false.
+		// The fixture suite below drives it true through the runtime seam; the
+		// real asset is exercised in zctaTopology.test.ts (own module cache).
+		expect(zctaTopologyAvailable()).toBe(false)
 	})
 })
 

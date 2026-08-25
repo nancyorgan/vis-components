@@ -10,15 +10,25 @@ export type GeoLookupRow = {
 	featureId: string
 	keys: {
 		fips?: string
+		/** 5-digit ZIP/ZCTA code (zcta rows only). A DISTINCT key type from
+		 *  fips — both are 5-digit numerics, but a county-FIPS column must
+		 *  never silently join a ZCTA table or vice versa. */
+		zip?: string
 		abbrev?: string
-		// `iso` is the legacy single-form ISO field. Countries additionally carry
-		// the three ISO-3166 forms: alpha-2 (iso2), alpha-3 (iso3) and numeric
-		// (isoNumeric). All four participate in the "iso" keyType index.
-		iso?: string
+		// Countries carry the three ISO-3166 forms: alpha-2 (iso2), alpha-3
+		// (iso3) and numeric (isoNumeric). All three participate in the "iso"
+		// keyType index.
 		iso2?: string
 		iso3?: string
 		isoNumeric?: string
 		name?: string
+		/** Alternate names that join to the same feature under the "name" key
+		 *  type — long-form country names and common variants ("Democratic
+		 *  Republic of the Congo", "USA", "Republic of Korea"; see
+		 *  countryNames.ts). Indexed alongside `name` through the same
+		 *  normalization + ambiguity guard. Only consulted when `name` is
+		 *  present (every countries row carries one). */
+		nameAliases?: string[]
 		/** Owning state's 2-digit FIPS, for sub-state geographies (counties).
 		 *  When present, the name index ALSO maps the composite key
 		 *  `"{name}|{stateFips}"` so state-qualified inputs ("Washington
@@ -74,9 +84,11 @@ export const normalizeName = (raw: string): string => {
 
 // Candidate key types, in tie-break priority order: the earliest one wins when
 // two key types match the same number of distinct values. FIPS first because a
-// numeric column is almost never coincidentally a valid abbrev/iso, then the
-// short alpha codes, with free-text name last as the loosest interpretation.
-const KEY_TYPE_PRIORITY: RegionKeyType[] = ["fips", "abbrev", "iso", "name"]
+// numeric column is almost never coincidentally a valid abbrev/iso, zip right
+// after (the other all-numeric type; only zcta tables index it, so the two
+// can't tie on real data), then the short alpha codes, with free-text name
+// last as the loosest interpretation.
+const KEY_TYPE_PRIORITY: RegionKeyType[] = ["fips", "zip", "abbrev", "iso", "name"]
 
 // Pad a numeric-looking fips value to at least 2 digits so an unpadded "6"
 // joins against a stored "06". Non-numeric values pass through unchanged.
@@ -106,11 +118,24 @@ export const resolveStateQualifier = (raw: string): UsStateRow | undefined => {
 const padIsoNumeric = (s: string): string =>
 	/^\d+$/.test(s) ? s.padStart(3, "0") : s
 
+// Pad a numeric-looking ZIP/ZCTA code to 5 digits: numeric CSV columns lose
+// leading zeros ("00601" parses to 601), so "601" joins against the stored
+// "00601". Width 5 like county FIPS but a SEPARATE key type end to end — see
+// the GeoLookupRow.keys.zip note. Non-numeric values pass through unchanged.
+const padZip = (s: string): string =>
+	/^\d+$/.test(s) ? s.padStart(5, "0") : s
+
+// A ZIP+4 value ("02134-1001") joins by its 5-digit prefix.
+const stripZipPlus4 = (s: string): string =>
+	/^\d{5}-\d{4}$/.test(s) ? s.slice(0, 5) : s
+
 // Produce the comparison key(s) for a raw input value under a given key type.
 // fips also yields zero-padded variants — width 2 (states) AND width 5
 // (counties) — so "6" can match "06" and "6037" can match "06037"; each table
 // only indexes its own canonical width, so the extra candidate just misses.
-// iso yields the value uppercased+trimmed (matches alpha-2/alpha-3/legacy iso)
+// zip yields the raw digits plus a 5-digit zero-pad ("601" -> "00601", the
+// leading-zero loss of numeric CSV columns), with a ZIP+4 suffix stripped.
+// iso yields the value uppercased+trimmed (matches alpha-2/alpha-3)
 // AND the value padded to a 3-digit numeric (matches isoNumeric), so country
 // codes in any of their three ISO-3166 forms resolve under the single "iso"
 // keyType. name additionally yields a composite `"{name}|{stateFips}"` when
@@ -126,6 +151,14 @@ const inputKeys = (keyType: RegionKeyType, raw: string): string[] => {
 			for (const p of [v.padStart(2, "0"), v.padStart(5, "0")]) {
 				if (!keys.includes(p)) keys.push(p)
 			}
+			return keys
+		}
+		case "zip": {
+			const base = stripZipPlus4(v)
+			if (!/^\d+$/.test(base)) return [base]
+			const keys = [base]
+			const padded = padZip(base)
+			if (padded !== base) keys.push(padded)
 			return keys
 		}
 		case "abbrev":
@@ -202,6 +235,9 @@ const buildIndex = (
 			case "fips":
 				key = padFips(v)
 				break
+			case "zip":
+				key = padZip(v)
+				break
 			case "abbrev":
 				key = v.toUpperCase()
 				break
@@ -226,6 +262,33 @@ const buildIndex = (
 			}
 		}
 		add(key, row.featureId)
+	}
+	return index
+}
+
+// Memoize indexes per table identity: bundle tables are built once and cached
+// forever (see loadGeometry), so each (table, keyType) index is built ONCE —
+// which is the whole game for the 33k-row ZCTA table, where the join runs on
+// every render-relevant change but the index must not. Lazy per keyType: a
+// keyTypeOverride only ever builds its own index. WeakMap so throwaway tables
+// (tests, ad-hoc callers) don't leak.
+const indexCache = new WeakMap<
+	GeoLookupRow[],
+	Map<RegionKeyType, Map<string, string>>
+>()
+const getIndex = (
+	keyType: RegionKeyType,
+	table: GeoLookupRow[]
+): Map<string, string> => {
+	let perTable = indexCache.get(table)
+	if (!perTable) {
+		perTable = new Map()
+		indexCache.set(table, perTable)
+	}
+	let index = perTable.get(keyType)
+	if (!index) {
+		index = buildIndex(keyType, table)
+		perTable.set(keyType, index)
 	}
 	return index
 }
@@ -268,10 +331,9 @@ export const resolveGeography = (
 		distinct.push(v)
 	}
 
-	// TODO(phase4): build only the needed index (ZCTA ~33k features) — skip unused index builds when overridden
-	const indexes = new Map<RegionKeyType, Map<string, string>>()
-	for (const kt of KEY_TYPE_PRIORITY) indexes.set(kt, buildIndex(kt, table))
-
+	// Indexes come from the per-table memo (getIndex) — built once per
+	// (table, keyType) and reused across calls. An override touches ONLY its
+	// own index; auto-detection scores every key type (each index memoized).
 	let keyType: RegionKeyType
 	if (keyTypeOverride) {
 		keyType = keyTypeOverride
@@ -279,7 +341,8 @@ export const resolveGeography = (
 		// Score every key type; pick the best, breaking ties by priority order.
 		let best: RegionKeyType = KEY_TYPE_PRIORITY[0]
 		let bestScore = -1
-		for (const [kt, index] of indexes) {
+		for (const kt of KEY_TYPE_PRIORITY) {
+			const index = getIndex(kt, table)
 			let score = 0
 			for (const v of distinct) {
 				if (lookup(kt, v, index) !== undefined) score++
@@ -292,7 +355,7 @@ export const resolveGeography = (
 		keyType = best
 	}
 
-	const index = indexes.get(keyType) ?? buildIndex(keyType, table)
+	const index = getIndex(keyType, table)
 	const matched = new Map<string, string>()
 	const unmatched: string[] = []
 	for (const v of distinct) {

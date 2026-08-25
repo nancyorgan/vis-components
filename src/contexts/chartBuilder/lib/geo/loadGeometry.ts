@@ -7,8 +7,11 @@ import type { GeometryCollection, Topology } from "topojson-specification"
 // the file is ~100KB). countries (~110KB) ships statically too. counties
 // (~842KB) is a DYNAMIC import inside buildCountiesBundle — lazy in dev, and
 // vite-plugin-singlefile inlines it into the shareable dist/index.html (a
-// runtime /public fetch would break the offline single-file build). zcta is
-// still unimplemented.
+// runtime /public fetch would break the offline single-file build). zcta
+// (33,791 features, 8.6MB — no us-atlas equivalent exists) is the one level
+// too large for that treatment, so it loads through the zctaTopology SEAM:
+// normally a fetch of the optional public/geo/ sidecar asset (built by
+// `pnpm zcta`), or a registered runtime source; see zctaTopology.ts.
 import statesTopology from "us-atlas/states-10m.json"
 import countriesTopology from "world-atlas/countries-110m.json"
 import type { GeographyLevel } from "../mapConfig"
@@ -16,6 +19,7 @@ import { stateLookup } from "./usStates"
 import { countryLookup } from "./isoCountries"
 import { countryNameAliases } from "./countryNames"
 import type { GeoLookupRow } from "./resolveGeography"
+import { loadZctaTopology } from "./zctaTopology"
 
 /**
  * Decoded geometry for one geography level, plus everything a downstream
@@ -230,6 +234,66 @@ const buildCountiesBundle = async (): Promise<GeometryBundle> => {
 	return { features, table, centroids }
 }
 
+// ZCTA codes are 5-digit strings ("00601"). Numeric sources (a CSV column
+// parsed as numbers, a topology id stored numerically) lose leading zeros, so
+// left-pad digits to 5. Mirrors normalizeCountyFips (also width 5) but kept
+// separate: ZCTA codes are NOT FIPS codes and must never be conflated.
+const normalizeZcta = (id: unknown): string => String(id ?? "").padStart(5, "0")
+
+// Resolve a ZCTA feature's 5-digit code: the feature `id` when present,
+// otherwise the usual Census cartographic-boundary properties (2020 vintage
+// first, then 2010). Null when nothing usable is found (the feature is
+// dropped — an id-less region can never join or be addressed).
+const ZCTA_CODE_PROPS = ["ZCTA5CE20", "GEOID20", "ZCTA5CE10", "GEOID10"] as const
+const zctaCode = (f: Feature): string | null => {
+	if (f.id != null && f.id !== "") return normalizeZcta(f.id)
+	const props = (f.properties ?? {}) as Record<string, unknown>
+	for (const key of ZCTA_CODE_PROPS) {
+		const v = props[key]
+		if (v != null && v !== "") return normalizeZcta(v)
+	}
+	return null
+}
+
+const buildZctaBundle = async (): Promise<GeometryBundle> => {
+	// Lazy by construction: the topology only loads (and its ~33k features only
+	// decode) when a visual actually uses the ZCTA level — never on boot. The
+	// decoded bundle (features + join table + centroids) is built ONCE here and
+	// memoized forever via the loadGeometry promise cache below.
+	const topo = await loadZctaTopology()
+	// Contract (see zctaTopology.ts): features live in `objects.zctas`, or in
+	// the topology's single object when the source kept its own layer name.
+	const object =
+		topo.objects.zctas ?? Object.values(topo.objects)[0] ?? null
+	if (object === null) {
+		throw new Error("ZCTA topology has no geometry objects")
+	}
+	const fc = feature(topo, object) as FeatureCollection
+
+	const path = geoPath()
+
+	const features: Feature[] = []
+	const table: GeoLookupRow[] = []
+	const centroids = new Map<string, [number, number]>()
+
+	for (const f of fc.features) {
+		const id = zctaCode(f)
+		// Drop code-less or duplicate-coded features so featureId(feature)
+		// always agrees with a unique table row (the renderer invariant every
+		// bundle upholds).
+		if (id === null || centroids.has(id)) continue
+		f.id = id
+		features.push(f)
+		// The ONLY join key is the 5-digit code, under the dedicated "zip" key
+		// type. No name/abbrev keys exist for ZCTAs, and indexing the codes as
+		// "fips" would let county-FIPS columns silently mis-join.
+		table.push({ featureId: id, keys: { zip: id } })
+		centroids.set(id, path.centroid(f) as [number, number])
+	}
+
+	return { features, table, centroids }
+}
+
 // Memoize one decode promise per level so repeat calls share work and identity
 // (`loadGeometry("states") === loadGeometry("states")`).
 const cache = new Map<GeographyLevel, Promise<GeometryBundle>>()
@@ -237,9 +301,12 @@ const cache = new Map<GeographyLevel, Promise<GeometryBundle>>()
 /**
  * Load (and cache) the decoded geometry bundle for a geography level.
  *
- * Implements `"states"`, `"countries"` and `"counties"`; zcta rejects with a
- * NotImplemented-style error. async so unimplemented levels reject (rather
- * than throw synchronously) while still returning a cacheable promise.
+ * All four levels are implemented; zcta additionally requires a topology
+ * source (the sidecar asset or a registered loader — see zctaTopology.ts) and
+ * rejects with a descriptive error when none exists. async so a sourceless
+ * zcta rejects (rather than throws synchronously) while still returning a
+ * cacheable promise. A REJECTED load is evicted from the cache so a source
+ * registered later (or a transient failure) gets a fresh attempt.
  */
 export const loadGeometry = (level: GeographyLevel): Promise<GeometryBundle> => {
 	const cached = cache.get(level)
@@ -249,9 +316,14 @@ export const loadGeometry = (level: GeographyLevel): Promise<GeometryBundle> => 
 		if (level === "states") return buildStatesBundle()
 		if (level === "countries") return buildCountriesBundle()
 		if (level === "counties") return buildCountiesBundle()
-		throw new Error(`loadGeometry: level "${level}" not implemented yet`)
+		return buildZctaBundle()
 	})()
 
 	cache.set(level, promise)
+	promise.catch(() => {
+		// Don't poison the cache with a rejection (see the doc comment). The
+		// original promise still rejects to every caller.
+		if (cache.get(level) === promise) cache.delete(level)
+	})
 	return promise
 }

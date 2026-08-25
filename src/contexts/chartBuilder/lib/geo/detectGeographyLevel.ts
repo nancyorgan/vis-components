@@ -1,6 +1,7 @@
 import type { GeographyLevel, RegionKeyType } from "../mapConfig"
 import { loadGeometry } from "./loadGeometry"
 import { resolveGeography, type GeoLookupRow } from "./resolveGeography"
+import { zctaTopologyAvailable } from "./zctaTopology"
 
 /** How well a candidate level must match before we stop looking. When the
  *  best of states/countries clears this, the (lazily imported, 842KB)
@@ -37,20 +38,34 @@ const sampleDistinct = (values: string[]): string[] => {
 	return distinct
 }
 
+// Whether the sampled values LOOK like ZIP/ZCTA codes — mostly 3-to-5-digit
+// numerics (leading zeros may be lost) or ZIP+4. Gates the third detection
+// stage below so the ~33k-feature ZCTA topology is only ever loaded when it's
+// a live possibility; nothing but digit columns can match a ZCTA table anyway.
+const looksZipLike = (sample: string[]): boolean => {
+	let hits = 0
+	for (const v of sample) {
+		if (/^\d{3,5}(-\d{4})?$/.test(v.trim())) hits++
+	}
+	return hits >= sample.length / 2
+}
+
 /**
  * Detect the geography level for `geographyLevel: "auto"` by scoring the
  * connection field's values against each implemented level's lookup table
  * and picking the best join.
  *
- * Two stages: states + countries are statically bundled, so they always
+ * Three stages: states + countries are statically bundled, so they always
  * score; the counties table (a lazy 842KB import) only loads when neither
  * clears GOOD_MATCH_THRESHOLD — county data matches states/countries at ~0%,
- * so this triggers exactly when counties is a live possibility.
+ * so this triggers exactly when counties is a live possibility. The zcta
+ * table (~33k features behind the zctaTopology seam) is heavier still, so it
+ * only loads when counties ALSO fell short, a ZCTA source exists, and the
+ * sample even looks ZIP-like (mostly 3–5-digit numerics).
  *
  * Ties (and the nothing-matches fallback) resolve in states > counties >
- * countries order — states is the legacy meaning of "auto", so anything
- * genuinely ambiguous keeps behaving as before. zcta is unimplemented and
- * never a candidate.
+ * countries > zcta order — states is the legacy meaning of "auto", so
+ * anything genuinely ambiguous keeps behaving as before.
  */
 export const detectGeographyLevel = async (
 	values: string[],
@@ -79,9 +94,23 @@ export const detectGeographyLevel = async (
 		counties.table,
 		keyTypeOverride
 	)
+	if (countiesScore >= GOOD_MATCH_THRESHOLD) return "counties"
 
-	const best = Math.max(statesScore, countiesScore, countriesScore)
+	// Third stage: zcta. Guarded three ways (see the doc comment); a failed
+	// topology load counts as "not a candidate" rather than failing detection.
+	let zctaScore = 0
+	if (zctaTopologyAvailable() && looksZipLike(sample)) {
+		try {
+			const zcta = await loadGeometry("zcta")
+			zctaScore = scoreGeographyTable(sample, zcta.table, keyTypeOverride)
+		} catch {
+			zctaScore = 0
+		}
+	}
+
+	const best = Math.max(statesScore, countiesScore, countriesScore, zctaScore)
 	if (best === 0 || statesScore === best) return "states"
 	if (countiesScore === best) return "counties"
-	return "countries"
+	if (countriesScore === best) return "countries"
+	return "zcta"
 }

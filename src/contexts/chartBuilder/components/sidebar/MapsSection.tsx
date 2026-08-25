@@ -26,6 +26,7 @@ import {
 	type ProjectionName,
 	type RegionKeyType,
 } from "../../lib/mapConfig"
+import { zctaTopologyAvailable } from "../../lib/geo/zctaTopology"
 import { PATTERN_PALETTE } from "../../lib/patterns"
 import { currentMapConfigAtom } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
@@ -48,6 +49,7 @@ const GEOGRAPHY_LEVEL_LABELS: Record<GeographyLevel, string> = {
 
 const KEY_TYPE_LABELS: Record<RegionKeyType, string> = {
 	fips: "FIPS code",
+	zip: "ZIP code",
 	abbrev: "Abbreviation",
 	iso: "ISO code",
 	name: "Name",
@@ -108,7 +110,7 @@ const geographyLevelOptions: { value: GeographyLevel | "auto"; label: string }[]
 
 const keyTypeOptions: { value: RegionKeyType | "auto"; label: string }[] = [
 	{ value: "auto", label: "Auto" },
-	...(["fips", "abbrev", "iso", "name"] as const).map((k) => ({
+	...(["fips", "zip", "abbrev", "iso", "name"] as const).map((k) => ({
 		value: k,
 		label: KEY_TYPE_LABELS[k],
 	})),
@@ -292,10 +294,13 @@ export const MapsSection = () => {
 				)
 			: geographyLevelOptions
 
-	// States, counties and countries are implemented; "auto" resolves to
-	// states, so it's fine. zcta still renders a blank map today, so warn
-	// instead of silently blanking.
-	const isUnimplementedLevel = effectiveLevel === "zcta"
+	// All four levels are implemented, but ZCTA additionally needs a boundary
+	// source: the ~33k-polygon topology is too large to inline, so it ships as
+	// an optional sidecar file that a build opts into (and that a `file://`
+	// build can't fetch at all) — see zctaTopology.ts. Without one the map can
+	// only show the loading placeholder, so explain instead of silently
+	// blanking.
+	const zctaUnavailable = effectiveLevel === "zcta" && !zctaTopologyAvailable()
 
 	// Natural Earth and Mercator are *world* projections; fitting them to the US
 	// (Alaska crosses the antimeridian, plus far-flung Pacific/Caribbean
@@ -327,6 +332,10 @@ export const MapsSection = () => {
 	// join can't resolve them. Steer users toward 5-digit FIPS codes or
 	// state-qualified names, which do.
 	const showCountyNameHint = effectiveLevel === "counties"
+
+	// ZCTAs join only by their 5-digit code; the join pads numeric columns
+	// that lost their leading zeros, so say so (the classic ZIP-in-a-CSV trap).
+	const showZctaHint = effectiveLevel === "zcta" && !zctaUnavailable
 
 	return (
 		<div className="vc-option-panel">
@@ -369,10 +378,10 @@ export const MapsSection = () => {
 							onChange={(geographyLevel) => update({ geographyLevel })}
 							selectClassName="min-w-0 flex-1"
 						/>
-						{isUnimplementedLevel && (
+						{zctaUnavailable && (
 							<p className="vc-help">
-								US ZIP/ZCTA isn&apos;t available yet — coming in a future
-								release.
+								ZIP/ZCTA boundary data isn&apos;t available in this build, so
+								this level can&apos;t draw yet.
 							</p>
 						)}
 						<SelectInput
@@ -424,6 +433,13 @@ export const MapsSection = () => {
 								&quot;Washington&quot; stay unmatched. 5-digit FIPS codes
 								(48477) join most reliably; state-qualified names
 								(&quot;Washington County, TX&quot;) also work.
+							</p>
+						)}
+						{showZctaHint && (
+							<p className="vc-help">
+								ZCTAs join by 5-digit ZIP code. Numeric columns that lost
+								leading zeros (601 for 00601) and ZIP+4 values are matched
+								automatically.
 							</p>
 						)}
 						{showBasemapToggle && (

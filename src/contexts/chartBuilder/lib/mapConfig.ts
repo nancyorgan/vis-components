@@ -6,7 +6,10 @@
 export type CoordSystemKind = "noMap" | "cartesian" | "geographic"
 export type GeographyLevel = "states" | "counties" | "zcta" | "countries"
 export type ProjectionName = "albersUsa" | "naturalEarth" | "mercator"
-export type RegionKeyType = "fips" | "abbrev" | "iso" | "name"
+// "zip" = 5-digit ZIP/ZCTA codes (the zcta level's only key type). Adding a
+// union member needs no mapConfig migration: persisted keyType values stay
+// valid, and "zip" is only ever written going forward.
+export type RegionKeyType = "fips" | "zip" | "abbrev" | "iso" | "name"
 
 /** A continent / sub-continental region the map can center on. Selecting one
  *  pans + zooms the projection to that region's extent (see `focusRegion.ts`);

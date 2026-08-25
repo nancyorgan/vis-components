@@ -21,6 +21,13 @@ docs/
 # Local datasets — never commit
 testdata/
 
+# Optional ZIP/ZCTA boundary asset (~8.6MB). Generated on demand by
+# `pnpm zcta`, which reproduces it byte-for-byte from the public Census
+# source, so it's a build input rather than source. Present → Vite copies it
+# into dist/ as a sidecar file and the ZCTA level lights up; absent → the
+# build simply ships without ZIP maps (see lib/geo/zctaTopology.ts).
+public/geo/zcta-*.json
+
 # Private example library — a developer's local seed, shared with colleagues
 # out-of-band. The committed src/seed/examples.json is the public seed and
 # wins only when this override is absent (see src/main.tsx).
