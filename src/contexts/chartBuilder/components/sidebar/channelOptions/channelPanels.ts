@@ -15,7 +15,7 @@ import {
 } from "./GlyphPickerPanel"
 import { ColorPanel } from "./ColorPanel"
 import { OpacityOptionsPanel } from "./OpacityOptionsPanel"
-import { OutlineHueOptionsPanel } from "./OutlineHuePanel"
+import { OutlineColorOptionsPanel } from "./OutlineColorPanel"
 import {
 	AreaOptionsPanel,
 	BrightnessOptionsPanel,
@@ -46,7 +46,7 @@ export const CHANNEL_PANELS: Record<EncodingChannel, ComponentType> = {
 	facetRow: FacetRowOptionsPanel,
 	facetCol: FacetColOptionsPanel,
 	hue: ColorPanel,
-	outlineHue: OutlineHueOptionsPanel,
+	outlineHue: OutlineColorOptionsPanel,
 	length: LengthOptionsPanel,
 	connection: ConnectionOptionsPanel,
 	opacity: OpacityOptionsPanel,

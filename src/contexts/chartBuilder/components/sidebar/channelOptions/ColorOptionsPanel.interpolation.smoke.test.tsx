@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_QUANTITATIVE_HUE_CONFIG } from "../../../lib/channelConfig"
 import type { HueConfig } from "../../../lib/channelConfig"
 import type { Theme } from "../../../lib/types"
-import { QuantitativePanel } from "./HueOptionsPanel"
+import { QuantitativePanel } from "./ColorOptionsPanel"
 
 /** Gradient blend-space picker: custom gradients (saved linear/diverging +
  *  manual stops) grow an "Interpolation" dropdown (RGB / HSB / OKLCH) that

@@ -6,7 +6,7 @@ import { DEFAULT_DATA_LABELS_CONFIG } from "../../../lib/channelConfig"
 import { LIGHT_THEME_BASE } from "../../../lib/systemThemes"
 import type { SavedTheme } from "../../../lib/types"
 import { currentThemeIdAtom, themesAtom } from "../../../store/atoms"
-import { ColorPanel } from "./ColorPanel"
+import { LabelColorPanel } from "./LabelColorPanel"
 
 /** Every text-color swatch in Data Labels carries the circular-arrow palette
  *  picker, the conditional "Text color rules" rows included — those rows set
@@ -32,7 +32,7 @@ const mount = (onChange: (patch: unknown) => void) =>
 				snap.set(currentThemeIdAtom, THEME.id)
 			}}
 		>
-			<ColorPanel
+			<LabelColorPanel
 				cfg={{
 					...DEFAULT_DATA_LABELS_CONFIG,
 					color: "#000000",

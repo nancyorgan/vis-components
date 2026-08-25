@@ -41,11 +41,11 @@ import { SelectInput } from "../../../../../components/ui/SelectInput"
 import {
 	AreaRadarOutlinePanel,
 	CategoricalSwatchList,
-	HueOptionsPanel,
+	ColorOptionsPanel,
 	QuantitativePanel,
 	useQuantFieldExtent,
-} from "./HueOptionsPanel"
-import { OutlineColorRow } from "./OutlineHuePanel"
+} from "./ColorOptionsPanel"
+import { OutlineColorRow } from "./OutlineColorPanel"
 
 /** The unified Color menu. Houses every color target as a subheader, scoped to
  * the current chart type:
@@ -104,7 +104,7 @@ export const ColorPanel = () => {
 		<div className="vc-option-panel">
 			{!pureDensityCurve && (
 				<CollapsibleSubsection title="Fill" defaultOpen changed={fillChanged}>
-					<HueOptionsPanel hideVaryBy={useLinkedOutline} />
+					<ColorOptionsPanel hideVaryBy={useLinkedOutline} />
 				</CollapsibleSubsection>
 			)}
 			{useLinkedOutline && (

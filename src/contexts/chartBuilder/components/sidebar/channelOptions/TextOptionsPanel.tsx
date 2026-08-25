@@ -4,7 +4,7 @@
  *  EncodingShelves, which is the only path that renders a channel's options
  *  panel — so this is never shown. It exists solely because the
  *  `CHANNEL_PANELS` registry requires a total mapping over `EncodingChannel`
- *  (same reason as `OutlineHueOptionsPanel`).
+ *  (same reason as `OutlineColorOptionsPanel`).
  *
  *  The full text-channel panel (font/color/palette controls) was removed as
  *  unreachable dead code; data labels are configured through

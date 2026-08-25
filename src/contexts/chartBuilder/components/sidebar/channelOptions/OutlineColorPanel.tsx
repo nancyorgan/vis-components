@@ -35,7 +35,7 @@ import {
 	CategoricalSwatchList,
 	QuantitativePanel,
 	useQuantFieldExtent,
-} from "./HueOptionsPanel"
+} from "./ColorOptionsPanel"
 
 /** Field-mapping state for the `outlineHue` channel, shared by the
  *  standalone dropdown (registry panel) and the combined `OutlineColorRow`
@@ -84,7 +84,7 @@ const useOutlineHueField = () => {
 /** Field-selector for the `outlineHue` channel. Standalone form used by the
  *  channel-panel registry; the Shape panel uses `OutlineColorRow` instead,
  *  which folds this dropdown into the same row as the fallback color. */
-export const OutlineHueFieldDropdown = () => {
+export const OutlineColorFieldDropdown = () => {
 	const { value, fieldOptions, onChange, disabled } = useOutlineHueField()
 	return (
 		<SelectInput
@@ -165,7 +165,7 @@ export const OutlineColorRow = () => {
 				</div>
 			) : (
 				<div className="flex flex-col gap-3">
-					<OutlineHueScaleControls />
+					<OutlineColorScaleControls />
 					<OutlineColorRulesRow
 						rules={cfg.outlineColorRules ?? []}
 						fallback={cfg.outlineColor}
@@ -267,7 +267,7 @@ const OutlineColorRulesRow = ({
  *  discrete fields get a per-category swatch editor that mirrors the hue
  *  panel's, but stays self-contained so it never touches hue's shared
  *  palette slots (`categoricalPaletteId`, etc.). */
-export const OutlineHueScaleControls = () => {
+export const OutlineColorScaleControls = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
@@ -418,9 +418,9 @@ const OutlineCategoricalControls = ({
  *  hidden from the main shelf and configured inside the Shape panel, so this
  *  is rarely shown — but the registry requires a total mapping, and this
  *  keeps the channel self-sufficient (dropdown + scale controls) if it is. */
-export const OutlineHueOptionsPanel = () => (
+export const OutlineColorOptionsPanel = () => (
 	<div className="vc-option-panel">
-		<OutlineHueFieldDropdown />
-		<OutlineHueScaleControls />
+		<OutlineColorFieldDropdown />
+		<OutlineColorScaleControls />
 	</div>
 )

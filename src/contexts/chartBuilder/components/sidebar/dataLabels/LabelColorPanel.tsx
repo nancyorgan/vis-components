@@ -23,7 +23,7 @@ import {
 import { ColorSlotControls } from "../channelOptions/ColorPanel"
 import {
 	CategoricalSwatchList,
-} from "../channelOptions/HueOptionsPanel"
+} from "../channelOptions/ColorOptionsPanel"
 
 const PALETTE_PRESET_NAMES: PaletteName[] = [
 	"viridis",
@@ -45,7 +45,7 @@ const PALETTE_PRESET_NAMES: PaletteName[] = [
 // user picks a CATEGORICAL palette for discrete fields and a GRADIENT for
 // continuous fields, matching the main hue panel UX.
 // ---------------------------------------------------------------------------
-export const ColorPanel = ({
+export const LabelColorPanel = ({
 	cfg,
 	onChange,
 	hueField,

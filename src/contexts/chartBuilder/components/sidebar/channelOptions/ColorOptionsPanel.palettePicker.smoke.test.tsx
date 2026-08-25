@@ -7,7 +7,7 @@ import { LIGHT_THEME_BASE } from "../../../lib/systemThemes"
 import type { SavedTheme } from "../../../lib/types"
 import { currentThemeIdAtom, themesAtom } from "../../../store/atoms"
 import { PalettePickerButton } from "../../../../../components/ui/PalettePickerButton"
-import { QuantitativePanel } from "./HueOptionsPanel"
+import { QuantitativePanel } from "./ColorOptionsPanel"
 
 /** The circular-arrow button next to each category swatch opens a popover of
  *  the palette's colors (wrapping at 6 per row) instead of blindly stepping

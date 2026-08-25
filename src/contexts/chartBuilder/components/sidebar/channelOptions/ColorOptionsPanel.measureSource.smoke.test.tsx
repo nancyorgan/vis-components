@@ -9,7 +9,7 @@ import { MEASURE_OPTION_VALUE } from "../../../lib/histogramMeasure"
 import { emptyEncodings, type Dataset } from "../../../lib/types"
 import { currentEncodingsAtom } from "../../../store/atoms"
 
-import { HueOptionsPanel } from "./HueOptionsPanel"
+import { ColorOptionsPanel } from "./ColorOptionsPanel"
 
 /** The Fill "Vary by" dropdown offers Count/Density ONLY for an active
  *  histogram, and picking the measure is mutually exclusive with a field
@@ -68,7 +68,7 @@ const HueProbe = () => {
 const mount = () =>
 	render(
 		<TestProvider>
-			<HueOptionsPanel />
+			<ColorOptionsPanel />
 			<HueProbe />
 		</TestProvider>
 	)
@@ -78,7 +78,7 @@ afterEach(cleanup)
 const hueState = (container: HTMLElement) =>
 	JSON.parse(within(container).getByTestId("hue").textContent ?? "{}")
 
-describe("HueOptionsPanel — Count/Density vary-by", () => {
+describe("ColorOptionsPanel — Count/Density vary-by", () => {
 	it("omits Count when the histogram is off", () => {
 		seed({}, false)
 		const { container } = mount()

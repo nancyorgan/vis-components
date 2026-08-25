@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_QUANTITATIVE_HUE_CONFIG } from "../../../lib/channelConfig"
 import type { HueConfig } from "../../../lib/channelConfig"
 import type { Theme } from "../../../lib/types"
-import { QuantitativePanel } from "./HueOptionsPanel"
+import { QuantitativePanel } from "./ColorOptionsPanel"
 
 /** Diverging gradient editor: the Low/Mid/High value boxes show the
  *  computed auto values (data min / 0 / data max) as placeholders instead

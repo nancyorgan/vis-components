@@ -270,7 +270,7 @@ describe("MODE_REGISTRY precedence & metadata", () => {
 	})
 
 	it("scopes the stack-mode toggle to bar/area modes via supportsSharedMeasureMax", () => {
-		// HueOptionsPanel uses `supportsSharedMeasureMax` as the gate for the
+		// ColorOptionsPanel uses `supportsSharedMeasureMax` as the gate for the
 		// stack/group/overlay control: it makes sense for stackable
 		// orientations (bars + areas) and not for anything else. If the flag
 		// drifts ON for a non-stackable mode, the sidebar will surface a

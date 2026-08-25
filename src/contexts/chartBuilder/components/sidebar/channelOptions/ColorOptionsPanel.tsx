@@ -184,7 +184,7 @@ export const CategoricalSwatchList = ({
 	</div>
 )
 
-export const HueOptionsPanel = ({
+export const ColorOptionsPanel = ({
 	/** Hide the in-panel "Vary by" field selector. Area / filled-radar set the
 	 * color field via the Color shelf row (it's the series), so the duplicate
 	 * selector here is redundant. */
