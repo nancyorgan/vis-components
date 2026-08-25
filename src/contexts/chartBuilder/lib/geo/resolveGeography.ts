@@ -89,7 +89,9 @@ const padFips = (s: string): string =>
 
 // Resolve the state-qualifier tail of a comma-qualified place name ("…, TX" /
 // "…, Texas" / "…, 48") to its US_STATES row, or undefined if it isn't one.
-const resolveStateQualifier = (raw: string): UsStateRow | undefined => {
+// Exported so detectGeoFields recognizes the same qualified county forms this
+// module joins.
+export const resolveStateQualifier = (raw: string): UsStateRow | undefined => {
 	const v = raw.trim()
 	if (v === "") return undefined
 	if (/^\d{1,2}$/.test(v)) return stateLookup.byFips.get(v.padStart(2, "0"))

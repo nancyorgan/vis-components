@@ -126,6 +126,116 @@ describe("detectGeoFields — region fields", () => {
 	})
 })
 
+describe("detectGeoFields — county fields", () => {
+	it("detects designator-suffixed county names (level counties, keyType name)", () => {
+		const fields = [field("area", "categorical"), field("rate", "quantitative")]
+		const rows = rowsOf({
+			area: [
+				"Cook County",
+				"DuPage County",
+				"Terrebonne Parish",
+				"Kodiak Island Borough",
+				"Yukon-Koyukuk Census Area",
+			],
+			rate: ["1", "2", "3", "4", "5"],
+		})
+		const d = detectGeoFields(fields, rows)
+		expect(d.regionFields).toHaveLength(1)
+		expect(d.regionFields[0]!.field.name).toBe("area")
+		expect(d.regionFields[0]!.level).toBe("counties")
+		expect(d.regionFields[0]!.keyType).toBe("name")
+		expect(hasGeoFields(d)).toBe(true)
+	})
+
+	it("detects state-qualified county names in the forms the resolver joins", () => {
+		const fields = [field("region", "categorical")]
+		const rows = rowsOf({
+			region: [
+				"Cook County, Illinois", // full state name
+				"Harris County, TX", // USPS abbrev
+				"Washington County, 48", // state FIPS qualifier
+				"St. Landry Parish, LA",
+				"Los Angeles County, CA",
+			],
+		})
+		const d = detectGeoFields(fields, rows)
+		expect(d.regionFields[0]?.level).toBe("counties")
+		expect(d.regionFields[0]?.keyType).toBe("name")
+	})
+
+	it("detects county FIPS codes under a geographic field name (padded or not)", () => {
+		const fields = [field("county_fips", "quantitative")]
+		const rows = rowsOf({
+			county_fips: ["17031", "48201", "06037", "6037", "04013"],
+		})
+		const d = detectGeoFields(fields, rows)
+		expect(d.regionFields[0]?.level).toBe("counties")
+		expect(d.regionFields[0]?.keyType).toBe("fips")
+	})
+
+	it("rejects 5-digit integers whose prefix is no state (ZIP-like) or whose field name isn't geographic", () => {
+		// Valid county-FIPS values, but "code" carries no geographic hint.
+		const unhinted = detectGeoFields(
+			[field("code", "quantitative")],
+			rowsOf({ code: ["17031", "48201", "06037"] })
+		)
+		expect(unhinted.regionFields).toHaveLength(0)
+
+		// Geographic name, but the 2-digit prefixes (99/98/03) are no states.
+		const badPrefix = detectGeoFields(
+			[field("county_fips", "quantitative")],
+			rowsOf({ county_fips: ["99001", "98002", "03003"] })
+		)
+		expect(badPrefix.regionFields).toHaveLength(0)
+	})
+
+	it("accepts designator-less qualified names ('Cook, IL') only on a county-named field", () => {
+		const rows = rowsOf({
+			county: ["Cook, IL", "Harris, TX", "Travis, TX", "King, WA"],
+			city: ["Cook, IL", "Harris, TX", "Travis, TX", "King, WA"],
+		})
+		const fields = [field("county", "categorical"), field("city", "categorical")]
+		const d = detectGeoFields(fields, rows)
+		expect(d.regionFields).toHaveLength(1)
+		expect(d.regionFields[0]!.field.name).toBe("county")
+		expect(d.regionFields[0]!.level).toBe("counties")
+	})
+
+	it("rejects bare unqualified names — ambiguous across states, collide with cities/people", () => {
+		const fields = [field("county", "categorical")]
+		const rows = rowsOf({
+			county: ["Cook", "Harris", "Springfield", "Franklin", "Riverside"],
+		})
+		expect(detectGeoFields(fields, rows).regionFields).toHaveLength(0)
+	})
+
+	it("breaks a states/counties tie toward states, like the map's auto level", () => {
+		// "Washington County" also joins the states table (normalizeName strips
+		// the designator), so a column of ONLY state-named counties reads as
+		// states — matching what geographyLevel "auto" resolves at render time.
+		const fields = [field("area", "categorical")]
+		const rows = rowsOf({ area: ["Washington County", "Utah County"] })
+		expect(detectGeoFields(fields, rows).regionFields[0]?.level).toBe("states")
+	})
+
+	it("tolerates a few non-county values above the threshold", () => {
+		// 4 of 5 join (80%) — one stray value shouldn't disqualify the column.
+		const fields = [field("county", "categorical")]
+		const rows = rowsOf({
+			county: [
+				"Cook County",
+				"DuPage County",
+				"Lake County",
+				"Will County",
+				"Unknown",
+			],
+		})
+		const d = detectGeoFields(fields, rows)
+		expect(d.regionFields).toHaveLength(1)
+		expect(d.regionFields[0]!.matchRate).toBeCloseTo(0.8)
+	})
+})
+
 describe("detectGeoFields — lat/long", () => {
 	const usLat = ["34.05", "40.71", "41.88", "29.76", "47.61"]
 	const usLon = ["-118.24", "-74.01", "-87.63", "-95.37", "-122.33"]

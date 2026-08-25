@@ -1,13 +1,27 @@
 import type { RegionKeyType } from "../mapConfig"
 import type { Field, FieldType } from "../types"
 import { ISO_COUNTRIES } from "./isoCountries"
-import { resolveGeography, type GeoLookupRow } from "./resolveGeography"
-import { US_STATES } from "./usStates"
+import {
+	resolveGeography,
+	resolveStateQualifier,
+	type GeoLookupRow,
+} from "./resolveGeography"
+import { stateLookup, US_STATES } from "./usStates"
 
-/** The geography levels detection can point a scaffold at. Only the two
- * statically-bundled levels — counties/zcta load lazily in a later phase and
- * can't be verified against here. */
+/** The geography levels detection can point a scaffold at.
+ *
+ * Counties are detected too — by value FORM rather than a table join (see the
+ * county section below) — and a county region field carries `"counties"` in
+ * `RegionFieldMatch.level` at RUNTIME. The union can't name it yet only
+ * because quickStart.ts (edited concurrently) narrows a consumed `level` to
+ * `"states" | "countries"` in `mapConfigForVariation`; `"counties"` is a
+ * valid `GeographyLevel`, so the value flows through that code correctly.
+ * TODO: widen this union and that annotation together. */
 export type DetectedGeoLevel = "states" | "countries"
+
+/** Runtime level value for county region matches — see the DetectedGeoLevel
+ * note above for why this is a cast rather than a union member (yet). */
+const COUNTIES_LEVEL = "counties" as unknown as DetectedGeoLevel
 
 /** One dataset field whose VALUES join against a geography lookup table well
  * enough to drive a region map (choropleth / symbol map). */
@@ -60,6 +74,77 @@ const COUNTRIES_TABLE: GeoLookupRow[] = ISO_COUNTRIES.map((c) => ({
 		name: c.name,
 	},
 }))
+
+// ---- Counties -------------------------------------------------------------
+// The county lookup table is a lazy 842KB import (see loadGeometry), so unlike
+// states/countries detection can't join against it synchronously. Instead it
+// recognizes county values by FORM, accepting exactly the shapes
+// resolveGeography's county matching joins:
+//
+//   - county FIPS ("06037"; the resolver zero-pads "6037" too) whose 2-digit
+//     state prefix is real and whose 3-digit county part is non-zero
+//   - names carrying a census designator ("Cook County", "Terrebonne Parish",
+//     "Yukon-Koyukuk Census Area"), optionally state-qualified ("Cook County,
+//     Illinois" / "…, IL" / "…, 17")
+//   - designator-less state-qualified names ("Cook, IL") — but only when the
+//     field NAME says county (COUNTY_FIELD_HINT): by value alone that form is
+//     indistinguishable from "City, ST" data
+//
+// Bare unqualified names ("Cook") stay undetected on purpose: ~444 county
+// names repeat across states and collide with city/person names, and the
+// resolver itself refuses ambiguous bare names.
+
+// Trailing census designators, mirroring the set normalizeName strips (and
+// like it, deliberately NOT a bare trailing "city" — that marks independent
+// cities and, in other datasets, plain city columns).
+const COUNTY_DESIGNATOR_RE =
+	/\b(city and borough|census area|municipality|borough|county|parish)\s*$/i
+
+/** Field-name hint that a designator-less state-qualified value ("Cook, IL")
+ * means a county rather than a city. */
+const COUNTY_FIELD_HINT = /count(y|ie)|parish|borough/i
+
+// County FIPS shape: 4–5 digits (the resolver pads 4 to 5), a real state
+// prefix, and a non-zero county part ("XX000" would be the state itself).
+// Like all all-integer columns this only gets scored when the field name
+// passes GEO_NAME_HINT — a ZIP code column is value-indistinguishable.
+const isCountyFips = (v: string): boolean => {
+	if (!/^\d{4,5}$/.test(v)) return false
+	const p = v.padStart(5, "0")
+	return p.slice(2) !== "000" && stateLookup.byFips.has(p.slice(0, 2))
+}
+
+const isCountyName = (v: string, fieldNameHintsCounty: boolean): boolean => {
+	let head = v.trim()
+	let stateQualified = false
+	// Split at the LAST comma, as the resolver does; the tail must resolve as
+	// a state for the value to count as qualified.
+	const comma = head.lastIndexOf(",")
+	if (comma > 0 && resolveStateQualifier(head.slice(comma + 1))) {
+		head = head.slice(0, comma).trim()
+		stateQualified = true
+	}
+	if (head === "") return false
+	if (COUNTY_DESIGNATOR_RE.test(head)) return true
+	return stateQualified && fieldNameHintsCounty
+}
+
+const scoreCountyForms = (
+	fieldName: string,
+	distinct: string[]
+): { keyType: RegionKeyType; matchRate: number } => {
+	const hinted = COUNTY_FIELD_HINT.test(fieldName)
+	let fips = 0
+	let named = 0
+	for (const v of distinct) {
+		if (isCountyFips(v)) fips++
+		else if (isCountyName(v, hinted)) named++
+	}
+	return {
+		keyType: fips >= named ? "fips" : "name",
+		matchRate: (fips + named) / distinct.length,
+	}
+}
 
 // Sampling caps: enough rows to be representative, bounded so detection stays
 // O(fields) cheap on large datasets (it runs in a render-time useMemo).
@@ -141,9 +226,10 @@ const inUsBounds = (lon: number, lat: number): boolean =>
  * Scan the dataset for geographic content:
  *
  * - **Region fields** — columns whose values join a states or countries
- *   lookup table (names, USPS/ISO codes, FIPS/ISO-numeric) at
- *   ≥ `MIN_REGION_MATCH_RATE`. All-integer columns additionally need a
- *   geographic field name (see `GEO_NAME_HINT`).
+ *   lookup table (names, USPS/ISO codes, FIPS/ISO-numeric), or whose values
+ *   are county-shaped ("Cook County[, IL]", county FIPS — see the county
+ *   section above), at ≥ `MIN_REGION_MATCH_RATE`. All-integer columns
+ *   additionally need a geographic field name (see `GEO_NAME_HINT`).
  * - **Lat/long pair** — quantitative columns named like latitude/longitude
  *   whose values sit in coordinate range.
  *
@@ -196,12 +282,27 @@ export const detectGeoFields = (
 
 		const states = scoreTable(distinct, STATES_TABLE)
 		const countries = scoreTable(distinct, COUNTRIES_TABLE)
-		// Ties (e.g. a lone "Georgia") go to states, mirroring how the map's
-		// "auto" geography level resolves.
-		const best =
+		const counties = scoreCountyForms(field.name, distinct)
+		// Ties resolve states > counties > countries, mirroring how the map's
+		// "auto" geography level resolves (a lone "Georgia" is a state; so is a
+		// lone "Washington County", which the states table's normalizeName also
+		// joins — a real county column outscores states on its non-state-named
+		// values).
+		let best: {
+			level: DetectedGeoLevel
+			keyType: RegionKeyType
+			matchRate: number
+		}
+		if (
+			states.matchRate >= counties.matchRate &&
 			states.matchRate >= countries.matchRate
-				? { level: "states" as const, ...states }
-				: { level: "countries" as const, ...countries }
+		) {
+			best = { level: "states", ...states }
+		} else if (counties.matchRate >= countries.matchRate) {
+			best = { level: COUNTIES_LEVEL, ...counties }
+		} else {
+			best = { level: "countries", ...countries }
+		}
 		if (best.matchRate >= MIN_REGION_MATCH_RATE) {
 			regionFields.push({ field, ...best })
 		}
