@@ -4,6 +4,7 @@ import { stringifyJsonDangerous } from "../../../../lib/json"
 
 import {
 	CONTENT_MIGRATIONS,
+	datasetBodyMigrations,
 	datasetsMigrations,
 	readThemeFontSizesV2,
 	resetVisualFontSizesV1ToV2,
@@ -85,6 +86,29 @@ describe("visualsMigrations v0 -> v1", () => {
 		const once = upgrade(v1)
 		const twice = upgrade(once)
 		expect(twice).toEqual(once)
+	})
+})
+
+describe("datasetBodyMigrations ↔ datasetsMigrations", () => {
+	it("keeps the record-shaped steps derived from the per-body steps", () => {
+		// The datasets store migrates at TWO shapes — the legacy whole-record
+		// blob and the per-dataset body keys — so the record array must be a
+		// per-entry mapping of the body array, step for step. If these ever
+		// diverge, the next DATASETS_VERSION bump corrupts whichever shape
+		// the new step wasn't written for.
+		expect(datasetsMigrations).toHaveLength(datasetBodyMigrations.length)
+		const legacy = {
+			id: "ds-1",
+			filename: "data.csv",
+			fields: [{ name: "a", inferredType: "categorical" }],
+			rows: [{ a: "x" }],
+			createdAt: 1234,
+		}
+		expect(
+			(datasetsMigrations[0]!({ "ds-1": legacy }) as Record<string, unknown>)[
+				"ds-1"
+			]
+		).toEqual(datasetBodyMigrations[0]!(legacy))
 	})
 })
 

@@ -37,6 +37,7 @@ import {
 	deleteDatasetsAsync,
 	loadDatasetAsync,
 	loadDatasetIndexAsync,
+	loadDatasetVersionAsync,
 	loadDatasetsAsync,
 	saveDatasetsAsync,
 } from "./storage"
@@ -169,7 +170,111 @@ describe("datasets IndexedDB persistence", () => {
 		expect(localStorage.getItem(KEY)).not.toBeNull()
 	})
 
+	it("refuses to return a partial corpus when an indexed body is unreadable", async () => {
+		await saveDatasetsAsync({ d1: makeDataset("d1"), d2: makeDataset("d2") })
+		// An interrupted delete / failed write can leave an index entry whose
+		// body key is gone. The full-corpus read backs the bundle EXPORT —
+		// returning what's left would produce a silently incomplete backup of
+		// a library the UI still shows in full.
+		idb.store.delete("vis-components:dataset:d2")
+		await expect(loadDatasetsAsync()).rejects.toThrow(/d2/)
+	})
+
 	it("returns empty when neither store has datasets", async () => {
 		expect(await loadDatasetsAsync()).toEqual({})
+	})
+})
+
+describe("per-version dataset bodies", () => {
+	beforeEach(() => {
+		idb.store.clear()
+		idb.setWritesSucceed(true)
+		installInMemoryLocalStorage()
+	})
+
+	const twoVersions = (id: string): Dataset => ({
+		id,
+		name: id,
+		fields: [{ name: "a", inferredType: "quantitative" }],
+		versions: [
+			{ id: "v1", filename: "a.csv", rows: [{ a: "1" }], createdAt: 0 },
+			{
+				id: "v2",
+				filename: "b.csv",
+				rows: [{ a: "2" }, { a: "3" }],
+				createdAt: 1,
+			},
+		],
+		latestVersionId: "v2",
+		createdAt: 0,
+	})
+
+	it("reads one version's rows without the rest of the history", async () => {
+		await saveDatasetsAsync({ d1: twoVersions("d1") })
+		expect(await loadDatasetVersionAsync("d1", "v1")).toEqual([{ a: "1" }])
+		expect(await loadDatasetVersionAsync("d1", "v2")).toEqual([
+			{ a: "2" },
+			{ a: "3" },
+		])
+	})
+
+	it("deletes the stored rows of a version removed by a save", async () => {
+		const two = twoVersions("d1")
+		await saveDatasetsAsync({ d1: two })
+		expect(idb.store.has("vis-components:dataset:d1:v:v2")).toBe(true)
+
+		const [v1] = two.versions
+		await saveDatasetsAsync({
+			d1: { ...two, versions: [v1!], latestVersionId: "v1" },
+		})
+		// The removed version's rows must not sit in IndexedDB forever —
+		// unreachable (nothing names the key) but still consuming quota.
+		expect(idb.store.has("vis-components:dataset:d1:v:v2")).toBe(false)
+		expect(idb.store.has("vis-components:dataset:d1:v:v1")).toBe(true)
+	})
+
+	it("splits a dataset stored before per-version bodies existed, once", async () => {
+		// A pre-split store: the whole body under its own key, no version keys.
+		await idb.store.set("vis-components:dataset:d1", {
+			_v: 1,
+			data: twoVersions("d1"),
+		})
+		await idb.store.set("vis-components:datasetIndex", {
+			_v: 1,
+			data: { d1: { ...twoVersions("d1"), versions: [] } },
+		})
+
+		expect(await loadDatasetVersionAsync("d1", "v2")).toEqual([
+			{ a: "2" },
+			{ a: "3" },
+		])
+		// Both versions now have their own key, so no later read re-reads the
+		// whole body.
+		expect(idb.store.has("vis-components:dataset:d1:v:v1")).toBe(true)
+		expect(idb.store.has("vis-components:dataset:d1:v:v2")).toBe(true)
+	})
+
+	it("returns null for a version that does not exist", async () => {
+		await saveDatasetsAsync({ d1: twoVersions("d1") })
+		expect(await loadDatasetVersionAsync("d1", "nope")).toBeNull()
+		expect(await loadDatasetVersionAsync("nope", "v1")).toBeNull()
+	})
+
+	it("takes the version keys with the dataset when it is deleted", async () => {
+		await saveDatasetsAsync({ d1: twoVersions("d1") })
+		expect(idb.store.has("vis-components:dataset:d1:v:v1")).toBe(true)
+
+		await deleteDatasetsAsync(["d1"])
+		expect(idb.store.has("vis-components:dataset:d1:v:v1")).toBe(false)
+		expect(idb.store.has("vis-components:dataset:d1:v:v2")).toBe(false)
+		expect(idb.store.has("vis-components:dataset:d1")).toBe(false)
+	})
+
+	it("serves fresh rows after a version's contents change", async () => {
+		await saveDatasetsAsync({ d1: twoVersions("d1") })
+		const edited = twoVersions("d1")
+		edited.versions[0]!.rows = [{ a: "99" }]
+		await saveDatasetsAsync({ d1: edited })
+		expect(await loadDatasetVersionAsync("d1", "v1")).toEqual([{ a: "99" }])
 	})
 })

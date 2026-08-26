@@ -2,13 +2,21 @@ import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useEffect } from "react"
 import { applyPercentConversionToView } from "../lib/percentCells"
 import { applyReshapeToView } from "../lib/reshape"
-import { resolveDatasetView } from "../lib/resolveDatasetVersion"
+import {
+	resolveDatasetView,
+	resolveDatasetViewFromMeta,
+	resolveVersionIdFromMeta,
+} from "../lib/resolveDatasetVersion"
 import type { DatasetView } from "../lib/types"
 
 import {
 	currentDatasetIdAtom,
+	datasetIndexAtom,
+	datasetIndexReadyAtom,
 	datasetLoadStatesAtom,
 	ensureDatasetLoadedAtom,
+	loadedVersionRowsAtom,
+	versionRowsKey,
 	currentFieldOverridesAtom,
 	currentReshapeConfigAtom,
 	loadedDatasetsAtom,
@@ -26,9 +34,23 @@ export const currentRawDatasetViewAtom = atom(
 	(get): DatasetView | undefined => {
 		const datasetId = get(currentDatasetIdAtom)
 		if (!datasetId) return undefined
-		return resolveDatasetView(
-			get(loadedDatasetsAtom)[datasetId],
-			get(previewVersionIdAtom)
+		const preferredVersionId = get(previewVersionIdAtom)
+
+		// A whole body in memory wins — a just-uploaded or just-imported
+		// dataset is here before anything has been persisted, let alone split
+		// into per-version bodies.
+		const whole = get(loadedDatasetsAtom)[datasetId]
+		if (whole) return resolveDatasetView(whole, preferredVersionId)
+
+		// The lazy path: everything but the rows comes from the index, and the
+		// rows are just the one version being drawn.
+		const meta = get(datasetIndexAtom)[datasetId]
+		const versionId = resolveVersionIdFromMeta(meta, preferredVersionId)
+		if (!versionId) return undefined
+		return resolveDatasetViewFromMeta(
+			meta,
+			get(loadedVersionRowsAtom)[versionRowsKey(datasetId, versionId)],
+			preferredVersionId
 		)
 	}
 )
@@ -84,18 +106,25 @@ export const useCurrentDatasetView = (): DatasetView | undefined =>
 
 /** Whether the bound dataset's rows are here yet.
  *
- *  "loading" is the window this whole design creates: the visualization is
- *  known but its rows are still in flight. The canvas MUST render a distinct
- *  loading state through it rather than an empty chart — `chartLayoutReady`
- *  only checks that the plot SVG exists at a non-zero size, so a data-less
- *  chart reads as "ready and stable" to the thumbnail capture pipeline and
- *  gets saved as a blank preview. */
+ *  Derived from the SAME view the canvas renders, so the two can never
+ *  disagree — a status computed from raw ingredients drifted from the view
+ *  resolution once already. "loading" is the window this whole design
+ *  creates: the visualization is known but its rows are still in flight. The
+ *  canvas MUST render a distinct loading state through it rather than an
+ *  empty chart — `chartLayoutReady` only checks that the plot SVG exists at
+ *  a non-zero size, so a data-less chart reads as "ready and stable" to the
+ *  thumbnail capture pipeline and gets saved as a blank preview. */
 export const currentDatasetStatusAtom = atom(
-	(get): DatasetLoadState | "absent" | "ready" => {
+	(get): DatasetLoadState | "absent" | "loading" | "ready" => {
 		const datasetId = get(currentDatasetIdAtom)
 		if (!datasetId) return "absent"
-		if (get(loadedDatasetsAtom)[datasetId]) return "ready"
-		return get(datasetLoadStatesAtom)[datasetId] ?? "loading"
+		if (get(currentRawDatasetViewAtom)) return "ready"
+		const state = get(datasetLoadStatesAtom)[datasetId]
+		if (state) return state
+		// A body in memory that still resolves no view is a dataset with no
+		// versions — the empty state, not a load in progress.
+		if (get(loadedDatasetsAtom)[datasetId]) return "absent"
+		return "loading"
 	}
 )
 
@@ -106,8 +135,16 @@ export const useCurrentDatasetStatus = () =>
  *  Mounted once per app shell; the action is idempotent per id. */
 export const useEnsureCurrentDatasetLoaded = (): void => {
 	const datasetId = useAtomValue(currentDatasetIdAtom)
+	// Pinning an older version asks for different rows, so it re-triggers the
+	// fetch just as switching dataset does. Without this, previewing v1 of a
+	// dataset whose v3 is loaded would sit on the loading state forever.
+	const previewVersionId = useAtomValue(previewVersionIdAtom)
+	// The ensure action refuses to run before the index is authoritative (it
+	// couldn't tell "not split yet" from "deleted"), so its no-op there must
+	// be re-fired when readiness flips — this dep is what re-fires it.
+	const indexReady = useAtomValue(datasetIndexReadyAtom)
 	const ensure = useSetAtom(ensureDatasetLoadedAtom)
 	useEffect(() => {
 		ensure(datasetId)
-	}, [datasetId, ensure])
+	}, [datasetId, previewVersionId, indexReady, ensure])
 }

@@ -70,6 +70,18 @@ const MIGRATIONS: readonly string[] = [
 	// PUT it back. That covers both cases uniformly — rows written before
 	// this migration, and a body PUT whose follow-up meta PUT never landed.
 	`ALTER TABLE datasets ADD COLUMN meta TEXT;`,
+	// v5 — one stored body per dataset VERSION, so opening a visualization
+	// transfers the version it draws rather than the whole upload history.
+	// Additive: an index only. Datasets written before this have no rows here
+	// and keep being served from their whole-dataset file until a client
+	// splits them, exactly like a null `meta` is repaired on read.
+	`CREATE TABLE dataset_versions (
+		dataset_id TEXT NOT NULL,
+		version_id TEXT NOT NULL,
+		byte_size INTEGER NOT NULL,
+		updated_at TEXT NOT NULL,
+		PRIMARY KEY (dataset_id, version_id)
+	);`,
 ]
 
 /** The JSON-body tables, keyed by the API's collection segment. Table names
@@ -304,9 +316,94 @@ export type DatasetMetaRow = { id: string; meta: string | null }
 export const listDatasetMeta = (db: DatabaseSync): DatasetMetaRow[] =>
 	db.prepare("SELECT id, meta FROM datasets").all() as DatasetMetaRow[]
 
+/** Remove a dataset's index row AND every one of its version rows. Callers
+ *  must delete the corresponding files; this only clears the index. */
 export const deleteDatasetRow = (db: DatabaseSync, id: string): void => {
 	db.prepare("DELETE FROM datasets WHERE id = ?").run(id)
+	db.prepare("DELETE FROM dataset_versions WHERE dataset_id = ?").run(id)
 }
+
+/** Index one version body — but ONLY when the parent dataset exists, the
+ *  same anti-resurrection rule `upsertDatasetMeta` follows: a version PUT
+ *  racing the dataset's DELETE must not re-create index rows for data the
+ *  user deleted. Returns false when the insert was refused so the caller can
+ *  remove the file it wrote. */
+export const upsertDatasetVersionRow = (
+	db: DatabaseSync,
+	datasetId: string,
+	versionId: string,
+	byteSize: number
+): boolean => {
+	const result = db
+		.prepare(
+			`INSERT INTO dataset_versions (dataset_id, version_id, byte_size, updated_at)
+			 SELECT ?, ?, ?, ?
+			 WHERE EXISTS (SELECT 1 FROM datasets WHERE id = ?)
+			 ON CONFLICT(dataset_id, version_id) DO UPDATE SET
+			   byte_size=excluded.byte_size, updated_at=excluded.updated_at`
+		)
+		.run(datasetId, versionId, byteSize, new Date().toISOString(), datasetId)
+	return result.changes > 0
+}
+
+/** Drop EVERY version row of one dataset. Used when a body write arrives
+ *  from a client that doesn't manage per-version bodies (no follow-up
+ *  PUTs/DELETEs): the stored versions describe the previous body, and
+ *  keeping them would serve rows — possibly deleted ones — that no longer
+ *  match the dataset. Callers delete the corresponding files. */
+export const clearDatasetVersionRows = (
+	db: DatabaseSync,
+	datasetId: string
+): void => {
+	db.prepare("DELETE FROM dataset_versions WHERE dataset_id = ?").run(datasetId)
+}
+
+export const deleteDatasetVersionRow = (
+	db: DatabaseSync,
+	datasetId: string,
+	versionId: string
+): void => {
+	db.prepare(
+		"DELETE FROM dataset_versions WHERE dataset_id = ? AND version_id = ?"
+	).run(datasetId, versionId)
+}
+
+/** Every (dataset, version) pair with a stored body, in one query — the boot
+ *  sweep's input, so it never does per-dataset lookups over the whole index. */
+export const listAllDatasetVersionRows = (
+	db: DatabaseSync
+): Array<{ dataset_id: string; version_id: string }> =>
+	db
+		.prepare("SELECT dataset_id, version_id FROM dataset_versions")
+		.all() as Array<{ dataset_id: string; version_id: string }>
+
+/** Version ids that have a stored body of their own, for one dataset. */
+export const listDatasetVersionIds = (
+	db: DatabaseSync,
+	datasetId: string
+): string[] =>
+	(
+		db
+			.prepare(
+				"SELECT version_id FROM dataset_versions WHERE dataset_id = ?"
+			)
+			.all(datasetId) as { version_id: string }[]
+	).map((r) => r.version_id)
+
+/** Cache validators for one version body, or null when it has none stored. */
+export const datasetVersionStamp = (
+	db: DatabaseSync,
+	datasetId: string,
+	versionId: string
+): { updated_at: string; byte_size: number } | null =>
+	(db
+		.prepare(
+			`SELECT updated_at, byte_size FROM dataset_versions
+			 WHERE dataset_id = ? AND version_id = ?`
+		)
+		.get(datasetId, versionId) as
+		| { updated_at: string; byte_size: number }
+		| undefined) ?? null
 
 export const listDatasetIds = (db: DatabaseSync): string[] => {
 	const rows = db.prepare("SELECT id FROM datasets").all() as { id: string }[]

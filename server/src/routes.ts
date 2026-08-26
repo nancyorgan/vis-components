@@ -11,7 +11,9 @@ import { createGunzip, createGzip, gzipSync } from "node:zlib"
 
 import type { ServerConfig } from "./config.js"
 import {
+	clearDatasetVersionRows,
 	datasetStamp,
+	datasetVersionStamp,
 	deleteBody,
 	deleteDatasetRow,
 	isContentVersionCollection,
@@ -19,19 +21,25 @@ import {
 	listContentVersions,
 	listDatasetIds,
 	listDatasetMeta,
+	listDatasetVersionIds,
 	listRows,
 	setContentVersion,
 	upsertBody,
+	deleteDatasetVersionRow,
 	upsertDatasetMeta,
 	upsertDatasetRow,
+	upsertDatasetVersionRow,
 	type JsonCollection,
 } from "./db.js"
 import type { DatabaseSync } from "node:sqlite"
 import {
 	deleteDatasetFile,
+	deleteDatasetVersionFile,
 	isSafeId,
 	readDatasetFile,
+	readDatasetVersionFile,
 	writeDatasetFile,
+	writeDatasetVersionFile,
 } from "./datasetFiles.js"
 import { HttpError, readBody, sendEmpty, sendError, sendJson } from "./http.js"
 import { DATASET_BODY_CAP_BYTES, JSON_BODY_CAP_BYTES } from "./limits.js"
@@ -105,34 +113,66 @@ const handleApi = async (
 		if (!isSafeId(id)) throw new HttpError(400, "Invalid id")
 
 		if (rest.length > 0) {
-			if (rest.length !== 1 || rest[0] !== "meta") {
-				throw new HttpError(404, "Not found")
+			if (rest.length === 1 && rest[0] === "meta") {
+				if (method !== "PUT") throw new HttpError(405, "Method not allowed")
+				const raw = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
+				assertDatasetMetaJson(raw, id)
+				upsertDatasetMeta(db, id, raw)
+				return sendEmpty(res, 204)
 			}
-			if (method !== "PUT") throw new HttpError(405, "Method not allowed")
-			const raw = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
-			assertDatasetMetaJson(raw, id)
-			upsertDatasetMeta(db, id, raw)
-			return sendEmpty(res, 204)
+			if (rest.length === 2 && rest[0] === "versions") {
+				const versionId = rest[1]
+				if (!versionId || !isSafeId(versionId)) {
+					throw new HttpError(400, "Invalid version id")
+				}
+				return await handleDatasetVersion(
+					req,
+					res,
+					db,
+					config.dataDir,
+					id,
+					versionId
+				)
+			}
+			throw new HttpError(404, "Not found")
 		}
 
 		if (method === "GET") return await getDataset(req, res, db, config.dataDir, id)
 		if (method === "PUT") {
-			const body = await readBody(req, DATASET_BODY_CAP_BYTES)
-			const encoding = req.headers["content-encoding"] ?? ""
-			// Clients gzip dataset bodies themselves (Content-Encoding: gzip) and
-			// the server stores that stream untouched; an uncompressed body is
-			// tolerated and compressed here. Either way the stored file must be
-			// valid gzip — one corrupt file would poison the collection GET that
-			// every session boots from.
-			const gzipped = /\bgzip\b/.test(String(encoding)) ? body : gzipSync(body)
-			await assertValidGzip(gzipped)
+			const gzipped = await readGzippedDatasetBody(req)
 			await writeDatasetFile(config.dataDir, id, gzipped)
 			upsertDatasetRow(db, id, gzipped.length)
+			// A body write from a client that does NOT manage the per-version
+			// bodies (no x-vis-versions-managed header — the previous bundle
+			// during a rolling deploy) leaves the stored per-version rows
+			// describing the PREVIOUS body, including versions that write may
+			// have removed. They are derived caches, so purge them: readers
+			// fall back to the whole body and the next hydration re-splits.
+			// A managed client issues its own version PUTs/DELETEs right after
+			// this request instead.
+			if (!req.headers["x-vis-versions-managed"]) {
+				const stale = listDatasetVersionIds(db, id)
+				clearDatasetVersionRows(db, id)
+				await Promise.all(
+					stale.map((versionId) =>
+						deleteDatasetVersionFile(config.dataDir, id, versionId)
+					)
+				)
+			}
 			return sendEmpty(res, 204)
 		}
 		if (method === "DELETE") {
+			// Every per-version body goes with the dataset. Collected BEFORE the
+			// index rows are cleared, or the file names would be unknowable and
+			// the bodies would linger in the data dir forever.
+			const versionIds = listDatasetVersionIds(db, id)
 			deleteDatasetRow(db, id)
 			await deleteDatasetFile(config.dataDir, id)
+			await Promise.all(
+				versionIds.map((versionId) =>
+					deleteDatasetVersionFile(config.dataDir, id, versionId)
+				)
+			)
 			return sendEmpty(res, 204)
 		}
 		throw new HttpError(405, "Method not allowed")
@@ -191,6 +231,130 @@ const composeCollection = (
 	return `[${rows.map((r) => r.body).join(",")}]`
 }
 
+/** One dataset VERSION's rows: read, write, or delete.
+ *
+ *  GET answers 404 when this version has no stored body of its own — which is
+ *  every version of every dataset written before the split. That is not an
+ *  error condition: the client falls back to the whole-dataset body, and
+ *  splits it as it goes, the same way a null `meta` is repaired on read. */
+const handleDatasetVersion = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	db: DatabaseSync,
+	dataDir: string,
+	datasetId: string,
+	versionId: string
+): Promise<void> => {
+	const method = req.method ?? "GET"
+
+	if (method === "GET") {
+		const stamp = datasetVersionStamp(db, datasetId, versionId)
+		if (!stamp) throw new HttpError(404, "Not found")
+		return sendStoredGzip(
+			req,
+			res,
+			stamp,
+			`dataset ${datasetId} version ${versionId}`,
+			() => readDatasetVersionFile(dataDir, datasetId, versionId)
+		)
+	}
+
+	if (method === "PUT") {
+		const gzipped = await readGzippedDatasetBody(req)
+		await writeDatasetVersionFile(dataDir, datasetId, versionId, gzipped)
+		const indexed = upsertDatasetVersionRow(
+			db,
+			datasetId,
+			versionId,
+			gzipped.length
+		)
+		if (!indexed) {
+			// The parent dataset doesn't exist — this PUT is racing (or
+			// trailing) the dataset's DELETE, and indexing it would resurrect
+			// rows the user deleted. Remove the file just written and no-op
+			// with a 204, mirroring the meta route's anti-resurrection rule.
+			await deleteDatasetVersionFile(dataDir, datasetId, versionId)
+		}
+		return sendEmpty(res, 204)
+	}
+
+	if (method === "DELETE") {
+		deleteDatasetVersionRow(db, datasetId, versionId)
+		await deleteDatasetVersionFile(dataDir, datasetId, versionId)
+		return sendEmpty(res, 204)
+	}
+
+	throw new HttpError(405, "Method not allowed")
+}
+
+/** Read and normalize a dataset (or dataset-version) body: clients gzip the
+ *  bodies themselves (Content-Encoding: gzip) and the server stores that
+ *  stream untouched; an uncompressed body is tolerated and compressed here.
+ *  Either way the stored file must be valid gzip — one corrupt file would
+ *  poison the collection GET that every session boots from. One helper for
+ *  both PUT arms so a hardening change can't apply to one and not the other. */
+const readGzippedDatasetBody = async (req: IncomingMessage): Promise<Buffer> => {
+	const body = await readBody(req, DATASET_BODY_CAP_BYTES)
+	const encoding = req.headers["content-encoding"] ?? ""
+	const gzipped = /\bgzip\b/.test(String(encoding)) ? body : gzipSync(body)
+	await assertValidGzip(gzipped)
+	return gzipped
+}
+
+/** The shared GET tail for a stored gzip file: ETag from the index stamp,
+ *  304 on a match, 404 (loudly — an orphaned index row) when the file is
+ *  gone, else the bytes via `sendGzipBody`. One helper for the dataset and
+ *  dataset-version routes so the caching contract can't drift between them. */
+const sendStoredGzip = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	stamp: { updated_at: string; byte_size: number },
+	what: string,
+	read: () => Promise<Buffer | null>
+): Promise<void> => {
+	const etag = `"${stamp.updated_at}-${stamp.byte_size}"`
+	if (req.headers["if-none-match"] === etag) {
+		res.writeHead(304, { etag })
+		res.end()
+		return
+	}
+	const gzipped = await read()
+	if (gzipped === null) {
+		logError(`${what} is indexed but its file is missing`)
+		throw new HttpError(404, "Not found")
+	}
+	return sendGzipBody(req, res, gzipped, etag)
+}
+
+/** Send an already-gzipped body, decompressing only for a client that cannot
+ *  take gzip (curl, tests). The stored bytes go out untouched otherwise. */
+const sendGzipBody = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	gzipped: Buffer,
+	etag: string
+): Promise<void> => {
+	const acceptsGzip = /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))
+	const headers: Record<string, string> = {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-cache",
+		etag,
+	}
+	if (acceptsGzip) headers["content-encoding"] = "gzip"
+	res.writeHead(200, headers)
+	if (acceptsGzip) {
+		res.end(gzipped)
+		return
+	}
+	await new Promise<void>((resolve, reject) => {
+		const gunzip = createGunzip()
+		gunzip.on("error", reject)
+		gunzip.on("end", resolve)
+		gunzip.pipe(res)
+		Readable.from(gzipped).pipe(gunzip)
+	})
+}
+
 /** The metadata index: `{ "<id>": <meta> | null }` for every indexed dataset.
  *  Pure SQLite read — the data dir is never touched, so this stays fast no
  *  matter how much row data the library holds.
@@ -222,38 +386,9 @@ const getDataset = async (
 ): Promise<void> => {
 	const stamp = datasetStamp(db, id)
 	if (!stamp) throw new HttpError(404, "Not found")
-	const etag = `"${stamp.updated_at}-${stamp.byte_size}"`
-	if (req.headers["if-none-match"] === etag) {
-		res.writeHead(304, { etag })
-		res.end()
-		return
-	}
-	const gzipped = await readDatasetFile(dataDir, id)
-	if (gzipped === null) {
-		// Indexed but the file is missing — the same orphan the boot sweep
-		// reports. A 404 is the honest answer; nothing self-heals.
-		logError(`dataset ${id} is indexed but its file is missing`)
-		throw new HttpError(404, "Not found")
-	}
-	const acceptsGzip = /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))
-	const headers: Record<string, string> = {
-		"content-type": "application/json; charset=utf-8",
-		"cache-control": "no-cache",
-		etag,
-	}
-	if (acceptsGzip) headers["content-encoding"] = "gzip"
-	res.writeHead(200, headers)
-	if (acceptsGzip) {
-		res.end(gzipped)
-		return
-	}
-	await new Promise<void>((resolve, reject) => {
-		const gunzip = createGunzip()
-		gunzip.on("error", reject)
-		gunzip.on("end", resolve)
-		gunzip.pipe(res)
-		Readable.from(gzipped).pipe(gunzip)
-	})
+	return sendStoredGzip(req, res, stamp, `dataset ${id}`, () =>
+		readDatasetFile(dataDir, id)
+	)
 }
 
 /** Stream the full dataset record without ever holding an inflated dataset in

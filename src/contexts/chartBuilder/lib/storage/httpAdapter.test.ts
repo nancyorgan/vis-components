@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { datasetContentHash } from "../datasetDedupe"
 import { createHttpStorageAdapter } from "./httpAdapter"
 import { CONTENT_MIGRATIONS } from "./migrations"
 
@@ -146,7 +147,12 @@ describe("datasets", () => {
 		)
 		const adapter = createHttpStorageAdapter()
 		expect(await adapter.loadDatasetIndex()).toEqual({ "ds-1": meta })
-		expect(calls(mock)).toEqual(["GET /api/datasets?view=index"])
+		// The content-version gate runs first — the lazy paths must consult
+		// the migration seam — then the index; never a body.
+		expect(calls(mock)).toEqual([
+			"GET /api/content-versions",
+			"GET /api/datasets?view=index",
+		])
 	})
 
 	it("hydrates a dataset the server has no metadata for, and stores the result", async () => {
@@ -169,6 +175,8 @@ describe("datasets", () => {
 		const index = await adapter.loadDatasetIndex()
 
 		// A null entry is a dataset awaiting hydration, never a missing one.
+		// The derived metadata also carries a backfilled contentHash so
+		// upload-time dedupe can compare against it without the rows.
 		expect(index["ds-old"]).toEqual({
 			id: "ds-old",
 			name: "Legacy",
@@ -176,11 +184,17 @@ describe("datasets", () => {
 			versions: [
 				{ id: "dv-1", filename: "a.csv", createdAt: 0, rowCount: 1 },
 			],
+			contentHash: datasetContentHash(body as never),
 		})
-		// Derived once and written back, so no later session repeats the read.
+		// Derived once and written back — and the stale per-version bodies are
+		// re-split from the fresh whole body, since a missing meta means
+		// something (an old bundle, a crash) wrote the body without the
+		// follow-ups.
 		expect(calls(mock)).toEqual([
+			"GET /api/content-versions",
 			"GET /api/datasets?view=index",
 			"GET /api/datasets/ds-old",
+			"PUT /api/datasets/ds-old/versions/dv-1",
 			"PUT /api/datasets/ds-old/meta",
 		])
 	})
@@ -196,6 +210,7 @@ describe("datasets", () => {
 		expect(await adapter.loadDataset("ds-1")).toEqual(body)
 		expect(await adapter.loadDataset("ds-gone")).toBeNull()
 		expect(calls(mock)).toEqual([
+			"GET /api/content-versions",
 			"GET /api/datasets/ds-1",
 			"GET /api/datasets/ds-gone",
 		])
@@ -363,5 +378,234 @@ describe("content migrations", () => {
 describe("capabilities", () => {
 	it("declares remoteLoad so the atoms perform authoritative loads on mount", () => {
 		expect(createHttpStorageAdapter().capabilities.remoteLoad).toBe(true)
+	})
+})
+
+describe("per-version dataset bodies", () => {
+	it("fetches only the version being drawn", async () => {
+		const mock = stubFetch((path) =>
+			path === "/api/datasets/ds-1/versions/dv-2"
+				? okJson({ id: "dv-2", rows: [{ a: "1" }] })
+				: okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		expect(await adapter.loadDatasetVersion("ds-1", "dv-2")).toEqual([
+			{ a: "1" },
+		])
+		// Never the whole dataset — that is the entire point.
+		expect(calls(mock)).toEqual([
+			"GET /api/content-versions",
+			"GET /api/datasets/ds-1/versions/dv-2",
+		])
+	})
+
+	it("falls back to the whole body for a dataset stored before the split, and splits it", async () => {
+		const whole = {
+			id: "ds-old",
+			name: "Legacy",
+			fields: [],
+			versions: [
+				{ id: "dv-1", filename: "a.csv", createdAt: 0, rows: [{ a: "1" }] },
+				{ id: "dv-2", filename: "b.csv", createdAt: 1, rows: [{ a: "2" }] },
+			],
+		}
+		// Only the READ 404s — that is what "no per-version body stored yet"
+		// looks like. The split's writes succeed, as they would on a real
+		// server.
+		const mock = stubFetch((path, init) =>
+			path.startsWith("/api/datasets/ds-old/versions/")
+				? (init?.method ?? "GET") === "GET"
+					? new Response(null, { status: 404 })
+					: okEmpty()
+				: path === "/api/datasets/ds-old"
+					? okJson(whole)
+					: okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		expect(await adapter.loadDatasetVersion("ds-old", "dv-2")).toEqual([
+			{ a: "2" },
+		])
+
+		const made = calls(mock)
+		expect(made).toContain("GET /api/datasets/ds-old/versions/dv-2")
+		expect(made).toContain("GET /api/datasets/ds-old")
+		// Split on the way through, so the next open costs one version.
+		expect(made).toContain("PUT /api/datasets/ds-old/versions/dv-1")
+		expect(made).toContain("PUT /api/datasets/ds-old/versions/dv-2")
+	})
+
+	it("reports a version of a dataset the server does not have as null", async () => {
+		const mock = stubFetch(() => new Response(null, { status: 404 }))
+		const adapter = createHttpStorageAdapter()
+		expect(await adapter.loadDatasetVersion("ds-gone", "dv-1")).toBeNull()
+		expect(calls(mock)).toEqual([
+			"GET /api/content-versions",
+			"GET /api/datasets/ds-gone/versions/dv-1",
+			"GET /api/datasets/ds-gone",
+		])
+	})
+
+	// The regression that shipped in the first cut: the save updated its
+	// record of what the server holds BEFORE diffing against it, so the
+	// removed set was always empty and deleted versions' rows stayed on the
+	// server (servable) forever.
+	it("DELETEs a removed version's body on save", async () => {
+		const meta = {
+			id: "ds-1",
+			name: "One",
+			fields: [],
+			versions: [
+				{ id: "dv-1", filename: "a.csv", createdAt: 0, rowCount: 1 },
+				{ id: "dv-2", filename: "b.csv", createdAt: 1, rowCount: 1 },
+			],
+		}
+		const mock = stubFetch((path) =>
+			path === "/api/datasets?view=index" ? okJson({ "ds-1": meta }) : okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		await adapter.loadDatasetIndex() // the server is known to hold dv-1+dv-2
+		mock.mockClear()
+		await adapter.saveDatasets({
+			"ds-1": {
+				id: "ds-1",
+				name: "One",
+				fields: [],
+				latestVersionId: "dv-1",
+				versions: [
+					{ id: "dv-1", filename: "a.csv", createdAt: 0, rows: [{ a: "1" }] },
+				],
+			},
+		} as never)
+		const made = calls(mock)
+		expect(made).toContain("DELETE /api/datasets/ds-1/versions/dv-2")
+		// Metadata still goes LAST — a crash mid-sequence must read as
+		// un-hydrated, never as stale.
+		expect(made[made.length - 1]).toBe("PUT /api/datasets/ds-1/meta")
+	})
+
+	it("re-uploads no rows for a metadata-only version edit", async () => {
+		const rows = [{ a: "1" }]
+		const v1 = { id: "dv-1", filename: "a.csv", createdAt: 0, rows }
+		const ds = {
+			id: "ds-1",
+			name: "One",
+			fields: [],
+			latestVersionId: "dv-1",
+			versions: [v1],
+		}
+		const mock = stubFetch(() => okEmpty())
+		const adapter = createHttpStorageAdapter()
+		await adapter.saveDatasets({ "ds-1": ds } as never)
+		mock.mockClear()
+		// A note edit maps the version into a NEW object around the SAME rows
+		// array — the skip-cache must key on the rows, or this re-uploads the
+		// full row payload to persist a one-line note.
+		const noted = { ...ds, versions: [{ ...v1, note: "checked" }] }
+		await adapter.saveDatasets({ "ds-1": noted } as never)
+		const made = calls(mock)
+		expect(made).toContain("PUT /api/datasets/ds-1")
+		expect(made).not.toContain("PUT /api/datasets/ds-1/versions/dv-1")
+	})
+
+	it("does not write metadata over a failed version sync", async () => {
+		let failVersionPuts = true
+		const ds = {
+			id: "ds-1",
+			name: "One",
+			fields: [],
+			latestVersionId: "dv-1",
+			versions: [
+				{ id: "dv-1", filename: "a.csv", createdAt: 0, rows: [{ a: "1" }] },
+			],
+		}
+		const mock = stubFetch((path, init) =>
+			failVersionPuts &&
+			path.includes("/versions/") &&
+			init?.method === "PUT"
+				? failed()
+				: okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		// The body PUT nulled the server's meta; writing fresh meta over the
+		// FAILED version sync would mask the stale version bodies from every
+		// future repair pass — leaving meta null keeps the dataset flagged
+		// for hydration instead.
+		await expect(
+			adapter.saveDatasets({ "ds-1": ds } as never)
+		).rejects.toThrow(/500/)
+		expect(calls(mock)).not.toContain("PUT /api/datasets/ds-1/meta")
+
+		// And the failed save stayed out of the baseline: the retry re-runs
+		// the full body + versions + meta sequence.
+		failVersionPuts = false
+		mock.mockClear()
+		await adapter.saveDatasets({ "ds-1": ds } as never)
+		expect(calls(mock)).toEqual([
+			"PUT /api/datasets/ds-1",
+			"PUT /api/datasets/ds-1/versions/dv-1",
+			"PUT /api/datasets/ds-1/meta",
+		])
+	})
+
+	it("marks body PUTs as versions-managed so the server keeps version rows", async () => {
+		const mock = stubFetch(() => okEmpty())
+		const adapter = createHttpStorageAdapter()
+		await adapter.saveDatasets({
+			"ds-1": { id: "ds-1", name: "One", fields: [], versions: [] },
+		} as never)
+		const put = mock.mock.calls.find(
+			([path, init]) =>
+				path === "/api/datasets/ds-1" &&
+				(init as RequestInit | undefined)?.method === "PUT"
+		)
+		expect((put?.[1] as RequestInit).headers).toMatchObject({
+			"x-vis-versions-managed": "1",
+		})
+	})
+
+	it("retries a failed hydration read once instead of dropping the dataset", async () => {
+		let first = true
+		const body = { id: "ds-1", name: "One", fields: [], versions: [] }
+		stubFetch((path) => {
+			if (path === "/api/datasets?view=index") return okJson({ "ds-1": null })
+			if (path === "/api/datasets/ds-1") {
+				if (first) {
+					first = false
+					return failed()
+				}
+				return okJson(body)
+			}
+			return okEmpty()
+		})
+		const adapter = createHttpStorageAdapter()
+		// One transient blip must not remove the dataset from the session's
+		// whole index — an embed validating a pinned version against the index
+		// would render a false "version no longer exists" for the visual.
+		const index = await adapter.loadDatasetIndex()
+		expect(index["ds-1"]).toMatchObject({ id: "ds-1", name: "One" })
+	})
+})
+
+describe("the migration gate on lazy reads", () => {
+	it("refuses a lazy read when the server's datasets are stamped newer", async () => {
+		stubFetch(() => okEmpty(), { datasets: 999 })
+		const adapter = createHttpStorageAdapter()
+		await expect(adapter.loadDatasetIndex()).rejects.toThrow(/newer/i)
+		await expect(adapter.loadDatasetVersion("ds-1", "dv-1")).rejects.toThrow(
+			/newer/i
+		)
+	})
+
+	it("stamps an unstamped server as current, once, and proceeds", async () => {
+		const mock = stubFetch((path) =>
+			path === "/api/datasets?view=index" ? okJson({}) : okEmpty()
+		, {})
+		const adapter = createHttpStorageAdapter()
+		await adapter.loadDatasetIndex()
+		await adapter.loadDatasetIndex()
+		const stamps = calls(mock).filter((c) =>
+			c.startsWith("PUT /api/content-versions/datasets")
+		)
+		expect(stamps).toHaveLength(1)
 	})
 })

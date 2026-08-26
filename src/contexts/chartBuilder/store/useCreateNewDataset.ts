@@ -1,6 +1,11 @@
 import { useAtomCallback } from "jotai/utils"
 import { useCallback } from "react"
-import { datasetContentHash, findDuplicateDataset } from "../lib/datasetDedupe"
+import {
+	datasetContentHash,
+	datasetsEqual,
+	findDuplicateByHash,
+} from "../lib/datasetDedupe"
+import { getStorageAdapter } from "../lib/storage/registry"
 import {
 	datasetPerformanceWarning,
 	datasetRejectMessage,
@@ -21,6 +26,7 @@ import {
 import {
 	currentDatasetIdAtom,
 	currentEncodingsAtom,
+	datasetIndexAtom,
 	currentFieldOverridesAtom,
 	currentReshapeConfigAtom,
 	currentVisualIdAtom,
@@ -54,10 +60,9 @@ export const parseUpload = async (file: File): Promise<ParsedUpload> => {
  * navigating (avoids losing the binding to a downstream `useResetVisual`). */
 export const useCreateNewDataset = () =>
 	useAtomCallback(
-		useCallback((get, set, parsed: ParsedUpload, name: string): string => {
+		useCallback(async (get, set, parsed: ParsedUpload, name: string): Promise<string> => {
 			const finalName = name.trim() || parsed.filename
-			const datasets = get(loadedDatasetsAtom)
-			const existingId = findDuplicateDataset(datasets, {
+			const candidate = {
 				name: finalName,
 				fields: parsed.fields,
 				versions: [
@@ -68,7 +73,26 @@ export const useCreateNewDataset = () =>
 						createdAt: 0,
 					},
 				],
-			})
+			}
+			// Dedupe against the INDEX — the loaded-bodies map only holds what
+			// this session opened, so checking it alone re-stored byte-identical
+			// uploads after every reload. The hash match is then confirmed
+			// against that one dataset's actual rows: a hash names a probable
+			// duplicate, `datasetsEqual` proves it.
+			// Best-effort verification read: a network blip here must not abort
+			// the upload — an unverified match just stores a copy, which is the
+			// documented fallback for every uncertain dedupe answer.
+			const hashMatch = findDuplicateByHash(get(datasetIndexAtom), candidate)
+			const matchedBody = hashMatch
+				? (get(loadedDatasetsAtom)[hashMatch] ??
+					(await getStorageAdapter()
+						.loadDataset(hashMatch)
+						.catch(() => null)))
+				: null
+			const existingId =
+				matchedBody && datasetsEqual(matchedBody, candidate)
+					? matchedBody.id
+					: null
 			if (existingId) {
 				set(currentDatasetIdAtom, existingId)
 				set(previewVersionIdAtom, null)
@@ -139,7 +163,7 @@ export const useHandleCsvUpload = () => {
 					if (visualId) {
 						set(pendingUploadAtom, parsed)
 					} else {
-						createNewDataset(parsed, file.name.replace(/\.csv$/i, ""))
+						await createNewDataset(parsed, file.name.replace(/\.csv$/i, ""))
 					}
 					// Both warnings are advisory and can fire together: a modest
 					// file can still carry a column too wide to chart quickly.

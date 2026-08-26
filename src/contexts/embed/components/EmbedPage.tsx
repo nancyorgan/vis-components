@@ -46,10 +46,15 @@ export const EmbedPage = () => {
 			}
 			// If a specific version was requested, validate it exists strictly —
 			// silently falling back to latest defeats the purpose of pinning.
+			// Judged only when the index actually LISTS the dataset: an id
+			// absent from the index means "not listed" (a hydration that
+			// failed, an index still settling) — never "deleted" — and a false
+			// "version no longer exists" here sticks for the whole session,
+			// where proceeding lets the load path report a real, retryable
+			// failure instead.
 			if (requestedVersionId && visual.datasetId) {
 				const dataset = datasets[visual.datasetId]
-				const exists = resolveDatasetVersionStrict(dataset, requestedVersionId)
-				if (!exists) {
+				if (dataset && !resolveDatasetVersionStrict(dataset, requestedVersionId)) {
 					if (!cancelled) {
 						setState({
 							status: "missing-version",

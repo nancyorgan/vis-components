@@ -385,16 +385,28 @@ const migrateDatasetV0ToV1 = (raw: unknown): Dataset => {
 	}
 }
 
-export const datasetsMigrations: Migration[] = [
-	(raw) => {
+/** Migrations for ONE dataset body. The datasets store migrates at two
+ *  shapes — the legacy whole-record blob (`Record<id, Dataset>`) and the
+ *  per-dataset body keys (`Dataset`) — so the per-body steps are the single
+ *  source of truth and the record-shaped array below is DERIVED by mapping
+ *  each step over the record's entries. Bumping DATASETS_VERSION means
+ *  appending HERE, never to `datasetsMigrations` directly: a step written
+ *  for only one of the two shapes would corrupt every stored dataset read
+ *  through the other. */
+export const datasetBodyMigrations: Migration[] = [
+	(raw) => migrateDatasetV0ToV1(raw),
+]
+
+export const datasetsMigrations: Migration[] = datasetBodyMigrations.map(
+	(step) => (raw) => {
 		if (typeof raw !== "object" || raw === null) return {}
-		const out: Record<string, Dataset> = {}
+		const out: Record<string, unknown> = {}
 		for (const [id, value] of Object.entries(raw)) {
-			out[id] = migrateDatasetV0ToV1(value)
+			out[id] = step(value)
 		}
 		return out
-	},
-]
+	}
+)
 
 // ──────────────────────────────────────────────────────────────────────
 // Identity migrations

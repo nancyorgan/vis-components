@@ -26,6 +26,7 @@
 import {
 	loadDatasetAsync,
 	loadDatasetIndexAsync,
+	loadDatasetVersionAsync,
 	loadDatasetsAsync,
 	deleteDatasetsAsync,
 	loadEmbedInstances,
@@ -84,6 +85,13 @@ export interface StorageContentAdapter {
 	/** One dataset's rows, fetched when a visualization actually needs to
 	 *  draw. `null` when the id isn't in the store. */
 	loadDataset(id: string): Promise<Dataset | null>
+	/** One VERSION's rows — what a chart actually draws. A dataset with a
+	 *  long upload history costs one version here, not all of them. `null`
+	 *  when the dataset or the version isn't in the store. */
+	loadDatasetVersion(
+		id: string,
+		versionId: string
+	): Promise<Array<Record<string, string>> | null>
 	/** EVERY dataset, rows included. Deliberately retained for the one caller
 	 *  that genuinely needs the whole corpus — library bundle export, which is
 	 *  a full backup. Nothing on a render path may call this. */
@@ -126,6 +134,8 @@ export const localStorageAdapter: StorageContentAdapter = {
 
 	loadDatasetIndex: () => loadDatasetIndexAsync(),
 	loadDataset: (id) => loadDatasetAsync(id),
+	loadDatasetVersion: (id, versionId) =>
+		loadDatasetVersionAsync(id, versionId),
 	loadDatasets: () => loadDatasetsAsync(),
 	saveDatasets: (datasets) => saveDatasetsAsync(datasets),
 	deleteDatasets: (ids) => deleteDatasetsAsync(ids),

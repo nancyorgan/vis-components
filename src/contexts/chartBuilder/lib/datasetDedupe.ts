@@ -47,6 +47,41 @@ export const findDuplicateDataset = (
 	return null
 }
 
+/** The metadata-only duplicate check, for when the row data isn't in memory:
+ *  same name AND same cached content hash. A hash match is PROBABLE identity,
+ *  not proof — callers that act on it (reusing an existing dataset instead of
+ *  storing the upload) must load that one body and confirm with
+ *  `datasetsEqual` before acting. A dataset whose stored metadata predates
+ *  content hashing simply never matches, which errs toward storing a copy
+ *  rather than wrongly reusing. */
+export const findDuplicateByHash = (
+	index: Record<string, { id: string; name: string; contentHash?: string }>,
+	candidate: Pick<Dataset, "name" | "fields" | "versions">
+): string | null => {
+	// Hash lazily, only once a NAME matches: hashing stringifies the whole
+	// candidate (every row), and this runs from render code — the upload
+	// modal calls it per keystroke in the name field, where almost every
+	// intermediate name matches nothing.
+	let hash: string | null = null
+	for (const meta of Object.values(index)) {
+		if (meta.name !== candidate.name || !meta.contentHash) continue
+		hash ??= datasetContentHash(candidate)
+		if (meta.contentHash === hash) return meta.id
+	}
+	return null
+}
+
+/** Recompute the cached content hash after a mutation that changes a
+ *  dataset's content — appending or deleting a version. Every such mutation
+ *  MUST come through here (or set the hash itself, as fresh uploads do): a
+ *  stale stored hash makes the upload-time duplicate hint claim a match the
+ *  verification step then rejects — and the false hint also disables the
+ *  name-collision guard, so a same-named duplicate dataset gets created. */
+export const withFreshContentHash = (d: Dataset): Dataset => ({
+	...d,
+	contentHash: datasetContentHash(d),
+})
+
 export type { DatasetVersion }
 
 export type DedupeInput = {

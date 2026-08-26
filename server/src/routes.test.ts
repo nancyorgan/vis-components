@@ -440,3 +440,160 @@ describe("thumbnail-free visuals reads", () => {
 		expect(find(await getVisuals(), "v-clear")?.thumbnail).toBeNull()
 	})
 })
+
+describe("per-version dataset bodies", () => {
+	const rows = (n: number) =>
+		Array.from({ length: n }, (_, i) => ({ a: String(i) }))
+
+	const putVersion = (dsId: string, vId: string, body: unknown) =>
+		fetch(`${base}/api/datasets/${dsId}/versions/${vId}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		})
+
+	// The managed header is what the real client sends: it means "I issue the
+	// per-version PUTs/DELETEs myself", so the server keeps the version rows.
+	// Without it (an old-bundle client) a body PUT purges them — see the
+	// dedicated tests below.
+	const putDataset = (id: string, body: unknown, managed = true) =>
+		fetch(`${base}/api/datasets/${id}`, {
+			method: "PUT",
+			headers: {
+				"content-type": "application/json",
+				...(managed ? { "x-vis-versions-managed": "1" } : {}),
+			},
+			body: JSON.stringify(body),
+		})
+
+	it("round-trips one version's rows without touching the others", async () => {
+		await putDataset("ds-pv", { id: "ds-pv", versions: [] })
+		await putVersion("ds-pv", "dv-1", { id: "dv-1", rows: rows(2) })
+		await putVersion("ds-pv", "dv-2", { id: "dv-2", rows: rows(5) })
+
+		const one = await fetch(`${base}/api/datasets/ds-pv/versions/dv-1`)
+		expect(one.status).toBe(200)
+		expect(await one.json()).toEqual({ id: "dv-1", rows: rows(2) })
+	})
+
+	// Every version of every dataset written before the split lands here. It
+	// is the signal to fall back to the whole-dataset body, not an error.
+	it("404s a version with no stored body of its own", async () => {
+		await putDataset("ds-legacy", {
+			id: "ds-legacy",
+			versions: [{ id: "dv-old", rows: rows(1) }],
+		})
+		const res = await fetch(`${base}/api/datasets/ds-legacy/versions/dv-old`)
+		expect(res.status).toBe(404)
+		// …while the whole-dataset body still answers, so nothing is stranded.
+		expect((await fetch(`${base}/api/datasets/ds-legacy`)).status).toBe(200)
+	})
+
+	it("answers 304 for a version the client already holds", async () => {
+		await putDataset("ds-etag2", { id: "ds-etag2", versions: [] })
+		await putVersion("ds-etag2", "dv-1", { id: "dv-1", rows: rows(1) })
+		const first = await fetch(`${base}/api/datasets/ds-etag2/versions/dv-1`)
+		const etag = first.headers.get("etag")
+		await first.arrayBuffer()
+		const second = await fetch(`${base}/api/datasets/ds-etag2/versions/dv-1`, {
+			headers: { "if-none-match": etag as string },
+		})
+		expect(second.status).toBe(304)
+	})
+
+	it("deletes one version without disturbing its siblings", async () => {
+		await putDataset("ds-del", { id: "ds-del", versions: [] })
+		await putVersion("ds-del", "dv-1", { id: "dv-1", rows: rows(1) })
+		await putVersion("ds-del", "dv-2", { id: "dv-2", rows: rows(1) })
+
+		const gone = await fetch(`${base}/api/datasets/ds-del/versions/dv-1`, {
+			method: "DELETE",
+		})
+		expect(gone.status).toBe(204)
+		expect(
+			(await fetch(`${base}/api/datasets/ds-del/versions/dv-1`)).status
+		).toBe(404)
+		expect(
+			(await fetch(`${base}/api/datasets/ds-del/versions/dv-2`)).status
+		).toBe(200)
+	})
+
+	it("takes every version body with the dataset when it is deleted", async () => {
+		await putDataset("ds-cascade", { id: "ds-cascade", versions: [] })
+		await putVersion("ds-cascade", "dv-1", { id: "dv-1", rows: rows(1) })
+		await putVersion("ds-cascade", "dv-2", { id: "dv-2", rows: rows(1) })
+
+		await fetch(`${base}/api/datasets/ds-cascade`, { method: "DELETE" })
+
+		for (const v of ["dv-1", "dv-2"]) {
+			expect(
+				(await fetch(`${base}/api/datasets/ds-cascade/versions/${v}`)).status
+			).toBe(404)
+		}
+		// And the dataset is not listed any more.
+		const index = (await (
+			await fetch(`${base}/api/datasets?view=index`)
+		).json()) as Record<string, unknown>
+		expect(index).not.toHaveProperty("ds-cascade")
+	})
+
+	it("rejects an unsafe version id", async () => {
+		const res = await fetch(
+			`${base}/api/datasets/ds-pv/versions/..%2Fescape`,
+			{ method: "GET" }
+		)
+		expect(res.status).toBe(400)
+	})
+
+	it("does not mistake a version file for a dataset in the index", async () => {
+		await putDataset("ds-index", { id: "ds-index", versions: [] })
+		await putVersion("ds-index", "dv-1", { id: "dv-1", rows: rows(1) })
+		const index = (await (
+			await fetch(`${base}/api/datasets?view=index`)
+		).json()) as Record<string, unknown>
+		expect(Object.keys(index)).not.toContain("ds-index.dv-1")
+	})
+
+	// A version PUT racing (or trailing) the dataset's DELETE must not
+	// resurrect deleted rows: without an index row for the parent, the write
+	// is refused and nothing is left servable — mirroring the meta route's
+	// anti-resurrection no-op.
+	it("no-ops a version PUT whose dataset does not exist", async () => {
+		const res = await putVersion("ds-ghost", "dv-1", {
+			id: "dv-1",
+			rows: rows(1),
+		})
+		expect(res.status).toBe(204)
+		expect(
+			(await fetch(`${base}/api/datasets/ds-ghost/versions/dv-1`)).status
+		).toBe(404)
+	})
+
+	// An old-bundle client (rolling deploy) writes the whole body with no
+	// version follow-ups, so the stored per-version bodies describe the
+	// PREVIOUS rows — possibly versions the write removed. The server purges
+	// them; readers fall back to the whole body until the next re-split.
+	it("purges stored versions on a body PUT without the managed header", async () => {
+		await putDataset("ds-old", { id: "ds-old", versions: [] })
+		await putVersion("ds-old", "dv-1", { id: "dv-1", rows: rows(1) })
+		await putDataset(
+			"ds-old",
+			{ id: "ds-old", versions: [] },
+			/* managed */ false
+		)
+		expect(
+			(await fetch(`${base}/api/datasets/ds-old/versions/dv-1`)).status
+		).toBe(404)
+		// The whole body still answers — nothing is stranded.
+		expect((await fetch(`${base}/api/datasets/ds-old`)).status).toBe(200)
+	})
+
+	it("keeps stored versions on a body PUT with the managed header", async () => {
+		await putDataset("ds-new", { id: "ds-new", versions: [] })
+		await putVersion("ds-new", "dv-1", { id: "dv-1", rows: rows(1) })
+		await putDataset("ds-new", { id: "ds-new", versions: [] })
+		expect(
+			(await fetch(`${base}/api/datasets/ds-new/versions/dv-1`)).status
+		).toBe(200)
+	})
+})

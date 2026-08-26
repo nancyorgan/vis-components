@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import {
@@ -7,12 +7,14 @@ import {
 	diffFields,
 	isCompatible,
 } from "../../lib/datasetCompat"
-import { findDuplicateDataset } from "../../lib/datasetDedupe"
+import { findDuplicateByHash, withFreshContentHash } from "../../lib/datasetDedupe"
 import { nameCollides } from "../../lib/nameUniqueness"
+import { getStorageAdapter } from "../../lib/storage/registry"
 import type { Dataset, DatasetVersion } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
 	currentVisualNameAtom,
+	datasetIndexAtom,
 	loadedDatasetsAtom,
 	pendingUploadAtom,
 	previewVersionIdAtom,
@@ -105,6 +107,7 @@ export const DataUpload = () => {
 const UploadPromptModal = () => {
 	const [pending, setPending] = useAtom(pendingUploadAtom)
 	const [datasets, setDatasets] = useAtom(loadedDatasetsAtom)
+	const datasetIndex = useAtomValue(datasetIndexAtom)
 	const currentDatasetId = useAtomValue(currentDatasetIdAtom)
 	const currentVisualName = useAtomValue(currentVisualNameAtom)
 	const setDatasetId = useSetAtom(currentDatasetIdAtom)
@@ -116,6 +119,11 @@ const UploadPromptModal = () => {
 
 	const [mode, setMode] = useState<Mode>("addVersion")
 	const [newName, setNewName] = useState("")
+	// Confirm can now fail: appending and starting fresh both load the bound
+	// dataset's full body first (lazily, possibly over the network). A silent
+	// rejection would leave the modal open with the user's confirmed upload
+	// quietly dropped.
+	const [confirmError, setConfirmError] = useState<string | null>(null)
 
 	// Re-initialize the modal whenever a new pending upload arrives. Key on
 	// filename+rowcount so re-opening with the same file resets fields.
@@ -124,45 +132,66 @@ const UploadPromptModal = () => {
 		if (!pending) return
 		setMode("addVersion")
 		setNewName(pending.filename.replace(/\.csv$/i, ""))
+		setConfirmError(null)
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- pendingKey captures the identity change we care about
 	}, [pendingKey])
 
-	const datasetList = Object.values(datasets)
-	const currentDataset = currentDatasetId
-		? datasets[currentDatasetId]
+	// Everything display-level here — the bound dataset's name and fields for
+	// the compatibility diff, the name-collision list, the duplicate hint —
+	// is metadata, so it reads the INDEX, which knows every dataset. The
+	// loaded-bodies map only holds what this session opened; reading it here
+	// made the schema guard and both collision checks silently blind.
+	const datasetList = Object.values(datasetIndex)
+	const currentDatasetMeta = currentDatasetId
+		? datasetIndex[currentDatasetId]
 		: undefined
 	const diff =
-		mode === "addVersion" && pending && currentDataset
-			? diffFields(currentDataset.fields, pending.fields)
+		mode === "addVersion" && pending && currentDatasetMeta
+			? diffFields(currentDatasetMeta.fields, pending.fields)
 			: null
 	const compatible = diff ? isCompatible(diff) : true
 	// An upload identical to an existing dataset (same exact name AND content)
 	// is not a collision: confirming reuses that dataset rather than storing a
-	// second copy (`useCreateNewDataset` dedupes on the same key). Cheap in
-	// practice — `datasetsEqual` compares names before touching content, so
-	// only same-named datasets are ever deep-compared.
-	const reusableDatasetId =
-		mode === "newVisualization" && pending
-			? findDuplicateDataset(datasets, {
-					name: newName.trim() || pending.filename,
-					fields: pending.fields,
-					versions: [
-						{
-							id: "candidate",
-							filename: pending.filename,
-							rows: pending.rows,
-							createdAt: 0,
-						},
-					],
-				})
-			: null
+	// second copy. Display-level hint via the cached content hash; the actual
+	// reuse decision inside `useCreateNewDataset` re-verifies against that
+	// dataset's real rows before acting.
+	// Memoized (and the hash inside is computed lazily, only on a name match):
+	// this runs per keystroke in the name field, and hashing stringifies every
+	// pending row.
+	const reusableDatasetId = useMemo(
+		() =>
+			mode === "newVisualization" && pending
+				? findDuplicateByHash(datasetIndex, {
+						name: newName.trim() || pending.filename,
+						fields: pending.fields,
+						versions: [
+							{
+								id: "candidate",
+								filename: pending.filename,
+								rows: pending.rows,
+								createdAt: 0,
+							},
+						],
+					})
+				: null,
+		[mode, pending, datasetIndex, newName]
+	)
 	const newNameCollides =
 		mode === "newVisualization" &&
 		reusableDatasetId === null &&
 		nameCollides(newName, datasetList)
 
-	const appendVersion = (parsed: NonNullable<typeof pending>) => {
-		if (!currentDataset) return
+	const appendVersion = async (
+		parsed: NonNullable<typeof pending>
+	): Promise<boolean> => {
+		if (!currentDatasetMeta) return false
+		// Appending needs the FULL body — the new version joins the existing
+		// ones, so their rows must be in the record we write back. Loaded lazily
+		// here; this is the one moment the upload flow needs them.
+		const currentDataset =
+			datasets[currentDatasetMeta.id] ??
+			(await getStorageAdapter().loadDataset(currentDatasetMeta.id))
+		if (!currentDataset) return false
 		const versionId = newDatasetVersionId()
 		const version: DatasetVersion = {
 			id: versionId,
@@ -179,7 +208,10 @@ const UploadPromptModal = () => {
 			diff && diff.added.length > 0
 				? parsed.fields.filter((f) => diff.added.includes(f.name))
 				: []
-		const next: Dataset = {
+		// The append changed the dataset's content, so the cached content hash
+		// must follow — a stale one makes the next upload of the ORIGINAL file
+		// hint a reuse it can't verify, with the name-collision guard disabled.
+		const next: Dataset = withFreshContentHash({
 			...currentDataset,
 			fields:
 				addedFields.length > 0
@@ -187,10 +219,11 @@ const UploadPromptModal = () => {
 					: currentDataset.fields,
 			versions: [...currentDataset.versions, version],
 			latestVersionId: versionId,
-		}
+		})
 		setDatasets((prev) => ({ ...prev, [currentDataset.id]: next }))
 		setDatasetId(currentDataset.id)
 		setPreviewVersionId(null)
+		return true
 	}
 
 	const startNewVisualization = async (parsed: NonNullable<typeof pending>) => {
@@ -198,7 +231,7 @@ const UploadPromptModal = () => {
 		// so it survives intact regardless of what happens next.
 		await saveVisual()
 		await resetVisual()
-		const newDatasetId = createNewDataset(parsed, newName)
+		const newDatasetId = await createNewDataset(parsed, newName)
 		// Pass the dataset id via search params so VisualLoaderForNew's reset
 		// doesn't strip the binding we just established.
 		await navigate({
@@ -209,12 +242,23 @@ const UploadPromptModal = () => {
 
 	const onConfirm = async () => {
 		if (!pending) return
-		if (mode === "addVersion") {
-			if (!currentDataset || !compatible) return
-			appendVersion(pending)
-		} else {
-			if (!newName.trim() || newNameCollides) return
-			await startNewVisualization(pending)
+		setConfirmError(null)
+		try {
+			if (mode === "addVersion") {
+				if (!currentDatasetMeta || !compatible) return
+				if (!(await appendVersion(pending))) return
+			} else {
+				if (!newName.trim() || newNameCollides) return
+				await startNewVisualization(pending)
+			}
+		} catch {
+			// The body load (or the save/navigate) failed — keep the modal (and
+			// the pending upload) so the user can retry, and say why nothing
+			// happened.
+			setConfirmError(
+				"Couldn't load the existing data set to update it. Check your connection and try again."
+			)
+			return
 		}
 		setPending(null)
 	}
@@ -251,7 +295,7 @@ const UploadPromptModal = () => {
 							<div className="text-sm text-stone-600 dark:text-stone-400">
 								Appends a new version to{" "}
 								<span className="font-medium">
-									{currentDataset?.name ?? "the bound data set"}
+									{currentDatasetMeta?.name ?? "the bound data set"}
 								</span>
 								. Live iframes refresh; pinned iframes stay on their version.
 							</div>
@@ -329,6 +373,12 @@ const UploadPromptModal = () => {
 						</div>
 					</label>
 
+					{confirmError && (
+						<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+							{confirmError}
+						</div>
+					)}
+
 					<div className="flex justify-end gap-2">
 						<Button compact outline onClick={() => setPending(null)}>
 							Cancel
@@ -337,7 +387,7 @@ const UploadPromptModal = () => {
 							compact
 							onClick={onConfirm}
 							disabled={
-								(mode === "addVersion" && (!currentDataset || !compatible)) ||
+								(mode === "addVersion" && (!currentDatasetMeta || !compatible)) ||
 								(mode === "newVisualization" &&
 									(!newName.trim() || newNameCollides))
 							}

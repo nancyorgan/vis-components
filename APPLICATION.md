@@ -2136,9 +2136,78 @@ Datasets (parsed CSV rows) are the exception — they persist to
 They can be large, and pooling them into the shared ~5 MB localStorage
 budget previously starved thumbnails and silently dropped big uploads
 on quota overflow. IndexedDB is durable, browser-built-in, and far
-larger. Loads prefer IndexedDB with a synchronous localStorage
-bootstrap for first paint and tests; a one-time migration moves any
-legacy localStorage datasets blob into IndexedDB on first load.
+larger.
+
+**Datasets load lazily.** Nothing reads row data until a visualization
+actually draws it. What boots is a row-free metadata **index** (name,
+fields, per-version ids/filenames/row counts, content hash) — the
+authoritative list of which datasets exist. Opening a visualization
+fetches the rows of exactly the one version it renders; a whole body
+is only read for operations that genuinely need every version (append
+a version, version management, bundle export/import) or as the
+fallback for data stored before the per-version split, which is split
+on the way through so the cost is paid once. While rows are in flight
+the canvas shows a distinct loading state and must NOT mount the plot
+SVG (the thumbnail capture pipeline reads any non-zero-sized plot SVG
+as a finished chart, so an empty one would be saved as a blank
+preview). Saves are upsert-only — the in-memory record is a subset of
+the store, so absence never implies deletion; deleting a dataset is an
+explicit operation that removes its body, its per-version rows, and
+its index entry together. Deleting a single VERSION propagates too: a
+save diffs the dataset's versions against what the store held before
+the write and deletes the removed versions' stored rows (one shared
+implementation, `lib/storage/syncDatasetVersions.ts`, serves both the
+IndexedDB layer and the HTTP adapter — its skip-cache keys on the rows
+array, so a metadata-only edit like a version note never re-writes
+rows). Any mutation that changes a dataset's content (append or delete
+a version) recomputes the cached `contentHash`, which the upload-time
+duplicate hint compares against. The full-corpus read
+(`loadDatasetsAsync`, sanctioned for bundle export/import only) is
+all-or-nothing: an index-listed dataset whose body can't be read makes
+it throw rather than silently produce an incomplete backup.
+
+Storage layout, browser-local mode: one **body key** per dataset (the
+authoritative, versioned, migratable record), one **index key**
+(metadata for all datasets), and one **rows key per dataset version**.
+The index and version keys are derived caches of the bodies: they are
+tagged with the datasets schema version but never migrated — a stale
+tag discards the cache and rebuilds it from the bodies, which flow
+through the real migrations. A one-time migration moves any legacy
+localStorage datasets blob into IndexedDB, and a second one-time split
+moves the single pre-split IndexedDB blob into per-dataset keys. A
+synchronous localStorage bootstrap still serves first paint, tests,
+and IndexedDB-less environments — in browser-local mode only: server
+mode ignores it (the server is the store; merging a leftover local
+blob would resurrect ghost datasets and upload them on the next save).
+The body keys hold ONE dataset each, so they migrate through
+`datasetBodyMigrations`; the legacy blob migrates through the
+record-shaped `datasetsMigrations`, which is DERIVED from the per-body
+steps — a version bump appends one step and both shapes follow.
+
+Server mode mirrors the shape: `GET /api/datasets?view=index` serves
+the metadata index (a pure SQLite read; the bare collection GET keeps
+returning full bodies for not-yet-reloaded tabs during a rolling
+deploy), `GET /api/datasets/:id` one body, and
+`GET /api/datasets/:id/versions/:vid` one version's rows (stored gzip
+passed through untouched, ETag/304 on revisit). Metadata and
+per-version bodies are derived by the CLIENT and PUT alongside each
+body write — the server never parses dataset bodies. A missing
+metadata row (pre-upgrade data, or a body written without its
+follow-ups, e.g. by an old bundle mid-deploy) is served as `null`,
+which means "derive me", never "deleted": the client reads the body,
+derives, re-splits the versions, and writes all three back — metadata
+strictly LAST, and only after the version sync succeeded, so a crash
+or failed sync reads as un-hydrated (repaired next boot), never as
+stale-but-trusted. Two write-path guards keep deleted rows from
+resurfacing: a body PUT without the client's `x-vis-versions-managed`
+header (an old bundle mid-deploy, which issues no version follow-ups)
+makes the server purge that dataset's stored per-version rows — they
+describe the previous body — and a version PUT whose parent dataset
+does not exist is a silent no-op (mirroring the meta route), so a PUT
+racing the dataset's DELETE can't resurrect it. Every lazy read first
+consults the content-version gate below, so migrations and the
+newer-than-this-build refusal apply to the lazy paths exactly as they
+do to the eager one (one shared stamp-policy helper enforces both).
 
 **Schema upgrades reach server-stored work too.** In browser-local
 mode every persisted key carries its own version stamp, so an app

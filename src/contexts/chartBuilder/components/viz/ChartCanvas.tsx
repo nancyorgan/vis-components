@@ -21,8 +21,31 @@ import {
 import { Legend, type InsideExtras } from "./Legend"
 import { PlotCanvas } from "./PlotCanvas"
 
-/** Just the plot region — no legend. Used by the embed split-iframe option
- * (`?part=chart`) and as the building block for ChartCanvas. */
+const SpinnerIcon = () => (
+	<svg
+		width="14"
+		height="14"
+		viewBox="0 0 16 16"
+		fill="none"
+		aria-hidden="true"
+	>
+		<circle
+			cx="8"
+			cy="8"
+			r="6"
+			stroke="currentColor"
+			strokeWidth="2"
+			opacity="0.25"
+		/>
+		<path
+			d="M14 8a6 6 0 0 0-6-6"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+		/>
+	</svg>
+)
+
 export const ChartBody = () => {
 	const dataset = useCurrentDatasetView()
 	const status = useCurrentDatasetStatus()
@@ -38,12 +61,36 @@ export const ChartBody = () => {
 				style={bgStyle}
 			>
 				{status === "loading" ? (
-					// Rows are in flight. This branch must never mount the plot
-					// SVG: `chartLayoutReady` treats any non-zero-sized
+					// Rows are in flight. Blank at first — the CSS delay keeps a
+					// fast load from flashing a spinner — then an acknowledged
+					// wait. Pure CSS rather than a timer in state, so no effect
+					// churn on every load.
+					//
+					// Whatever this renders must never mount the plot SVG:
+					// `chartLayoutReady` treats any non-zero-sized
 					// `#PLOT_SVG_ID` as a finished chart, so drawing an empty
 					// one here would let the thumbnail pipeline capture it as a
 					// stable frame and save a blank preview.
-					<div className="text-sm">Loading data…</div>
+					<div
+						className="flex items-center gap-2 text-sm opacity-0"
+						style={{
+							animation: "vc-delayed-reveal 0s linear 500ms both",
+						}}
+						data-dataset-loading
+					>
+						<style>{"@keyframes vc-delayed-reveal { to { opacity: 1 } }"}</style>
+						<span className="animate-spin">
+							<SpinnerIcon />
+						</span>
+						Loading data…
+					</div>
+				) : status === "error" ? (
+					<>
+						<div className="text-sm">Couldn&apos;t load this data set.</div>
+						<div className="text-sm">
+							Check your connection and reload to try again.
+						</div>
+					</>
 				) : status === "missing" ? (
 					<>
 						<div className="text-sm">This data set could not be loaded.</div>

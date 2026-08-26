@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react"
 import { useAtom } from "jotai"
 import { pruneOrphanFields } from "../lib/datasetCompat"
+import { withFreshContentHash } from "../lib/datasetDedupe"
+import type { DatasetLike } from "../lib/datasetMeta"
+import { getStorageAdapter } from "../lib/storage/registry"
 import type { Dataset } from "../lib/types"
-import { loadedDatasetsAtom, previewVersionIdAtom } from "../store/atoms"
+import {
+	datasetIndexAtom,
+	loadedDatasetsAtom,
+	previewVersionIdAtom,
+} from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
 
 import { Input } from "../../../components/ui/Input"
@@ -22,8 +29,12 @@ export const VersionBadge = () => {
 	const view = useCurrentDatasetView()
 	const [previewVersionId, setPreviewVersionId] =
 		useAtom(previewVersionIdAtom)
-	const [, setDatasets] = useAtom(loadedDatasetsAtom)
+	const [loadedDatasets, setDatasets] = useAtom(loadedDatasetsAtom)
 	const [open, setOpen] = useState(false)
+	// Deleting a version or editing a note may first LOAD the full body
+	// (lazily, possibly over the network) — a failure there must say so, or
+	// the click just silently does nothing.
+	const [mutateError, setMutateError] = useState<string | null>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
@@ -52,11 +63,31 @@ export const VersionBadge = () => {
 
 	if (!view) return null
 
+	/** Apply `mutate` to the full dataset body, loading it first if this
+	 * session only has the lazy per-version rows. The version list itself
+	 * renders from metadata; only these two mutations need every row. */
+	const mutateDataset = async (
+		id: string,
+		mutate: (d: Dataset) => Dataset
+	): Promise<void> => {
+		try {
+			const body =
+				loadedDatasets[id] ?? (await getStorageAdapter().loadDataset(id))
+			if (!body) return
+			// prev wins over the body we fetched — a concurrent edit that landed
+			// during the await is newer than our read.
+			setDatasets((prev) => ({ ...prev, [id]: mutate(prev[id] ?? body) }))
+			setMutateError(null)
+		} catch {
+			setMutateError(
+				"Couldn't load this data set to update it. Check your connection and try again."
+			)
+		}
+	}
+
 	const deleteVersion = (versionId: string) => {
-		setDatasets((prev) => {
-			const d = prev[view.id]
-			if (!d) return prev
-			if (d.versions.length <= 1) return prev
+		void mutateDataset(view.id, (d) => {
+			if (d.versions.length <= 1) return d
 			const remaining = d.versions.filter((v) => v.id !== versionId)
 			// Length-checked above: remaining has at least one entry.
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded above
@@ -65,31 +96,32 @@ export const VersionBadge = () => {
 				d.latestVersionId === versionId ? fallbackLatest : d.latestVersionId
 			// The deleted version may have been the only one carrying an
 			// additively-merged column; drop fields no remaining version has.
-			const next = pruneOrphanFields({
-				...d,
-				versions: remaining,
-				latestVersionId,
-			})
-			return { ...prev, [view.id]: next }
+			// Deleting a version changes the content, so the cached content
+			// hash must follow (see withFreshContentHash).
+			return withFreshContentHash(
+				pruneOrphanFields({
+					...d,
+					versions: remaining,
+					latestVersionId,
+				})
+			)
 		})
 		// If the deleted version was being previewed, fall back to latest.
 		if (previewVersionId === versionId) setPreviewVersionId(null)
 	}
 
 	const editVersionNote = (versionId: string, note: string) => {
-		setDatasets((prev) => {
-			const d = prev[view.id]
-			if (!d) return prev
-			const versions = d.versions.map((v) =>
+		void mutateDataset(view.id, (d) => ({
+			...d,
+			versions: d.versions.map((v) =>
 				v.id === versionId
 					? {
 							...v,
 							...(note.trim() ? { note: note.trim() } : { note: undefined }),
 						}
 					: v
-			)
-			return { ...prev, [view.id]: { ...d, versions } }
-		})
+			),
+		}))
 	}
 
 	const badgeLabel = view.isLatest
@@ -118,6 +150,11 @@ export const VersionBadge = () => {
 							{view.name}
 						</div>
 					</div>
+					{mutateError && (
+						<div className="border-b border-stone-200 px-3 py-2 text-sm text-red-700 dark:border-stone-700 dark:text-red-300">
+							{mutateError}
+						</div>
+					)}
 					{!view.isLatest && (
 						<button
 							type="button"
@@ -265,8 +302,10 @@ const VersionList = ({
 	)
 }
 
-// Local hook to avoid a second pass through useCurrentDatasetView's resolution.
-const useDatasetById = (id: string): Dataset | undefined => {
-	const [datasets] = useAtom(loadedDatasetsAtom)
-	return datasets[id]
+// The version list is pure metadata (id, filename, createdAt, note), so it
+// reads the INDEX — present for every dataset — rather than the loaded-bodies
+// map, which is empty for a dataset opened lazily and left the popover blank.
+const useDatasetById = (id: string): DatasetLike | undefined => {
+	const [index] = useAtom(datasetIndexAtom)
+	return index[id]
 }

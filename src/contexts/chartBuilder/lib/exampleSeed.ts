@@ -40,6 +40,7 @@ import { dedupeDatasetStores } from "./datasetDedupe"
 import { getStorageAdapter } from "./storage/registry"
 import {
 	loadDatasets,
+	loadDatasetIndexAsync,
 	loadDatasetsAsync,
 	loadExampleSeedApplied,
 	loadFolders,
@@ -148,7 +149,12 @@ export const installEphemeralExamples = async (
 			...loadVisuals().map((v) => v.id),
 			...loadFolders().map((f) => f.id),
 			...(loadThemes() ?? []).map((t) => t.id),
-			...Object.keys(idbAvailable() ? await loadDatasetsAsync() : loadDatasets()),
+			// The INDEX, never the bodies: only the ids are needed, and this
+			// runs pre-mount on every seeded boot — reading every body here
+			// re-created the whole-corpus startup read lazy loading removed.
+			...Object.keys(
+				idbAvailable() ? await loadDatasetIndexAsync() : loadDatasets()
+			),
 		]
 
 		installExampleOverlay(

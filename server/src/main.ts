@@ -13,8 +13,11 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { loadConfig } from "./config.js"
-import { listDatasetFiles } from "./datasetFiles.js"
-import { listDatasetIds, openDb } from "./db.js"
+import {
+	listDatasetFiles,
+	listDatasetVersionFiles,
+} from "./datasetFiles.js"
+import { listAllDatasetVersionRows, listDatasetIds, openDb } from "./db.js"
 import { logError, logInfo } from "./log.js"
 import { createHandler } from "./routes.js"
 
@@ -51,6 +54,31 @@ const main = (): void => {
 			}
 			for (const id of onDisk) {
 				if (!indexed.has(id)) logInfo(`warning: dataset file ${id} has no index row`)
+			}
+			// Per-version bodies, same treatment — and same MECHANISM: set
+			// membership against one directory listing and one SQL query.
+			// (An earlier draft read every version file off disk to test
+			// existence, which re-created the whole-corpus startup read this
+			// change exists to eliminate.)
+			const versionFilesOnDisk = await listDatasetVersionFiles(config.dataDir)
+			const versionFileKeys = new Set(
+				versionFilesOnDisk.map(([d, v]) => `${d}/${v}`)
+			)
+			for (const [datasetId, versionId] of versionFilesOnDisk) {
+				if (!indexed.has(datasetId)) {
+					// Dead weight in the data dir — reported, never removed, so a
+					// human decides.
+					logInfo(
+						`warning: dataset version file ${datasetId}/${versionId} has no dataset`
+					)
+				}
+			}
+			for (const { dataset_id, version_id } of listAllDatasetVersionRows(db)) {
+				if (!versionFileKeys.has(`${dataset_id}/${version_id}`)) {
+					logError(
+						`dataset ${dataset_id} version ${version_id} indexed but file missing`
+					)
+				}
 			}
 		} catch (error) {
 			logError(`data-dir sweep failed: ${String(error)}`)

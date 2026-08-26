@@ -16,11 +16,17 @@ const mount = (seed: (store: TestStore) => void) =>
 	)
 
 describe("ChartBody — dataset load states", () => {
-	it("says the rows are loading rather than inviting an upload", () => {
+	// A dataset is bound but no rows have arrived and no terminal state has
+	// been recorded: that is the in-flight window.
+	it("shows the loading indicator, CSS-delayed so a fast load never flashes it", () => {
 		const { container } = mount((s) => {
 			s.set(currentDatasetIdAtom, "ds-1")
-			s.set(datasetLoadStatesAtom, { "ds-1": "loading" })
 		})
+		const indicator = container.querySelector("[data-dataset-loading]")
+		expect(indicator).not.toBeNull()
+		// The delay lives in CSS (starts at opacity 0, revealed by a 500ms
+		// animation), so the element is present but initially invisible.
+		expect(indicator?.className).toContain("opacity-0")
 		expect(container.textContent).toContain("Loading data")
 		expect(container.textContent).not.toContain("Upload a CSV")
 	})
@@ -32,17 +38,25 @@ describe("ChartBody — dataset load states", () => {
 	it("mounts no plot SVG while rows are in flight", () => {
 		const { container } = mount((s) => {
 			s.set(currentDatasetIdAtom, "ds-1")
-			s.set(datasetLoadStatesAtom, { "ds-1": "loading" })
 		})
 		expect(container.querySelector(`#${PLOT_SVG_ID}`)).toBeNull()
 	})
 
-	it("distinguishes a dataset that could not be loaded at all", () => {
+	it("distinguishes a dataset that is not in the store", () => {
 		const { container } = mount((s) => {
 			s.set(currentDatasetIdAtom, "ds-gone")
 			s.set(datasetLoadStatesAtom, { "ds-gone": "missing" })
 		})
 		expect(container.textContent).toContain("could not be loaded")
+	})
+
+	it("distinguishes a read that failed and may work on retry", () => {
+		const { container } = mount((s) => {
+			s.set(currentDatasetIdAtom, "ds-1")
+			s.set(datasetLoadStatesAtom, { "ds-1": "error" })
+		})
+		expect(container.textContent).toContain("Couldn't load")
+		expect(container.textContent).not.toContain("deleted")
 	})
 
 	it("still invites an upload when no dataset is bound at all", () => {

@@ -8,8 +8,10 @@ import {
 	parseLibraryBundle,
 } from "../../chartBuilder/lib/libraryBundle"
 import { loadUserDefaultThemeId } from "../../chartBuilder/lib/storage"
+import { getStorageAdapter } from "../../chartBuilder/lib/storage/registry"
 import { stringifyJsonDangerous } from "../../../lib/json"
 import {
+	datasetIndexAtom,
 	loadedDatasetsAtom,
 	foldersAtom,
 	themesAtom,
@@ -37,7 +39,8 @@ const plural = (n: number, one: string, many = `${one}s`): string =>
  *  imported work is backed up server-side too. */
 export const SharingPage = () => {
 	const [visuals, setVisuals] = useAtom(visualsAtom)
-	const [datasets, setDatasets] = useAtom(loadedDatasetsAtom)
+	const [, setDatasets] = useAtom(loadedDatasetsAtom)
+	const datasetIndex = useAtomValue(datasetIndexAtom)
 	const [folders, setFolders] = useAtom(foldersAtom)
 	const [themes, setThemes] = useAtom(themesAtom)
 	const setUserDefaultThemeId = useSetAtom(userDefaultThemeIdAtom)
@@ -91,10 +94,17 @@ export const SharingPage = () => {
 			// adopted only when the user has never made a pick (mirroring the
 			// example seed) — so the merge reads the RAW stored value, not the
 			// atom, whose bootstrap substitutes system-light for "unset".
+			// Import needs the WHOLE dataset store: its id-collision and
+			// content-dedupe guards must see datasets this session never opened,
+			// or an imported bundle can silently overwrite a stored dataset's
+			// rows. `loadDatasets` is the deliberate full-corpus read — import
+			// is the second of the two callers (export is the other) allowed to
+			// pay for it.
+			const existingDatasets = await getStorageAdapter().loadDatasets()
 			const merged = mergeBundleIntoLibrary(parsed.bundle, {
 				visuals,
 				folders,
-				datasets,
+				datasets: existingDatasets,
 				themes,
 				userDefaultThemeId: loadUserDefaultThemeId(),
 			})
@@ -148,7 +158,7 @@ export const SharingPage = () => {
 	const datasetCount = new Set(
 		ownVisuals
 			.map((v) => v.datasetId)
-			.filter((id) => id != null && id in datasets)
+			.filter((id) => id != null && id in datasetIndex)
 	).size
 
 	return (

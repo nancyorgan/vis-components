@@ -1,5 +1,5 @@
-import type { DatasetLike } from "./datasetMeta"
-import type { Dataset, DatasetVersion, DatasetView } from "./types"
+import { datasetFromParts, type DatasetLike } from "./datasetMeta"
+import type { Dataset, DatasetMeta, DatasetView } from "./types"
 
 /**
  * Resolve a Dataset to a specific DatasetVersion.
@@ -10,10 +10,10 @@ import type { Dataset, DatasetVersion, DatasetView } from "./types"
  *                          latest version. Returns null if the dataset itself
  *                          is missing or has no versions.
  */
-export const resolveDatasetVersion = (
-	dataset: Dataset | undefined,
+export const resolveDatasetVersion = <V extends { id: string }>(
+	dataset: { versions: readonly V[]; latestVersionId: string } | undefined,
 	preferredVersionId: string | null | undefined
-): DatasetVersion | null => {
+): V | null => {
 	if (!dataset || dataset.versions.length === 0) return null
 	if (preferredVersionId) {
 		const found = dataset.versions.find((v) => v.id === preferredVersionId)
@@ -66,4 +66,32 @@ export const resolveDatasetView = (
 		versionCreatedAt: version.createdAt,
 		versionNote: version.note,
 	}
+}
+
+/** Which version a `DatasetMeta` resolves to, given an optional pin — the
+ *  same rule as `resolveDatasetVersion` (it IS that function, over metadata),
+ *  answered before any rows exist so the caller can work out WHICH rows to
+ *  fetch before fetching any. */
+export const resolveVersionIdFromMeta = (
+	meta: DatasetMeta | undefined,
+	preferredVersionId: string | null | undefined
+): string | null => resolveDatasetVersion(meta, preferredVersionId)?.id ?? null
+
+/** The metadata-plus-one-version equivalent of `resolveDatasetView`, for the
+ *  lazy read path: everything but the rows comes from the index, and only the
+ *  rows of the version actually being drawn are needed. Delegates through
+ *  `datasetFromParts` + `resolveDatasetView`, so there is exactly one
+ *  constructor of `DatasetView` and the two paths cannot drift. */
+export const resolveDatasetViewFromMeta = (
+	meta: DatasetMeta | undefined,
+	rows: Array<Record<string, string>> | undefined,
+	preferredVersionId: string | null | undefined
+): DatasetView | undefined => {
+	if (!meta || !rows) return undefined
+	const versionId = resolveVersionIdFromMeta(meta, preferredVersionId)
+	if (!versionId) return undefined
+	return resolveDatasetView(
+		datasetFromParts(meta, { [versionId]: rows }),
+		preferredVersionId
+	)
 }

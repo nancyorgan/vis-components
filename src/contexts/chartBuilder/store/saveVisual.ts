@@ -44,7 +44,7 @@ import {
 	currentTooltipConfigAtom,
 	currentVisualIdAtom,
 	currentVisualNameAtom,
-	loadedDatasetsAtom,
+	datasetIndexAtom,
 	lastSavedAtAtom,
 	previewVersionIdAtom,
 	saveStatusAtom,
@@ -69,7 +69,10 @@ export const useSaveVisual = () => {
 			const currentId = get(currentVisualIdAtom)
 			const name = get(currentVisualNameAtom)
 			const datasetId = get(currentDatasetIdAtom)
-			const datasets = get(loadedDatasetsAtom)
+			// The INDEX, not the loaded bodies: `latestVersionId` is metadata,
+			// and the loaded-bodies map is empty for a dataset opened lazily —
+			// reading it here stamped `createdAtVersionId: null` permanently.
+			const datasets = get(datasetIndexAtom)
 			const encodings = get(currentEncodingsAtom)
 			const overrides = get(currentFieldOverridesAtom)
 			const channelConfigs = get(currentChannelConfigsAtom)

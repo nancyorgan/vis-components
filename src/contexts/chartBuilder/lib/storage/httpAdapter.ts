@@ -43,6 +43,7 @@ import type {
 } from "../types"
 import type { StorageContentAdapter } from "./adapter"
 import { CONTENT_MIGRATIONS } from "./migrations"
+import { syncDatasetVersions } from "./syncDatasetVersions"
 import { migrateVersioned } from "./versioning"
 
 type Baseline = Map<string, string>
@@ -172,6 +173,33 @@ const wantsThumbnails = (): boolean =>
 	typeof window === "undefined" ||
 	!/^\/embed\//.test(window.location.pathname)
 
+/** The ONE content-version stamp policy, shared by the eager path
+ *  (`upgraded`) and the lazy gate (`ensureDatasetsCurrent`) so the two can
+ *  never drift on a load-bearing invariant:
+ *   - absent stamp → "adopt": the rows were written by a build at the
+ *     CURRENT shape, so stamp it. NEVER v0 — reading absent as v0 would
+ *     re-run every migration over already-current data.
+ *   - stamped ahead → throw: written by a newer build; migrations only run
+ *     forward, and saving back what an old build makes of a new shape drops
+ *     whatever the new shape added.
+ *   - stamped behind → "behind": migrate forward, once per server. */
+const stampAction = (
+	collection: string,
+	stored: number | undefined,
+	currentVersion: number
+): "current" | "adopt" | "behind" => {
+	if (stored === undefined) return "adopt"
+	if (stored > currentVersion) {
+		throw new Error(
+			`Server "${collection}" is at content version ${stored}, but this ` +
+				`build only understands ${currentVersion}. Refusing to load ` +
+				`rather than risk overwriting newer data — reload to pick up the ` +
+				`newer build.`
+		)
+	}
+	return stored === currentVersion ? "current" : "behind"
+}
+
 /** Every stamped content version, or `{}` when the server has none — which
  *  covers both a brand-new server and one older than this bundle (the route
  *  404s). `upgraded` treats both the same way. */
@@ -221,38 +249,44 @@ const putDatasetMeta = async (
 	}
 }
 
-/** Repair one dataset's missing metadata: read the body, derive from it, and
- *  store the result so no later session pays this again. A failure to store
- *  is non-fatal — the metadata in hand is correct either way, and the next
- *  session simply re-derives it. Returns null only when the body itself
- *  can't be read, which the caller reports as a dataset it can't list. */
-const hydrateDatasetMeta = async (
-	id: string
-): Promise<DatasetMeta | null> => {
-	try {
-		const response = await fetch(`/api/datasets/${encodeURIComponent(id)}`)
-		if (!response.ok) {
-			throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
-		}
-		const meta = datasetMetaFrom((await response.json()) as Dataset)
-		try {
-			await putDatasetMeta(id, meta)
-		} catch (error) {
-			// eslint-disable-next-line no-console
-			console.warn(
-				`[vis-components] could not store derived metadata for dataset ${id}`,
-				error
-			)
-		}
-		return meta
-	} catch (error) {
-		// eslint-disable-next-line no-console
-		console.error(
-			`[vis-components] could not derive metadata for dataset ${id}`,
-			error
+const putDatasetVersion = async (
+	datasetId: string,
+	version: { id: string; rows: Array<Record<string, string>> }
+): Promise<void> => {
+	const { body, headers } = await datasetBody(serialize(version))
+	const response = await fetch(
+		`/api/datasets/${encodeURIComponent(datasetId)}/versions/${encodeURIComponent(version.id)}`,
+		{ method: "PUT", body, headers }
+	)
+	if (!response.ok) {
+		throw new Error(
+			`PUT /api/datasets/${datasetId}/versions/${version.id} failed: ${response.status}`
 		)
-		return null
 	}
+}
+
+/** Run `work` over `items` at most `limit` at a time. The hydration pass
+ *  downloads full dataset bodies — unbounded parallelism would inflate the
+ *  whole corpus at once, and strictly serial made the first post-deploy boot
+ *  take the sum of every download. */
+const boundedMap = async <T, R>(
+	items: readonly T[],
+	limit: number,
+	work: (item: T) => Promise<R>
+): Promise<R[]> => {
+	const results: R[] = Array.from({ length: items.length })
+	let nextIndex = 0
+	const workers = Array.from(
+		{ length: Math.min(limit, items.length) },
+		async () => {
+			while (nextIndex < items.length) {
+				const i = nextIndex++
+				results[i] = await work(items[i] as T)
+			}
+		}
+	)
+	await Promise.all(workers)
+	return results
 }
 
 export const createHttpStorageAdapter = (): StorageContentAdapter => {
@@ -265,13 +299,38 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		fonts: new Map<string, string>(),
 	}
 
+	/** Version ids the server is known to hold per dataset, maintained from
+	 *  every index load, hydration and save. This is what lets a save DELETE
+	 *  the per-version bodies of versions the user removed — the upsert diff
+	 *  can't infer them, and leaving them meant the server kept serving
+	 *  deleted rows forever. */
+	const knownVersionIds = new Map<string, Set<string>>()
+
+	/** Last-written ROWS array per `<datasetId>:<versionId>`, held weakly.
+	 *  The atoms treat datasets immutably, so an unchanged rows reference
+	 *  means the stored body is current and the PUT can be skipped — keyed on
+	 *  the rows rather than the version object so a metadata-only edit (a
+	 *  version note) doesn't re-upload them — without pinning row arrays in
+	 *  memory for the tab's life. A GC'd entry just re-PUTs. Maintained by
+	 *  the shared `syncDatasetVersions`. */
+	const writtenVersions = new Map<string, WeakRef<object>>()
+
 	const putJson = (collection: string) => (id: string, serialized: string) =>
 		request("PUT", collection, id, serialized, JSON_HEADERS)
 	const deleteFrom = (collection: string) => (id: string) =>
 		request("DELETE", collection, id)
 	const putDataset = async (id: string, serialized: string): Promise<void> => {
 		const { body, headers } = await datasetBody(serialized)
-		await request("PUT", "datasets", id, body, headers)
+		// The header tells the server this client manages the per-version
+		// bodies itself (the PUTs/DELETEs that follow this write). Without it —
+		// a body PUT from the previous bundle during a rolling deploy — the
+		// server purges the stored per-version rows, because they describe the
+		// PREVIOUS body and would otherwise keep serving versions the write
+		// may have removed.
+		await request("PUT", "datasets", id, body, {
+			...headers,
+			"x-vis-versions-managed": "1",
+		})
 	}
 
 	// One fetch per session, shared by every collection's load.
@@ -303,6 +362,134 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		}
 	}
 
+	/** The migration gate for every lazy dataset read.
+	 *
+	 *  The eager path got `CONTENT_MIGRATIONS`, the newer-than-this-build
+	 *  refusal, and version stamping for free by flowing through `upgraded()`.
+	 *  The lazy paths (index, per-version rows, single body) don't — so they
+	 *  all await this first. Cheap in the steady state: the versions record is
+	 *  fetched once per session, and matching stamps resolve immediately.
+	 *  A behind-stamp triggers ONE full `loadDatasets()` pass — the same
+	 *  migrate-and-write-back the eager path always did — and an ahead-stamp
+	 *  refuses, exactly like `upgraded()`. Memoized; reset on failure so a
+	 *  transient error doesn't wedge every later read. */
+	let datasetsCurrentPromise: Promise<void> | null = null
+	const ensureDatasetsCurrent = (): Promise<void> => {
+		datasetsCurrentPromise ??= (async () => {
+			const spec = CONTENT_MIGRATIONS["datasets"]
+			if (!spec) return
+			const action = stampAction(
+				"datasets",
+				(await contentVersions())["datasets"],
+				spec.currentVersion
+			)
+			if (action === "adopt") {
+				await stampVersion("datasets", spec.currentVersion)
+			} else if (action === "behind") {
+				// The one expensive case: migrate the whole collection forward,
+				// write it back, stamp — once per server per version bump.
+				await adapter.loadDatasets()
+			}
+		})()
+		datasetsCurrentPromise.catch(() => {
+			datasetsCurrentPromise = null
+		})
+		return datasetsCurrentPromise
+	}
+
+	/** One whole dataset body, or null when the server doesn't have it. Also
+	 *  seeds the diff baseline: a body read into memory is exactly what a
+	 *  later save will diff against, so recording it here means an unchanged
+	 *  dataset is never re-uploaded. */
+	const loadWholeDataset = async (id: string): Promise<Dataset | null> => {
+		const response = await fetch(`/api/datasets/${encodeURIComponent(id)}`)
+		if (response.status === 404) return null
+		if (!response.ok) {
+			throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
+		}
+		const dataset = (await response.json()) as Dataset
+		baselines.datasets.set(id, serializeCached(dataset))
+		return dataset
+	}
+
+	/** PUT the versions whose rows actually changed since this adapter last
+	 *  wrote them, DELETE the per-version bodies of versions that no longer
+	 *  exist (without which the server kept serving deleted rows forever — a
+	 *  privacy problem for data the user believes removed), and record what
+	 *  the server now holds. The diff/delete rules live in the shared
+	 *  `syncDatasetVersions`; this wires them to the API.
+	 *
+	 *  The prior version set is snapshotted BEFORE the sync so the removed
+	 *  set is computed against what the server actually held, and
+	 *  `knownVersionIds` advances only on success — a failed sync retries in
+	 *  full on the next save. THROWS on failure: callers that write metadata
+	 *  afterwards must let this abort them, because fresh meta over a failed
+	 *  sync would mask the stale version bodies from every repair pass. */
+	const splitDatasetVersions = async (dataset: Dataset): Promise<void> => {
+		await syncDatasetVersions(
+			dataset,
+			knownVersionIds.get(dataset.id),
+			{
+				putVersion: async (version) => {
+					await putDatasetVersion(dataset.id, version)
+					return true
+				},
+				deleteVersion: async (versionId) => {
+					await request(
+						"DELETE",
+						`datasets/${encodeURIComponent(dataset.id)}/versions`,
+						versionId
+					)
+				},
+			},
+			writtenVersions
+		)
+		knownVersionIds.set(
+			dataset.id,
+			new Set((dataset.versions ?? []).map((v) => v.id))
+		)
+	}
+
+	/** Repair one dataset's missing metadata: read the body, derive from it,
+	 *  and store the result so no later session pays this again. ALSO re-splits
+	 *  the per-version bodies: a null meta means something wrote the body
+	 *  without the follow-ups — an old bundle during a rolling deploy — so any
+	 *  stored version bodies describe the previous rows. A failure to store is
+	 *  non-fatal (the metadata in hand is correct either way), but the meta
+	 *  PUT only follows a SUCCESSFUL re-split — persisting meta over a failed
+	 *  split would mask the stale version bodies from every later repair.
+	 *  Null only when the body itself can't be read (retried once: a single
+	 *  transient blip here would otherwise drop the dataset from the whole
+	 *  session's index). */
+	const hydrateDatasetMeta = async (
+		id: string
+	): Promise<DatasetMeta | null> => {
+		let whole: Dataset | null
+		try {
+			whole = await loadWholeDataset(id).catch(() => loadWholeDataset(id))
+		} catch (error) {
+			// eslint-disable-next-line no-console
+			console.error(
+				`[vis-components] could not derive metadata for dataset ${id}`,
+				error
+			)
+			return null
+		}
+		if (!whole) return null
+		const meta = datasetMetaFrom(whole)
+		try {
+			await splitDatasetVersions(whole)
+			await putDatasetMeta(id, meta)
+		} catch (error) {
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[vis-components] could not store derived metadata for dataset ${id}`,
+				error
+			)
+		}
+		return meta
+	}
+
 	/** Record the server state as the diff baseline, then bring the collection
 	 *  forward to this build's content schema — persisting the upgrade so the
 	 *  work happens once per server, not once per page load. */
@@ -326,30 +513,16 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		if (!spec) return raw
 		const stored = (await contentVersions())[collection]
 
-		// No stamp. The only servers in that state hold rows written by a build
-		// at the CURRENT shape, so adopt it. Reading an absent stamp as v0 (the
-		// meaning localStorage gives it, where absent really does mean
-		// pre-versioning) would re-run every migration over already-current
-		// data — the px→pt font reset would fire a second time and visibly
-		// wreck every saved visual.
-		if (stored === undefined) {
+		// The stamp policy (adopt an absent stamp — an example of why: the
+		// px→pt font reset re-firing over already-current data would visibly
+		// wreck every saved visual — refuse a newer one, migrate an older one)
+		// is shared with the lazy gate; see `stampAction`.
+		const action = stampAction(collection, stored, spec.currentVersion)
+		if (stored === undefined || action === "adopt") {
 			await stampVersion(collection, spec.currentVersion)
 			return raw
 		}
-
-		// Written by a newer build than this one. Migrations only run forward,
-		// and saving back what an old build made of a new shape would drop
-		// whatever the new shape added — so refuse, the way the server itself
-		// refuses to start on a future DB schema.
-		if (stored > spec.currentVersion) {
-			throw new Error(
-				`Server "${collection}" is at content version ${stored}, but this ` +
-					`build only understands ${spec.currentVersion}. Refusing to load ` +
-					`rather than risk overwriting newer data — reload to pick up the ` +
-					`newer build.`
-			)
-		}
-		if (stored === spec.currentVersion) return raw
+		if (action === "current") return raw
 
 		// `migrateVersioned` signals failure by returning the fallback it was
 		// given, so hand it an identity no real value can collide with. Never
@@ -378,7 +551,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		return next
 	}
 
-	return {
+	const adapter: StorageContentAdapter = {
 		capabilities: { remoteLoad: true },
 
 		loadVisuals: async () =>
@@ -432,28 +605,76 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		// full-size bodies, and inflating all of them at once is the very
 		// thing this change exists to stop.
 		loadDatasetIndex: async () => {
+			await ensureDatasetsCurrent()
 			const raw = await loadCollection<Record<string, unknown>>(
 				"datasets?view=index"
 			)
 			const index: Record<string, DatasetMeta> = {}
+			const needHydration: string[] = []
 			for (const [id, value] of Object.entries(raw)) {
 				if (isDatasetMeta(value)) {
 					index[id] = value
-					continue
+					knownVersionIds.set(id, new Set(value.versions.map((v) => v.id)))
+				} else {
+					needHydration.push(id)
 				}
-				const hydrated = await hydrateDatasetMeta(id)
-				if (hydrated) index[id] = hydrated
+			}
+			// Bounded, not serial: these are full-body downloads (the first
+			// boot after a deploy hydrates the whole library), and one at a
+			// time made that wait the sum of every download.
+			const hydrated = await boundedMap(needHydration, 4, async (id) =>
+				[id, await hydrateDatasetMeta(id)] as const
+			)
+			for (const [id, meta] of hydrated) {
+				if (meta) index[id] = meta
 			}
 			return index
 		},
 
-		loadDataset: async (id) => {
-			const response = await fetch(`/api/datasets/${encodeURIComponent(id)}`)
-			if (response.status === 404) return null
-			if (!response.ok) {
-				throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
+		// A 404 here means this version has no stored body of its own — every
+		// version of every dataset written before the split. That is the
+		// signal to fall back to the whole dataset and split it as we go, so
+		// the next open of the same dataset costs one version.
+		loadDatasetVersion: async (id, versionId) => {
+			await ensureDatasetsCurrent()
+			const response = await fetch(
+				`/api/datasets/${encodeURIComponent(id)}/versions/${encodeURIComponent(versionId)}`
+			)
+			if (response.ok) {
+				const body = (await response.json()) as {
+					rows?: Array<Record<string, string>>
+				}
+				return body.rows ?? []
 			}
-			return (await response.json()) as Dataset
+			if (response.status !== 404) {
+				throw new Error(
+					`GET /api/datasets/${id}/versions/${versionId} failed: ${response.status}`
+				)
+			}
+			const whole = await loadWholeDataset(id)
+			if (!whole) return null
+			// Awaited, not fired and forgotten: a split PUT still in flight when
+			// the user edits this dataset would land after their save and
+			// overwrite fresh rows with the ones it started from. This is
+			// already the slow path — it just downloaded the whole dataset —
+			// and it runs once per dataset, ever. A failed split is non-fatal
+			// HERE (the rows in hand are correct and no meta write follows);
+			// the next reader just falls back to the whole body again.
+			try {
+				await splitDatasetVersions(whole)
+			} catch (error) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[vis-components] could not split dataset ${id} into per-version bodies`,
+					error
+				)
+			}
+			return whole.versions.find((v) => v.id === versionId)?.rows ?? null
+		},
+
+		loadDataset: async (id) => {
+			await ensureDatasetsCurrent()
+			return loadWholeDataset(id)
 		},
 
 		loadDatasets: async () =>
@@ -462,13 +683,25 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				raw: await loadCollection<Record<string, Dataset>>("datasets"),
 				baseline: baselines.datasets,
 				entries: recordToMap,
-				putOne: putDataset,
+				// The migration pass rewrites bodies, so the per-version bodies
+				// and metadata describing them must follow — the same triplet a
+				// normal save writes.
+				putOne: async (id, serialized) => {
+					await putDataset(id, serialized)
+					const dataset = JSON.parse(serialized) as Dataset
+					await splitDatasetVersions(dataset)
+					await putDatasetMeta(id, datasetMetaFrom(dataset))
+				},
 				deleteOne: deleteFrom("datasets"),
 			}),
-		// A body PUT clears the server's stored metadata (it now describes the
-		// previous rows), so each one is followed by the fresh metadata. If
-		// that follow-up is lost the entry simply reads as un-hydrated on the
-		// next boot and is re-derived — never stale.
+		// Per changed dataset: the whole body (old clients and the export
+		// path read that file), then the per-version sync — only the VERSIONS
+		// whose rows actually changed (weak-identity diff — a rename
+		// re-uploads nothing) plus DELETEs for versions the user removed (or
+		// the server keeps serving deleted rows) — and last the metadata. A
+		// body PUT clears the server's stored meta, so meta going last makes
+		// a crash OR a failed version sync (which throws past the meta write)
+		// read as un-hydrated — repaired on the next boot — never as stale.
 		saveDatasets: (datasets) =>
 			upsertCollection(
 				baselines.datasets,
@@ -476,7 +709,9 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				async (id, serialized) => {
 					await putDataset(id, serialized)
 					const dataset = datasets[id]
-					if (dataset) await putDatasetMeta(id, datasetMetaFrom(dataset))
+					if (!dataset) return
+					await splitDatasetVersions(dataset)
+					await putDatasetMeta(id, datasetMetaFrom(dataset))
 				}
 			),
 
@@ -484,6 +719,10 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 			await Promise.all(
 				ids.map((id) =>
 					deleteFrom("datasets")(id).then(() => {
+						for (const versionId of knownVersionIds.get(id) ?? []) {
+							writtenVersions.delete(`${id}:${versionId}`)
+						}
+						knownVersionIds.delete(id)
 						// Drop it from the diff baseline too, or the next save
 						// would see a baseline entry with no current value and
 						// issue a second, redundant DELETE.
@@ -557,4 +796,5 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 			saveUserDefaultThemeId(id)
 		},
 	}
+	return adapter
 }
