@@ -801,6 +801,16 @@ outline color) carries the same circular-arrow palette-popover button
 as the per-value override rows, offering the active categorical
 palette's colors (the chart's picked palette when one is stored, else
 the theme default) as one-click alternatives to the open-ended picker.
+Swatches that color TEXT rather than marks — the shared font editor's
+Color row (chart title, subtitle, axis titles, per-axis tick labels,
+facet titles, chord ring tick labels), the caption's Text color, an
+annotation's text color, and every data-label color (fallback color,
+text-color rules, per-variable slots) — carry the same button but lead
+the popover with the theme's designated TEXT palette (Settings →
+Theme → Palettes → "Text palette"), which is typically darker shades
+that stay legible at text sizes. Themes with no text palette fall back
+to the default categorical palette, and the popover's chevron still
+reaches every other theme palette either way.
 Aggregate shapes (violin / box) resolve a mapped slot field against a
 representative row — the first data row of the shape's category (or of
 the panel, for the single-variable violin) — so "Vary by" works for

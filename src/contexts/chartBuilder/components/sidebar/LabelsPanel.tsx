@@ -44,6 +44,7 @@ import { Disclosure } from "@headlessui/react"
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import { PalettePickerButton } from "../../../../components/ui/PalettePickerButton"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
@@ -464,30 +465,34 @@ export const LabelsPanel = () => {
 					/>
 				}
 			/>
-			<LabelRow
-				label="Subtitle"
-				fontKey="subtitle"
-				value={labels.subtitle}
-				onChange={(v) => updateText("subtitle", v)}
-				override={overrides.subtitle}
-				onOverride={(patch) => setOverride("subtitle", patch)}
-				alignment={titleAlignments.subtitle}
-				onAlignment={(a) => setAlignment("subtitle", a)}
-				baseAlignment={labels.baseFont.titles.subtitleAlignment}
-				baseColor={labels.baseFont.titles.color}
-				baseSize={labels.baseFont.titles.subtitleSize}
-				baseFamily={
-					labels.baseFont.titles.subtitleFamily ?? labels.baseFont.titles.family
-				}
-				baseWeight={subtitleInheritWeight(labels.baseFont.titles)}
-				extraActive={!!labels.titleOffsets?.subtitle}
-				extraControls={
-					<OffsetControl
-						value={labels.titleOffsets?.subtitle ?? {}}
-						onChange={(axis, n) => setOffset("subtitle", axis, n)}
-					/>
-				}
-			/>
+			{/* Divider above Subtitle so the two primary title rows read as
+			 * separate groups rather than one run of controls. */}
+			<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+				<LabelRow
+					label="Subtitle"
+					fontKey="subtitle"
+					value={labels.subtitle}
+					onChange={(v) => updateText("subtitle", v)}
+					override={overrides.subtitle}
+					onOverride={(patch) => setOverride("subtitle", patch)}
+					alignment={titleAlignments.subtitle}
+					onAlignment={(a) => setAlignment("subtitle", a)}
+					baseAlignment={labels.baseFont.titles.subtitleAlignment}
+					baseColor={labels.baseFont.titles.color}
+					baseSize={labels.baseFont.titles.subtitleSize}
+					baseFamily={
+						labels.baseFont.titles.subtitleFamily ?? labels.baseFont.titles.family
+					}
+					baseWeight={subtitleInheritWeight(labels.baseFont.titles)}
+					extraActive={!!labels.titleOffsets?.subtitle}
+					extraControls={
+						<OffsetControl
+							value={labels.titleOffsets?.subtitle ?? {}}
+							onChange={(axis, n) => setOffset("subtitle", axis, n)}
+						/>
+					}
+				/>
+			</div>
 				</div>
 			</CollapsibleSubsection>
 			<CollapsibleSubsection title="Axis titles" changed={axisChanged}>
@@ -1370,6 +1375,17 @@ export const FontEditor = ({
 						onChange={(e) => onChange({ ...value, color: e.target.value })}
 						aria-label="Color swatch"
 						className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+					/>
+					{/* This row colors TEXT, so the picker leads with the theme's
+					 *  TEXT palette (the other palettes stay one chevron away).
+					 *  Hand-rolled rather than a `ColorInput` because this row's
+					 *  empty text box means "inherit", which ColorInput has no
+					 *  notion of. */}
+					<PalettePickerButton
+						paletteKind="text"
+						current={value.color ?? baseColor ?? "#111827"}
+						onPick={(color) => onChange({ ...value, color })}
+						label="Pick palette color for text"
 					/>
 					{showResetFields && value.color !== undefined && (
 						<ResetLink onClick={() => reset("color")} />

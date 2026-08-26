@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react"
 
 import { CATEGORICAL_HUE_PALETTE } from "../../contexts/chartBuilder/lib/scales"
+import { resolveTextPickerPalette } from "../../contexts/chartBuilder/lib/themeConfig"
 import { useCurrentTheme } from "../../contexts/chartBuilder/store/useCurrentTheme"
 
 import { DisclosureChevron } from "./Chevron"
@@ -16,14 +17,22 @@ import { DisclosureChevron } from "./Chevron"
  *  on. */
 export const PalettePickerButton = ({
 	palette: paletteProp,
+	paletteKind = "categorical",
 	current,
 	onPick,
 	label,
 }: {
-	/** Colors the popover offers. Omit for the current theme's DEFAULT
-	 *  categorical palette — the colors a fresh chart draws with, which is the
-	 *  right answer for any swatch that isn't part of a specific scheme. */
+	/** Colors the popover offers. Omit for the theme palette `paletteKind`
+	 *  names — the colors a fresh chart draws with, which is the right answer
+	 *  for any swatch that isn't part of a specific scheme. */
 	palette?: readonly string[]
+	/** Which theme palette leads the popover when `palette` is omitted.
+	 *  `"text"` = the theme's designated TEXT palette (shades chosen to stay
+	 *  legible at text sizes), for any swatch that colors TEXT — tick labels,
+	 *  titles, captions, annotation text, data labels. Falls back to the
+	 *  default categorical palette when the theme sets no text palette. The
+	 *  other theme palettes stay one chevron away either way. */
+	paletteKind?: "categorical" | "text"
 	current: string
 	onPick: (color: string) => void
 	label: string
@@ -33,9 +42,11 @@ export const PalettePickerButton = ({
 	const theme = useCurrentTheme()
 	const palette =
 		paletteProp ??
-		theme.categoricalPalettes.find(
-			(p) => p.id === theme.defaultCategoricalPaletteId
-		)?.colors ??
+		(paletteKind === "text"
+			? resolveTextPickerPalette(theme)
+			: theme.categoricalPalettes.find(
+					(p) => p.id === theme.defaultCategoricalPaletteId
+				)?.colors) ??
 		CATEGORICAL_HUE_PALETTE
 	const containerRef = useRef<HTMLDivElement>(null)
 	// Every theme palette except the one already shown, deduped by color

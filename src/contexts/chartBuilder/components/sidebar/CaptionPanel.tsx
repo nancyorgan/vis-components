@@ -321,6 +321,7 @@ export const CaptionPanel = () => {
 									labelClassName={LABEL_COL}
 									value={merged.textColor}
 									onChange={(c) => update({ textColor: c })}
+									paletteKind="text"
 								/>
 								{merged.textColor !== DEFAULT_CAPTION_CONFIG.textColor && (
 									<ResetLink

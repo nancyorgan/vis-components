@@ -6,6 +6,7 @@ import {
 	type TextColorRule,
 } from "../../../lib/channelConfig"
 import { CATEGORICAL_HUE_PALETTE, parseValue } from "../../../lib/scales"
+import { resolveTextPickerPalette } from "../../../lib/themeConfig"
 import type { DatasetView, FieldType } from "../../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -139,6 +140,7 @@ export const LabelColorPanel = ({
 						labelClassName={LABEL_COL}
 						value={cfg.color}
 						onChange={(color) => onChange({ color })}
+						paletteKind="text"
 						pickerLabel="Pick palette color for label text"
 					/>
 					<TextColorRulesRow cfg={cfg} onChange={onChange} theme={theme} />
@@ -160,6 +162,7 @@ export const LabelColorPanel = ({
 						>
 							<ColorSlotControls
 								labelPrefix={name}
+								paletteKind="text"
 								slotCfg={cfg.fieldColors?.[name]}
 								defaultColor={cfg.color}
 								// With a field mapped on the Color channel above, an
@@ -300,13 +303,10 @@ const TextColorRulesRow = ({
 		update(display.filter((_, idx) => idx !== i))
 	const addRule = () =>
 		update([...display, { condition: "", color: cfg.color }])
-	// Same palette the base label-color swatch offers (theme default
-	// categorical) so a rule color can be picked on-palette like every
-	// other swatch; the popover's chevron reaches the other palettes.
-	const palette =
-		theme.categoricalPalettes.find(
-			(p) => p.id === theme.defaultCategoricalPaletteId
-		)?.colors ?? CATEGORICAL_HUE_PALETTE
+	// Same palette the base label-color swatch offers — the theme's TEXT
+	// palette, since a rule colors label TEXT; the popover's chevron reaches
+	// the other palettes.
+	const palette = resolveTextPickerPalette(theme)
 	return (
 		<CollapsibleSubsection
 			title="Text color rules"

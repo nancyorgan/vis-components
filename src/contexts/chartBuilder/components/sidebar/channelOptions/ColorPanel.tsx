@@ -220,6 +220,7 @@ export const ColorSlotControls = ({
 	acceptsFieldMapping = true,
 	inheritLabel,
 	clearSlot,
+	paletteKind = "categorical",
 	updateSlot,
 }: {
 	labelPrefix: string
@@ -228,6 +229,10 @@ export const ColorSlotControls = ({
 	acceptsFieldMapping?: boolean
 	inheritLabel?: string
 	clearSlot?: () => void
+	/** Which theme palette the single-color swatch's picker leads with.
+	 *  Data-label slots color TEXT, so they pass `"text"`; mark slots keep
+	 *  the default categorical palette. */
+	paletteKind?: "categorical" | "text"
 	updateSlot: (partial: Partial<ColorSlotConfig>) => void
 }) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -306,10 +311,13 @@ export const ColorSlotControls = ({
 						value={singleColor}
 						onChange={(c) => updateSlot({ singleColor: c })}
 						palette={
-							theme.categoricalPalettes.find(
-								(p) => p.id === theme.defaultCategoricalPaletteId,
-							)?.colors ?? CATEGORICAL_HUE_PALETTE
+							paletteKind === "text"
+								? undefined
+								: (theme.categoricalPalettes.find(
+										(p) => p.id === theme.defaultCategoricalPaletteId,
+									)?.colors ?? CATEGORICAL_HUE_PALETTE)
 						}
+						paletteKind={paletteKind}
 						pickerLabel={`Pick palette color for ${labelPrefix}`}
 					/>
 					{singleColor !== defaultColor && (

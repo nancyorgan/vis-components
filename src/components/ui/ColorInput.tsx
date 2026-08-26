@@ -30,6 +30,7 @@ export const ColorInput = ({
 	showHexInput = true,
 	changed,
 	palette,
+	paletteKind,
 	pickerLabel,
 	showPalettePicker = true,
 }: {
@@ -53,6 +54,11 @@ export const ColorInput = ({
 	 *  the theme's default categorical palette; pass a scheme when the row has
 	 *  its own (a per-value swatch's palette, an outline palette). */
 	palette?: readonly string[]
+	/** Which theme palette leads the picker when `palette` is omitted. Pass
+	 *  `"text"` on any swatch that colors TEXT (tick labels, titles, captions,
+	 *  annotation text, data labels) so the theme's text palette comes up
+	 *  first. See `PalettePickerButton`. */
+	paletteKind?: "categorical" | "text"
 	/** a11y label for the picker button. Defaults to "Pick palette color for
 	 *  {label}" when `label` is a plain string. */
 	pickerLabel?: string
@@ -133,6 +139,7 @@ export const ColorInput = ({
 								: "Pick palette color")
 						}
 						palette={palette}
+						paletteKind={paletteKind}
 						current={value}
 						onPick={onChange}
 					/>

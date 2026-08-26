@@ -513,6 +513,7 @@ export const TextStyleSection = ({
 					labelClassName={LABEL_COL}
 					value={color}
 					onChange={(c) => onChange({ textColor: c })}
+					paletteKind="text"
 				/>
 				{color !== defaults.textColor && (
 					<ResetLink
