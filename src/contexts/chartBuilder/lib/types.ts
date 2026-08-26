@@ -58,6 +58,27 @@ export type Dataset = {
 	contentHash?: string
 }
 
+/** One version's descriptor with the rows removed. `rowCount` keeps the
+ * things the UI actually asked rows for — version pickers, "N rows" labels —
+ * answerable without them. */
+export type DatasetVersionMeta = Omit<DatasetVersion, "rows"> & {
+	rowCount: number
+}
+
+/** A Dataset with every row stripped out — kilobytes for a whole library,
+ * where the bodies can be hundreds of megabytes.
+ *
+ * This is what the app loads at boot. Rows arrive per dataset, on demand,
+ * when a visualization actually needs to draw (see `datasetBodyAtom`).
+ * Everything outside the chart pipeline — the library grid, the header, sort
+ * and filter, the version badge, dedupe — reads only what's here.
+ *
+ * Derive it with `datasetMetaFrom()`; never hand-build one, or `rowCount`
+ * drifts from the body it describes. */
+export type DatasetMeta = Omit<Dataset, "versions"> & {
+	versions: DatasetVersionMeta[]
+}
+
 /** A flattened view of a Dataset at a specific version, suitable for
  * rendering. Returned by `resolveDatasetView()` and consumed by the chart
  * canvas, encoding shelves, and panels. */

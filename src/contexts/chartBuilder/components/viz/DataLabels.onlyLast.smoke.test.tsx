@@ -21,7 +21,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
@@ -110,7 +110,7 @@ const seedState = () => {
 }
 
 const initState = (snap: TestStore) => {
-	snap.set(datasetsAtom, { [DATASET_ID]: buildLineDataset() })
+	snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildLineDataset() })
 	snap.set(currentDatasetIdAtom, DATASET_ID)
 	snap.set(previewVersionIdAtom, null)
 	snap.set(currentEncodingsAtom, {

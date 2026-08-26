@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useAtom } from "jotai"
 import { pruneOrphanFields } from "../lib/datasetCompat"
 import type { Dataset } from "../lib/types"
-import { datasetsAtom, previewVersionIdAtom } from "../store/atoms"
+import { loadedDatasetsAtom, previewVersionIdAtom } from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
 
 import { Input } from "../../../components/ui/Input"
@@ -22,7 +22,7 @@ export const VersionBadge = () => {
 	const view = useCurrentDatasetView()
 	const [previewVersionId, setPreviewVersionId] =
 		useAtom(previewVersionIdAtom)
-	const [, setDatasets] = useAtom(datasetsAtom)
+	const [, setDatasets] = useAtom(loadedDatasetsAtom)
 	const [open, setOpen] = useState(false)
 	const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -267,6 +267,6 @@ const VersionList = ({
 
 // Local hook to avoid a second pass through useCurrentDatasetView's resolution.
 const useDatasetById = (id: string): Dataset | undefined => {
-	const [datasets] = useAtom(datasetsAtom)
+	const [datasets] = useAtom(loadedDatasetsAtom)
 	return datasets[id]
 }

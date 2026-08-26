@@ -8,7 +8,7 @@ import {
 	currentDatasetIdAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
@@ -69,7 +69,7 @@ const mount = (fields: Field[] = FIELDS) => {
 	set("vis-components:previewVersionId", null)
 	/* eslint-enable @th/use-wrapped-json-functions */
 	const init = (snap: TestStore) => {
-		snap.set(datasetsAtom, { [ID]: buildDataset(fields) })
+		snap.set(loadedDatasetsAtom, { [ID]: buildDataset(fields) })
 		snap.set(currentDatasetIdAtom, ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentFieldOverridesAtom, {})

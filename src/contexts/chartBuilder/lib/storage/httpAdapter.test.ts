@@ -125,7 +125,80 @@ describe("datasets", () => {
 			"ds-1": ds1,
 			"ds-2": { id: "ds-2", name: "Two" },
 		} as never)
-		expect(calls(mock)).toEqual(["PUT /api/datasets/ds-2"])
+		// The unchanged ds-1 is not transmitted at all. The new ds-2 sends its
+		// body and then its metadata — the body write clears the server's
+		// stored metadata, so the follow-up is what keeps the index current.
+		expect(calls(mock)).toEqual([
+			"PUT /api/datasets/ds-2",
+			"PUT /api/datasets/ds-2/meta",
+		])
+	})
+
+	it("boots on the metadata index without fetching a single body", async () => {
+		const meta = {
+			id: "ds-1",
+			name: "One",
+			fields: [],
+			versions: [{ id: "dv-1", filename: "a.csv", createdAt: 0, rowCount: 2 }],
+		}
+		const mock = stubFetch((path) =>
+			path === "/api/datasets?view=index" ? okJson({ "ds-1": meta }) : okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		expect(await adapter.loadDatasetIndex()).toEqual({ "ds-1": meta })
+		expect(calls(mock)).toEqual(["GET /api/datasets?view=index"])
+	})
+
+	it("hydrates a dataset the server has no metadata for, and stores the result", async () => {
+		const body = {
+			id: "ds-old",
+			name: "Legacy",
+			fields: [],
+			versions: [
+				{ id: "dv-1", filename: "a.csv", createdAt: 0, rows: [{ a: "1" }] },
+			],
+		}
+		const mock = stubFetch((path) =>
+			path === "/api/datasets?view=index"
+				? okJson({ "ds-old": null })
+				: path === "/api/datasets/ds-old"
+					? okJson(body)
+					: okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		const index = await adapter.loadDatasetIndex()
+
+		// A null entry is a dataset awaiting hydration, never a missing one.
+		expect(index["ds-old"]).toEqual({
+			id: "ds-old",
+			name: "Legacy",
+			fields: [],
+			versions: [
+				{ id: "dv-1", filename: "a.csv", createdAt: 0, rowCount: 1 },
+			],
+		})
+		// Derived once and written back, so no later session repeats the read.
+		expect(calls(mock)).toEqual([
+			"GET /api/datasets?view=index",
+			"GET /api/datasets/ds-old",
+			"PUT /api/datasets/ds-old/meta",
+		])
+	})
+
+	it("reads one dataset body by id, and maps a 404 to null", async () => {
+		const body = { id: "ds-1", name: "One", fields: [], versions: [] }
+		const mock = stubFetch((path) =>
+			path === "/api/datasets/ds-1"
+				? okJson(body)
+				: new Response(null, { status: 404 })
+		)
+		const adapter = createHttpStorageAdapter()
+		expect(await adapter.loadDataset("ds-1")).toEqual(body)
+		expect(await adapter.loadDataset("ds-gone")).toBeNull()
+		expect(calls(mock)).toEqual([
+			"GET /api/datasets/ds-1",
+			"GET /api/datasets/ds-gone",
+		])
 	})
 })
 

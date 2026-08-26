@@ -24,7 +24,7 @@ import {
 	currentFieldOverridesAtom,
 	currentReshapeConfigAtom,
 	currentVisualIdAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	pendingUploadAtom,
 	previewVersionIdAtom,
 } from "./atoms"
@@ -56,7 +56,7 @@ export const useCreateNewDataset = () =>
 	useAtomCallback(
 		useCallback((get, set, parsed: ParsedUpload, name: string): string => {
 			const finalName = name.trim() || parsed.filename
-			const datasets = get(datasetsAtom)
+			const datasets = get(loadedDatasetsAtom)
 			const existingId = findDuplicateDataset(datasets, {
 				name: finalName,
 				fields: parsed.fields,
@@ -99,7 +99,7 @@ export const useCreateNewDataset = () =>
 					versions: [version],
 				}),
 			}
-			set(datasetsAtom, (prev) => ({ ...prev, [id]: dataset }))
+			set(loadedDatasetsAtom, (prev) => ({ ...prev, [id]: dataset }))
 			set(currentDatasetIdAtom, id)
 			set(previewVersionIdAtom, null)
 			set(currentEncodingsAtom, emptyEncodings())

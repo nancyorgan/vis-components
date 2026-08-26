@@ -13,7 +13,7 @@ import type { Dataset, DatasetVersion } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
 	currentVisualNameAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	pendingUploadAtom,
 	previewVersionIdAtom,
 	uploadNoticeAtom,
@@ -104,7 +104,7 @@ export const DataUpload = () => {
  * visualization that saves the current one to the library. */
 const UploadPromptModal = () => {
 	const [pending, setPending] = useAtom(pendingUploadAtom)
-	const [datasets, setDatasets] = useAtom(datasetsAtom)
+	const [datasets, setDatasets] = useAtom(loadedDatasetsAtom)
 	const currentDatasetId = useAtomValue(currentDatasetIdAtom)
 	const currentVisualName = useAtomValue(currentVisualNameAtom)
 	const setDatasetId = useSetAtom(currentDatasetIdAtom)

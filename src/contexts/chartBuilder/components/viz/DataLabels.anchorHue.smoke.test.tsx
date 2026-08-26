@@ -20,7 +20,7 @@ import {
 	currentDatasetIdAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 	type AtomValueType,
 } from "../../store/atoms"
@@ -129,7 +129,7 @@ const initState =
 		chartConfigs: AtomValueType<typeof currentChannelConfigsAtom> = {}
 	) =>
 	(snap: TestStore) => {
-		snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+		snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
 		snap.set(currentDatasetIdAtom, DATASET_ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, {

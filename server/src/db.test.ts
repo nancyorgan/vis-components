@@ -4,14 +4,18 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import {
+	datasetStamp,
 	deleteBody,
 	listContentVersions,
+	listDatasetMeta,
 	listRows,
 	openDb,
 	setContentVersion,
 	upsertBody,
+	upsertDatasetMeta,
+	upsertDatasetRow,
 } from "./db.js"
-import type { DatabaseSync } from "node:sqlite"
+import { DatabaseSync } from "node:sqlite"
 
 let open: DatabaseSync[] = []
 const freshDir = () => mkdtempSync(join(tmpdir(), "vis-db-"))
@@ -75,11 +79,32 @@ describe("content versions", () => {
 	// build gains the table on reopen, with the existing rows intact and no
 	// stamps — which the client reads as "already at the current shape".
 	it("is added to a database created before it existed, without stamps", () => {
+		// Built at the v1+v2 shape directly rather than by opening at the
+		// current version and undoing migration 3. That shortcut only worked
+		// while 3 was the newest migration: with anything appended after it,
+		// MAX(version) stays above 3 and the runner never revisits it.
 		const dir = freshDir()
-		const first = openTracked(dir)
-		upsertBody(first, "folders", "f1", `{"id":"f1"}`)
-		first.exec("DROP TABLE content_versions")
-		first.exec("DELETE FROM schema_migrations WHERE version = 3")
+		const first = new DatabaseSync(join(dir, "vis.sqlite"))
+		first.exec(`CREATE TABLE schema_migrations (
+			version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL
+		)`)
+		first.exec(`CREATE TABLE visuals (
+			id TEXT PRIMARY KEY, body TEXT NOT NULL, thumbnail TEXT,
+			updated_at TEXT NOT NULL
+		);
+		CREATE TABLE folders (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE embed_instances (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE themes (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE datasets (id TEXT PRIMARY KEY, byte_size INTEGER NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE fonts (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);`)
+		for (const v of [1, 2]) {
+			first.prepare(
+				"INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)"
+			).run(v, "2026-01-01T00:00:00.000Z")
+		}
+		first.prepare(
+			"INSERT INTO folders (id, body, updated_at) VALUES (?, ?, ?)"
+		).run("f1", `{"id":"f1"}`, "2026-01-01T00:00:00.000Z")
 		first.close()
 
 		const second = openTracked(dir)
@@ -129,5 +154,89 @@ describe("JSON collections", () => {
 		upsertBody(db, "visuals", "v2", `{"id":"v2","thumbnail":null}`)
 		const [row] = listRows(db, "visuals")
 		expect(JSON.parse(row.body).thumbnail).toBeNull()
+	})
+})
+
+describe("schema v4 — dataset metadata column", () => {
+	// The deploy-safety test. A production database is at v3 with real rows in
+	// it; opening it with this build must migrate in place and leave every
+	// existing row readable. Written against a DB built by the v1–v3
+	// statements verbatim rather than by openDb, so it keeps testing the
+	// upgrade path even after more migrations are appended.
+	it("upgrades a populated v3 database without disturbing its rows", () => {
+		const dir = freshDir()
+		const db = new DatabaseSync(join(dir, "vis.sqlite"))
+		db.exec(`CREATE TABLE schema_migrations (
+			version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL
+		)`)
+		db.exec(`CREATE TABLE visuals (
+			id TEXT PRIMARY KEY, body TEXT NOT NULL, thumbnail TEXT,
+			updated_at TEXT NOT NULL
+		);
+		CREATE TABLE folders (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE embed_instances (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE themes (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE datasets (id TEXT PRIMARY KEY, byte_size INTEGER NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE fonts (id TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL);
+		CREATE TABLE content_versions (
+			collection TEXT PRIMARY KEY, version INTEGER NOT NULL, updated_at TEXT NOT NULL
+		);`)
+		for (const v of [1, 2, 3]) {
+			db.prepare(
+				"INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)"
+			).run(v, "2026-01-01T00:00:00.000Z")
+		}
+		db.prepare(
+			"INSERT INTO visuals (id, body, thumbnail, updated_at) VALUES (?, ?, ?, ?)"
+		).run("v1", `{"id":"v1","name":"Before"}`, "data:image/png;base64,AA", "2026-01-01T00:00:00.000Z")
+		db.prepare(
+			"INSERT INTO datasets (id, byte_size, updated_at) VALUES (?, ?, ?)"
+		).run("ds-old", 4096, "2026-01-01T00:00:00.000Z")
+		db.close()
+
+		const upgraded = openTracked(dir)
+
+		// Pre-existing content survives the migration untouched.
+		expect(listRows(upgraded, "visuals")).toEqual([
+			{ id: "v1", body: `{"id":"v1","name":"Before","thumbnail":"data:image/png;base64,AA"}` },
+		])
+		// …and the dataset that predates the column reads as un-hydrated rather
+		// than as missing. This is the case that would empty a production
+		// library if the index treated a null as "no such dataset".
+		expect(listDatasetMeta(upgraded)).toEqual([{ id: "ds-old", meta: null }])
+		expect(datasetStamp(upgraded, "ds-old")).toEqual({
+			updated_at: "2026-01-01T00:00:00.000Z",
+			byte_size: 4096,
+		})
+	})
+
+	it("stores client-derived meta and hands it back on the index", () => {
+		const dir = freshDir()
+		const db = openTracked(dir)
+		upsertDatasetRow(db, "ds1", 128)
+		expect(listDatasetMeta(db)).toEqual([{ id: "ds1", meta: null }])
+
+		upsertDatasetMeta(db, "ds1", `{"id":"ds1","name":"Sales"}`)
+		expect(listDatasetMeta(db)).toEqual([
+			{ id: "ds1", meta: `{"id":"ds1","name":"Sales"}` },
+		])
+	})
+
+	it("clears meta when the body is rewritten, so a stale index is never served", () => {
+		const dir = freshDir()
+		const db = openTracked(dir)
+		upsertDatasetRow(db, "ds1", 128)
+		upsertDatasetMeta(db, "ds1", `{"id":"ds1","name":"Sales"}`)
+
+		// A new upload lands: the stored meta now describes the previous body.
+		upsertDatasetRow(db, "ds1", 256)
+		expect(listDatasetMeta(db)).toEqual([{ id: "ds1", meta: null }])
+	})
+
+	it("ignores a meta write for a dataset that no longer exists", () => {
+		const dir = freshDir()
+		const db = openTracked(dir)
+		upsertDatasetMeta(db, "ds-gone", `{"id":"ds-gone"}`)
+		expect(listDatasetMeta(db)).toEqual([])
 	})
 })

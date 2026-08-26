@@ -5,7 +5,7 @@ import { useAtomCallback } from "jotai/utils"
 import {
 	blackAndWhiteModeAtom,
 	currentDatasetIdAtom,
-	datasetsAtom,
+	datasetIndexAtom,
 } from "../contexts/chartBuilder/store/atoms"
 import { Button } from "./ui/Button"
 
@@ -103,7 +103,7 @@ const NewVisualizationButton = () => {
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
 	const inEditor = pathname.startsWith("/editor")
 	const datasetId = useAtomValue(currentDatasetIdAtom)
-	const datasets = useAtomValue(datasetsAtom)
+	const datasets = useAtomValue(datasetIndexAtom)
 	const currentDataset = datasetId ? datasets[datasetId] : undefined
 
 	const navigate = useNavigate()

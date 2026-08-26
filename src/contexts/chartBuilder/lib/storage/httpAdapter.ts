@@ -30,10 +30,12 @@
  *  half-migrated over the user's work. */
 
 import { stringifyJsonDangerous } from "../../../../lib/json"
+import { datasetMetaFrom, isDatasetMeta } from "../datasetMeta"
 import { loadUserDefaultThemeId, saveUserDefaultThemeId } from "../storage"
 import type { UserFont } from "../fontLibrary"
 import type {
 	Dataset,
+	DatasetMeta,
 	EmbedInstance,
 	Folder,
 	SavedTheme,
@@ -104,11 +106,50 @@ const syncCollection = async (
 	if (failure) throw (failure as PromiseRejectedResult).reason
 }
 
+/** PUT what changed, and NOTHING else — no delete inference. For collections
+ *  whose in-memory copy is a subset of the store (datasets, whose bodies load
+ *  on demand), where an absent id means "not loaded", never "deleted". */
+const upsertCollection = async (
+	baseline: Baseline,
+	next: Map<string, string>,
+	putOne: (id: string, serialized: string) => Promise<void>
+): Promise<void> => {
+	const ops: Promise<void>[] = []
+	for (const [id, serialized] of next) {
+		if (baseline.get(id) === serialized) continue
+		ops.push(
+			putOne(id, serialized).then(() => {
+				baseline.set(id, serialized)
+			})
+		)
+	}
+	const results = await Promise.allSettled(ops)
+	const failure = results.find((r) => r.status === "rejected")
+	if (failure) throw (failure as PromiseRejectedResult).reason
+}
+
+/** Last-serialized object reference per id, per collection. Serializing is
+ *  the expensive half of a diff — a dataset body can be hundreds of megabytes
+ *  — and the atoms treat content immutably, so an unchanged reference is a
+ *  sound proxy for an unchanged serialization. Without this, renaming one
+ *  dataset re-stringifies the entire store just to discover that nothing else
+ *  moved. */
+const serializedCache = new WeakMap<object, string>()
+
+const serializeCached = (item: unknown): string => {
+	if (typeof item !== "object" || item === null) return serialize(item)
+	const hit = serializedCache.get(item)
+	if (hit !== undefined) return hit
+	const text = serialize(item)
+	serializedCache.set(item, text)
+	return text
+}
+
 const toMap = (items: { id: string }[]): Map<string, string> =>
-	new Map(items.map((item) => [item.id, serialize(item)]))
+	new Map(items.map((item) => [item.id, serializeCached(item)]))
 
 const recordToMap = (record: Record<string, unknown>): Map<string, string> =>
-	new Map(Object.entries(record).map(([id, item]) => [id, serialize(item)]))
+	new Map(Object.entries(record).map(([id, item]) => [id, serializeCached(item)]))
 
 const setBaseline = (baseline: Baseline, entries: Map<string, string>): void => {
 	baseline.clear()
@@ -116,6 +157,20 @@ const setBaseline = (baseline: Baseline, entries: Map<string, string>): void => 
 }
 
 const JSON_HEADERS = { "content-type": "application/json" }
+
+/** Whether this document will ever render a thumbnail.
+ *
+ *  An embed is its own document — it shows one chart and never the library —
+ *  so it has no use for a single base64 PNG, let alone every one of them.
+ *  That covers user-facing embeds AND the hidden capture iframes the
+ *  thumbnail pipeline boots, which are the heaviest repeat offenders.
+ *
+ *  Saving back a visual read this way is safe: the server distinguishes an
+ *  absent `thumbnail` key ("leave the stored one alone") from an explicit
+ *  null ("clear it"). */
+const wantsThumbnails = (): boolean =>
+	typeof window === "undefined" ||
+	!/^\/embed\//.test(window.location.pathname)
 
 /** Every stamped content version, or `{}` when the server has none — which
  *  covers both a brand-new server and one older than this bundle (the route
@@ -145,6 +200,58 @@ const datasetBody = async (
 	return {
 		body: blob,
 		headers: { ...JSON_HEADERS, "content-encoding": "gzip" },
+	}
+}
+
+/** Store one dataset's derived metadata. Its own helper rather than
+ *  `request()` because this is the one sub-resource route — everything else
+ *  addresses items as `/api/<collection>/<id>`. */
+const putDatasetMeta = async (
+	id: string,
+	meta: DatasetMeta
+): Promise<void> => {
+	const response = await fetch(
+		`/api/datasets/${encodeURIComponent(id)}/meta`,
+		{ method: "PUT", body: serialize(meta), headers: JSON_HEADERS }
+	)
+	if (!response.ok) {
+		throw new Error(
+			`PUT /api/datasets/${id}/meta failed: ${response.status}`
+		)
+	}
+}
+
+/** Repair one dataset's missing metadata: read the body, derive from it, and
+ *  store the result so no later session pays this again. A failure to store
+ *  is non-fatal — the metadata in hand is correct either way, and the next
+ *  session simply re-derives it. Returns null only when the body itself
+ *  can't be read, which the caller reports as a dataset it can't list. */
+const hydrateDatasetMeta = async (
+	id: string
+): Promise<DatasetMeta | null> => {
+	try {
+		const response = await fetch(`/api/datasets/${encodeURIComponent(id)}`)
+		if (!response.ok) {
+			throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
+		}
+		const meta = datasetMetaFrom((await response.json()) as Dataset)
+		try {
+			await putDatasetMeta(id, meta)
+		} catch (error) {
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[vis-components] could not store derived metadata for dataset ${id}`,
+				error
+			)
+		}
+		return meta
+	} catch (error) {
+		// eslint-disable-next-line no-console
+		console.error(
+			`[vis-components] could not derive metadata for dataset ${id}`,
+			error
+		)
+		return null
 	}
 }
 
@@ -277,7 +384,9 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		loadVisuals: async () =>
 			upgraded({
 				collection: "visuals",
-				raw: await loadCollection<Visual[]>("visuals"),
+				raw: await loadCollection<Visual[]>(
+					wantsThumbnails() ? "visuals" : "visuals?thumbnails=0"
+				),
 				baseline: baselines.visuals,
 				entries: toMap,
 				putOne: putJson("visuals"),
@@ -310,6 +419,43 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				deleteFrom("folders")
 			),
 
+		// The boot read. `?view=index` is a pure SQLite lookup on the server —
+		// no dataset file is opened, so this stays fast however much row data
+		// the library holds.
+		//
+		// A `null` entry means the server holds no metadata for that dataset:
+		// rows written before the metadata column existed, or a body write
+		// whose metadata follow-up never landed. It NEVER means the dataset is
+		// gone. Those are repaired here — fetch the body, derive, PUT it back —
+		// so the first load after a deploy costs what today's load costs, and
+		// every load after it is cheap. Sequential on purpose: these are the
+		// full-size bodies, and inflating all of them at once is the very
+		// thing this change exists to stop.
+		loadDatasetIndex: async () => {
+			const raw = await loadCollection<Record<string, unknown>>(
+				"datasets?view=index"
+			)
+			const index: Record<string, DatasetMeta> = {}
+			for (const [id, value] of Object.entries(raw)) {
+				if (isDatasetMeta(value)) {
+					index[id] = value
+					continue
+				}
+				const hydrated = await hydrateDatasetMeta(id)
+				if (hydrated) index[id] = hydrated
+			}
+			return index
+		},
+
+		loadDataset: async (id) => {
+			const response = await fetch(`/api/datasets/${encodeURIComponent(id)}`)
+			if (response.status === 404) return null
+			if (!response.ok) {
+				throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
+			}
+			return (await response.json()) as Dataset
+		},
+
 		loadDatasets: async () =>
 			upgraded({
 				collection: "datasets",
@@ -319,13 +465,33 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				putOne: putDataset,
 				deleteOne: deleteFrom("datasets"),
 			}),
+		// A body PUT clears the server's stored metadata (it now describes the
+		// previous rows), so each one is followed by the fresh metadata. If
+		// that follow-up is lost the entry simply reads as un-hydrated on the
+		// next boot and is re-derived — never stale.
 		saveDatasets: (datasets) =>
-			syncCollection(
+			upsertCollection(
 				baselines.datasets,
 				recordToMap(datasets),
-				putDataset,
-				deleteFrom("datasets")
+				async (id, serialized) => {
+					await putDataset(id, serialized)
+					const dataset = datasets[id]
+					if (dataset) await putDatasetMeta(id, datasetMetaFrom(dataset))
+				}
 			),
+
+		deleteDatasets: async (ids) => {
+			await Promise.all(
+				ids.map((id) =>
+					deleteFrom("datasets")(id).then(() => {
+						// Drop it from the diff baseline too, or the next save
+						// would see a baseline entry with no current value and
+						// issue a second, redundant DELETE.
+						baselines.datasets.delete(id)
+					})
+				)
+			)
+		},
 
 		loadEmbedInstances: async () =>
 			upgraded({

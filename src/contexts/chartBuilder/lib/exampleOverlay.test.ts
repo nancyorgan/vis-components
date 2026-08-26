@@ -133,9 +133,11 @@ const storedVisuals = (): Visual[] | null =>
 const storedFolderIds = (): string[] =>
 	(raw<Folder[]>("vis-components:folders") ?? []).map((f) => f.id)
 
+// Datasets persist as one key per body plus a shared metadata index; the
+// index is the authoritative list of what's stored.
 const storedDatasetIds = (): string[] => {
-	const wrapper = idb.store.get("vis-components:datasets") as
-		| { data: Record<string, Dataset> }
+	const wrapper = idb.store.get("vis-components:datasetIndex") as
+		| { data: Record<string, unknown> }
 		| undefined
 	return Object.keys(wrapper?.data ?? {})
 }

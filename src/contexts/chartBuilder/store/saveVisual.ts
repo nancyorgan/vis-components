@@ -44,7 +44,7 @@ import {
 	currentTooltipConfigAtom,
 	currentVisualIdAtom,
 	currentVisualNameAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	lastSavedAtAtom,
 	previewVersionIdAtom,
 	saveStatusAtom,
@@ -69,7 +69,7 @@ export const useSaveVisual = () => {
 			const currentId = get(currentVisualIdAtom)
 			const name = get(currentVisualNameAtom)
 			const datasetId = get(currentDatasetIdAtom)
-			const datasets = get(datasetsAtom)
+			const datasets = get(loadedDatasetsAtom)
 			const encodings = get(currentEncodingsAtom)
 			const overrides = get(currentFieldOverridesAtom)
 			const channelConfigs = get(currentChannelConfigsAtom)

@@ -1,4 +1,5 @@
-import { atom, useAtomValue } from "jotai"
+import { atom, useAtomValue, useSetAtom } from "jotai"
+import { useEffect } from "react"
 import { applyPercentConversionToView } from "../lib/percentCells"
 import { applyReshapeToView } from "../lib/reshape"
 import { resolveDatasetView } from "../lib/resolveDatasetVersion"
@@ -6,10 +7,13 @@ import type { DatasetView } from "../lib/types"
 
 import {
 	currentDatasetIdAtom,
+	datasetLoadStatesAtom,
+	ensureDatasetLoadedAtom,
 	currentFieldOverridesAtom,
 	currentReshapeConfigAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
+	type DatasetLoadState,
 } from "./atoms"
 
 /** The currently-bound dataset resolved to a flat DatasetView at the latest
@@ -23,7 +27,7 @@ export const currentRawDatasetViewAtom = atom(
 		const datasetId = get(currentDatasetIdAtom)
 		if (!datasetId) return undefined
 		return resolveDatasetView(
-			get(datasetsAtom)[datasetId],
+			get(loadedDatasetsAtom)[datasetId],
 			get(previewVersionIdAtom)
 		)
 	}
@@ -71,9 +75,39 @@ export const reshapeAppliedAtom = atom((get): boolean => {
  * `undefined` when no dataset is bound or it can't be resolved.
  *
  * Editor consumers (chart canvas, encoding shelves, channel panels,
- * data drawer) should use this rather than reaching into `datasetsAtom`
+ * data drawer) should use this rather than reaching into `loadedDatasetsAtom`
  * directly, so version selection, the reshape, and live updates flow
  * through one place.
  */
 export const useCurrentDatasetView = (): DatasetView | undefined =>
 	useAtomValue(currentDatasetViewAtom)
+
+/** Whether the bound dataset's rows are here yet.
+ *
+ *  "loading" is the window this whole design creates: the visualization is
+ *  known but its rows are still in flight. The canvas MUST render a distinct
+ *  loading state through it rather than an empty chart — `chartLayoutReady`
+ *  only checks that the plot SVG exists at a non-zero size, so a data-less
+ *  chart reads as "ready and stable" to the thumbnail capture pipeline and
+ *  gets saved as a blank preview. */
+export const currentDatasetStatusAtom = atom(
+	(get): DatasetLoadState | "absent" | "ready" => {
+		const datasetId = get(currentDatasetIdAtom)
+		if (!datasetId) return "absent"
+		if (get(loadedDatasetsAtom)[datasetId]) return "ready"
+		return get(datasetLoadStatesAtom)[datasetId] ?? "loading"
+	}
+)
+
+export const useCurrentDatasetStatus = () =>
+	useAtomValue(currentDatasetStatusAtom)
+
+/** Pull the bound dataset's rows in when the editor (or an embed) opens one.
+ *  Mounted once per app shell; the action is idempotent per id. */
+export const useEnsureCurrentDatasetLoaded = (): void => {
+	const datasetId = useAtomValue(currentDatasetIdAtom)
+	const ensure = useSetAtom(ensureDatasetLoadedAtom)
+	useEffect(() => {
+		ensure(datasetId)
+	}, [datasetId, ensure])
+}

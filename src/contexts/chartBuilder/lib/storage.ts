@@ -85,12 +85,15 @@ import {
 	visualsMigrations,
 	VISUALS_VERSION,
 } from "./storage/migrations"
-import { idbAvailable, idbGet, idbSet } from "./storage/idb"
+import { datasetIndexFrom } from "./datasetMeta"
+import { idbAvailable, idbDelete, idbGet, idbSet } from "./storage/idb"
 import {
 	overlayDatasets,
+	overlayDatasetIndex,
 	overlayFolders,
 	overlayVisuals,
 	promoteSeedReferences,
+	seedDataset,
 	stripSeedDatasets,
 	stripSeedFolders,
 	stripSeedThemes,
@@ -107,6 +110,7 @@ import type {
 	DataLabelsEncodings,
 	Dataset,
 	EmbedInstance,
+	DatasetMeta,
 	Encodings,
 	FieldType,
 	Folder,
@@ -120,6 +124,11 @@ const KEY_VISUALS = "vis-components:visuals"
 const KEY_THUMBNAILS = "vis-components:thumbnails"
 const KEY_FOLDERS = "vis-components:folders"
 const KEY_DATASETS = "vis-components:datasets"
+/** Row-free metadata for every dataset, in one small record. Read at boot. */
+const KEY_DATASET_INDEX = "vis-components:datasetIndex"
+/** One key per dataset body, so opening a visualization reads only its own
+ *  rows instead of structured-cloning the entire corpus. */
+const datasetBodyKey = (id: string): string => `vis-components:dataset:${id}`
 const KEY_EMBED_INSTANCES = "vis-components:embedInstances"
 const KEY_CURRENT_VISUAL = "vis-components:currentVisualId"
 const KEY_CURRENT_DATASET = "vis-components:currentDatasetId"
@@ -400,62 +409,223 @@ const clearLegacyDatasets = (): void => {
 }
 
 /**
- * Load datasets, preferring IndexedDB (the durable store — far larger quota
- * than localStorage, and datasets can be big). Falls back to the legacy
- * localStorage blob and, when found, migrates it into IndexedDB and clears the
- * localStorage copy (only on a confirmed write, so we never drop the legacy
- * data when the IDB write fails).
+ * EVERY dataset, rows included. Kept for the one caller that genuinely needs
+ * the whole corpus — library bundle export, which is a full backup. Nothing on
+ * a render path may call this: use `loadDatasetIndexAsync` to list, and
+ * `loadDatasetAsync` to pull the one body a chart is about to draw.
  *
  * Seed datasets from the ephemeral overlay join the result in memory — they
- * are readable everywhere a stored dataset is, but the IndexedDB migration
- * below (and every save) works off the persisted copy alone.
+ * are readable everywhere a stored dataset is, but the split (and every save)
+ * works off the persisted copy alone.
  */
 export const loadDatasetsAsync = async (): Promise<Record<string, Dataset>> => {
-	const fromIdb = await idbGet<unknown>(KEY_DATASETS)
-	if (fromIdb !== null) {
-		// Stored as a `{ _v, data }` wrapper; migrate forward defensively.
-		return overlayDatasets(
-			migrateVersioned<Record<string, Dataset>>(
-				fromIdb,
-				DATASETS_VERSION,
-				datasetsMigrations,
-				{},
-				undefined,
-				undefined,
-				KEY_DATASETS
-			)
-		)
+	if (!idbAvailable()) return loadDatasets()
+	const stored = await idbGet<unknown>(KEY_DATASET_INDEX)
+	if (stored === null) {
+		// Not split yet (or nothing stored at all) — the legacy blob already
+		// holds every body, and splitting it here means the next load is fast.
+		return overlayDatasets(await splitLegacyDatasetBlob())
 	}
-	// Nothing in IndexedDB yet — migrate the legacy localStorage copy if present.
-	const legacy = loadPersistedDatasets()
-	if (Object.keys(legacy).length > 0) {
-		const wrote = await idbSet(KEY_DATASETS, {
-			_v: DATASETS_VERSION,
-			data: legacy,
-		})
-		if (wrote) clearLegacyDatasets()
-	}
-	return overlayDatasets(legacy)
+	const index = migrateVersioned<Record<string, DatasetMeta>>(
+		stored,
+		DATASETS_VERSION,
+		datasetsMigrations,
+		{},
+		undefined,
+		undefined,
+		KEY_DATASET_INDEX
+	)
+	const bodies = await Promise.all(
+		Object.keys(index).map(async (id) => [id, await loadDatasetAsync(id)] as const)
+	)
+	const datasets: Record<string, Dataset> = {}
+	for (const [id, dataset] of bodies) if (dataset) datasets[id] = dataset
+	return overlayDatasets(datasets)
 }
 
-/** Persist datasets to IndexedDB. No-op (without error noise) when IndexedDB
- * is unavailable — the SSR/test environments, where cross-reload persistence
- * isn't expected. Ephemeral seed datasets are stripped: they exist only in
- * the overlay, so a whole-map save can't leak them into durable storage. */
+/** References of the bodies currently on disk, by id. A whole-map save diffs
+ *  against this and writes only the datasets whose object identity actually
+ *  changed — without it, renaming one dataset would rewrite every body in the
+ *  store. The atoms treat datasets immutably, so identity is a sound proxy
+ *  for "changed". Seeded from every read, so a save that follows a load
+ *  writes nothing it doesn't have to. */
+const persistedBodies = new Map<string, Dataset>()
+
+/** Persist datasets to IndexedDB, one key per body plus the shared index.
+ *  No-op (without error noise) when IndexedDB is unavailable — the SSR/test
+ *  environments, where cross-reload persistence isn't expected. Ephemeral
+ *  seed datasets are stripped: they exist only in the overlay, so a whole-map
+ *  save can't leak them into durable storage. */
 export const saveDatasetsAsync = async (
 	datasets: Record<string, Dataset>
 ): Promise<void> => {
 	if (!idbAvailable()) return
-	const wrote = await idbSet(KEY_DATASETS, {
+	const own = stripSeedDatasets(datasets)
+
+	const writes: Promise<boolean>[] = []
+	for (const [id, dataset] of Object.entries(own)) {
+		if (persistedBodies.get(id) === dataset) continue
+		writes.push(
+			idbSet(datasetBodyKey(id), { _v: DATASETS_VERSION, data: dataset }).then(
+				(wrote) => {
+					if (wrote) persistedBodies.set(id, dataset)
+					return wrote
+				}
+			)
+		)
+	}
+	const results = await Promise.all(writes)
+	// Merged into the stored index, never substituted for it: `own` holds only
+	// the bodies this session loaded, so replacing the index wholesale would
+	// erase every dataset the user simply hadn't opened. Deletion goes through
+	// `deleteDatasetsAsync`.
+	const storedIndex = await readStoredIndex()
+	const indexWritten = await idbSet(KEY_DATASET_INDEX, {
 		_v: DATASETS_VERSION,
-		data: stripSeedDatasets(datasets),
+		data: { ...storedIndex, ...datasetIndexFrom(own) },
 	})
-	if (!wrote) {
+
+	if (!indexWritten || results.some((wrote) => !wrote)) {
 		// eslint-disable-next-line no-console
 		console.error(
 			"[vis-components] failed to persist datasets to IndexedDB — your data may not survive a reload"
 		)
 	}
+}
+
+/** The stored metadata index exactly as persisted — no seed overlay, no
+ *  legacy split. Used by the save path, which must merge into what's on disk
+ *  rather than overwrite it. */
+const readStoredIndex = async (): Promise<Record<string, DatasetMeta>> => {
+	const stored = await idbGet<unknown>(KEY_DATASET_INDEX)
+	if (stored === null) return {}
+	return migrateVersioned<Record<string, DatasetMeta>>(
+		stored,
+		DATASETS_VERSION,
+		datasetsMigrations,
+		{},
+		undefined,
+		undefined,
+		KEY_DATASET_INDEX
+	)
+}
+
+/** Remove datasets outright: their bodies and their index entries. The only
+ *  path that deletes datasets — a whole-map save never does, because the map
+ *  it is given holds only the bodies this session happened to load. */
+export const deleteDatasetsAsync = async (
+	ids: readonly string[]
+): Promise<void> => {
+	if (!idbAvailable() || ids.length === 0) return
+	const doomed = new Set(ids)
+	await Promise.all(
+		ids.map(async (id) => {
+			await idbDelete(datasetBodyKey(id))
+			persistedBodies.delete(id)
+		})
+	)
+	const storedIndex = await readStoredIndex()
+	await idbSet(KEY_DATASET_INDEX, {
+		_v: DATASETS_VERSION,
+		data: Object.fromEntries(
+			Object.entries(storedIndex).filter(([id]) => !doomed.has(id))
+		),
+	})
+}
+
+/** One-time split of the legacy single-blob store into per-dataset keys.
+ *  Runs when the index is absent but the old blob is present. The blob is
+ *  removed only after every body and the index have been confirmed written,
+ *  so an interrupted migration simply retries on the next load. */
+const splitLegacyDatasetBlob = async (): Promise<Record<string, Dataset>> => {
+	const legacy = await loadLegacyDatasetBlob()
+	if (Object.keys(legacy).length === 0) return {}
+
+	const wrote = await Promise.all(
+		Object.entries(legacy).map(([id, dataset]) =>
+			idbSet(datasetBodyKey(id), { _v: DATASETS_VERSION, data: dataset })
+		)
+	)
+	const indexWritten = await idbSet(KEY_DATASET_INDEX, {
+		_v: DATASETS_VERSION,
+		data: datasetIndexFrom(legacy),
+	})
+	if (indexWritten && wrote.every(Boolean)) {
+		for (const [id, dataset] of Object.entries(legacy)) {
+			persistedBodies.set(id, dataset)
+		}
+		await idbDelete(KEY_DATASETS)
+		clearLegacyDatasets()
+	}
+	return legacy
+}
+
+/** The pre-split store: the IndexedDB blob if present, else the even older
+ *  localStorage blob. Rows included. */
+const loadLegacyDatasetBlob = async (): Promise<Record<string, Dataset>> => {
+	const fromIdb = await idbGet<unknown>(KEY_DATASETS)
+	if (fromIdb !== null) {
+		return migrateVersioned<Record<string, Dataset>>(
+			fromIdb,
+			DATASETS_VERSION,
+			datasetsMigrations,
+			{},
+			undefined,
+			undefined,
+			KEY_DATASETS
+		)
+	}
+	return loadPersistedDatasets()
+}
+
+/** Row-free metadata for every dataset. This is the boot read — it never
+ *  touches a single body. Seeded overlay datasets join in memory, exactly as
+ *  they do for the full load. */
+export const loadDatasetIndexAsync = async (): Promise<
+	Record<string, DatasetMeta>
+> => {
+	if (!idbAvailable()) return datasetIndexFrom(loadDatasets())
+	const stored = await idbGet<unknown>(KEY_DATASET_INDEX)
+	if (stored !== null) {
+		return overlayDatasetIndex(
+			migrateVersioned<Record<string, DatasetMeta>>(
+				stored,
+				DATASETS_VERSION,
+				datasetsMigrations,
+				{},
+				undefined,
+				undefined,
+				KEY_DATASET_INDEX
+			)
+		)
+	}
+	return overlayDatasetIndex(datasetIndexFrom(await splitLegacyDatasetBlob()))
+}
+
+/** One dataset's rows. `null` when the id isn't in the store. */
+export const loadDatasetAsync = async (id: string): Promise<Dataset | null> => {
+	const seeded = seedDataset(id)
+	if (seeded) return seeded
+	if (!idbAvailable()) return loadDatasets()[id] ?? null
+
+	const stored = await idbGet<unknown>(datasetBodyKey(id))
+	if (stored !== null) {
+		const dataset = migrateVersioned<Dataset | null>(
+			stored,
+			DATASETS_VERSION,
+			datasetsMigrations,
+			null,
+			undefined,
+			undefined,
+			datasetBodyKey(id)
+		)
+		if (dataset) persistedBodies.set(id, dataset)
+		return dataset
+	}
+	// No per-key body yet — a store that hasn't been split, or a first read
+	// racing the split. Fall back to the legacy blob rather than reporting the
+	// dataset missing.
+	return (await splitLegacyDatasetBlob())[id] ?? null
 }
 
 export const loadEmbedInstances = (): Record<string, EmbedInstance> =>

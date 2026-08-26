@@ -15,7 +15,7 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../../store/atoms"
 
@@ -69,7 +69,7 @@ const mount = () => {
 	let store: TestStore | null = null
 	const init = (snap: TestStore) => {
 		store = snap
-		snap.set(datasetsAtom, { [ID]: buildDataset() })
+		snap.set(loadedDatasetsAtom, { [ID]: buildDataset() })
 		snap.set(currentDatasetIdAtom, ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, enc)

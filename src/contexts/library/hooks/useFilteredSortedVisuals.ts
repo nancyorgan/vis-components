@@ -3,8 +3,8 @@ import {
 	deriveLandingRows,
 	type LandingRow,
 } from "../../chartBuilder/lib/landingRows"
+import type { DatasetLike } from "../../chartBuilder/lib/datasetMeta"
 import type {
-	Dataset,
 	EmbedInstance,
 	Folder,
 	Visual,
@@ -80,7 +80,7 @@ const parseSort = (
 
 type Args = {
 	visuals: Visual[]
-	datasets: Record<string, Dataset>
+	datasets: Record<string, DatasetLike>
 	folders: Folder[]
 	folderId: string | null // selected folder filter; null = all
 	/** Selected dataset filter by NAME; null = all datasets. Matching by name

@@ -19,7 +19,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
@@ -97,7 +97,7 @@ const mountLayout = (
 	/* eslint-enable @th/use-wrapped-json-functions */
 
 	const init = (snap: TestStore) => {
-		snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+		snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
 		snap.set(currentDatasetIdAtom, DATASET_ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, encodings)

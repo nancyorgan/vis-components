@@ -24,7 +24,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
@@ -105,7 +105,7 @@ const seedStorage = (opts: Opts) => {
 const initState =
 	(opts: Opts) =>
 	(snap: TestStore) => {
-		snap.set(datasetsAtom, { [DATASET_ID]: buildRadarDataset() })
+		snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildRadarDataset() })
 		snap.set(currentDatasetIdAtom, DATASET_ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, {

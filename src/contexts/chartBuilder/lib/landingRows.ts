@@ -1,4 +1,5 @@
-import type { Dataset, EmbedInstance, Visual } from "./types"
+import type { DatasetLike } from "./datasetMeta"
+import type { EmbedInstance, Visual } from "./types"
 
 /** One row of the landing-page table. A `Visual` with no embed instances
  * appears as a single `"unexported"` row (so the user can see the work);
@@ -11,7 +12,7 @@ export type LandingRow =
 			instance: EmbedInstance
 			/** Resolved dataset lookup. `null` when the visual's datasetId is
 			 * unset or points to a dataset that's since been deleted. */
-			dataset: Dataset | null
+			dataset: DatasetLike | null
 			/** Human-readable version label: `"latest"`, `"v3"`, `"v3 (deleted)"`. */
 			versionLabel: string
 			pinState: "live" | "pinned" | "dangling"
@@ -19,12 +20,12 @@ export type LandingRow =
 	| {
 			kind: "unexported"
 			visual: Visual
-			dataset: Dataset | null
+			dataset: DatasetLike | null
 			pinState: "unexported"
 	  }
 
 const versionLabelFor = (
-	dataset: Dataset | null,
+	dataset: DatasetLike | null,
 	versionId: string | null
 ): { label: string; pinState: "live" | "pinned" | "dangling" } => {
 	if (versionId === null) return { label: "latest", pinState: "live" }
@@ -43,7 +44,7 @@ const versionLabelFor = (
 export const deriveLandingRows = (
 	visuals: readonly Visual[],
 	instancesById: Record<string, EmbedInstance>,
-	datasetsById: Record<string, Dataset>
+	datasetsById: Record<string, DatasetLike>
 ): LandingRow[] => {
 	const instancesByVisual = new Map<string, EmbedInstance[]>()
 	for (const instance of Object.values(instancesById)) {

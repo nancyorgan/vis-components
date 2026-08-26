@@ -57,6 +57,19 @@ const MIGRATIONS: readonly string[] = [
 		version INTEGER NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// v4 — dataset metadata (name, fields, per-version ids/filenames/counts)
+	// stored apart from the rows, so a session can list the library without
+	// transferring any row data. Purely additive: an ADD COLUMN with no
+	// default, so every pre-existing row reads NULL and the old server would
+	// still understand this table if it were ever pointed at the new DB.
+	//
+	// NULL is the ONE signal for "no usable metadata here" and it is never
+	// backfilled by the server — deriving it would mean parsing dataset
+	// bodies, which this server deliberately never does (see the module
+	// header). Clients hydrate it instead: read the body, derive the meta,
+	// PUT it back. That covers both cases uniformly — rows written before
+	// this migration, and a body PUT whose follow-up meta PUT never landed.
+	`ALTER TABLE datasets ADD COLUMN meta TEXT;`,
 ]
 
 /** The JSON-body tables, keyed by the API's collection segment. Table names
@@ -172,10 +185,20 @@ export type ItemRow = { id: string; body: string }
  *  column is merged back into the JSON so clients receive complete items. */
 export const listRows = (
 	db: DatabaseSync,
-	collection: JsonCollection
+	collection: JsonCollection,
+	{ thumbnails = true }: { thumbnails?: boolean } = {}
 ): ItemRow[] => {
 	const table = JSON_TABLES[collection]
 	if (collection === "visuals") {
+		// Thumbnails are base64 PNGs and by far the largest thing a visual
+		// carries. The editor and the embed page render none of them, so they
+		// ask for the rows without. The column has always been stored apart
+		// from the body precisely so this query could skip it.
+		if (!thumbnails) {
+			return db
+				.prepare(`SELECT id, body FROM ${table}`)
+				.all() as ItemRow[]
+		}
 		const rows = db
 			.prepare(`SELECT id, body, thumbnail FROM ${table}`)
 			.all() as { id: string; body: string; thumbnail: string | null }[]
@@ -199,7 +222,21 @@ export const upsertBody = (
 	const table = JSON_TABLES[collection]
 	const now = new Date().toISOString()
 	if (collection === "visuals") {
-		const { stripped, thumbnail } = splitThumbnail(body)
+		const { stripped, thumbnail, hadKey } = splitThumbnail(body)
+		// An ABSENT `thumbnail` key means "leave the stored one alone"; an
+		// explicit null means "clear it". The distinction is what makes a
+		// thumbnail-free read (`?thumbnails=0`) safe to save back: without it,
+		// a session that never received thumbnails would blank the stored
+		// preview of whatever it saved. It mirrors the rule the browser-local
+		// thumbnail side-table already follows.
+		if (!hadKey) {
+			db.prepare(
+				`INSERT INTO ${table} (id, body, thumbnail, updated_at) VALUES (?, ?, NULL, ?)
+				 ON CONFLICT(id) DO UPDATE SET body=excluded.body,
+				   updated_at=excluded.updated_at`
+			).run(id, stripped, now)
+			return
+		}
 		db.prepare(
 			`INSERT INTO ${table} (id, body, thumbnail, updated_at) VALUES (?, ?, ?, ?)
 			 ON CONFLICT(id) DO UPDATE SET body=excluded.body,
@@ -222,17 +259,50 @@ export const deleteBody = (
 	db.prepare(`DELETE FROM ${JSON_TABLES[collection]} WHERE id = ?`).run(id)
 }
 
+/** Index a dataset body write. Deliberately clears `meta`: the rows just
+ *  changed, so any stored metadata now describes the previous body. The
+ *  client PUTs the fresh meta immediately after; if that never lands, the
+ *  NULL means the next reader hydrates it rather than trusting a stale
+ *  version list. */
 export const upsertDatasetRow = (
 	db: DatabaseSync,
 	id: string,
 	byteSize: number
 ): void => {
 	db.prepare(
-		`INSERT INTO datasets (id, byte_size, updated_at) VALUES (?, ?, ?)
+		`INSERT INTO datasets (id, byte_size, updated_at, meta) VALUES (?, ?, ?, NULL)
 		 ON CONFLICT(id) DO UPDATE SET byte_size=excluded.byte_size,
-		   updated_at=excluded.updated_at`
+		   updated_at=excluded.updated_at, meta=NULL`
 	).run(id, byteSize, new Date().toISOString())
 }
+
+/** Store one dataset's metadata. Only ever called with client-derived JSON —
+ *  the server treats it as an opaque string, exactly as it does item bodies
+ *  and content-version numbers. No-ops when the dataset has no index row, so
+ *  a meta PUT racing a delete can't resurrect it. */
+export const upsertDatasetMeta = (
+	db: DatabaseSync,
+	id: string,
+	meta: string
+): void => {
+	db.prepare("UPDATE datasets SET meta = ? WHERE id = ?").run(meta, id)
+}
+
+/** The index row's cache validators, or null when the dataset isn't indexed. */
+export const datasetStamp = (
+	db: DatabaseSync,
+	id: string
+): { updated_at: string; byte_size: number } | null =>
+	(db
+		.prepare("SELECT updated_at, byte_size FROM datasets WHERE id = ?")
+		.get(id) as { updated_at: string; byte_size: number } | undefined) ?? null
+
+export type DatasetMetaRow = { id: string; meta: string | null }
+
+/** Every dataset's id with its stored metadata JSON, `null` where none has
+ *  been hydrated yet. Never touches the data dir. */
+export const listDatasetMeta = (db: DatabaseSync): DatasetMetaRow[] =>
+	db.prepare("SELECT id, meta FROM datasets").all() as DatasetMetaRow[]
 
 export const deleteDatasetRow = (db: DatabaseSync, id: string): void => {
 	db.prepare("DELETE FROM datasets WHERE id = ?").run(id)
@@ -248,12 +318,13 @@ export const listDatasetIds = (db: DatabaseSync): string[] => {
  *  purely as a storage-layout concern. */
 const splitThumbnail = (
 	body: string
-): { stripped: string; thumbnail: string | null } => {
+): { stripped: string; thumbnail: string | null; hadKey: boolean } => {
 	const parsed = JSON.parse(body) as Record<string, unknown>
+	const hadKey = "thumbnail" in parsed
 	const thumbnail =
 		typeof parsed.thumbnail === "string" ? parsed.thumbnail : null
 	delete parsed.thumbnail
-	return { stripped: JSON.stringify(parsed), thumbnail }
+	return { stripped: JSON.stringify(parsed), thumbnail, hadKey }
 }
 
 const mergeThumbnail = (body: string, thumbnail: string | null): string => {

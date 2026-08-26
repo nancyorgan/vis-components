@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./ErrorBoundary"
 import { SaveBar } from "./SaveBar"
 import { Sidebar } from "./sidebar/Sidebar"
 import { ChartCanvas } from "./viz/ChartCanvas"
+import { useEnsureCurrentDatasetLoaded } from "../store/useCurrentDatasetView"
 
 // Narrowing past the sidebar's content floor (Sidebar's `min-w-80`) is safe:
 // the aside scrolls horizontally rather than squeezing its control rows.
@@ -19,6 +20,9 @@ const MIN_WIDTH = 240
 const MAX_WIDTH = 560
 
 export const EditorLayout = () => {
+	// Opening a visualization is what pulls its rows down — nothing loads row
+	// data before this point.
+	useEnsureCurrentDatasetLoaded()
 	useAutoSave()
 	const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom)
 	const blackAndWhite = useAtomValue(blackAndWhiteModeAtom)

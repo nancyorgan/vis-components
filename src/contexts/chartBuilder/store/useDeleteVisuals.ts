@@ -5,7 +5,8 @@ import { sweepOrphanDatasets } from "../lib/datasetSweep"
 
 import {
 	currentDatasetIdAtom,
-	datasetsAtom,
+	datasetIndexAtom,
+	deleteDatasetsAtom,
 	embedInstancesAtom,
 	visualsAtom,
 } from "./atoms"
@@ -28,11 +29,18 @@ export const useDeleteVisuals = () =>
 				for (const id of ids) next = removeInstancesForVisual(next, id)
 				return next
 			})
+			// Swept over the INDEX, not the loaded bodies: the index is the
+			// authoritative list of what exists, and orphan-ness is a question
+			// about references, which needs no rows. Sweeping the loaded map
+			// would only ever consider the handful of datasets this session
+			// happened to open.
 			const swept = sweepOrphanDatasets({
-				datasets: get(datasetsAtom),
+				datasets: get(datasetIndexAtom),
 				visuals: remaining,
 				protectedIds: [get(currentDatasetIdAtom)],
 			})
-			if (swept.removedIds.length > 0) set(datasetsAtom, swept.datasets)
+			if (swept.removedIds.length > 0) {
+				set(deleteDatasetsAtom, swept.removedIds)
+			}
 		}, [])
 	)

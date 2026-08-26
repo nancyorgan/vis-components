@@ -3,7 +3,7 @@ import { useParams, useSearch } from "@tanstack/react-router"
 import { useAtomValue, useSetAtom } from "jotai"
 import { resolveDatasetVersionStrict } from "../../chartBuilder/lib/resolveDatasetVersion"
 import {
-	datasetsAtom,
+	datasetIndexAtom,
 	previewVersionIdAtom,
 	visualsAtom,
 } from "../../chartBuilder/store/atoms"
@@ -14,6 +14,7 @@ import {
 	ChartCanvas,
 } from "../../chartBuilder/components/viz/ChartCanvas"
 import { Legend } from "../../chartBuilder/components/viz/Legend"
+import { useEnsureCurrentDatasetLoaded } from "../../chartBuilder/store/useCurrentDatasetView"
 
 type LoadState =
 	| { status: "loading" }
@@ -22,13 +23,15 @@ type LoadState =
 	| { status: "missing-version"; requestedVersionId: string }
 
 export const EmbedPage = () => {
+	// An embed pulls exactly the one dataset its visualization draws.
+	useEnsureCurrentDatasetLoaded()
 	const { visualId } = useParams({ from: "/embed/$visualId" })
 	const search = useSearch({ from: "/embed/$visualId" })
 	const requestedVersionId = search.v ?? null
 	const part = search.part ?? null
 
 	const visuals = useAtomValue(visualsAtom)
-	const datasets = useAtomValue(datasetsAtom)
+	const datasets = useAtomValue(datasetIndexAtom)
 	const setPreviewVersionId = useSetAtom(previewVersionIdAtom)
 	const loadVisual = useLoadVisual()
 	const [state, setState] = useState<LoadState>({ status: "loading" })

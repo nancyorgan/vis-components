@@ -21,7 +21,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
@@ -102,7 +102,7 @@ const initLineChartState =
 		// baseline. currentChannelConfigsAtom is deliberately NOT set here:
 		// it lazily bootstraps from localStorage, so `seedConnectionCfg`
 		// below can inject per-test connection configs.
-		snap.set(datasetsAtom, { [DATASET_ID]: buildLineChartDataset() })
+		snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildLineChartDataset() })
 		snap.set(currentDatasetIdAtom, DATASET_ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, {
@@ -151,7 +151,7 @@ const seedAreaChartStorage = (opts: {
 const initAreaChartState =
 	(opts: { connectionField: string; hueField?: string }) =>
 	(snap: TestStore) => {
-		snap.set(datasetsAtom, { [DATASET_ID]: buildLineChartDataset() })
+		snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildLineChartDataset() })
 		snap.set(currentDatasetIdAtom, DATASET_ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, {

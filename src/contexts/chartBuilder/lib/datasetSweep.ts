@@ -25,6 +25,7 @@ import {
 import {
 	loadCurrentDatasetId,
 	loadDatasetCleanupDone,
+	deleteDatasetsAsync,
 	loadDatasetsAsync,
 	loadEmbedInstances,
 	loadPreviewVersionId,
@@ -53,19 +54,23 @@ export type SweepInput = {
 	protectedIds?: readonly (string | null)[]
 }
 
-export type SweepResult = {
-	datasets: Record<string, Dataset>
+export type SweepResult<T = Dataset> = {
+	datasets: Record<string, T>
 	removedIds: string[]
 }
 
 /** Drop every dataset that no visual references and no protected id names.
  *  Pure; returns the input record unchanged (same reference) when there is
  *  nothing to remove. */
-export const sweepOrphanDatasets = ({
+export const sweepOrphanDatasets = <T>({
 	datasets,
 	visuals,
 	protectedIds = [],
-}: SweepInput): SweepResult => {
+}: {
+	datasets: Record<string, T>
+	visuals: readonly { datasetId: string | null }[]
+	protectedIds?: readonly (string | null)[]
+}): SweepResult<T> => {
 	const referenced = new Set<string>()
 	for (const v of visuals) if (v.datasetId != null) referenced.add(v.datasetId)
 	for (const id of protectedIds) if (id != null) referenced.add(id)
@@ -73,7 +78,7 @@ export const sweepOrphanDatasets = ({
 	const removedIds = Object.keys(datasets).filter((id) => !referenced.has(id))
 	if (removedIds.length === 0) return { datasets, removedIds }
 
-	const kept: Record<string, Dataset> = {}
+	const kept: Record<string, T> = {}
 	for (const [id, d] of Object.entries(datasets)) {
 		if (referenced.has(id)) kept[id] = d
 	}
@@ -135,9 +140,19 @@ export const runDatasetStoreCleanup = async (): Promise<void> => {
 			if (previewRemapped !== previewVersionId)
 				savePreviewVersionId(previewRemapped)
 		}
+		// Removals are explicit. `saveDatasetsAsync` is upsert-only now that
+		// bodies load on demand — a whole-map save can no longer be read as
+		// "everything absent was deleted", so the sweep has to say which ids
+		// it dropped. Collapsed duplicates count: the losing copy is gone.
+		const removedIds = [
+			...swept.removedIds,
+			...Object.keys(deduped.datasetIdMap),
+		].filter((id) => !(id in finalDatasets))
+
 		if (deduped.changed || swept.removedIds.length > 0 || fieldsPruned > 0) {
 			if (idbAvailable()) {
 				await saveDatasetsAsync(finalDatasets)
+				await deleteDatasetsAsync(removedIds)
 			} else {
 				saveDatasetsLocalFallback(finalDatasets)
 			}

@@ -1,3 +1,4 @@
+import type { DatasetLike } from "./datasetMeta"
 import type { Dataset, DatasetVersion, DatasetView } from "./types"
 
 /**
@@ -31,9 +32,9 @@ export const resolveDatasetVersion = (
  * silently falling back to latest.
  */
 export const resolveDatasetVersionStrict = (
-	dataset: Dataset | undefined,
+	dataset: DatasetLike | undefined,
 	requestedVersionId: string
-): DatasetVersion | null => {
+): { id: string } | null => {
 	if (!dataset) return null
 	return dataset.versions.find((v) => v.id === requestedVersionId) ?? null
 }

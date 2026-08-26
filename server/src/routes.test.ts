@@ -262,3 +262,181 @@ describe("static serving", () => {
 		expect(await res.text()).toContain("spa")
 	})
 })
+
+describe("dataset metadata index and per-dataset reads", () => {
+	const put = (id: string, body: unknown) =>
+		fetch(`${base}/api/datasets/${id}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		})
+
+	const putMeta = (id: string, body: unknown) =>
+		fetch(`${base}/api/datasets/${id}/meta`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		})
+
+	const dataset = (id: string) => ({
+		id,
+		name: `Set ${id}`,
+		fields: [{ name: "a", inferredType: "quantitative" }],
+		versions: [{ id: `${id}-v1`, filename: "a.csv", rows: [{ a: "1" }] }],
+	})
+
+	const meta = (id: string) => ({
+		id,
+		name: `Set ${id}`,
+		fields: [{ name: "a", inferredType: "quantitative" }],
+		versions: [{ id: `${id}-v1`, filename: "a.csv", rowCount: 1 }],
+	})
+
+	it("keeps the bare collection GET returning full bodies for older clients", async () => {
+		await put("ds-compat", dataset("ds-compat"))
+		const res = await fetch(`${base}/api/datasets`)
+		expect(res.status).toBe(200)
+		const all = (await res.json()) as Record<string, { versions: unknown[] }>
+		// A browser still running the previous bundle depends on this shape.
+		expect(all["ds-compat"]).toEqual(dataset("ds-compat"))
+	})
+
+	it("serves un-hydrated datasets as null rather than omitting them", async () => {
+		await put("ds-nometa", dataset("ds-nometa"))
+		const res = await fetch(`${base}/api/datasets?view=index`)
+		expect(res.status).toBe(200)
+		const index = (await res.json()) as Record<string, unknown>
+		// Present-but-null is what tells the client to hydrate. Omitting the id
+		// would read as "this dataset was deleted".
+		expect(Object.keys(index)).toContain("ds-nometa")
+		expect(index["ds-nometa"]).toBeNull()
+	})
+
+	it("returns stored meta on the index and carries no row data", async () => {
+		await put("ds-meta", dataset("ds-meta"))
+		expect((await putMeta("ds-meta", meta("ds-meta"))).status).toBe(204)
+
+		const res = await fetch(`${base}/api/datasets?view=index`)
+		const index = (await res.json()) as Record<string, unknown>
+		expect(index["ds-meta"]).toEqual(meta("ds-meta"))
+		const versions = (index["ds-meta"] as { versions: object[] }).versions
+		expect(versions.every((v) => !("rows" in v))).toBe(true)
+	})
+
+	it("invalidates meta when a new body lands", async () => {
+		await put("ds-churn", dataset("ds-churn"))
+		await putMeta("ds-churn", meta("ds-churn"))
+		await put("ds-churn", dataset("ds-churn"))
+
+		const index = (await (await fetch(`${base}/api/datasets?view=index`)).json()) as Record<string, unknown>
+		expect(index["ds-churn"]).toBeNull()
+	})
+
+	it("rejects a meta body carrying version rows", async () => {
+		await put("ds-fat", dataset("ds-fat"))
+		const res = await putMeta("ds-fat", dataset("ds-fat"))
+		expect(res.status).toBe(400)
+	})
+
+	it("rejects a meta body whose id contradicts the URL", async () => {
+		await put("ds-mismatch", dataset("ds-mismatch"))
+		const res = await putMeta("ds-mismatch", meta("ds-other"))
+		expect(res.status).toBe(400)
+	})
+
+	it("serves one dataset body by id", async () => {
+		await put("ds-one", dataset("ds-one"))
+		const res = await fetch(`${base}/api/datasets/ds-one`)
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual(dataset("ds-one"))
+	})
+
+	it("answers 304 when the client already has the current body", async () => {
+		await put("ds-etag", dataset("ds-etag"))
+		const first = await fetch(`${base}/api/datasets/ds-etag`)
+		const etag = first.headers.get("etag")
+		expect(etag).toBeTruthy()
+		await first.arrayBuffer()
+
+		const second = await fetch(`${base}/api/datasets/ds-etag`, {
+			headers: { "if-none-match": etag as string },
+		})
+		expect(second.status).toBe(304)
+	})
+
+	it("404s an unknown dataset id and an unknown sub-resource", async () => {
+		expect((await fetch(`${base}/api/datasets/ds-missing`)).status).toBe(404)
+		await put("ds-sub", dataset("ds-sub"))
+		expect((await fetch(`${base}/api/datasets/ds-sub/nonsense`)).status).toBe(404)
+	})
+
+	it("rejects an unsafe id on the meta route", async () => {
+		const res = await fetch(`${base}/api/datasets/..%2Fescape/meta`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: "{}",
+		})
+		expect(res.status).toBe(400)
+	})
+})
+
+describe("thumbnail-free visuals reads", () => {
+	const putVisual = (id: string, body: unknown) =>
+		fetch(`${base}/api/visuals/${id}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		})
+
+	const getVisuals = async (query = "") =>
+		(await (await fetch(`${base}/api/visuals${query}`)).json()) as {
+			id: string
+			thumbnail?: string | null
+		}[]
+
+	type StoredVisual = { id: string; name?: string; thumbnail?: string | null }
+	const find = (list: StoredVisual[], id: string): StoredVisual | undefined =>
+		list.find((v) => v.id === id)
+
+	it("omits thumbnails when asked, and includes them by default", async () => {
+		await putVisual("v-thumb", {
+			id: "v-thumb",
+			name: "Chart",
+			thumbnail: "data:image/png;base64,AA",
+		})
+
+		expect(find(await getVisuals(), "v-thumb")?.thumbnail).toBe(
+			"data:image/png;base64,AA"
+		)
+		expect(find(await getVisuals("?thumbnails=0"), "v-thumb")).not.toHaveProperty(
+			"thumbnail"
+		)
+	})
+
+	// The rule that makes the flag safe to save back through: a session that
+	// read visuals without thumbnails must not blank the stored preview of
+	// whatever it saves.
+	it("keeps the stored thumbnail when a save omits the key entirely", async () => {
+		await putVisual("v-keep", {
+			id: "v-keep",
+			name: "Chart",
+			thumbnail: "data:image/png;base64,AA",
+		})
+		await putVisual("v-keep", { id: "v-keep", name: "Renamed" })
+
+		const stored = find(await getVisuals(), "v-keep")
+		expect(stored?.name).toBe("Renamed")
+		expect(stored?.thumbnail).toBe("data:image/png;base64,AA")
+	})
+
+	it("clears the thumbnail when a save sets it to null explicitly", async () => {
+		await putVisual("v-clear", {
+			id: "v-clear",
+			name: "Chart",
+			thumbnail: "data:image/png;base64,AA",
+		})
+		await putVisual("v-clear", { id: "v-clear", name: "Chart", thumbnail: null })
+
+		expect(find(await getVisuals(), "v-clear")?.thumbnail).toBeNull()
+	})
+})

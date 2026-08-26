@@ -8,7 +8,7 @@ import type { Dataset, Field } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
 	currentReshapeConfigAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 	reshapePanelOpenAtom,
 } from "../../store/atoms"
@@ -63,7 +63,7 @@ const mount = (reshape: Partial<ReshapeConfig> = {}, open = true) => {
 	set("vis-components:currentReshapeConfig", { _v: 1, data: reshapeConfig })
 	/* eslint-enable @th/use-wrapped-json-functions */
 	const init = (snap: TestStore) => {
-		snap.set(datasetsAtom, { [ID]: buildDataset() })
+		snap.set(loadedDatasetsAtom, { [ID]: buildDataset() })
 		snap.set(currentDatasetIdAtom, ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentReshapeConfigAtom, reshapeConfig)

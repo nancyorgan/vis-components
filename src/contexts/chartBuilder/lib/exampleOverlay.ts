@@ -31,7 +31,8 @@
  *  Never installed in server mode: a hosted library seeds through the storage
  *  adapter and persists in SQL like any other work (see `exampleSeed.ts`). */
 
-import type { Dataset, Folder, SavedTheme, Visual } from "./types"
+import { datasetIndexFrom } from "./datasetMeta"
+import type { Dataset, DatasetMeta, Folder, SavedTheme, Visual } from "./types"
 
 /** The bundled rows an installed overlay serves. Mirrors the content half of
  *  a `SeedBundle` (exportedAt and the marker are apply-path concerns). */
@@ -134,6 +135,23 @@ export const overlayDatasets = (
 	const seeded = registry.content.datasets
 	if (Object.keys(seeded).length === 0) return persisted
 	return { ...seeded, ...persisted }
+}
+
+/** One seeded dataset by id, or null. Seed rows live only in memory, so the
+ *  per-dataset body reader has to consult the registry before concluding a
+ *  dataset is missing. */
+export const seedDataset = (id: string): Dataset | null =>
+	registry?.content.datasets[id] ?? null
+
+/** Seeded datasets joined into a metadata index, mirroring `overlayDatasets`
+ *  for the row-free read path. Persisted rows win on an id clash. */
+export const overlayDatasetIndex = (
+	persisted: Record<string, DatasetMeta>
+): Record<string, DatasetMeta> => {
+	if (registry === null) return persisted
+	const seeded = registry.content.datasets
+	if (Object.keys(seeded).length === 0) return persisted
+	return { ...datasetIndexFrom(seeded), ...persisted }
 }
 
 const stripList = <T extends { id: string }>(

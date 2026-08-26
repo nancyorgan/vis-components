@@ -13,7 +13,10 @@ import {
 	currentLegendConfigAtom,
 	currentRenderedFigureSlackAtom,
 } from "../../store/atoms"
-import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import {
+	useCurrentDatasetStatus,
+	useCurrentDatasetView,
+} from "../../store/useCurrentDatasetView"
 
 import { Legend, type InsideExtras } from "./Legend"
 import { PlotCanvas } from "./PlotCanvas"
@@ -22,6 +25,7 @@ import { PlotCanvas } from "./PlotCanvas"
  * (`?part=chart`) and as the building block for ChartCanvas. */
 export const ChartBody = () => {
 	const dataset = useCurrentDatasetView()
+	const status = useCurrentDatasetStatus()
 	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
 	const bgStyle: React.CSSProperties | undefined =
 		channelConfigs.backgroundColor
@@ -33,10 +37,28 @@ export const ChartBody = () => {
 				className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-stone-600 dark:text-stone-400"
 				style={bgStyle}
 			>
-				<div className="text-sm">No data set loaded.</div>
-				<div className="text-sm">
-					Upload a CSV from the sidebar to get started.
-				</div>
+				{status === "loading" ? (
+					// Rows are in flight. This branch must never mount the plot
+					// SVG: `chartLayoutReady` treats any non-zero-sized
+					// `#PLOT_SVG_ID` as a finished chart, so drawing an empty
+					// one here would let the thumbnail pipeline capture it as a
+					// stable frame and save a blank preview.
+					<div className="text-sm">Loading data…</div>
+				) : status === "missing" ? (
+					<>
+						<div className="text-sm">This data set could not be loaded.</div>
+						<div className="text-sm">
+							It may have been deleted from another session.
+						</div>
+					</>
+				) : (
+					<>
+						<div className="text-sm">No data set loaded.</div>
+						<div className="text-sm">
+							Upload a CSV from the sidebar to get started.
+						</div>
+					</>
+				)}
 			</div>
 		)
 	}

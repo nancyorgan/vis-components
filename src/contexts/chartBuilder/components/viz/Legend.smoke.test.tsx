@@ -25,7 +25,7 @@ import {
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
@@ -1204,7 +1204,7 @@ describe("Legend — hexbin Point count section", () => {
 		)
 		/* eslint-enable @th/use-wrapped-json-functions */
 		const init = (snap: TestStore) => {
-			snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
 			snap.set(currentDatasetIdAtom, DATASET_ID)
 			snap.set(previewVersionIdAtom, null)
 			snap.set(currentEncodingsAtom, encodings)
@@ -1295,7 +1295,7 @@ describe("Legend — flow modes list hue nodes over the endpoint UNION domain", 
 		store.set("vis-components:currentChannelConfigs", JSON.stringify(configs))
 		/* eslint-enable @th/use-wrapped-json-functions */
 		const init = (snap: TestStore) => {
-			snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
 			snap.set(currentDatasetIdAtom, DATASET_ID)
 			snap.set(previewVersionIdAtom, null)
 			snap.set(currentEncodingsAtom, encodings)
@@ -1577,7 +1577,7 @@ describe("Legend — solo saturation / brightness sections", () => {
 		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
 		/* eslint-enable @th/use-wrapped-json-functions */
 		const init = (snap: TestStore) => {
-			snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
 			snap.set(currentDatasetIdAtom, DATASET_ID)
 			snap.set(previewVersionIdAtom, null)
 			snap.set(currentEncodingsAtom, encodings)
@@ -1795,7 +1795,7 @@ describe("Legend — columns arrange sections, orientation flows entries", () =>
 		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
 		/* eslint-enable @th/use-wrapped-json-functions */
 		const init = (snap: TestStore) => {
-			snap.set(datasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
 			snap.set(currentDatasetIdAtom, DATASET_ID)
 			snap.set(previewVersionIdAtom, null)
 			snap.set(currentEncodingsAtom, encodings)

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { useAtom, useAtomValue } from "jotai"
 import {
-	datasetsAtom,
+	datasetIndexAtom,
 	embedInstancesAtom,
 	foldersAtom,
 	librarySidebarWidthAtom,
@@ -59,7 +59,7 @@ const formatTimestamp = (ts: number): string => {
 
 export const LibraryPage = () => {
 	const visuals = useAtomValue(visualsAtom)
-	const datasets = useAtomValue(datasetsAtom)
+	const datasets = useAtomValue(datasetIndexAtom)
 	const embedInstances = useAtomValue(embedInstancesAtom)
 	const folders = useAtomValue(foldersAtom)
 	const [, setVisuals] = useAtom(visualsAtom)

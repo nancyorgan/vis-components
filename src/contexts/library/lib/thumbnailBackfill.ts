@@ -27,7 +27,8 @@ import {
 	restoreDraftState,
 	snapshotDraftState,
 } from "../../chartBuilder/lib/storage"
-import type { Dataset, Visual } from "../../chartBuilder/lib/types"
+import type { DatasetLike } from "../../chartBuilder/lib/datasetMeta"
+import type { Visual } from "../../chartBuilder/lib/types"
 
 export type BackfillProgress = { done: number; total: number }
 export type BackfillResult = { regenerated: number; failed: number }
@@ -37,7 +38,7 @@ export type BackfillResult = { regenerated: number; failed: number }
  *  produce a chart — including it would just burn the full capture timeout. */
 export const backfillCandidates = (
 	visuals: Visual[],
-	datasets: Record<string, Dataset>
+	datasets: Record<string, DatasetLike>
 ): Visual[] =>
 	visuals.filter(
 		(v) => !v.thumbnail && v.datasetId !== null && !!datasets[v.datasetId]

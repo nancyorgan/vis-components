@@ -11,7 +11,7 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
-	datasetsAtom,
+	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../../store/atoms"
 
@@ -57,7 +57,7 @@ const mount = (withConnection = false) => {
 	set("vis-components:currentChannelConfigs", EMPTY_CHANNEL_CONFIGS)
 	/* eslint-enable @th/use-wrapped-json-functions */
 	const init = (snap: TestStore) => {
-		snap.set(datasetsAtom, { [ID]: buildDataset() })
+		snap.set(loadedDatasetsAtom, { [ID]: buildDataset() })
 		snap.set(currentDatasetIdAtom, ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentEncodingsAtom, enc)

@@ -24,7 +24,10 @@
  *  before suspending), so write timing is unchanged. */
 
 import {
+	loadDatasetAsync,
+	loadDatasetIndexAsync,
 	loadDatasetsAsync,
+	deleteDatasetsAsync,
 	loadEmbedInstances,
 	loadFolders,
 	loadThemes,
@@ -43,6 +46,7 @@ import {
 import type { UserFont } from "../fontLibrary"
 import type {
 	Dataset,
+	DatasetMeta,
 	EmbedInstance,
 	Folder,
 	SavedTheme,
@@ -73,8 +77,24 @@ export interface StorageContentAdapter {
 	loadFolders(): Promise<Folder[]>
 	saveFolders(folders: Folder[]): Promise<void>
 
+	/** Row-free metadata for every dataset. This is what boots — a whole
+	 *  library's worth is kilobytes, where the bodies can be hundreds of
+	 *  megabytes. */
+	loadDatasetIndex(): Promise<Record<string, DatasetMeta>>
+	/** One dataset's rows, fetched when a visualization actually needs to
+	 *  draw. `null` when the id isn't in the store. */
+	loadDataset(id: string): Promise<Dataset | null>
+	/** EVERY dataset, rows included. Deliberately retained for the one caller
+	 *  that genuinely needs the whole corpus — library bundle export, which is
+	 *  a full backup. Nothing on a render path may call this. */
 	loadDatasets(): Promise<Record<string, Dataset>>
+	/** Upsert the given datasets. Deliberately NOT a whole-collection replace:
+	 *  bodies load lazily, so the record handed here is normally a subset of
+	 *  the store and inferring deletions from what's missing would destroy
+	 *  every dataset the session simply hadn't opened. */
 	saveDatasets(datasets: Record<string, Dataset>): Promise<void>
+	/** Remove datasets outright. The only path that deletes them. */
+	deleteDatasets(ids: readonly string[]): Promise<void>
 
 	loadEmbedInstances(): Promise<Record<string, EmbedInstance>>
 	saveEmbedInstances(instances: Record<string, EmbedInstance>): Promise<void>
@@ -104,8 +124,11 @@ export const localStorageAdapter: StorageContentAdapter = {
 		saveFolders(folders)
 	},
 
+	loadDatasetIndex: () => loadDatasetIndexAsync(),
+	loadDataset: (id) => loadDatasetAsync(id),
 	loadDatasets: () => loadDatasetsAsync(),
 	saveDatasets: (datasets) => saveDatasetsAsync(datasets),
+	deleteDatasets: (ids) => deleteDatasetsAsync(ids),
 
 	loadEmbedInstances: async () => loadEmbedInstances(),
 	saveEmbedInstances: async (instances) => {

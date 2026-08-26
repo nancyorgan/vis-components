@@ -11,15 +11,18 @@ import { createGunzip, createGzip, gzipSync } from "node:zlib"
 
 import type { ServerConfig } from "./config.js"
 import {
+	datasetStamp,
 	deleteBody,
 	deleteDatasetRow,
 	isContentVersionCollection,
 	isJsonCollection,
 	listContentVersions,
 	listDatasetIds,
+	listDatasetMeta,
 	listRows,
 	setContentVersion,
 	upsertBody,
+	upsertDatasetMeta,
 	upsertDatasetRow,
 	type JsonCollection,
 } from "./db.js"
@@ -77,15 +80,42 @@ const handleApi = async (
 	{ config, db }: HandlerDeps
 ): Promise<void> => {
 	const method = req.method ?? "GET"
-	const [, , collection, id, ...rest] = (req.url ?? "/").split("?")[0].split("/")
-	if (rest.length > 0 || !collection) throw new HttpError(404, "Not found")
+	const [rawPath, rawQuery] = (req.url ?? "/").split("?")
+	const [, , collection, id, ...rest] = rawPath.split("/")
+	if (!collection) throw new HttpError(404, "Not found")
+	// Only the datasets collection has sub-resources; everything else keeps
+	// the original flat shape.
+	if (rest.length > 0 && collection !== "datasets") {
+		throw new HttpError(404, "Not found")
+	}
 
 	if (collection === "datasets") {
 		if (!id) {
+			if (rest.length > 0) throw new HttpError(404, "Not found")
 			if (method !== "GET") throw new HttpError(405, "Method not allowed")
+			// `?view=index` is the metadata-only listing. The bare route keeps
+			// returning full bodies, unchanged, so a browser still running the
+			// previous bundle is unaffected by this deploy. Retire it only once
+			// no such client can remain.
+			if (new URLSearchParams(rawQuery ?? "").get("view") === "index") {
+				return sendJson(res, 200, composeDatasetIndex(db))
+			}
 			return listDatasets(req, res, db, config.dataDir)
 		}
 		if (!isSafeId(id)) throw new HttpError(400, "Invalid id")
+
+		if (rest.length > 0) {
+			if (rest.length !== 1 || rest[0] !== "meta") {
+				throw new HttpError(404, "Not found")
+			}
+			if (method !== "PUT") throw new HttpError(405, "Method not allowed")
+			const raw = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
+			assertDatasetMetaJson(raw, id)
+			upsertDatasetMeta(db, id, raw)
+			return sendEmpty(res, 204)
+		}
+
+		if (method === "GET") return await getDataset(req, res, db, config.dataDir, id)
 		if (method === "PUT") {
 			const body = await readBody(req, DATASET_BODY_CAP_BYTES)
 			const encoding = req.headers["content-encoding"] ?? ""
@@ -127,7 +157,9 @@ const handleApi = async (
 
 	if (!id) {
 		if (method !== "GET") throw new HttpError(405, "Method not allowed")
-		return sendJson(res, 200, composeCollection(collection, db))
+		const thumbnails =
+			new URLSearchParams(rawQuery ?? "").get("thumbnails") !== "0"
+		return sendJson(res, 200, composeCollection(collection, db, thumbnails))
 	}
 	if (!isSafeId(id)) throw new HttpError(400, "Invalid id")
 	if (method === "PUT") {
@@ -145,14 +177,83 @@ const handleApi = async (
 
 /** Arrays for the list-shaped collections, id-keyed records for the rest —
  *  matching the shapes the StorageContentAdapter trades in. */
-const composeCollection = (collection: JsonCollection, db: DatabaseSync): string => {
-	const rows = listRows(db, collection)
+const composeCollection = (
+	collection: JsonCollection,
+	db: DatabaseSync,
+	thumbnails = true
+): string => {
+	const rows = listRows(db, collection, { thumbnails })
 	if (collection === "embed-instances") {
 		return `{${rows
 			.map(({ id, body }) => `${JSON.stringify(id)}:${body}`)
 			.join(",")}}`
 	}
 	return `[${rows.map((r) => r.body).join(",")}]`
+}
+
+/** The metadata index: `{ "<id>": <meta> | null }` for every indexed dataset.
+ *  Pure SQLite read — the data dir is never touched, so this stays fast no
+ *  matter how much row data the library holds.
+ *
+ *  A `null` means no client has hydrated that dataset's metadata yet (rows
+ *  written before schema v4, or a body PUT whose meta follow-up was lost).
+ *  It is NOT an error and must never be read as "this dataset is gone": the
+ *  client falls back to fetching the body and PUTs the derived meta back. */
+const composeDatasetIndex = (db: DatabaseSync): string => {
+	const rows = listDatasetMeta(db)
+	return `{${rows
+		.map(({ id, meta }) => `${JSON.stringify(id)}:${meta ?? "null"}`)
+		.join(",")}}`
+}
+
+/** One dataset's body. The stored file is already gzip and every browser
+ *  accepts gzip, so the common path pipes the bytes out untouched — no
+ *  gunzip, no re-gzip, nothing inflated in memory. Only an identity client
+ *  (curl, tests) pays for decompression.
+ *
+ *  Carries an ETag so a revisit costs a 304 instead of the body; the index
+ *  route stays uncached because it is small and must always be current. */
+const getDataset = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	db: DatabaseSync,
+	dataDir: string,
+	id: string
+): Promise<void> => {
+	const stamp = datasetStamp(db, id)
+	if (!stamp) throw new HttpError(404, "Not found")
+	const etag = `"${stamp.updated_at}-${stamp.byte_size}"`
+	if (req.headers["if-none-match"] === etag) {
+		res.writeHead(304, { etag })
+		res.end()
+		return
+	}
+	const gzipped = await readDatasetFile(dataDir, id)
+	if (gzipped === null) {
+		// Indexed but the file is missing — the same orphan the boot sweep
+		// reports. A 404 is the honest answer; nothing self-heals.
+		logError(`dataset ${id} is indexed but its file is missing`)
+		throw new HttpError(404, "Not found")
+	}
+	const acceptsGzip = /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))
+	const headers: Record<string, string> = {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-cache",
+		etag,
+	}
+	if (acceptsGzip) headers["content-encoding"] = "gzip"
+	res.writeHead(200, headers)
+	if (acceptsGzip) {
+		res.end(gzipped)
+		return
+	}
+	await new Promise<void>((resolve, reject) => {
+		const gunzip = createGunzip()
+		gunzip.on("error", reject)
+		gunzip.on("end", resolve)
+		gunzip.pipe(res)
+		Readable.from(gzipped).pipe(gunzip)
+	})
 }
 
 /** Stream the full dataset record without ever holding an inflated dataset in
@@ -239,6 +340,36 @@ const assertItemJson = (body: string, id: string): void => {
 	const bodyId = (parsed as Record<string, unknown>).id
 	if (bodyId !== undefined && bodyId !== id) {
 		throw new HttpError(400, `Body id ${JSON.stringify(bodyId)} does not match URL id "${id}"`)
+	}
+}
+
+/** A dataset meta body must be a JSON object whose `id` matches the URL, and
+ *  must NOT carry row data — the whole point of the index is that it holds
+ *  none. Rejecting a `rows` key keeps a confused client from quietly turning
+ *  the index back into a full-corpus payload. */
+const assertDatasetMetaJson = (body: string, id: string): void => {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(body)
+	} catch {
+		throw new HttpError(400, "Body must be valid JSON")
+	}
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+		throw new HttpError(400, "Body must be a JSON object")
+	}
+	const record = parsed as Record<string, unknown>
+	if (record.id !== undefined && record.id !== id) {
+		throw new HttpError(
+			400,
+			`Body id ${JSON.stringify(record.id)} does not match URL id "${id}"`
+		)
+	}
+	const versions = record.versions
+	if (
+		Array.isArray(versions) &&
+		versions.some((v) => typeof v === "object" && v !== null && "rows" in v)
+	) {
+		throw new HttpError(400, "Dataset meta must not carry version rows")
 	}
 }
 

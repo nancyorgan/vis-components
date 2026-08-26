@@ -76,6 +76,7 @@ import {
 	type ExportSize,
 	type ExportUnit,
 } from "../lib/storage"
+import { datasetIndexFrom } from "../lib/datasetMeta"
 import { idbAvailable } from "../lib/storage/idb"
 import {
 	overlayThemes,
@@ -94,6 +95,7 @@ import {
 import {
 	type DataLabelsEncodings,
 	type Dataset,
+	type DatasetMeta,
 	type EmbedInstance,
 	type Encodings,
 	type FieldType,
@@ -245,37 +247,85 @@ export const foldersAtom = contentAtom<Folder[]>(
 	(adapter, folders) => adapter.saveFolders(folders)
 )
 
-/** Datasets live in IndexedDB (durable, large quota) rather than the shared
- * ~5 MB localStorage bucket.
- *  1. The lazy first read synchronously bootstraps from the legacy
- *     localStorage copy so the first render — and the IndexedDB-less
- *     test/SSR environment — sees datasets immediately.
- *  2. `onMount` asynchronously loads the authoritative IndexedDB copy
- *     (migrating the legacy localStorage blob into IDB on first run),
- *     overriding the bootstrap — unless the user already changed datasets
- *     this session (`touched`), so a fresh upload is never clobbered by the
- *     in-flight load.
- *  3. Every write persists to IndexedDB. */
-const datasetsBaseAtom = atom<{
-	value: Record<string, Dataset> | Unset
+/** Datasets are split in two, because a library's row data can run to
+ * hundreds of megabytes and almost nothing needs it.
+ *
+ *  - `datasetIndexAtom` — row-free metadata for EVERY dataset. This is what
+ *    boots, and it is the authoritative list of which datasets exist. The
+ *    library grid, the header, sort/filter, and the version badge read only
+ *    this.
+ *  - `loadedDatasetsAtom` — the bodies actually pulled into memory so far,
+ *    which is normally just the one a visualization is drawing. NOT the whole
+ *    store: never infer "this dataset was deleted" from its absence here.
+ *
+ * Deletion is therefore explicit (`deleteDatasetsAtom`) rather than implied
+ * by a dataset missing from a whole-map save. With lazy bodies, an implicit
+ * whole-collection diff would read every un-loaded dataset as deleted and
+ * destroy the library on the next save. */
+const datasetIndexBaseAtom = atom<{
+	value: Record<string, DatasetMeta> | Unset
 	touched: boolean
 }>({ value: UNSET, touched: false })
-datasetsBaseAtom.onMount = (setSelf) => {
+datasetIndexBaseAtom.onMount = (setSelf) => {
 	const adapter = getStorageAdapter()
 	// Skip the async load where IndexedDB is absent (SSR / happy-dom tests) so
 	// those keep the synchronous bootstrap and don't fire a post-mount state
 	// update — unless a hosted adapter is the source of truth, which must load
 	// regardless of local IndexedDB.
 	if (!adapter.capabilities.remoteLoad && !idbAvailable()) return
-	void adapter.loadDatasets().then((datasets) => {
-		setSelf((prev) => (prev.touched ? prev : { ...prev, value: datasets }))
+	void adapter.loadDatasetIndex().then((index) => {
+		setSelf((prev) => (prev.touched ? prev : { ...prev, value: index }))
 	})
 }
 
-export const datasetsAtom = atom(
+/** Dataset bodies held in memory. Written by the upload/version flows and
+ * filled in by `ensureDatasetLoadedAtom`; every write persists. Upsert-only —
+ * removing an id here just drops it from the cache, it does not delete
+ * anything. */
+const loadedDatasetsBaseAtom = atom<Record<string, Dataset>>({})
+
+const bootstrapIndex = (): Record<string, DatasetMeta> =>
+	datasetIndexFrom(loadDatasets())
+
+export const datasetIndexAtom = atom(
 	(get) => {
-		const s = get(datasetsBaseAtom)
-		return s.value === UNSET ? loadDatasets() : s.value
+		const s = get(datasetIndexBaseAtom)
+		const stored = s.value === UNSET ? bootstrapIndex() : s.value
+		// A body in memory is by definition a dataset that exists, and its
+		// metadata is fresher than anything stored — an in-flight upload is
+		// visible in the library before its write lands. Deriving rather than
+		// mirroring on write also means the two can never disagree.
+		const loaded = get(loadedDatasetsBaseAtom)
+		return Object.keys(loaded).length === 0
+			? stored
+			: { ...stored, ...datasetIndexFrom(loaded) }
+	},
+	(
+		get,
+		set,
+		update:
+			| Record<string, DatasetMeta>
+			| ((prev: Record<string, DatasetMeta>) => Record<string, DatasetMeta>)
+	) => {
+		const s = get(datasetIndexBaseAtom)
+		const next = resolveUpdate(
+			update,
+			s.value === UNSET ? bootstrapIndex() : s.value
+		)
+		set(datasetIndexBaseAtom, { value: next, touched: true })
+	}
+)
+
+export const loadedDatasetsAtom = atom(
+	(get) => {
+		const loaded = get(loadedDatasetsBaseAtom)
+		// Synchronous fallback to the localStorage copy, mirroring every other
+		// persisted atom. Covers environments with no IndexedDB to lazily load
+		// FROM — SSR, the happy-dom tests, privacy modes — and a store that
+		// hasn't been split into per-dataset keys yet. Empty (so free) once the
+		// split has run, which is the normal case. Lazily-loaded bodies win.
+		const boot = loadDatasets()
+		return Object.keys(boot).length === 0 ? loaded : { ...boot, ...loaded }
 	},
 	(
 		get,
@@ -284,13 +334,70 @@ export const datasetsAtom = atom(
 			| Record<string, Dataset>
 			| ((prev: Record<string, Dataset>) => Record<string, Dataset>)
 	) => {
-		const s = get(datasetsBaseAtom)
-		const next = resolveUpdate(
-			update,
-			s.value === UNSET ? loadDatasets() : s.value
-		)
-		set(datasetsBaseAtom, { value: next, touched: true })
+		const next = resolveUpdate(update, get(loadedDatasetsBaseAtom))
+		set(loadedDatasetsBaseAtom, next)
 		void getStorageAdapter().saveDatasets(next)
+	}
+)
+
+/** How far along the body fetch is, per dataset id. The canvas needs to tell
+ * "rows are on their way" from "there is nothing to draw" — rendering an
+ * empty chart during the former is what lets the thumbnail pipeline capture a
+ * blank preview. */
+export type DatasetLoadState = "loading" | "loaded" | "missing"
+
+export const datasetLoadStatesAtom = atom<Record<string, DatasetLoadState>>({})
+
+/** Pull one dataset's rows into memory if they aren't already, at most once
+ * per id per session. Write-only action: `set(ensureDatasetLoadedAtom, id)`. */
+export const ensureDatasetLoadedAtom = atom(
+	null,
+	(get, set, id: string | null) => {
+		if (!id) return
+		if (get(loadedDatasetsBaseAtom)[id]) return
+		if (get(datasetLoadStatesAtom)[id] === "loading") return
+
+		set(datasetLoadStatesAtom, (prev) => ({ ...prev, [id]: "loading" }))
+		void getStorageAdapter()
+			.loadDataset(id)
+			.then((dataset) => {
+				if (!dataset) {
+					set(datasetLoadStatesAtom, (prev) => ({ ...prev, [id]: "missing" }))
+					return
+				}
+				// Straight to the base atom: this is a read completing, not an
+				// edit, and routing it through the saving setter would write the
+				// dataset back out again on every open.
+				set(loadedDatasetsBaseAtom, (prev) => ({ ...prev, [id]: dataset }))
+				set(datasetLoadStatesAtom, (prev) => ({ ...prev, [id]: "loaded" }))
+			})
+	}
+)
+
+/** Delete datasets outright — the only path that removes them from storage.
+ * Explicit because absence from `loadedDatasetsAtom` means "not loaded", not
+ * "deleted". */
+export const deleteDatasetsAtom = atom(
+	null,
+	(_get, set, ids: readonly string[]) => {
+		if (ids.length === 0) return
+		const doomed = new Set(ids)
+		set(datasetIndexAtom, (prev) =>
+			Object.fromEntries(
+				Object.entries(prev).filter(([id]) => !doomed.has(id))
+			)
+		)
+		set(loadedDatasetsBaseAtom, (prev) =>
+			Object.fromEntries(
+				Object.entries(prev).filter(([id]) => !doomed.has(id))
+			)
+		)
+		set(datasetLoadStatesAtom, (prev) =>
+			Object.fromEntries(
+				Object.entries(prev).filter(([id]) => !doomed.has(id))
+			)
+		)
+		void getStorageAdapter().deleteDatasets(ids)
 	}
 )
 

@@ -179,9 +179,14 @@ export const installEphemeralExamples = async (
 export const applyExampleSeed = async (seed: SeedBundle): Promise<void> => {
 	try {
 		if (seed.visuals.length === 0 || seed.exportedAt === null) return
+		// Marker first, deliberately: in server mode `loadVisuals()` is a full
+		// visuals-plus-thumbnails fetch, and this runs before render, so
+		// checking it first put a blocking network round-trip on EVERY boot.
+		// The marker is device-local, so a new device still falls through to
+		// the authoritative check below.
+		if (loadExampleSeedApplied() === seed.exportedAt) return
 		const adapter = getStorageAdapter()
 		if ((await adapter.loadVisuals()).length > 0) return
-		if (loadExampleSeedApplied() === seed.exportedAt) return
 
 		// Awaited so the thumbnail side-table is populated before the
 		// visuals atom mounts and does its one-shot thumbnail merge.

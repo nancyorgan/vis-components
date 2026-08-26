@@ -10,7 +10,7 @@ import {
 import { loadUserDefaultThemeId } from "../../chartBuilder/lib/storage"
 import { stringifyJsonDangerous } from "../../../lib/json"
 import {
-	datasetsAtom,
+	loadedDatasetsAtom,
 	foldersAtom,
 	themesAtom,
 	userDefaultThemeIdAtom,
@@ -37,7 +37,7 @@ const plural = (n: number, one: string, many = `${one}s`): string =>
  *  imported work is backed up server-side too. */
 export const SharingPage = () => {
 	const [visuals, setVisuals] = useAtom(visualsAtom)
-	const [datasets, setDatasets] = useAtom(datasetsAtom)
+	const [datasets, setDatasets] = useAtom(loadedDatasetsAtom)
 	const [folders, setFolders] = useAtom(foldersAtom)
 	const [themes, setThemes] = useAtom(themesAtom)
 	const setUserDefaultThemeId = useSetAtom(userDefaultThemeIdAtom)
