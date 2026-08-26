@@ -64,6 +64,14 @@ const pxToUnit = (px: number, unit: ExportUnit): number =>
 const unitToPx = (v: number, unit: ExportUnit): number =>
 	Math.round(v * PX_PER_UNIT[unit])
 
+// Temporary kill switch for iframe embeds while they're under test. All the
+// embed wiring (routes, capture, instance tracking, snippet building) stays
+// intact — the Embed tab just shows a notice instead of the snippet boxes,
+// the copy button and the open-embed link. Flip to false to restore it.
+// Typed `boolean` rather than a literal so both branches stay type-checked.
+const EMBEDS_DISABLED: boolean = true
+const EMBEDS_DISABLED_NOTICE = "Embeds are currently disabled for testing."
+
 // Fallback iframe dimensions for the embed snippets, used only when the
 // on-screen chart / legend can't be measured (e.g. modal opened before the
 // chart mounted).
@@ -129,7 +137,7 @@ const useViewportSize = () => {
 }
 
 export const ExportModal = ({ open, onClose, visualId }: Props) => {
-	const [tab, setTab] = useState<Tab>("embed")
+	const [tab, setTab] = useState<Tab>(EMBEDS_DISABLED ? "export" : "embed")
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [height, setHeight] = useState(DEFAULT_HEIGHT)
 	const [aspectLocked, setAspectLocked] = useState(false)
@@ -421,111 +429,127 @@ const EmbedTab = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-				<strong>Same-origin only.</strong> Embeds currently work only when
-				hosted on the same origin as your vis-components instance.
-			</div>
-
-			<fieldset className="flex flex-col gap-3">
-				<legend className="text-sm font-medium text-stone-900 dark:text-stone-100">
-					Pin behavior
-				</legend>
-				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-				<label className="flex items-start gap-2 text-sm">
-					<input
-						type="radio"
-						className="mt-1"
-						checked={mode === "live"}
-						onChange={() => setMode("live")}
-					/>
-					<div>
-						<div className="font-medium text-stone-900 dark:text-stone-100">
-							Live updating
-						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
-							Embed always renders the latest version of the data set.
-						</div>
-					</div>
-				</label>
-				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-				<label className="flex items-start gap-2 text-sm">
-					<input
-						type="radio"
-						className="mt-1"
-						checked={mode === "pinned"}
-						onChange={() => setMode("pinned")}
-						disabled={!view}
-					/>
-					<div>
-						<div className="font-medium text-stone-900 dark:text-stone-100">
-							Pin to current version{view ? ` (${versionLabel})` : ""}
-						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
-							Embed stays frozen on this version forever.
-						</div>
-					</div>
-				</label>
-			</fieldset>
-
-			{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the checkbox; its text sits below the rule's depth-2 scan */}
-			<label className="flex items-start gap-2 rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60">
-				<input
-					type="checkbox"
-					className="mt-0.5"
-					checked={splitLegend}
-					onChange={(e) => setSplitLegend(e.target.checked)}
-				/>
-				<div>
-					<div className="font-medium text-stone-900 dark:text-stone-100">
-						Render legend as a separate iframe
-					</div>
-					<div className="text-sm text-stone-600 dark:text-stone-400">
-						Get two snippets — chart and legend in independently sized iframes,
-						so you can place the legend wherever it fits your page layout.
-					</div>
+			{EMBEDS_DISABLED ? (
+				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+					{EMBEDS_DISABLED_NOTICE}
 				</div>
-			</label>
+			) : (
+				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+					<strong>Same-origin only.</strong> Embeds currently work only when
+					hosted on the same origin as your vis-components instance.
+				</div>
+			)}
 
-			<div className="flex flex-col gap-3">
-				{snippets.map((s) => {
-					const value = drafts[s.key] ?? s.value
-					return (
-						<div key={s.key} className="flex flex-col gap-2">
-							<label
-								htmlFor={`${snippetIdBase}-${s.key}`}
-								className="text-sm font-medium text-stone-900 dark:text-stone-100"
-							>
-								{s.label}
-							</label>
-							<textarea
-								id={`${snippetIdBase}-${s.key}`}
-								value={value}
-								onChange={(e) =>
-									setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
-								}
-								rows={3}
-								className="rounded-sm border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
-								onFocus={(e) => e.currentTarget.select()}
+			{!EMBEDS_DISABLED && (
+				<>
+					<fieldset className="flex flex-col gap-3">
+						<legend className="text-sm font-medium text-stone-900 dark:text-stone-100">
+							Pin behavior
+						</legend>
+						{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+						<label className="flex items-start gap-2 text-sm">
+							<input
+								type="radio"
+								className="mt-1"
+								checked={mode === "live"}
+								onChange={() => setMode("live")}
 							/>
-							<div className="flex items-center justify-end">
-								<Button compact onClick={() => onCopy(s.key, value)}>
-									{copied === s.key ? "Copied!" : "Copy snippet"}
-								</Button>
+							<div>
+								<div className="font-medium text-stone-900 dark:text-stone-100">
+									Live updating
+								</div>
+								<div className="text-sm text-stone-600 dark:text-stone-400">
+									Embed always renders the latest version of the data set.
+								</div>
+							</div>
+						</label>
+						{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+						<label className="flex items-start gap-2 text-sm">
+							<input
+								type="radio"
+								className="mt-1"
+								checked={mode === "pinned"}
+								onChange={() => setMode("pinned")}
+								disabled={!view}
+							/>
+							<div>
+								<div className="font-medium text-stone-900 dark:text-stone-100">
+									Pin to current version{view ? ` (${versionLabel})` : ""}
+								</div>
+								<div className="text-sm text-stone-600 dark:text-stone-400">
+									Embed stays frozen on this version forever.
+								</div>
+							</div>
+						</label>
+					</fieldset>
+
+					{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the checkbox; its text sits below the rule's depth-2 scan */}
+					<label className="flex items-start gap-2 rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60">
+						<input
+							type="checkbox"
+							className="mt-0.5"
+							checked={splitLegend}
+							onChange={(e) => setSplitLegend(e.target.checked)}
+						/>
+						<div>
+							<div className="font-medium text-stone-900 dark:text-stone-100">
+								Render legend as a separate iframe
+							</div>
+							<div className="text-sm text-stone-600 dark:text-stone-400">
+								Get two snippets — chart and legend in independently sized iframes,
+								so you can place the legend wherever it fits your page layout.
 							</div>
 						</div>
-					)
-				})}
-			</div>
+					</label>
 
-			<div className="flex items-center justify-between">
-				<a
-					href={embedUrl}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
-				>
-					Open embed in new tab
-				</a>
+					<div className="flex flex-col gap-3">
+						{snippets.map((s) => {
+							const value = drafts[s.key] ?? s.value
+							return (
+								<div key={s.key} className="flex flex-col gap-2">
+									<label
+										htmlFor={`${snippetIdBase}-${s.key}`}
+										className="text-sm font-medium text-stone-900 dark:text-stone-100"
+									>
+										{s.label}
+									</label>
+									<textarea
+										id={`${snippetIdBase}-${s.key}`}
+										value={value}
+										onChange={(e) =>
+											setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
+										}
+										rows={3}
+										className="rounded-sm border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+										onFocus={(e) => e.currentTarget.select()}
+									/>
+									<div className="flex items-center justify-end">
+										<Button compact onClick={() => onCopy(s.key, value)}>
+											{copied === s.key ? "Copied!" : "Copy snippet"}
+										</Button>
+									</div>
+								</div>
+							)
+						})}
+					</div>
+				</>
+			)}
+
+			<div
+				className={`flex items-center ${
+					EMBEDS_DISABLED ? "justify-end" : "justify-between"
+				}`}
+			>
+				{!EMBEDS_DISABLED && (
+					<a
+						href={embedUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+					>
+						Open embed in new tab
+					</a>
+				)}
 				<Button compact outline onClick={onClose}>
 					Done
 				</Button>
