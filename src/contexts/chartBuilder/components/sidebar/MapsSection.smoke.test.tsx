@@ -22,7 +22,7 @@ import { MapsSection } from "./MapsSection"
  *  Seed encodings through the same raw-localStorage key the viz smoke tests
  *  use (`vis-components:currentEncodings`). */
 const seed = (
-	coordSystem: "noMap" | "cartesian" | "geographic",
+	coordSystem: "noMap" | "geographic",
 	overrides: Partial<typeof DEFAULT_MAP_CONFIG> = {},
 	encodings?: Partial<Record<string, { field: string }>>
 ) => {
@@ -95,11 +95,12 @@ afterEach(cleanup)
 
 describe("MapsSection", () => {
 	it("renders the coordinate-system toggle without throwing", () => {
-		seed("cartesian")
+		seed("noMap")
 		mount()
 		expect(screen.getByRole("radio", { name: /No map/i })).toBeTruthy()
-		expect(screen.getByRole("radio", { name: /Cartesian/i })).toBeTruthy()
 		expect(screen.getByRole("radio", { name: /Geographic/i })).toBeTruthy()
+		// The retired Cartesian option must not come back.
+		expect(screen.queryByRole("radio", { name: /Cartesian/i })).toBeNull()
 	})
 
 	it("defaults to No map (the neutral default), hiding the projection control", () => {
@@ -113,8 +114,8 @@ describe("MapsSection", () => {
 		expect(screen.queryByLabelText(/Projection/i)).toBeNull()
 	})
 
-	it("hides the projection control in Cartesian mode", () => {
-		seed("cartesian")
+	it("hides the projection control in No-map mode", () => {
+		seed("noMap")
 		mount()
 		expect(screen.queryByLabelText(/Projection/i)).toBeNull()
 	})
@@ -126,7 +127,7 @@ describe("MapsSection", () => {
 	})
 
 	it("reveals the projection control after toggling to Geographic", () => {
-		seed("cartesian")
+		seed("noMap")
 		mount()
 		expect(screen.queryByLabelText(/Projection/i)).toBeNull()
 		fireEvent.click(screen.getByRole("radio", { name: /Geographic/i }))
@@ -224,8 +225,8 @@ describe("MapsSection", () => {
 		expect(toggle.checked).toBe(true)
 	})
 
-	it("hides the fill-regions toggle in Cartesian mode", () => {
-		seed("cartesian")
+	it("hides the fill-regions toggle in No-map mode", () => {
+		seed("noMap")
 		mount()
 		expect(screen.queryByLabelText(/Fill regions with no data/i)).toBeNull()
 	})
@@ -278,8 +279,8 @@ describe("MapsSection", () => {
 		).toBe("true")
 	})
 
-	it("hides the no-data pattern chips in Cartesian mode (no no-data fill painted)", () => {
-		seed("cartesian")
+	it("hides the no-data pattern chips in No-map mode (no no-data fill painted)", () => {
+		seed("noMap")
 		mount()
 		expect(screen.queryByRole("button", { name: "None" })).toBeNull()
 	})

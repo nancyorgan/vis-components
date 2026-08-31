@@ -193,8 +193,7 @@ describe("getChartModeDef — mapConfig threading is a no-op for existing modes"
 	// Threading MapConfig as a 4th optional param into detection must NOT
 	// change which mode resolves for any existing (cartesian) encoding set.
 	// For each representative case, the resolved id must be identical whether
-	// mapConfig is omitted, the default (coordSystem:"cartesian"), or an
-	// explicit cartesian config.
+	// mapConfig is omitted or the default (coordSystem:"noMap").
 	const cases: Array<{ name: string; enc: Record<string, string> }> = [
 		{ name: "scatter (x+y)", enc: { x: "a", y: "b" } },
 		{ name: "bars-x (x+length)", enc: { x: "a", length: "b" } },
@@ -215,12 +214,7 @@ describe("getChartModeDef — mapConfig threading is a no-op for existing modes"
 				undefined,
 				DEFAULT_MAP_CONFIG
 			).id
-			const withCartesian = getChartModeDef(e, undefined, undefined, {
-				...DEFAULT_MAP_CONFIG,
-				coordSystem: "cartesian",
-			}).id
 			expect(withDefault).toBe(noMap)
-			expect(withCartesian).toBe(noMap)
 		})
 	}
 })

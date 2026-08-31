@@ -56,7 +56,7 @@ test("bubble map happy path: map connection + area, go Geographic, symbols rende
 }) => {
 	const { rows, rowCount } = loadFixtureRows()
 
-	// Seed a dataset + saved visual with NO encodings (cartesian default).
+	// Seed a dataset + saved visual with NO encodings (no-map default).
 	// We map the channels and toggle Geographic through the real UI below.
 	const fx: SeedFixture = {
 		visualId: "vis-bubble-map",

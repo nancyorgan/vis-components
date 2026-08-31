@@ -409,6 +409,44 @@ describe("visualsMigrations v3 -> v4 (showNoDataRegions reset to true)", () => {
 	})
 })
 
+describe("visualsMigrations v4 -> v5 (retired cartesian coordSystem folds into noMap)", () => {
+	const upgrade = visualsMigrations[4]!
+
+	it("rewrites an embedded mapConfig's coordSystem: \"cartesian\" to \"noMap\"", () => {
+		const out = upgrade([
+			{
+				id: "a",
+				mapConfig: {
+					coordSystem: "cartesian",
+					noDataFill: "#e7e5e4",
+					showNoDataRegions: true,
+				},
+			},
+		]) as Array<{ mapConfig: Record<string, unknown> }>
+		expect(out[0]?.mapConfig.coordSystem).toBe("noMap")
+		// Every other mapConfig field is untouched.
+		expect(out[0]?.mapConfig.noDataFill).toBe("#e7e5e4")
+		expect(out[0]?.mapConfig.showNoDataRegions).toBe(true)
+	})
+
+	it("leaves geographic and noMap coordSystems untouched", () => {
+		const visuals = [
+			{ id: "geo", mapConfig: { coordSystem: "geographic" } },
+			{ id: "plain", mapConfig: { coordSystem: "noMap" } },
+		]
+		expect(upgrade(visuals)).toEqual(visuals)
+	})
+
+	it("leaves visuals without a mapConfig alone (restore-time default-merge covers them)", () => {
+		expect(upgrade([{ id: "bare" }])).toEqual([{ id: "bare" }])
+	})
+
+	it("tolerates non-array input and non-object entries", () => {
+		expect(upgrade("junk")).toBe("junk")
+		expect(upgrade([null, "x"])).toEqual([null, "x"])
+	})
+})
+
 describe("CONTENT_MIGRATIONS", () => {
 	// Migration N upgrades vN to vN+1, so reaching `currentVersion` needs
 	// exactly that many steps. This is the guard against the failure mode the

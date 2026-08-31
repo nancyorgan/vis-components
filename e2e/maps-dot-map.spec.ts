@@ -57,7 +57,7 @@ test("dot map happy path: map X/Y lon/lat, go Geographic, points render", async 
 	const { rows, rowCount } = loadFixtureRows()
 	expect(rowCount).toBe(10)
 
-	// Seed a dataset + saved visual with NO encodings (cartesian default).
+	// Seed a dataset + saved visual with NO encodings (no-map default).
 	// We map the channels and toggle Geographic through the real UI below.
 	const fx: SeedFixture = {
 		visualId: "vis-dot-map",

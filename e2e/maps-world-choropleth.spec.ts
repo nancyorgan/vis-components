@@ -51,7 +51,7 @@ test("world choropleth happy path: map connection + color, go Geographic, World 
 }) => {
 	const { rows, rowCount } = loadFixtureRows()
 
-	// Seed a dataset + saved visual with NO encodings (cartesian default).
+	// Seed a dataset + saved visual with NO encodings (no-map default).
 	// We map the channels and toggle Geographic + World Countries below.
 	const fx: SeedFixture = {
 		visualId: "vis-world-choropleth",

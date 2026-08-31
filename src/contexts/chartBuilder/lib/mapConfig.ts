@@ -1,9 +1,9 @@
-/** Master switch for the Maps section. `"noMap"` (the default) and `"cartesian"`
- *  both render the ordinary x/y chart with no basemap — they share a render path;
- *  `"noMap"` is just the neutral default so a fresh chart doesn't claim a
- *  coordinate system. Only `"geographic"` activates the map (projection, basemap,
- *  geo chart modes). */
-export type CoordSystemKind = "noMap" | "cartesian" | "geographic"
+/** Master switch for the Maps section. `"noMap"` (the default) renders the
+ *  ordinary x/y chart with no basemap; `"geographic"` activates the map
+ *  (projection, basemap, geo chart modes). A legacy `"cartesian"` value —
+ *  behaviorally identical to `"noMap"` — was retired; the mapConfig v7→v8 and
+ *  visuals v4→v5 migrations rewrite persisted ones. */
+export type CoordSystemKind = "noMap" | "geographic"
 export type GeographyLevel = "states" | "counties" | "zcta" | "countries"
 export type ProjectionName = "albersUsa" | "naturalEarth" | "mercator"
 // "zip" = 5-digit ZIP/ZCTA codes (the zcta level's only key type). Adding a

@@ -9,7 +9,8 @@ import { loadVersioned, migrateVersioned, saveVersioned } from "./versioning"
  *  v5 `customViewport`; v6 RESETS `showNoDataRegions` to true (one-time —
  *  the default flipped so regions absent from the dataset paint with the
  *  no-data fill; pre-v6 falses were overwhelmingly the old backfilled
- *  default); v7 backfills `noDataPattern` (null) + `noDataPatternInk`.
+ *  default); v7 backfills `noDataPattern` (null) + `noDataPatternInk`;
+ *  v8 rewrites the retired `coordSystem: "cartesian"` to `"noMap"`.
  *  These tests pin:
  *   - a missing stored value falls back to DEFAULT_MAP_CONFIG (handled at
  *     the `loadVersioned` layer, mirroring versioning.test.ts);
@@ -371,6 +372,40 @@ describe("mapConfig migration", () => {
 		)
 		expect((result as MapConfig).noDataPattern).toBe(3)
 		expect((result as MapConfig).noDataPatternInk).toBe("#123456")
+	})
+
+	it("v7→v8 rewrites the retired coordSystem: \"cartesian\" to \"noMap\"", () => {
+		const v7Data = {
+			coordSystem: "cartesian",
+			projection: "auto",
+			geographyLevel: "auto",
+			keyType: "auto",
+			focusRegion: "auto",
+			customViewport: null,
+			noDataFill: "#e7e5e4",
+			noDataPattern: null,
+			noDataPatternInk: "#a8a29e",
+			showNoDataRegions: true,
+			showBasemap: true,
+		}
+		const result = migrateVersioned(
+			{ _v: 7, data: v7Data },
+			MAP_CONFIG_VERSION,
+			mapConfigMigrations,
+			DEFAULT_MAP_CONFIG
+		)
+		expect(result).toEqual({ ...v7Data, coordSystem: "noMap" })
+	})
+
+	it("v7→v8 leaves a non-cartesian coordSystem untouched", () => {
+		const v7Data = { ...DEFAULT_MAP_CONFIG, coordSystem: "geographic" }
+		const result = migrateVersioned(
+			{ _v: 7, data: v7Data },
+			MAP_CONFIG_VERSION,
+			mapConfigMigrations,
+			DEFAULT_MAP_CONFIG
+		)
+		expect((result as MapConfig).coordSystem).toBe("geographic")
 	})
 
 	it("a current wrapper with showNoDataRegions: false round-trips unchanged (reset never re-fires)", () => {

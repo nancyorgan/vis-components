@@ -153,7 +153,7 @@ export const AestheticsPanel = () => {
 						/>
 						Allow scrolling for tall/wide charts
 					</label>
-					<p className="ml-6 vc-help">
+					<p className="vc-help">
 						Off: the chart shrinks to fit the available space.
 						Panels and category labels may compress when there are many of
 						them. <br></br><br></br>On: each panel keeps a ~200px minimum and each categorical

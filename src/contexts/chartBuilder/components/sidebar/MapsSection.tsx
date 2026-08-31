@@ -127,9 +127,9 @@ const focusRegionOptions: {
 ]
 
 /** Single-select segmented control for the coordinate system — the master
- *  switch. No map (the neutral default) and Cartesian both render the usual x/y
- *  plots; Geographic draws maps. Modeled on the Distribution-type segmented
- *  control in AxisOptionsPanel so the two read the same. */
+ *  switch. No map (the default) renders the usual x/y plots; Geographic draws
+ *  maps. Modeled on the Distribution-type segmented control in
+ *  AxisOptionsPanel so the two read the same. */
 const CoordSystemToggle = ({
 	value,
 	onChange,
@@ -139,7 +139,6 @@ const CoordSystemToggle = ({
 }) => {
 	const segments: { key: CoordSystemKind; label: string }[] = [
 		{ key: "noMap", label: "No map" },
-		{ key: "cartesian", label: "Cartesian" },
 		{ key: "geographic", label: "Geographic" },
 	]
 	const segBase =

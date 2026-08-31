@@ -22,7 +22,7 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 4
+export const VISUALS_VERSION = 5
 export const DATASETS_VERSION = 1
 export const CHANNEL_CONFIGS_VERSION = 1
 export const LABELS_VERSION = 1
@@ -37,7 +37,7 @@ export const FIELD_OVERRIDES_VERSION = 1
 export const FIELD_LEVEL_ORDERS_VERSION = 1
 export const ANNOTATIONS_VERSION = 4
 export const CAPTION_VERSION = 1
-export const MAP_CONFIG_VERSION = 7
+export const MAP_CONFIG_VERSION = 8
 export const RESHAPE_CONFIG_VERSION = 1
 export const USER_FONTS_VERSION = 1
 
@@ -342,6 +342,22 @@ export const visualsMigrations: Migration[] = [
 			}
 		})
 	},
+	// v4 -> v5: the "Cartesian" coordinate-system option was retired — it
+	// shared a render path with "noMap" and only "geographic" ever changed
+	// behavior — so embedded mapConfigs rewrite the stored value. (Saved
+	// visuals carry their own mapConfig copy that never runs
+	// mapConfigMigrations; this mirrors that chain's v7→v8 step.)
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		return raw.map((v) => {
+			if (typeof v !== "object" || !v) return v
+			const vis = v as Record<string, unknown>
+			const mc = vis.mapConfig
+			if (typeof mc !== "object" || !mc) return v
+			if ((mc as Record<string, unknown>).coordSystem !== "cartesian") return v
+			return { ...vis, mapConfig: { ...mc, coordSystem: "noMap" } }
+		})
+	},
 ]
 
 // ──────────────────────────────────────────────────────────────────────
@@ -434,8 +450,10 @@ export const channelConfigsMigrations = identityMigrations
  *  and pre-v6 `false` values are overwhelmingly the old backfilled default,
  *  not user choices (turning it off again persists at v6+ and is never
  *  re-flipped). v6→v7 backfills `noDataPattern` (null) + `noDataPatternInk`
- *  for configs persisted before the no-data pattern option shipped. Every
- *  step leaves every other field untouched. */
+ *  for configs persisted before the no-data pattern option shipped. v7→v8
+ *  rewrites `coordSystem: "cartesian"` → `"noMap"` — the Cartesian option was
+ *  retired (it shared a render path with "noMap"; only "geographic" ever
+ *  changed behavior). Every step leaves every other field untouched. */
 export const mapConfigMigrations: Migration[] = [
 	identityMigrations[0],
 	(raw) => {
@@ -499,6 +517,14 @@ export const mapConfigMigrations: Migration[] = [
 			noDataPatternInk:
 				typeof o.noDataPatternInk === "string" ? o.noDataPatternInk : "#a8a29e",
 		}
+	},
+	(raw) => {
+		if (typeof raw !== "object" || !raw) return raw
+		const o = raw as Record<string, unknown>
+		// v7→v8: the retired "cartesian" option folds into "noMap" (behaviorally
+		// identical; only "geographic" activates anything). Idempotent — any
+		// other value passes through untouched.
+		return o.coordSystem === "cartesian" ? { ...o, coordSystem: "noMap" } : o
 	},
 ]
 export const labelsMigrations = identityMigrations
