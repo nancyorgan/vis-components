@@ -276,10 +276,14 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 				state={{
 					clientX: hovered.clientX,
 					clientY: hovered.clientY,
-					fields: dataset.fields.map((f) => ({
-						name: f.name,
-						value: hovered.row[f.name],
-					})),
+					// Line hovers supply their own fields (connection value +
+					// series-constant fields); point hovers show the full row.
+					fields:
+						hovered.fields ??
+						dataset.fields.map((f) => ({
+							name: f.name,
+							value: hovered.row[f.name],
+						})),
 				}}
 			/>
 		)
@@ -728,7 +732,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					dataset,
 					drawOrderLevels,
 					aestheticScales.hue?.field.type,
-					aestheticScales.themeInkFallback
+					aestheticScales.themeInkFallback,
+					setHovered
 				)}
 				{renderMarkPaths({
 					marks: sortByDrawOrder(

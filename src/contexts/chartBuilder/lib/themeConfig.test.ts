@@ -410,6 +410,46 @@ describe("legend section changed dot", () => {
 		).toBe(true)
 	})
 
+	it("a per-section swatch setting lights ONLY that channel's swatch group", () => {
+		const groups = explainLegendCustomization(
+			{ ...base, swatchShapes: { hue: 3 } },
+			STUB_THEME,
+		)
+		expect(groups.has("swatch:hue")).toBe(true)
+		expect(groups.has("swatch:pattern")).toBe(false)
+		expect(groups.has("shapeSwatch")).toBe(false)
+	})
+
+	it("the shape legend's swatch size lights swatch:shape", () => {
+		const groups = explainLegendCustomization(
+			{ ...base, swatchSizes: { shape: 9 } },
+			STUB_THEME,
+		)
+		expect(groups.has("swatch:shape")).toBe(true)
+		expect(groups.has("swatch:hue")).toBe(false)
+	})
+
+	it("a stored null swatch shape (the default rectangle) shows no dot", () => {
+		expect(
+			explainLegendCustomization(
+				{ ...base, swatchShapes: { hue: null } },
+				STUB_THEME,
+			).size,
+		).toBe(0)
+	})
+
+	it("the shared aux swatch color lights the sections hosting its picker", () => {
+		const groups = explainLegendCustomization(
+			{ ...base, auxLegendSwatchColor: "#123456" },
+			STUB_THEME,
+		)
+		expect(groups.has("auxSwatch")).toBe(true)
+		expect(groups.has("swatch:saturation")).toBe(true)
+		expect(groups.has("swatch:brightness")).toBe(true)
+		expect(groups.has("swatch:opacity")).toBe(true)
+		expect(groups.has("swatch:hue")).toBe(false)
+	})
+
 	it("a shape-swatch color lights ONLY the shapeSwatch group", () => {
 		const groups = explainLegendCustomization(
 			{ ...base, shapeLegendFillColor: "#123456" },

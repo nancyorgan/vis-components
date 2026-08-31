@@ -1,7 +1,7 @@
-import { render } from "@testing-library/react"
+import { cleanup, fireEvent, render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import {
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_DATA_LABELS_CONFIG,
@@ -133,20 +133,20 @@ const mount = (cfg: Partial<ConnectionConfig> = {}) => {
 describe("Connection — point sampling", () => {
 	it("default `pointSampling=all` renders one mark per row (10 rows → 10 paths)", () => {
 		const c = mount()
-		const paths = c.querySelectorAll("path")
+		const paths = c.querySelectorAll("path:not(.vc-line-hit)")
 		expect(paths.length).toBe(10)
 	})
 
 	it("`first-and-last` renders only 2 marks per group (4 marks total for 2 groups)", () => {
 		const c = mount({ pointSampling: "first-and-last" })
-		const paths = c.querySelectorAll("path")
+		const paths = c.querySelectorAll("path:not(.vc-line-hit)")
 		// 2 groups × 2 marks (first + last) = 4 marks total.
 		expect(paths.length).toBe(4)
 	})
 
 	it("`first-only` renders 1 mark per group (2 marks total)", () => {
 		const c = mount({ pointSampling: "first-only" })
-		const paths = c.querySelectorAll("path")
+		const paths = c.querySelectorAll("path:not(.vc-line-hit)")
 		expect(paths.length).toBe(2)
 	})
 })
@@ -225,7 +225,7 @@ describe("Connection — axis stems (lollipop)", () => {
 describe("Connection — dash patterns", () => {
 	it("default solid pattern emits a single polyline per group with NO stroke-dasharray", () => {
 		const c = mount()
-		const polylines = [...c.querySelectorAll("polyline")]
+		const polylines = [...c.querySelectorAll("polyline:not(.vc-line-hit)")]
 		// 2 groups × 1 polyline each = 2.
 		expect(polylines.length).toBe(2)
 		// None of them should have stroke-dasharray since the default is solid.
@@ -236,10 +236,10 @@ describe("Connection — dash patterns", () => {
 	it("smoothing > 0 swaps the straight polyline for a curved <path> per group", () => {
 		const c = mount({ smoothing: 0.6 })
 		// No connection polylines left — they render as smoothed paths now.
-		expect(c.querySelectorAll("polyline").length).toBe(0)
+		expect(c.querySelectorAll("polyline:not(.vc-line-hit)").length).toBe(0)
 		// The connection lines are the fill="none" paths (point marks carry a
 		// real fill); each should be a cardinal spline (cubic C commands).
-		const linePaths = [...c.querySelectorAll("path")].filter(
+		const linePaths = [...c.querySelectorAll("path:not(.vc-line-hit)")].filter(
 			(p) => p.getAttribute("fill") === "none"
 		)
 		expect(linePaths.length).toBe(2)
@@ -250,7 +250,7 @@ describe("Connection — dash patterns", () => {
 
 	it("smoothing 0 (default) keeps a straight polyline per group", () => {
 		const c = mount({ smoothing: 0 })
-		expect(c.querySelectorAll("polyline").length).toBe(2)
+		expect(c.querySelectorAll("polyline:not(.vc-line-hit)").length).toBe(2)
 	})
 
 	it("dashed pattern emits a stacked underlay + dashed-top per group (4 polylines for 2 groups)", () => {
@@ -258,7 +258,7 @@ describe("Connection — dash patterns", () => {
 		const c = mount({
 			defaultDashPattern: "dashed",
 		})
-		const polylines = [...c.querySelectorAll("polyline")]
+		const polylines = [...c.querySelectorAll("polyline:not(.vc-line-hit)")]
 		// Each group gets 2 polylines: an alternate-color underlay (solid)
 		// and a top dashed line. 2 groups → 4 polylines.
 		expect(polylines.length).toBe(4)
@@ -268,5 +268,50 @@ describe("Connection — dash patterns", () => {
 		expect(dashed.length).toBe(2)
 		// Confirm the dasharray value matches the "dashed" recipe.
 		expect(dashed[0]?.getAttribute("stroke-dasharray")).toBe("8,4")
+	})
+})
+
+describe("Connection — line hover tooltip", () => {
+	// The tooltip portals to document.body, so unmount between tests —
+	// otherwise a prior test's still-mounted tooltip leaks into the next
+	// test's document-level queries.
+	afterEach(cleanup)
+
+	it("renders one invisible hit stroke per line group", () => {
+		const c = mount()
+		const hits = [...c.querySelectorAll("polyline.vc-line-hit")]
+		expect(hits.length).toBe(2)
+		// Transparent stroke, wide hit target, stroke-only pointer events.
+		for (const h of hits) {
+			expect(h.getAttribute("stroke")).toBe("transparent")
+			expect(Number(h.getAttribute("stroke-width"))).toBeGreaterThanOrEqual(12)
+			expect(h.getAttribute("pointer-events")).toBe("stroke")
+		}
+	})
+
+	it("hovering a line shows the connection value but not per-point fields", () => {
+		const c = mount()
+		expect(document.querySelector(".vc-tooltip")).toBeNull()
+		const hit = c.querySelector("polyline.vc-line-hit")
+		expect(hit).toBeTruthy()
+		fireEvent.mouseMove(hit!, { clientX: 100, clientY: 100 })
+		const tip = document.querySelector(".vc-tooltip")
+		expect(tip).toBeTruthy()
+		// The connection variable identifies the line…
+		expect(tip!.textContent).toContain("g:")
+		expect(tip!.textContent).toContain("north")
+		// …but fields that vary along the line (x, y) stay out: a line spans
+		// many rows, so no single point's values apply.
+		expect(tip!.textContent).not.toContain("x:")
+		expect(tip!.textContent).not.toContain("y:")
+	})
+
+	it("leaving the line clears the tooltip", () => {
+		const c = mount()
+		const hit = c.querySelector("polyline.vc-line-hit")!
+		fireEvent.mouseMove(hit, { clientX: 100, clientY: 100 })
+		expect(document.querySelector(".vc-tooltip")).toBeTruthy()
+		fireEvent.mouseLeave(hit)
+		expect(document.querySelector(".vc-tooltip")).toBeNull()
 	})
 })

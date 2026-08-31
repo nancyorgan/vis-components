@@ -329,7 +329,9 @@ export type LegendSwatchShape = number | "line" | null
  * per-section swatch shape. A combined section resolves its shape from the
  * FIRST group channel on its field (Legend.tsx's GROUP_CHANNELS order), so
  * saturation / brightness — which never emit a section of their own — key
- * one when they lead a shared-field group with no color channel present. */
+ * one when they lead a shared-field group with no color channel present.
+ * `shape` is size-only: its glyphs ARE the encoding, so it never accepts a
+ * swatch shape, but `swatchSizes.shape` scales the glyphs. */
 export type SwatchShapeChannel =
 	| "hue"
 	| "outlineHue"
@@ -337,7 +339,19 @@ export type SwatchShapeChannel =
 	| "brightness"
 	| "pattern"
 	| "opacity"
+	| "shape"
 	| "rug"
+
+export const SWATCH_SHAPE_CHANNELS: SwatchShapeChannel[] = [
+	"hue",
+	"outlineHue",
+	"saturation",
+	"brightness",
+	"pattern",
+	"opacity",
+	"shape",
+	"rug",
+]
 
 /** Per-channel quantitative-legend display config. Controls how break
  * labels are formatted, how many break stops appear on the gradient /

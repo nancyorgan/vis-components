@@ -553,7 +553,9 @@ export const LegendPanel = () => {
 		(rendersSwatches(outlineHueType) ||
 			((outlineHueType === "quantitative" || outlineHueType === "temporal") &&
 				quantForcedToSwatches(outlineHueField)))
-	const swatchShapeSections: SwatchShapeChannel[] = [
+	// The shape channel never emits a swatch-shape section (its glyphs ARE the
+	// encoding) — it gets its own "Shape swatch" subsection below instead.
+	const swatchShapeSections: Exclude<SwatchShapeChannel, "shape">[] = [
 		...(hueRendersSwatches && leadsSwatchSection("hue")
 			? (["hue"] as const)
 			: []),
@@ -1209,12 +1211,7 @@ export const LegendPanel = () => {
 				</CollapsibleSubsection>
 			)}
 
-			{swatchShapeSections.length > 0 && (
-				<CollapsibleSubsection
-						title="Swatches"
-						changed={groupChanged("swatchShape")}
-					>
-					{swatchShapeSections.map((ch) => {
+			{swatchShapeSections.map((ch) => {
 						const current = legendSwatchShape(merged, ch)
 						// null = rectangle, "line" = line segment, then palette shapes.
 						const options: LegendSwatchShape[] = [
@@ -1223,7 +1220,7 @@ export const LegendPanel = () => {
 							...SHAPE_PALETTE.map((_, i) => i),
 						]
 						// Channels folded into this section (lead first). Drives the
-						// group header AND which color rows are live: pattern tiles
+						// subsection title AND which color rows are live: pattern tiles
 						// own the swatch background, so the aux Swatch-color row is
 						// inert when pattern is a member (except in line context,
 						// where the dash overlay strokes with the aux color), and
@@ -1234,17 +1231,27 @@ export const LegendPanel = () => {
 							ch === "rug" ? [] : swatchSectionMembers(ch)
 						const patternInSection = members.includes("pattern")
 						const connectionMapped = !!encodings.connection?.field
+						// Each swatch-drawing legend section gets its OWN collapsible
+						// subsection, titled by the channels it represents — matching
+						// the standalone "Shape swatch" / "Size swatch" subsections.
+						const sectionName =
+							ch === "rug"
+								? LEGEND_FRIENDLY_NAME.rug
+								: members.map((c) => LEGEND_FRIENDLY_NAME[c]).join(" · ")
+						// The dot lights when ANY member channel's swatch settings
+						// deviate — a combined "Brightness · Pattern" subsection also
+						// hosts the pattern rows, so it tracks both channels.
+						const sectionChanged =
+							ch === "rug"
+								? groupChanged("swatch:rug")
+								: members.some((m) => groupChanged(`swatch:${m}`))
 						return (
-							<div key={ch} className="flex flex-col gap-1 text-sm">
-								{swatchShapeSections.length > 1 && (
-									<span className="vc-group-header">
-										{ch === "rug"
-											? LEGEND_FRIENDLY_NAME.rug
-											: members
-													.map((c) => LEGEND_FRIENDLY_NAME[c])
-													.join(" · ")}
-									</span>
-								)}
+							<CollapsibleSubsection
+								key={ch}
+								title={`${sectionName} swatch`}
+								changed={sectionChanged}
+							>
+							<div className="flex flex-col gap-1 text-sm">
 								<span className="text-stone-600 dark:text-stone-400">
 									Swatch shape
 								</span>
@@ -1429,15 +1436,16 @@ export const LegendPanel = () => {
 									</>
 								)}
 							</div>
+							</CollapsibleSubsection>
 						)
 					})}
-				</CollapsibleSubsection>
-			)}
 
 			{showShapeSwatch && (
 				<CollapsibleSubsection
 						title={`${shapeSwatchHeader} swatch`}
-						changed={groupChanged("shapeSwatch")}
+						changed={
+							groupChanged("shapeSwatch") || groupChanged("swatch:shape")
+						}
 					>
 					<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
@@ -1478,6 +1486,22 @@ export const LegendPanel = () => {
 								<ResetLink onClick={() => update({ shapeLegendStrokeColor: null })} />
 							)}
 					</div>
+					{/* Glyph radius for shape swatches. Hidden when the Size (area)
+					 *  channel merged into this section — the size scale then owns
+					 *  each swatch's radius and this input would be inert. */}
+					{!auxSharingShapeField.includes("area") && (
+						<NumberInput
+							label="Swatch size"
+							labelClassName={LABEL_COL}
+							value={legendSwatchSize(merged, "shape") ?? 5}
+							min={3}
+							max={20}
+							step={1}
+							clamp
+							onChange={(size) => setSwatchSize("shape", size)}
+							suffix="px"
+						/>
+					)}
 					<p className="vc-help">
 						Default fill / stroke for shape swatches in the legend. Per-shape
 						overrides set in the Shape panel (including

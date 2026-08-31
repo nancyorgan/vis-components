@@ -88,6 +88,10 @@ export type LegendSectionProps = {
 	hueSwatchShape?: LegendSwatchShape
 	/** Symbol radius (px) for hue swatch shapes. `null` / undefined → 5. */
 	hueSwatchSize?: number | null
+	/** Glyph radius (px) for SHAPE-channel swatches (`swatchSizes.shape`),
+	 *  consumed by the standalone shape legend and by combined sections that
+	 *  draw per-category shape glyphs. `null` / undefined = default. */
+	shapeSwatchSize?: number | null
 	/** User-chosen outline drawn around color swatches (`swatchOutlineColor` /
 	 *  `swatchOutlineWidth`). The parent resolves it to `null` when the
 	 *  outline-color encoding is mapped — the swatch strokes are then a
@@ -135,6 +139,7 @@ export const LegendSection = ({
 	proportionalSizeExponent,
 	hueSwatchShape,
 	hueSwatchSize,
+	shapeSwatchSize = null,
 	swatchOutline = null,
 	defaultSwatchOpacity = 1,
 	entryColumns,
@@ -244,6 +249,7 @@ export const LegendSection = ({
 						}
 						swatchShape={hueSwatchShape}
 						swatchSize={hueSwatchSize}
+						shapeSwatchSize={shapeSwatchSize}
 						swatchOutline={swatchOutline}
 						// Area / radar: the fill (hue) and the line/outline use the
 						// same field but separate palettes, so outline each swatch in
@@ -379,6 +385,7 @@ export const LegendSection = ({
 						orientation={orientation}
 						entryColumns={entryColumns}
 						defaultSwatchOpacity={defaultSwatchOpacity}
+						swatchSize={shapeSwatchSize}
 					/>
 				)}
 				{section.kind === "single" && section.channel === "pattern" && (

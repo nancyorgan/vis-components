@@ -71,7 +71,7 @@ const mount = () =>
  *  order. */
 const seriesPaintOrder = (container: HTMLElement): string[] => {
 	const means: number[] = []
-	for (const pl of container.querySelectorAll("polyline[points]")) {
+	for (const pl of container.querySelectorAll("polyline[points]:not(.vc-line-hit)")) {
 		const pts = (pl.getAttribute("points") ?? "")
 			.trim()
 			.split(/\s+/)

@@ -718,6 +718,35 @@ describe("ShapeLegend — honors per-category fill/stroke overrides", () => {
 			paths.every((p) => p.getAttribute("fill-opacity") === "0.3")
 		).toBe(true)
 	})
+
+	it("swatchSize scales the glyphs and grows the swatch box (default 16px box unchanged)", () => {
+		// The Legend panel's Shape swatch size control (swatchSizes.shape)
+		// drives glyph radius; the enclosing SVG grows so bigger glyphs don't
+		// clip. Without the prop, the historical 16×16 box stays intact.
+		const renderAt = (swatchSize?: number) =>
+			render(
+				<ShapeLegend
+					type="categorical"
+					values={values}
+					configs={EMPTY_CHANNEL_CONFIGS}
+					legendFillColor={null}
+					legendStrokeColor={null}
+					swatchSize={swatchSize}
+				/>
+			)
+		const dflt = renderAt(undefined)
+		const dfltSvg = dflt.container.querySelector("svg")
+		expect(dfltSvg?.getAttribute("width")).toBe("16")
+		const dfltD = dflt.container.querySelector("path")?.getAttribute("d") ?? ""
+
+		const big = renderAt(12)
+		const bigSvg = big.container.querySelector("svg")
+		// (12 + 3) * 2 = 30px box.
+		expect(bigSvg?.getAttribute("width")).toBe("30")
+		const bigD = big.container.querySelector("path")?.getAttribute("d") ?? ""
+		// The glyph path itself changes with the larger radius.
+		expect(bigD).not.toBe(dfltD)
+	})
 })
 
 describe("AreaLegend — non-numeric ordinal", () => {

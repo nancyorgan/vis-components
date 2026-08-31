@@ -40,8 +40,10 @@ import { DEFAULT_HEXBIN_BIN_COUNT } from "./hexbins"
 import {
 	DEFAULT_LABELS_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
+	SWATCH_SHAPE_CHANNELS,
 	type LabelsConfig,
 	type LegendConfig,
+	type SwatchShapeChannel,
 } from "./labelsConfig"
 import type { Theme } from "./types"
 
@@ -892,14 +894,17 @@ export const explainChannelCustomization = (
 // else to make the dot track it.
 
 /** One legend subsection's worth of controls. Each value maps to a
- *  `CollapsibleSubsection` in LegendPanel. */
+ *  `CollapsibleSubsection` in LegendPanel. Swatch-drawing legend sections
+ *  each get their own subsection, so their settings dot per channel
+ *  (`swatch:hue`, `swatch:pattern`, …); a combined subsection ("Brightness ·
+ *  Pattern") lights when ANY of its member channels' groups do. */
 export type LegendDotGroup =
 	| "shown"
 	| "properties"
 	| "formatting"
 	| "gradient"
 	| "auxSwatch"
-	| "swatchShape"
+	| `swatch:${SwatchShapeChannel}`
 	| "shapeSwatch"
 
 /** Which legend subsections deviate from the theme baseline. */
@@ -965,45 +970,74 @@ export const explainLegendCustomization = (
 			group: "auxSwatch",
 			changed: differs(cfg.auxLegendSwatchStroke, base.auxLegendSwatchStroke),
 		},
-		// The aux swatch color is also editable from the Swatches section
-		// (opacity / saturation / brightness groups host a picker for it),
-		// so it lights that section's dot as well.
+		// Per-section swatch controls (shape / size / outline), keyed by the
+		// channel that leads the legend section. Each swatch subsection in the
+		// panel dots when its own channel's entries deviate. A stored `null`
+		// swatch shape reads as unchanged (null IS the default rectangle).
+		...SWATCH_SHAPE_CHANNELS.flatMap(
+			(ch): Array<{ group: LegendDotGroup; changed: boolean }> => [
+				{
+					group: `swatch:${ch}`,
+					changed: differs(cfg.swatchShapes?.[ch], base.swatchShapes?.[ch]),
+				},
+				{
+					group: `swatch:${ch}`,
+					changed: differs(cfg.swatchSizes?.[ch], base.swatchSizes?.[ch]),
+				},
+				{
+					group: `swatch:${ch}`,
+					changed: differs(
+						cfg.swatchOutlineColors?.[ch],
+						base.swatchOutlineColors?.[ch]
+					),
+				},
+				{
+					group: `swatch:${ch}`,
+					changed: differs(
+						cfg.swatchOutlineWidths?.[ch],
+						base.swatchOutlineWidths?.[ch]
+					),
+				},
+				// The legacy GLOBAL outline color/width is every section's
+				// fallback, so it lights each swatch subsection — except the
+				// shape legend, whose glyphs don't take the swatch outline.
+				{
+					group: `swatch:${ch}`,
+					changed:
+						ch !== "shape" &&
+						differs(cfg.swatchOutlineColor, base.swatchOutlineColor),
+				},
+				{
+					group: `swatch:${ch}`,
+					changed:
+						ch !== "shape" &&
+						differs(cfg.swatchOutlineWidth, base.swatchOutlineWidth),
+				},
+			]
+		),
+		// Legacy global hue swatch shape/size (pre-per-section saves).
 		{
-			group: "swatchShape",
-			changed: differs(cfg.auxLegendSwatchColor, base.auxLegendSwatchColor),
-		},
-		{
-			group: "swatchShape",
+			group: "swatch:hue",
 			changed: differs(cfg.hueLegendSwatchShape, base.hueLegendSwatchShape),
 		},
 		{
-			group: "swatchShape",
+			group: "swatch:hue",
 			changed: differs(cfg.hueLegendSwatchSize, base.hueLegendSwatchSize),
 		},
-		{ group: "swatchShape", changed: !isEmptyConfigValue(cfg.swatchShapes) },
-		{ group: "swatchShape", changed: !isEmptyConfigValue(cfg.swatchSizes) },
+		// The aux swatch color is also editable from the opacity / saturation /
+		// brightness swatch subsections, so it lights those dots as well.
+		...(["saturation", "brightness", "opacity"] as const).map(
+			(ch): { group: LegendDotGroup; changed: boolean } => ({
+				group: `swatch:${ch}`,
+				changed: differs(cfg.auxLegendSwatchColor, base.auxLegendSwatchColor),
+			})
+		),
 		{
-			group: "swatchShape",
-			changed: differs(cfg.swatchOutlineColor, base.swatchOutlineColor),
-		},
-		{
-			group: "swatchShape",
-			changed: differs(cfg.swatchOutlineWidth, base.swatchOutlineWidth),
-		},
-		{
-			group: "swatchShape",
-			changed: !isEmptyConfigValue(cfg.swatchOutlineColors),
-		},
-		{
-			group: "swatchShape",
-			changed: !isEmptyConfigValue(cfg.swatchOutlineWidths),
-		},
-		{
-			group: "swatchShape",
+			group: "swatch:pattern",
 			changed: differs(cfg.patternLegendBgColor, base.patternLegendBgColor),
 		},
 		{
-			group: "swatchShape",
+			group: "swatch:pattern",
 			changed: differs(cfg.patternLegendInkColor, base.patternLegendInkColor),
 		},
 		{

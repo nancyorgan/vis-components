@@ -15,10 +15,14 @@ export const ShapeLegend = ({
 	orientation = "vertical",
 	defaultSwatchOpacity = 1,
 	entryColumns,
+	swatchSize,
 }: LegendProps & {
 	legendFillColor: string | null | undefined
 	legendStrokeColor: string | null | undefined
 	defaultSwatchOpacity?: number
+	/** Glyph radius (px) from the Legend panel's Shape swatch size control
+	 *  (`swatchSizes.shape`). `null` / undefined = the historical 5. */
+	swatchSize?: number | null
 }) => {
 	const unique = orderCategories(uniqueValues(values, type), type, pinnedOrder)
 	const indexer = makeShapeIndexer(values, type, configs.shape)
@@ -49,6 +53,10 @@ export const ShapeLegend = ({
 		? "flex flex-shrink-0 items-center gap-1.5"
 		: "flex items-center gap-2"
 	const labelClass = isHorizontal ? "whitespace-nowrap" : "min-w-0 truncate"
+	// Swatch-size control: radius of each glyph; the box grows with it so
+	// larger glyphs don't clip (16px floor keeps the default look unchanged).
+	const r = swatchSize ?? 5
+	const side = Math.max(16, (r + 3) * 2)
 	const rows = unique.map((v) => {
 		const idx = indexer(v)
 		const fillOverride = fillOverrides[v]
@@ -58,17 +66,17 @@ export const ShapeLegend = ({
 		return (
 			<div key={v} className={cellClass}>
 				<svg
-					width={16}
-					height={16}
-					viewBox="-8 -8 16 16"
+					width={side}
+					height={side}
+					viewBox={`${-side / 2} ${-side / 2} ${side} ${side}`}
 					aria-hidden="true"
 					className="flex-shrink-0"
 				>
 					<GlyphMark
 						// Swatches render centered — nudged text glyphs would sit
-						// off-center in (or clip out of) the 16px box.
+						// off-center in (or clip out of) the box.
 						glyph={stripNudge(resolveGlyph(idx, configs.shape?.customGlyphs))}
-						r={5}
+						r={r}
 						fill={fill}
 						fillOpacity={fill === "none" ? 0 : defaultSwatchOpacity}
 						stroke={stroke}

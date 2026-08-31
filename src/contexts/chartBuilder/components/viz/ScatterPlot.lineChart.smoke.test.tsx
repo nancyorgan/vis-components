@@ -187,8 +187,8 @@ const mountAndCount = (opts: {
 	)
 	return {
 		container,
-		polylines: container.querySelectorAll("polyline").length,
-		paths: container.querySelectorAll("path").length,
+		polylines: container.querySelectorAll("polyline:not(.vc-line-hit)").length,
+		paths: container.querySelectorAll("path:not(.vc-line-hit)").length,
 	}
 }
 
@@ -267,7 +267,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 				</div>
 			</TestProvider>
 		)
-		const polylines = [...container.querySelectorAll("polyline")]
+		const polylines = [...container.querySelectorAll("polyline:not(.vc-line-hit)")]
 		expect(polylines.length).toBe(2)
 		expect(
 			polylines.every((p) => p.getAttribute("stroke-linecap") === "butt")
@@ -289,7 +289,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 				</div>
 			</TestProvider>
 		)
-		const layerLines = [...container.querySelectorAll("path")].filter(
+		const layerLines = [...container.querySelectorAll("path:not(.vc-line-hit)")].filter(
 			(p) => p.getAttribute("fill") === "none"
 		)
 		expect(layerLines.length).toBeGreaterThanOrEqual(2)
@@ -352,7 +352,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 		)
 		// 2 layers × (1 underlay + 1 dashed top) = 4 line paths with
 		// `fill="none"`. The dashed top carries `stroke-dasharray="8,4"`.
-		const pathsWithStrokeDash = [...container.querySelectorAll("path")].filter(
+		const pathsWithStrokeDash = [...container.querySelectorAll("path:not(.vc-line-hit)")].filter(
 			(p) => p.getAttribute("stroke-dasharray") === "8,4"
 		)
 		expect(pathsWithStrokeDash.length).toBe(2)
@@ -378,7 +378,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 				</div>
 			</TestProvider>
 		)
-		const polylines = [...container.querySelectorAll("polyline")]
+		const polylines = [...container.querySelectorAll("polyline:not(.vc-line-hit)")]
 		expect(polylines.length).toBe(6)
 		const dashed = polylines.filter(
 			(p) => p.getAttribute("stroke-dasharray") === "8,4"
@@ -423,7 +423,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 		)
 		// Per layer: solid 'pre' edge + underlay + dashed 'in' edge = 3
 		// fill="none" paths; 2 layers → 6, exactly 2 dashed.
-		const layerLines = [...container.querySelectorAll("path")].filter(
+		const layerLines = [...container.querySelectorAll("path:not(.vc-line-hit)")].filter(
 			(p) => p.getAttribute("fill") === "none"
 		)
 		expect(layerLines.length).toBe(6)
@@ -450,7 +450,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 			</TestProvider>
 		)
 		// No split: 2 underlays + 2 dashed lines, as without the range.
-		expect(container.querySelectorAll("polyline").length).toBe(4)
+		expect(container.querySelectorAll("polyline:not(.vc-line-hit)").length).toBe(4)
 	})
 
 	it("AreaPlot in line-fill mode renders point markers at each data row (fixed)", () => {
@@ -472,7 +472,7 @@ describe("Line chart (scatter + connection) — points + line render together", 
 		)
 		// AreaPlot renders the per-layer line as a `<path d="M..L..">` with
 		// `fill="none"`. One per hue group (north / south).
-		const layerLines = [...container.querySelectorAll("path")].filter(
+		const layerLines = [...container.querySelectorAll("path:not(.vc-line-hit)")].filter(
 			(p) => p.getAttribute("fill") === "none"
 		)
 		expect(layerLines.length).toBeGreaterThanOrEqual(2)

@@ -146,7 +146,7 @@ const mount = (opts: {
 }
 
 const polylines = (container: HTMLElement) =>
-	[...container.querySelectorAll("polyline")]
+	[...container.querySelectorAll("polyline:not(.vc-line-hit)")]
 const dashOf = (el: Element) => el.getAttribute("stroke-dasharray")
 const firstX = (el: Element): string =>
 	(el.getAttribute("points") ?? "").split(" ")[0]?.split(",")[0] ?? ""
@@ -405,7 +405,7 @@ describe("Pattern channel drives connection-line dash (scatter/line chart)", () 
 
 describe("Pattern channel drives layer dash (areas-x line-fill mode)", () => {
 	const lineFillPaths = (container: HTMLElement) =>
-		[...container.querySelectorAll("path")].filter(
+		[...container.querySelectorAll("path:not(.vc-line-hit)")].filter(
 			(p) => p.getAttribute("fill") === "none"
 		)
 

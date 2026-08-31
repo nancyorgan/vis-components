@@ -28,7 +28,7 @@ import {
 import { splitPolylineAtRange } from "../../../lib/dashRange"
 import type { DatasetView, Encodings, FieldType } from "../../../lib/types"
 import type { AestheticScales } from "../../../store/useAestheticScales"
-import type { Mark } from "./types"
+import type { HoverState, Mark } from "./types"
 
 /** Group marks by connection-field value and draw one polyline per group.
  * Min 2-point groups only; points sorted by cx; stroke resolves through the
@@ -52,6 +52,14 @@ type LineVisualProps = {
 	strokeLinejoin?: "round"
 	strokeDasharray?: string
 	opacity?: number
+	/** `vc-line-hit`, on the invisible hover-hit overlay only — lets tests
+	 *  (and any styling) tell hit strokes apart from visible lines. */
+	className?: string
+	/** Set on the invisible hover-hit overlay so its (transparent) stroke
+	 *  still captures pointer events; visible lines never set this. */
+	pointerEvents?: "stroke"
+	onMouseMove?: (e: React.MouseEvent<SVGElement>) => void
+	onMouseLeave?: () => void
 }
 
 export const renderConnectionLines = (
@@ -83,7 +91,12 @@ export const renderConnectionLines = (
 	/** Cross-palette ink table (`AestheticScales.themeInkFallback`) so lines
 	 *  colored with swatches borrowed from other theme palettes still find
 	 *  their paired dash-gap ink. */
-	themeInkFallback?: ThemeInkFallback
+	themeInkFallback?: ThemeInkFallback,
+	/** Tooltip hook: when provided, each line group gets an invisible wide
+	 *  hit stroke that publishes a HoverTooltip showing the connection value
+	 *  plus every field constant across the series. Omitted = lines stay
+	 *  non-interactive (export/thumbnail captures). */
+	setHovered?: (h: HoverState | null) => void
 ) => {
 	const connectionField = encodings.connection?.field ?? null
 	if (!connectionField) return null
@@ -218,6 +231,13 @@ export const renderConnectionLines = (
 		dataset,
 		drawOrderLevels
 	)
+	// Invisible hover-hit overlays, one per line group. Collected during the
+	// same pass that builds the visible segments and appended AFTER all of
+	// them (in the same paint order), so at a crossing the hover goes to the
+	// line drawn on top — and the visible strokes never sit above a hit line
+	// to swallow its events. Points render in a later <g>, so hovering a
+	// marker still wins with its richer per-row tooltip.
+	const hitLines: React.ReactElement[] = []
 	const lines = orderedEntries
 		.filter(([, groupMarks]) => groupMarks.length >= 2)
 		.flatMap(([groupValue, groupMarks]) => {
@@ -228,6 +248,55 @@ export const renderConnectionLines = (
 				thickness: cfg.thickness,
 				byValue: thicknessByValue,
 			})
+			if (setHovered) {
+				// Tooltip fields: the connection value plus every dataset field
+				// whose value is constant across the series (hue, series-level
+				// attributes, …). Per-point fields (x/y) vary, so they drop out —
+				// a line spans many rows and showing one arbitrary row would
+				// mislead. Computed lazily on first hover and cached: groups can
+				// be large and mousemove fires continuously.
+				let cachedFields: HoverState["fields"] = undefined
+				const tooltipFields = (): NonNullable<HoverState["fields"]> => {
+					if (cachedFields) return cachedFields
+					const rows = sorted.map((m) => m.row)
+					const constant = (dataset?.fields ?? [])
+						.map((f) => ({ name: f.name, value: rows[0]?.[f.name] }))
+						.filter(
+							({ name, value }) =>
+								value !== undefined &&
+								value !== null &&
+								value !== "" &&
+								rows.every((r) => r[name] === value)
+						)
+					cachedFields = constant.some((f) => f.name === connectionField)
+						? constant
+						: [{ name: connectionField, value: groupValue }, ...constant]
+					return cachedFields
+				}
+				hitLines.push(
+					renderLine(`conn-${groupValue}-hit`, ptObjs, {
+						className: "vc-line-hit",
+						fill: "none",
+						stroke: "transparent",
+						// Generous hit target — a 1–2px stroke is unhoverable.
+						strokeWidth: Math.max(lineThickness + 8, 12),
+						strokeLinecap: strokeCap,
+						strokeLinejoin: "round",
+						pointerEvents: "stroke",
+						// mousemove (not enter) so the tooltip follows the pointer
+						// along the line instead of sticking at the entry point.
+						onMouseMove: (e) =>
+							setHovered({
+								i: null,
+								row: sorted[0]?.row ?? {},
+								clientX: e.clientX,
+								clientY: e.clientY,
+								fields: tooltipFields(),
+							}),
+						onMouseLeave: () => setHovered(null),
+					})
+				)
+			}
 			// Line color: the shared connection-stroke chain. The Line color
 			// slot owns it when configured — "vary by" a field runs the scale
 			// per group, "single color" returns the slot's color. The legacy
@@ -384,7 +453,12 @@ export const renderConnectionLines = (
 			}
 			return renderSegment(`conn-${groupValue}`, ptObjs, dashArray)
 		})
-	return <g>{lines}</g>
+	return (
+		<g>
+			{lines}
+			{hitLines}
+		</g>
+	)
 }
 
 /** Draw a per-point stem from each mark to an axis line — the primitive

@@ -79,6 +79,12 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	swatchShape?: LegendSwatchShape
 	/** Symbol radius (px) for the swatch shape. `null` / undefined → 5. */
 	swatchSize?: number | null
+	/** Glyph radius (px) for per-category SHAPE-channel glyphs when shape
+	 *  shares the combined section (the Legend panel's Shape swatch size,
+	 *  `swatchSizes.shape`). Independent of `swatchSize`, which belongs to the
+	 *  section's LEAD channel — e.g. hue in a Color · Shape section. `null` /
+	 *  undefined = the historical default. */
+	shapeSwatchSize?: number | null
 	/** Aux-swatch fill/stroke from the Legend "Size" submenu
 	 *  (`auxLegendSwatchColor` / `auxLegendSwatchStroke`). Used for the
 	 *  area/angle glyphs when the section has NO hue color to inherit —
@@ -147,6 +153,7 @@ export const CombinedGroupLegend = ({
 	channelCfg,
 	swatchShape,
 	swatchSize,
+	shapeSwatchSize = null,
 	auxSwatchColor = null,
 	auxSwatchStroke = null,
 	themeSwatchColor = null,
@@ -383,6 +390,10 @@ export const CombinedGroupLegend = ({
 					outlineRuleColor ??
 					outlineScaleColor ??
 					(hasHue ? color : (shapeLegendStrokeColor ?? shapeOutlineColor)),
+				// The Shape swatch size control scales the glyphs here too, so a
+				// combined Color · Shape legend follows the same picker as the
+				// standalone ShapeLegend. Area-driven radii still win below.
+				size: shapeSwatchSize ?? undefined,
 			}
 		} else if (hasOutline) {
 			// No shape channel, but outline color IS encoded — draw a glyph so the

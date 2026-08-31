@@ -307,6 +307,11 @@ export const Legend = ({
 									legendCfg,
 									keyChannel as SwatchShapeChannel
 								)}
+								// Shape-channel glyph radius — its own key, independent
+								// of the section's lead channel, so the Shape swatch
+								// size applies whether shape stands alone or folds into
+								// a combined (e.g. Color · Shape) section.
+								shapeSwatchSize={legendSwatchSize(legendCfg, "shape")}
 								swatchOutline={(() => {
 									// Width 0 / unset = no outline. The user's swatch
 									// outline also stays inert while the outline-color
