@@ -104,9 +104,10 @@ export const runDatasetStoreCleanup = async (): Promise<void> => {
 		if (loadDatasetCleanupDone() >= CLEANUP_VERSION) return
 
 		const datasets = await loadDatasetsAsync()
+		const visuals = loadVisuals()
 		const deduped = dedupeDatasetStores({
 			datasets,
-			visuals: loadVisuals(),
+			visuals,
 			embeds: loadEmbedInstances(),
 		})
 
@@ -121,11 +122,22 @@ export const runDatasetStoreCleanup = async (): Promise<void> => {
 				? deduped.versionIdMap[previewVersionId] ?? previewVersionId
 				: null
 
-		const swept = sweepOrphanDatasets({
-			datasets: deduped.datasets,
-			visuals: deduped.visuals,
-			protectedIds: [currentRemapped],
-		})
+		// The sweep judges orphan-ness by the visuals list, so an EMPTY list
+		// makes every dataset (bar the current one) look orphaned — and an
+		// empty read is indistinguishable from a failed one: a visuals blob
+		// mid-migration or version-mismatched (branch switching in dev) loads
+		// as []. Deleting the whole library on that ambiguity is the disaster
+		// this guards against; skipping merely leaves orphans for a launch
+		// that can see at least one visual. Dedupe above is unaffected —
+		// collapsing byte-identical copies loses nothing either way.
+		const swept =
+			visuals.length === 0
+				? { datasets: deduped.datasets, removedIds: [] as string[] }
+				: sweepOrphanDatasets({
+						datasets: deduped.datasets,
+						visuals: deduped.visuals,
+						protectedIds: [currentRemapped],
+					})
 
 		// Historical orphaned fields: version deletion now prunes fields no
 		// remaining version carries, but datasets touched before that fix can

@@ -188,6 +188,29 @@ describe("failure states", () => {
 		)
 	})
 
+	it("a version the store can't serve falls back to the whole body, not 'missing'", async () => {
+		// The version id being fetched came from the index metadata, so the
+		// store answering null means the metadata has drifted from the body —
+		// a stale index entry, not a deleted dataset. The body is
+		// authoritative; rendering from it beats a false "deleted" screen.
+		const adapter = stubAdapter({ "ds-1": dataset("ds-1", 3) })
+		adapter.loadDatasetVersion = async (id, versionId) => {
+			adapter.log.push(`version:${id}:${versionId}`)
+			return null
+		}
+		install(adapter)
+		const store = createStore()
+		store.set(currentDatasetIdAtom, "ds-1")
+		store.sub(datasetIndexAtom, () => {})
+		mountEnsure(store)
+
+		await waitFor(() =>
+			expect(store.get(currentDatasetStatusAtom)).toBe("ready")
+		)
+		expect(adapter.log).toEqual(["index", "version:ds-1:v3", "body:ds-1"])
+		expect(store.get(currentRawDatasetViewAtom)?.rows).toEqual([{ a: "3" }])
+	})
+
 	it("a failed read lands on 'error', not a permanent spinner", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => {})
 		const adapter = stubAdapter({ "ds-1": dataset("ds-1") })

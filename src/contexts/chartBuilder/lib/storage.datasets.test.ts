@@ -9,6 +9,7 @@ const idb = vi.hoisted(() => {
 	const store = new Map<string, unknown>()
 	let writesSucceed = true
 	let failingKeys: ReadonlySet<string> = new Set()
+	let failingReadKeys: ReadonlySet<string> = new Set()
 	return {
 		store,
 		setWritesSucceed: (v: boolean) => {
@@ -19,8 +20,20 @@ const idb = vi.hoisted(() => {
 		setFailingKeys: (keys: readonly string[]) => {
 			failingKeys = new Set(keys)
 		},
+		/** Fail CHECKED reads of exactly these keys (`ok: false`) — the
+		 *  transient-read-error case the read-modify-write guards exist for. */
+		setFailingReadKeys: (keys: readonly string[]) => {
+			failingReadKeys = new Set(keys)
+		},
 		idbAvailable: () => true,
 		idbGet: async (key: string) => (store.has(key) ? store.get(key) : null),
+		idbGetChecked: async (key: string) =>
+			failingReadKeys.has(key)
+				? { ok: false as const }
+				: {
+						ok: true as const,
+						value: store.has(key) ? store.get(key) : null,
+					},
 		idbSet: async (key: string, value: unknown) => {
 			if (!writesSucceed || failingKeys.has(key)) return false
 			store.set(key, value)
@@ -35,6 +48,7 @@ const idb = vi.hoisted(() => {
 vi.mock("./storage/idb", () => ({
 	idbAvailable: idb.idbAvailable,
 	idbGet: idb.idbGet,
+	idbGetChecked: idb.idbGetChecked,
 	idbSet: idb.idbSet,
 	idbDelete: idb.idbDelete,
 }))
@@ -73,6 +87,7 @@ describe("datasets IndexedDB persistence", () => {
 		idb.store.clear()
 		idb.setWritesSucceed(true)
 		idb.setFailingKeys([])
+		idb.setFailingReadKeys([])
 		installInMemoryLocalStorage()
 	})
 
@@ -255,12 +270,75 @@ describe("datasets IndexedDB persistence", () => {
 			"d2",
 		])
 	})
+
+	it("a save that cannot read the index skips the index write instead of emptying it", async () => {
+		await saveDatasetsAsync({ d1: makeDataset("d1") })
+		idb.setFailingReadKeys([INDEX_KEY])
+
+		// The save must not treat the failed read as "no index yet" and write
+		// one containing only d2 — that is exactly how a transient read error
+		// once wiped a populated index.
+		await saveDatasetsAsync({ d2: makeDataset("d2") })
+		expect(await loadDatasetAsync("d2")).not.toBeNull()
+		const stored = idb.store.get(INDEX_KEY) as {
+			data: Record<string, unknown>
+		}
+		expect(Object.keys(stored.data)).toEqual(["d1"])
+
+		// Once reads work again, the next save indexes the body it wrote.
+		idb.setFailingReadKeys([])
+		await saveDatasetsAsync({ d2: makeDataset("d2") })
+		expect(Object.keys(await loadDatasetIndexAsync()).sort()).toEqual([
+			"d1",
+			"d2",
+		])
+	})
+
+	it("a delete that cannot read the index deletes nothing", async () => {
+		await saveDatasetsAsync({ d1: makeDataset("d1"), d2: makeDataset("d2") })
+		idb.setFailingReadKeys([INDEX_KEY])
+
+		// Deleting rewrites the index as "everything but the doomed ids"; with
+		// the index unreadable that rewrite would erase every other entry too.
+		await deleteDatasetsAsync(["d1"])
+		expect(await loadDatasetAsync("d1")).not.toBeNull()
+
+		idb.setFailingReadKeys([])
+		expect(Object.keys(await loadDatasetIndexAsync()).sort()).toEqual([
+			"d1",
+			"d2",
+		])
+	})
+
+	it("a save never uses a partial index rebuild as its merge baseline", async () => {
+		await saveDatasetsAsync({ d1: makeDataset("d1"), d2: makeDataset("d2") })
+		// Stale tag + one unreadable body = a rebuild that only knows d1.
+		const stored = idb.store.get(INDEX_KEY) as { _v: number; data: unknown }
+		idb.store.set(INDEX_KEY, { _v: stored._v - 1, data: stored.data })
+		const d2Body = idb.store.get("vis-components:dataset:d2")
+		idb.store.delete("vis-components:dataset:d2")
+
+		// Merging d3 into the partial rebuild would persist an index without
+		// d2 under a CURRENT tag — the rebuild's retry-on-stale-tag defeated.
+		await saveDatasetsAsync({ d3: makeDataset("d3") })
+		expect(await loadDatasetAsync("d3")).not.toBeNull()
+		const after = idb.store.get(INDEX_KEY) as { _v: number }
+		expect(after._v).toBe(stored._v - 1)
+
+		// Body back → the rebuild heals with nothing lost.
+		idb.store.set("vis-components:dataset:d2", d2Body)
+		expect(Object.keys(await loadDatasetIndexAsync()).sort()).toEqual([
+			"d1",
+			"d2",
+		])
+	})
 })
 
 describe("per-version dataset bodies", () => {
 	beforeEach(() => {
 		idb.store.clear()
 		idb.setWritesSucceed(true)
+		idb.setFailingReadKeys([])
 		installInMemoryLocalStorage()
 	})
 
@@ -330,6 +408,38 @@ describe("per-version dataset bodies", () => {
 		await saveDatasetsAsync({ d1: twoVersions("d1") })
 		expect(await loadDatasetVersionAsync("d1", "nope")).toBeNull()
 		expect(await loadDatasetVersionAsync("nope", "v1")).toBeNull()
+	})
+
+	it("repairs an index entry that names a version the body doesn't hold", async () => {
+		await saveDatasetsAsync({ d1: twoVersions("d1") })
+		// Drift the index entry: a ghost version id as latest, the kind a
+		// stale write left behind. Resolvers pick the version to fetch from
+		// this metadata, so without repair the dataset reads as deleted
+		// forever even though the body is fine.
+		const stored = idb.store.get(INDEX_KEY) as {
+			_v: number
+			data: Record<string, { versions: unknown; latestVersionId: string }>
+		}
+		stored.data.d1 = {
+			...stored.data.d1,
+			versions: [
+				{ id: "ghost", filename: "g.csv", rowCount: 1, createdAt: 0 },
+			],
+			latestVersionId: "ghost",
+		} as (typeof stored.data)["d1"]
+		idb.store.set(INDEX_KEY, stored)
+
+		// The ghost version itself is honestly unservable…
+		expect(await loadDatasetVersionAsync("d1", "ghost")).toBeNull()
+		// …but the entry has been rewritten from the body, so the next
+		// resolve names real versions.
+		const healed = (await loadDatasetIndexAsync()).d1
+		expect(healed?.latestVersionId).toBe("v2")
+		expect(healed?.versions.map((v) => v.id)).toEqual(["v1", "v2"])
+		expect(await loadDatasetVersionAsync("d1", "v2")).toEqual([
+			{ a: "2" },
+			{ a: "3" },
+		])
 	})
 
 	it("takes the version keys with the dataset when it is deleted", async () => {

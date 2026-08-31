@@ -12,6 +12,10 @@ const idb = vi.hoisted(() => {
 		store,
 		idbAvailable: () => true,
 		idbGet: async (key: string) => (store.has(key) ? store.get(key) : null),
+		idbGetChecked: async (key: string) => ({
+			ok: true as const,
+			value: store.has(key) ? store.get(key) : null,
+		}),
 		idbSet: async (key: string, value: unknown) => {
 			store.set(key, value)
 			return true
@@ -25,6 +29,7 @@ const idb = vi.hoisted(() => {
 vi.mock("./storage/idb", () => ({
 	idbAvailable: idb.idbAvailable,
 	idbGet: idb.idbGet,
+	idbGetChecked: idb.idbGetChecked,
 	idbSet: idb.idbSet,
 	idbDelete: idb.idbDelete,
 }))
@@ -151,6 +156,26 @@ describe("runDatasetStoreCleanup", () => {
 		expect(repaired?.contentHash).toBe(
 			datasetContentHash(makeDataset("ds-stale"))
 		)
+	})
+
+	it("skips the sweep entirely when no visuals load", async () => {
+		// An empty visuals list is indistinguishable from a failed or
+		// mid-migration read (a version-mismatched blob loads as []), and
+		// sweeping on that view would judge the whole library orphaned.
+		saveCurrentDatasetId("ds-wip")
+		await saveDatasetsAsync({
+			"ds-a": makeDataset("ds-a"),
+			"ds-b": makeDataset("ds-b"),
+			"ds-wip": makeDataset("ds-wip"),
+		})
+
+		await runDatasetStoreCleanup()
+
+		expect(Object.keys(await loadDatasetsAsync()).sort()).toEqual([
+			"ds-a",
+			"ds-b",
+			"ds-wip",
+		])
 	})
 
 	it("does nothing in server mode — the server is the store", async () => {

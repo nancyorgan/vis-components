@@ -80,6 +80,33 @@ export const idbGet = async <T>(key: string): Promise<T | null> => {
 	}
 }
 
+export type IdbReadResult<T> = { ok: true; value: T | null } | { ok: false }
+
+/** Like {@link idbGet}, but tells a failed read apart from a truly absent
+ * key. Any caller that WRITES based on what it read must use this one:
+ * `idbGet` collapses "the read errored" into "the key is absent", and a
+ * read-modify-write that mistakes the first for the second persists a record
+ * with the unread data missing — which is how a transient read error once
+ * emptied the dataset index. `ok: false` also covers IndexedDB being
+ * unavailable, where nothing here can vouch for what is stored. */
+export const idbGetChecked = async <T>(
+	key: string
+): Promise<IdbReadResult<T>> => {
+	if (!idbAvailable()) return { ok: false }
+	try {
+		const db = await openDB()
+		return await new Promise<IdbReadResult<T>>((resolve, reject) => {
+			const tx = db.transaction(STORE, "readonly")
+			const req = tx.objectStore(STORE).get(key)
+			req.onsuccess = () =>
+				resolve({ ok: true, value: (req.result as T | undefined) ?? null })
+			req.onerror = () => reject(req.error)
+		})
+	} catch {
+		return { ok: false }
+	}
+}
+
 /** Write a value by key. Resolves `true` on success, `false` when IndexedDB is
  * unavailable or the write fails (so callers can avoid destructive follow-ups
  * like clearing the legacy localStorage copy). */

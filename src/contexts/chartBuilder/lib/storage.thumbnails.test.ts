@@ -14,6 +14,10 @@ const idb = vi.hoisted(() => {
 		store,
 		idbAvailable: () => true,
 		idbGet: async (key: string) => (store.has(key) ? store.get(key) : null),
+		idbGetChecked: async (key: string) => ({
+			ok: true as const,
+			value: store.has(key) ? store.get(key) : null,
+		}),
 		idbSet: async (key: string, value: unknown) => {
 			store.set(key, value)
 			return true
@@ -27,6 +31,7 @@ const idb = vi.hoisted(() => {
 vi.mock("./storage/idb", () => ({
 	idbAvailable: idb.idbAvailable,
 	idbGet: idb.idbGet,
+	idbGetChecked: idb.idbGetChecked,
 	idbSet: idb.idbSet,
 	idbDelete: idb.idbDelete,
 }))

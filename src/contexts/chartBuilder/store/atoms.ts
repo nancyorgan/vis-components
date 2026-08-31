@@ -572,9 +572,17 @@ export const ensureDatasetLoadedAtom = atom(
 		const load = async (): Promise<boolean> => {
 			if (versionId) {
 				const rows = await getStorageAdapter().loadDatasetVersion(id, versionId)
-				if (!rows) return false
-				set(loadedVersionRowsBaseAtom, (prev) => ({ ...prev, [key]: rows }))
-				return true
+				if (rows) {
+					set(loadedVersionRowsBaseAtom, (prev) => ({ ...prev, [key]: rows }))
+					return true
+				}
+				// Fall through to the whole body. The version id came from the
+				// index metadata, so the store refusing it means the entry has
+				// drifted from the body — a stale index, not a deleted dataset.
+				// The body is the authoritative record: with it in memory the
+				// view resolves a version that exists (and the storage layer
+				// repairs the index entry), instead of reporting the dataset
+				// deleted.
 			}
 			const dataset = await getStorageAdapter().loadDataset(id)
 			if (!dataset) return false

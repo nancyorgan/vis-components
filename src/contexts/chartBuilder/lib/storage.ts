@@ -88,7 +88,13 @@ import {
 } from "./storage/migrations"
 import { datasetIndexFrom, datasetMetaFrom } from "./datasetMeta"
 import { syncDatasetVersions } from "./storage/syncDatasetVersions"
-import { idbAvailable, idbDelete, idbGet, idbSet } from "./storage/idb"
+import {
+	idbAvailable,
+	idbDelete,
+	idbGet,
+	idbGetChecked,
+	idbSet,
+} from "./storage/idb"
 import {
 	overlayDatasets,
 	overlayDatasetIndex,
@@ -433,16 +439,27 @@ const clearLegacyDatasets = (): void => {
  */
 export const loadDatasetsAsync = async (): Promise<Record<string, Dataset>> => {
 	if (!idbAvailable()) return loadDatasets()
-	let index = await readStoredIndex()
-	if (index === null) {
+	let read = await readStoredIndex()
+	if (read.state === "absent") {
 		// Not split yet (or nothing stored at all) — the legacy blob already
 		// holds every body, and splitting it here means the next load is fast.
 		await splitLegacyDatasetBlob()
-		index = await readStoredIndex()
+		read = await readStoredIndex()
 		// Split couldn't land (quota): serve the corpus straight from the blob,
 		// which still holds every body.
-		if (index === null) return overlayDatasets(await loadLegacyDatasetBlob())
+		if (read.state === "absent")
+			return overlayDatasets(await loadLegacyDatasetBlob())
 	}
+	// Same all-or-nothing rule as the unreadable-body check below: a partial
+	// index would silently narrow the corpus to the entries it happened to
+	// keep, and an unreadable one can't even say what the corpus is.
+	if (read.state !== "present") {
+		throw new Error(
+			"the stored data set index could not be fully read — refusing to " +
+				"return a partial library"
+		)
+	}
+	const index = read.index
 	const bodies = await Promise.all(
 		Object.keys(index).map(async (id) => [id, await loadDatasetAsync(id)] as const)
 	)
@@ -518,11 +535,24 @@ const saveDatasetsToStore = async (
 	// split first — otherwise this write would start an index holding only
 	// `own`, hiding every legacy dataset (or being clobbered by the split's
 	// own wholesale index write, dropping this save).
-	let storedIndex = await readStoredIndex()
-	if (storedIndex === null) {
+	let read = await readStoredIndex()
+	if (read.state === "absent") {
 		await splitLegacyDatasetBlobInner()
-		storedIndex = (await readStoredIndex()) ?? {}
+		read = await readStoredIndex()
 	}
+	// The merge baseline. `null` means "no safe baseline": the bodies are
+	// still written below (they're per-key and self-contained), but the index
+	// write is skipped — merging into a partial or unknown map persists the
+	// entries it lost. A truly absent index after the split ran is only an
+	// empty store when the legacy blob is empty too; a blob the split
+	// couldn't move (quota) still holds datasets an empty baseline would hide.
+	const storedIndex: Record<string, DatasetMeta> | null =
+		read.state === "present"
+			? read.index
+			: read.state === "absent" &&
+				  Object.keys(await loadLegacyDatasetBlob()).length === 0
+				? {}
+				: null
 
 	const bodyWrites: Promise<readonly [string, boolean]>[] = []
 	const versionWrites: Promise<void>[] = []
@@ -541,8 +571,10 @@ const saveDatasetsToStore = async (
 			)
 		)
 		// Keep the per-version keys in step with the body, or a later
-		// version read would serve rows from before this write.
-		versionWrites.push(splitDatasetVersions(dataset, storedIndex[id]))
+		// version read would serve rows from before this write. With no safe
+		// baseline the prior meta is unknown, so the sync is upsert-only —
+		// stale version keys linger rather than risking a wrong delete.
+		versionWrites.push(splitDatasetVersions(dataset, storedIndex?.[id]))
 	}
 	const bodyResults = await Promise.all(bodyWrites)
 	await Promise.all(versionWrites)
@@ -563,10 +595,20 @@ const saveDatasetsToStore = async (
 		const dataset = own[id]
 		if (wrote && dataset) persisted[id] = dataset
 	}
-	const indexWritten = await idbSet(KEY_DATASET_INDEX, {
-		_v: DATASETS_VERSION,
-		data: { ...storedIndex, ...datasetIndexFrom(persisted) },
-	})
+	let indexWritten = true
+	if (storedIndex === null) {
+		// eslint-disable-next-line no-console
+		console.error(
+			"[vis-components] the stored dataset index could not be read — " +
+				"skipped updating it so no entries are lost; the saved bodies " +
+				"will be indexed by the next save that can read it"
+		)
+	} else {
+		indexWritten = await idbSet(KEY_DATASET_INDEX, {
+			_v: DATASETS_VERSION,
+			data: { ...storedIndex, ...datasetIndexFrom(persisted) },
+		})
+	}
 
 	if (!indexWritten || bodyResults.some(([, wrote]) => !wrote)) {
 		// eslint-disable-next-line no-console
@@ -576,8 +618,28 @@ const saveDatasetsToStore = async (
 	}
 }
 
+/** What a stored-index read learned, split four ways because the writers
+ *  and the readers need different guarantees:
+ *
+ *  - `present` — the index as persisted, complete. The ONLY state a writer
+ *    may use as a read-modify-write baseline.
+ *  - `partial` — a stale-tagged index whose rebuild couldn't read every
+ *    body. Fine to SERVE (the library shows what it can), but merging into
+ *    or filtering this map and writing it back persists the missing
+ *    entries' disappearance.
+ *  - `absent` — nothing stored: a store from before the split, or a brand
+ *    new browser. Callers split the legacy blob and re-read.
+ *  - `unreadable` — the read itself failed, so what is stored is unknown.
+ *    Treating this as `absent` is how a transient read error once emptied
+ *    the index over a populated store; writers must refuse. */
+type StoredIndexRead =
+	| { state: "present"; index: Record<string, DatasetMeta> }
+	| { state: "partial"; index: Record<string, DatasetMeta> }
+	| { state: "absent" }
+	| { state: "unreadable" }
+
 /** The stored metadata index exactly as persisted — no seed overlay, no
- *  legacy split. `null` when nothing is stored yet.
+ *  legacy split. See {@link StoredIndexRead} for the four outcomes.
  *
  *  The index (like the per-version keys) is a DERIVED CACHE of the body
  *  keys, which are the authoritative, migratable record. It is version-
@@ -585,16 +647,16 @@ const saveDatasetsToStore = async (
  *  bodies — which flow through the real `datasetsMigrations` — and written
  *  back, so a `DATASETS_VERSION` bump can never leave stale-shaped metadata
  *  being served as current. */
-const readStoredIndex = async (): Promise<Record<
-	string,
-	DatasetMeta
-> | null> => {
-	const stored = await idbGet<{
+const readStoredIndex = async (): Promise<StoredIndexRead> => {
+	const read = await idbGetChecked<{
 		_v?: number
 		data?: Record<string, DatasetMeta>
 	}>(KEY_DATASET_INDEX)
-	if (stored === null) return null
-	if (stored._v === DATASETS_VERSION && stored.data) return stored.data
+	if (!read.ok) return { state: "unreadable" }
+	const stored = read.value
+	if (stored === null) return { state: "absent" }
+	if (stored._v === DATASETS_VERSION && stored.data)
+		return { state: "present", index: stored.data }
 
 	// Stale tag: rebuild from the bodies the stale index names. Ids are the
 	// one thing safe to read out of an old-shaped index. Direct per-key body
@@ -613,14 +675,14 @@ const readStoredIndex = async (): Promise<Record<
 	// library. Keeping the stale tag means the rebuild simply retries.
 	if (dropped.length === 0) {
 		await idbSet(KEY_DATASET_INDEX, { _v: DATASETS_VERSION, data: rebuilt })
-	} else {
-		// eslint-disable-next-line no-console
-		console.error(
-			`[vis-components] dataset index rebuild could not read ${dropped.join(", ")} — ` +
-				`keeping the stale index so the rebuild retries next load`
-		)
+		return { state: "present", index: rebuilt }
 	}
-	return rebuilt
+	// eslint-disable-next-line no-console
+	console.error(
+		`[vis-components] dataset index rebuild could not read ${dropped.join(", ")} — ` +
+			`keeping the stale index so the rebuild retries next load`
+	)
+	return { state: "partial", index: rebuilt }
 }
 
 /** Remove datasets outright: their bodies and their index entries. The only
@@ -635,28 +697,34 @@ const deleteDatasetsFromStore = async (
 	ids: readonly string[]
 ): Promise<void> => {
 	const doomed = new Set(ids)
-	let storedIndex = await readStoredIndex()
-	if (storedIndex === null) {
+	let read = await readStoredIndex()
+	if (read.state === "absent") {
 		// Pre-split store: the doomed bodies live in the legacy blob, where the
 		// per-key deletes below can't reach them. Split first so the deletions
 		// are real — and if the split can't complete, refuse rather than write
 		// an empty index over a still-populated blob (which would hide every
 		// dataset AND resurrect the "deleted" ones on the next split).
 		await splitLegacyDatasetBlobInner()
-		storedIndex = await readStoredIndex()
-		if (storedIndex === null) {
-			// eslint-disable-next-line no-console
-			console.error(
-				"[vis-components] could not split the dataset store — nothing was deleted"
-			)
-			return
-		}
+		read = await readStoredIndex()
 	}
+	// Deleting rewrites the index as "everything but the doomed ids", so it
+	// needs the COMPLETE index — filtering a partial or unknown map writes
+	// the missing entries out of existence along with the doomed ones.
+	// Refusing costs nothing but a retry: the delete re-runs on the next
+	// launch's sweep, or the user repeats it.
+	if (read.state !== "present") {
+		// eslint-disable-next-line no-console
+		console.error(
+			"[vis-components] the stored dataset index could not be fully read — nothing was deleted"
+		)
+		return
+	}
+	const storedIndex = read.index
 	await Promise.all(
 		ids.map(async (id) => {
 			// Version keys first, while the index still names them — afterwards
 			// they'd be unreachable and would sit in IndexedDB forever.
-			for (const version of storedIndex?.[id]?.versions ?? []) {
+			for (const version of storedIndex[id]?.versions ?? []) {
 				await idbDelete(datasetVersionKey(id, version.id))
 				persistedVersionRows.delete(`${id}:${version.id}`)
 			}
@@ -697,8 +765,10 @@ const splitLegacyDatasetBlob = (): Promise<void> => {
  *  nothing durable and simply retries on the next load. The blob is removed
  *  only after every body and the index have been confirmed written. */
 const splitLegacyDatasetBlobInner = async (): Promise<void> => {
-	// A queued writer may have split before this task ran.
-	if ((await readStoredIndex()) !== null) return
+	// A queued writer may have split before this task ran. Only a confirmed
+	// ABSENT index means "not split": splitting over an unreadable one could
+	// double-write a store that is actually fine.
+	if ((await readStoredIndex()).state !== "absent") return
 	const legacy = await loadLegacyDatasetBlob()
 	if (Object.keys(legacy).length === 0) return
 
@@ -773,8 +843,30 @@ export const loadDatasetVersionAsync = async (
 	const dataset = await loadDatasetAsync(id)
 	if (!dataset) return null
 	await splitDatasetVersions(dataset)
-	return dataset.versions.find((v) => v.id === versionId)?.rows ?? null
+	const rows = dataset.versions.find((v) => v.id === versionId)?.rows
+	if (rows) return rows
+	// The caller resolved `versionId` from the index, so a version the body —
+	// the authoritative record — doesn't hold means the index entry has
+	// drifted (a stale write that survived a crash or an older bug). Repair
+	// the entry so the next resolve names versions that exist, instead of
+	// this dataset reading as deleted forever.
+	await repairIndexEntryFromBody(dataset)
+	return null
 }
+
+/** Rewrite one dataset's index entry from its body. Only when the stored
+ *  index is complete: merging a repair into a partial or unknown map would
+ *  persist the entries that map is missing — worse than the drift being
+ *  repaired. */
+const repairIndexEntryFromBody = (dataset: Dataset): Promise<void> =>
+	enqueueDatasetIndexWrite(async () => {
+		const read = await readStoredIndex()
+		if (read.state !== "present") return
+		await idbSet(KEY_DATASET_INDEX, {
+			_v: DATASETS_VERSION,
+			data: { ...read.index, [dataset.id]: datasetMetaFrom(dataset) },
+		})
+	})
 
 /** Write each of a dataset's versions to its own key and delete the keys of
  *  versions `priorMeta` names that no longer exist. The diff/delete rules
@@ -809,14 +901,25 @@ export const loadDatasetIndexAsync = async (): Promise<
 	Record<string, DatasetMeta>
 > => {
 	if (!idbAvailable()) return datasetIndexFrom(loadDatasets())
-	const index = await readStoredIndex()
-	if (index !== null) return overlayDatasetIndex(index)
-	await splitLegacyDatasetBlob()
-	return overlayDatasetIndex(
-		(await readStoredIndex()) ??
+	let read = await readStoredIndex()
+	if (read.state === "absent") {
+		await splitLegacyDatasetBlob()
+		read = await readStoredIndex()
+		if (read.state === "absent") {
 			// Split couldn't land: derive from the blob it would have split.
-			datasetIndexFrom(await loadLegacyDatasetBlob())
-	)
+			return overlayDatasetIndex(
+				datasetIndexFrom(await loadLegacyDatasetBlob())
+			)
+		}
+	}
+	// A partial rebuild still serves — the library shows what it can and the
+	// stale tag retries next load. Only a failed read throws: the caller's
+	// error path keeps its synchronous bootstrap rather than treating the
+	// whole library as empty.
+	if (read.state === "unreadable") {
+		throw new Error("the stored data set index could not be read")
+	}
+	return overlayDatasetIndex(read.index)
 }
 
 /** One split body key, read directly — no seed overlay, no legacy fallback.
