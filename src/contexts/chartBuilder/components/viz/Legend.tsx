@@ -41,6 +41,7 @@ import { LegendColumns } from "./legend/swatches"
 // consumers (ChartCanvas, EmbedPage, smoke tests) keep one import path.
 export { AreaLegend } from "./legend/AreaLegend"
 export { CombinedGroupLegend } from "./legend/CombinedGroupLegend"
+export { PatternLegend } from "./legend/PatternLegend"
 export { ShapeLegend } from "./legend/ShapeLegend"
 
 /** Pixel offsets the chart wrapper must reserve on each side to make room
@@ -180,6 +181,7 @@ export const Legend = ({
 		packSections,
 		effectiveCols,
 		entryColumns,
+		alignSwatchColumn,
 	} = plan
 
 	return (
@@ -253,6 +255,11 @@ export const Legend = ({
 									]
 								}
 								reverseCategorical={reverseCategorical}
+								// ≥2 stacked legends: pin every section's entry block to
+								// the legend's left edge (and the inner div publishes the
+								// shared swatch-column width) so swatches line up with
+								// each other vertically across the sections.
+								alignEntriesStart={alignSwatchColumn}
 								// The user's orientation governs how ENTRIES flow inside
 								// this section, independently of how many columns the
 								// sections are packed into. The lone exception is the

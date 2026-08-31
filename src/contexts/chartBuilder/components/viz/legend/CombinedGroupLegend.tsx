@@ -48,6 +48,7 @@ import {
 	EntryHoverWrap,
 	GradientBarRamp,
 	renderEntryList,
+	SwatchCell,
 } from "./swatches"
 import type { ReversibleLegendProps } from "./types"
 
@@ -580,22 +581,24 @@ export const CombinedGroupLegend = ({
 					const rowH = Math.max(24, Math.ceil(r * 2) + 4)
 					return (
 						<div key={v} className="flex items-center gap-2">
-							<svg
-								width={colWidth}
-								height={rowH}
-								aria-hidden="true"
-								className="flex-shrink-0"
-							>
-								<GlyphMark
-									glyph={shapeGlyph}
-									r={r}
-									transform={`translate(${colWidth / 2},${rowH / 2})${deg ? ` rotate(${deg})` : ""}`}
-									fill={color}
-									fillOpacity={0.85 * defaultSwatchOpacity}
-									stroke={hueScale ? strokeColor : noHueStroke}
-									strokeWidth={strokeWidth}
-								/>
-							</svg>
+							<SwatchCell>
+								<svg
+									width={colWidth}
+									height={rowH}
+									aria-hidden="true"
+									className="flex-shrink-0"
+								>
+									<GlyphMark
+										glyph={shapeGlyph}
+										r={r}
+										transform={`translate(${colWidth / 2},${rowH / 2})${deg ? ` rotate(${deg})` : ""}`}
+										fill={color}
+										fillOpacity={0.85 * defaultSwatchOpacity}
+										stroke={hueScale ? strokeColor : noHueStroke}
+										strokeWidth={strokeWidth}
+									/>
+								</svg>
+							</SwatchCell>
 							<span className="min-w-0 truncate">{fmt(v, i)}</span>
 						</div>
 					)
@@ -661,23 +664,25 @@ export const CombinedGroupLegend = ({
 					const cx = colWidth / 2
 					return (
 						<div key={v} className="flex items-center gap-2">
-							<svg
-								width={colWidth}
-								height={rowH}
-								aria-hidden="true"
-								className="flex-shrink-0"
-							>
-								<line
-									x1={cx - dx}
-									y1={cy + dy}
-									x2={cx + dx}
-									y2={cy - dy}
-									stroke={color}
-									strokeWidth={2.5}
-									strokeOpacity={defaultSwatchOpacity}
-									strokeLinecap="round"
-								/>
-							</svg>
+							<SwatchCell>
+								<svg
+									width={colWidth}
+									height={rowH}
+									aria-hidden="true"
+									className="flex-shrink-0"
+								>
+									<line
+										x1={cx - dx}
+										y1={cy + dy}
+										x2={cx + dx}
+										y2={cy - dy}
+										stroke={color}
+										strokeWidth={2.5}
+										strokeOpacity={defaultSwatchOpacity}
+										strokeLinecap="round"
+									/>
+								</svg>
+							</SwatchCell>
 							<span className="min-w-0 truncate">{fmt(v, i)}</span>
 						</div>
 					)
@@ -756,7 +761,9 @@ export const CombinedGroupLegend = ({
 					const entry = buildEntry(String(s))
 					return (
 						<div key={s} className="flex items-center gap-2">
-							<ComposedSwatch {...entry} swatchShape={swatchShape} swatchSize={swatchSize} />
+							<SwatchCell>
+								<ComposedSwatch {...entry} swatchShape={swatchShape} swatchSize={swatchSize} />
+							</SwatchCell>
 							<span className="min-w-0 truncate">{fmt(s, i)}</span>
 						</div>
 					)
@@ -804,16 +811,10 @@ export const CombinedGroupLegend = ({
 			return (
 				<EntryHoverWrap key={v} field={highlightField} value={v}>
 					<div className="flex items-center gap-2">
-						{areaSwatchColWidth != null ? (
-							<div
-								className="flex flex-shrink-0 justify-center"
-								style={{ width: areaSwatchColWidth }}
-							>
-								{swatch}
-							</div>
-						) : (
-							swatch
-						)}
+						{/* SwatchCell keeps the area-sized swatches' own column
+						 * floor (`minWidth`) while also honoring the legend-wide
+						 * shared swatch column when multiple sections stack. */}
+						<SwatchCell minWidth={areaSwatchColWidth}>{swatch}</SwatchCell>
 						<span className="min-w-0 truncate" title={v}>
 							{v}
 						</span>

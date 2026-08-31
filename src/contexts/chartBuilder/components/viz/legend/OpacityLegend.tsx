@@ -9,7 +9,7 @@ import {
 } from "../../../lib/legendBreaks"
 import { orderCategories, uniqueValues } from "../../../lib/legendSections"
 import { makeOpacityScale } from "../../../lib/scales"
-import { renderEntryList } from "./swatches"
+import { renderEntryList, SwatchCell } from "./swatches"
 import type { ReversibleLegendProps } from "./types"
 
 export const OpacityLegend = ({
@@ -43,10 +43,12 @@ export const OpacityLegend = ({
 				const o = scale(v) ?? 1
 				return (
 					<div key={v} className="flex items-center gap-2">
-						<span
-							className="block h-3 w-4 rounded-sm"
-							style={{ backgroundColor: swatchHex, opacity: o }}
-						/>
+						<SwatchCell>
+							<span
+								className="block h-3 w-4 flex-shrink-0 rounded-sm"
+								style={{ backgroundColor: swatchHex, opacity: o }}
+							/>
+						</SwatchCell>
 						<span className="min-w-0 truncate" title={v}>
 							{v} ({o.toFixed(2)})
 						</span>

@@ -92,6 +92,26 @@ export const LegendColumns = ({
 	</div>
 )
 
+/** The column a legend entry's swatch graphic sits in. Sized by the
+ * `--vc-legend-swatch-col` CSS variable (see `.vc-swatch-cell`), which the
+ * legend publishes — as the widest swatch across ALL its sections — whenever
+ * ≥2 sections stack vertically, so every section's swatches center on one
+ * shared vertical axis and the labels line up. With the variable unset the
+ * cell hugs its graphic (no visual change). `minWidth` lets a sub-legend keep
+ * its own per-section column floor (e.g. area-sized swatches). A `div` (not a
+ * `span`) so label queries that walk a legend's spans don't pick up the cell. */
+export const SwatchCell = ({
+	minWidth,
+	children,
+}: {
+	minWidth?: number | null
+	children: React.ReactNode
+}) => (
+	<div className="vc-swatch-cell" style={minWidth ? { minWidth } : undefined}>
+		{children}
+	</div>
+)
+
 /** Render a categorical entry list: a single stacked column normally, or
  * content-hugging flex columns when `cols > 1`. */
 export const renderEntryList = (
@@ -321,60 +341,62 @@ export const Swatch = ({
 				: "flex items-center gap-2"
 		}
 	>
-		{shape == null ? (
-			<span
-				className="block flex-shrink-0 rounded-sm"
-				style={{
-					// The size picker (radius-like, 5 = historical) scales the
-					// default 16×12 rectangle so it isn't glyph-only.
-					width: Math.round(16 * ((size ?? 5) / 5)),
-					height: Math.round(12 * ((size ?? 5) / 5)),
-					backgroundColor: color,
-					opacity,
-					...(strokeColor
-						? {
-								borderColor: strokeColor,
-								borderStyle: "solid",
-								borderWidth: strokeWidth ?? 1.5,
-							}
-						: undefined),
-				}}
-			/>
-		) : (
-			(() => {
-				const r = size ?? 5
-				const side = (r + 3) * 2
-				return (
-					<svg
-						width={side}
-						height={side}
-						viewBox={`${-side / 2} ${-side / 2} ${side} ${side}`}
-						aria-hidden="true"
-						className="flex-shrink-0"
-						opacity={opacity}
-					>
-						{shape === "line" ? (
-							<line
-								x1={-r}
-								y1={0}
-								x2={r}
-								y2={0}
-								stroke={color}
-								strokeWidth={Math.max(2, Math.round(r / 2))}
-								strokeLinecap="round"
-							/>
-						) : (
-							<path
-								d={symbolPath(shape, r)}
-								fill={color}
-								stroke={strokeColor ?? undefined}
-								strokeWidth={strokeColor ? (strokeWidth ?? 1.5) : undefined}
-							/>
-						)}
-					</svg>
-				)
-			})()
-		)}
+		<SwatchCell>
+			{shape == null ? (
+				<span
+					className="block flex-shrink-0 rounded-sm"
+					style={{
+						// The size picker (radius-like, 5 = historical) scales the
+						// default 16×12 rectangle so it isn't glyph-only.
+						width: Math.round(16 * ((size ?? 5) / 5)),
+						height: Math.round(12 * ((size ?? 5) / 5)),
+						backgroundColor: color,
+						opacity,
+						...(strokeColor
+							? {
+									borderColor: strokeColor,
+									borderStyle: "solid",
+									borderWidth: strokeWidth ?? 1.5,
+								}
+							: undefined),
+					}}
+				/>
+			) : (
+				(() => {
+					const r = size ?? 5
+					const side = (r + 3) * 2
+					return (
+						<svg
+							width={side}
+							height={side}
+							viewBox={`${-side / 2} ${-side / 2} ${side} ${side}`}
+							aria-hidden="true"
+							className="flex-shrink-0"
+							opacity={opacity}
+						>
+							{shape === "line" ? (
+								<line
+									x1={-r}
+									y1={0}
+									x2={r}
+									y2={0}
+									stroke={color}
+									strokeWidth={Math.max(2, Math.round(r / 2))}
+									strokeLinecap="round"
+								/>
+							) : (
+								<path
+									d={symbolPath(shape, r)}
+									fill={color}
+									stroke={strokeColor ?? undefined}
+									strokeWidth={strokeColor ? (strokeWidth ?? 1.5) : undefined}
+								/>
+							)}
+						</svg>
+					)
+				})()
+			)}
+		</SwatchCell>
 		<span
 			className={
 				horizontal ? "whitespace-nowrap" : "min-w-0 truncate"

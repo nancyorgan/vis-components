@@ -157,6 +157,21 @@
 		font-weight: 600;
 		color: var(--color-vc-section-header);
 	}
+
+	/* Legend swatch cell: the fixed-width column a legend entry's graphic
+	 * sits in. When the legend stacks MULTIPLE sections it publishes the
+	 * widest swatch across all of them as --vc-legend-swatch-col (see
+	 * planLegendSections), so every section's swatches center on one shared
+	 * vertical axis and the labels start at one shared x. With the variable
+	 * unset (single legend, horizontal rows) the cell hugs its graphic and
+	 * renders exactly as before. */
+	.vc-swatch-cell {
+		display: flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: var(--vc-legend-swatch-col, auto);
+	}
 }
 
 /* -----------------------------------------------------------------------------

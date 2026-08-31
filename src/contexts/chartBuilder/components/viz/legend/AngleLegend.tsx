@@ -8,6 +8,7 @@ import {
 } from "../../../lib/legendBreaks"
 import { orderCategories, uniqueValues } from "../../../lib/legendSections"
 import { makeAngleScale } from "../../../lib/scales"
+import { SwatchCell } from "./swatches"
 import type { LegendProps } from "./types"
 
 export const AngleLegend = ({
@@ -37,17 +38,19 @@ export const AngleLegend = ({
 					const dy = Math.sin(rad) * lineLen
 					return (
 						<div key={v} className="flex items-center gap-2">
-							<svg width={24} height={24} aria-hidden="true">
-								<line
-									x1={12 - dx}
-									y1={12 + dy}
-									x2={12 + dx}
-									y2={12 - dy}
-									stroke={color}
-									strokeWidth={2}
-									strokeLinecap="round"
-								/>
-							</svg>
+							<SwatchCell>
+								<svg width={24} height={24} aria-hidden="true">
+									<line
+										x1={12 - dx}
+										y1={12 + dy}
+										x2={12 + dx}
+										y2={12 - dy}
+										stroke={color}
+										strokeWidth={2}
+										strokeLinecap="round"
+									/>
+								</svg>
+							</SwatchCell>
 							<span className="min-w-0 truncate" title={v}>
 								{v}
 							</span>
@@ -114,22 +117,24 @@ export const AngleLegend = ({
 				const label = decorateOpenEndLabel(rawLabel, i, breaks, dataExt)
 				return (
 					<div key={s} className="flex items-center gap-2">
-						<svg
-							width={24}
-							height={24}
-							aria-hidden="true"
-							className="flex-shrink-0"
-						>
-							<line
-								x1={12 - dx}
-								y1={12 + dy}
-								x2={12 + dx}
-								y2={12 - dy}
-								stroke={color}
-								strokeWidth={2}
-								strokeLinecap="round"
-							/>
-						</svg>
+						<SwatchCell>
+							<svg
+								width={24}
+								height={24}
+								aria-hidden="true"
+								className="flex-shrink-0"
+							>
+								<line
+									x1={12 - dx}
+									y1={12 + dy}
+									x2={12 + dx}
+									y2={12 - dy}
+									stroke={color}
+									strokeWidth={2}
+									strokeLinecap="round"
+								/>
+							</svg>
+						</SwatchCell>
 						<span className="min-w-0 truncate">{label}</span>
 					</div>
 				)

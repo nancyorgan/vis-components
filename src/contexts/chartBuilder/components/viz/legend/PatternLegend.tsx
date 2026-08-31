@@ -5,7 +5,7 @@ import {
 	resolvePatternForCategory,
 } from "../../../lib/patterns"
 import { LEGEND_SWATCH_OUTLINE } from "../../../lib/previewInk"
-import { renderEntryList } from "./swatches"
+import { EntryHoverWrap, renderEntryList, SwatchCell } from "./swatches"
 import type { ReversibleLegendProps } from "./types"
 
 export const PatternLegend = ({
@@ -17,6 +17,7 @@ export const PatternLegend = ({
 	orientation = "vertical",
 	defaultSwatchOpacity = 1,
 	entryColumns,
+	highlightField,
 }: ReversibleLegendProps & { defaultSwatchOpacity?: number }) => {
 	const rawCategories = patternCategoriesFor(values, type)
 	// Preserve the original palette index so colors/patterns stay stable even
@@ -44,74 +45,82 @@ export const PatternLegend = ({
 				// matches what the chart draws.
 				if (resolved === null) {
 					return (
-						<div key={v} className={cellClass}>
-							<svg
-								width={20}
-								height={14}
-								aria-hidden="true"
-								className="flex-shrink-0"
-								opacity={defaultSwatchOpacity}
-							>
-								<rect
-									x={0}
-									y={0}
-									width={20}
-									height={14}
-									fill={bgColor}
-									stroke={LEGEND_SWATCH_OUTLINE}
-									strokeWidth={0.5}
-								/>
-							</svg>
-							<span className={labelClass} title={v}>
-								{v}
-							</span>
-						</div>
+						<EntryHoverWrap key={v} field={highlightField} value={v}>
+							<div className={cellClass}>
+								<SwatchCell>
+									<svg
+										width={20}
+										height={14}
+										aria-hidden="true"
+										className="flex-shrink-0"
+										opacity={defaultSwatchOpacity}
+									>
+										<rect
+											x={0}
+											y={0}
+											width={20}
+											height={14}
+											fill={bgColor}
+											stroke={LEGEND_SWATCH_OUTLINE}
+											strokeWidth={0.5}
+										/>
+									</svg>
+								</SwatchCell>
+								<span className={labelClass} title={v}>
+									{v}
+								</span>
+							</div>
+						</EntryHoverWrap>
 					)
 				}
 				const { paletteIdx, inkColor, svgId } = resolved
 				const def = PATTERN_PALETTE[paletteIdx % PATTERN_PALETTE.length]
 				const patId = `legend-${svgId}`
 				return (
-					<div key={v} className={cellClass}>
-						<svg
-							width={20}
-							height={14}
-							aria-hidden="true"
-							className="flex-shrink-0"
-							opacity={defaultSwatchOpacity}
-						>
-							<defs>
-								<pattern
-									key={patId}
-									id={patId}
-									patternUnits="userSpaceOnUse"
-									width={def.size}
-									height={def.size}
+					<EntryHoverWrap key={v} field={highlightField} value={v}>
+						<div className={cellClass}>
+							<SwatchCell>
+								<svg
+									width={20}
+									height={14}
+									aria-hidden="true"
+									className="flex-shrink-0"
+									opacity={defaultSwatchOpacity}
 								>
+									<defs>
+										<pattern
+											key={patId}
+											id={patId}
+											patternUnits="userSpaceOnUse"
+											width={def.size}
+											height={def.size}
+										>
+											<rect
+												x={0}
+												y={0}
+												width={def.size}
+												height={def.size}
+												fill={bgColor}
+											/>
+											{def.render(inkColor)}
+										</pattern>
+									</defs>
 									<rect
 										x={0}
 										y={0}
-										width={def.size}
-										height={def.size}
-										fill={bgColor}
+										width={20}
+										height={14}
+										fill={`url(#${patId})`}
+										stroke={LEGEND_SWATCH_OUTLINE}
+										strokeWidth={0.5}
 									/>
-									{def.render(inkColor)}
-								</pattern>
-							</defs>
-							<rect
-								x={0}
-								y={0}
-								width={20}
-								height={14}
-								fill={`url(#${patId})`}
-								stroke={LEGEND_SWATCH_OUTLINE}
-								strokeWidth={0.5}
-							/>
-						</svg>
-						<span className={labelClass} title={v}>
-							{v}
-						</span>
-					</div>
+								</svg>
+							</SwatchCell>
+							<span className={labelClass} title={v}>
+								{v}
+							</span>
+						</div>
+					</EntryHoverWrap>
 				)
 			})
 	return isHorizontal ? (

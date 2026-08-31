@@ -109,6 +109,12 @@ export type LegendSectionProps = {
 	 * categorical entry publishes `{ field, value }` on hover so the plots dim
 	 * non-matching marks. Undefined disables the behavior for this section. */
 	highlightField?: string
+	/** ≥2 stacked legends: pin this section's entry block to the legend's
+	 * left edge instead of following the title alignment, so the swatch
+	 * columns of every section line up vertically (paired with the shared
+	 * `--vc-legend-swatch-col` width the legend publishes). The title keeps
+	 * its own alignment. */
+	alignEntriesStart?: boolean
 }
 
 export const LegendSection = ({
@@ -144,6 +150,7 @@ export const LegendSection = ({
 	defaultSwatchOpacity = 1,
 	entryColumns,
 	highlightField,
+	alignEntriesStart = false,
 }: LegendSectionProps) => {
 	const { field, type, values } = section
 	// User-pinned level ordering for this section's field (Fields reorder
@@ -214,6 +221,11 @@ export const LegendSection = ({
 					fontWeight: textWeight ?? undefined,
 					fontStyle: textItalic ? "italic" : undefined,
 					textDecoration: textUnderline ? "underline" : undefined,
+					// Multiple stacked legends: the entry block pins to the
+					// legend's left edge (overriding the title-driven
+					// `alignItems`) so every section's swatch column shares one
+					// vertical axis. The title keeps its own alignment.
+					alignSelf: alignEntriesStart ? "flex-start" : undefined,
 				}}
 			>
 				{section.kind === "combined" && (
@@ -386,6 +398,7 @@ export const LegendSection = ({
 						entryColumns={entryColumns}
 						defaultSwatchOpacity={defaultSwatchOpacity}
 						swatchSize={shapeSwatchSize}
+						highlightField={highlightField}
 					/>
 				)}
 				{section.kind === "single" && section.channel === "pattern" && (
@@ -398,6 +411,7 @@ export const LegendSection = ({
 						orientation={orientation}
 						entryColumns={entryColumns}
 						defaultSwatchOpacity={defaultSwatchOpacity}
+						highlightField={highlightField}
 					/>
 				)}
 				{section.kind === "single" && section.channel === "area" && (

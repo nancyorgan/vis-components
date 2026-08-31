@@ -1771,6 +1771,20 @@ entries — so the orientation reads as Stacked there regardless. A
 quantitative gradient / ramp section is a bar rather than a list, so
 it has no rows to wrap and opts out entirely.
 
+**Multiple legends mean the swatches line up with each other
+vertically.** Whenever ≥2 sections render with stacked entries, every
+section's entry block pins to the legend's left edge (instead of
+following its title alignment, which continues to govern the title
+itself), and every entry's swatch graphic centers inside one shared
+fixed-width column — the widest swatch across ALL the sections,
+whatever mix of swatch kinds they draw (color rectangles, shape
+glyphs, size circles, length segments, pattern tiles). Swatches share
+one vertical axis and labels start at one shared x, within a column
+and across packed columns alike. A single legend keeps the historical
+title-relative alignment and content-hugging swatches; horizontal
+orientation flows entries in rows, where a shared vertical swatch
+column has no meaning.
+
 Channels mapped to the **same field** combine into one legend section
 with composed swatches (color + shape + pattern + opacity). The
 combined-section title defaults to the field name; users can

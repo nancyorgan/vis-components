@@ -8,6 +8,8 @@ import type { ChartModeDef } from "./chartModes/types"
 import {
 	LEGEND_FRIENDLY_NAME,
 	legendFontKey,
+	legendSwatchShape,
+	legendSwatchSize,
 	type LabelsConfig,
 	type LegendChannel,
 	type LegendConfig,
@@ -15,6 +17,7 @@ import {
 	type QuantitativeLegendChannel,
 	resolveLegendTextFont,
 	resolveTitleFont,
+	type SwatchShapeChannel,
 	type TextFontConfig,
 } from "./labelsConfig"
 import { histogramMeasureColorDomain } from "./histogramMeasureColor"
@@ -206,6 +209,11 @@ export type LegendPlan = {
 	packSections: boolean
 	effectiveCols: number
 	entryColumns: number
+	/** True when ≥2 sections stack with vertical entries — the legend has
+	 *  published the shared swatch-column width (`--vc-legend-swatch-col`)
+	 *  and each section's entry block should pin to the legend's left edge
+	 *  so all swatches line up on one vertical axis. */
+	alignSwatchColumn: boolean
 }
 
 /** Pure section planning + legend-box sizing for the `Legend` component.
@@ -565,7 +573,10 @@ export const planLegendSections = ({
 	const lengthMax = configs.length?.maxLength ?? 40
 	const LENGTH_SWATCH_W = Math.max(24, lengthMax + SWATCH_PAD)
 	const areaMaxRadius = configs.area?.maxRadius ?? 18
-	const AREA_SWATCH_W = Math.max(24, areaMaxRadius * 2 + SWATCH_PAD)
+	// +6 (not SWATCH_PAD): the combined ordinal-area swatch renders in a
+	// (radius + 3) * 2 box, 2px wider than the standalone AreaLegend's
+	// 2r + 4 column — budget for the wider of the two render paths.
+	const AREA_SWATCH_W = Math.max(24, areaMaxRadius * 2 + 6)
 	const channelSwatchW = (
 		ch:
 			| "hue"
@@ -592,24 +603,83 @@ export const planLegendSections = ({
 				return COMPOSED_SWATCH_W
 		}
 	}
-	const maxSwatchW = sections.reduce((max, s) => {
+	// Composed (color-style) swatch width honoring the user's per-section
+	// swatch shape + size (Legend panel → Swatches): a shaped glyph draws in
+	// a (r + 3) * 2 box; the default rectangle scales 18px × r/5.
+	// COMPOSED_SWATCH_W stays the floor so the estimate never shrinks below
+	// the historical constant.
+	const composedSwatchW = (key: SwatchShapeChannel): number => {
+		const r = legendSwatchSize(legendCfg, key) ?? 5
+		const shaped = legendSwatchShape(legendCfg, key) !== null
+		return Math.max(
+			COMPOSED_SWATCH_W,
+			shaped ? (r + 3) * 2 : Math.round(18 * (r / 5)),
+		)
+	}
+	// Shape-channel glyph box (ShapeLegend / combined shape glyphs), scaled
+	// by the Shape swatch-size picker.
+	const shapeGlyphW = Math.max(
+		16,
+		((legendSwatchSize(legendCfg, "shape") ?? 5) + 3) * 2,
+	)
+	// Line-chart context: a combined pattern section overlays the dash line
+	// through the point glyph in a wider box — mirror ComposedSwatch's
+	// max(22, (r + 3) * 2 + 8).
+	const connectionMapped =
+		!modeDef.legend.hideConnectionInThisMode && !!encodings.connection?.field
+	// Swatch shape / size lookups key on the section's LEAD channel — same
+	// resolution Legend.tsx uses when it hands the pickers' values down.
+	const sectionKeyOf = (s: SectionInfo): SwatchShapeChannel =>
+		(s.kind === "single"
+			? (s.titleChannel ?? s.channel)
+			: s.kind === "combined"
+				? (s.titleChannel ?? s.channels[0])
+				: s.legendKey) as SwatchShapeChannel
+	const sectionSwatchW = (s: SectionInfo): number => {
+		const key = sectionKeyOf(s)
 		if (s.kind === "single") {
-			return Math.max(
-				max,
-				channelSwatchW(
-					s.channel as Parameters<typeof channelSwatchW>[0],
-				),
-			)
+			switch (s.channel) {
+				case "length":
+					return LENGTH_SWATCH_W
+				case "area":
+					return AREA_SWATCH_W
+				case "angle":
+					return ANGLE_SWATCH_W
+				case "opacity":
+					return OPACITY_SWATCH_W
+				case "shape":
+					return Math.max(COMPOSED_SWATCH_W, shapeGlyphW)
+				default:
+					return composedSwatchW(key)
+			}
 		}
 		// Slot sections render categorical color swatches (like hue) → the
 		// composed-swatch width.
-		if (s.kind === "slot") return Math.max(max, COMPOSED_SWATCH_W)
+		if (s.kind === "slot") return composedSwatchW(key)
 		// Combined section: widest channel in the group wins. Vector-field
 		// combinations (hue + length/angle) collapse to a single line-segment
 		// swatch whose width is driven by the length scale's range; hue+area
 		// uses AREA_SWATCH_W.
-		return s.channels.reduce((m, c) => Math.max(m, channelSwatchW(c)), max)
-	}, COMPOSED_SWATCH_W)
+		let w = composedSwatchW(key)
+		for (const c of s.channels) {
+			if (c === "length") w = Math.max(w, LENGTH_SWATCH_W)
+			else if (c === "area") w = Math.max(w, AREA_SWATCH_W)
+			else if (c === "angle") w = Math.max(w, ANGLE_SWATCH_W)
+			else if (c === "shape") w = Math.max(w, shapeGlyphW)
+		}
+		if (connectionMapped && s.channels.includes("pattern")) {
+			const glyphR = Math.max(
+				legendSwatchSize(legendCfg, "shape") ?? 0,
+				legendSwatchSize(legendCfg, key) ?? 4.5,
+			)
+			w = Math.max(w, 22, (glyphR + 3) * 2 + 8)
+		}
+		return w
+	}
+	const maxSwatchW = sections.reduce(
+		(max, s) => Math.max(max, sectionSwatchW(s)),
+		COMPOSED_SWATCH_W,
+	)
 	const SWATCH_W = maxSwatchW
 	const SWATCH_GAP = 8
 	const INNER_PAD = 32 // matches the `p-4` on the inner div
@@ -845,6 +915,18 @@ export const planLegendSections = ({
 			? Math.min(requestedColumns, sections.length)
 			: requestedColumns
 	const entryColumns = wrapEntries ? effectiveCols : 1
+	// ≥2 stacked legends: swatches should line up with each other vertically
+	// across the sections. The widest swatch across ALL sections is published
+	// as the `--vc-legend-swatch-col` CSS variable (consumed by
+	// `.vc-swatch-cell`, which every entry's graphic renders inside), so each
+	// swatch centers in one shared column and the labels start at one shared
+	// x — whatever mix of swatch kinds the sections draw. Each section's
+	// entry block also pins to the legend's left edge (`alignEntriesStart` in
+	// LegendSection) instead of centering under its own title. Horizontal
+	// orientation flows entries in rows, where a shared vertical swatch
+	// column has no meaning.
+	const alignSwatchColumn =
+		sections.length >= 2 && legendCfg.orientation === "vertical"
 	// Align the legend's edge against the chart's *plot area* (where the
 	// gridlines actually live), not the wrapper edge. Pixel offsets mirror
 	// ChartCanvas's `p-3` (12px) plus `BASE_MARGIN`/title reserves — keep
@@ -1023,6 +1105,9 @@ export const planLegendSections = ({
 					["--vc-legend-col-gap" as string]: `${COLUMN_GAP_PX}px`,
 				}
 			: {}),
+		...(alignSwatchColumn
+			? { ["--vc-legend-swatch-col" as string]: `${SWATCH_W}px` }
+			: {}),
 	}
 
 	return {
@@ -1037,5 +1122,6 @@ export const planLegendSections = ({
 		packSections,
 		effectiveCols,
 		entryColumns,
+		alignSwatchColumn,
 	}
 }

@@ -2,7 +2,7 @@ import { DEFAULT_SHAPE_CONFIG } from "../../../lib/channelConfig"
 import { GlyphMark, resolveGlyph, stripNudge } from "../../../lib/customGlyphs"
 import { orderCategories, uniqueValues } from "../../../lib/legendSections"
 import { makeShapeIndexer } from "../../../lib/scales"
-import { renderEntryList } from "./swatches"
+import { EntryHoverWrap, renderEntryList, SwatchCell } from "./swatches"
 import type { LegendProps } from "./types"
 
 export const ShapeLegend = ({
@@ -16,6 +16,7 @@ export const ShapeLegend = ({
 	defaultSwatchOpacity = 1,
 	entryColumns,
 	swatchSize,
+	highlightField,
 }: LegendProps & {
 	legendFillColor: string | null | undefined
 	legendStrokeColor: string | null | undefined
@@ -64,29 +65,33 @@ export const ShapeLegend = ({
 			fillOverride === "none" ? "none" : (fillOverride ?? fallbackFill)
 		const stroke = strokeOverrides[v] ?? fallbackStroke
 		return (
-			<div key={v} className={cellClass}>
-				<svg
-					width={side}
-					height={side}
-					viewBox={`${-side / 2} ${-side / 2} ${side} ${side}`}
-					aria-hidden="true"
-					className="flex-shrink-0"
-				>
-					<GlyphMark
-						// Swatches render centered — nudged text glyphs would sit
-						// off-center in (or clip out of) the box.
-						glyph={stripNudge(resolveGlyph(idx, configs.shape?.customGlyphs))}
-						r={r}
-						fill={fill}
-						fillOpacity={fill === "none" ? 0 : defaultSwatchOpacity}
-						stroke={stroke}
-						strokeWidth={1}
-					/>
-				</svg>
-				<span className={labelClass} title={v}>
-					{v}
-				</span>
-			</div>
+			<EntryHoverWrap key={v} field={highlightField} value={v}>
+				<div className={cellClass}>
+					<SwatchCell>
+						<svg
+							width={side}
+							height={side}
+							viewBox={`${-side / 2} ${-side / 2} ${side} ${side}`}
+							aria-hidden="true"
+							className="flex-shrink-0"
+						>
+							<GlyphMark
+								// Swatches render centered — nudged text glyphs would sit
+								// off-center in (or clip out of) the box.
+								glyph={stripNudge(resolveGlyph(idx, configs.shape?.customGlyphs))}
+								r={r}
+								fill={fill}
+								fillOpacity={fill === "none" ? 0 : defaultSwatchOpacity}
+								stroke={stroke}
+								strokeWidth={1}
+							/>
+						</svg>
+					</SwatchCell>
+					<span className={labelClass} title={v}>
+						{v}
+					</span>
+				</div>
+			</EntryHoverWrap>
 		)
 	})
 	return isHorizontal ? (

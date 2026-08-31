@@ -8,6 +8,7 @@ import {
 } from "../../../lib/legendBreaks"
 import { orderCategories, uniqueValues } from "../../../lib/legendSections"
 import { makeLengthScale } from "../../../lib/scales"
+import { SwatchCell } from "./swatches"
 import type { LegendProps } from "./types"
 
 export const LengthLegend = ({
@@ -39,22 +40,24 @@ export const LengthLegend = ({
 					const len = scale(v) ?? 10
 					return (
 						<div key={v} className="flex items-center gap-2">
-							<svg
-								width={svgWidth}
-								height={8}
-								aria-hidden="true"
-								className="flex-shrink-0"
-							>
-								<line
-									x1={2}
-									y1={4}
-									x2={2 + len}
-									y2={4}
-									stroke={color}
-									strokeWidth={3}
-									strokeLinecap="round"
-								/>
-							</svg>
+							<SwatchCell>
+								<svg
+									width={svgWidth}
+									height={8}
+									aria-hidden="true"
+									className="flex-shrink-0"
+								>
+									<line
+										x1={2}
+										y1={4}
+										x2={2 + len}
+										y2={4}
+										stroke={color}
+										strokeWidth={3}
+										strokeLinecap="round"
+									/>
+								</svg>
+							</SwatchCell>
 							<span className="min-w-0 truncate" title={v}>
 								{v}
 							</span>
@@ -106,22 +109,24 @@ export const LengthLegend = ({
 				const len = scale(s) ?? 10
 				return (
 					<div key={s} className="flex items-center gap-2">
-						<svg
-							width={svgWidth}
-							height={8}
-							aria-hidden="true"
-							className="flex-shrink-0"
-						>
-							<line
-								x1={2}
-								y1={4}
-								x2={2 + len}
-								y2={4}
-								stroke={color}
-								strokeWidth={3}
-								strokeLinecap="round"
-							/>
-						</svg>
+						<SwatchCell>
+							<svg
+								width={svgWidth}
+								height={8}
+								aria-hidden="true"
+								className="flex-shrink-0"
+							>
+								<line
+									x1={2}
+									y1={4}
+									x2={2 + len}
+									y2={4}
+									stroke={color}
+									strokeWidth={3}
+									strokeLinecap="round"
+								/>
+							</svg>
+						</SwatchCell>
 						<span className="min-w-0 truncate">
 							{decorateOpenEndLabel(fmt(s), i, breaks, dataExt)}
 						</span>

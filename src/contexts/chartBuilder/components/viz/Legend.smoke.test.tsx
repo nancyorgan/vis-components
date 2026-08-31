@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react"
+import { fireEvent, render } from "@testing-library/react"
 import { rgb as d3Rgb } from "d3-color"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
@@ -25,11 +25,18 @@ import {
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
+	hoveredLegendEntryAtom,
 	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
 
-import { AreaLegend, CombinedGroupLegend, Legend, ShapeLegend } from "./Legend"
+import {
+	AreaLegend,
+	CombinedGroupLegend,
+	Legend,
+	PatternLegend,
+	ShapeLegend,
+} from "./Legend"
 
 /** Smoke tests for the legend-rendering branches that bit me when I claimed
  *  features were "done" but the wrong code path was firing.
@@ -1915,5 +1922,85 @@ describe("Legend — columns arrange sections, orientation flows entries", () =>
 				(c as HTMLElement).className.includes("flex-col")
 			)
 		).toBe(true)
+	})
+})
+
+/** Legend-hover highlight from the STANDALONE shape / pattern sections.
+ *  Regression: only the color / combined legends wrapped their entries in
+ *  `EntryHoverWrap`, so hovering a shape or pattern legend entry never
+ *  published to `hoveredLegendEntryAtom` — the chart didn't light up. */
+describe("Shape / Pattern legends — hover publishes the highlight entry", () => {
+	const values = ["cat", "dog", "bird"]
+
+	// span[title=v] → cell div → EntryHoverWrap div (the hover target).
+	const hoverWrapOf = (container: HTMLElement, v: string) => {
+		const label = container.querySelector(`span[title="${v}"]`) as HTMLElement
+		expect(label).not.toBeNull()
+		return label.parentElement!.parentElement as HTMLElement
+	}
+
+	it("shape legend entries publish { field, value } on hover and clear on leave", () => {
+		let store: TestStore | null = null
+		const { container } = render(
+			<TestProvider initializeState={(s) => (store = s)}>
+				<ShapeLegend
+					type="categorical"
+					values={values}
+					configs={EMPTY_CHANNEL_CONFIGS}
+					legendFillColor={null}
+					legendStrokeColor={null}
+					highlightField="animal"
+				/>
+			</TestProvider>
+		)
+		const wrap = hoverWrapOf(container, "dog")
+		fireEvent.mouseEnter(wrap)
+		expect(store!.get(hoveredLegendEntryAtom)).toEqual({
+			field: "animal",
+			value: "dog",
+		})
+		fireEvent.mouseLeave(wrap)
+		expect(store!.get(hoveredLegendEntryAtom)).toBeNull()
+	})
+
+	it("pattern legend entries publish { field, value } on hover", () => {
+		let store: TestStore | null = null
+		const { container } = render(
+			<TestProvider initializeState={(s) => (store = s)}>
+				<PatternLegend
+					type="categorical"
+					values={values}
+					configs={EMPTY_CHANNEL_CONFIGS}
+					reverseCategorical={false}
+					highlightField="animal"
+				/>
+			</TestProvider>
+		)
+		fireEvent.mouseEnter(hoverWrapOf(container, "bird"))
+		expect(store!.get(hoveredLegendEntryAtom)).toEqual({
+			field: "animal",
+			value: "bird",
+		})
+	})
+
+	it("stays inert (no wrapper handlers) when the feature is off", () => {
+		// highlightField undefined = the "hover to highlight" option is off;
+		// EntryHoverWrap renders children untouched, so the label's ancestor
+		// chain carries no opacity-transition wrapper div.
+		const { container } = render(
+			<TestProvider>
+				<ShapeLegend
+					type="categorical"
+					values={values}
+					configs={EMPTY_CHANNEL_CONFIGS}
+					legendFillColor={null}
+					legendStrokeColor={null}
+				/>
+			</TestProvider>
+		)
+		const transitions = [...container.querySelectorAll("div")].filter((d) =>
+			(d as HTMLElement).style.transition.includes("opacity")
+		)
+		expect(transitions.length).toBe(0)
 	})
 })

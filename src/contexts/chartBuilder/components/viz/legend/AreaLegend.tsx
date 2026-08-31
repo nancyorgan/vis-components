@@ -13,6 +13,7 @@ import {
 	makeAreaScale,
 	ordinalAreaCategories,
 } from "../../../lib/scales"
+import { SwatchCell } from "./swatches"
 import type { LegendProps } from "./types"
 
 export const AreaLegend = ({
@@ -126,21 +127,23 @@ export const AreaLegend = ({
 				const rowH = Math.max(24, Math.ceil(e.r * 2) + 4)
 				return (
 					<div key={e.key} className="flex items-center gap-2">
-						<svg
-							width={colWidth}
-							height={rowH}
-							aria-hidden="true"
-							className="flex-shrink-0"
-						>
-							<circle
-								cx={colWidth / 2}
-								cy={rowH / 2}
-								r={e.r}
-								fill={color}
-								fillOpacity={0.8 * defaultSwatchOpacity}
-								stroke={stroke}
-							/>
-						</svg>
+						<SwatchCell>
+							<svg
+								width={colWidth}
+								height={rowH}
+								aria-hidden="true"
+								className="flex-shrink-0"
+							>
+								<circle
+									cx={colWidth / 2}
+									cy={rowH / 2}
+									r={e.r}
+									fill={color}
+									fillOpacity={0.8 * defaultSwatchOpacity}
+									stroke={stroke}
+								/>
+							</svg>
+						</SwatchCell>
 						<span className="min-w-0 truncate">{e.label}</span>
 					</div>
 				)
