@@ -21,8 +21,6 @@ export type StripAxes = {
 	categoryScale: { (cat: unknown): number | undefined; step: () => number }
 	valueScale: PositionScale
 	jitterAmount: number
-	/** When true, pack points into a beeswarm instead of random jitter. */
-	beeswarm: boolean
 	overlay: DistributionOverlayConfig
 }
 
@@ -164,7 +162,6 @@ export const resolveStripAxes = (args: {
 		categoryScale,
 		valueScale,
 		jitterAmount: cfg?.jitterAmount ?? 0,
-		beeswarm: cfg?.beeswarm ?? false,
 		overlay,
 	}
 }
@@ -202,108 +199,3 @@ export const applyJitter = (marks: Mark[], strip: StripAxes | null): Mark[] => {
 	})
 }
 
-/** One-dimensional beeswarm packing. Given points described by their position
- * along the VALUE axis and their radius, return the offset to apply along the
- * CATEGORY axis for each — packed as close to the band center (offset 0) as
- * possible without any two circles overlapping. Deterministic: the result
- * depends only on the inputs, so points don't dance across re-renders.
- *
- * Algorithm (the standard d3-beeswarm "swarm"): place points in order of
- * value position. For each point, every already-placed neighbor whose value
- * gap is smaller than the sum of radii forbids a horizontal band around its
- * offset (width = the chord that keeps the circles just touching). Pick the
- * offset nearest 0 that sits outside every forbidden band. O(n²) per group,
- * which is fine for the point counts a strip plot renders. */
-const computeSwarmOffsets = (
-	points: ReadonlyArray<{ pos: number; r: number }>
-): number[] => {
-	const order = points
-		.map((_, i) => i)
-		.sort((a, b) => points[a].pos - points[b].pos)
-	const offsets = new Array<number>(points.length).fill(0)
-	const placed: Array<{ pos: number; r: number; offset: number }> = []
-	const EPS = 1e-6
-	for (const idx of order) {
-		const p = points[idx]
-		// Forbidden intervals along the category axis, from each placed neighbor
-		// whose circle could overlap this one given their value-axis gap.
-		const intervals: Array<[number, number]> = []
-		for (const q of placed) {
-			const sumR = p.r + q.r
-			const dv = Math.abs(p.pos - q.pos)
-			if (dv < sumR) {
-				const sep = Math.sqrt(sumR * sumR - dv * dv)
-				intervals.push([q.offset - sep, q.offset + sep])
-			}
-		}
-		// Candidate offsets: 0 (band center) plus each forbidden boundary.
-		// The nearest candidate to 0 that lies outside every interval wins.
-		const candidates = [0]
-		for (const [lo, hi] of intervals) {
-			candidates.push(lo, hi)
-		}
-		candidates.sort((a, b) => Math.abs(a) - Math.abs(b))
-		let chosen = 0
-		for (const c of candidates) {
-			const free = !intervals.some(([lo, hi]) => c > lo + EPS && c < hi - EPS)
-			if (free) {
-				chosen = c
-				break
-			}
-		}
-		offsets[idx] = chosen
-		placed.push({ pos: p.pos, r: p.r, offset: chosen })
-	}
-	return offsets
-}
-
-/** Pack points into a beeswarm along the category axis, leaving their value-axis
- * position untouched. Groups marks by their (shared) category-axis center, packs
- * each group with {@link computeSwarmOffsets}, then shifts cx/cy (and any
- * length/angle line endpoints) by the resulting offset.
- *
- * `pad` widens each point's collision radius — pass the stroke's half-width so
- * the packing accounts for the outline that SVG centers on the circle's edge.
- * Without it, circles pack to touching CENTERS-apart and their strokes visibly
- * overlap. */
-export const applyBeeswarm = (
-	marks: Mark[],
-	strip: StripAxes | null,
-	pad: number
-): Mark[] => {
-	if (!strip) return marks
-	const axis = strip.categoryAxis
-	// Group by the base center along the category axis — applyPositionScale puts
-	// every point in a category at that band's center, so equal centers = same
-	// category. Round to absorb floating-point noise from the scale.
-	const groups = new Map<number, Mark[]>()
-	for (const m of marks) {
-		const base = axis === "x" ? m.cx : m.cy
-		const key = Math.round(base * 1000) / 1000
-		const bucket = groups.get(key)
-		if (bucket) bucket.push(m)
-		else groups.set(key, [m])
-	}
-	const offsetByIndex = new Map<number, number>()
-	for (const bucket of groups.values()) {
-		const swarm = computeSwarmOffsets(
-			bucket.map((m) => ({ pos: axis === "x" ? m.cy : m.cx, r: m.r + pad }))
-		)
-		bucket.forEach((m, i) => offsetByIndex.set(m.i, swarm[i]))
-	}
-	return marks.map((m) => {
-		const delta = offsetByIndex.get(m.i) ?? 0
-		if (axis === "x") {
-			const cx = m.cx + delta
-			const line = m.line
-				? { ...m.line, x1: m.line.x1 + delta, x2: m.line.x2 + delta }
-				: null
-			return { ...m, cx, line }
-		}
-		const cy = m.cy + delta
-		const line = m.line
-			? { ...m.line, y1: m.line.y1 + delta, y2: m.line.y2 + delta }
-			: null
-		return { ...m, cy, line }
-	})
-}

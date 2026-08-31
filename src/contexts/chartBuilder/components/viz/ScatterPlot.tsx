@@ -59,7 +59,6 @@ import {
 } from "./scatter/marks"
 import { RegressionLayer } from "./scatter/RegressionLayer"
 import {
-	applyBeeswarm,
 	applyJitter,
 	resolveStripAxes,
 	type StripAxes,
@@ -333,7 +332,6 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 				categoryScale,
 				valueScale,
 				jitterAmount: 0,
-				beeswarm: false,
 				overlay,
 			}
 			// Underlying data points, gated on "Show points". There's no
@@ -650,15 +648,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 			stripAxes !== null &&
 			(stripAxes.overlay.showDensityViolin || stripAxes.overlay.showBoxPlot)
 		const showPoints = overlayActive ? stripAxes.overlay.showPoints : true
-		// Half the outline stroke width: SVG centers the stroke on the circle's
-		// edge, so packing must reserve this much extra room or the strokes of
-		// touching points overlap.
-		const beeswarmPad = (channelConfigs.shape?.outlineWidth ?? 1) / 2
-		const jitteredMarks = showPoints
-			? stripAxes?.beeswarm
-				? applyBeeswarm(marks, stripAxes, beeswarmPad)
-				: applyJitter(marks, stripAxes)
-			: []
+		const jitteredMarks = showPoints ? applyJitter(marks, stripAxes) : []
 
 		const hoveredIdx = hovered?.i ?? null
 

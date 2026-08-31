@@ -106,9 +106,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			themeAxis.distributionOverlay
 		),
 		regression: valueChanged(configs[channel]?.regression, themeAxis.regression),
-		jitter:
-			valueChanged(configs[channel]?.jitterAmount, themeAxis.jitterAmount) ||
-			valueChanged(configs[channel]?.beeswarm, undefined),
+		jitter: valueChanged(configs[channel]?.jitterAmount, themeAxis.jitterAmount),
 		offset:
 			valueChanged(configs[channel]?.offset, undefined) ||
 			valueChanged(configs[channel]?.offsetX, undefined) ||
@@ -398,7 +396,6 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						{isCategoricalSide && (
 							<JitterControl
 								jitterAmount={config.jitterAmount ?? 0}
-								beeswarm={config.beeswarm ?? false}
 								onChange={(next) => update(next)}
 							/>
 						)}
@@ -1383,50 +1380,30 @@ const WrapAlignmentControl = ({
 	)
 }
 
-/** Beeswarm checkbox + jitter slider — shown on the CATEGORICAL side of a strip
- * plot. Checking "Make beeswarm" packs the points (deterministic dot-packing)
- * and disables the jitter slider, since the two are mutually-exclusive ways of
- * spreading points within a category. */
+/** Jitter slider — shown on the CATEGORICAL side of a strip plot. Spreads
+ * points within each category band; 0 keeps them stacked on the band center. */
 const JitterControl = ({
 	jitterAmount,
-	beeswarm,
 	onChange,
 }: {
 	jitterAmount: number
-	beeswarm: boolean
-	onChange: (next: { jitterAmount?: number; beeswarm?: boolean }) => void
+	onChange: (next: { jitterAmount?: number }) => void
 }) => (
-	<div className="flex flex-col gap-1.5">
-		<label className="flex items-center gap-2 text-sm">
-			<input
-				type="checkbox"
-				checked={beeswarm}
-				onChange={(e) => onChange({ beeswarm: e.target.checked })}
-				className="h-3 w-3"
-			/>
-			<span className="text-stone-600 dark:text-stone-400">Make beeswarm</span>
-		</label>
-		<label
-			className={`flex items-center gap-2 text-sm ${
-				beeswarm ? "opacity-40" : ""
-			}`}
-		>
-			<span className={LABEL_COL}>Jitter</span>
-			<input
-				type="range"
-				min={0}
-				max={1}
-				step={0.05}
-				value={jitterAmount}
-				disabled={beeswarm}
-				onChange={(e) => onChange({ jitterAmount: Number(e.target.value) })}
-				className="min-w-0 flex-1"
-			/>
-			<span className="w-10 text-right text-sm text-stone-600">
-				{Math.round(jitterAmount * 100)}%
-			</span>
-		</label>
-	</div>
+	<label className="flex items-center gap-2 text-sm">
+		<span className={LABEL_COL}>Jitter</span>
+		<input
+			type="range"
+			min={0}
+			max={1}
+			step={0.05}
+			value={jitterAmount}
+			onChange={(e) => onChange({ jitterAmount: Number(e.target.value) })}
+			className="min-w-0 flex-1"
+		/>
+		<span className="w-10 text-right text-sm text-stone-600">
+			{Math.round(jitterAmount * 100)}%
+		</span>
+	</label>
 )
 
 /** The rug (points) toggle + tassel length/width, bound to the shared

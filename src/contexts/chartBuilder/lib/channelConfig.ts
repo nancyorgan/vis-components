@@ -333,13 +333,6 @@ export type AxisConfig = {
 	 * fraction of the per-category band width: 0 = no jitter (default), 1 =
 	 * fills the full band. Ignored on quantitative/temporal axes. */
 	jitterAmount: number
-	/** Beeswarm packing for the categorical side of a strip plot. When `true`,
-	 * points in each category are packed as close together as possible without
-	 * overlapping (offset only along THIS axis; their position on the
-	 * quantitative axis is preserved) instead of being randomly jittered —
-	 * `jitterAmount` is ignored while this is on. Optional so visuals saved
-	 * before beeswarm existed load unchanged (absent reads as `false`). */
-	beeswarm?: boolean
 	/** Distribution overlays — meaningful only when this axis is quantitative
 	 * and the other axis is categorical. */
 	distributionOverlay: DistributionOverlayConfig

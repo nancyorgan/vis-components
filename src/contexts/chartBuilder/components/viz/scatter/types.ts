@@ -20,7 +20,7 @@ export type Mark = {
 	cx: number
 	cy: number
 	/** Resolved point radius in pixels (area-encoded or the default). Drives
-	 * the symbol path and the beeswarm packing's collision geometry. */
+	 * the symbol path. */
 	r: number
 	fill: string
 	/** Resolved per-shape fill — when the user has overridden the fill
