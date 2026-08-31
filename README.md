@@ -48,18 +48,22 @@ VIS_BASE_URL=https://charts.example.com \
 VIS_DB_DIR=/var/lib/vis/db \
 VIS_DATA_DIR=/var/lib/vis/data \
 VIS_PORT=8080 \
+VIS_PUBLISH_DIR=/var/lib/vis/publish \
+VIS_PUBLISH_BASE_URL=https://embeds.example.com \
 node server/dist/main.js
 ```
 
-All four environment variables are required; the server refuses to start with
+All six environment variables are required; the server refuses to start with
 a one-line reason per missing/invalid value.
 
 | Variable | Meaning |
 |---|---|
-| `VIS_BASE_URL` | Absolute origin the app is reached at (behind any proxies). Used for embed/share links; never derived from incoming requests. |
+| `VIS_BASE_URL` | Absolute origin the app is reached at (behind any proxies). Used for share links; never derived from incoming requests. |
 | `VIS_DB_DIR` | Directory for the SQLite database. Initialized when empty; malformed state fails startup. |
 | `VIS_DATA_DIR` | Directory for dataset files (one gzipped JSON file per dataset). |
 | `VIS_PORT` | Port to listen on. Plain HTTP — put TLS termination in front. |
+| `VIS_PUBLISH_DIR` | Directory published embeds are written into. Serve it publicly with a separate dumb static file server (e.g. `python3 -m http.server`); everything in it is fully public, and published embeds keep working with the app server off. |
+| `VIS_PUBLISH_BASE_URL` | Public base URL that static server serves `VIS_PUBLISH_DIR` at — a file at `$VIS_PUBLISH_DIR/<path>` must be reachable at `$VIS_PUBLISH_BASE_URL/<path>`. |
 
 Operational notes: `GET /alive` answers 200 for liveness probes; logs go to
 stdout/stderr; SIGTERM drains in-flight requests and closes the database

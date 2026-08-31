@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Chart embed</title>
+		<!-- The chart-font presets (FONT_FAMILY_OPTIONS) load from Google like
+		     they do in the app; user-library fonts arrive inside the payload as
+		     base64 woff2 instead (a published embed can't reach the author's
+		     browser storage). -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link
+			rel="preconnect"
+			href="https://fonts.gstatic.com"
+			crossorigin
+		/>
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Quicksand:wght@300..700&display=swap"
+		/>
+	</head>
+	<body>
+		<!-- Replaced whole at publish time by the self-host server (see
+		     server/src/embedFiles.ts) with {"v":1,"part":…,"payload":…}. -->
+		<script type="application/json" id="embed-payload">__VIS_EMBED_PAYLOAD__</script>
+		<div id="root"></div>
+		<script type="module" src="/src/embedRuntime/main.tsx"></script>
+	</body>
+</html>

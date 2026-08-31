@@ -171,3 +171,110 @@ describe("deriveLandingRows", () => {
 		expect(rows[0]!.visual.id).toBe("v-present")
 	})
 })
+
+describe("deriveLandingRows — publish state", () => {
+	const publishFields = {
+		publishId: "01234567-89ab-4cde-8f01-23456789abcd",
+		publishedAt: 5000,
+		publishedParts: ["full" as const],
+		publishedUrls: { full: "https://embeds.example.com/e/index.html" },
+	}
+	const instanceRow = (rows: ReturnType<typeof deriveLandingRows>) => {
+		const row = rows[0]!
+		if (row.kind !== "instance") throw new Error("expected an instance row")
+		return row
+	}
+
+	it("an unpublished instance carries publish: null", () => {
+		const rows = deriveLandingRows(
+			[mkVisual({})],
+			{ a: mkInstance({ id: "a" }) },
+			{ "ds-cats": mkDataset({}) }
+		)
+		expect(instanceRow(rows).publish).toBeNull()
+	})
+
+	it("a published 'latest' instance at the current version is not behind", () => {
+		const rows = deriveLandingRows(
+			[mkVisual({})],
+			{
+				a: mkInstance({
+					id: "a",
+					versionId: null,
+					...publishFields,
+					publishedVersionId: "dv-1",
+				}),
+			},
+			{ "ds-cats": mkDataset({}) }
+		)
+		const publish = instanceRow(rows).publish
+		expect(publish).not.toBeNull()
+		expect(publish!.behind).toBe(false)
+		expect(publish!.resolvedVersionLabel).toBe("v1")
+	})
+
+	it("a published 'latest' instance is behind once the dataset gains a version", () => {
+		const rows = deriveLandingRows(
+			[mkVisual({})],
+			{
+				a: mkInstance({
+					id: "a",
+					versionId: null,
+					...publishFields,
+					publishedVersionId: "dv-1",
+				}),
+			},
+			{
+				"ds-cats": mkDataset({
+					versions: [mkVersion({ id: "dv-1" }), mkVersion({ id: "dv-2" })],
+					latestVersionId: "dv-2",
+				}),
+			}
+		)
+		const publish = instanceRow(rows).publish
+		expect(publish!.behind).toBe(true)
+		expect(publish!.resolvedVersionLabel).toBe("v1")
+	})
+
+	it("a published PINNED instance is never 'behind'", () => {
+		const rows = deriveLandingRows(
+			[mkVisual({})],
+			{
+				a: mkInstance({
+					id: "a",
+					versionId: "dv-1",
+					...publishFields,
+					publishedVersionId: "dv-1",
+				}),
+			},
+			{
+				"ds-cats": mkDataset({
+					versions: [mkVersion({ id: "dv-1" }), mkVersion({ id: "dv-2" })],
+					latestVersionId: "dv-2",
+				}),
+			}
+		)
+		const row = instanceRow(rows)
+		expect(row.pinState).toBe("pinned")
+		expect(row.publish!.behind).toBe(false)
+	})
+
+	it("a publish whose recorded version was deleted keeps publish info, label null", () => {
+		const rows = deriveLandingRows(
+			[mkVisual({})],
+			{
+				a: mkInstance({
+					id: "a",
+					versionId: null,
+					...publishFields,
+					publishedVersionId: "dv-gone",
+				}),
+			},
+			{ "ds-cats": mkDataset({}) }
+		)
+		const publish = instanceRow(rows).publish
+		expect(publish).not.toBeNull()
+		expect(publish!.resolvedVersionLabel).toBeNull()
+		expect(publish!.behind).toBe(true)
+	})
+})

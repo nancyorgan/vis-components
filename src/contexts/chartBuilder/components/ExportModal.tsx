@@ -9,15 +9,17 @@ import { downloadVisualsBundle } from "../lib/downloadVisuals"
 import { upsertEmbedInstance } from "../lib/embedInstances"
 import { embedFontsInSvg } from "../lib/fontEmbed"
 import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
-import { appOrigin } from "../../../lib/appOrigin"
 import type { ExportUnit } from "../lib/storage"
+import { getStorageAdapter } from "../lib/storage/registry"
 import {
 	embedInstancesAtom,
 	exportSizesAtom,
 	exportUnitAtom,
 	visualsAtom,
 } from "../store/atoms"
+import { usePublishEmbed, useUnpublishEmbed } from "../store/publishEmbed"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
+import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
 
 import { Button } from "../../../components/ui/Button"
 import { Modal } from "../../../components/ui/Modal"
@@ -63,14 +65,6 @@ const pxToUnit = (px: number, unit: ExportUnit): number =>
 
 const unitToPx = (v: number, unit: ExportUnit): number =>
 	Math.round(v * PX_PER_UNIT[unit])
-
-// Temporary kill switch for iframe embeds while they're under test. All the
-// embed wiring (routes, capture, instance tracking, snippet building) stays
-// intact — the Embed tab just shows a notice instead of the snippet boxes,
-// the copy button and the open-embed link. Flip to false to restore it.
-// Typed `boolean` rather than a literal so both branches stay type-checked.
-const EMBEDS_DISABLED: boolean = true
-const EMBEDS_DISABLED_NOTICE = "Embeds are currently disabled for testing."
 
 // Fallback iframe dimensions for the embed snippets, used only when the
 // on-screen chart / legend can't be measured (e.g. modal opened before the
@@ -137,7 +131,7 @@ const useViewportSize = () => {
 }
 
 export const ExportModal = ({ open, onClose, visualId }: Props) => {
-	const [tab, setTab] = useState<Tab>(EMBEDS_DISABLED ? "export" : "embed")
+	const [tab, setTab] = useState<Tab>("embed")
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [height, setHeight] = useState(DEFAULT_HEIGHT)
 	const [aspectLocked, setAspectLocked] = useState(false)
@@ -321,19 +315,44 @@ const EmbedTab = ({
 	onClose: () => void
 }) => {
 	const view = useCurrentDatasetView()
+	const instances = useAtomValue(embedInstancesAtom)
 	const setEmbedInstances = useSetAtom(embedInstancesAtom)
+	const publishEmbed = usePublishEmbed()
+	const unpublishEmbed = useUnpublishEmbed()
+	// ZIP-level maps inline their boundary topology into the payload — the
+	// published file fetches nothing. Derived here (not in the publish hook)
+	// because the effective level is a hook over the live editor atoms.
+	const geographyLevel = useEffectiveGeographyLevel()
 	// Base for the snippet textareas' ids so each visible label targets its
 	// own textarea via htmlFor.
 	const snippetIdBase = useId()
 	const [mode, setMode] = useState<PinMode>("live")
 	const [splitLegend, setSplitLegend] = useState(false)
 	const [copied, setCopied] = useState<"main" | "legend" | null>(null)
+	const [busy, setBusy] = useState<"publish" | "unpublish" | null>(null)
+	const [publishError, setPublishError] = useState<string | null>(null)
+	// Unpublishing kills public URLs, so the button asks twice (inline).
+	const [confirmUnpublish, setConfirmUnpublish] = useState(false)
 	// User-edited snippet text, keyed by snippet. Seeded from the generated
-	// value and reset whenever the generated snippet changes (pin mode / split
-	// / measured size), so tweaking dimensions by hand survives until an
-	// option that rebuilds the snippet is toggled.
+	// value and reset whenever the underlying publish changes, so tweaking
+	// dimensions by hand survives until a republish rebuilds the snippet.
 	const [drafts, setDrafts] = useState<Record<string, string>>({})
 	const [draftsSignature, setDraftsSignature] = useState<string | null>(null)
+
+	// Publishing writes through the self-host server — in a browser-local
+	// session there is nowhere to publish to. `remoteLoad` is true exactly
+	// when the boot probe found the server and installed the HTTP adapter.
+	const canPublish = getStorageAdapter().capabilities.remoteLoad
+
+	// The instance this tab is looking at: one embed per (visual, pin) pair.
+	const versionId = mode === "pinned" && view ? view.versionId : null
+	const instance = Object.values(instances).find(
+		(i) => i.visualId === visualId && i.versionId === versionId
+	)
+	const published =
+		instance?.publishId !== undefined && instance.publishedUrls !== undefined
+			? instance
+			: null
 
 	// Seed the iframe dimensions from the live on-screen chart so the embed
 	// inherits the size the user sees. Measured once when the tab mounts (the
@@ -352,60 +371,100 @@ const EmbedTab = ({
 		[]
 	)
 
+	// Snippets come from the PUBLISHED urls — there is no URL to offer until
+	// a publish has succeeded (0016 rule 4).
 	const { snippets, embedUrl } = useMemo(() => {
-		// Outward-facing URLs: in server mode the canonical base URL comes from
-		// the server config (the page may sit behind proxies), locally it's the
-		// page's own origin. The preview iframe below deliberately does NOT use
-		// this — it must stay same-origin for the SVG capture to work.
-		const origin = appOrigin()
-		const params = new URLSearchParams()
-		if (mode === "pinned" && view) params.set("v", view.versionId)
-		const baseQuery = params.toString()
-		const baseUrl = `${origin}/embed/${visualId}`
-		const fullUrl = baseQuery ? `${baseUrl}?${baseQuery}` : baseUrl
-		if (!splitLegend) {
-			const { width, height } = embedSizes.full
-			const snippet = `<iframe src="${fullUrl}" width="${width}" height="${height}" frameborder="0"></iframe>`
+		const urls = published?.publishedUrls
+		if (!urls) {
 			return {
-				snippets: [{ key: "main" as const, label: "Iframe", value: snippet }],
-				embedUrl: fullUrl,
+				snippets: [] as Array<{
+					key: "main" | "legend"
+					label: string
+					value: string
+				}>,
+				embedUrl: null as string | null,
 			}
 		}
-		const chartParams = new URLSearchParams(params)
-		chartParams.set("part", "chart")
-		const chartUrl = `${baseUrl}?${chartParams.toString()}`
-		const legendParams = new URLSearchParams(params)
-		legendParams.set("part", "legend")
-		const legendUrl = `${baseUrl}?${legendParams.toString()}`
-		return {
-			snippets: [
-				{
-					key: "main" as const,
-					label: "Chart iframe",
-					value: `<iframe src="${chartUrl}" width="${embedSizes.chart.width}" height="${embedSizes.chart.height}" frameborder="0"></iframe>`,
-				},
-				{
-					key: "legend" as const,
-					label: "Legend iframe",
-					value: `<iframe src="${legendUrl}" width="${embedSizes.legend.width}" height="${embedSizes.legend.height}" frameborder="0"></iframe>`,
-				},
-			],
-			embedUrl: chartUrl,
+		const iframe = (src: string, size: { width: number; height: number }) =>
+			`<iframe src="${src}" width="${size.width}" height="${size.height}" frameborder="0"></iframe>`
+		if (urls.full) {
+			return {
+				snippets: [
+					{
+						key: "main" as const,
+						label: "Iframe",
+						value: iframe(urls.full, embedSizes.full),
+					},
+				],
+				embedUrl: urls.full,
+			}
 		}
-	}, [visualId, mode, view, splitLegend, embedSizes])
+		const out: Array<{ key: "main" | "legend"; label: string; value: string }> = []
+		if (urls.chart) {
+			out.push({
+				key: "main",
+				label: "Chart iframe",
+				value: iframe(urls.chart, embedSizes.chart),
+			})
+		}
+		if (urls.legend) {
+			out.push({
+				key: "legend",
+				label: "Legend iframe",
+				value: iframe(urls.legend, embedSizes.legend),
+			})
+		}
+		return { snippets: out, embedUrl: urls.chart ?? urls.legend ?? null }
+	}, [published?.publishedUrls, embedSizes])
 
-	// Reset the editable drafts to the freshly generated snippets only when an
-	// option that rebuilds them changes. Keyed on a stable signature rather
-	// than the `snippets` reference: `view` (and thus `snippets`) can change
-	// identity on unrelated store updates, so watching `snippets` could reset
-	// (and clobber) the user's edits. Done during render (React's "adjust
-	// state on change" pattern) so the reset lands before paint, no effect.
-	const snippetSignature = `${visualId}|${mode}|${splitLegend}|${
-		view?.versionId ?? ""
+	// Reset the editable drafts only when the underlying publish changes.
+	// Keyed on a stable signature rather than the `snippets` reference so an
+	// unrelated store update can't clobber the user's edits. Done during
+	// render (React's "adjust state on change" pattern) so the reset lands
+	// before paint, no effect.
+	const snippetSignature = `${visualId}|${mode}|${published?.publishId ?? ""}|${
+		published?.publishedAt ?? ""
 	}`
 	if (snippetSignature !== draftsSignature) {
 		setDraftsSignature(snippetSignature)
 		setDrafts(Object.fromEntries(snippets.map((s) => [s.key, s.value])))
+		setConfirmUnpublish(false)
+	}
+
+	const onPublish = async () => {
+		if (busy) return
+		setBusy("publish")
+		setPublishError(null)
+		try {
+			await publishEmbed({
+				visualId,
+				versionId,
+				split: splitLegend,
+				includeZctaTopology: geographyLevel === "zcta",
+			})
+		} catch (e) {
+			setPublishError(e instanceof Error ? e.message : String(e))
+		} finally {
+			setBusy(null)
+		}
+	}
+
+	const onUnpublish = async () => {
+		if (busy || !instance) return
+		if (!confirmUnpublish) {
+			setConfirmUnpublish(true)
+			return
+		}
+		setBusy("unpublish")
+		setPublishError(null)
+		try {
+			await unpublishEmbed(instance.id)
+			setConfirmUnpublish(false)
+		} catch (e) {
+			setPublishError(e instanceof Error ? e.message : String(e))
+		} finally {
+			setBusy(null)
+		}
 	}
 
 	const onCopy = async (key: "main" | "legend", value: string) => {
@@ -416,7 +475,6 @@ const EmbedTab = ({
 		} catch {
 			// Older browsers — let the user select+copy manually.
 		}
-		const versionId = mode === "pinned" && view ? view.versionId : null
 		setEmbedInstances((prev) => upsertEmbedInstance(prev, visualId, versionId))
 	}
 
@@ -427,120 +485,160 @@ const EmbedTab = ({
 	}
 	const versionLabel = formatVersionLabel()
 
+	// The publish button republishes when the pin already has public URLs —
+	// same URLs, fresh snapshot.
+	const publishLabel =
+		busy === "publish"
+			? "Publishing…"
+			: published
+				? "Republish"
+				: "Publish embed"
+
+	if (!canPublish) {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+					Publishing embeds requires the self-host server — this session is
+					running browser-local, so there is nowhere public to publish to.
+				</div>
+				<div className="flex items-center justify-end">
+					<Button compact outline onClick={onClose}>
+						Done
+					</Button>
+				</div>
+			</div>
+		)
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
-			{EMBEDS_DISABLED ? (
-				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-					{EMBEDS_DISABLED_NOTICE}
+			<fieldset className="flex flex-col gap-3">
+				<legend className="text-sm font-medium text-stone-900 dark:text-stone-100">
+					Pin behavior
+				</legend>
+				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+				<label className="flex items-start gap-2 text-sm">
+					<input
+						type="radio"
+						className="mt-1"
+						checked={mode === "live"}
+						onChange={() => setMode("live")}
+					/>
+					<div>
+						<div className="font-medium text-stone-900 dark:text-stone-100">
+							Latest at publish
+						</div>
+						<div className="text-sm text-stone-600 dark:text-stone-400">
+							Publishes a snapshot of the latest data. Republish any time to
+							update the embed in place — the URL never changes.
+						</div>
+					</div>
+				</label>
+				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+				<label className="flex items-start gap-2 text-sm">
+					<input
+						type="radio"
+						className="mt-1"
+						checked={mode === "pinned"}
+						onChange={() => setMode("pinned")}
+						disabled={!view}
+					/>
+					<div>
+						<div className="font-medium text-stone-900 dark:text-stone-100">
+							Pin to current version{view ? ` (${versionLabel})` : ""}
+						</div>
+						<div className="text-sm text-stone-600 dark:text-stone-400">
+							The embed stays on this data version; republishing refreshes the
+							styling but keeps the pinned data.
+						</div>
+					</div>
+				</label>
+			</fieldset>
+
+			{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the checkbox; its text sits below the rule's depth-2 scan */}
+			<label className="flex items-start gap-2 rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60">
+				<input
+					type="checkbox"
+					className="mt-0.5"
+					checked={splitLegend}
+					onChange={(e) => setSplitLegend(e.target.checked)}
+				/>
+				<div>
+					<div className="font-medium text-stone-900 dark:text-stone-100">
+						Publish legend as a separate iframe
+					</div>
+					<div className="text-sm text-stone-600 dark:text-stone-400">
+						Get two snippets — chart and legend in independently sized iframes,
+						so you can place the legend wherever it fits your page layout.
+					</div>
 				</div>
-			) : (
-				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-					<strong>Same-origin only.</strong> Embeds currently work only when
-					hosted on the same origin as your vis-components instance.
+			</label>
+
+			<div className="flex items-center gap-3">
+				<Button compact disabled={busy !== null} onClick={() => void onPublish()}>
+					{publishLabel}
+				</Button>
+				{published && (
+					<Button
+						compact
+						outline
+						disabled={busy !== null}
+						onClick={() => void onUnpublish()}
+					>
+						{busy === "unpublish"
+							? "Unpublishing…"
+							: confirmUnpublish
+								? "Really unpublish? The public URL will stop working"
+								: "Unpublish"}
+					</Button>
+				)}
+			</div>
+
+			{publishError !== null && (
+				<div className="rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200">
+					{publishError}
 				</div>
 			)}
 
-			{!EMBEDS_DISABLED && (
-				<>
-					<fieldset className="flex flex-col gap-3">
-						<legend className="text-sm font-medium text-stone-900 dark:text-stone-100">
-							Pin behavior
-						</legend>
-						{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-						<label className="flex items-start gap-2 text-sm">
-							<input
-								type="radio"
-								className="mt-1"
-								checked={mode === "live"}
-								onChange={() => setMode("live")}
-							/>
-							<div>
-								<div className="font-medium text-stone-900 dark:text-stone-100">
-									Live updating
-								</div>
-								<div className="text-sm text-stone-600 dark:text-stone-400">
-									Embed always renders the latest version of the data set.
-								</div>
-							</div>
-						</label>
-						{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-						<label className="flex items-start gap-2 text-sm">
-							<input
-								type="radio"
-								className="mt-1"
-								checked={mode === "pinned"}
-								onChange={() => setMode("pinned")}
-								disabled={!view}
-							/>
-							<div>
-								<div className="font-medium text-stone-900 dark:text-stone-100">
-									Pin to current version{view ? ` (${versionLabel})` : ""}
-								</div>
-								<div className="text-sm text-stone-600 dark:text-stone-400">
-									Embed stays frozen on this version forever.
+			{published && snippets.length > 0 && (
+				<div className="flex flex-col gap-3">
+					{snippets.map((s) => {
+						const value = drafts[s.key] ?? s.value
+						return (
+							<div key={s.key} className="flex flex-col gap-2">
+								<label
+									htmlFor={`${snippetIdBase}-${s.key}`}
+									className="text-sm font-medium text-stone-900 dark:text-stone-100"
+								>
+									{s.label}
+								</label>
+								<textarea
+									id={`${snippetIdBase}-${s.key}`}
+									value={value}
+									onChange={(e) =>
+										setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
+									}
+									rows={3}
+									className="rounded-sm border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+									onFocus={(e) => e.currentTarget.select()}
+								/>
+								<div className="flex items-center justify-end">
+									<Button compact onClick={() => onCopy(s.key, value)}>
+										{copied === s.key ? "Copied!" : "Copy snippet"}
+									</Button>
 								</div>
 							</div>
-						</label>
-					</fieldset>
-
-					{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the checkbox; its text sits below the rule's depth-2 scan */}
-					<label className="flex items-start gap-2 rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60">
-						<input
-							type="checkbox"
-							className="mt-0.5"
-							checked={splitLegend}
-							onChange={(e) => setSplitLegend(e.target.checked)}
-						/>
-						<div>
-							<div className="font-medium text-stone-900 dark:text-stone-100">
-								Render legend as a separate iframe
-							</div>
-							<div className="text-sm text-stone-600 dark:text-stone-400">
-								Get two snippets — chart and legend in independently sized iframes,
-								so you can place the legend wherever it fits your page layout.
-							</div>
-						</div>
-					</label>
-
-					<div className="flex flex-col gap-3">
-						{snippets.map((s) => {
-							const value = drafts[s.key] ?? s.value
-							return (
-								<div key={s.key} className="flex flex-col gap-2">
-									<label
-										htmlFor={`${snippetIdBase}-${s.key}`}
-										className="text-sm font-medium text-stone-900 dark:text-stone-100"
-									>
-										{s.label}
-									</label>
-									<textarea
-										id={`${snippetIdBase}-${s.key}`}
-										value={value}
-										onChange={(e) =>
-											setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
-										}
-										rows={3}
-										className="rounded-sm border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
-										onFocus={(e) => e.currentTarget.select()}
-									/>
-									<div className="flex items-center justify-end">
-										<Button compact onClick={() => onCopy(s.key, value)}>
-											{copied === s.key ? "Copied!" : "Copy snippet"}
-										</Button>
-									</div>
-								</div>
-							)
-						})}
-					</div>
-				</>
+						)
+					})}
+				</div>
 			)}
 
 			<div
 				className={`flex items-center ${
-					EMBEDS_DISABLED ? "justify-end" : "justify-between"
+					published && embedUrl !== null ? "justify-between" : "justify-end"
 				}`}
 			>
-				{!EMBEDS_DISABLED && (
+				{published && embedUrl !== null && (
 					<a
 						href={embedUrl}
 						target="_blank"

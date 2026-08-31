@@ -61,32 +61,59 @@ const SortHeader = ({
 	)
 }
 
-const PinStateBadge = ({
-	pinState,
-}: {
-	pinState: DecoratedRow["pinState"]
-}) => {
-	// Tailwind classes per state. Live = green-ish (always fresh);
-	// pinned = blue (specific version); dangling = red (version missing);
-	// unexported = neutral grey (not deployed yet).
-	const styles: Record<typeof pinState, string> = {
-		live: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200",
-		pinned: "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200",
-		dangling: "bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200",
-		unexported:
-			"bg-stone-100 text-stone-700 dark:bg-stone-700 dark:text-stone-300",
-	}
-	const labels: Record<typeof pinState, string> = {
-		live: "Live",
-		pinned: "Pinned",
-		dangling: "Version missing",
-		unexported: "Not embedded",
-	}
+const BADGE_GREY =
+	"bg-stone-100 text-stone-700 dark:bg-stone-700 dark:text-stone-300"
+const BADGE_GREEN =
+	"bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200"
+const BADGE_BLUE = "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200"
+const BADGE_AMBER =
+	"bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200"
+
+/** Pin State reflects PUBLISH reality, not just recorded intent. A row with
+ *  no publish record shows "Not published" — that covers never-published
+ *  rows and legacy rows from the app-served embed era, whose copied snippet
+ *  URLs are dead under the publish contract. A dangling pin with a publish
+ *  is NOT broken (the public file is a snapshot and keeps working); it only
+ *  means the same pin can't be re-snapshotted. */
+const PinStateBadge = ({ row }: { row: DecoratedRow }) => {
+	const publish = row.kind === "instance" ? row.publish : null
+	const badge = (() => {
+		if (publish === null) return { style: BADGE_GREY, label: "Not published", title: undefined as string | undefined }
+		const date = formatDate(publish.publishedAt)
+		if (row.pinState === "dangling") {
+			return {
+				style: BADGE_AMBER,
+				label: "Published · pin deleted",
+				title: `Published ${date}. The published snapshot still works, but its pinned data version was deleted, so it can't be republished.`,
+			}
+		}
+		if (row.pinState === "pinned") {
+			return {
+				style: BADGE_BLUE,
+				label: "Published",
+				title: `Published ${date}, pinned to ${row.kind === "instance" ? row.versionLabel : ""}.`,
+			}
+		}
+		// "latest" embeds: flag when the dataset has moved past the snapshot.
+		if (publish.behind) {
+			return {
+				style: BADGE_AMBER,
+				label: "Published · behind",
+				title: `Published ${date} at ${publish.resolvedVersionLabel ?? "an older version"}; the data set has newer versions. Republish to update the embed.`,
+			}
+		}
+		return {
+			style: BADGE_GREEN,
+			label: "Published · latest",
+			title: `Published ${date}${publish.resolvedVersionLabel ? ` at ${publish.resolvedVersionLabel}` : ""}. Republish any time to refresh.`,
+		}
+	})()
 	return (
 		<span
-			className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles[pinState]}`}
+			title={badge.title}
+			className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.style}`}
 		>
-			{labels[pinState]}
+			{badge.label}
 		</span>
 	)
 }
@@ -241,7 +268,7 @@ export const VisualsTable = ({
 									)}
 								</td>
 								<td className="px-3 py-2">
-									<PinStateBadge pinState={row.pinState} />
+									<PinStateBadge row={row} />
 								</td>
 								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
 									{formatDate(row.rowCreatedAt)}

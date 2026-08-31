@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { useAtomValue } from "jotai"
+import { embedInstancesAtom } from "../../chartBuilder/store/atoms"
 import { useDeleteVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 import { Button } from "../../../components/ui/Button"
@@ -29,9 +31,13 @@ export const DeleteVisualButton = ({
 	variant = "icon",
 }: Props) => {
 	const [open, setOpen] = useState(false)
-	// Cascades: embed instances for this visual, and its dataset when no
-	// other visual references it (see useDeleteVisuals).
+	// Cascades: published embed files, embed instances for this visual, and
+	// its dataset when no other visual references it (see useDeleteVisuals).
 	const deleteVisuals = useDeleteVisuals()
+	const instances = useAtomValue(embedInstancesAtom)
+	const hasPublishedEmbeds = Object.values(instances).some(
+		(i) => i.visualId === visualId && i.publishId !== undefined
+	)
 
 	const onConfirm = () => {
 		deleteVisuals([visualId])
@@ -78,8 +84,10 @@ export const DeleteVisualButton = ({
 						<span className="font-medium text-stone-900 dark:text-white">
 							{visualName}
 						</span>
-						? This can&rsquo;t be undone. Any iframe embeds pointing to this
-						visualization will stop working.
+						? This can&rsquo;t be undone.
+						{hasPublishedEmbeds
+							? " Its published embeds will be unpublished — every public embed URL for this visualization will stop working."
+							: ""}
 					</p>
 					<div className="flex justify-end gap-2">
 						<Button compact outline onClick={() => setOpen(false)}>

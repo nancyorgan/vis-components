@@ -13,3 +13,8 @@ export const DATASET_BODY_CAP_BYTES = 110 * 1024 * 1024
 
 /** Cap on every non-dataset body (visuals with inline thumbnails included). */
 export const JSON_BODY_CAP_BYTES = 10 * 1024 * 1024
+
+/** Cap on an embed publish body: a payload carries a whole dataset version
+ *  (bounded by the dataset rule above) plus font binaries and, for ZCTA
+ *  maps, an inlined topology — hence dataset parity with headroom. */
+export const EMBED_BODY_CAP_BYTES = 128 * 1024 * 1024

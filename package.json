@@ -19,7 +19,7 @@
 		"lint": "eslint .",
 		"notices": "node tooling/generate-third-party-notices.js",
 		"zcta": "node tooling/build-zcta-topology.js",
-		"build": "npm run typecheck && vite build && tsc -p server",
+		"build": "npm run typecheck && vite build && vite build -c vite.embed.config.ts && tsc -p server",
 		"preview": "vite preview",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",

@@ -209,7 +209,9 @@ const facesFor = async (
 
 const base64Cache = new Map<string, string>()
 
-const toBase64 = (bytes: ArrayBuffer): string => {
+/** Base64-encode font bytes (exported for the embed-publish payload, which
+ *  ships woff2 binaries the same way the SVG exporter inlines them). */
+export const toBase64 = (bytes: ArrayBuffer): string => {
 	const view = new Uint8Array(bytes)
 	let binary = ""
 	const CHUNK = 0x80_00

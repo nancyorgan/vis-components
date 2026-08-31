@@ -7,7 +7,7 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { Readable } from "node:stream"
-import { createGunzip, createGzip, gzipSync } from "node:zlib"
+import { createGunzip, createGzip, gunzipSync, gzipSync } from "node:zlib"
 
 import type { ServerConfig } from "./config.js"
 import {
@@ -41,8 +41,20 @@ import {
 	writeDatasetFile,
 	writeDatasetVersionFile,
 } from "./datasetFiles.js"
+import {
+	isEmbedPart,
+	isPublishId,
+	publishEmbedFiles,
+	readEmbedTemplate,
+	unpublishEmbedFiles,
+	type EmbedPart,
+} from "./embedFiles.js"
 import { HttpError, readBody, sendEmpty, sendError, sendJson } from "./http.js"
-import { DATASET_BODY_CAP_BYTES, JSON_BODY_CAP_BYTES } from "./limits.js"
+import {
+	DATASET_BODY_CAP_BYTES,
+	EMBED_BODY_CAP_BYTES,
+	JSON_BODY_CAP_BYTES,
+} from "./limits.js"
 import { logError } from "./log.js"
 import { serveStatic } from "./staticFiles.js"
 
@@ -85,7 +97,7 @@ export const createHandler =
 const handleApi = async (
 	req: IncomingMessage,
 	res: ServerResponse,
-	{ config, db }: HandlerDeps
+	{ config, db, distDir }: HandlerDeps
 ): Promise<void> => {
 	const method = req.method ?? "GET"
 	const [rawPath, rawQuery] = (req.url ?? "/").split("?")
@@ -198,6 +210,25 @@ const handleApi = async (
 		throw new HttpError(405, "Method not allowed")
 	}
 
+	// Published embeds (the 0016 public embed contract). RPC on the publish
+	// dir's filesystem, deliberately NOT a JSON collection: nothing is stored
+	// in SQLite here — the embed's metadata lives in the embed-instances
+	// collection like always, and these routes only write/delete the public
+	// files. The response carries the finished public URLs, so the frontend
+	// never needs VIS_PUBLISH_BASE_URL (and /api/config stays untouched).
+	if (collection === "embeds") {
+		if (!id) throw new HttpError(404, "Not found")
+		if (!isPublishId(id)) throw new HttpError(400, "Invalid publish id")
+		if (method === "PUT") {
+			return await publishEmbed(req, res, config, distDir, id)
+		}
+		if (method === "DELETE") {
+			await unpublishEmbedFiles(config.publishDir, id)
+			return sendEmpty(res, 204)
+		}
+		throw new HttpError(405, "Method not allowed")
+	}
+
 	// Content-schema versions. Deliberately its own branch rather than a
 	// JSON collection: the ids are collection NAMES from a fixed whitelist,
 	// not user-generated item ids, and the bodies are a single number.
@@ -233,6 +264,72 @@ const handleApi = async (
 		return sendEmpty(res, 204)
 	}
 	throw new HttpError(405, "Method not allowed")
+}
+
+/** PUT /api/embeds/<publishId> — write the embed's public files and answer
+ *  with their final URLs. The body (plain or Content-Encoding: gzip) is:
+ *
+ *    { v: 1, parts: ["full" | "chart" | "legend", ...], payload: {...} }
+ *
+ *  `payload` is opaque to the server beyond being valid JSON; it is injected
+ *  into the built runtime template once per requested part. The part list is
+ *  authoritative — parts it omits are unpublished. Any failure (bad body,
+ *  missing template, write or read-back error) answers before a URL exists
+ *  in the response, so a URL in a 200 always names a fully-written, loadable
+ *  public file — the client shows nothing but a retryable error otherwise. */
+const publishEmbed = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	config: ServerConfig,
+	distDir: string,
+	publishId: string
+): Promise<void> => {
+	const raw = await readBody(req, EMBED_BODY_CAP_BYTES)
+	const encoding = String(req.headers["content-encoding"] ?? "")
+	let text: string
+	try {
+		text = (/\bgzip\b/.test(encoding) ? gunzipSync(raw) : raw).toString("utf-8")
+	} catch {
+		throw new HttpError(400, "Body is not valid gzip")
+	}
+	let body: unknown
+	try {
+		body = JSON.parse(text)
+	} catch {
+		throw new HttpError(400, "Body is not valid JSON")
+	}
+	const record = body as { v?: unknown; parts?: unknown; payload?: unknown }
+	if (
+		typeof body !== "object" ||
+		body === null ||
+		record.v !== 1 ||
+		!Array.isArray(record.parts) ||
+		record.parts.length === 0 ||
+		!record.parts.every(isEmbedPart) ||
+		typeof record.payload !== "object" ||
+		record.payload === null
+	) {
+		throw new HttpError(400, 'Expected { v: 1, parts: [...], payload: {...} }')
+	}
+	const parts = [...new Set(record.parts as EmbedPart[])]
+	const template = await readEmbedTemplate(distDir)
+	if (template === null) {
+		// A deploy gap, not a client mistake: the frontend build didn't ship
+		// the runtime. Loud 500 so it reads as retryable-after-a-fix.
+		throw new HttpError(500, "The embed runtime is not built")
+	}
+	const paths = await publishEmbedFiles(
+		config.publishDir,
+		publishId,
+		template,
+		JSON.stringify(record.payload),
+		parts
+	)
+	const urls: Record<string, string> = {}
+	for (const [part, path] of Object.entries(paths)) {
+		urls[part] = `${config.publishBaseUrl}/${path}`
+	}
+	return sendJson(res, 200, JSON.stringify({ v: 1, urls }))
 }
 
 /** Arrays for the list-shaped collections, id-keyed records for the rest —

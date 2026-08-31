@@ -5,6 +5,19 @@ import type { EmbedInstance, Visual } from "./types"
  * appears as a single `"unexported"` row (so the user can see the work);
  * once they've copied at least one embed snippet, the unexported row is
  * replaced by one `"instance"` row per snippet. */
+/** Publish reality for one instance row (the 0016 contract). Null = never
+ * published, or unpublished — including legacy rows from the app-served
+ * embed era, whose copied snippet URLs are dead. */
+export type LandingRowPublish = {
+	publishedAt: number
+	/** Label of the version the publish actually drew (`"v3"`), when it can
+	 * still be resolved against the dataset's version list. */
+	resolvedVersionLabel: string | null
+	/** True for a "latest" embed whose dataset has moved past what was
+	 * published — a republish would change what viewers see. */
+	behind: boolean
+}
+
 export type LandingRow =
 	| {
 			kind: "instance"
@@ -16,6 +29,7 @@ export type LandingRow =
 			/** Human-readable version label: `"latest"`, `"v3"`, `"v3 (deleted)"`. */
 			versionLabel: string
 			pinState: "live" | "pinned" | "dangling"
+			publish: LandingRowPublish | null
 	  }
 	| {
 			kind: "unexported"
@@ -33,6 +47,37 @@ const versionLabelFor = (
 	const idx = dataset.versions.findIndex((v) => v.id === versionId)
 	if (idx === -1) return { label: "v? (deleted)", pinState: "dangling" }
 	return { label: `v${idx + 1}`, pinState: "pinned" }
+}
+
+/** Publish reality for one instance. Pure derivation — no new persistence:
+ * `publishedVersionId` (recorded at publish time) is compared against the
+ * dataset's CURRENT latest version to flag a "latest" embed as behind.
+ * A dangling pin does NOT mean the published embed is broken — the public
+ * file is a snapshot and keeps working; it only means the same pin can't be
+ * re-snapshotted. */
+const publishFor = (
+	instance: EmbedInstance,
+	dataset: DatasetLike | null
+): LandingRowPublish | null => {
+	if (instance.publishId === undefined || instance.publishedAt === undefined) {
+		return null
+	}
+	const publishedVersionId = instance.publishedVersionId ?? null
+	const idx =
+		dataset && publishedVersionId !== null
+			? dataset.versions.findIndex((v) => v.id === publishedVersionId)
+			: -1
+	const behind =
+		instance.versionId === null &&
+		dataset !== null &&
+		publishedVersionId !== null &&
+		dataset.versions.length > 0 &&
+		dataset.versions[dataset.versions.length - 1].id !== publishedVersionId
+	return {
+		publishedAt: instance.publishedAt,
+		resolvedVersionLabel: idx === -1 ? null : `v${idx + 1}`,
+		behind,
+	}
 }
 
 /** Build the landing-page row list. Output order:
@@ -73,6 +118,7 @@ export const deriveLandingRows = (
 				dataset,
 				versionLabel: label,
 				pinState,
+				publish: publishFor(instance, dataset),
 			})
 		}
 	}

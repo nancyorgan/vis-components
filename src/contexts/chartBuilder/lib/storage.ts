@@ -103,6 +103,7 @@ import {
 	type SeedPromotions,
 } from "./exampleOverlay"
 import type { UserFont } from "./fontLibrary"
+import { ephemeralStorage } from "./storage/ephemeral"
 import {
 	loadVersioned,
 	migrateVersioned,
@@ -180,9 +181,15 @@ const LEGACY_KEY_CURRENT_PROJECT = "vis-components:currentProjectId"
 // storage API we don't have here. Narrowly disable it for this file.
 /* eslint-disable no-restricted-globals */
 
+/** Ephemeral mode (see ./storage/ephemeral.ts): the published-embed runtime
+ *  redirects every device-local read/write below to memory — an embed must
+ *  write NOTHING durable to the viewer's browser (0016 rule 6). The
+ *  versioned-entity path in ./storage/versioning.ts consults the same seam. */
+const localStore = (): Storage => ephemeralStorage() ?? localStorage
+
 const safeGet = <T>(key: string, fallback: T): T => {
 	try {
-		const raw = localStorage.getItem(key)
+		const raw = localStore().getItem(key)
 		if (raw === null) return fallback
 		return JSON.parse(raw) as T
 	} catch {
@@ -192,7 +199,7 @@ const safeGet = <T>(key: string, fallback: T): T => {
 
 const safeRawGet = (key: string): string | null => {
 	try {
-		return localStorage.getItem(key)
+		return localStore().getItem(key)
 	} catch {
 		return null
 	}
@@ -200,7 +207,7 @@ const safeRawGet = (key: string): string | null => {
 
 const safeSet = (key: string, value: unknown): void => {
 	try {
-		localStorage.setItem(key, stringifyJsonDangerous(value as never))
+		localStore().setItem(key, stringifyJsonDangerous(value as never))
 	} catch (error) {
 		// Quota exceeded or localStorage unavailable. Log so the user can see
 		// why a save isn't sticking — silent failure here would look like
@@ -214,8 +221,8 @@ const safeSet = (key: string, value: unknown): void => {
  *  `null`) — the restore half of `snapshotDraftState`. */
 const safeRawSet = (key: string, raw: string | null): void => {
 	try {
-		if (raw === null) localStorage.removeItem(key)
-		else localStorage.setItem(key, raw)
+		if (raw === null) localStore().removeItem(key)
+		else localStore().setItem(key, raw)
 	} catch {
 		// best-effort — a failed restore just leaves the backfill's last
 		// loaded visual as the draft, same as before the snapshot existed

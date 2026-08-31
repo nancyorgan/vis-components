@@ -323,6 +323,21 @@ export type EmbedInstance = {
 	versionId: string | null
 	createdAt: number
 	lastExportedAt: number
+	/** Published-embed record (the 0016 contract) — set on first publish.
+	 * All optional: rows from before publishing existed (whose copied
+	 * app-served snippet URLs are dead) simply have no publish state.
+	 * `publishId` is a UUID minted at first publish, deliberately decoupled
+	 * from internal ids (published paths are public and enumeration-resistant
+	 * only by id entropy). Republishing reuses it, so URLs stay stable. */
+	publishId?: string
+	publishedAt?: number
+	publishedParts?: Array<"full" | "chart" | "legend">
+	publishedUrls?: { full?: string; chart?: string; legend?: string }
+	/** What the embed actually drew at publish time. For a pinned instance
+	 * this equals `versionId`; for a "latest" instance it records which
+	 * version "latest" resolved to — the landing page compares it against
+	 * the dataset's current latest to flag a published embed as behind. */
+	publishedVersionId?: string | null
 }
 
 // Named palette types — stored in the theme, selectable per chart.

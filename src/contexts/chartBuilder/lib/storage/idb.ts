@@ -19,8 +19,21 @@ const DB_NAME = "vis-components"
 const STORE = "kv"
 const DB_VERSION = 1
 
+/** Hard off-switch: the published-embed runtime disables IndexedDB outright
+ *  before boot — an embed must write NOTHING durable to the viewer's browser
+ *  (0016 rule 6). Every helper below already degrades gracefully when IDB is
+ *  unavailable, so flipping this makes them all safe no-ops. */
+let idbDisabled = false
+
+/** Disable IndexedDB for this document. Call once, before anything reads or
+ *  writes; there is deliberately no way back. */
+export const disableIdb = (): void => {
+	idbDisabled = true
+}
+
 /** True when IndexedDB is usable in this environment. */
 export const idbAvailable = (): boolean => {
+	if (idbDisabled) return false
 	try {
 		// eslint-disable-next-line no-restricted-globals
 		return typeof indexedDB !== "undefined" && indexedDB !== null

@@ -1,8 +1,10 @@
 /** Server configuration, read entirely from environment variables.
  *
- *  All four variables are required and validated up front: a misconfigured
+ *  All six variables are required and validated up front: a misconfigured
  *  deployment must die at startup with a clear reason, never limp along
- *  writing data to a default path nobody chose. */
+ *  writing data to a default path nobody chose. Publishing is normal
+ *  behavior, not a feature flag, so the publish pair is as mandatory as
+ *  the rest. */
 
 export type ServerConfig = {
 	/** Absolute origin the app is reached at (behind any proxies). Used for
@@ -14,6 +16,12 @@ export type ServerConfig = {
 	dataDir: string
 	/** TCP port to listen on. Plain HTTP; TLS is the infrastructure's job. */
 	port: number
+	/** Directory published embeds are written into; a separate dumb static
+	 *  file server serves it publicly. Everything in it is fully public. */
+	publishDir: string
+	/** Public base URL that static server serves `publishDir` at. A file at
+	 *  `$publishDir/<path>` is reachable at `$publishBaseUrl/<path>`. */
+	publishBaseUrl: string
 }
 
 const REQUIRED = [
@@ -24,6 +32,11 @@ const REQUIRED = [
 	["VIS_DB_DIR", "directory for the SQLite database"],
 	["VIS_DATA_DIR", "directory for dataset files"],
 	["VIS_PORT", "TCP port to listen on"],
+	["VIS_PUBLISH_DIR", "directory published embeds are written into"],
+	[
+		"VIS_PUBLISH_BASE_URL",
+		"public base URL the publish directory is served at, e.g. https://embeds.example.com",
+	],
 ] as const
 
 /** Read and validate the configuration. Throws one Error whose message has a
@@ -46,19 +59,24 @@ export const loadConfig = (
 		}
 	}
 
-	let baseUrl = env.VIS_BASE_URL?.trim() ?? ""
-	if (baseUrl) {
+	// Both URL variables get the same treatment: absolute, http(s) only,
+	// trailing slashes stripped so path-building callers can always append.
+	const validateUrl = (name: "VIS_BASE_URL" | "VIS_PUBLISH_BASE_URL"): string => {
+		const url = env[name]?.trim() ?? ""
+		if (!url) return ""
 		let parsed: URL | null = null
 		try {
-			parsed = new URL(baseUrl)
+			parsed = new URL(url)
 		} catch {
-			problems.push(`VIS_BASE_URL must be an absolute URL, got "${baseUrl}"`)
+			problems.push(`${name} must be an absolute URL, got "${url}"`)
 		}
 		if (parsed && parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-			problems.push(`VIS_BASE_URL must be http(s), got "${baseUrl}"`)
+			problems.push(`${name} must be http(s), got "${url}"`)
 		}
-		baseUrl = baseUrl.replace(/\/+$/, "")
+		return url.replace(/\/+$/, "")
 	}
+	const baseUrl = validateUrl("VIS_BASE_URL")
+	const publishBaseUrl = validateUrl("VIS_PUBLISH_BASE_URL")
 
 	if (problems.length > 0) throw new Error(problems.join("\n"))
 	return {
@@ -66,5 +84,7 @@ export const loadConfig = (
 		dbDir: (env.VIS_DB_DIR ?? "").trim(),
 		dataDir: (env.VIS_DATA_DIR ?? "").trim(),
 		port,
+		publishDir: (env.VIS_PUBLISH_DIR ?? "").trim(),
+		publishBaseUrl,
 	}
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	clearEmbedPublish,
+	recordEmbedPublish,
 	removeInstancesForVisual,
 	upsertEmbedInstance,
 } from "./embedInstances"
@@ -111,5 +113,65 @@ describe("removeInstancesForVisual", () => {
 	it("is a no-op when no instances match", () => {
 		const instances = { a: mkInstance({ id: "a", visualId: "v1" }) }
 		expect(removeInstancesForVisual(instances, "v999")).toEqual(instances)
+	})
+})
+
+describe("recordEmbedPublish", () => {
+	const publish = {
+		publishId: "01234567-89ab-4cde-8f01-23456789abcd",
+		publishedAt: 5000,
+		publishedParts: ["full" as const],
+		publishedUrls: { full: "https://embeds.example.com/embeds/x/index.html" },
+		publishedVersionId: "dv-2",
+	}
+
+	it("creates the instance and stamps the publish fields", () => {
+		const result = recordEmbedPublish({}, "v1", null, publish, 5000, () => "ei-p")
+		expect(result["ei-p"].publishId).toBe(publish.publishId)
+		expect(result["ei-p"].publishedUrls).toEqual(publish.publishedUrls)
+		expect(result["ei-p"].publishedVersionId).toBe("dv-2")
+		expect(result["ei-p"].versionId).toBeNull()
+	})
+
+	it("republish updates the existing instance in place", () => {
+		const first = recordEmbedPublish({}, "v1", null, publish, 5000, () => "ei-p")
+		const second = recordEmbedPublish(
+			first,
+			"v1",
+			null,
+			{ ...publish, publishedAt: 9000, publishedVersionId: "dv-3" },
+			9000
+		)
+		expect(Object.keys(second)).toEqual(["ei-p"])
+		expect(second["ei-p"].publishedAt).toBe(9000)
+		expect(second["ei-p"].publishedVersionId).toBe("dv-3")
+	})
+})
+
+describe("clearEmbedPublish", () => {
+	it("strips every publish field but keeps the row", () => {
+		const published = recordEmbedPublish(
+			{},
+			"v1",
+			"dv-1",
+			{
+				publishId: "01234567-89ab-4cde-8f01-23456789abcd",
+				publishedAt: 5000,
+				publishedParts: ["full"],
+				publishedUrls: { full: "https://x/index.html" },
+				publishedVersionId: "dv-1",
+			},
+			5000,
+			() => "ei-p"
+		)
+		const cleared = clearEmbedPublish(published, "ei-p")
+		expect(cleared["ei-p"].publishId).toBeUndefined()
+		expect(cleared["ei-p"].publishedUrls).toBeUndefined()
+		expect(cleared["ei-p"].publishedAt).toBeUndefined()
+		expect(cleared["ei-p"].visualId).toBe("v1")
+	})
+
+	it("is a no-op for an unknown instance", () => {
+		expect(clearEmbedPublish({}, "nope")).toEqual({})
 	})
 })

@@ -1,5 +1,11 @@
 // @vitest-environment node
-import { mkdtempSync, readdirSync, writeFileSync } from "node:fs"
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	writeFileSync,
+} from "node:fs"
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
@@ -7,17 +13,24 @@ import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { openDb } from "./db.js"
+import { PAYLOAD_MARKER } from "./embedFiles.js"
 import { createHandler } from "./routes.js"
 
 let server: Server
 let base: string
 let dataDir: string
+let publishDir: string
 
 beforeAll(async () => {
 	const dbDir = mkdtempSync(join(tmpdir(), "vis-routes-db-"))
 	dataDir = mkdtempSync(join(tmpdir(), "vis-routes-data-"))
+	publishDir = mkdtempSync(join(tmpdir(), "vis-routes-publish-"))
 	const distDir = mkdtempSync(join(tmpdir(), "vis-routes-dist-"))
 	writeFileSync(join(distDir, "index.html"), "<title>spa</title>")
+	writeFileSync(
+		join(distDir, "embed-runtime.html"),
+		`<html><script type="application/json" id="embed-payload">${PAYLOAD_MARKER}</script></html>`
+	)
 
 	const handler = createHandler({
 		config: {
@@ -25,6 +38,8 @@ beforeAll(async () => {
 			dbDir,
 			dataDir,
 			port: 0,
+			publishDir,
+			publishBaseUrl: "https://embeds.example.com",
 		},
 		db: openDb(dbDir),
 		distDir,
@@ -661,5 +676,112 @@ describe("per-version dataset bodies", () => {
 		expect(
 			(await fetch(`${base}/api/datasets/ds-badmeta/versions/dv-1`)).status
 		).toBe(200)
+	})
+})
+
+describe("published embeds over HTTP", () => {
+	const uuid = (suffix: string): string =>
+		`01234567-89ab-4cde-8f01-2345678${suffix}`
+
+	it("PUT publishes the requested parts and answers with public file URLs", async () => {
+		const id = uuid("0aaaa")
+		const res = await fetch(`${base}/api/embeds/${id}`, {
+			method: "PUT",
+			body: JSON.stringify({
+				v: 1,
+				parts: ["full", "chart"],
+				payload: { visual: { id: "v1" } },
+			}),
+		})
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({
+			v: 1,
+			urls: {
+				full: `https://embeds.example.com/embeds/${id}/index.html`,
+				chart: `https://embeds.example.com/embeds/${id}/chart.html`,
+			},
+		})
+		const html = readFileSync(
+			join(publishDir, "embeds", id, "index.html"),
+			"utf-8"
+		)
+		expect(html).toContain('"part":"full"')
+		expect(html).toContain('"visual":{"id":"v1"}')
+	})
+
+	it("accepts a gzipped publish body", async () => {
+		const id = uuid("0bbbb")
+		const body = gzipSync(
+			JSON.stringify({ v: 1, parts: ["full"], payload: { a: 1 } })
+		)
+		const res = await fetch(`${base}/api/embeds/${id}`, {
+			method: "PUT",
+			headers: { "content-encoding": "gzip" },
+			body,
+		})
+		expect(res.status).toBe(200)
+	})
+
+	it("republish drops parts the request omits", async () => {
+		const id = uuid("0cccc")
+		const put = (parts: string[]) =>
+			fetch(`${base}/api/embeds/${id}`, {
+				method: "PUT",
+				body: JSON.stringify({ v: 1, parts, payload: {} }),
+			})
+		await put(["full", "legend"])
+		await put(["full"])
+		const dir = join(publishDir, "embeds", id)
+		expect(existsSync(join(dir, "index.html"))).toBe(true)
+		expect(existsSync(join(dir, "legend.html"))).toBe(false)
+	})
+
+	it("DELETE unpublishes, idempotently", async () => {
+		const id = uuid("0dddd")
+		await fetch(`${base}/api/embeds/${id}`, {
+			method: "PUT",
+			body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+		})
+		expect(
+			(await fetch(`${base}/api/embeds/${id}`, { method: "DELETE" })).status
+		).toBe(204)
+		expect(existsSync(join(publishDir, "embeds", id))).toBe(false)
+		expect(
+			(await fetch(`${base}/api/embeds/${id}`, { method: "DELETE" })).status
+		).toBe(204)
+	})
+
+	it("rejects non-UUID publish ids and malformed bodies with 400", async () => {
+		expect(
+			(
+				await fetch(`${base}/api/embeds/ei-123-abc`, {
+					method: "PUT",
+					body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+				})
+			).status
+		).toBe(400)
+		const bad = async (body: string) =>
+			(
+				await fetch(`${base}/api/embeds/${uuid("0eeee")}`, {
+					method: "PUT",
+					body,
+				})
+			).status
+		expect(await bad("not json")).toBe(400)
+		expect(await bad(JSON.stringify({ v: 1, parts: [], payload: {} }))).toBe(400)
+		expect(
+			await bad(JSON.stringify({ v: 1, parts: ["nope"], payload: {} }))
+		).toBe(400)
+		expect(await bad(JSON.stringify({ v: 2, parts: ["full"], payload: {} }))).toBe(
+			400
+		)
+		expect(await bad(JSON.stringify({ v: 1, parts: ["full"] }))).toBe(400)
+	})
+
+	it("answers 405 for methods other than PUT/DELETE and 404 without an id", async () => {
+		expect(
+			(await fetch(`${base}/api/embeds/${uuid("0ffff")}`)).status
+		).toBe(405)
+		expect((await fetch(`${base}/api/embeds`)).status).toBe(404)
 	})
 })

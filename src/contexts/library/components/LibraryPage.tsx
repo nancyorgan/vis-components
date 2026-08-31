@@ -581,8 +581,8 @@ export const LibraryPage = () => {
 			>
 				<div className="flex flex-col gap-4">
 					<p className="text-sm text-stone-700 dark:text-stone-300">
-						This can&rsquo;t be undone. Any iframe embeds pointing to these
-						visualizations will stop working.
+						This can&rsquo;t be undone. Published embeds of these visualizations
+						will be unpublished — their public embed URLs will stop working.
 					</p>
 					<div className="flex justify-end gap-2">
 						<Button compact outline onClick={() => setBulkDeleteOpen(false)}>

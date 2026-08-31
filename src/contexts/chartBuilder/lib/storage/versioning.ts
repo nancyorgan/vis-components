@@ -1,4 +1,5 @@
 import { stringifyJsonDangerous } from "../../../../lib/json"
+import { ephemeralStorage } from "./ephemeral"
 
 /** Generic storage versioning for localStorage-backed entities.
  *
@@ -195,8 +196,12 @@ export const saveVersioned = <T>({
 
 /** Returns the global `localStorage` or `null` when unavailable (SSR,
  *  privacy modes that disable storage, etc). Centralizing the access
- *  here keeps the rest of the module pure-ish and easy to test. */
+ *  here keeps the rest of the module pure-ish and easy to test. In the
+ *  published-embed runtime the ephemeral in-memory storage wins — an embed
+ *  must write nothing durable (see ./ephemeral.ts). */
 const safeStorage = (): Storage | null => {
+	const ephemeral = ephemeralStorage()
+	if (ephemeral !== null) return ephemeral
 	try {
 		// eslint-disable-next-line no-restricted-globals
 		return typeof localStorage === "undefined" ? null : localStorage

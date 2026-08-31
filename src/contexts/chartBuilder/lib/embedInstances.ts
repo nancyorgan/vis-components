@@ -39,6 +39,53 @@ export const upsertEmbedInstance = (
 	return { ...instances, [id]: fresh }
 }
 
+/** The publish bookkeeping recorded onto an instance by a successful
+ * publish. Mirrors the optional publish fields on {@link EmbedInstance}. */
+export type EmbedPublishRecord = {
+	publishId: string
+	publishedAt: number
+	publishedParts: Array<"full" | "chart" | "legend">
+	publishedUrls: { full?: string; chart?: string; legend?: string }
+	publishedVersionId: string | null
+}
+
+/** Record a successful publish: upsert the (visualId, versionId) instance
+ * and stamp the publish fields onto it. */
+export const recordEmbedPublish = (
+	instances: Record<string, EmbedInstance>,
+	visualId: string,
+	versionId: string | null,
+	publish: EmbedPublishRecord,
+	now: number = Date.now(),
+	idFactory?: () => string
+): Record<string, EmbedInstance> => {
+	const upserted = upsertEmbedInstance(instances, visualId, versionId, now, idFactory)
+	const instance = Object.values(upserted).find(
+		(i) => i.visualId === visualId && i.versionId === versionId
+	)
+	if (!instance) return upserted
+	return { ...upserted, [instance.id]: { ...instance, ...publish } }
+}
+
+/** Clear an instance's publish fields after an unpublish. The row itself
+ * stays — the landing page then shows it as "not published". */
+export const clearEmbedPublish = (
+	instances: Record<string, EmbedInstance>,
+	instanceId: string
+): Record<string, EmbedInstance> => {
+	const instance = instances[instanceId]
+	if (!instance) return instances
+	const {
+		publishId: _publishId,
+		publishedAt: _publishedAt,
+		publishedParts: _publishedParts,
+		publishedUrls: _publishedUrls,
+		publishedVersionId: _publishedVersionId,
+		...rest
+	} = instance
+	return { ...instances, [instanceId]: rest }
+}
+
 /** Drop every instance belonging to a given visual. Used on Visual delete
  * so the landing page doesn't keep referring to a now-missing id. */
 export const removeInstancesForVisual = (

@@ -1,7 +1,12 @@
 /** Entry point. Foreground process, plain HTTP, logs to stdout/stderr.
  *
  *  Start:
- *    VIS_BASE_URL=… VIS_DB_DIR=… VIS_DATA_DIR=… VIS_PORT=… node server/dist/main.js
+ *    VIS_BASE_URL=… VIS_DB_DIR=… VIS_DATA_DIR=… VIS_PORT=… \
+ *    VIS_PUBLISH_DIR=… VIS_PUBLISH_BASE_URL=… node server/dist/main.js
+ *
+ *  VIS_PUBLISH_DIR is where published embeds are written; a separate dumb
+ *  static file server (e.g. `python3 -m http.server`) serves it publicly at
+ *  VIS_PUBLISH_BASE_URL. Embeds must load with this server completely off.
  *
  *  Lifecycle: fail-fast on bad config or malformed DB state; SIGTERM/SIGINT
  *  stop accepting, drain in-flight requests (10 s hard cap), close SQLite
@@ -37,6 +42,7 @@ const main = (): void => {
 	}
 
 	mkdirSync(config.dataDir, { recursive: true })
+	mkdirSync(config.publishDir, { recursive: true })
 	const db = openDb(config.dbDir)
 
 	// dist/ ships alongside the compiled server in the build output:
