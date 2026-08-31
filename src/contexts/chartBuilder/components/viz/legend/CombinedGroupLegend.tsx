@@ -25,6 +25,7 @@ import {
 	inkPaletteForHue,
 	patternCategoriesFor,
 	resolvePatternForMark,
+	type ThemeInkFallback,
 } from "../../../lib/patterns"
 import {
 	applyAreaScale,
@@ -124,6 +125,10 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	 *  shape/outline descriptor or the area/radar `splitOutline` — already
 	 *  claims the border. `null` = none. */
 	swatchOutline?: { color: string; width: number } | null
+	/** Cross-palette pattern-ink table (`AestheticScales.themeInkFallback`) so
+	 *  pattern swatch inks match marks whose hue override borrows a swatch
+	 *  from another theme palette. */
+	themeInkFallback?: ThemeInkFallback
 }
 
 // Exported so smoke tests can prop-drive the component without spinning
@@ -154,6 +159,7 @@ export const CombinedGroupLegend = ({
 	swatchOutline = null,
 	entryColumns,
 	highlightField,
+	themeInkFallback,
 }: CombinedGroupLegendProps) => {
 	const hasHue = channels.includes("hue")
 	const hasOutline = channels.includes("outlineHue")
@@ -317,7 +323,12 @@ export const CombinedGroupLegend = ({
 				// `resolvePatternForMark`.
 				const huePalette = inkPaletteForHue(configs, type)
 				const preferredInk = hasHue
-					? inkForHueColor(bg, huePalette.palette, huePalette.inks)
+					? inkForHueColor(
+							bg,
+							huePalette.palette,
+							huePalette.inks,
+							themeInkFallback
+						)
 					: (patternLegendInkColor ?? null)
 				const resolved = resolvePatternForMark(
 					v,

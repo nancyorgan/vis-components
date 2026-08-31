@@ -11,6 +11,7 @@ import {
 import { type SectionInfo, uniqueValues } from "../../../lib/legendSections"
 import { applyHueScale, makeHueScale } from "../../../lib/scales"
 import { currentFieldLevelOrdersAtom } from "../../../store/atoms"
+import { useThemeInkFallback } from "../../../store/useThemeInkFallback"
 import { AngleLegend } from "./AngleLegend"
 import { AreaLegend } from "./AreaLegend"
 import { CombinedGroupLegend } from "./CombinedGroupLegend"
@@ -144,6 +145,9 @@ export const LegendSection = ({
 	// UI). Passed to each categorical sub-legend so its entries list in the
 	// same order the axis / marks already use.
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
+	// Cross-palette pattern-ink table — keeps swatch inks matching marks
+	// whose hue override borrows a swatch from another theme palette.
+	const themeInkFallback = useThemeInkFallback()
 	const pinnedOrder = levelOrders[field]
 	// Slot sections title with the feature's name ("Rug" / "Density Curve") by
 	// default, not the field name — the section is "the rug, colored by <field>".
@@ -213,6 +217,7 @@ export const LegendSection = ({
 						type={type}
 						values={values}
 						configs={configs}
+						themeInkFallback={themeInkFallback}
 						pinnedOrder={pinnedOrder}
 						reverseCategorical={reverseCategorical}
 						gradientLegendStyle={gradientLegendStyle}

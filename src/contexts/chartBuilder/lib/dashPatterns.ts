@@ -1,5 +1,9 @@
 import type { LineDashPattern, PatternOverride } from "./channelConfig"
-import { DEFAULT_PATTERN_INK, inkForHueColor } from "./patterns"
+import {
+	DEFAULT_PATTERN_INK,
+	inkForHueColor,
+	type ThemeInkFallback,
+} from "./patterns"
 
 /** Auto-cycle of dash styles applied to lines when a `pattern` field is
  *  mapped to a connection (line chart). Categories cycle through this
@@ -187,6 +191,7 @@ export const resolveDashGapColor = ({
 	inkColors,
 	palette,
 	patternInks,
+	themeInkFallback,
 	defaultInk,
 }: {
 	/** Override keys to try IN ORDER against `overrides` — the line's hue
@@ -204,6 +209,10 @@ export const resolveDashGapColor = ({
 	inkColors: Record<string, string>
 	palette: readonly string[] | undefined
 	patternInks: ReadonlyArray<string | null> | undefined
+	/** Cross-palette ink table (`AestheticScales.themeInkFallback`) so a line
+	 *  colored with a swatch borrowed from another theme palette still finds
+	 *  that swatch's paired ink. */
+	themeInkFallback?: ThemeInkFallback
 	defaultInk: string | null | undefined
 }): string => {
 	for (const key of overrideKeys) {
@@ -214,7 +223,7 @@ export const resolveDashGapColor = ({
 	if (singleOverride) return singleOverride
 	const categoryInk = patternValue !== null ? inkColors[patternValue] : undefined
 	if (categoryInk) return categoryInk
-	const paired = inkForHueColor(lineColor, palette, patternInks)
+	const paired = inkForHueColor(lineColor, palette, patternInks, themeInkFallback)
 	if (paired) return paired
 	return defaultInk ?? DEFAULT_PATTERN_INK
 }

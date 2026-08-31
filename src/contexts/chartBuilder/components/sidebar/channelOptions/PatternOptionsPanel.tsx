@@ -45,8 +45,10 @@ import {
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
+import { useThemeInkFallback } from "../../../store/useThemeInkFallback"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
+import { PalettePickerButton } from "../../../../../components/ui/PalettePickerButton"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 import { StackModeRow } from "./StackModeRow"
@@ -76,6 +78,7 @@ export const PatternOptionsPanel = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
 	const theme = useCurrentTheme()
+	const themeInkFallback = useThemeInkFallback()
 	// Live theme for connection-config writes (settings edits appear
 	// immediately) — same lookup as ConnectionDashRangeRows below.
 	const allThemes = useAtomValue(themesAtom)
@@ -125,9 +128,26 @@ export const PatternOptionsPanel = () => {
 		: dataset && hueField
 			? effectiveType(dataset, hueField, overrides)
 			: undefined
-	const palettePatternInks = inkPaletteForHue(configs, hueType).inks ?? []
-	const effectiveInkFor = (categoryIdx: number): string => {
+	const huePalette = inkPaletteForHue(configs, hueType)
+	const palettePatternInks = huePalette.inks ?? []
+	// Per-value hue overrides move a category's mark color off the palette
+	// slot — the renderer then pairs the ink with THAT color (cross-palette
+	// table included), so the picker default must follow the same chain.
+	const hueOverrideColors =
+		configs.hue?.kind === "categorical" ? configs.hue.colors : undefined
+	const effectiveInkFor = (categoryIdx: number, value: string): string => {
 		if (!patternMatchesHue) return DEFAULT_PATTERN_INK
+		const overrideColor = hueOverrideColors?.[value]
+		if (overrideColor) {
+			return (
+				inkForHueColor(
+					overrideColor,
+					huePalette.palette,
+					huePalette.inks,
+					themeInkFallback
+				) ?? DEFAULT_PATTERN_INK
+			)
+		}
 		const paired = palettePatternInks[categoryIdx % palettePatternInks.length]
 		return paired ?? DEFAULT_PATTERN_INK
 	}
@@ -261,6 +281,16 @@ export const PatternOptionsPanel = () => {
 					onChange={(e) => args.onChange(e.target.value)}
 					aria-label={`${aria} swatch`}
 					className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+				/>
+				{/* Hand-rolled rather than a `ColorInput` because this row's
+				 *  empty text box means "use the paired/default ink", which
+				 *  ColorInput has no notion of — so the on-palette shortcut
+				 *  every other swatch carries is hand-placed (mirrors the
+				 *  FontEditor Color row). */}
+				<PalettePickerButton
+					current={args.override ?? args.fallback}
+					onPick={(color) => args.onChange(color)}
+					label={`Pick palette ${aria.charAt(0).toLowerCase()}${aria.slice(1)}`}
 				/>
 				{args.override !== null && (
 					<ResetLink
@@ -407,16 +437,23 @@ export const PatternOptionsPanel = () => {
 		const defaultInk = configs.defaultPatternInk ?? DEFAULT_PATTERN_INK
 		// Ink reset follows the pattern-color pairings the user configured in
 		// theme settings: each palette color can carry a paired pattern ink.
-		// Match the current Background against those palette colors (categorical
-		// first, then ordinal) and restore its paired ink; fall back to the
-		// theme's global pattern ink when the Background isn't a paired color.
+		// Match the current Background against those palette colors (default
+		// categorical first, then default ordinal, then every other theme
+		// palette via the cross-palette table) and restore its paired ink;
+		// fall back to the theme's global pattern ink when the Background
+		// isn't a paired color anywhere.
 		// Read straight from the theme — the channel configs don't carry the
 		// resolved palette, so a configs-based lookup would always miss here.
 		const catPalette = resolveCategoricalPalette(theme)
 		const ordPalette = resolveOrdinalPalette(theme)
 		const resetInk =
 			inkForHueColor(previewBg, catPalette.colors, catPalette.patternInks) ??
-			inkForHueColor(previewBg, ordPalette.colors, ordPalette.patternInks) ??
+			inkForHueColor(
+				previewBg,
+				ordPalette.colors,
+				ordPalette.patternInks,
+				themeInkFallback
+			) ??
 			theme.patternInkColor
 
 		const setDefaultPattern = (next: number | null) =>
@@ -779,7 +816,7 @@ export const PatternOptionsPanel = () => {
 		// set — that's the "mix of line patterns" default.
 		const dashActiveIdx =
 			typeof dashOverride === "number" ? dashOverride : i % DASH_CYCLE.length
-		const ink = cfg.inkColors[v] ?? effectiveInkFor(i)
+		const ink = cfg.inkColors[v] ?? effectiveInkFor(i, v)
 		return {
 			fillIsNone,
 			dashIsNone,
@@ -892,6 +929,16 @@ export const PatternOptionsPanel = () => {
 				onChange={(e) => setCategoryInk(v, e.target.value)}
 				className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 				aria-label={`Pattern color for ${v}`}
+			/>
+			{/* Hand-rolled rather than a `ColorInput` because this row's empty
+			 *  text box means "use the hue-paired/default ink", which
+			 *  ColorInput has no notion of — so the on-palette shortcut every
+			 *  other swatch carries is hand-placed (mirrors the FontEditor
+			 *  Color row). */}
+			<PalettePickerButton
+				current={ink}
+				onPick={(color) => setCategoryInk(v, color)}
+				label={`Pick palette pattern color for ${v}`}
 			/>
 		</div>
 	)

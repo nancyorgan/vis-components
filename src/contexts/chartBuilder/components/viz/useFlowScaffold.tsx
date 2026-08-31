@@ -37,6 +37,7 @@ import {
 	currentLabelsAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useThemeInkFallback } from "../../store/useThemeInkFallback"
 import {
 	NEUTRAL_HIGHLIGHT,
 	unmatchedHighlight,
@@ -64,6 +65,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const dataset = useCurrentDatasetView()
+	const themeInkFallback = useThemeInkFallback()
 	const [hovered, setHovered] = useState<TooltipState | null>(null)
 
 	const rowsForChart = useMemo(
@@ -147,7 +149,8 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		const preferredInk = inkForHueColor(
 			bgColor,
 			huePalette.palette,
-			huePalette.inks
+			huePalette.inks,
+			themeInkFallback
 		)
 		return resolvePatternForMark(
 			name,

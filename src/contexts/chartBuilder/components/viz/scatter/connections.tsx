@@ -15,7 +15,7 @@ import {
 	sanitizeCustomDasharray,
 	splitIntoValueRuns,
 } from "../../../lib/dashPatterns"
-import { inkPaletteForHue } from "../../../lib/patterns"
+import { inkPaletteForHue, type ThemeInkFallback } from "../../../lib/patterns"
 import { sortByDrawOrder } from "../../../lib/drawOrder"
 import { resolveSlotColor } from "../../../lib/resolveLayerColor"
 import {
@@ -79,7 +79,11 @@ export const renderConnectionLines = (
 	/** The hue field's type — picks the palette whose paired pattern inks
 	 *  the dash-gap color resolves from (ordinal hue fields render from the
 	 *  ordinal palette; see `inkPaletteForHue`). */
-	hueType: FieldType | undefined
+	hueType: FieldType | undefined,
+	/** Cross-palette ink table (`AestheticScales.themeInkFallback`) so lines
+	 *  colored with swatches borrowed from other theme palettes still find
+	 *  their paired dash-gap ink. */
+	themeInkFallback?: ThemeInkFallback
 ) => {
 	const connectionField = encodings.connection?.field ?? null
 	if (!connectionField) return null
@@ -286,6 +290,7 @@ export const renderConnectionLines = (
 								inkColors: patternInkColors,
 								palette: inkPalette,
 								patternInks: palettePatternInks,
+								themeInkFallback,
 								defaultInk: defaultPatternInk,
 							}),
 							...lineProps,

@@ -171,9 +171,13 @@ const channelFieldName = (
 	channel: string
 ): string | undefined => {
 	const entry = aestheticScales[channel as keyof AestheticScales]
-	return entry && typeof entry === "object" && "field" in entry
-		? entry.field?.name
-		: undefined
+	if (!entry || typeof entry !== "object" || !("field" in entry)) {
+		return undefined
+	}
+	// `themeInkFallback` is a plain color→ink record; a "field" key there
+	// would hold a string, not an AestheticFieldInfo — skip it.
+	const field = entry.field
+	return typeof field === "object" && field !== null ? field.name : undefined
 }
 
 /** Highlight for an AGGREGATED mark (Bar / Area / Pie slice) keyed by channel

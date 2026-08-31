@@ -5,7 +5,7 @@ import { COLOR_SLOT_REGISTRY } from "../lib/colorSlots"
 import { OPACITY_SLOT_REGISTRY } from "../lib/opacitySlots"
 import { effectiveType } from "../lib/fieldType"
 import { resolveLegendDomain } from "../lib/legendBreaks"
-import { patternCategoriesFor } from "../lib/patterns"
+import { patternCategoriesFor, type ThemeInkFallback } from "../lib/patterns"
 import {
 	makeAngleScale,
 	makeAreaScale,
@@ -28,6 +28,7 @@ import {
 	currentLegendConfigAtom,
 } from "./atoms"
 import { useCurrentDatasetView } from "./useCurrentDatasetView"
+import { useThemeInkFallback } from "./useThemeInkFallback"
 
 export type AestheticFieldInfo = {
 	name: string
@@ -80,6 +81,11 @@ export type AestheticScales = {
 	opacitySlots: Partial<
 		Record<OpacitySlotKey, { scale: UnitScale; field: AestheticFieldInfo } | null>
 	>
+	/** Cross-palette pattern-ink table for the current theme (hex → paired
+	 * ink, see `buildThemeInkFallback`). Rides here because every pattern
+	 * resolution site already receives the scales bundle; optional so tests
+	 * building fixture scales don't have to supply one. */
+	themeInkFallback?: ThemeInkFallback
 }
 
 const NULL_SCALES: AestheticScales = {
@@ -103,6 +109,7 @@ export const useAestheticScales = (): AestheticScales => {
 	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
 	const legendCfg = useAtomValue(currentLegendConfigAtom)
 	const dataset = useCurrentDatasetView()
+	const themeInkFallback = useThemeInkFallback()
 
 	return useMemo<AestheticScales>(() => {
 		if (!dataset) return NULL_SCALES
@@ -341,6 +348,7 @@ export const useAestheticScales = (): AestheticScales => {
 				: null,
 			colorSlots,
 			opacitySlots: opacitySlotsScales,
+			themeInkFallback,
 		}
-	}, [dataset, encodings, overrides, channelConfigs, legendCfg])
+	}, [dataset, encodings, overrides, channelConfigs, legendCfg, themeInkFallback])
 }

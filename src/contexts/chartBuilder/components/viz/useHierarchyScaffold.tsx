@@ -653,7 +653,8 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			const preferredInk = inkForHueColor(
 				hueDrivesFill ? style.preModulationFill : patternBg,
 				huePalette.palette,
-				huePalette.inks
+				huePalette.inks,
+				aestheticScales.themeInkFallback
 			)
 			return resolvePatternForMark(
 				category,

@@ -1,6 +1,6 @@
 import type { ChannelConfigs, PatternConfig } from "./channelConfig"
 import { parseValue } from "./scales"
-import type { FieldType } from "./types"
+import type { FieldType, Theme } from "./types"
 
 /**
  * Pattern rendering.
@@ -162,16 +162,49 @@ export const inkPaletteForHue = (
 				inks: configs.categoricalPalettePatternInks,
 			}
 
+/** Flattened hex → paired-ink lookup across ALL of a theme's palettes
+ * (categorical + ordinal), for colors the ACTIVE palette lookup misses.
+ * A mark whose hue is overridden with a swatch borrowed from another theme
+ * palette (the palette popover's "other palettes" section) isn't in the
+ * palette the hue scale used — without this table its pattern ink would
+ * silently fall back to the default near-black even though the borrowed
+ * swatch has a paired ink in Settings. Keys are lowercased; when the same
+ * hex appears in several palettes the first palette (theme list order,
+ * categorical before ordinal) wins. */
+export type ThemeInkFallback = Readonly<Record<string, string>>
+
+export const buildThemeInkFallback = (
+	theme: Pick<Theme, "categoricalPalettes" | "ordinalPalettes">
+): ThemeInkFallback => {
+	const table: Record<string, string> = {}
+	for (const pal of [...theme.categoricalPalettes, ...theme.ordinalPalettes]) {
+		const inks = pal.patternInks ?? []
+		pal.colors.forEach((color, i) => {
+			const ink = inks[i]
+			if (!ink) return
+			const key = color.toLowerCase()
+			if (!(key in table)) table[key] = ink
+		})
+	}
+	return table
+}
+
 export const inkForHueColor = (
 	hueColor: string,
 	palette: readonly string[] | undefined,
-	patternInks: ReadonlyArray<string | null> | undefined
+	patternInks: ReadonlyArray<string | null> | undefined,
+	/** Cross-palette fallback (see `buildThemeInkFallback`), consulted when
+	 * the active palette has no paired ink for `hueColor` — a per-value hue
+	 * override borrowed from another theme palette still finds its ink. */
+	themeInkFallback?: ThemeInkFallback
 ): string | null => {
-	if (!palette || !patternInks || patternInks.length === 0) return null
 	const target = hueColor.toLowerCase()
-	const idx = palette.findIndex((c) => c.toLowerCase() === target)
-	if (idx === -1) return null
-	return patternInks[idx] ?? null
+	if (palette && patternInks && patternInks.length > 0) {
+		const idx = palette.findIndex((c) => c.toLowerCase() === target)
+		const paired = idx === -1 ? null : (patternInks[idx] ?? null)
+		if (paired) return paired
+	}
+	return themeInkFallback?.[target] ?? null
 }
 
 /** Resolve the full pattern def spec for a single mark, baking both the

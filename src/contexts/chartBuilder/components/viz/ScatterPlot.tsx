@@ -727,7 +727,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					xType,
 					dataset,
 					drawOrderLevels,
-					aestheticScales.hue?.field.type
+					aestheticScales.hue?.field.type,
+					aestheticScales.themeInkFallback
 				)}
 				{renderMarkPaths({
 					marks: sortByDrawOrder(

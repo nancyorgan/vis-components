@@ -1145,6 +1145,7 @@ const buildAreas = ({
 					inkColors: patternInkColors,
 					palette: inkPalette,
 					patternInks: palettePatternInks,
+					themeInkFallback: aestheticScales.themeInkFallback,
 					defaultInk: defaultPatternInk,
 				})
 				const lineProps = {

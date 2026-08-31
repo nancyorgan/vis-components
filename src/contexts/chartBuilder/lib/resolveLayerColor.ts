@@ -72,8 +72,10 @@ export type ResolveLayerColorArgs = {
  *  INVARIANT: `preModulationHue` is the hue color BEFORE saturation/
  *  brightness modulation. Pattern-ink lookups match against the theme
  *  palette's exact swatch hexes, so they must key on this color — the
- *  modulated hex is never in the palette (per-value hue overrides likewise
- *  miss the palette and fall back to the default ink). */
+ *  modulated hex is never in the palette. (Per-value hue overrides also
+ *  miss the ACTIVE palette; they resolve through the cross-palette
+ *  `themeInkFallback` table when the picked color is a swatch of another
+ *  theme palette, else fall back to the default ink.) */
 export const resolveGroupFill = (
 	groupValues: GroupValues,
 	defaultFill: string,
@@ -162,8 +164,9 @@ export type PatternDefItem = {
 	/** Hue color BEFORE sat/bri modulation. INVARIANT: pattern-ink lookups
 	 *  match against the theme palette's exact swatch hexes, so they must
 	 *  key on this un-modulated color — modulation rewrites the fill hex
-	 *  out of the palette (and per-value hue overrides likewise miss the
-	 *  palette, falling back to the default ink). */
+	 *  out of the palette. (Per-value hue overrides also miss the active
+	 *  palette; the cross-palette `themeInkFallback` table covers colors
+	 *  borrowed from other theme palettes, else the default ink applies.) */
 	preModulationHue: string
 	/** Sat/bri unit values applied to `fill` (from `resolveMarkAesthetics` /
 	 *  `resolveGroupFill`). When hue is UNMAPPED they modulate the pattern's
@@ -219,11 +222,14 @@ export const resolvePatternDefForItem = (
 				)
 		const huePalette = inkPaletteForHue(channelConfigs, hueG?.type)
 		// Ink lookup keys on the PRE-modulation hue color (see
-		// `PatternDefItem.preModulationHue`).
+		// `PatternDefItem.preModulationHue`). Colors the active palette
+		// doesn't know (per-value overrides borrowed from another theme
+		// palette) fall back to the theme-wide ink table.
 		const preferredInk = inkForHueColor(
 			hueG ? item.preModulationHue : patternBgFallback,
 			huePalette.palette,
-			huePalette.inks
+			huePalette.inks,
+			aestheticScales.themeInkFallback
 		)
 		return resolvePatternForMark(
 			catStr,

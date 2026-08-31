@@ -283,6 +283,44 @@ describe("resolveLayerColor", () => {
 		expect(r.patternId).toContain("ff0000")
 	})
 
+	it("resolves the ink through the cross-palette table for hue colors off the active palette", () => {
+		// A per-value hue override borrowed from another theme palette isn't
+		// in the ACTIVE categorical palette; its paired ink must come from
+		// the theme-wide table instead of the near-black default.
+		const palette = ["#e0f2fe", "#7dd3fc"]
+		const scales: AestheticScales = {
+			...emptyScales,
+			hue: {
+				field: { name: "grp", type: "categorical" },
+				scale: {
+					kind: "categorical",
+					// "A" carries an override color from another palette (the
+					// hue scale bakes per-value overrides into its range).
+					scale: scaleOrdinal<string, string>()
+						.domain(["A", "B"])
+						.range(["#123456", palette[1]]),
+				},
+			},
+			pattern: {
+				field: { name: "grp", type: "categorical" },
+				categories: ["A", "B"],
+			},
+			themeInkFallback: { "#123456": "#ababab" },
+		}
+		const r = resolveLayerColor({
+			groupValues: { hue: "A", pattern: "A" },
+			defaultFill: "#000",
+			patternBgFallback: "#fff",
+			aestheticScales: scales,
+			channelConfigs: {
+				...EMPTY_CHANNEL_CONFIGS,
+				categoricalPalette: palette,
+				categoricalPalettePatternInks: ["#ff0000", "#00ff00"],
+			},
+		})
+		expect(r.patternId).toContain("ababab")
+	})
+
 	// Conditional outline rules test the mapped outline variable's value and
 	// override the outlineHue scale color when one matches. Only fire when an
 	// outline field is mapped.
