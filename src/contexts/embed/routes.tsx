@@ -1,3 +1,4 @@
+import { EMBED_PATH_PREFIX } from "../../lib/embedPath"
 import { createRoute, rootRoute } from "../../routes/router"
 import { EmbedPage } from "./components/EmbedPage"
 
@@ -19,7 +20,7 @@ const validateSearch = (raw: Record<string, unknown>): EmbedSearch => {
 
 export const embedRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/embed/$visualId",
+	path: `${EMBED_PATH_PREFIX}$visualId`,
 	component: EmbedPage,
 	validateSearch,
 })

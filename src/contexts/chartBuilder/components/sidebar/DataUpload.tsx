@@ -9,13 +9,12 @@ import {
 } from "../../lib/datasetCompat"
 import { findDuplicateByHash, withFreshContentHash } from "../../lib/datasetDedupe"
 import { nameCollides } from "../../lib/nameUniqueness"
-import { getStorageAdapter } from "../../lib/storage/registry"
-import type { Dataset, DatasetVersion } from "../../lib/types"
+import type { DatasetVersion } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
 	currentVisualNameAtom,
 	datasetIndexAtom,
-	loadedDatasetsAtom,
+	mutateDatasetBodyAtom,
 	pendingUploadAtom,
 	previewVersionIdAtom,
 	uploadNoticeAtom,
@@ -106,7 +105,7 @@ export const DataUpload = () => {
  * visualization that saves the current one to the library. */
 const UploadPromptModal = () => {
 	const [pending, setPending] = useAtom(pendingUploadAtom)
-	const [datasets, setDatasets] = useAtom(loadedDatasetsAtom)
+	const mutateDatasetBody = useSetAtom(mutateDatasetBodyAtom)
 	const datasetIndex = useAtomValue(datasetIndexAtom)
 	const currentDatasetId = useAtomValue(currentDatasetIdAtom)
 	const currentVisualName = useAtomValue(currentVisualNameAtom)
@@ -185,13 +184,6 @@ const UploadPromptModal = () => {
 		parsed: NonNullable<typeof pending>
 	): Promise<boolean> => {
 		if (!currentDatasetMeta) return false
-		// Appending needs the FULL body — the new version joins the existing
-		// ones, so their rows must be in the record we write back. Loaded lazily
-		// here; this is the one moment the upload flow needs them.
-		const currentDataset =
-			datasets[currentDatasetMeta.id] ??
-			(await getStorageAdapter().loadDataset(currentDatasetMeta.id))
-		if (!currentDataset) return false
 		const versionId = newDatasetVersionId()
 		const version: DatasetVersion = {
 			id: versionId,
@@ -199,29 +191,39 @@ const UploadPromptModal = () => {
 			rows: parsed.rows,
 			createdAt: Date.now(),
 		}
-		// Net-new columns are additive: merge them into the dataset's invariant
-		// field list (appended after the existing fields) so the new variable is
-		// selectable/encodable. Existing versions' rows simply lack the column and
-		// read as empty for it. `missing`/`typeChanged` are already blocked above,
-		// so the shared schema stays valid for every prior version.
-		const addedFields =
-			diff && diff.added.length > 0
-				? parsed.fields.filter((f) => diff.added.includes(f.name))
-				: []
-		// The append changed the dataset's content, so the cached content hash
-		// must follow — a stale one makes the next upload of the ORIGINAL file
-		// hint a reuse it can't verify, with the name-collision guard disabled.
-		const next: Dataset = withFreshContentHash({
-			...currentDataset,
-			fields:
-				addedFields.length > 0
-					? [...currentDataset.fields, ...addedFields]
-					: currentDataset.fields,
-			versions: [...currentDataset.versions, version],
-			latestVersionId: versionId,
+		// Appending needs the FULL body — the new version joins the existing
+		// ones, so their rows must be in the record we write back. The shared
+		// `mutateDatasetBodyAtom` loads it lazily and applies the append to the
+		// freshest body (a concurrent edit landing during the load wins), so
+		// nothing that happened during the await is clobbered.
+		const applied = await mutateDatasetBody(currentDatasetMeta.id, (d) => {
+			// Net-new columns are additive: merge them into the dataset's
+			// invariant field list (appended after the existing fields) so the new
+			// variable is selectable/encodable. Existing versions' rows simply lack
+			// the column and read as empty for it. `missing`/`typeChanged` are
+			// already blocked above, so the shared schema stays valid for every
+			// prior version.
+			const addedFields =
+				diff && diff.added.length > 0
+					? parsed.fields.filter(
+							(f) =>
+								diff.added.includes(f.name) &&
+								!d.fields.some((existing) => existing.name === f.name)
+						)
+					: []
+			// The append changed the dataset's content, so the cached content hash
+			// must follow — a stale one makes the next upload of the ORIGINAL file
+			// hint a reuse it can't verify, with the name-collision guard disabled.
+			return withFreshContentHash({
+				...d,
+				fields:
+					addedFields.length > 0 ? [...d.fields, ...addedFields] : d.fields,
+				versions: [...d.versions, version],
+				latestVersionId: versionId,
+			})
 		})
-		setDatasets((prev) => ({ ...prev, [currentDataset.id]: next }))
-		setDatasetId(currentDataset.id)
+		if (!applied) return false
+		setDatasetId(currentDatasetMeta.id)
 		setPreviewVersionId(null)
 		return true
 	}
@@ -251,12 +253,15 @@ const UploadPromptModal = () => {
 				if (!newName.trim() || newNameCollides) return
 				await startNewVisualization(pending)
 			}
-		} catch {
+		} catch (error) {
 			// The body load (or the save/navigate) failed — keep the modal (and
 			// the pending upload) so the user can retry, and say why nothing
-			// happened.
+			// happened. A name-conflict refusal carries its own user-facing
+			// message; anything else gets the generic connection line.
 			setConfirmError(
-				"Couldn't load the existing data set to update it. Check your connection and try again."
+				error instanceof Error && error.name === "DatasetNameConflictError"
+					? error.message
+					: "Couldn't load the existing data set to update it. Check your connection and try again."
 			)
 			return
 		}

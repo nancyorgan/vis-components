@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetContentHash } from "../datasetDedupe"
 import { createHttpStorageAdapter } from "./httpAdapter"
 import { CONTENT_MIGRATIONS } from "./migrations"
@@ -25,6 +26,9 @@ const okJson = (body: unknown) =>
 		ok: true,
 		status: 200,
 		json: async () => body,
+		// `loadWholeDataset` reads the raw text (it doubles as the diff
+		// baseline) and parses it itself.
+		text: async () => stringifyJsonDangerous(body as never),
 	}) as unknown as Response
 
 const okEmpty = () => ({ ok: true, status: 204 }) as unknown as Response

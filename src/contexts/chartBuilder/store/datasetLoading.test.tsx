@@ -17,13 +17,18 @@ import {
 import { setStorageAdapter } from "../lib/storage/registry"
 import type { Dataset } from "../lib/types"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
+import { stringifyJsonDangerous } from "../../../lib/json"
+import { DATASETS_VERSION } from "../lib/storage/migrations"
 import {
 	currentDatasetIdAtom,
 	datasetIndexAtom,
 	datasetIndexReadyAtom,
 	datasetLoadStatesAtom,
+	deleteDatasetsAtom,
 	ensureDatasetLoadedAtom,
+	loadedDatasetsAtom,
 	loadedVersionRowsAtom,
+	mutateDatasetBodyAtom,
 	previewVersionIdAtom,
 	versionRowsKey,
 } from "./atoms"
@@ -223,6 +228,109 @@ describe("failure states", () => {
 		await waitFor(() =>
 			expect(store.get(currentDatasetStatusAtom)).toBe("ready")
 		)
+	})
+})
+
+describe("deletion vs the bootstrap blob", () => {
+	it("a deleted bootstrap dataset stays deleted through later writes", () => {
+		// Browser-local mode: the synchronous bootstrap blob is read-only, so
+		// deletion tombstones its ids. Without that, the boot merge resurfaced
+		// the dataset and the next functional write copied it back into the
+		// base map and re-persisted it — the deletion silently undone.
+		const legacyBlob = stringifyJsonDangerous({
+			_v: DATASETS_VERSION,
+			data: { "d-boot": dataset("d-boot") },
+		} as never)
+		// eslint-disable-next-line no-restricted-globals, @th/no-storage-outside-try -- seeding the legacy blob deliberately
+		localStorage.setItem("vis-components:datasets", legacyBlob)
+		const store = createStore()
+		expect(store.get(loadedDatasetsAtom)["d-boot"]).toBeTruthy()
+
+		store.set(deleteDatasetsAtom, ["d-boot"])
+		expect(store.get(loadedDatasetsAtom)["d-boot"]).toBeUndefined()
+		expect(store.get(datasetIndexAtom)["d-boot"]).toBeUndefined()
+
+		store.set(loadedDatasetsAtom, (prev) => ({
+			...prev,
+			"d-new": dataset("d-new"),
+		}))
+		expect(Object.keys(store.get(loadedDatasetsAtom))).toEqual(["d-new"])
+		expect(store.get(datasetIndexAtom)["d-boot"]).toBeUndefined()
+	})
+})
+
+describe("mutating a lazily-loaded body", () => {
+	it("an edit landing during the body load is not clobbered", async () => {
+		const adapter = stubAdapter({ "ds-1": dataset("ds-1") })
+		let release: () => void = () => {}
+		const gate = new Promise<void>((resolve) => {
+			release = resolve
+		})
+		const inner = adapter.loadDataset.bind(adapter)
+		adapter.loadDataset = async (id) => {
+			await gate
+			return inner(id)
+		}
+		install(adapter)
+		const store = createStore()
+
+		const extra = {
+			id: "v3",
+			filename: "c.csv",
+			rows: [{ a: "9" }],
+			createdAt: 2,
+		}
+		const mutation = store.set(mutateDatasetBodyAtom, "ds-1", (d) => ({
+			...d,
+			versions: [...d.versions, extra],
+			latestVersionId: "v3",
+		}))
+		// A concurrent edit lands while the load is still in flight. The
+		// mutation must apply on top of it (prev wins over the fetched body),
+		// not overwrite it with the pre-edit read.
+		store.set(loadedDatasetsAtom, (prev) => ({
+			...prev,
+			"ds-1": { ...dataset("ds-1"), name: "renamed" },
+		}))
+		release()
+		await mutation
+
+		const final = store.get(loadedDatasetsAtom)["ds-1"]
+		expect(final?.name).toBe("renamed")
+		expect(final?.versions.map((v) => v.id)).toEqual(["v1", "v2", "v3"])
+	})
+})
+
+describe("cache bounds", () => {
+	it("evicts the least-recently-drawn datasets' rows", async () => {
+		const corpus = Object.fromEntries(
+			Array.from({ length: 6 }, (_, i) => [
+				`ds-${i + 1}`,
+				dataset(`ds-${i + 1}`),
+			])
+		)
+		const adapter = stubAdapter(corpus)
+		install(adapter)
+		const store = createStore()
+		store.sub(datasetIndexAtom, () => {})
+		await waitFor(() => expect(store.get(datasetIndexReadyAtom)).toBe(true))
+
+		for (let i = 1; i <= 6; i++) {
+			store.set(ensureDatasetLoadedAtom, `ds-${i}`)
+			await waitFor(() =>
+				expect(
+					store.get(loadedVersionRowsAtom)[versionRowsKey(`ds-${i}`, "v2")]
+				).toBeTruthy()
+			)
+		}
+		// Unbounded, these caches converged back on the full-corpus memory
+		// footprint over a long session. Only the most recent stay resident.
+		const cachedIds = new Set(
+			Object.keys(store.get(loadedVersionRowsAtom)).map((key) =>
+				key.slice(0, key.lastIndexOf(":"))
+			)
+		)
+		expect([...cachedIds].sort()).toEqual(["ds-3", "ds-4", "ds-5", "ds-6"])
 	})
 })
 

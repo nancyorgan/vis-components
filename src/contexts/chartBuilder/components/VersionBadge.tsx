@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { useAtom } from "jotai"
+import { useAtom, useSetAtom } from "jotai"
 import { pruneOrphanFields } from "../lib/datasetCompat"
 import { withFreshContentHash } from "../lib/datasetDedupe"
 import type { DatasetLike } from "../lib/datasetMeta"
-import { getStorageAdapter } from "../lib/storage/registry"
 import type { Dataset } from "../lib/types"
 import {
 	datasetIndexAtom,
-	loadedDatasetsAtom,
+	mutateDatasetBodyAtom,
 	previewVersionIdAtom,
 } from "../store/atoms"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
@@ -29,7 +28,7 @@ export const VersionBadge = () => {
 	const view = useCurrentDatasetView()
 	const [previewVersionId, setPreviewVersionId] =
 		useAtom(previewVersionIdAtom)
-	const [loadedDatasets, setDatasets] = useAtom(loadedDatasetsAtom)
+	const mutateDatasetBody = useSetAtom(mutateDatasetBodyAtom)
 	const [open, setOpen] = useState(false)
 	// Deleting a version or editing a note may first LOAD the full body
 	// (lazily, possibly over the network) — a failure there must say so, or
@@ -64,19 +63,16 @@ export const VersionBadge = () => {
 	if (!view) return null
 
 	/** Apply `mutate` to the full dataset body, loading it first if this
-	 * session only has the lazy per-version rows. The version list itself
-	 * renders from metadata; only these two mutations need every row. */
+	 * session only has the lazy per-version rows (the shared
+	 * `mutateDatasetBodyAtom` owns the load and the prev-wins merge). The
+	 * version list itself renders from metadata; only these two mutations
+	 * need every row. */
 	const mutateDataset = async (
 		id: string,
 		mutate: (d: Dataset) => Dataset
 	): Promise<void> => {
 		try {
-			const body =
-				loadedDatasets[id] ?? (await getStorageAdapter().loadDataset(id))
-			if (!body) return
-			// prev wins over the body we fetched — a concurrent edit that landed
-			// during the await is newer than our read.
-			setDatasets((prev) => ({ ...prev, [id]: mutate(prev[id] ?? body) }))
+			await mutateDatasetBody(id, mutate)
 			setMutateError(null)
 		} catch {
 			setMutateError(

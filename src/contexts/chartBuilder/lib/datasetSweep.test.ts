@@ -30,6 +30,9 @@ vi.mock("./storage/idb", () => ({
 }))
 
 import { runDatasetStoreCleanup, sweepOrphanDatasets } from "./datasetSweep"
+import { datasetContentHash } from "./datasetDedupe"
+import { localStorageAdapter } from "./storage/adapter"
+import { setStorageAdapter } from "./storage/registry"
 import {
 	loadCurrentDatasetId,
 	loadDatasetsAsync,
@@ -131,6 +134,40 @@ describe("runDatasetStoreCleanup", () => {
 		})
 		await runDatasetStoreCleanup()
 		expect(Object.keys(await loadDatasetsAsync())).toContain("ds-later")
+	})
+
+	it("persists refreshed content hashes and re-hashes after pruning", async () => {
+		// Datasets from before lazy loading can carry a creation-time hash that
+		// appends/deletes never updated. A stale stored hash makes upload dedupe
+		// hint a false match — which also disables the name-collision guard.
+		await saveVisuals([makeVisual("v1", "ds-stale")])
+		await saveDatasetsAsync({
+			"ds-stale": { ...makeDataset("ds-stale"), contentHash: "stale" },
+		})
+
+		await runDatasetStoreCleanup()
+
+		const repaired = (await loadDatasetsAsync())["ds-stale"]
+		expect(repaired?.contentHash).toBe(
+			datasetContentHash(makeDataset("ds-stale"))
+		)
+	})
+
+	it("does nothing in server mode — the server is the store", async () => {
+		setStorageAdapter({
+			...localStorageAdapter,
+			capabilities: { remoteLoad: true },
+		})
+		try {
+			await saveVisuals([])
+			await saveDatasetsAsync({ "ds-orphan": makeDataset("ds-orphan") })
+			await runDatasetStoreCleanup()
+			// The orphan survives untouched: sweeping a local mirror here would
+			// report deletions the server never sees.
+			expect(Object.keys(await loadDatasetsAsync())).toEqual(["ds-orphan"])
+		} finally {
+			setStorageAdapter(localStorageAdapter)
+		}
 	})
 
 	it("collapses byte-identical duplicates, repointing visuals and the current-dataset pin", async () => {

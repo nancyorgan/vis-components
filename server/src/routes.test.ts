@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtempSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readdirSync, writeFileSync } from "node:fs"
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
@@ -11,10 +11,11 @@ import { createHandler } from "./routes.js"
 
 let server: Server
 let base: string
+let dataDir: string
 
 beforeAll(async () => {
 	const dbDir = mkdtempSync(join(tmpdir(), "vis-routes-db-"))
-	const dataDir = mkdtempSync(join(tmpdir(), "vis-routes-data-"))
+	dataDir = mkdtempSync(join(tmpdir(), "vis-routes-data-"))
 	const distDir = mkdtempSync(join(tmpdir(), "vis-routes-dist-"))
 	writeFileSync(join(distDir, "index.html"), "<title>spa</title>")
 
@@ -594,6 +595,71 @@ describe("per-version dataset bodies", () => {
 		await putDataset("ds-new", { id: "ds-new", versions: [] })
 		expect(
 			(await fetch(`${base}/api/datasets/ds-new/versions/dv-1`)).status
+		).toBe(200)
+	})
+
+	const putMeta = (dsId: string, versionIds: string[]) =>
+		fetch(`${base}/api/datasets/${dsId}/meta`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				id: dsId,
+				name: `Set ${dsId}`,
+				versions: versionIds.map((id) => ({ id, filename: "a.csv", rowCount: 1 })),
+			}),
+		})
+
+	// The meta PUT is the last write of a sync, so its version list is the
+	// authority: a stored version it does not list was deleted by some session
+	// (possibly one whose DELETE request never landed) and a fresh session
+	// hydrating from the whole body can never know to remove it. The server
+	// must purge it here — row AND file — or it is served forever.
+	it("purges stored versions the meta PUT does not list", async () => {
+		await putDataset("ds-reconcile", { id: "ds-reconcile", versions: [] })
+		await putVersion("ds-reconcile", "dv-keep", { id: "dv-keep", rows: rows(1) })
+		await putVersion("ds-reconcile", "dv-orphan", {
+			id: "dv-orphan",
+			rows: rows(1),
+		})
+
+		expect((await putMeta("ds-reconcile", ["dv-keep"])).status).toBe(204)
+
+		expect(
+			(await fetch(`${base}/api/datasets/ds-reconcile/versions/dv-orphan`)).status
+		).toBe(404)
+		expect(readdirSync(dataDir)).not.toContain("ds-reconcile.dv-orphan.json.gz")
+	})
+
+	it("keeps every version the meta PUT lists", async () => {
+		await putDataset("ds-listed", { id: "ds-listed", versions: [] })
+		await putVersion("ds-listed", "dv-1", { id: "dv-1", rows: rows(1) })
+		await putVersion("ds-listed", "dv-2", { id: "dv-2", rows: rows(2) })
+
+		expect((await putMeta("ds-listed", ["dv-1", "dv-2"])).status).toBe(204)
+
+		for (const v of ["dv-1", "dv-2"]) {
+			expect(
+				(await fetch(`${base}/api/datasets/ds-listed/versions/${v}`)).status
+			).toBe(200)
+		}
+		expect(readdirSync(dataDir)).toContain("ds-listed.dv-1.json.gz")
+		expect(readdirSync(dataDir)).toContain("ds-listed.dv-2.json.gz")
+	})
+
+	// The purge trusts each listed version's id, so an entry without a string
+	// id is malformed meta — rejected before anything is stored or purged.
+	it("rejects meta whose versions lack a string id, purging nothing", async () => {
+		await putDataset("ds-badmeta", { id: "ds-badmeta", versions: [] })
+		await putVersion("ds-badmeta", "dv-1", { id: "dv-1", rows: rows(1) })
+
+		const res = await fetch(`${base}/api/datasets/ds-badmeta/meta`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ id: "ds-badmeta", versions: [{ filename: "a.csv" }] }),
+		})
+		expect(res.status).toBe(400)
+		expect(
+			(await fetch(`${base}/api/datasets/ds-badmeta/versions/dv-1`)).status
 		).toBe(200)
 	})
 })

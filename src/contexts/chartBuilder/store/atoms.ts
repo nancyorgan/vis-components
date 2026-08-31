@@ -1,4 +1,4 @@
-import { atom, type Atom } from "jotai"
+import { atom, type Atom, type Getter, type Setter } from "jotai"
 import {
 	type AnnotationsConfig,
 } from "../lib/annotationsConfig"
@@ -326,15 +326,29 @@ export const datasetIndexReadyAtom = atom((get) => get(datasetIndexBaseAtom).rea
  * anything. */
 const loadedDatasetsBaseAtom = atom<Record<string, Dataset>>({})
 
-const bootstrapIndex = (
-	boot: Record<string, Dataset>
-): Record<string, DatasetMeta> => datasetIndexFrom(boot)
+/** Ids deleted this session that the read-only bootstrap blob still contains.
+ * `bootDatasetsAtom` is a cached derived read with no setter, so deletion
+ * records a tombstone here instead; every boot merge filters through them.
+ * Without this, a deleted dataset resurfaced in the next merged read and the
+ * next functional write copied it back into the base map and re-persisted it
+ * — the explicit deletion silently undone. */
+const deletedBootIdsAtom = atom<ReadonlySet<string>>(new Set<string>())
+
+/** The bootstrap blob minus this session's deletions. */
+const liveBootDatasetsAtom = atom((get) => {
+	const boot = get(bootDatasetsAtom)
+	const deleted = get(deletedBootIdsAtom)
+	if (deleted.size === 0 || Object.keys(boot).length === 0) return boot
+	return Object.fromEntries(
+		Object.entries(boot).filter(([id]) => !deleted.has(id))
+	)
+})
 
 export const datasetIndexAtom = atom(
 	(get) => {
 		const s = get(datasetIndexBaseAtom)
 		const stored =
-			s.value === UNSET ? bootstrapIndex(get(bootDatasetsAtom)) : s.value
+			s.value === UNSET ? datasetIndexFrom(get(liveBootDatasetsAtom)) : s.value
 		// A body in memory is by definition a dataset that exists, and its
 		// metadata is fresher than anything stored — an in-flight upload is
 		// visible in the library before its write lands. Deriving rather than
@@ -354,7 +368,7 @@ export const datasetIndexAtom = atom(
 		const s = get(datasetIndexBaseAtom)
 		const next = resolveUpdate(
 			update,
-			s.value === UNSET ? bootstrapIndex(get(bootDatasetsAtom)) : s.value
+			s.value === UNSET ? datasetIndexFrom(get(liveBootDatasetsAtom)) : s.value
 		)
 		set(datasetIndexBaseAtom, { ...s, value: next, touched: true })
 	}
@@ -367,7 +381,7 @@ export const loadedDatasetsAtom = atom(
 		// persisted atom. Covers environments with no IndexedDB to lazily load
 		// FROM — SSR, the happy-dom tests, privacy modes — and a store that
 		// hasn't been split into per-dataset keys yet. Lazily-loaded bodies win.
-		const boot = get(bootDatasetsAtom)
+		const boot = get(liveBootDatasetsAtom)
 		return Object.keys(boot).length === 0 ? loaded : { ...boot, ...loaded }
 	},
 	(
@@ -380,14 +394,43 @@ export const loadedDatasetsAtom = atom(
 		// prev must be the same merged value the getter reports — resolving
 		// against the bare base atom would hand functional updates an empty
 		// record in bootstrap-only environments and silently drop datasets.
-		const boot = get(bootDatasetsAtom)
-		const merged =
-			Object.keys(boot).length === 0
-				? get(loadedDatasetsBaseAtom)
-				: { ...boot, ...get(loadedDatasetsBaseAtom) }
-		const next = resolveUpdate(update, merged)
+		// Reading our own atom guarantees the two can never drift.
+		const next = resolveUpdate(update, get(loadedDatasetsAtom))
 		set(loadedDatasetsBaseAtom, next)
 		void getStorageAdapter().saveDatasets(next)
+	}
+)
+
+/** The full body of one dataset: from memory when this session already holds
+ * it, else fetched from the adapter. Read-only — the caller decides what (if
+ * anything) to write back. The ONE way to get a body outside the ensure/render
+ * path; hand-rolled copies of this lookup drifted into divergent error and
+ * concurrency rules. Throws when the store cannot answer. */
+export const getDatasetBody = (
+	get: Getter,
+	id: string
+): Promise<Dataset | null> => {
+	const inMemory = get(loadedDatasetsAtom)[id]
+	return inMemory ? Promise.resolve(inMemory) : getStorageAdapter().loadDataset(id)
+}
+
+/** Apply `mutate` to a dataset's full body, loading it first when this
+ * session holds only the lazy per-version rows. The freshly-read body is only
+ * the fallback: `prev` wins inside the write, because a concurrent edit that
+ * landed during the await is newer than our read. Resolves false when the
+ * dataset can't be found; rejects when the load fails. */
+export const mutateDatasetBodyAtom = atom(
+	null,
+	async (
+		get,
+		set,
+		id: string,
+		mutate: (d: Dataset) => Dataset
+	): Promise<boolean> => {
+		const body = await getDatasetBody(get, id)
+		if (!body) return false
+		set(loadedDatasetsAtom, (prev) => ({ ...prev, [id]: mutate(prev[id] ?? body) }))
+		return true
 	}
 )
 
@@ -422,6 +465,70 @@ export const loadedVersionRowsAtom = atom((get) =>
 	get(loadedVersionRowsBaseAtom)
 )
 
+/** Most-recently-ensured dataset ids, newest first — the basis for evicting
+ * everything else below. */
+const datasetLoadRecencyAtom = atom<readonly string[]>([])
+
+/** Whole bodies that the ensure path itself loaded, by id. Only these are
+ * eviction candidates, and only while the body in the store IS the loaded
+ * object — a body the user has since edited (new identity) may hold work a
+ * failed save hasn't persisted, so it is never evicted. */
+const ensureLoadedBodiesAtom = atom<ReadonlyMap<string, Dataset>>(
+	new Map<string, Dataset>()
+)
+
+/** How many datasets' lazily-loaded rows stay in memory. Without a bound the
+ * caches only ever grew, so a long session switching between visuals
+ * converged right back on the full-corpus footprint lazy loading exists to
+ * avoid. Refetch on switch-back is cheap and idempotent (this same ensure
+ * path). */
+const LOADED_DATASET_CACHE_SIZE = 4
+
+/** Bump `id` to the front of the recency list and drop the lazily-loaded
+ * rows and bodies of every dataset that fell off it. */
+const evictColdDatasets = (
+	get: Getter,
+	set: Setter,
+	id: string
+): void => {
+	const recency = get(datasetLoadRecencyAtom)
+	if (recency[0] !== id) {
+		set(datasetLoadRecencyAtom, [
+			id,
+			...recency.filter((r) => r !== id),
+		].slice(0, LOADED_DATASET_CACHE_SIZE))
+	}
+	const keep = new Set(get(datasetLoadRecencyAtom))
+
+	const rows = get(loadedVersionRowsBaseAtom)
+	if (Object.keys(rows).some((key) => !keep.has(datasetIdOfRowsKey(key)))) {
+		set(loadedVersionRowsBaseAtom, (prev) =>
+			Object.fromEntries(
+				Object.entries(prev).filter(([key]) => keep.has(datasetIdOfRowsKey(key)))
+			)
+		)
+	}
+
+	const ensureLoaded = get(ensureLoadedBodiesAtom)
+	const bodies = get(loadedDatasetsBaseAtom)
+	const evictIds = [...ensureLoaded].filter(
+		([bodyId, body]) => !keep.has(bodyId) && bodies[bodyId] === body
+	)
+	if (evictIds.length > 0) {
+		const doomed = new Set(evictIds.map(([bodyId]) => bodyId))
+		set(loadedDatasetsBaseAtom, (prev) =>
+			Object.fromEntries(
+				Object.entries(prev).filter(([bodyId]) => !doomed.has(bodyId))
+			)
+		)
+		set(ensureLoadedBodiesAtom, (prev) => {
+			const next = new Map(prev)
+			for (const bodyId of doomed) next.delete(bodyId)
+			return next
+		})
+	}
+}
+
 /** Pull in the rows a visualization is about to draw — one version of one
  * dataset — if they aren't already in memory. Idempotent per version per
  * session; a previous failure is cleared and retried. Write-only action.
@@ -437,9 +544,12 @@ export const ensureDatasetLoadedAtom = atom(
 	null,
 	(get, set, id: string | null) => {
 		if (!id) return
+		// Every ensure — cache hit or not — refreshes the recency list and
+		// drops the datasets that fell off it, so the caches stay bounded.
+		evictColdDatasets(get, set, id)
 		// A whole body already in memory (a fresh upload, an import, a seeded
 		// example) serves the render path directly — no fetch of any kind.
-		if (get(loadedDatasetsBaseAtom)[id] || get(bootDatasetsAtom)[id]) return
+		if (get(loadedDatasetsBaseAtom)[id] || get(liveBootDatasetsAtom)[id]) return
 		if (!get(datasetIndexBaseAtom).ready) return
 
 		const meta = get(datasetIndexAtom)[id]
@@ -472,6 +582,10 @@ export const ensureDatasetLoadedAtom = atom(
 			// edit, and routing it through the saving setter would write the
 			// dataset back out again on every open.
 			set(loadedDatasetsBaseAtom, (prev) => ({ ...prev, [id]: dataset }))
+			// Recorded as evictable: this body came FROM storage, so dropping
+			// it later loses nothing (an edit replaces the identity and takes
+			// it off the eviction list).
+			set(ensureLoadedBodiesAtom, (prev) => new Map(prev).set(id, dataset))
 			return true
 		}
 
@@ -501,9 +615,27 @@ export const ensureDatasetLoadedAtom = atom(
  * "deleted". */
 export const deleteDatasetsAtom = atom(
 	null,
-	(_get, set, ids: readonly string[]) => {
+	(get, set, ids: readonly string[]) => {
 		if (ids.length === 0) return
 		const doomed = new Set(ids)
+		// The bootstrap blob is read-only, so ids it holds are tombstoned —
+		// without this the boot merge resurfaced the dataset and the next
+		// write re-persisted it.
+		const boot = get(bootDatasetsAtom)
+		const bootDoomed = ids.filter((id) => id in boot)
+		if (bootDoomed.length > 0) {
+			set(deletedBootIdsAtom, (prev) => {
+				const next = new Set(prev)
+				for (const id of bootDoomed) next.add(id)
+				return next
+			})
+		}
+		set(ensureLoadedBodiesAtom, (prev) => {
+			if (!ids.some((id) => prev.has(id))) return prev
+			const next = new Map(prev)
+			for (const id of ids) next.delete(id)
+			return next
+		})
 		set(datasetIndexAtom, (prev) =>
 			Object.fromEntries(
 				Object.entries(prev).filter(([id]) => !doomed.has(id))

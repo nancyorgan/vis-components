@@ -116,8 +116,28 @@ const handleApi = async (
 			if (rest.length === 1 && rest[0] === "meta") {
 				if (method !== "PUT") throw new HttpError(405, "Method not allowed")
 				const raw = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
-				assertDatasetMetaJson(raw, id)
+				const listedVersionIds = assertDatasetMetaJson(raw, id)
 				upsertDatasetMeta(db, id, raw)
+				// The meta PUT is the LAST write of a client's sync, so its version
+				// list is authoritative: any stored version it does not list was
+				// removed — possibly by a session whose DELETE never landed, which
+				// a later hydration (it re-splits the whole body without knowing
+				// the prior version set) can never repair. Purge those here or the
+				// server serves the deleted rows forever.
+				if (listedVersionIds !== null) {
+					const listed = new Set(listedVersionIds)
+					const stale = listDatasetVersionIds(db, id).filter(
+						(versionId) => !listed.has(versionId)
+					)
+					for (const versionId of stale) {
+						deleteDatasetVersionRow(db, id, versionId)
+					}
+					await Promise.all(
+						stale.map((versionId) =>
+							deleteDatasetVersionFile(config.dataDir, id, versionId)
+						)
+					)
+				}
 				return sendEmpty(res, 204)
 			}
 			if (rest.length === 2 && rest[0] === "versions") {
@@ -461,8 +481,9 @@ const parseVersionBody = (raw: string): number => {
 
 /** A JSON-collection PUT body must be a JSON object whose `id` (when present)
  *  matches the URL — a mismatch means a confused client, and silently storing
- *  it would corrupt the collection's keying. */
-const assertItemJson = (body: string, id: string): void => {
+ *  it would corrupt the collection's keying. Returns the parsed object for
+ *  validators that layer further rules on top. */
+const assertItemJson = (body: string, id: string): Record<string, unknown> => {
 	let parsed: unknown
 	try {
 		parsed = JSON.parse(body)
@@ -476,36 +497,35 @@ const assertItemJson = (body: string, id: string): void => {
 	if (bodyId !== undefined && bodyId !== id) {
 		throw new HttpError(400, `Body id ${JSON.stringify(bodyId)} does not match URL id "${id}"`)
 	}
+	return parsed as Record<string, unknown>
 }
 
 /** A dataset meta body must be a JSON object whose `id` matches the URL, and
  *  must NOT carry row data — the whole point of the index is that it holds
  *  none. Rejecting a `rows` key keeps a confused client from quietly turning
- *  the index back into a full-corpus payload. */
-const assertDatasetMetaJson = (body: string, id: string): void => {
-	let parsed: unknown
-	try {
-		parsed = JSON.parse(body)
-	} catch {
-		throw new HttpError(400, "Body must be valid JSON")
-	}
-	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-		throw new HttpError(400, "Body must be a JSON object")
-	}
-	const record = parsed as Record<string, unknown>
-	if (record.id !== undefined && record.id !== id) {
-		throw new HttpError(
-			400,
-			`Body id ${JSON.stringify(record.id)} does not match URL id "${id}"`
-		)
-	}
+ *  the index back into a full-corpus payload. When the body carries a
+ *  `versions` array, every entry must be an object with a string `id` —
+ *  those ids are what the meta route reconciles the stored versions against —
+ *  and they are returned; null means the body listed no such array. */
+const assertDatasetMetaJson = (body: string, id: string): string[] | null => {
+	const record = assertItemJson(body, id)
 	const versions = record.versions
-	if (
-		Array.isArray(versions) &&
-		versions.some((v) => typeof v === "object" && v !== null && "rows" in v)
-	) {
-		throw new HttpError(400, "Dataset meta must not carry version rows")
+	if (!Array.isArray(versions)) return null
+	const ids: string[] = []
+	for (const v of versions) {
+		if (
+			typeof v !== "object" ||
+			v === null ||
+			typeof (v as Record<string, unknown>).id !== "string"
+		) {
+			throw new HttpError(400, "Dataset meta versions must carry a string id")
+		}
+		if ("rows" in v) {
+			throw new HttpError(400, "Dataset meta must not carry version rows")
+		}
+		ids.push((v as { id: string }).id)
 	}
+	return ids
 }
 
 const assertValidGzip = (gzipped: Buffer): Promise<void> =>

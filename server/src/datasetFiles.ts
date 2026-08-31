@@ -17,34 +17,33 @@ const FILE_SUFFIX = ".json.gz"
  *  no dataset id can collide with a version file's name. */
 const VERSION_INFIX = "."
 
-const filePath = (dataDir: string, id: string): string => {
+/** The file name's extension-less stem: the dataset id alone, or the two ids
+ *  joined by VERSION_INFIX for a per-version body. Both stems gate on
+ *  isSafeId, so every path below is built from vetted input. */
+const datasetStem = (id: string): string => {
 	if (!isSafeId(id)) throw new Error(`Unsafe dataset id: ${JSON.stringify(id)}`)
-	return join(dataDir, `${id}${FILE_SUFFIX}`)
+	return id
 }
 
-const versionFilePath = (
-	dataDir: string,
-	datasetId: string,
-	versionId: string
-): string => {
+const versionStem = (datasetId: string, versionId: string): string => {
 	if (!isSafeId(datasetId) || !isSafeId(versionId)) {
 		throw new Error(
 			`Unsafe dataset/version id: ${JSON.stringify([datasetId, versionId])}`
 		)
 	}
-	return join(dataDir, `${datasetId}${VERSION_INFIX}${versionId}${FILE_SUFFIX}`)
+	return `${datasetId}${VERSION_INFIX}${versionId}`
 }
 
-/** Write one dataset's gzipped body. Temp file + fsync + atomic rename, so a
- *  crash mid-write can never leave a half-written dataset at the final name.
- *  The temp name's leading dot keeps it out of listDatasetFiles. */
-export const writeDatasetFile = async (
+/** Write one gzipped body. Temp file + fsync + atomic rename, so a crash
+ *  mid-write can never leave a half-written body at the final name. The temp
+ *  name's leading dot keeps it out of listDatasetFiles. */
+const writeGzipFile = async (
 	dataDir: string,
-	id: string,
+	stem: string,
 	gzipped: Buffer
 ): Promise<void> => {
-	const final = filePath(dataDir, id)
-	const temp = join(dataDir, `.${id}.${process.pid}.tmp`)
+	const final = join(dataDir, `${stem}${FILE_SUFFIX}`)
+	const temp = join(dataDir, `.${stem}.${process.pid}.tmp`)
 	const handle = await fs.open(temp, "w")
 	try {
 		await handle.writeFile(gzipped)
@@ -55,81 +54,69 @@ export const writeDatasetFile = async (
 	await fs.rename(temp, final)
 }
 
-/** Write one VERSION's gzipped rows. Same atomic write as a whole dataset. */
+/** Read one gzipped body, or null when it doesn't exist. */
+const readGzipFile = async (
+	dataDir: string,
+	stem: string
+): Promise<Buffer | null> => {
+	try {
+		return await fs.readFile(join(dataDir, `${stem}${FILE_SUFFIX}`))
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+		throw error
+	}
+}
+
+/** Delete one gzipped body. Idempotent. */
+const deleteGzipFile = async (dataDir: string, stem: string): Promise<void> => {
+	try {
+		await fs.unlink(join(dataDir, `${stem}${FILE_SUFFIX}`))
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return
+		throw error
+	}
+}
+
+/** Write one dataset's gzipped body. */
+export const writeDatasetFile = async (
+	dataDir: string,
+	id: string,
+	gzipped: Buffer
+): Promise<void> => writeGzipFile(dataDir, datasetStem(id), gzipped)
+
+/** Write one VERSION's gzipped rows. */
 export const writeDatasetVersionFile = async (
 	dataDir: string,
 	datasetId: string,
 	versionId: string,
 	gzipped: Buffer
-): Promise<void> => {
-	const final = versionFilePath(dataDir, datasetId, versionId)
-	const temp = join(
-		dataDir,
-		`.${datasetId}${VERSION_INFIX}${versionId}.${process.pid}.tmp`
-	)
-	const handle = await fs.open(temp, "w")
-	try {
-		await handle.writeFile(gzipped)
-		await handle.sync()
-	} finally {
-		await handle.close()
-	}
-	await fs.rename(temp, final)
-}
+): Promise<void> =>
+	writeGzipFile(dataDir, versionStem(datasetId, versionId), gzipped)
 
 /** Read one VERSION's gzipped rows, or null when it doesn't exist. */
 export const readDatasetVersionFile = async (
 	dataDir: string,
 	datasetId: string,
 	versionId: string
-): Promise<Buffer | null> => {
-	try {
-		return await fs.readFile(versionFilePath(dataDir, datasetId, versionId))
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
-		throw error
-	}
-}
+): Promise<Buffer | null> =>
+	readGzipFile(dataDir, versionStem(datasetId, versionId))
 
 /** Delete one VERSION's file. Idempotent. */
 export const deleteDatasetVersionFile = async (
 	dataDir: string,
 	datasetId: string,
 	versionId: string
-): Promise<void> => {
-	try {
-		await fs.unlink(versionFilePath(dataDir, datasetId, versionId))
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return
-		throw error
-	}
-}
+): Promise<void> => deleteGzipFile(dataDir, versionStem(datasetId, versionId))
 
 /** Read one dataset's gzipped body, or null when it doesn't exist. */
 export const readDatasetFile = async (
 	dataDir: string,
 	id: string
-): Promise<Buffer | null> => {
-	try {
-		return await fs.readFile(filePath(dataDir, id))
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
-		throw error
-	}
-}
+): Promise<Buffer | null> => readGzipFile(dataDir, datasetStem(id))
 
 /** Delete one dataset file. Idempotent. */
-export const deleteDatasetFile = async (
-	dataDir: string,
-	id: string
-): Promise<void> => {
-	try {
-		await fs.unlink(filePath(dataDir, id))
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return
-		throw error
-	}
-}
+export const deleteDatasetFile = async (dataDir: string, id: string): Promise<void> =>
+	deleteGzipFile(dataDir, datasetStem(id))
 
 /** Ids of every whole-dataset file present in the data dir (temp files
  *  excluded).

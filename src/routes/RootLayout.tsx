@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai"
 import { Outlet, useRouterState } from "@tanstack/react-router"
 
 import { Header } from "../components/Header"
+import { EMBED_PATH_PREFIX } from "../lib/embedPath"
 import { UploadNoticeModal } from "../contexts/chartBuilder/components/UploadNoticeModal"
 import { registerUserFonts } from "../contexts/chartBuilder/lib/fontRegistration"
 import { userFontsAtom } from "../contexts/chartBuilder/store/atoms"
@@ -46,7 +47,7 @@ const useUserFontRegistration = () => {
 
 export const RootLayout = () => {
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
-	const isEmbed = pathname.startsWith("/embed/")
+	const isEmbed = pathname.startsWith(EMBED_PATH_PREFIX)
 	useGlobalFileDropGuard()
 	useUserFontRegistration()
 	return (

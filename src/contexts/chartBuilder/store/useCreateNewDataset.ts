@@ -5,7 +5,6 @@ import {
 	datasetsEqual,
 	findDuplicateByHash,
 } from "../lib/datasetDedupe"
-import { getStorageAdapter } from "../lib/storage/registry"
 import {
 	datasetPerformanceWarning,
 	datasetRejectMessage,
@@ -30,10 +29,20 @@ import {
 	currentFieldOverridesAtom,
 	currentReshapeConfigAtom,
 	currentVisualIdAtom,
+	getDatasetBody,
 	loadedDatasetsAtom,
 	pendingUploadAtom,
 	previewVersionIdAtom,
 } from "./atoms"
+
+/** Thrown when an upload would mint a second dataset under an existing name.
+ *  The name identifies the error to UI catch blocks, whose message is shown
+ *  to the user verbatim (unlike arbitrary network errors). */
+const nameConflictError = (message: string): Error => {
+	const error = new Error(message)
+	error.name = "DatasetNameConflictError"
+	return error
+}
 
 export type { ParsedUpload }
 
@@ -79,15 +88,9 @@ export const useCreateNewDataset = () =>
 			// uploads after every reload. The hash match is then confirmed
 			// against that one dataset's actual rows: a hash names a probable
 			// duplicate, `datasetsEqual` proves it.
-			// Best-effort verification read: a network blip here must not abort
-			// the upload — an unverified match just stores a copy, which is the
-			// documented fallback for every uncertain dedupe answer.
 			const hashMatch = findDuplicateByHash(get(datasetIndexAtom), candidate)
 			const matchedBody = hashMatch
-				? (get(loadedDatasetsAtom)[hashMatch] ??
-					(await getStorageAdapter()
-						.loadDataset(hashMatch)
-						.catch(() => null)))
+				? await getDatasetBody(get, hashMatch).catch(() => null)
 				: null
 			const existingId =
 				matchedBody && datasetsEqual(matchedBody, candidate)
@@ -100,6 +103,19 @@ export const useCreateNewDataset = () =>
 				set(currentFieldOverridesAtom, {})
 				set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
 				return existingId
+			}
+			if (hashMatch) {
+				// A hash hint always names a SAME-NAMED dataset, and its presence
+				// suppressed the upload modal's name-collision guard ("it will be
+				// reused, not duplicated"). Falling through here would mint exactly
+				// the same-named duplicate that guard exists to prevent — so an
+				// unverifiable or failed match refuses instead of storing a copy.
+				throw nameConflictError(
+					matchedBody
+						? `A data set named "${finalName}" already exists. Pick a different name.`
+						: `A data set named "${finalName}" already exists and this upload ` +
+							`couldn't be compared against it. Check your connection and try again.`
+				)
 			}
 			const id = newDatasetId()
 			const versionId = newDatasetVersionId()

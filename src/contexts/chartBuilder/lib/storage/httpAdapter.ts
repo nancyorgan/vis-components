@@ -29,6 +29,7 @@
  *  migration that throws, both fail the load rather than write something
  *  half-migrated over the user's work. */
 
+import { isEmbedDocument } from "../../../../lib/embedPath"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetMetaFrom, isDatasetMeta } from "../datasetMeta"
 import { loadUserDefaultThemeId, saveUserDefaultThemeId } from "../storage"
@@ -78,12 +79,17 @@ const loadCollection = async <T>(collection: string): Promise<T> => {
 /** Diff `next` against `baseline` and issue per-item requests. Successful
  *  requests update the baseline immediately (so a partial failure retries
  *  only what actually failed on the next save); the first failure is
- *  rethrown after everything settles. */
+ *  rethrown after everything settles.
+ *
+ *  Without `deleteOne` this PUTs what changed and NOTHING else — no delete
+ *  inference. That is the mode for collections whose in-memory copy is a
+ *  subset of the store (datasets, whose bodies load on demand), where an
+ *  absent id means "not loaded", never "deleted". */
 const syncCollection = async (
 	baseline: Baseline,
 	next: Map<string, string>,
 	putOne: (id: string, serialized: string) => Promise<void>,
-	deleteOne: (id: string) => Promise<void>
+	deleteOne?: (id: string) => Promise<void>
 ): Promise<void> => {
 	const ops: Promise<void>[] = []
 	for (const [id, serialized] of next) {
@@ -94,35 +100,15 @@ const syncCollection = async (
 			})
 		)
 	}
-	for (const id of baseline.keys()) {
-		if (next.has(id)) continue
-		ops.push(
-			deleteOne(id).then(() => {
-				baseline.delete(id)
-			})
-		)
-	}
-	const results = await Promise.allSettled(ops)
-	const failure = results.find((r) => r.status === "rejected")
-	if (failure) throw (failure as PromiseRejectedResult).reason
-}
-
-/** PUT what changed, and NOTHING else — no delete inference. For collections
- *  whose in-memory copy is a subset of the store (datasets, whose bodies load
- *  on demand), where an absent id means "not loaded", never "deleted". */
-const upsertCollection = async (
-	baseline: Baseline,
-	next: Map<string, string>,
-	putOne: (id: string, serialized: string) => Promise<void>
-): Promise<void> => {
-	const ops: Promise<void>[] = []
-	for (const [id, serialized] of next) {
-		if (baseline.get(id) === serialized) continue
-		ops.push(
-			putOne(id, serialized).then(() => {
-				baseline.set(id, serialized)
-			})
-		)
+	if (deleteOne) {
+		for (const id of baseline.keys()) {
+			if (next.has(id)) continue
+			ops.push(
+				deleteOne(id).then(() => {
+					baseline.delete(id)
+				})
+			)
+		}
 	}
 	const results = await Promise.allSettled(ops)
 	const failure = results.find((r) => r.status === "rejected")
@@ -164,14 +150,14 @@ const JSON_HEADERS = { "content-type": "application/json" }
  *  An embed is its own document — it shows one chart and never the library —
  *  so it has no use for a single base64 PNG, let alone every one of them.
  *  That covers user-facing embeds AND the hidden capture iframes the
- *  thumbnail pipeline boots, which are the heaviest repeat offenders.
+ *  thumbnail pipeline boots, which are the heaviest repeat offenders. The
+ *  route knowledge lives in `lib/embedPath` beside the route itself, not
+ *  here — a rename can't silently change this adapter's payload shape.
  *
  *  Saving back a visual read this way is safe: the server distinguishes an
  *  absent `thumbnail` key ("leave the stored one alone") from an explicit
  *  null ("clear it"). */
-const wantsThumbnails = (): boolean =>
-	typeof window === "undefined" ||
-	!/^\/embed\//.test(window.location.pathname)
+const wantsThumbnails = (): boolean => !isEmbedDocument()
 
 /** The ONE content-version stamp policy, shared by the eager path
  *  (`upgraded`) and the lazy gate (`ensureDatasetsCurrent`) so the two can
@@ -231,38 +217,30 @@ const datasetBody = async (
 	}
 }
 
-/** Store one dataset's derived metadata. Its own helper rather than
- *  `request()` because this is the one sub-resource route — everything else
- *  addresses items as `/api/<collection>/<id>`. */
-const putDatasetMeta = async (
-	id: string,
-	meta: DatasetMeta
-): Promise<void> => {
-	const response = await fetch(
-		`/api/datasets/${encodeURIComponent(id)}/meta`,
-		{ method: "PUT", body: serialize(meta), headers: JSON_HEADERS }
+/** Store one dataset's derived metadata. Sub-resource routes go through
+ *  `request()` like everything else (the path prefix carries the parent id),
+ *  so any future hardening of the shared helper covers these writes too. */
+const putDatasetMeta = (id: string, meta: DatasetMeta): Promise<void> =>
+	request(
+		"PUT",
+		`datasets/${encodeURIComponent(id)}`,
+		"meta",
+		serialize(meta),
+		JSON_HEADERS
 	)
-	if (!response.ok) {
-		throw new Error(
-			`PUT /api/datasets/${id}/meta failed: ${response.status}`
-		)
-	}
-}
 
 const putDatasetVersion = async (
 	datasetId: string,
 	version: { id: string; rows: Array<Record<string, string>> }
 ): Promise<void> => {
 	const { body, headers } = await datasetBody(serialize(version))
-	const response = await fetch(
-		`/api/datasets/${encodeURIComponent(datasetId)}/versions/${encodeURIComponent(version.id)}`,
-		{ method: "PUT", body, headers }
+	await request(
+		"PUT",
+		`datasets/${encodeURIComponent(datasetId)}/versions`,
+		version.id,
+		body,
+		headers
 	)
-	if (!response.ok) {
-		throw new Error(
-			`PUT /api/datasets/${datasetId}/versions/${version.id} failed: ${response.status}`
-		)
-	}
 }
 
 /** Run `work` over `items` at most `limit` at a time. The hydration pass
@@ -407,8 +385,15 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		if (!response.ok) {
 			throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
 		}
-		const dataset = (await response.json()) as Dataset
-		baselines.datasets.set(id, serializeCached(dataset))
+		// The response text IS the serialization to diff against — bodies are
+		// written by this client's own serializer, so re-stringifying the parsed
+		// object (a second full traversal of a possibly-hundreds-of-MB body, on
+		// the interactive open path) only reproduced it. Seeding the cache keeps
+		// serializeCached agreeing with the baseline.
+		const text = await response.text()
+		const dataset = JSON.parse(text) as Dataset
+		serializedCache.set(dataset, text)
+		baselines.datasets.set(id, text)
 		return dataset
 	}
 
@@ -425,6 +410,22 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 	 *  full on the next save. THROWS on failure: callers that write metadata
 	 *  afterwards must let this abort them, because fresh meta over a failed
 	 *  sync would mask the stale version bodies from every repair pass. */
+	/** The write triplet every dataset save must issue, in this order: the
+	 *  whole body (old clients and the export path read that file), the
+	 *  per-version sync, and the metadata LAST — a crash or a failed version
+	 *  sync (which throws past the meta write) then reads as un-hydrated,
+	 *  repaired on the next boot, never as fresh-meta-over-stale-versions.
+	 *  The ordering is load-bearing; both the normal save and the migration
+	 *  write-back go through here so it can't drift. */
+	const putDatasetTriplet = async (
+		dataset: Dataset,
+		serialized: string
+	): Promise<void> => {
+		await putDataset(dataset.id, serialized)
+		await splitDatasetVersions(dataset)
+		await putDatasetMeta(dataset.id, datasetMetaFrom(dataset))
+	}
+
 	const splitDatasetVersions = async (dataset: Dataset): Promise<void> => {
 		await syncDatasetVersions(
 			dataset,
@@ -518,7 +519,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		// wreck every saved visual — refuse a newer one, migrate an older one)
 		// is shared with the lazy gate; see `stampAction`.
 		const action = stampAction(collection, stored, spec.currentVersion)
-		if (stored === undefined || action === "adopt") {
+		if (action === "adopt") {
 			await stampVersion(collection, spec.currentVersion)
 			return raw
 		}
@@ -628,6 +629,29 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 			for (const [id, meta] of hydrated) {
 				if (meta) index[id] = meta
 			}
+			// A dataset absent from the returned index is invisible for the whole
+			// session — the library hides it, and a same-named re-upload then
+			// sails past the collision guard. One more delayed round before
+			// giving up turns a transient blip into a slow boot instead.
+			const failed = hydrated.filter(([, meta]) => !meta).map(([id]) => id)
+			if (failed.length > 0) {
+				await new Promise((resolve) => setTimeout(resolve, 1500))
+				const retried = await boundedMap(failed, 4, async (id) =>
+					[id, await hydrateDatasetMeta(id)] as const
+				)
+				const dropped: string[] = []
+				for (const [id, meta] of retried) {
+					if (meta) index[id] = meta
+					else dropped.push(id)
+				}
+				if (dropped.length > 0) {
+					// eslint-disable-next-line no-console
+					console.error(
+						`[vis-components] could not hydrate ${dropped.join(", ")} — ` +
+							`hidden from the library until the next reload`
+					)
+				}
+			}
 			return index
 		},
 
@@ -677,41 +701,44 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 			return loadWholeDataset(id)
 		},
 
-		loadDatasets: async () =>
-			upgraded({
+		loadDatasets: async () => {
+			// The migration pass rewrites bodies, so each rewritten dataset goes
+			// through the same write triplet a normal save issues. The migrated
+			// record is captured here so putOne never round-trips the serialized
+			// string back through JSON.parse (three full passes per dataset,
+			// over the whole corpus, on the first post-deploy boot).
+			let migrated: Record<string, Dataset> = {}
+			return upgraded({
 				collection: "datasets",
 				raw: await loadCollection<Record<string, Dataset>>("datasets"),
 				baseline: baselines.datasets,
-				entries: recordToMap,
-				// The migration pass rewrites bodies, so the per-version bodies
-				// and metadata describing them must follow — the same triplet a
-				// normal save writes.
-				putOne: async (id, serialized) => {
-					await putDataset(id, serialized)
-					const dataset = JSON.parse(serialized) as Dataset
-					await splitDatasetVersions(dataset)
-					await putDatasetMeta(id, datasetMetaFrom(dataset))
+				entries: (record) => {
+					migrated = record
+					return recordToMap(record)
 				},
+				putOne: (id, serialized) =>
+					putDatasetTriplet(
+						migrated[id] ?? (JSON.parse(serialized) as Dataset),
+						serialized
+					),
 				deleteOne: deleteFrom("datasets"),
-			}),
-		// Per changed dataset: the whole body (old clients and the export
-		// path read that file), then the per-version sync — only the VERSIONS
-		// whose rows actually changed (weak-identity diff — a rename
-		// re-uploads nothing) plus DELETEs for versions the user removed (or
-		// the server keeps serving deleted rows) — and last the metadata. A
-		// body PUT clears the server's stored meta, so meta going last makes
-		// a crash OR a failed version sync (which throws past the meta write)
-		// read as un-hydrated — repaired on the next boot — never as stale.
+			})
+		},
+		// Per changed dataset, the shared triplet: whole body, then the
+		// per-version sync — only the VERSIONS whose rows actually changed
+		// (weak-identity diff — a rename re-uploads nothing) plus DELETEs for
+		// versions the user removed (or the server keeps serving deleted rows)
+		// — and last the metadata (see `putDatasetTriplet` for why the order
+		// is load-bearing). No `deleteOne`: bodies load on demand, so this map
+		// is a subset of the store and deletion is explicit (`deleteDatasets`).
 		saveDatasets: (datasets) =>
-			upsertCollection(
+			syncCollection(
 				baselines.datasets,
 				recordToMap(datasets),
 				async (id, serialized) => {
-					await putDataset(id, serialized)
 					const dataset = datasets[id]
 					if (!dataset) return
-					await splitDatasetVersions(dataset)
-					await putDatasetMeta(id, datasetMetaFrom(dataset))
+					await putDatasetTriplet(dataset, serialized)
 				}
 			),
 

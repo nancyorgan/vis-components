@@ -8,15 +8,21 @@ import type { Dataset } from "./types"
 const idb = vi.hoisted(() => {
 	const store = new Map<string, unknown>()
 	let writesSucceed = true
+	let failingKeys: ReadonlySet<string> = new Set()
 	return {
 		store,
 		setWritesSucceed: (v: boolean) => {
 			writesSucceed = v
 		},
+		/** Fail writes to exactly these keys (a quota failure hits the huge
+		 *  body write while the small index write still lands). */
+		setFailingKeys: (keys: readonly string[]) => {
+			failingKeys = new Set(keys)
+		},
 		idbAvailable: () => true,
 		idbGet: async (key: string) => (store.has(key) ? store.get(key) : null),
 		idbSet: async (key: string, value: unknown) => {
-			if (!writesSucceed) return false
+			if (!writesSucceed || failingKeys.has(key)) return false
 			store.set(key, value)
 			return true
 		},
@@ -66,6 +72,7 @@ describe("datasets IndexedDB persistence", () => {
 	beforeEach(() => {
 		idb.store.clear()
 		idb.setWritesSucceed(true)
+		idb.setFailingKeys([])
 		installInMemoryLocalStorage()
 	})
 
@@ -182,6 +189,71 @@ describe("datasets IndexedDB persistence", () => {
 
 	it("returns empty when neither store has datasets", async () => {
 		expect(await loadDatasetsAsync()).toEqual({})
+	})
+
+	it("does not index a dataset whose body write failed", async () => {
+		// A quota failure hits the huge body write; the tiny index write still
+		// lands. Indexing the ghost would show a dataset nothing can read AND
+		// make the all-or-nothing corpus read (bundle export) refuse forever.
+		idb.setFailingKeys(["vis-components:dataset:d2"])
+		await saveDatasetsAsync({ d1: makeDataset("d1"), d2: makeDataset("d2") })
+		expect(Object.keys(await loadDatasetIndexAsync())).toEqual(["d1"])
+		expect(await loadDatasetsAsync()).toEqual({ d1: makeDataset("d1") })
+	})
+
+	it("a save racing a delete cannot resurrect the deleted dataset", async () => {
+		await saveDatasetsAsync({ d1: makeDataset("d1"), d2: makeDataset("d2") })
+		// Fired the way the atoms fire them — unawaited, in one tick. Without
+		// the shared write queue, the save's index read predated the delete and
+		// its merge wrote d2's entry back after d2's body keys were gone.
+		const save = saveDatasetsAsync({ d1: makeDataset("d1", "renamed") })
+		const del = deleteDatasetsAsync(["d2"])
+		await Promise.all([save, del])
+		expect(Object.keys(await loadDatasetIndexAsync())).toEqual(["d1"])
+		expect(idb.store.has("vis-components:dataset:d2")).toBe(false)
+	})
+
+	it("deleting on a not-yet-split store splits first, then deletes", async () => {
+		seedLegacyLocalStorage({ a: makeDataset("a"), b: makeDataset("b") })
+		// Per-key deletes can't reach bodies still inside the legacy blob;
+		// writing an empty index over them hid every dataset and resurrected
+		// the "deleted" ones on the next split.
+		await deleteDatasetsAsync(["a"])
+		expect(Object.keys(await loadDatasetIndexAsync())).toEqual(["b"])
+		expect(await loadDatasetAsync("a")).toBeNull()
+		expect(await loadDatasetAsync("b")).toEqual(makeDataset("b"))
+	})
+
+	it("a save racing the one-time legacy split loses neither side", async () => {
+		seedLegacyLocalStorage({ legacy: makeDataset("legacy") })
+		// The index read triggers the split; the save lands in the same tick.
+		const read = loadDatasetIndexAsync()
+		const save = saveDatasetsAsync({ fresh: makeDataset("fresh") })
+		await Promise.all([read, save])
+		expect(Object.keys(await loadDatasetIndexAsync()).sort()).toEqual([
+			"fresh",
+			"legacy",
+		])
+	})
+
+	it("keeps a stale-tagged index instead of persisting a shrunken rebuild", async () => {
+		await saveDatasetsAsync({ d1: makeDataset("d1"), d2: makeDataset("d2") })
+		// Simulate a post-bump boot where one body read fails transiently: the
+		// index carries an old tag and d2's body answers null. Persisting the
+		// rebuild without d2 would drop it from the library permanently.
+		const stored = idb.store.get(INDEX_KEY) as { _v: number; data: unknown }
+		idb.store.set(INDEX_KEY, { _v: stored._v - 1, data: stored.data })
+		const d2Body = idb.store.get("vis-components:dataset:d2")
+		idb.store.delete("vis-components:dataset:d2")
+
+		expect(Object.keys(await loadDatasetIndexAsync())).toEqual(["d1"])
+		// The read served what it could, but the stored index kept its stale
+		// tag — so once the body reads again, the rebuild retries and heals.
+		idb.store.set("vis-components:dataset:d2", d2Body)
+		expect(Object.keys(await loadDatasetIndexAsync()).sort()).toEqual([
+			"d1",
+			"d2",
+		])
 	})
 })
 
