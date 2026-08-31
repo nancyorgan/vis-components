@@ -833,21 +833,56 @@ export const ConnectionOptionsPanel = () => {
 								["none", "None"],
 								["x-axis", "Connect to X-axis"],
 								["y-axis", "Connect to Y-axis"],
+								["custom-x", "Connect to custom X"],
+								["custom-y", "Connect to custom Y"],
 							] as const
 						).map(([value, label]) => (
-							<label key={value} className="flex items-center gap-2 text-sm">
-								<input
-									type="radio"
-									name="connection-axis-stem"
-									value={value}
-									checked={axisStem === value}
-									onChange={() => updateCfg({ axisStem: value })}
-									className="h-3 w-3"
-								/>
-								<span className="text-stone-600 dark:text-stone-400">
-									{label}
-								</span>
-							</label>
+							<div key={value} className="flex flex-col gap-1.5">
+								<label className="flex items-center gap-2 text-sm">
+									<input
+										type="radio"
+										name="connection-axis-stem"
+										value={value}
+										checked={axisStem === value}
+										onChange={() =>
+											// Picking a custom mode seeds its threshold (kept from
+											// a previous visit, else 0) so stems draw immediately
+											// instead of waiting on a first keystroke.
+											updateCfg({
+												axisStem: value,
+												...(value === "custom-x"
+													? { axisStemCustomX: cfg.axisStemCustomX ?? 0 }
+													: {}),
+												...(value === "custom-y"
+													? { axisStemCustomY: cfg.axisStemCustomY ?? 0 }
+													: {}),
+											})
+										}
+										className="h-3 w-3"
+									/>
+									<span className="text-stone-600 dark:text-stone-400">
+										{label}
+									</span>
+								</label>
+								{value === "custom-x" && axisStem === "custom-x" && (
+									<NumberInput
+										className="pl-5"
+										label="X ="
+										labelClassName="text-stone-600 dark:text-stone-400"
+										value={cfg.axisStemCustomX ?? 0}
+										onChange={(n) => updateCfg({ axisStemCustomX: n })}
+									/>
+								)}
+								{value === "custom-y" && axisStem === "custom-y" && (
+									<NumberInput
+										className="pl-5"
+										label="Y ="
+										labelClassName="text-stone-600 dark:text-stone-400"
+										value={cfg.axisStemCustomY ?? 0}
+										onChange={(n) => updateCfg({ axisStemCustomY: n })}
+									/>
+								)}
+							</div>
 						))}
 						{axisStem !== "none" && (
 							<p className="mt-1 border-t border-stone-200 pt-2 vc-help dark:border-stone-700">

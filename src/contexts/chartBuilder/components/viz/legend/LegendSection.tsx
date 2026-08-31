@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react"
 import { useAtomValue } from "jotai"
 import type { ChannelConfigs } from "../../../lib/channelConfig"
 import {
@@ -174,6 +175,52 @@ export const LegendSection = ({
 			: titleAlignment === "right"
 				? "right"
 				: "center"
+	// A LEFT-aligned title lines up with the entry LABELS (the text beside
+	// each swatch), not the swatch graphics — otherwise the title floats to
+	// the left of the text column and reads misaligned. The label-start x is
+	// measured from the rendered entries (first `.vc-swatch-cell` → its label
+	// sibling) rather than computed, so every swatch kind / size / shared
+	// swatch-column width stays exact; sections with no swatch column
+	// (gradient bars, label-under-swatch groups) measure no cell and keep
+	// indent 0. Exports capture live layout rects, so the indent carries
+	// through unchanged.
+	const entriesRef = useRef<HTMLDivElement | null>(null)
+	const [titleIndent, setTitleIndent] = useState(0)
+	useLayoutEffect(() => {
+		if (titleAlignment !== "left") return
+		const el = entriesRef.current
+		if (!el) return
+		const label = el.querySelector(".vc-swatch-cell")?.nextElementSibling
+		setTitleIndent(
+			label
+				? Math.max(
+						0,
+						Math.round(
+							label.getBoundingClientRect().left -
+								el.getBoundingClientRect().left
+						)
+					)
+				: 0
+		)
+		// The label-start x is (swatch column width + row gap): the column
+		// tracks the section's swatch graphics (shape / size / area·length
+		// ranges via `configs`) or, stacked with other legends, the shared
+		// `--vc-legend-swatch-col` width — whose inputs all arrive through
+		// these same props (`alignEntriesStart` flips with the stacking).
+		// Text metrics don't move it, so font props aren't deps.
+	}, [
+		titleAlignment,
+		section,
+		configs,
+		orientation,
+		entryColumns,
+		gradientLegendStyle,
+		connectionMapped,
+		hueSwatchShape,
+		hueSwatchSize,
+		shapeSwatchSize,
+		alignEntriesStart,
+	])
 	// Children hug their own width (no flex stretch) so the alignment also
 	// positions the swatch/gradient block relative to a WIDER title — a long
 	// centered title gets the legend content centered beneath it instead of
@@ -202,6 +249,10 @@ export const LegendSection = ({
 						color: titleFont.color,
 						textAlign,
 						whiteSpace: "pre-line",
+						paddingLeft:
+							titleAlignment === "left" && titleIndent > 0
+								? titleIndent
+								: undefined,
 						fontWeight: titleFont.weight ?? undefined,
 						fontStyle: titleFont.italic ? "italic" : undefined,
 						textDecoration: titleFont.underline ? "underline" : undefined,
@@ -215,6 +266,7 @@ export const LegendSection = ({
 				</div>
 			)}
 			<div
+				ref={entriesRef}
 				className={innerClass}
 				style={{
 					fontSize: textFontSize,

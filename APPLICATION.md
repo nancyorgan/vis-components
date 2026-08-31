@@ -1785,6 +1785,15 @@ title-relative alignment and content-hugging swatches; horizontal
 orientation flows entries in rows, where a shared vertical swatch
 column has no meaning.
 
+A **left-aligned legend title lines up with the entry labels** (the
+text beside each swatch), not with the swatch column's left edge —
+the title indents by the measured label-start x of the section's
+first entry, whatever the swatch kind, size, or shared swatch-column
+width. Sections with no swatch column to the left of their labels
+(gradient bars, label-under-swatch horizontal groups) keep the title
+at the section's left edge. Center and right title alignment are
+unchanged.
+
 Channels mapped to the **same field** combine into one legend section
 with composed swatches (color + shape + pattern + opacity). The
 combined-section title defaults to the field name; users can

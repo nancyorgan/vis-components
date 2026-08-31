@@ -466,7 +466,9 @@ export const renderConnectionLines = (
  *  connection-group polyline: it needs no connection field and ignores
  *  grouping. The stem lands on the axis line itself (the plot-area edge),
  *  so it reads as a lollipop regardless of whether the value axis starts
- *  at zero. Stem color matches each point's fill; thickness reuses the
+ *  at zero — or, in the custom modes, on a user-typed data-value line
+ *  (`axisStemCustomX` / `axisStemCustomY`) that needn't be an axis at
+ *  all. Stem color matches each point's fill; thickness reuses the
  *  connection `thickness`. Rendered before the points so dots sit on top. */
 export const renderAxisStems = (
 	marks: Mark[],
@@ -491,6 +493,24 @@ export const renderAxisStems = (
 	// direction (the y-scale's range is inverted top-to-bottom).
 	const baselineY = Math.max(...yScale.range())
 	const baselineX = Math.min(...xScale.range())
+	// Custom-threshold stems land on a DATA value instead of the plot edge —
+	// e.g. stems from y = 1 on a ratio chart whose axis still sits at 0. The
+	// typed value runs through the position scale as a quantitative; the
+	// landing pixel clamps to the plot area so an off-domain threshold can't
+	// draw past the panel. A value the scale can't place (categorical axis)
+	// falls back to the edge, matching the plain axis-stem look.
+	const clampToRange = (px: number, range: number[]): number =>
+		Math.min(Math.max(px, Math.min(...range)), Math.max(...range))
+	const customPx = (scale: PositionScale, value: number | null): number | null => {
+		const px = applyPositionScale(scale, value ?? 0, "quantitative")
+		return px !== null && Number.isFinite(px)
+			? clampToRange(px, scale.range() as number[])
+			: null
+	}
+	const customY =
+		stem === "custom-y" ? customPx(yScale, cfg.axisStemCustomY ?? null) : null
+	const customX =
+		stem === "custom-x" ? customPx(xScale, cfg.axisStemCustomX ?? null) : null
 	// Optional INDEPENDENT stem-color encoding:
 	//   - "point" (default): each stem inherits its point's fill.
 	//   - "single": every stem uses the one `stemColor` swatch.
@@ -528,8 +548,12 @@ export const renderAxisStems = (
 		return connectionColor
 	}
 	const stems = marks.map((m) => {
+		// Vertical stems (to a horizontal line): x-axis edge or custom y.
+		// Horizontal stems (to a vertical line): y-axis edge or custom x.
 		const [x2, y2] =
-			stem === "x-axis" ? [m.cx, baselineY] : [baselineX, m.cy]
+			stem === "x-axis" || stem === "custom-y"
+				? [m.cx, customY ?? baselineY]
+				: [customX ?? baselineX, m.cy]
 		return (
 			<line
 				key={`stem-${m.i}`}

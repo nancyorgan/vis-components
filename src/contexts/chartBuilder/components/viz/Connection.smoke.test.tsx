@@ -191,6 +191,51 @@ describe("Connection — axis stems (lollipop)", () => {
 		}
 	})
 
+	it("`custom-y` draws vertical stems that all land on the y=25 line", () => {
+		// y spans 5–50, so a 25 threshold has points on BOTH sides — stems
+		// above it drop down, stems below it rise up, all meeting at one
+		// shared pixel row (unlike `x-axis`, which lands on the plot edge).
+		const c = mount({ axisStem: "custom-y", axisStemCustomY: 25 })
+		const lines = [...c.querySelectorAll(".vc-axis-stem")]
+		expect(lines.length).toBe(10)
+		const y2s = lines.map((l) => Number(l.getAttribute("y2")))
+		for (const l of lines) {
+			expect(l.getAttribute("x1")).toBe(l.getAttribute("x2"))
+			expect(Number(l.getAttribute("y2"))).toBe(y2s[0])
+		}
+		const y1s = lines.map((l) => Number(l.getAttribute("y1")))
+		expect(y1s.some((y1) => y1 < y2s[0])).toBe(true)
+		expect(y1s.some((y1) => y1 > y2s[0])).toBe(true)
+	})
+
+	it("`custom-x` draws horizontal stems that all land on the x=3 line", () => {
+		const c = mount({ axisStem: "custom-x", axisStemCustomX: 3 })
+		const lines = [...c.querySelectorAll(".vc-axis-stem")]
+		expect(lines.length).toBe(10)
+		const x2s = lines.map((l) => Number(l.getAttribute("x2")))
+		for (const l of lines) {
+			expect(l.getAttribute("y1")).toBe(l.getAttribute("y2"))
+			expect(Number(l.getAttribute("x2"))).toBe(x2s[0])
+		}
+		const x1s = lines.map((l) => Number(l.getAttribute("x1")))
+		expect(x1s.some((x1) => x1 < x2s[0])).toBe(true)
+		expect(x1s.some((x1) => x1 > x2s[0])).toBe(true)
+	})
+
+	it("an off-domain custom threshold clamps to the plot edge", () => {
+		// y=1000 sits far above the data — the landing line clamps to the
+		// TOP of the plot area, so every stem points up (y2 <= y1) instead
+		// of extrapolating past the panel.
+		const c = mount({ axisStem: "custom-y", axisStemCustomY: 1000 })
+		const lines = [...c.querySelectorAll(".vc-axis-stem")]
+		expect(lines.length).toBe(10)
+		for (const l of lines) {
+			expect(Number(l.getAttribute("y2"))).toBeLessThanOrEqual(
+				Number(l.getAttribute("y1"))
+			)
+		}
+	})
+
 	it("colors stems by `stemColorField` through the chosen palette", () => {
 		// `g` has 2 values: north (rows 0–4) then south (rows 5–9). The
 		// ordinal scale maps them to palette[0] / palette[1] by first

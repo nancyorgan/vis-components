@@ -1028,8 +1028,18 @@ export type ConnectionConfig = {
 	 *     line (the bottom edge of the plot area).
 	 *   - `"y-axis"`: horizontal stem from each point across to the
 	 *     y-axis line (the left edge of the plot area).
+	 *   - `"custom-x"`: horizontal stem from each point to the vertical
+	 *     line at x = `axisStemCustomX` (a data value, not a pixel).
+	 *   - `"custom-y"`: vertical stem from each point to the horizontal
+	 *     line at y = `axisStemCustomY` — stems from a threshold that
+	 *     isn't the axis (e.g. 1 on a ratio chart whose axis sits at 0).
 	 *  Stem color matches each point's fill; thickness reuses `thickness`. */
-	axisStem?: "none" | "x-axis" | "y-axis"
+	axisStem?: "none" | "x-axis" | "y-axis" | "custom-x" | "custom-y"
+	/** The data-space threshold the `"custom-x"` / `"custom-y"` stems land
+	 *  on. `null` / absent reads as 0. Optional so visuals saved before the
+	 *  custom options existed load unchanged. */
+	axisStemCustomX?: number | null
+	axisStemCustomY?: number | null
 	/** Lollipop stems only — optional INDEPENDENT color encoding for the
 	 *  stems (active only when `axisStem` is set). `stemColorField` names
 	 *  the dataset column whose value drives each stem's color; `null` /
@@ -1138,6 +1148,8 @@ export const DEFAULT_CONNECTION_CONFIG: ConnectionConfig = {
 	lineOpacity: 1,
 	fillOpacity: 1,
 	axisStem: "none",
+	axisStemCustomX: null,
+	axisStemCustomY: null,
 	stemColorField: null,
 	stemColorPaletteId: null,
 	stemColorPalette: null,
