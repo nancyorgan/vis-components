@@ -32,7 +32,6 @@
 import { isEmbedDocument } from "../../../../lib/embedPath"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetMetaFrom, isDatasetMeta } from "../datasetMeta"
-import { loadUserDefaultThemeId, saveUserDefaultThemeId } from "../storage"
 import type { UserFont } from "../fontLibrary"
 import type {
 	Dataset,
@@ -48,6 +47,10 @@ import { syncDatasetVersions } from "./syncDatasetVersions"
 import { migrateVersioned } from "./versioning"
 
 type Baseline = Map<string, string>
+
+/** The one row the shared `settings` collection holds today: which theme
+ *  seeds new visualizations, for every user of this server. */
+const DEFAULT_THEME_SETTING_ID = "default-theme"
 
 const serialize = (value: unknown): string =>
 	stringifyJsonDangerous(value as never)
@@ -816,12 +819,23 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				deleteFrom("fonts")
 			),
 
-		// Per-person preference on a server with no notion of persons — stays
-		// device-local (decided at design sign-off, 2026-08-19).
-		loadUserDefaultThemeId: async () => loadUserDefaultThemeId(),
-		saveUserDefaultThemeId: async (id) => {
-			saveUserDefaultThemeId(id)
+		// The default theme seeds every new visualization ANYONE creates on
+		// this server, so the pick lives in the shared `settings` collection.
+		// (It was device-local until 2026-09-01, which quietly gave each
+		// browser its own default while the visuals themselves were shared.)
+		// Upsert-only singleton: no baseline, no delete inference — turning
+		// the default off writes the fallback id rather than deleting the row.
+		loadUserDefaultThemeId: async () => {
+			const items =
+				await loadCollection<{ id?: unknown; themeId?: unknown }[]>("settings")
+			const item = items.find((s) => s?.id === DEFAULT_THEME_SETTING_ID)
+			return typeof item?.themeId === "string" ? item.themeId : null
 		},
+		saveUserDefaultThemeId: (id) =>
+			putJson("settings")(
+				DEFAULT_THEME_SETTING_ID,
+				serialize({ id: DEFAULT_THEME_SETTING_ID, themeId: id })
+			),
 	}
 	return adapter
 }

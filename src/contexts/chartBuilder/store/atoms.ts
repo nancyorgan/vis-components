@@ -922,9 +922,11 @@ export const userFontsAtom = contentAtom<UserFont[]>(
 	(adapter, fonts) => adapter.saveUserFonts(fonts)
 )
 
-/** Which theme the user has starred as their default — applied to new
- * visualizations. `null` means no explicit pick, in which case
- * `system-light` is used as the implicit default. */
+/** Which theme is starred as the default applied to new visualizations.
+ * `null` means no explicit pick, in which case `system-light` is used as
+ * the implicit default. Browser-local builds keep this per-browser; in
+ * server mode it is a SHARED, server-stored setting — everyone on the
+ * server starts new visualizations from the same theme. */
 export const userDefaultThemeIdAtom = contentAtom<string | null>(
 	// A user pick wins; failing that the ephemeral examples' own default (so
 	// the sandbox opens looking the way it shipped); failing that, system light.

@@ -93,6 +93,16 @@ describe("JSON collections over HTTP", () => {
 		expect(await (await fetch(`${base}/api/fonts`)).json()).toEqual([font])
 	})
 
+	it("round-trips the shared settings collection as an array", async () => {
+		const setting = { id: "default-theme", themeId: "theme-abc" }
+		const put = await fetch(`${base}/api/settings/default-theme`, {
+			method: "PUT",
+			body: JSON.stringify(setting),
+		})
+		expect(put.status).toBe(204)
+		expect(await (await fetch(`${base}/api/settings`)).json()).toEqual([setting])
+	})
+
 	it("serves embed-instances as an id-keyed record", async () => {
 		const instance = { id: "ei-1", visualId: "v1" }
 		await fetch(`${base}/api/embed-instances/ei-1`, {

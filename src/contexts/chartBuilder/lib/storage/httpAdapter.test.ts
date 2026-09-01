@@ -236,6 +236,35 @@ describe("themes", () => {
 	})
 })
 
+// The default-theme pick is SHARED: it seeds every new visualization anyone
+// creates on this server, so it must come from the server's settings
+// collection, never this browser's localStorage.
+describe("the shared default-theme setting", () => {
+	it("reads the pick from the settings collection, null when unset", async () => {
+		let settings: unknown[] = []
+		const mock = stubFetch((path) =>
+			path === "/api/settings" ? okJson(settings) : okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		expect(await adapter.loadUserDefaultThemeId()).toBeNull()
+		settings = [{ id: "default-theme", themeId: "t-9" }]
+		expect(await adapter.loadUserDefaultThemeId()).toBe("t-9")
+		expect(calls(mock)).toEqual(["GET /api/settings", "GET /api/settings"])
+	})
+
+	it("PUTs the pick to the server so every user's next load sees it", async () => {
+		const mock = stubFetch(() => okEmpty())
+		const adapter = createHttpStorageAdapter()
+		await adapter.saveUserDefaultThemeId("t-9")
+		expect(calls(mock)).toEqual(["PUT /api/settings/default-theme"])
+		const [, init] = mock.mock.calls[0]
+		expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+			id: "default-theme",
+			themeId: "t-9",
+		})
+	})
+})
+
 describe("content migrations", () => {
 	// Themes v1 -> v2 backfills the ordinal-palette fields, so a v1-stamped
 	// server is a real, shipped migration to assert against.

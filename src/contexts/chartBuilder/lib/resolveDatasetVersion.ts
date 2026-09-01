@@ -39,10 +39,55 @@ export const resolveDatasetVersionStrict = (
 	return dataset.versions.find((v) => v.id === requestedVersionId) ?? null
 }
 
+/** Surface renamed fields' values under their CURRENT name. Stored rows keep
+ * their original column keys forever (rewriting every version's rows would
+ * dirty every persisted body); a field renamed via the Fields panel instead
+ * carries its former names in `Field.sourceNames`, and this remap copies the
+ * first present alias's value onto `field.name` for rows that lack the
+ * current key. A row that already carries the current name wins as-is —
+ * including the both-columns case where an old-named column was re-added as
+ * its own field (the alias key is never deleted, so that field still reads
+ * its column directly). The exception is a version whose `keyAliases` record
+ * pins a field to a specific column (the upload-time type tiebreak bound a
+ * renamed field to its former-name column while a same-named column was also
+ * present) — there the pinned key wins even over a present current-name key.
+ * Identity-preserving: with no aliased fields — every dataset untouched by
+ * renames — the input array is returned unchanged. */
+const remapRowsToFieldNames = (
+	fields: readonly { name: string; sourceNames?: string[] }[],
+	rows: Array<Record<string, string>>,
+	keyAliases: Record<string, string> | undefined
+): Array<Record<string, string>> => {
+	const aliased = fields.filter(
+		(f) => (f.sourceNames?.length ?? 0) > 0 || keyAliases?.[f.name] !== undefined
+	)
+	if (aliased.length === 0) return rows
+	let changed = false
+	const out = rows.map((row) => {
+		let next = row
+		for (const f of aliased) {
+			const pinned = keyAliases?.[f.name]
+			const source =
+				pinned !== undefined && pinned in row
+					? pinned
+					: f.name in row
+						? undefined
+						: f.sourceNames?.find((a) => a in row)
+			if (source === undefined || row[f.name] === row[source]) continue
+			if (next === row) next = { ...row }
+			next[f.name] = row[source] ?? ""
+		}
+		if (next !== row) changed = true
+		return next
+	})
+	return changed ? out : rows
+}
+
 /**
  * Build a flat DatasetView for renderers. Returns undefined when the dataset
  * is missing, otherwise pairs the dataset's invariant fields with the resolved
- * version's rows + version metadata.
+ * version's rows + version metadata. Rows of versions uploaded under a field's
+ * FORMER name are remapped to the current name (see `remapRowsToFieldNames`).
  */
 export const resolveDatasetView = (
 	dataset: Dataset | undefined,
@@ -57,7 +102,11 @@ export const resolveDatasetView = (
 		name: dataset.name,
 		filename: version.filename,
 		fields: dataset.fields,
-		rows: version.rows,
+		rows: remapRowsToFieldNames(
+			dataset.fields,
+			version.rows,
+			version.keyAliases
+		),
 		createdAt: dataset.createdAt,
 		versionId: version.id,
 		versionIndex: versionIndex + 1,

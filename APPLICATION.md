@@ -135,6 +135,29 @@ when a numeric column like a zip code should be treated as categorical.
 For categorical/ordinal fields, users can also pin a custom level
 order (up/down arrows) instead of the smart-sort default.
 
+**Renaming a variable** — clicking a field's name in the Fields panel
+(a pencil appears on hover) opens an inline editor; Enter/blur commits,
+Escape cancels. Committing an EMPTIED box is clear-to-default: a renamed
+variable reverts to its original uploaded column name (a full
+rename-back, configs included — `originalFieldName` reads
+`sourceNames[0]`, which stays the upload name forever because renames
+only ever append to the list); a never-renamed variable just closes the
+editor. A rename is a property of the DATASET: the field takes
+the new name and remembers the old one in `Field.sourceNames`, and
+every config surface that stores the field's name — encodings, color /
+opacity slots, per-field maps, label / tooltip templates, reshape
+membership — is rewritten in one shot (`lib/renameField.ts`), in the
+open editor AND in every saved visual bound to the dataset. Stored rows
+are NEVER rewritten: per-version rows keep their original column keys,
+and `resolveDatasetView` remaps a former-name key to the current name
+at view time. Later uploads match columns on the current name OR any
+former name (see §2.4). A name colliding with another field's current
+or former name is refused inline. With a reshape applied, the two
+minted columns aren't renameable here (their names are edited in the
+Reshape panel); renaming a melted wide column instead rewrites its
+occurrences as CELL VALUES of the variable column (hue colors,
+per-value overrides, facet settings, pinned orders).
+
 ### 2.3 Visuals (save/load)
 A "visual" is a named snapshot of: chart name, the dataset (and the
 specific version it was authored against), field-type overrides, all
@@ -160,7 +183,17 @@ newest-first with its upload timestamp and filename:
   can be deleted, as long as more than one remains. The confirm
   prompt warns that iframes pinned to that version will show a
   "version not found" error; deleting the latest promotes the
-  previous one to latest. There is no rename.
+  previous one to latest. There is no version rename (variables CAN be
+  renamed — in the Fields panel, see §2.2).
+
+New-version uploads check column compatibility via **`diffFields`**
+(`datasetCompat.ts`): every existing column must be present with the
+same inferred type; net-new columns are additive. A renamed variable
+matches on its current name OR any former name (`Field.sourceNames`),
+current name first; when an upload carries both, the type-compatible
+column wins the match and the other lands as an ordinary added column.
+Rows are stored as uploaded — old-name keys included — and resolve to
+the current name at view time.
 
 Deleting a version calls **`pruneOrphanFields`** (`datasetCompat.ts`):
 because additive uploads merge net-new columns into the dataset's
@@ -168,9 +201,10 @@ invariant field list, removing the version that introduced a column
 would otherwise leave that field orphaned in the Fields panel and the
 encoding dropdowns. Column presence is judged by the union of row keys
 across every remaining version (a single row isn't authoritative — the
-CSV parser omits trailing keys on short rows), and pruning is skipped
-entirely when any version has zero rows rather than risk dropping a
-live field.
+CSV parser omits trailing keys on short rows), a renamed field is
+represented by its former names too (its rows still carry the old
+keys), and pruning is skipped entirely when any version has zero rows
+rather than risk dropping a live field.
 
 Datasets have no library UI of their own, so unreferenced ones are
 swept rather than managed: `sweepOrphanDatasets` (`lib/datasetSweep.ts`)

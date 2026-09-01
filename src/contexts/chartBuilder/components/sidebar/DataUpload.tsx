@@ -6,6 +6,7 @@ import {
 	describeDiff,
 	diffFields,
 	isCompatible,
+	versionKeyAliases,
 } from "../../lib/datasetCompat"
 import { findDuplicateByHash, withFreshContentHash } from "../../lib/datasetDedupe"
 import { nameCollides } from "../../lib/nameUniqueness"
@@ -185,11 +186,19 @@ const UploadPromptModal = () => {
 	): Promise<boolean> => {
 		if (!currentDatasetMeta) return false
 		const versionId = newDatasetVersionId()
+		// Ambiguous former-name matches (a renamed field bound to its old-name
+		// column while a same-named column is also present — the type tiebreak)
+		// are pinned on the version so the view reads the matched column.
+		const keyAliases = versionKeyAliases(
+			currentDatasetMeta.fields,
+			parsed.fields
+		)
 		const version: DatasetVersion = {
 			id: versionId,
 			filename: parsed.filename,
 			rows: parsed.rows,
 			createdAt: Date.now(),
+			...(Object.keys(keyAliases).length > 0 ? { keyAliases } : {}),
 		}
 		// Appending needs the FULL body — the new version joins the existing
 		// ones, so their rows must be in the record we write back. The shared

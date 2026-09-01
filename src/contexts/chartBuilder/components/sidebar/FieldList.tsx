@@ -1,16 +1,20 @@
 import { useState } from "react"
-import { useAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import {
 	alphabeticalLevelOrder,
 	orderLevelsByField,
 } from "../../lib/orderLevelsByField"
 import { applyLevelOrder, smartSortCategories } from "../../lib/smartSort"
-import type { FieldType } from "../../lib/types"
+import type { Field, FieldType } from "../../lib/types"
 import {
+	currentDatasetIdAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
+	datasetIndexAtom,
 } from "../../store/atoms"
+import { originalFieldName } from "../../lib/renameField"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useRenameField } from "../../store/useRenameField"
 import { Disclosure } from "@headlessui/react"
 
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
@@ -47,6 +51,16 @@ export const FieldList = () => {
 		currentFieldLevelOrdersAtom
 	)
 	const dataset = useCurrentDatasetView()
+	// Rename targets are DATASET fields only. With a reshape applied the view
+	// also shows the two minted columns (variable/value) — those are renamed
+	// through the Reshape panel's own name boxes, not here.
+	const datasetId = useAtomValue(currentDatasetIdAtom)
+	const datasetIndex = useAtomValue(datasetIndexAtom)
+	const datasetFieldNames = new Set(
+		(datasetId ? (datasetIndex[datasetId]?.fields ?? []) : []).map(
+			(f) => f.name
+		)
+	)
 
 	if (!dataset) {
 		return (
@@ -79,12 +93,16 @@ export const FieldList = () => {
 							{({ open }) => (
 								<>
 									<div className="flex items-center justify-between gap-2">
-										<span
-											className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
-											title={field.name}
-										>
-											{field.name}
-										</span>
+										{datasetFieldNames.has(field.name) ? (
+											<FieldNameEditor field={field} />
+										) : (
+											<span
+												className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
+												title={field.name}
+											>
+												{field.name}
+											</span>
+										)}
 										<span
 											className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-sm font-bold ${TYPE_BADGE_CLASSES[effective]}`}
 											title={effective}
@@ -140,6 +158,106 @@ export const FieldList = () => {
 				)
 			})}
 		</ul>
+	)
+}
+
+/** Click-to-edit rename control for one dataset field. The whole name is the
+ * click target (a pencil appears on hover as the affordance cue); Enter/blur
+ * commits, Escape cancels. Committing an EMPTIED box is clear-to-default:
+ * a renamed field reverts to its original (upload) column name — a full
+ * rename-back, configs and all — and a never-renamed field just closes the
+ * editor. A refused rename (collision) keeps the editor open with the
+ * reason inline. The rename itself — dataset field list, alias bookkeeping,
+ * config rewrite across this and sibling visuals — is `useRenameField`. */
+const FieldNameEditor = ({ field }: { field: Field }) => {
+	const renameField = useRenameField()
+	const [editing, setEditing] = useState(false)
+	const [draft, setDraft] = useState(field.name)
+	const [error, setError] = useState<string | null>(null)
+
+	const startEditing = () => {
+		setDraft(field.name)
+		setError(null)
+		setEditing(true)
+	}
+
+	const cancel = () => {
+		setDraft(field.name)
+		setError(null)
+		setEditing(false)
+	}
+
+	const commit = async () => {
+		const trimmed = draft.trim()
+		// Emptied box = revert to the original uploaded name. When the field
+		// was never renamed (or already carries the original), there's nothing
+		// to revert — just close the editor.
+		const target = trimmed === "" ? originalFieldName(field) : trimmed
+		if (target === field.name) {
+			cancel()
+			return
+		}
+		const result = await renameField(field.name, target)
+		if (result.ok) {
+			setError(null)
+			setEditing(false)
+		} else {
+			setError(result.error)
+		}
+	}
+
+	if (!editing) {
+		const original = originalFieldName(field)
+		return (
+			<button
+				type="button"
+				onClick={startEditing}
+				title={
+					original !== field.name
+						? `${field.name} (originally “${original}”) — click to rename. Clear the name to revert.`
+						: `${field.name} — click to rename`
+				}
+				aria-label={`Rename ${field.name}`}
+				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm text-stone-800 dark:text-stone-200"
+			>
+				<span className="min-w-0 truncate">{field.name}</span>
+				<svg
+					viewBox="0 0 16 16"
+					width={11}
+					height={11}
+					aria-hidden
+					className="flex-shrink-0 text-stone-400 opacity-0 group-hover:opacity-100 dark:text-stone-500"
+				>
+					<path
+						d="M11.7 1.6l2.7 2.7-9.2 9.2-3.4.7.7-3.4 9.2-9.2z"
+						fill="currentColor"
+					/>
+				</svg>
+			</button>
+		)
+	}
+
+	return (
+		<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+			<input
+				type="text"
+				value={draft}
+				onChange={(e) => setDraft(e.target.value)}
+				onBlur={() => void commit()}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") void commit()
+					if (e.key === "Escape") cancel()
+				}}
+				aria-label={`New name for ${field.name}`}
+				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
+				autoFocus
+				onFocus={(e) => e.target.select()}
+				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-stone-800 outline-none dark:bg-stone-900 dark:text-stone-200"
+			/>
+			{error && (
+				<p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+			)}
+		</div>
 	)
 }
 

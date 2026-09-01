@@ -19,6 +19,16 @@ export const ENCODING_CHANNEL_LABELS: Record<EncodingChannel, string> =
 export type Field = {
 	name: string
 	inferredType: FieldType
+	/** Former names this field has answered to — populated when the user
+	 * renames a variable in the Fields panel (newest rename last). Stored
+	 * rows are NEVER rewritten on rename: per-version rows keep their
+	 * original column keys, and `resolveDatasetView` remaps any of these
+	 * aliases to `name` at view time. Upload compatibility (`diffFields`)
+	 * matches a candidate column against `name` OR any entry here, so a
+	 * later upload using either the old or the new header still lands on
+	 * this field. Optional and additive — datasets saved before renames
+	 * existed load unchanged, and an absent list means "never renamed". */
+	sourceNames?: string[]
 	/** Display-format hint derived at VIEW time (see
 	 * `applyDollarConversionToView`): "dollar" marks a quantitative column
 	 * whose raw cells were dollar-formatted ("$1,234.56"), cueing the
@@ -46,6 +56,14 @@ export type DatasetVersion = {
 	rows: Array<Record<string, string>>
 	createdAt: number
 	note?: string // optional changelog note from the upload prompt
+	/** Field CURRENT name → the row key carrying that field's values in THIS
+	 * version. Written at append time only for the ambiguous case where upload
+	 * matching bound a renamed field to its FORMER-name column while a
+	 * same-named column was also present (the type tiebreak in `diffFields` —
+	 * see `versionKeyAliases`); without this, the current-name key would
+	 * shadow the matched column at view time. Absent on almost every version;
+	 * `resolveDatasetView` prefers it over the generic former-name scan. */
+	keyAliases?: Record<string, string>
 }
 
 /** A data set is a named, versioned collection of CSV uploads sharing the same

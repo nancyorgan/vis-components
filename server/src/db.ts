@@ -82,6 +82,15 @@ const MIGRATIONS: readonly string[] = [
 		updated_at TEXT NOT NULL,
 		PRIMARY KEY (dataset_id, version_id)
 	);`,
+	// v6 — shared app-wide settings, one JSON body per key. First occupant:
+	// the default-theme pick (`settings/default-theme`), which seeds every
+	// new visualization ANYONE creates on this server. It used to live in
+	// each browser's localStorage, which quietly made it per-person.
+	`CREATE TABLE settings (
+		id TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`,
 ]
 
 /** The JSON-body tables, keyed by the API's collection segment. Table names
@@ -92,6 +101,7 @@ export const JSON_TABLES = {
 	"embed-instances": "embed_instances",
 	themes: "themes",
 	fonts: "fonts",
+	settings: "settings",
 } as const
 
 export type JsonCollection = keyof typeof JSON_TABLES
@@ -100,11 +110,11 @@ export const isJsonCollection = (value: string): value is JsonCollection =>
 	value in JSON_TABLES
 
 /** Collections whose stored bodies carry a frontend content-schema version.
- *  `datasets` is here despite living in files rather than a JSON table, and
- *  `folders` is absent because the frontend never versioned folders (they're
- *  read unversioned; if that changes, add it here AND to the client registry
- *  in lib/storage/migrations.ts). The server never interprets these numbers —
- *  it only stores what the client stamps. */
+ *  `datasets` is here despite living in files rather than a JSON table;
+ *  `folders` and `settings` are absent because the frontend never versioned
+ *  them (they're read unversioned; if that changes, add them here AND to the
+ *  client registry in lib/storage/migrations.ts). The server never interprets
+ *  these numbers — it only stores what the client stamps. */
 const CONTENT_VERSION_COLLECTIONS = new Set([
 	"visuals",
 	"datasets",

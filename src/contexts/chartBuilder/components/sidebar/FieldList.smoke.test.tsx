@@ -1,11 +1,12 @@
-import { cleanup, createEvent, fireEvent, render } from "@testing-library/react"
+import { cleanup, createEvent, fireEvent, render, waitFor } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
-import type { Dataset, Field } from "../../lib/types"
+import { emptyEncodings, type Dataset, type Field } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
+	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	loadedDatasetsAtom,
@@ -68,18 +69,26 @@ const mount = (fields: Field[] = FIELDS) => {
 	set("vis-components:currentDatasetId", ID)
 	set("vis-components:previewVersionId", null)
 	/* eslint-enable @th/use-wrapped-json-functions */
+	let atomStore: TestStore | undefined
 	const init = (snap: TestStore) => {
+		atomStore = snap
 		snap.set(loadedDatasetsAtom, { [ID]: buildDataset(fields) })
 		snap.set(currentDatasetIdAtom, ID)
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentFieldOverridesAtom, {})
 		snap.set(currentFieldLevelOrdersAtom, {})
+		snap.set(currentEncodingsAtom, {
+			...emptyEncodings(),
+			y: { field: "sales" },
+		})
 	}
-	return render(
+	const utils = render(
 		<TestProvider initializeState={init}>
 			<FieldList />
 		</TestProvider>
 	)
+	if (!atomStore) throw new Error("initializeState did not run")
+	return { ...utils, atomStore }
 }
 
 /** The level rows are the nested <li>s inside a field's reorder panel. */
@@ -282,6 +291,98 @@ describe("FieldList — drag to reorder levels", () => {
 		const rows = levelRows(utils.container)
 		dragTo(rows[1]!, rows[1]!, "top")
 		expect(levelValues(utils.container)).toEqual(["B", "A", "C"])
+	})
+})
+
+describe("FieldList — rename a variable", () => {
+	const openEditor = (utils: ReturnType<typeof render>, name: string) => {
+		fireEvent.click(utils.getByRole("button", { name: `Rename ${name}` }))
+		return utils.getByLabelText(`New name for ${name}`) as HTMLInputElement
+	}
+
+	it("renames on Enter: dataset field, alias, and encodings all follow", async () => {
+		const utils = mount()
+		const input = openEditor(utils, "sales")
+		expect(input.value).toBe("sales")
+		fireEvent.change(input, { target: { value: "revenue" } })
+		fireEvent.keyDown(input, { key: "Enter" })
+		await waitFor(() =>
+			expect(utils.getByRole("button", { name: "Rename revenue" })).toBeTruthy()
+		)
+		const dataset = utils.atomStore.get(loadedDatasetsAtom)[ID]
+		const field = dataset?.fields.find((f) => f.name === "revenue")
+		expect(field?.sourceNames).toEqual(["sales"])
+		expect(dataset?.fields.some((f) => f.name === "sales")).toBe(false)
+		// The encoding seeded in mount() follows the rename.
+		expect(utils.atomStore.get(currentEncodingsAtom).y.field).toBe("revenue")
+	})
+
+	it("refuses a collision with another field and keeps the editor open", async () => {
+		const utils = mount()
+		const input = openEditor(utils, "sales")
+		fireEvent.change(input, { target: { value: "region" } })
+		fireEvent.keyDown(input, { key: "Enter" })
+		await waitFor(() =>
+			expect(utils.getByText(/already named "region"/)).toBeTruthy()
+		)
+		expect(
+			(utils.getByLabelText("New name for sales") as HTMLInputElement).value
+		).toBe("region")
+		const dataset = utils.atomStore.get(loadedDatasetsAtom)[ID]
+		expect(dataset?.fields.map((f) => f.name)).toContain("sales")
+	})
+
+	it("emptying a never-renamed field's box just closes the editor", () => {
+		const utils = mount()
+		const input = openEditor(utils, "sales")
+		fireEvent.change(input, { target: { value: "" } })
+		fireEvent.blur(input)
+		expect(utils.queryByLabelText("New name for sales")).toBeNull()
+		expect(utils.getByRole("button", { name: "Rename sales" })).toBeTruthy()
+		const dataset = utils.atomStore.get(loadedDatasetsAtom)[ID]
+		expect(dataset?.fields.map((f) => f.name)).toContain("sales")
+	})
+
+	it("emptying a RENAMED field's box reverts it to the uploaded name", async () => {
+		const utils = mount()
+		// First rename sales → revenue.
+		const input = openEditor(utils, "sales")
+		fireEvent.change(input, { target: { value: "revenue" } })
+		fireEvent.keyDown(input, { key: "Enter" })
+		await waitFor(() =>
+			expect(utils.getByRole("button", { name: "Rename revenue" })).toBeTruthy()
+		)
+		// Now clear the name and blur: back to "sales", configs included.
+		const revertInput = openEditor(utils, "revenue")
+		fireEvent.change(revertInput, { target: { value: "" } })
+		fireEvent.blur(revertInput)
+		await waitFor(() =>
+			expect(utils.getByRole("button", { name: "Rename sales" })).toBeTruthy()
+		)
+		const dataset = utils.atomStore.get(loadedDatasetsAtom)[ID]
+		const field = dataset?.fields.find((f) => f.name === "sales")
+		expect(field).toBeTruthy()
+		expect(field?.sourceNames?.[0]).toBe("sales")
+		expect(utils.atomStore.get(currentEncodingsAtom).y.field).toBe("sales")
+	})
+
+	it("cancels on Escape without renaming", () => {
+		const utils = mount()
+		const input = openEditor(utils, "sales")
+		fireEvent.change(input, { target: { value: "revenue" } })
+		fireEvent.keyDown(input, { key: "Escape" })
+		expect(utils.queryByLabelText("New name for sales")).toBeNull()
+		expect(utils.getByRole("button", { name: "Rename sales" })).toBeTruthy()
+	})
+
+	it("commits on blur", async () => {
+		const utils = mount()
+		const input = openEditor(utils, "sales")
+		fireEvent.change(input, { target: { value: "revenue" } })
+		fireEvent.blur(input)
+		await waitFor(() =>
+			expect(utils.getByRole("button", { name: "Rename revenue" })).toBeTruthy()
+		)
 	})
 })
 
