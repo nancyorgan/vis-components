@@ -6,6 +6,7 @@ import {
 	datasetIndexAtom,
 	previewVersionIdAtom,
 	visualsAtom,
+	visualsHydratedAtom,
 } from "../../chartBuilder/store/atoms"
 import { useLoadVisual } from "../../chartBuilder/store/saveVisual"
 
@@ -31,12 +32,17 @@ export const EmbedPage = () => {
 	const part = search.part ?? null
 
 	const visuals = useAtomValue(visualsAtom)
+	// Server mode fills the visuals list asynchronously; an id absent from
+	// the pre-hydration (empty) list means "still loading", not "missing" —
+	// judging it early flashed "Visualization not found" on every cold load.
+	const visualsHydrated = useAtomValue(visualsHydratedAtom)
 	const datasets = useAtomValue(datasetIndexAtom)
 	const setPreviewVersionId = useSetAtom(previewVersionIdAtom)
 	const loadVisual = useLoadVisual()
 	const [state, setState] = useState<LoadState>({ status: "loading" })
 
 	useEffect(() => {
+		if (!visualsHydrated) return
 		let cancelled = false
 		;(async () => {
 			const visual = visuals.find((v) => v.id === visualId)
@@ -81,6 +87,7 @@ export const EmbedPage = () => {
 		visualId,
 		requestedVersionId,
 		visuals,
+		visualsHydrated,
 		datasets,
 		loadVisual,
 		setPreviewVersionId,

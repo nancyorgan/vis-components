@@ -204,9 +204,19 @@ visualsBaseAtom.onMount = (setSelf) => {
 	// Hosted build: the backend is authoritative and carries thumbnails inline,
 	// so skip the local IndexedDB merge and load straight from the adapter.
 	if (adapter.capabilities.remoteLoad) {
-		void adapter.loadVisuals().then((visuals) => {
-			setSelf(() => visuals)
-		})
+		void adapter
+			.loadVisuals()
+			.then((visuals) => {
+				setSelf(() => visuals)
+			})
+			.catch((error) => {
+				// eslint-disable-next-line no-console
+				console.error("[vis-components] visuals failed to load:", error)
+				// Settle on the bootstrap rather than staying UNSET forever:
+				// `visualsHydratedAtom` gates the deep-link not-found redirect,
+				// and a permanently un-hydrated list would leave that page stuck.
+				setSelf((prev) => (prev === UNSET ? loadVisuals() : prev))
+			})
 		return
 	}
 	if (!idbAvailable()) return
@@ -241,6 +251,20 @@ export const visualsAtom = atom(
 		void getStorageAdapter().saveVisuals(next)
 	}
 )
+
+/** True once the visuals list is authoritative. Local mode bootstraps
+ * synchronously from localStorage, so it is hydrated from the first read.
+ * Server mode starts UNSET and fills in when the base atom's `onMount`
+ * fetch resolves — until then `visualsAtom` reads as an empty list that
+ * says nothing about what exists. Anything that treats "id not in the
+ * list" as "no such visual" (deep links, embeds) must wait for this, or a
+ * cold server-mode load of /editor/$visualId bounces to the library
+ * before the fetch lands. Reading this atom also subscribes
+ * `visualsBaseAtom`, which is what kicks off that fetch. */
+export const visualsHydratedAtom = atom((get) => {
+	const v = get(visualsBaseAtom)
+	return v !== UNSET || !getStorageAdapter().capabilities.remoteLoad
+})
 
 export const foldersAtom = contentAtom<Folder[]>(
 	loadFolders,
