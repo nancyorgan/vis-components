@@ -36,6 +36,12 @@ export type Field = {
 	 * Never set on stored dataset fields — it exists only on the derived
 	 * `DatasetView`, so it never feeds content hashes or version compat. */
 	formatHint?: "dollar"
+	/** Marks a column minted by a per-visual derived variable (see
+	 * lib/derivedVariables.ts) so the Fields panel and data tray can badge it
+	 * and route edits to the derived-variable editor. Like `formatHint`, this
+	 * is VIEW-time only — never set on stored dataset fields, never feeds
+	 * content hashes or version compat. */
+	derived?: boolean
 }
 
 /** A CSV the user has dropped/selected but not yet committed — sits in state
@@ -252,6 +258,7 @@ import type {
 	LineDashPattern,
 } from "./channelConfig"
 import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
+import type { DerivedVariablesConfig } from "./derivedVariables"
 import type { MapConfig } from "./mapConfig"
 import type { ReshapeConfig } from "./reshape"
 
@@ -289,6 +296,13 @@ export type Visual = {
 	 * back-compat with visuals saved before reshape existed — falls back to
 	 * DEFAULT_RESHAPE_CONFIG on load. */
 	reshapeConfig?: ReshapeConfig
+	/** Per-visual derived variables — computed columns (math / combine text /
+	 * if-else) applied when the view is resolved, so the stored dataset rows
+	 * are never rewritten and new data versions recompute through the same
+	 * definitions. Optional for back-compat with visuals saved before derived
+	 * variables existed — falls back to DEFAULT_DERIVED_VARIABLES_CONFIG on
+	 * load. */
+	derivedVariablesConfig?: DerivedVariablesConfig
 	/** Per-visual Data Labels encodings — which fields drive the label
 	 * layer's x, y, hue, size, text. Optional for back-compat. */
 	dataLabelsEncodings?: DataLabelsEncodings

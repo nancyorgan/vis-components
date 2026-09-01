@@ -126,6 +126,74 @@ version of the wide file flows through the same reshape, and its
 net-new columns simply appear unchecked. Uploading a different
 dataset resets the reshape.
 
+### 2.1c Derived variables
+Users can mint new columns computed from existing ones — no new
+data, just a more chart-friendly form of what's already there. A
+skinny **"+"** column at the far right of the data-table header
+opens the create popup; because it renders after the data columns,
+it always stays rightmost, including after the derived columns it
+creates. The popup asks for a **Name** first (its placeholder — the
+first free "Variable N", or the current name when editing — is what
+a blanked box saves as), then one of three **functions**:
+
+- **Math** — a freeform formula over `{Variable}` tokens, numeric
+  constants, `+ − × ÷`, and parentheses with standard precedence,
+  e.g. `{A} + {B} / {C}` or `({A} - {B}) * 100`. Every referenced
+  variable must be numeric: a formula reaching a column that holds
+  text is an **error** — the amber issue names the offending column,
+  row, and value, and Save stays disabled — so a math variable can
+  never be minted over non-numeric data. Blank cells are missing,
+  not text: they come out blank, as does a division by zero.
+  Numeric results are serialized with float noise trimmed
+  (`0.1 + 0.2` reads `0.3`).
+- **Combine text** — a template in the data-label grammar
+  (`Some text: {Region}` / `{A} / {B}`): tokens naming a present
+  column substitute that row's cell, unknown tokens stay literal so
+  typos are visible.
+- **If / else** — condition rules checked top to bottom, first
+  match wins, with an "Otherwise" fallback. Conditions are boolean
+  expressions over `{Variable}` tokens with the six comparison
+  operators (`> < >= <= == !=`, numeric when both sides read as
+  numbers, string equality otherwise; ordering is numeric-only;
+  blank cells never match) combined with `AND` / `OR`
+  (case-insensitive; AND binds tighter), e.g.
+  `{B} == 1 AND {C} > 3` or `1 < {B} OR {B} < 2`. Outputs are
+  literal text. Unparseable rules never fire.
+
+An **"Insert variable"** dropdown puts a token at the cursor, and a
+live preview shows the first rows' referenced cells beside the
+computed result. Save is disabled while the draft can't apply (name
+collision, parse error, unknown variable, non-numeric column in a
+Math formula — shown as amber text). The numeric check reads the
+whole column, not the previewed rows.
+
+Derived variables are **per-visual config, not a data rewrite**
+(`lib/derivedVariables.ts`, `Visual.derivedVariablesConfig`),
+applied as the LAST stage of the view chain — after the reshape and
+the percent/dollar cell conversions, so Math sees plain numeric
+strings and expressions may reference reshape-minted columns.
+Variables evaluate in list order, so a later one can reference an
+earlier one (chaining); a forward reference is just a missing
+column. The computed columns are ordinary view columns everywhere
+downstream — the tray (headers marked with an italic **ƒ**), the
+Fields panel (an **ƒ** pill; clicking the name opens the edit popup
+instead of the inline rename, and renaming there rewrites this
+visual's references like a field rename), type overrides, encoding
+dropdowns, tooltips, and data labels. A new dataset version flows
+through the same definitions and the columns recompute. A variable
+that CAN'T apply — its name collides with a real column (data always
+wins; e.g. a new version adds a same-named column), or a referenced
+column disappeared (reshape turned off) — is skipped with a warning
+in its editor, never an error: the chart keeps rendering without the
+column. The Math numeric check is editor-only for the same reason —
+a saved formula whose data later grows a stray text cell (a new
+version) keeps computing and blanks only that row, rather than
+dropping the whole column out from under the chart. Deleting the
+variable (in the edit popup, confirmed) is the
+off switch; anything mapped to it falls back to the normal
+missing-field behavior. Uploading a different dataset resets the
+definitions.
+
 ### 2.2 Field types
 Every field is tagged with one of: `quantitative` (numbers),
 `categorical` (distinct labels), `temporal` (dates), `ordinal` (ranked

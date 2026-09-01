@@ -1,5 +1,6 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useEffect } from "react"
+import { applyDerivedVariablesToView } from "../lib/derivedVariables"
 import { applyDollarConversionToView } from "../lib/dollarCells"
 import { applyPercentConversionToView } from "../lib/percentCells"
 import { applyReshapeToView } from "../lib/reshape"
@@ -18,6 +19,7 @@ import {
 	ensureDatasetLoadedAtom,
 	loadedVersionRowsAtom,
 	versionRowsKey,
+	currentDerivedVariablesAtom,
 	currentFieldOverridesAtom,
 	currentReshapeConfigAtom,
 	loadedDatasetsAtom,
@@ -67,22 +69,37 @@ const reshapedDatasetViewAtom = atom((get): DatasetView | undefined =>
 	)
 )
 
-/** The dataset view the editor renders: the raw view with the per-visual
- * wide→long reshape applied when active, then percent-formatted cells
- * ("14%") converted to numeric fractions ("0.14") in columns the user has
- * overridden to quantitative, then dollar/comma-formatted cells
- * ("$1,234.56") converted to plain numeric strings in effectively-
- * quantitative columns (tagging those fields with the "dollar" format
- * hint). A derived atom rather than a per-component derive so the view
- * (and its `fields`/`rows` arrays) keeps a stable identity between store
- * updates — memos and effects may key on it safely. */
-export const currentDatasetViewAtom = atom((get): DatasetView | undefined =>
+/** The reshaped view with the cell-format conversions applied, BEFORE the
+ * derived variables. Its own stage so the derived stage sees plain numeric
+ * strings (Math formulas parse with Number()) and stages compare by
+ * identity. Exported for the derived-variable editor only — it needs the
+ * columns UPSTREAM of the variable being edited (a variable must not
+ * reference itself or a later one); everything else wants
+ * {@link currentDatasetViewAtom}. */
+export const preDerivedDatasetViewAtom = atom((get): DatasetView | undefined =>
 	applyDollarConversionToView(
 		applyPercentConversionToView(
 			get(reshapedDatasetViewAtom),
 			get(currentFieldOverridesAtom)
 		),
 		get(currentFieldOverridesAtom)
+	)
+)
+
+/** The dataset view the editor renders: the raw view with the per-visual
+ * wide→long reshape applied when active, then percent-formatted cells
+ * ("14%") converted to numeric fractions ("0.14") in columns the user has
+ * overridden to quantitative, then dollar/comma-formatted cells
+ * ("$1,234.56") converted to plain numeric strings in effectively-
+ * quantitative columns (tagging those fields with the "dollar" format
+ * hint), then the per-visual derived variables appended as computed
+ * columns. A derived atom rather than a per-component derive so the view
+ * (and its `fields`/`rows` arrays) keeps a stable identity between store
+ * updates — memos and effects may key on it safely. */
+export const currentDatasetViewAtom = atom((get): DatasetView | undefined =>
+	applyDerivedVariablesToView(
+		get(preDerivedDatasetViewAtom),
+		get(currentDerivedVariablesAtom)
 	)
 )
 

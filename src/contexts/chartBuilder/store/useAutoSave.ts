@@ -8,6 +8,7 @@ import {
 	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentDatasetIdAtom,
+	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
@@ -52,6 +53,7 @@ export const useAutoSave = () => {
 	const caption = useAtomValue(currentCaptionConfigAtom)
 	const mapConfig = useAtomValue(currentMapConfigAtom)
 	const reshapeConfig = useAtomValue(currentReshapeConfigAtom)
+	const derivedVariablesConfig = useAtomValue(currentDerivedVariablesAtom)
 
 	// Skip the very first effect run — that's just the initial hydration
 	// after a visual load; nothing has changed.
@@ -88,6 +90,7 @@ export const useAutoSave = () => {
 		caption,
 		mapConfig,
 		reshapeConfig,
+		derivedVariablesConfig,
 		saveVisual,
 		navigate,
 		setStatus,

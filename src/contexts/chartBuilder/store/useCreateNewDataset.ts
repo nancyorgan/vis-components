@@ -11,6 +11,7 @@ import {
 	datasetSizeIssue,
 	datasetWarnMessage,
 } from "../lib/datasetLimits"
+import { DEFAULT_DERIVED_VARIABLES_CONFIG } from "../lib/derivedVariables"
 import { inferFieldType } from "../lib/inferFieldType"
 import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
 import { parseCsvFile } from "../lib/parseCsv"
@@ -24,6 +25,7 @@ import {
 
 import {
 	currentDatasetIdAtom,
+	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	datasetIndexAtom,
 	currentFieldOverridesAtom,
@@ -102,6 +104,7 @@ export const useCreateNewDataset = () =>
 				set(currentEncodingsAtom, emptyEncodings())
 				set(currentFieldOverridesAtom, {})
 				set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
+				set(currentDerivedVariablesAtom, DEFAULT_DERIVED_VARIABLES_CONFIG)
 				return existingId
 			}
 			if (hashMatch) {
@@ -145,6 +148,7 @@ export const useCreateNewDataset = () =>
 			set(currentEncodingsAtom, emptyEncodings())
 			set(currentFieldOverridesAtom, {})
 			set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
+			set(currentDerivedVariablesAtom, DEFAULT_DERIVED_VARIABLES_CONFIG)
 			return id
 		}, [])
 	)

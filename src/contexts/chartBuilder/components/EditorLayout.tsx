@@ -8,6 +8,7 @@ import {
 import { useAutoSave } from "../store/useAutoSave"
 
 import { DataDrawer } from "./drawer/DataDrawer"
+import { DerivedVariableModal } from "./drawer/DerivedVariableModal"
 import { ErrorBoundary } from "./ErrorBoundary"
 import { SaveBar } from "./SaveBar"
 import { Sidebar } from "./sidebar/Sidebar"
@@ -135,6 +136,12 @@ export const EditorLayout = () => {
 					</ErrorBoundary>
 				</div>
 			</div>
+			{/* The derived-variable create/edit popup — mounted at the layout
+			 *  level (it portals to <body>) so it survives drawer collapse and
+			 *  sidebar re-layout while open. */}
+			<ErrorBoundary>
+				<DerivedVariableModal />
+			</ErrorBoundary>
 		</div>
 	)
 }

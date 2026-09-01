@@ -12,6 +12,7 @@ import {
 	DEFAULT_TOOLTIP_CONFIG,
 	migrateLabelsConfig,
 } from "../lib/labelsConfig"
+import { DEFAULT_DERIVED_VARIABLES_CONFIG } from "../lib/derivedVariables"
 import { DEFAULT_MAP_CONFIG } from "../lib/mapConfig"
 import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
 import {
@@ -33,6 +34,7 @@ import {
 	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentDatasetIdAtom,
+	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
@@ -87,6 +89,7 @@ export const useSaveVisual = () => {
 			const captionConfig = get(currentCaptionConfigAtom)
 			const mapConfig = get(currentMapConfigAtom)
 			const reshapeConfig = get(currentReshapeConfigAtom)
+			const derivedVariablesConfig = get(currentDerivedVariablesAtom)
 
 			const now = Date.now()
 
@@ -138,6 +141,9 @@ export const useSaveVisual = () => {
 				...reshapeConfig,
 				idFields: [...reshapeConfig.idFields],
 				meltFields: [...reshapeConfig.meltFields],
+			},
+			derivedVariablesConfig: {
+				variables: derivedVariablesConfig.variables.map((v) => ({ ...v })),
 			},
 			thumbnail,
 			createdAt: existing?.createdAt ?? now,
@@ -249,6 +255,13 @@ export const useLoadVisual = () => {
 			...DEFAULT_RESHAPE_CONFIG,
 			...visual.reshapeConfig,
 			})
+			// Per-visual derived variables — added after first release. Older
+			// visuals leave it undefined; default-merge so a prior visual's
+			// derived columns don't linger.
+			set(currentDerivedVariablesAtom, {
+			...DEFAULT_DERIVED_VARIABLES_CONFIG,
+			...visual.derivedVariablesConfig,
+			})
 			return true
 		}, [])
 	)
@@ -287,6 +300,7 @@ export const useResetVisual = () => {
 			set(currentCaptionConfigAtom, DEFAULT_CAPTION_CONFIG)
 			set(currentMapConfigAtom, DEFAULT_MAP_CONFIG)
 			set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
+			set(currentDerivedVariablesAtom, DEFAULT_DERIVED_VARIABLES_CONFIG)
 			set(currentThemeIdAtom, userDefaultThemeId)
 			set(previewVersionIdAtom, null)
 			// "New visualization" must land on a truly fresh editor — the only path

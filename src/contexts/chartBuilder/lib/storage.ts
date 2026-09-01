@@ -40,6 +40,10 @@ import {
 	EMPTY_CHANNEL_CONFIGS,
 } from "./channelConfig"
 import { DEFAULT_MAP_CONFIG, type MapConfig } from "./mapConfig"
+import {
+	DEFAULT_DERIVED_VARIABLES_CONFIG,
+	type DerivedVariablesConfig,
+} from "./derivedVariables"
 import { DEFAULT_RESHAPE_CONFIG, type ReshapeConfig } from "./reshape"
 import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
 import {
@@ -75,6 +79,8 @@ import {
 	MAP_CONFIG_VERSION,
 	reshapeConfigMigrations,
 	RESHAPE_CONFIG_VERSION,
+	derivedVariablesMigrations,
+	DERIVED_VARIABLES_VERSION,
 	legendMigrations,
 	LEGEND_VERSION,
 	themesMigrations,
@@ -152,6 +158,7 @@ const KEY_CURRENT_FIELD_LEVEL_ORDERS = "vis-components:currentFieldLevelOrders"
 const KEY_CURRENT_CHANNEL_CONFIGS = "vis-components:currentChannelConfigs"
 const KEY_CURRENT_MAP_CONFIG = "vis-components:currentMapConfig"
 const KEY_CURRENT_RESHAPE_CONFIG = "vis-components:currentReshapeConfig"
+const KEY_CURRENT_DERIVED_VARIABLES = "vis-components:currentDerivedVariables"
 const KEY_CURRENT_LABELS = "vis-components:currentLabels"
 const KEY_CURRENT_LEGEND = "vis-components:currentLegend"
 const KEY_CURRENT_TOOLTIP = "vis-components:currentTooltip"
@@ -1237,6 +1244,22 @@ export const saveCurrentReshapeConfig = (c: ReshapeConfig): void =>
 		data: c,
 	})
 
+export const loadCurrentDerivedVariables = (): DerivedVariablesConfig =>
+	loadVersioned<DerivedVariablesConfig>({
+		key: KEY_CURRENT_DERIVED_VARIABLES,
+		currentVersion: DERIVED_VARIABLES_VERSION,
+		migrations: derivedVariablesMigrations,
+		fallback: DEFAULT_DERIVED_VARIABLES_CONFIG,
+	})
+export const saveCurrentDerivedVariables = (
+	c: DerivedVariablesConfig
+): void =>
+	saveVersioned({
+		key: KEY_CURRENT_DERIVED_VARIABLES,
+		currentVersion: DERIVED_VARIABLES_VERSION,
+		data: c,
+	})
+
 export const loadCurrentLabels = (): LabelsConfig =>
 	loadVersioned<LabelsConfig>({
 		key: KEY_CURRENT_LABELS,
@@ -1356,6 +1379,7 @@ const DRAFT_STATE_KEYS = [
 	KEY_CURRENT_CHANNEL_CONFIGS,
 	KEY_CURRENT_MAP_CONFIG,
 	KEY_CURRENT_RESHAPE_CONFIG,
+	KEY_CURRENT_DERIVED_VARIABLES,
 	KEY_CURRENT_LABELS,
 	KEY_CURRENT_LEGEND,
 	KEY_CURRENT_TOOLTIP,

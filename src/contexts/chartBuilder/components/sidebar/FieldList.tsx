@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { useAtom, useAtomValue } from "jotai"
+import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { effectiveDerivedName } from "../../lib/derivedVariables"
 import {
 	alphabeticalLevelOrder,
 	orderLevelsByField,
@@ -8,13 +9,18 @@ import { applyLevelOrder, smartSortCategories } from "../../lib/smartSort"
 import type { Field, FieldType } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
+	currentDerivedVariablesAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	datasetIndexAtom,
+	derivedVariableEditorAtom,
 } from "../../store/atoms"
 import { originalFieldName } from "../../lib/renameField"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
-import { useRenameField } from "../../store/useRenameField"
+import {
+	useRenameDerivedVariable,
+	useRenameField,
+} from "../../store/useRenameField"
 import { Disclosure } from "@headlessui/react"
 
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
@@ -50,6 +56,8 @@ export const FieldList = () => {
 	const [levelOrders, setLevelOrders] = useAtom(
 		currentFieldLevelOrdersAtom
 	)
+	const derivedConfig = useAtomValue(currentDerivedVariablesAtom)
+	const setDerivedEditor = useSetAtom(derivedVariableEditorAtom)
 	const dataset = useCurrentDatasetView()
 	// Rename targets are DATASET fields only. With a reshape applied the view
 	// also shows the two minted columns (variable/value) — those are renamed
@@ -84,6 +92,13 @@ export const FieldList = () => {
 				const effective = overrides[field.name] ?? field.inferredType
 				const reorderable =
 					effective === "categorical" || effective === "ordinal"
+				// The variable minting this column, so the ƒ pill can reopen it
+				// in the editor popup.
+				const derivedVariable = field.derived
+					? derivedConfig.variables.find(
+							(v, i) => effectiveDerivedName(v, i) === field.name
+						)
+					: undefined
 				return (
 					<li
 						key={field.name}
@@ -95,6 +110,8 @@ export const FieldList = () => {
 									<div className="flex items-center justify-between gap-2">
 										{datasetFieldNames.has(field.name) ? (
 											<FieldNameEditor field={field} />
+										) : field.derived ? (
+											<DerivedFieldName field={field} />
 										) : (
 											<span
 												className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
@@ -103,6 +120,30 @@ export const FieldList = () => {
 												{field.name}
 											</span>
 										)}
+										{derivedVariable ? (
+											<button
+												type="button"
+												onClick={() =>
+													setDerivedEditor({
+														mode: "edit",
+														id: derivedVariable.id,
+													})
+												}
+												aria-label={`Edit derived variable ${field.name}`}
+												title="Derived variable — click to edit the calculation"
+												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+											>
+												ƒ
+											</button>
+										) : field.derived ? (
+											<span
+												aria-label="Derived variable"
+												title="Derived variable — computed from other variables"
+												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+											>
+												ƒ
+											</span>
+										) : null}
 										<span
 											className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-sm font-bold ${TYPE_BADGE_CLASSES[effective]}`}
 											title={effective}
@@ -246,6 +287,112 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 				onBlur={() => void commit()}
 				onKeyDown={(e) => {
 					if (e.key === "Enter") void commit()
+					if (e.key === "Escape") cancel()
+				}}
+				aria-label={`New name for ${field.name}`}
+				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
+				autoFocus
+				onFocus={(e) => e.target.select()}
+				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-stone-800 outline-none dark:bg-stone-900 dark:text-stone-200"
+			/>
+			{error && (
+				<p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+			)}
+		</div>
+	)
+}
+
+/** Click-to-edit rename control for a derived (computed) field — the SAME
+ * inline affordance dataset fields get, so the name behaves consistently
+ * across the panel; the calculation itself is edited through the ƒ pill's
+ * popup. Enter/blur commits, Escape cancels. A derived variable has no
+ * original upload name to revert to, so an emptied box just cancels. A
+ * refused rename (collision) keeps the editor open with the reason inline. */
+const DerivedFieldName = ({ field }: { field: Field }) => {
+	const config = useAtomValue(currentDerivedVariablesAtom)
+	const renameDerived = useRenameDerivedVariable()
+	const [editing, setEditing] = useState(false)
+	const [draft, setDraft] = useState(field.name)
+	const [error, setError] = useState<string | null>(null)
+	const variable = config.variables.find(
+		(v, i) => effectiveDerivedName(v, i) === field.name
+	)
+	if (!variable) {
+		// A derived column whose definition can't be found (shouldn't happen —
+		// the column only exists because a definition applied) degrades to the
+		// plain non-interactive name.
+		return (
+			<span
+				className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
+				title={field.name}
+			>
+				{field.name}
+			</span>
+		)
+	}
+
+	const startEditing = () => {
+		setDraft(field.name)
+		setError(null)
+		setEditing(true)
+	}
+
+	const cancel = () => {
+		setDraft(field.name)
+		setError(null)
+		setEditing(false)
+	}
+
+	const commit = () => {
+		const trimmed = draft.trim()
+		if (trimmed === "" || trimmed === field.name) {
+			cancel()
+			return
+		}
+		const result = renameDerived(variable.id, trimmed)
+		if (result.ok) {
+			setError(null)
+			setEditing(false)
+		} else {
+			setError(result.error)
+		}
+	}
+
+	if (!editing) {
+		return (
+			<button
+				type="button"
+				onClick={startEditing}
+				title={`${field.name} — click to rename`}
+				aria-label={`Rename ${field.name}`}
+				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm text-stone-800 dark:text-stone-200"
+			>
+				<span className="min-w-0 truncate">{field.name}</span>
+				<svg
+					viewBox="0 0 16 16"
+					width={11}
+					height={11}
+					aria-hidden
+					className="flex-shrink-0 text-stone-400 opacity-0 group-hover:opacity-100 dark:text-stone-500"
+				>
+					<path
+						d="M11.7 1.6l2.7 2.7-9.2 9.2-3.4.7.7-3.4 9.2-9.2z"
+						fill="currentColor"
+					/>
+				</svg>
+			</button>
+		)
+	}
+
+	return (
+		<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+			<input
+				type="text"
+				value={draft}
+				onChange={(e) => setDraft(e.target.value)}
+				onBlur={commit}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") commit()
 					if (e.key === "Escape") cancel()
 				}}
 				aria-label={`New name for ${field.name}`}

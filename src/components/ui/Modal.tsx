@@ -27,6 +27,12 @@ type ModalProps = {
 	 * different from the neutral default (e.g. the red frame on a warning).
 	 * Appended last, so a border/ring here overrides the default one. */
 	panelClassName?: string
+	/** Extra classes on the body wrapper (the padded region under the title).
+	 * For a fixed-height dialog that owns its own inner scroll region: pair
+	 * `panelClassName="flex h-… flex-col"` with
+	 * `bodyClassName="flex min-h-0 flex-1 flex-col"` so the body can hand a
+	 * child the leftover space instead of growing the panel. */
+	bodyClassName?: string
 }
 
 export const Modal = ({
@@ -38,6 +44,7 @@ export const Modal = ({
 	maxWidthPx,
 	dismissOnBackdrop = true,
 	panelClassName,
+	bodyClassName,
 }: ModalProps) => {
 	useEffect(() => {
 		if (!open) return
@@ -75,7 +82,7 @@ export const Modal = ({
 						{title}
 					</div>
 				)}
-				<div className="p-4">{children}</div>
+				<div className={c("p-4", bodyClassName)}>{children}</div>
 			</div>
 		</div>,
 		document.body

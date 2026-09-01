@@ -39,6 +39,7 @@ export const ANNOTATIONS_VERSION = 4
 export const CAPTION_VERSION = 1
 export const MAP_CONFIG_VERSION = 8
 export const RESHAPE_CONFIG_VERSION = 1
+export const DERIVED_VARIABLES_VERSION = 1
 export const USER_FONTS_VERSION = 1
 
 // ──────────────────────────────────────────────────────────────────────
@@ -545,6 +546,7 @@ export const legendMigrations: Migration[] = [
 export const tooltipMigrations = identityMigrations
 export const captionMigrations = identityMigrations
 export const reshapeConfigMigrations = identityMigrations
+export const derivedVariablesMigrations = identityMigrations
 export const dataLabelsEncodingsMigrations = identityMigrations
 export const dataLabelsConfigMigrations = identityMigrations
 export const encodingsMigrations = identityMigrations

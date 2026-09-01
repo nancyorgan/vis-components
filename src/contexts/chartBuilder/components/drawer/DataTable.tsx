@@ -1,6 +1,12 @@
+import { useAtomValue, useSetAtom } from "jotai"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { effectiveDerivedName } from "../../lib/derivedVariables"
 import { compareByType } from "../../lib/drawOrder"
 import type { FieldType } from "../../lib/types"
+import {
+	currentDerivedVariablesAtom,
+	derivedVariableEditorAtom,
+} from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 const MAX_ROWS_RENDERED = 500
@@ -66,6 +72,20 @@ const alignmentClasses = (alignment: ColumnAlignment): string => {
 
 export const DataTable = () => {
 	const dataset = useCurrentDatasetView()
+	const setDerivedEditor = useSetAtom(derivedVariableEditorAtom)
+	// View column name → derived-variable id, so the header ƒ marker can
+	// reopen that variable in the editor popup.
+	const derivedConfig = useAtomValue(currentDerivedVariablesAtom)
+	const derivedIdByName = useMemo(
+		() =>
+			new Map(
+				derivedConfig.variables.map((v, i) => [
+					effectiveDerivedName(v, i),
+					v.id,
+				])
+			),
+		[derivedConfig]
+	)
 	const [sort, setSort] = useState<SortState>(null)
 	// Per-column width overrides keyed by field name. Unset entries fall back
 	// to the browser's auto-sizing (which honors `whitespace-nowrap` plus
@@ -189,27 +209,46 @@ export const DataTable = () => {
 										alignment
 									)}`}
 								>
-									{/* `flex` lets the button shrink + clip the field name when
-									 * the column is narrow, instead of leaking past the th's
-									 * right edge into the neighboring header. */}
-									<button
-										type="button"
-										onClick={() => onHeaderClick(f.name)}
-										className="flex w-full items-center gap-1 overflow-hidden hover:text-stone-900 dark:hover:text-white"
-										title={f.name}
-									>
-										<span className="min-w-0 flex-1 truncate text-left">
-											{f.name}
-										</span>
-										{isActive && (
-											<span
-												aria-hidden="true"
-												className="flex-shrink-0 text-xs"
+									{/* `flex` lets the sort button shrink + clip the field name
+									 * when the column is narrow, instead of leaking past the th's
+									 * right edge into the neighboring header. The ƒ marker is its
+									 * own SIBLING button (a button can't nest a button): clicking
+									 * it reopens the derived-variable editor, clicking the name
+									 * still sorts. */}
+									<div className="flex w-full items-center gap-1 overflow-hidden">
+										{f.derived && (
+											<button
+												type="button"
+												onClick={() => {
+													const id = derivedIdByName.get(f.name)
+													if (id) setDerivedEditor({ mode: "edit", id })
+												}}
+												title={`Edit the derived variable ${f.name}`}
+												aria-label={`Edit derived variable ${f.name}`}
+												className="flex-shrink-0 font-serif text-xs italic text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
 											>
-												{sort?.dir === "asc" ? "▲" : "▼"}
-											</span>
+												ƒ
+											</button>
 										)}
-									</button>
+										<button
+											type="button"
+											onClick={() => onHeaderClick(f.name)}
+											className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden hover:text-stone-900 dark:hover:text-white"
+											title={f.name}
+										>
+											<span className="min-w-0 flex-1 truncate text-left">
+												{f.name}
+											</span>
+											{isActive && (
+												<span
+													aria-hidden="true"
+													className="flex-shrink-0 text-xs"
+												>
+													{sort?.dir === "asc" ? "▲" : "▼"}
+												</span>
+											)}
+										</button>
+									</div>
 									{/* Resize handle — thin grab strip at the column's right edge.
 									 *  pointerdown captures the starting position and width, then
 									 *  the window-level pointermove from `useEffect` updates state. */}
@@ -239,6 +278,27 @@ export const DataTable = () => {
 								</th>
 							)
 						})}
+						{/* The "+ new derived variable" column. Rendered AFTER the
+						 * field map, so it always sits to the right of every column —
+						 * including freshly created derived ones (they join
+						 * `dataset.fields`), leaving the + in place for the next
+						 * variable. Fixed-width and handle-less: it's a button cell,
+						 * not a data column. */}
+						<th
+							scope="col"
+							style={{ width: 32, minWidth: 32 }}
+							className="border-b border-stone-200 px-0 py-2 text-center dark:border-stone-700"
+						>
+							<button
+								type="button"
+								onClick={() => setDerivedEditor({ mode: "new" })}
+								title="New derived variable"
+								aria-label="New derived variable"
+								className="w-full text-base leading-none font-medium text-stone-500 hover:text-indigo-600 dark:text-stone-400 dark:hover:text-indigo-400"
+							>
+								+
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -273,6 +333,9 @@ export const DataTable = () => {
 									</td>
 								)
 							})}
+							{/* Filler cell under the "+" header so row borders and
+							 * striping stay clean across the full table width. */}
+							<td className="border-b border-stone-100 dark:border-stone-800" />
 						</tr>
 					))}
 				</tbody>

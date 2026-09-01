@@ -13,6 +13,7 @@ import {
 	type TooltipConfig,
 } from "../lib/labelsConfig"
 import { type MapConfig } from "../lib/mapConfig"
+import { type DerivedVariablesConfig } from "../lib/derivedVariables"
 import { type ReshapeConfig } from "../lib/reshape"
 import {
 	loadCurrentAnnotations,
@@ -22,6 +23,7 @@ import {
 	loadCurrentDataLabelsEncodings,
 	loadCurrentDatasetId,
 	loadCurrentEncodings,
+	loadCurrentDerivedVariables,
 	loadCurrentFieldLevelOrders,
 	loadCurrentFieldOverrides,
 	loadCurrentLabels,
@@ -60,6 +62,7 @@ import {
 	saveCurrentLabels,
 	saveCurrentLegend,
 	saveCurrentMapConfig,
+	saveCurrentDerivedVariables,
 	saveCurrentReshapeConfig,
 	saveCurrentTooltip,
 	saveCurrentVisualId,
@@ -1031,6 +1034,22 @@ export const currentReshapeConfigAtom = persistedAtom<ReshapeConfig>(
 	loadCurrentReshapeConfig,
 	saveCurrentReshapeConfig
 )
+
+/** Per-visual derived variables (math / combine text / if-else columns).
+ * Applied as the LAST view stage (see `currentDatasetViewAtom`); the stored
+ * dataset rows are never rewritten. */
+export const currentDerivedVariablesAtom = persistedAtom<DerivedVariablesConfig>(
+	loadCurrentDerivedVariables,
+	saveCurrentDerivedVariables
+)
+
+/** Which derived variable the create/edit modal is showing. Transient and
+ * intentionally NOT persisted (like `reshapePanelOpenAtom`): the modal is
+ * menu state, the variables themselves live in
+ * `currentDerivedVariablesAtom`. `null` = closed. */
+export const derivedVariableEditorAtom = atom<
+	null | { mode: "new" } | { mode: "edit"; id: string }
+>(null)
 
 export const currentLabelsAtom = persistedAtom<LabelsConfig>(
 	loadCurrentLabels,

@@ -3,12 +3,18 @@ import { TestProvider, type TestStore } from "../../../../testSupport/TestProvid
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { afterEach, describe, expect, it } from "vitest"
+import {
+	DEFAULT_DERIVED_VARIABLES_CONFIG,
+	type DerivedVariablesConfig,
+} from "../../lib/derivedVariables"
 import { emptyEncodings, type Dataset, type Field } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
+	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
+	derivedVariableEditorAtom,
 	loadedDatasetsAtom,
 	previewVersionIdAtom,
 } from "../../store/atoms"
@@ -59,7 +65,10 @@ const buildDataset = (fields: Field[] = FIELDS): Dataset =>
 		rows: ROWS,
 	})
 
-const mount = (fields: Field[] = FIELDS) => {
+const mount = (
+	fields: Field[] = FIELDS,
+	derived: DerivedVariablesConfig = DEFAULT_DERIVED_VARIABLES_CONFIG
+) => {
 	// Atom storage effects re-load from localStorage on init and would reset a
 	// snapshot-only seed to defaults, so the fixture goes into BOTH.
 	const store = installInMemoryLocalStorage()
@@ -68,6 +77,7 @@ const mount = (fields: Field[] = FIELDS) => {
 	set("vis-components:datasets", { [ID]: buildDataset(fields) })
 	set("vis-components:currentDatasetId", ID)
 	set("vis-components:previewVersionId", null)
+	set("vis-components:currentDerivedVariables", { _v: 1, data: derived })
 	/* eslint-enable @th/use-wrapped-json-functions */
 	let atomStore: TestStore | undefined
 	const init = (snap: TestStore) => {
@@ -77,6 +87,7 @@ const mount = (fields: Field[] = FIELDS) => {
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentFieldOverridesAtom, {})
 		snap.set(currentFieldLevelOrdersAtom, {})
+		snap.set(currentDerivedVariablesAtom, derived)
 		snap.set(currentEncodingsAtom, {
 			...emptyEncodings(),
 			y: { field: "sales" },
@@ -383,6 +394,81 @@ describe("FieldList — rename a variable", () => {
 		await waitFor(() =>
 			expect(utils.getByRole("button", { name: "Rename revenue" })).toBeTruthy()
 		)
+	})
+})
+
+describe("FieldList — derived variable rename (inline, like a regular field)", () => {
+	const DERIVED: DerivedVariablesConfig = {
+		variables: [
+			{
+				id: "dvr-1",
+				name: "doubled",
+				kind: "math",
+				math: { formula: "{sales} * 2" },
+			},
+		],
+	}
+
+	const openEditor = (utils: ReturnType<typeof render>, name: string) => {
+		fireEvent.click(utils.getByRole("button", { name: `Rename ${name}` }))
+		return utils.getByLabelText(`New name for ${name}`) as HTMLInputElement
+	}
+
+	it("renames inline on Enter — config and encodings follow, no popup", async () => {
+		const utils = mount(FIELDS, DERIVED)
+		utils.atomStore.set(currentEncodingsAtom, {
+			...emptyEncodings(),
+			y: { field: "sales" },
+			hue: { field: "doubled" },
+		})
+		const input = openEditor(utils, "doubled")
+		expect(input.value).toBe("doubled")
+		fireEvent.change(input, { target: { value: "sales x2" } })
+		fireEvent.keyDown(input, { key: "Enter" })
+		await waitFor(() =>
+			expect(utils.getByRole("button", { name: "Rename sales x2" })).toBeTruthy()
+		)
+		expect(
+			utils.atomStore.get(currentDerivedVariablesAtom).variables[0]?.name
+		).toBe("sales x2")
+		expect(utils.atomStore.get(currentEncodingsAtom).hue.field).toBe("sales x2")
+		// The name click must NOT open the calculation popup.
+		expect(utils.atomStore.get(derivedVariableEditorAtom)).toBeNull()
+	})
+
+	it("refuses a collision with a data column and keeps the editor open", async () => {
+		const utils = mount(FIELDS, DERIVED)
+		const input = openEditor(utils, "doubled")
+		fireEvent.change(input, { target: { value: "region" } })
+		fireEvent.keyDown(input, { key: "Enter" })
+		await waitFor(() =>
+			expect(utils.getByText(/already named "region"/)).toBeTruthy()
+		)
+		expect(
+			utils.atomStore.get(currentDerivedVariablesAtom).variables[0]?.name
+		).toBe("doubled")
+	})
+
+	it("emptying the box cancels — a derived name has no upload original", () => {
+		const utils = mount(FIELDS, DERIVED)
+		const input = openEditor(utils, "doubled")
+		fireEvent.change(input, { target: { value: "" } })
+		fireEvent.blur(input)
+		expect(utils.getByRole("button", { name: "Rename doubled" })).toBeTruthy()
+		expect(
+			utils.atomStore.get(currentDerivedVariablesAtom).variables[0]?.name
+		).toBe("doubled")
+	})
+
+	it("the ƒ pill (not the name) targets the calculation popup", () => {
+		const utils = mount(FIELDS, DERIVED)
+		fireEvent.click(
+			utils.getByRole("button", { name: "Edit derived variable doubled" })
+		)
+		expect(utils.atomStore.get(derivedVariableEditorAtom)).toEqual({
+			mode: "edit",
+			id: "dvr-1",
+		})
 	})
 })
 

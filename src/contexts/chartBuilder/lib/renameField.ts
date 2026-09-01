@@ -5,6 +5,10 @@ import type {
 	OpacitySlotConfig,
 } from "./channelConfig"
 import type { AnnotationsConfig } from "./annotationsConfig"
+import type {
+	DerivedVariable,
+	DerivedVariablesConfig,
+} from "./derivedVariables"
 import type { LabelsConfig, TooltipConfig } from "./labelsConfig"
 import {
 	effectiveVariableName,
@@ -130,6 +134,17 @@ const renameLabelTokens = (
 		? template.replaceAll(`{${oldName}}`, `{${newName}}`)
 		: template
 
+/** Map over a list, returning the same reference when no element changed. */
+const mapItems = <A>(items: A[], fn: (a: A) => A): A[] => {
+	let changed = false
+	const out = items.map((item) => {
+		const next = fn(item)
+		if (next !== item) changed = true
+		return next
+	})
+	return changed ? out : items
+}
+
 /** Merge `patch` onto `base`, but return `base` itself when every patched
  * property is already the same reference — the no-op detector the whole
  * rewrite is built on. */
@@ -158,6 +173,7 @@ export type FieldNameConfigs = {
 	tooltipConfig?: TooltipConfig
 	reshapeConfig?: ReshapeConfig
 	annotationsConfig?: AnnotationsConfig
+	derivedVariablesConfig?: DerivedVariablesConfig
 }
 
 const renameSlotField = <S extends ColorSlotConfig | OpacitySlotConfig>(
@@ -317,6 +333,45 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 			})
 		: dlc
 
+	// Derived-variable expressions reference view fields through the same
+	// {Field} token grammar as the label templates, so the token swap covers
+	// math formulas, concat templates, and rule conditions alike. (In melted
+	// mode this is deliberately NOT run — like every other view-field surface;
+	// a melt column's name only appears in expressions as a string literal,
+	// and literals are never rewritten anywhere.)
+	const swapDerivedTokens = (v: DerivedVariable): DerivedVariable =>
+		patched(v, {
+			math: v.math
+				? patched(v.math, {
+						formula:
+							renameLabelTokens(v.math.formula, oldName, newName) ??
+							v.math.formula,
+					})
+				: v.math,
+			concat: v.concat
+				? patched(v.concat, {
+						template:
+							renameLabelTokens(v.concat.template, oldName, newName) ??
+							v.concat.template,
+					})
+				: v.concat,
+			rules: v.rules
+				? patched(v.rules, {
+						rules: mapItems(v.rules.rules, (r) =>
+							patched(r, {
+								condition:
+									renameLabelTokens(r.condition, oldName, newName) ??
+									r.condition,
+							})
+						),
+					})
+				: v.rules,
+		})
+	const dv = state.derivedVariablesConfig
+	const derivedVariablesConfig = dv
+		? patched(dv, { variables: mapItems(dv.variables, swapDerivedTokens) })
+		: dv
+
 	const tc = state.tooltipConfig
 	const tooltipConfig = tc
 		? patched(tc, {
@@ -341,6 +396,7 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 		channelConfigs,
 		dataLabelsConfig,
 		tooltipConfig,
+		derivedVariablesConfig,
 	} as Partial<T>)
 }
 

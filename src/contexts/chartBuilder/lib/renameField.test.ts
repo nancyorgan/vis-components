@@ -15,6 +15,7 @@ import {
 	renameFieldInConfigs,
 	type FieldNameConfigs,
 } from "./renameField"
+import { DEFAULT_DERIVED_VARIABLES_CONFIG } from "./derivedVariables"
 import { DEFAULT_RESHAPE_CONFIG } from "./reshape"
 import { emptyDataLabelsEncodings, emptyEncodings, type Field } from "./types"
 
@@ -40,6 +41,7 @@ const baseState = (): Required<FieldNameConfigs> => ({
 	tooltipConfig: DEFAULT_TOOLTIP_CONFIG,
 	reshapeConfig: DEFAULT_RESHAPE_CONFIG,
 	annotationsConfig: DEFAULT_ANNOTATIONS_CONFIG,
+	derivedVariablesConfig: DEFAULT_DERIVED_VARIABLES_CONFIG,
 })
 
 describe("fieldRenameError", () => {
@@ -366,5 +368,79 @@ describe("renameFieldInConfigs — melted (value-key) rewrite", () => {
 		const next = renameFieldInConfigs(state, fields, "region", "area")
 		expect(next.encodings.x.field).toBe("area")
 		expect(next.reshapeConfig.idFields).toEqual(["area"])
+	})
+})
+
+describe("renameFieldInConfigs — derived variables", () => {
+	const fields = [q("sales"), c("region")]
+	const derivedState = (): Required<FieldNameConfigs> => {
+		const state = baseState()
+		state.derivedVariablesConfig = {
+			variables: [
+				{
+					id: "dvr-1",
+					name: "calc",
+					kind: "math",
+					math: { formula: "{sales} * 2" },
+					concat: { template: "sold: {sales}" },
+					rules: {
+						rules: [
+							{ condition: "{sales} > 1 AND {region} == \"West\"", output: "hi" },
+						],
+						fallback: "",
+					},
+				},
+			],
+		}
+		return state
+	}
+
+	it("swaps {tokens} in formulas, templates, and rule conditions", () => {
+		const state = derivedState()
+		const next = renameFieldInConfigs(state, fields, "sales", "revenue")
+		const v = next.derivedVariablesConfig.variables[0]
+		expect(v.math?.formula).toBe("{revenue} * 2")
+		expect(v.concat?.template).toBe("sold: {revenue}")
+		expect(v.rules?.rules[0].condition).toBe(
+			'{revenue} > 1 AND {region} == "West"'
+		)
+	})
+
+	it("rewrites only the payloads that mention the name", () => {
+		const state = derivedState()
+		const next = renameFieldInConfigs(state, fields, "region", "area")
+		// Only the rule condition mentions {region}; the math and concat
+		// payloads keep their identity through the rewrite.
+		const v = next.derivedVariablesConfig.variables[0]
+		expect(v.math).toBe(state.derivedVariablesConfig.variables[0].math)
+		expect(v.concat).toBe(state.derivedVariablesConfig.variables[0].concat)
+		expect(v.rules?.rules[0].condition).toBe(
+			'{sales} > 1 AND {area} == "West"'
+		)
+	})
+
+	it("leaves derived expressions alone in melted mode", () => {
+		const meltFields = [c("region"), q("jan"), q("feb")]
+		const state = derivedState()
+		state.reshapeConfig = {
+			...DEFAULT_RESHAPE_CONFIG,
+			idFields: ["region"],
+			meltFields: ["jan", "feb"],
+		}
+		state.derivedVariablesConfig = {
+			variables: [
+				{
+					id: "dvr-1",
+					name: "calc",
+					kind: "concat",
+					// "{jan}" as a token would be a stale reference (jan is not a
+					// view column once melted) — it must survive the rename, like
+					// every other view-field surface in melted mode.
+					concat: { template: "was: {jan}" },
+				},
+			],
+		}
+		const next = renameFieldInConfigs(state, meltFields, "jan", "January")
+		expect(next.derivedVariablesConfig).toBe(state.derivedVariablesConfig)
 	})
 })
