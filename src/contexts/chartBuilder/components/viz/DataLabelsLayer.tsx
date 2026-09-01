@@ -34,6 +34,7 @@ import {
 	type HueScale,
 	type PositionScale,
 } from "../../lib/scales"
+import { firstMatchingRule } from "../../lib/textColorRules"
 import {
 	emptyDataLabelsEncodings,
 	type DataLabelsEncodings,
@@ -185,10 +186,14 @@ const applyLabelPoints = <T extends EndpointAwareBox>(
 			continue
 		}
 		const ov = (end === "first" ? cfg.firstLabel : cfg.lastLabel) ?? {}
+		// An unset endpoint offset inherits the box's EFFECTIVE offset (its
+		// already-applied cx/cy), not `cfg.xOffset` — a matching position rule
+		// may have replaced the base offset for this label, and inheriting must
+		// not clobber that.
 		let next: T = {
 			...b,
-			cx: b.anchorX + (ov.xOffset ?? cfg.xOffset),
-			cy: b.anchorY + (ov.yOffset ?? cfg.yOffset),
+			cx: ov.xOffset != null ? b.anchorX + ov.xOffset : b.cx,
+			cy: ov.yOffset != null ? b.anchorY + ov.yOffset : b.cy,
 			alignment: ov.alignment ?? undefined,
 		}
 		// Empty string means "inherit", not "blank label" — hiding an
@@ -273,6 +278,11 @@ const renderLabels = (
 	const padY = cfg.textBackgroundPadY ?? DEFAULT_BG_PAD_Y
 	const wrap = cfg.wrapText === true
 	const wrapMaxChars = cfg.wrapMaxChars ?? DEFAULT_DATA_LABELS_CONFIG.wrapMaxChars ?? 20
+	// Text angle rotates each label (and its background rect) around its own
+	// anchor point — same convention as the axes' tickLabelAngle (positive =
+	// clockwise). Paint-time only: the overlap / reserve passes keep measuring
+	// the unrotated footprint.
+	const textAngle = cfg.textAngle ?? 0
 	return (
 		<g aria-hidden="true" pointerEvents="none">
 			{boxes.map((b) => {
@@ -322,7 +332,14 @@ const renderLabels = (
 					)
 				}
 				return (
-					<g key={b.key}>
+					<g
+						key={b.key}
+						transform={
+							textAngle !== 0
+								? `rotate(${textAngle} ${b.cx} ${b.cy})`
+								: undefined
+						}
+					>
 						{rect}
 						<text
 							x={b.cx}
@@ -519,10 +536,14 @@ export const DataLabelsLayer = ({
 			const fontSize = sizeField
 				? resolveLabelSize(a.sizeValue, cfg, sizeValues)
 				: ptToPx(cfg.fontSize)
+			// A matching position rule REPLACES the base offsets for this label
+			// (same first-match-wins walk — and same backing value — as the
+			// text-color rules).
+			const posRule = firstMatchingRule(cfg.positionRules, a.labelValue)
 			return [
 				{
-					cx: a.cx + cfg.xOffset,
-					cy: a.cy + cfg.yOffset,
+					cx: a.cx + (posRule?.xOffset ?? cfg.xOffset),
+					cy: a.cy + (posRule?.yOffset ?? cfg.yOffset),
 					anchorX: a.cx,
 					anchorY: a.cy,
 					text: a.label,
@@ -770,10 +791,13 @@ export const DataLabelsLayer = ({
 		// connection isn't mapped (multi-line scatter could be hue-grouped).
 		const seriesField = connectionField ?? hueField
 		const series = seriesField ? String(row[seriesField] ?? "") : ""
+		// Position rules evaluate against the same backing value the text-color
+		// rules use; a match replaces the base offsets for this label.
+		const posRule = firstMatchingRule(cfg.positionRules, labelValue)
 		return [
 			{
-				cx: anchorX + cfg.xOffset,
-				cy: anchorY + cfg.yOffset,
+				cx: anchorX + (posRule?.xOffset ?? cfg.xOffset),
+				cy: anchorY + (posRule?.yOffset ?? cfg.yOffset),
 				anchorX,
 				anchorY,
 				text: label,

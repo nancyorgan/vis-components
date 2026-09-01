@@ -47,6 +47,7 @@ import { Toggle } from "../../../../components/ui/Toggle"
 import { AlignmentControl } from "./LabelsPanel"
 import { DataLabelChannelRow } from "./dataLabels/DataLabelChannelRow"
 import { LabelColorPanel } from "./dataLabels/LabelColorPanel"
+import { PositionRulesEditor } from "./dataLabels/PositionRulesEditor"
 import { SizePanel } from "./dataLabels/SizePanel"
 import { TextBackgroundPanel } from "./dataLabels/TextBackgroundPanel"
 import { TextPositionPanel } from "./dataLabels/TextPositionPanel"
@@ -194,9 +195,11 @@ export const DataLabelsPanel = () => {
 		o?.alignment != null || o?.xOffset != null || o?.yOffset != null
 	const positionChanged =
 		(merged.alignment ?? "center") !== "center" ||
+		(merged.textAngle ?? 0) !== 0 ||
 		merged.wrapText === true ||
 		merged.xOffset !== 0 ||
 		merged.yOffset !== 0 ||
+		(merged.positionRules ?? []).length > 0 ||
 		(isBarMode && (merged.barLabelPosition ?? "center") !== "center") ||
 		(isPolarMode &&
 			((merged.polarLabelAngle ?? 0) !== 0 ||
@@ -692,6 +695,25 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
+				{/* Same convention as the axes' tick-label Angle: positive =
+				 *  clockwise, ±90°. Rotates each label around its anchor point. */}
+				<div className="flex items-center gap-2">
+					<NumberInput
+						label="Angle"
+						labelClassName={LABEL_COL}
+						value={merged.textAngle ?? 0}
+						min={-90}
+						max={90}
+						step={1}
+						clamp
+						onChange={(textAngle) => updateCfg({ textAngle })}
+						inputClassName="w-16"
+						suffix="°"
+					/>
+					{(merged.textAngle ?? 0) !== 0 && (
+						<ResetLink onClick={() => updateCfg({ textAngle: 0 })} />
+					)}
+				</div>
 				<hr className="border-stone-200 dark:border-stone-700" />
 				<Toggle
 					label="Wrap text"
@@ -844,6 +866,7 @@ export const DataLabelsPanel = () => {
 						/>
 					</div>
 				)}
+				<PositionRulesEditor cfg={merged} onChange={updateCfg} />
 				</div>
 			</CollapsibleSubsection>
 			</>

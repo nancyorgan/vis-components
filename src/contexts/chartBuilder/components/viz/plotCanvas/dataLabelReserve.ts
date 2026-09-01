@@ -110,6 +110,13 @@ export const computeDataLabelOverflow = ({
 					withOverrides(dataLabels.lastLabel),
 				]
 			: [baseProfile]
+	// Position rules can push a matching subset of labels past either edge
+	// with their own X offset — reserve for each rule's offset too. Assuming
+	// the longest label could take any rule's offset over-reserves slightly,
+	// the same conservatism the sizeMax path applies.
+	for (const rule of dataLabels.positionRules ?? []) {
+		profiles.push({ ...baseProfile, xOffset: rule.xOffset })
+	}
 	// Longest RENDERED label across all rows per distinct template,
 	// composed identically to the layer via `buildLabelText`. In
 	// multi-field mode that's the full template output (wider than any

@@ -1205,7 +1205,27 @@ customizing a setting is. Chart-type toggles (line ↔ area) DO count.
 ### 5.1 Per-axis panel
 The X-axis and Y-axis panels (under Encodings) configure:
 
-- **Spine** — color, thickness.
+- **Spine** — color, thickness. **Set spine at 0** (checkbox): moves
+  THIS panel's own spine — the same line the Color/Thickness rows
+  style — to the PERPENDICULAR scale's zero instead of the plot edge.
+  On the X panel the horizontal spine drops to y = 0; on the Y panel
+  the vertical spine moves to x = 0. Shown only when the perpendicular
+  position variable (its direct field, or the `length` measure when
+  that axis is the implied measure axis) is quantitative with data
+  below 0 — or while already checked, so it can always be unchecked;
+  hidden on the histogram count axis (the binned perpendicular axis is
+  bands, so 0 has no pixel). Only the spine line moves; ticks, labels,
+  and title stay at the edge (and the edge-anchored ticks drop their
+  spine-thickness inset, since there is no spine stroke at the edge to
+  clear). The spine-replaces-coincident-gridline rule (below) tracks
+  the moved position: the gridline at the zero crossing is dropped,
+  and the plot-edge gridline comes back. When 0 falls outside the
+  perpendicular resolved domain (e.g. a pinned min above 0), the spine
+  falls back to the plot edge rather than vanishing. Stored as sparse
+  `AxisConfig.spineAtZero` on the axis whose spine moves; resolved in
+  `components/viz/coords/cartesian.tsx` (the only place holding both
+  scales), so it applies to every cartesian renderer and faceted
+  panels alike. Cartesian only — radar/polar axes never see it.
 - **Tick marks** — color, thickness, length.
 - **Ticks: count + custom breaks** — the Ticks section sets the tick
   layout: **Count** picks the automatic tick density (0 = no automatic
@@ -1484,7 +1504,13 @@ y-title can be set to render horizontally instead of rotated -90°.
 Data labels are a separate layer drawn on top of the chart marks.
 They respect alignment toggles (left / center / right glyph
 buttons), offer position adjusters in px (apply to the whole label
-group along x or y), and have these controls:
+group along x or y), and an **Angle** input (±90°, same convention as
+the axes' tick-label Angle: positive = clockwise) that rotates each
+label — together with its text-background rect — around its own anchor
+point. Rotation is paint-time only: the overlap-avoidance pass and the
+solver's margin reserve still measure the unrotated footprint, and it
+is layer-wide (no first/last split). The layer also has these
+controls:
 
 In the TREE layouts (packed circles / treemap / sunburst) labels are
 placed by the layout itself, not this overlay layer — the panel hides
@@ -1641,6 +1667,17 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   free spot within ~12 rings stays put (best-effort, as elsewhere).
 - **Bar label position** — center / inside-base / inside-end /
   outside-end (only meaningful for bars).
+- **Position rules** (Adjust position → "+ Add rule") — conditional
+  X/Y offsets, evaluated against the label's backing value with the
+  same condition grammar and first-match-wins walk as the text color
+  rules. A matching label uses the rule's X/Y INSTEAD of the base
+  Adjust-position values (they replace, never stack); non-matching
+  labels keep the base offsets. The motivating case is a diverging bar
+  chart labeled outside the bar ends: base Y nudges positive labels up,
+  a `< 0` rule nudges negative labels down. New rules seed with the
+  current base offsets (a no-op until edited). In first-and-last mode
+  an endpoint's own explicit X/Y override wins over a matching rule;
+  an unset endpoint offset inherits the rule-applied one.
 - **Text color rules** — conditional overrides (e.g., white text on
   dark heatmap cells, black on light).
 - **Per-variable colors** (multi-field labels with 2+ variables) — the
@@ -1667,7 +1704,9 @@ margin. Same heuristic the legend uses for its dynamic width. With an
 endpoint selection active, the reserve is computed per active endpoint
 profile (its template / offset / alignment) and the sides take the max
 — so a wide `{value} {series}` last-label template gets the right-edge
-room it actually needs.
+room it actually needs. Position rules contribute one extra profile per
+rule (its X offset over the base template / alignment), so a rule that
+pushes matching labels past an edge still gets margin.
 
 ---
 

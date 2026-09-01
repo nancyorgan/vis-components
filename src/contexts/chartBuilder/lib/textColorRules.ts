@@ -56,11 +56,13 @@ export const parseRule = (
  *  operators (`==`, `!=`) compare numerically when both sides are numbers, and
  *  otherwise fall back to a categorical string match — so a rule like `=="A"`
  *  fires for a categorical value `A`. Returns `null` for nullish / empty values
- *  (e.g. heatmap blank cells) so they never trigger a rule. */
-export const resolveRuleColor = (
-	rules: readonly TextColorRule[] | undefined,
+ *  (e.g. heatmap blank cells) so they never trigger a rule. Generic over the
+ *  rule's payload — text-color rules carry a color, position rules carry X/Y
+ *  offsets — so every conditional-rule feature matches identically. */
+export const firstMatchingRule = <T extends { condition: string }>(
+	rules: readonly T[] | undefined,
 	value: unknown
-): string | null => {
+): T | null => {
 	if (!rules || rules.length === 0) return null
 	let text: string
 	let num: number | null
@@ -95,7 +97,14 @@ export const resolveRuleColor = (
 							? num >= parsed.num
 							: num <= parsed.num
 		}
-		if (passes) return rule.color
+		if (passes) return rule
 	}
 	return null
 }
+
+/** First matching rule's color, or `null` when nothing matches — the
+ *  text-color-specific face of `firstMatchingRule`. */
+export const resolveRuleColor = (
+	rules: readonly TextColorRule[] | undefined,
+	value: unknown
+): string | null => firstMatchingRule(rules, value)?.color ?? null

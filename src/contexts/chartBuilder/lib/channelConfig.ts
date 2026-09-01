@@ -416,6 +416,20 @@ export type AxisConfig = {
 	 * axis. */
 	offsetX?: number
 	offsetY?: number
+	/** "Set spine at 0": draw THIS axis's spine where the PERPENDICULAR
+	 * axis's scale crosses 0, instead of at the plot edge — with negative
+	 * values along x, checking it on the Y panel moves the vertical spine
+	 * from the left edge to x = 0 (and on X, drops the horizontal spine to
+	 * y = 0 when y has negatives). The checkbox lives WITH the spine it
+	 * moves: each panel's Spine section styles one line, and this
+	 * repositions that same line. Only the spine line moves; ticks, labels,
+	 * and title stay at the edge. Surfaced only while the perpendicular
+	 * position variable is quantitative with data below 0, and falls back to
+	 * the edge at render time when 0 lies outside the perpendicular resolved
+	 * domain (a pinned min/max can push it out), so the spine never
+	 * vanishes. Optional so saved visuals load unchanged — absent reads as
+	 * false. */
+	spineAtZero?: boolean
 }
 
 export const DEFAULT_AXIS_CONFIG: AxisConfig = {
@@ -1716,6 +1730,13 @@ export type DataLabelsConfig = {
 	 * doesn't read on every cell in the gradient — e.g. white on dark
 	 * tiles and black on light ones. */
 	textColorRules?: TextColorRule[]
+	/** Conditional overrides for the label's X/Y position offsets, evaluated
+	 * against the same backing value as `textColorRules`. The first matching
+	 * rule's offsets REPLACE `xOffset`/`yOffset` for that label; non-matching
+	 * labels keep the base offsets. Designed for diverging bar charts, where
+	 * labels outside the bar ends need opposite nudges for positive and
+	 * negative bars. */
+	positionRules?: LabelPositionRule[]
 	/** Horizontal text alignment for the label. Maps to SVG `text-anchor`:
 	 *  - `center` (default) → `middle` (label centered on anchor point)
 	 *  - `left` → `start` (label extends right of anchor)
@@ -1724,6 +1745,12 @@ export type DataLabelsConfig = {
 	 *  + a small positive `xOffset` puts the last label cleanly to the
 	 *  right of its point instead of overlapping it. */
 	alignment?: "left" | "center" | "right"
+	/** Rotation in DEGREES applied to each label around its anchor point,
+	 *  same convention as the axes' `tickLabelAngle` (positive = clockwise,
+	 *  clamped to ±90 by the panel). Paint-time only: layout passes (overlap
+	 *  nudge, margin reservation) still measure the unrotated footprint. The
+	 *  text background rect rotates with its text. */
+	textAngle?: number
 	/** When true, long label text wraps onto multiple lines instead of
 	 *  rendering as a single run. The wrap point is chosen by
 	 *  `wrapMaxChars` (see below). SVG `<text>` has no auto-wrap, so the
@@ -1828,6 +1855,18 @@ export type TextColorRule = {
 	color: string
 }
 
+/** A "if the label's value matches this comparison, position it with THESE
+ *  offsets" rule — same condition grammar (and first-match-wins walk) as
+ *  `TextColorRule`. A matching label's X/Y offsets REPLACE the layer-wide
+ *  `xOffset`/`yOffset` (they don't stack), so e.g. labels on negative bars
+ *  can hang below the bar end while positive bars keep the base
+ *  above-the-end nudge. */
+export type LabelPositionRule = {
+	condition: string
+	xOffset: number
+	yOffset: number
+}
+
 export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	color: "#111827",
 	colorOverrides: {},
@@ -1858,7 +1897,9 @@ export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	lastLabel: {},
 	avoidOverlaps: false,
 	textColorRules: [],
+	positionRules: [],
 	alignment: "center",
+	textAngle: 0,
 	wrapText: false,
 	wrapMaxChars: 20,
 	polarLabelRadius: 100,

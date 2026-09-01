@@ -49,6 +49,34 @@ export type CartesianInput = {
 	showYAxisTitle?: boolean
 }
 
+/** Pixel position where `scale` crosses the value 0 — the "Set spine at 0"
+ * target for the OTHER axis's spine. The flag lives on the axis whose SPINE
+ * moves (its panel's checkbox sits with the line it repositions), while the
+ * scale/fieldType here are the PERPENDICULAR axis's: y's flag moves the
+ * vertical y spine to x = 0 on the x scale, x's flag moves the horizontal x
+ * spine to y = 0 on the y scale. Only a quantitative continuous scale yields
+ * a position, and only while 0 falls inside the rendered extent — otherwise
+ * `undefined` keeps the spine at its plot edge, so the checkbox never makes
+ * the spine vanish (e.g. a pinned min above 0). */
+const zeroCrossingPx = (
+	scale: PositionScale | null,
+	fieldType: FieldType | null,
+	atZero: boolean | undefined,
+	edge0: number,
+	edge1: number
+): number | undefined => {
+	if (!atZero || !scale || fieldType !== "quantitative") return undefined
+	// Band / point scales have no meaningful position for the value 0.
+	if (typeof (scale as unknown as { ticks?: unknown }).ticks !== "function") {
+		return undefined
+	}
+	const px = (scale as unknown as (v: number) => number)(0)
+	if (!Number.isFinite(px)) return undefined
+	const lo = Math.min(edge0, edge1)
+	const hi = Math.max(edge0, edge1)
+	return px >= lo && px <= hi ? px : undefined
+}
+
 /** Cartesian coord system: renders one horizontal x-axis and one vertical
  * y-axis around a rectangular inner region using the existing `<Axis>`
  * component. Pass `{ showXAxis: false }` to hide a given axis's decorations
@@ -73,50 +101,78 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 	return {
 		kind: "cartesian",
 		scales,
-		renderAxes: (layer: AxisLayer, inner: PlotInner): ReactNode => (
-			<>
-				{input.xScale && input.xFieldType && (
-					<Axis
-						scale={input.xScale}
-						orientation="x"
-						inner={inner}
-						label={input.xLabel}
-						config={input.xAxisConfig}
-						fieldType={input.xFieldType}
-						maxMeaningfulTicks={input.xMaxTicks}
-						tickFont={input.tickFont}
-						titleFont={input.xAxisTitleFont}
-						showTicksAndLabels={input.showXAxis}
-						layer={layer}
-						titleAlignment={input.xAxisTitleAlignment}
-						showTitle={input.showXAxisTitle ?? true}
-						opposingAxis={
-							yAxisRenders ? { config: input.yAxisConfig } : undefined
-						}
-					/>
-				)}
-				{input.yScale && input.yFieldType && (
-					<Axis
-						scale={input.yScale}
-						orientation="y"
-						inner={inner}
-						label={input.yLabel}
-						config={input.yAxisConfig}
-						fieldType={input.yFieldType}
-						maxMeaningfulTicks={input.yMaxTicks}
-						tickFont={input.tickFont}
-						titleFont={input.yAxisTitleFont}
-						showTicksAndLabels={input.showYAxis}
-						layer={layer}
-						titleAlignment={input.yAxisTitleAlignment}
-						yTitleHorizontal={input.yAxisTitleHorizontal}
-						showTitle={input.showYAxisTitle ?? true}
-						opposingAxis={
-							xAxisRenders ? { config: input.xAxisConfig } : undefined
-						}
-					/>
-				)}
-			</>
-		),
+		renderAxes: (layer: AxisLayer, inner: PlotInner): ReactNode => {
+			// "Set spine at 0" — resolved here because only the coord system
+			// holds both scales at once. Each flag lives on the axis whose OWN
+			// spine moves (the checkbox sits with the line it repositions); the
+			// zero comes from the PERPENDICULAR scale: y's flag places the
+			// vertical y spine at x = 0, x's flag places the horizontal x
+			// spine at y = 0.
+			const ySpineAt = zeroCrossingPx(
+				input.xScale,
+				input.xFieldType,
+				input.yAxisConfig?.spineAtZero,
+				inner.x0,
+				inner.x1
+			)
+			const xSpineAt = zeroCrossingPx(
+				input.yScale,
+				input.yFieldType,
+				input.xAxisConfig?.spineAtZero,
+				inner.y0,
+				inner.y1
+			)
+			return (
+				<>
+					{input.xScale && input.xFieldType && (
+						<Axis
+							scale={input.xScale}
+							orientation="x"
+							inner={inner}
+							label={input.xLabel}
+							config={input.xAxisConfig}
+							fieldType={input.xFieldType}
+							maxMeaningfulTicks={input.xMaxTicks}
+							tickFont={input.tickFont}
+							titleFont={input.xAxisTitleFont}
+							showTicksAndLabels={input.showXAxis}
+							layer={layer}
+							titleAlignment={input.xAxisTitleAlignment}
+							showTitle={input.showXAxisTitle ?? true}
+							spinePosition={xSpineAt}
+							opposingAxis={
+								yAxisRenders
+									? { config: input.yAxisConfig, spinePosition: ySpineAt }
+									: undefined
+							}
+						/>
+					)}
+					{input.yScale && input.yFieldType && (
+						<Axis
+							scale={input.yScale}
+							orientation="y"
+							inner={inner}
+							label={input.yLabel}
+							config={input.yAxisConfig}
+							fieldType={input.yFieldType}
+							maxMeaningfulTicks={input.yMaxTicks}
+							tickFont={input.tickFont}
+							titleFont={input.yAxisTitleFont}
+							showTicksAndLabels={input.showYAxis}
+							layer={layer}
+							titleAlignment={input.yAxisTitleAlignment}
+							yTitleHorizontal={input.yAxisTitleHorizontal}
+							showTitle={input.showYAxisTitle ?? true}
+							spinePosition={ySpineAt}
+							opposingAxis={
+								xAxisRenders
+									? { config: input.xAxisConfig, spinePosition: xSpineAt }
+									: undefined
+							}
+						/>
+					)}
+				</>
+			)
+		},
 	}
 }

@@ -428,6 +428,94 @@ describe("Axis drops gridlines under the opposing spine", () => {
 		})
 		expect(positions).toContain(inner.y1)
 	})
+
+	it("tracks a moved opposing spine (Set spine at 0): drops the gridline at the zero crossing, keeps the edge one", () => {
+		// yScale value 40 → pixel 176 (280 - 0.4·260) — an automatic gridline
+		// position for count 5. With the opposing x spine moved there, THAT
+		// gridline is the one the spine replaces; the plot-floor gridline no
+		// longer sits under a spine and must stay.
+		const positions = gridlinePositions({
+			config: { spine: { color: "#000", thickness: 1 } },
+			spinePosition: 176,
+		})
+		expect(positions).not.toContain(176)
+		expect(positions).toContain(inner.y1)
+	})
+})
+
+describe("Axis spine at a zero crossing (spinePosition)", () => {
+	// "Set spine at 0": with negative values on the opposing axis, the coord
+	// system passes `spinePosition` so the spine crosses the opposing scale
+	// at 0 instead of hugging the plot edge. Only the spine line moves —
+	// ticks and labels stay anchored at the edge.
+	const xScale = scaleLinear().domain([0, 100]).range([inner.x0, inner.x1])
+
+	const renderSpine = (spinePosition?: number) => {
+		const { container } = render(
+			wrapInSvg(
+				<Axis
+					scale={xScale}
+					orientation="x"
+					inner={inner}
+					label=""
+					fieldType="quantitative"
+					config={{
+						tickCount: 5,
+						customFormat: "",
+						tickLabelAngle: 0,
+						jitterAmount: 0,
+						gridlines: {
+							enabled: false,
+							color: "#abcdef",
+							thickness: 1,
+							count: null,
+						},
+						tickmarks: { color: "#000", thickness: 1, length: 5 },
+						spine: { color: "#123456", thickness: 2 },
+						distributionOverlay: {
+							showDensityViolin: false,
+							showBoxPlot: false,
+							showPoints: true,
+							color: "#000",
+							fillColor: "#000",
+							colorOverrides: {},
+							fillColorOverrides: {},
+						},
+						categoricalTickStride: 1,
+					}}
+					spinePosition={spinePosition}
+				/>
+			)
+		)
+		const spines = [...container.querySelectorAll("line")].filter(
+			(l) => l.getAttribute("stroke") === "#123456"
+		)
+		expect(spines).toHaveLength(1)
+		const ticks = [...container.querySelectorAll("line")].filter(
+			(l) => l.getAttribute("stroke") === "#000"
+		)
+		return { spine: spines[0]!, ticks }
+	}
+
+	it("draws the x spine at the plot floor by default", () => {
+		const { spine } = renderSpine(undefined)
+		expect(Number(spine.getAttribute("y1"))).toBe(inner.y1)
+		expect(Number(spine.getAttribute("y2"))).toBe(inner.y1)
+	})
+
+	it("draws the x spine at the given crossing, spanning the full x extent", () => {
+		const { spine, ticks } = renderSpine(150)
+		expect(Number(spine.getAttribute("y1"))).toBe(150)
+		expect(Number(spine.getAttribute("y2"))).toBe(150)
+		expect(Number(spine.getAttribute("x1"))).toBe(inner.x0)
+		expect(Number(spine.getAttribute("x2"))).toBe(inner.x1)
+		// Ticks stay at the plot edge — and lose the spine-thickness inset,
+		// since there's no spine stroke at the edge to clear anymore.
+		expect(ticks.length).toBeGreaterThan(0)
+		for (const t of ticks) {
+			expect(Number(t.getAttribute("y1"))).toBe(inner.y1)
+		}
+	})
 })
 
 describe("Axis categorical tick stride", () => {

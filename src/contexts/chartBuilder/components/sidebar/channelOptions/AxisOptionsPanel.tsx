@@ -99,6 +99,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			undefined
 		),
 		spine: valueChanged(configs[channel]?.spine, themeAxis.spine),
+		spineAtZero: valueChanged(configs[channel]?.spineAtZero, undefined),
 		gridlines: valueChanged(configs[channel]?.gridlines, themeAxis.gridlines),
 		histogram: valueChanged(configs[channel]?.histogram, undefined),
 		distributionOverlay: valueChanged(
@@ -132,7 +133,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			ch.wrapTickLabels ||
 			ch.wrapTickLabelAlign ||
 			(channel !== "r" && ch.offset),
-		Spine: ch.spine,
+		Spine: ch.spine || ch.spineAtZero,
 		Gridlines: ch.gridlines,
 	}
 	// The theme's tick count for this axis — the "reset" target for the
@@ -212,6 +213,42 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	// quantitative axes = a scatter plot, where neither is offered.
 	const otherIsQuantitative =
 		!!otherFieldName && otherEffectiveType === "quantitative"
+
+	// "Set spine at 0" gate: this checkbox moves THIS panel's own spine (the
+	// same line the Color/Thickness rows above it style) to the PERPENDICULAR
+	// scale's zero — so it's offered when the perpendicular position variable
+	// is quantitative with data dipping below zero (otherwise 0 sits at or
+	// beyond the plot edge and the checkbox would be a no-op). The
+	// perpendicular values come from that axis's direct field, or from the
+	// length measure when it's the implied measure axis (bars/areas with the
+	// value on `length`). Raw cells may be strings; coerce the way the scale
+	// will. An already-set flag keeps the checkbox visible even after the
+	// data stops qualifying, so it can always be unchecked.
+	const perpValueFieldName =
+		otherFieldName ??
+		(otherChannel !== null && directFieldName && lengthFieldName
+			? lengthFieldName
+			: null)
+	const perpValueType: FieldType | null = perpValueFieldName
+		? (overrides[perpValueFieldName] ??
+			dataset?.fields.find((f) => f.name === perpValueFieldName)
+				?.inferredType ??
+			"categorical")
+		: null
+	const perpHasNegatives =
+		perpValueFieldName !== null &&
+		perpValueType === "quantitative" &&
+		// An ACTIVE histogram renders the perpendicular axis as bins (a band
+		// scale) — the value 0 has no pixel there, so the checkbox would be
+		// inert on this count axis.
+		!isHistogramMeasureAxis &&
+		(dataset?.rows ?? []).some((r) => {
+			const v = r[perpValueFieldName]
+			const n = typeof v === "number" ? v : Number(v)
+			return Number.isFinite(n) && n < 0
+		})
+	const showSpineAtZero = perpHasNegatives || config.spineAtZero === true
+
 	const isViolinCandidate =
 		channel !== "r" &&
 		!isImpliedMeasureAxis &&
@@ -551,6 +588,22 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						onChange={(s) => update({ spine: s })}
 						theme={theme}
 					/>
+					{showSpineAtZero && (
+						<div className="flex flex-col gap-1">
+							<Toggle
+								label="Set spine at 0"
+								checked={config.spineAtZero === true}
+								onChange={(on) =>
+									update({ spineAtZero: on ? true : undefined })
+								}
+								changed={ch.spineAtZero}
+							/>
+							<span className="vc-help">
+								Moves this spine to {channel === "x" ? "y" : "x"} = 0
+								instead of the edge of the plot.
+							</span>
+						</div>
+					)}
 				</Section>
 			)}
 

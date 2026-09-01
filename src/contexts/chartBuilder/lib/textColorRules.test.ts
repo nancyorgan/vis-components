@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { parseRule, resolveRuleColor } from "./textColorRules"
+import { firstMatchingRule, parseRule, resolveRuleColor } from "./textColorRules"
 
 describe("parseRule", () => {
 	it("parses each operator with and without whitespace", () => {
@@ -78,5 +78,29 @@ describe("resolveRuleColor", () => {
 	it("returns null for an empty / undefined rules list", () => {
 		expect(resolveRuleColor([], 5)).toBeNull()
 		expect(resolveRuleColor(undefined, 5)).toBeNull()
+	})
+})
+
+describe("firstMatchingRule", () => {
+	// Position-rule-shaped payloads — the generic must hand back the WHOLE
+	// rule so callers can read offsets (or any other payload) off the match.
+	const rules = [
+		{ condition: "< 0", xOffset: 0, yOffset: 12 },
+		{ condition: ">= 100", xOffset: 5, yOffset: -12 },
+	]
+
+	it("returns the first matching rule object", () => {
+		expect(firstMatchingRule(rules, -3)).toBe(rules[0])
+		expect(firstMatchingRule(rules, 150)).toBe(rules[1])
+	})
+
+	it("returns null when no rule matches or the value is nullish", () => {
+		expect(firstMatchingRule(rules, 50)).toBeNull()
+		expect(firstMatchingRule(rules, null)).toBeNull()
+		expect(firstMatchingRule(rules, undefined)).toBeNull()
+	})
+
+	it("coerces numeric strings like resolveRuleColor does", () => {
+		expect(firstMatchingRule(rules, "-3")).toBe(rules[0])
 	})
 })

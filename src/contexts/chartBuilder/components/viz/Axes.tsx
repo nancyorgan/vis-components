@@ -75,7 +75,17 @@ type Props = {
 	 * AxisConfig or just the spine/offset fields. */
 	opposingAxis?: {
 		config?: Pick<AxisConfig, "spine" | "offset" | "offsetX" | "offsetY">
+		/** Where the opposing spine actually sits when it has been moved off
+		 * its default plot edge ("Set spine at 0" — see `spinePosition` below).
+		 * The gridline suppression must track the moved spine, not the edge. */
+		spinePosition?: number
 	}
+	/** Perpendicular pixel coordinate to draw this axis's SPINE at, overriding
+	 * the plot-edge default (an x-axis takes a y pixel, a y-axis an x pixel).
+	 * Set by the coord system when THIS axis's `spineAtZero` is on, so its
+	 * spine crosses the OPPOSING scale at 0 instead of hugging the edge.
+	 * Only the spine line moves — ticks, labels, and title stay at the edge. */
+	spinePosition?: number
 }
 
 const DEFAULT_TICK_COUNT = 5
@@ -96,6 +106,7 @@ export const Axis = ({
 	yTitleHorizontal = false,
 	showTitle = true,
 	opposingAxis,
+	spinePosition,
 }: Props) => {
 	const drawBack = layer !== "front"
 	const drawFront = layer !== "back" && showTicksAndLabels
@@ -135,9 +146,12 @@ export const Axis = ({
 	const titleFontStyle = titleFont?.italic ? ("italic" as const) : undefined
 	const titleDecoration = titleFont?.underline ? ("underline" as const) : undefined
 	const isX = orientation === "x"
+	// The spine's perpendicular position — the plot edge unless the coord
+	// system moved it to the opposing scale's zero crossing ("Set spine at 0").
+	const spineAt = spinePosition ?? (isX ? inner.y1 : inner.x0)
 	const axisLine = isX
-		? { x1: inner.x0, y1: inner.y1, x2: inner.x1, y2: inner.y1 }
-		: { x1: inner.x0, y1: inner.y0, x2: inner.x0, y2: inner.y1 }
+		? { x1: inner.x0, y1: spineAt, x2: inner.x1, y2: spineAt }
+		: { x1: spineAt, y1: inner.y0, x2: spineAt, y2: inner.y1 }
 	// "Adjust position" nudge — shifts the spine + ticks + labels + title,
 	// WITHOUT moving the gridlines (which stay pinned to their data
 	// positions). Stored in screen coords (+x right, +y down). The legacy
@@ -268,6 +282,11 @@ export const Axis = ({
 	// aren't showing up unless I change the setting".
 	const tick = { ...DEFAULT_TICKMARK_CONFIG, ...config?.tickmarks }
 	const spine = { ...DEFAULT_SPINE_CONFIG, ...config?.spine }
+	// Ticks start just outside the spine so the strokes don't overlap at the
+	// intersection — but only while the spine actually sits at the plot edge.
+	// A spine moved to a zero crossing leaves the ticks anchored at the edge,
+	// where there's no spine stroke to clear.
+	const tickSpineInset = spinePosition === undefined ? spine.thickness / 2 : 0
 	// "Wrap text": fold long tick labels into multi-line blocks. X labels
 	// wrap to their per-tick slot width; y labels to the fixed max width.
 	// PlotCanvas pre-wraps the panel-input labels the same way, so the
@@ -408,11 +427,15 @@ export const Axis = ({
 		// The opposing spine follows ITS axis's position nudge (same legacy
 		// single-offset fold-in as `axisDx`/`axisDy` above, with the
 		// opposing orientation): only the component along this axis's
-		// gridline direction matters.
+		// gridline direction matters. A spine moved to a zero crossing
+		// ("Set spine at 0") is tracked at its moved position — the gridline
+		// there is the one it replaces, while the edge gridline stays.
 		const oppLegacy = opposingAxis.config?.offset ?? 0
 		const spinePos = isX
-			? inner.x0 + (opposingAxis.config?.offsetX ?? -oppLegacy)
-			: inner.y1 + (opposingAxis.config?.offsetY ?? oppLegacy)
+			? (opposingAxis.spinePosition ?? inner.x0) +
+				(opposingAxis.config?.offsetX ?? -oppLegacy)
+			: (opposingAxis.spinePosition ?? inner.y1) +
+				(opposingAxis.config?.offsetY ?? oppLegacy)
 		return Math.abs(pos - spinePos) > (oppSpine.thickness + grid.thickness) / 2 + 0.01
 	})
 
@@ -446,10 +469,10 @@ export const Axis = ({
 							<line
 								// eslint-disable-next-line react/no-array-index-key -- tick list is recomputed per render; label alone can collide
 								key={`tickmark-${t.label}-${i}`}
-								x1={x + (isX ? 0 : -spine.thickness / 2)}
-								y1={y + (isX ? spine.thickness / 2 : 0)}
-								x2={x + (isX ? 0 : -(tick.length + spine.thickness / 2))}
-								y2={y + (isX ? tick.length + spine.thickness / 2 : 0)}
+								x1={x + (isX ? 0 : -tickSpineInset)}
+								y1={y + (isX ? tickSpineInset : 0)}
+								x2={x + (isX ? 0 : -(tick.length + tickSpineInset))}
+								y2={y + (isX ? tick.length + tickSpineInset : 0)}
 								stroke={tick.color}
 								strokeWidth={tick.thickness}
 							/>
