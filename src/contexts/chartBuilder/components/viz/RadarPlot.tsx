@@ -28,12 +28,14 @@ import { resolveShapeColors } from "../../lib/shapeColors"
 import type { DatasetView, FieldType } from "../../lib/types"
 import {
 	currentAnnotationsAtom,
-	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+} from "../../store/renderConfigs"
 import {
 	useAestheticScales,
 	type AestheticScales,
@@ -95,7 +97,7 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const annotations = useAtomValue(currentAnnotationsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()

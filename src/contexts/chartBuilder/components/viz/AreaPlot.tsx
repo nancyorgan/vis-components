@@ -51,14 +51,16 @@ import { resolveStackMode } from "../../lib/stackMode"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import type { DatasetView, Encodings, FieldType } from "../../lib/types"
 import {
-	currentChannelConfigsAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import {
 	useAestheticScales,
 	type AestheticScales,
@@ -121,11 +123,11 @@ export const resolveAreaMeasureField = (
 export const AreaPlot = (props: AreaPlotProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataLabels = useAtomValue(currentDataLabelsEncodingsAtom)
-	const dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
+	const dataLabelsCfg = useAtomValue(renderDataLabelsConfigAtom)
 	const dataLabelsDecimals = dataLabelsCfg?.decimals ?? null
 	// The mapped value field's Label format spec — layer labels show that
 	// field's aggregate (textValue), so its per-field format applies.

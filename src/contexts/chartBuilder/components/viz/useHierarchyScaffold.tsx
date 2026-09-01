@@ -54,13 +54,15 @@ import {
 	type FieldType,
 } from "../../lib/types"
 import {
-	currentChannelConfigsAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import { useAestheticScales } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import {
@@ -127,11 +129,11 @@ export type HierarchyMarkStyle = {
  */
 export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const dataLabelsCfg: DataLabelsConfig = {
 		...DEFAULT_DATA_LABELS_CONFIG,
-		...useAtomValue(currentDataLabelsConfigAtom),
+		...useAtomValue(renderDataLabelsConfigAtom),
 	}
 	const dataLabelsEnc = {
 		...emptyDataLabelsEncodings(),

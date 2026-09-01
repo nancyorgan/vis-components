@@ -55,6 +55,15 @@ describe("diffFields", () => {
 			{ name: "x", expected: "quantitative", got: "categorical" },
 		])
 	})
+
+	it("allows categorical → quantitative (inference has widened over time)", () => {
+		// A dollar column stored before "$1,234" counted as numeric infers
+		// quantitative today; a byte-identical version upload must still be
+		// compatible. The stored categorical type stays authoritative.
+		const diff = diffFields([c("Revenue")], [q("Revenue")])
+		expect(diff.typeChanged).toEqual([])
+		expect(isCompatible(diff)).toBe(true)
+	})
 })
 
 describe("isCompatible", () => {

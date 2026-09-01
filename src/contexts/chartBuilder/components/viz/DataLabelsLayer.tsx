@@ -41,12 +41,14 @@ import {
 	type FieldType,
 } from "../../lib/types"
 import {
-	currentChannelConfigsAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 /** A pre-computed label position. Renderers like BarPlot / AreaPlot
@@ -411,7 +413,7 @@ export const DataLabelsLayer = ({
 	}
 	const cfg: DataLabelsConfig = {
 		...DEFAULT_DATA_LABELS_CONFIG,
-		...useAtomValue(currentDataLabelsConfigAtom),
+		...useAtomValue(renderDataLabelsConfigAtom),
 	}
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
@@ -443,7 +445,7 @@ export const DataLabelsLayer = ({
 	// apply" — root cause was `cfg.palette.length === 0` causing
 	// `buildLabelHueConfig` to return null. Falling back here means the
 	// labels inherit the chart's hue colors automatically.
-	const chartChannelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const chartChannelConfigs = useAtomValue(renderChannelConfigsAtom)
 	// Text-background fill: an explicit override wins, else inherit the
 	// visualization's own background (white when that's transparent) so the
 	// rect masks gridlines by blending into the chart canvas.

@@ -32,10 +32,12 @@ import {
 } from "../../lib/patterns"
 import { applyHueScale, makeHueScale } from "../../lib/scales"
 import {
-	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+} from "../../store/renderConfigs"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useThemeInkFallback } from "../../store/useThemeInkFallback"
 import {
@@ -62,7 +64,7 @@ export type FlowEdgeStyle = { fill: string; opacity: number }
  */
 export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const dataset = useCurrentDatasetView()
 	const themeInkFallback = useThemeInkFallback()

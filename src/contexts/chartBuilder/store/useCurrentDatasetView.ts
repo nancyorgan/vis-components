@@ -1,5 +1,6 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useEffect } from "react"
+import { applyDollarConversionToView } from "../lib/dollarCells"
 import { applyPercentConversionToView } from "../lib/percentCells"
 import { applyReshapeToView } from "../lib/reshape"
 import {
@@ -69,13 +70,18 @@ const reshapedDatasetViewAtom = atom((get): DatasetView | undefined =>
 /** The dataset view the editor renders: the raw view with the per-visual
  * wide→long reshape applied when active, then percent-formatted cells
  * ("14%") converted to numeric fractions ("0.14") in columns the user has
- * overridden to quantitative. A derived atom rather than a per-component
- * derive so the view (and its `fields`/`rows` arrays) keeps a stable
- * identity between store updates — memos and effects may key on it
- * safely. */
+ * overridden to quantitative, then dollar/comma-formatted cells
+ * ("$1,234.56") converted to plain numeric strings in effectively-
+ * quantitative columns (tagging those fields with the "dollar" format
+ * hint). A derived atom rather than a per-component derive so the view
+ * (and its `fields`/`rows` arrays) keeps a stable identity between store
+ * updates — memos and effects may key on it safely. */
 export const currentDatasetViewAtom = atom((get): DatasetView | undefined =>
-	applyPercentConversionToView(
-		get(reshapedDatasetViewAtom),
+	applyDollarConversionToView(
+		applyPercentConversionToView(
+			get(reshapedDatasetViewAtom),
+			get(currentFieldOverridesAtom)
+		),
 		get(currentFieldOverridesAtom)
 	)
 )

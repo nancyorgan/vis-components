@@ -20,17 +20,19 @@ import {
 } from "../../lib/labelsConfig"
 import { chunkColumns, planLegendSections } from "../../lib/legendSections"
 import {
-	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
-	currentLegendConfigAtom,
 	currentThemeIdAtom,
 	currentTooltipConfigAtom,
 	themeAtom,
 	themesAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderLegendConfigAtom,
+} from "../../store/renderConfigs"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { LegendSection } from "./legend/LegendSection"
 import { LegendColumns } from "./legend/swatches"
@@ -86,7 +88,7 @@ export const Legend = ({
 }: LegendOuterProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const configs = useAtomValue(currentChannelConfigsAtom)
+	const configs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	// Legend-hover highlighting is on only when BOTH the "Show hover" master
 	// toggle and its "highlight visual elements" sub-option are enabled (both
@@ -117,7 +119,7 @@ export const Legend = ({
 	const theme = liveTheme ?? storedTheme
 	const legendCfg: LegendConfig = {
 		...DEFAULT_LEGEND_CONFIG,
-		...useAtomValue(currentLegendConfigAtom),
+		...useAtomValue(renderLegendConfigAtom),
 	}
 	// Effective auxiliary swatch color: per-visual override wins, theme
 	// default is the fallback (every theme defines `legendSwatchColor`).

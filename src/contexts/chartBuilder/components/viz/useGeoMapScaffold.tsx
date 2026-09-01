@@ -26,12 +26,14 @@ import {
 	type Encodings,
 } from "../../lib/types"
 import {
-	currentChannelConfigsAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentMapConfigAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import {
 	useAestheticScales,
 	type AestheticFieldInfo,
@@ -189,7 +191,7 @@ export const useGeoMapScaffold = (
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const mapConfig = useAtomValue(currentMapConfigAtom)
 	const setMapConfig = useSetAtom(currentMapConfigAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const dataset = useCurrentDatasetView()
 	const aestheticScales = useAestheticScales()
 	const [hovered, setHovered] = useState<HoverState | null>(null)
@@ -353,7 +355,7 @@ export const useGeoMapScaffold = (
 	}
 	const dataLabelsCfg = {
 		...DEFAULT_DATA_LABELS_CONFIG,
-		...useAtomValue(currentDataLabelsConfigAtom),
+		...useAtomValue(renderDataLabelsConfigAtom),
 	}
 	const labelField = dataLabelsEncodings.geography?.field ?? null
 	// Mirror the layer's own gate (geography + value both required) so we

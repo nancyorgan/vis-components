@@ -1,3 +1,4 @@
+import { parseDollarCell } from "./dollarCells"
 import type { FieldType } from "./types"
 
 const SAMPLE_SIZE = 50
@@ -5,7 +6,14 @@ const SAMPLE_SIZE = 50
 const isNumeric = (value: string): boolean => {
 	if (value.trim() === "") return false
 	const n = Number(value)
-	return Number.isFinite(n)
+	if (Number.isFinite(n)) return true
+	// Dollar/comma-formatted numbers ("$1,234.56", "1,234") count as numeric
+	// so those columns infer quantitative; the view-level conversion
+	// (`applyDollarConversionToView`) turns the cells into plain numeric
+	// strings before anything downstream parses them. Percent cells ("14%")
+	// deliberately do NOT match — a "%" column still infers categorical, and
+	// only converts when the user overrides it (see percentCells.ts).
+	return parseDollarCell(value) !== null
 }
 
 const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"

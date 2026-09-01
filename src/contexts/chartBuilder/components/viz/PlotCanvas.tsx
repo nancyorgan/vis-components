@@ -31,9 +31,7 @@ import { PLOT_SVG_ID } from "../../lib/captureThumbnail"
 import {
 	currentAnnotationsAtom,
 	currentCaptionConfigAtom,
-	currentChannelConfigsAtom,
 	currentRenderedCaptionBoxAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
@@ -43,6 +41,10 @@ import {
 	currentRenderedFigureSlackAtom,
 	currentRenderedPanelInnerDimsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import { DEFAULT_DATA_LABELS_CONFIG } from "../../lib/channelConfig"
 import type { FieldType } from "../../lib/types"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
@@ -92,12 +94,12 @@ export const PlotCanvas = () => {
 	const dataset = useCurrentDatasetView()
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const mapConfig = useAtomValue(currentMapConfigAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const dataLabels = {
 		...DEFAULT_DATA_LABELS_CONFIG,
-		...useAtomValue(currentDataLabelsConfigAtom),
+		...useAtomValue(renderDataLabelsConfigAtom),
 	}
 	const dataLabelsEncodings = useAtomValue(currentDataLabelsEncodingsAtom)
 	const annotations = useAtomValue(currentAnnotationsAtom)

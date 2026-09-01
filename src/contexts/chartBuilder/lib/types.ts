@@ -19,6 +19,13 @@ export const ENCODING_CHANNEL_LABELS: Record<EncodingChannel, string> =
 export type Field = {
 	name: string
 	inferredType: FieldType
+	/** Display-format hint derived at VIEW time (see
+	 * `applyDollarConversionToView`): "dollar" marks a quantitative column
+	 * whose raw cells were dollar-formatted ("$1,234.56"), cueing the
+	 * render-side default currency formatting for axes / labels / legends.
+	 * Never set on stored dataset fields — it exists only on the derived
+	 * `DatasetView`, so it never feeds content hashes or version compat. */
+	formatHint?: "dollar"
 }
 
 /** A CSV the user has dropped/selected but not yet committed — sits in state

@@ -22,14 +22,16 @@ import { applyLevelOrder } from "../../lib/smartSort"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import { formatTextValue, resolveTextColor } from "../../lib/textEncoding"
 import {
-	currentChannelConfigsAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import { useAestheticScales } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
@@ -164,11 +166,11 @@ const aggregateCells = (
 export const TilePlot = (props: TilePlotProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataLabels = useAtomValue(currentDataLabelsEncodingsAtom)
-	const dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
+	const dataLabelsCfg = useAtomValue(renderDataLabelsConfigAtom)
 	const dataLabelsDecimals = dataLabelsCfg?.decimals ?? null
 	// The mapped value field's Label format spec — cell labels show that
 	// field's per-cell aggregate, so its per-field format applies.

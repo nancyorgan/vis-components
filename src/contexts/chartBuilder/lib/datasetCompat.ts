@@ -24,6 +24,16 @@ export const diffFields = (
 	for (const f of candidate) {
 		const prior = existingByName.get(f.name)
 		if (prior && prior.inferredType !== f.inferredType) {
+			// categorical → quantitative is non-blocking: inference has widened
+			// over time (dollar/comma cells like "$1,234" now infer
+			// quantitative), so a byte-identical re-upload of a column stored
+			// under the OLD inference must not read as a type change. The
+			// dataset's stored type stays authoritative, and quantitative
+			// values always render fine as categories — the guard only matters
+			// in the other direction (a quantitative column turning
+			// non-numeric would break every chart using it as a measure).
+			if (prior.inferredType === "categorical" && f.inferredType === "quantitative")
+				continue
 			typeChanged.push({
 				name: f.name,
 				expected: prior.inferredType,

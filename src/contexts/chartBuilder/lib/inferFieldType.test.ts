@@ -98,6 +98,22 @@ describe("inferFieldType", () => {
 		expect(inferFieldType(["Sales 2023", "Sales 2024"])).toBe("categorical")
 	})
 
+	it("returns 'quantitative' for dollar- and comma-formatted numbers", () => {
+		expect(inferFieldType(["$1,234.56", "$789", "-$12,000"])).toBe(
+			"quantitative"
+		)
+		expect(inferFieldType(["1,234", "56", "12,345,678"])).toBe("quantitative")
+		expect(inferFieldType(["($1,234)", "$5.50"])).toBe("quantitative")
+	})
+
+	it("does NOT treat malformed comma grouping or percents as numeric", () => {
+		// "1,23" is a European decimal comma — grouping must be strict 3s.
+		expect(inferFieldType(["1,23", "4,56"])).toBe("categorical")
+		// Percent columns stay categorical: their conversion is override-driven
+		// (see percentCells.ts), unlike the automatic dollar conversion.
+		expect(inferFieldType(["14%", "25%"])).toBe("categorical")
+	})
+
 	it("still recognizes common real date formats", () => {
 		expect(inferFieldType(["2024-01", "2024-02", "2024-03"])).toBe("temporal")
 		expect(inferFieldType(["01/15/2024", "02/20/2024"])).toBe("temporal")

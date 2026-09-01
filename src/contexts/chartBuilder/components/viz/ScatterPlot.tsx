@@ -26,14 +26,16 @@ import {
 } from "../../lib/scales"
 import type { Encodings } from "../../lib/types"
 import {
-	currentChannelConfigsAtom,
-	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderDataLabelsConfigAtom,
+} from "../../store/renderConfigs"
 import { useAestheticScales } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
@@ -75,7 +77,7 @@ type ScatterPlotProps = ScatterRendererProps
 export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	// The user-defined category order for the draw-order field (if any), so
 	// draw order ranks categories the way the legend lists them rather than
@@ -88,7 +90,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 	// hook order stays stable across the dataset / missing-field guards
 	// below — react-hooks/rules-of-hooks won't accept them inline beside
 	// the margin computation later.
-	const _dataLabelsCfg = useAtomValue(currentDataLabelsConfigAtom)
+	const _dataLabelsCfg = useAtomValue(renderDataLabelsConfigAtom)
 	const _dataLabelsEncodings = useAtomValue(currentDataLabelsEncodingsAtom)
 	const dataset = useCurrentDatasetView()
 	const aestheticScales = useAestheticScales()

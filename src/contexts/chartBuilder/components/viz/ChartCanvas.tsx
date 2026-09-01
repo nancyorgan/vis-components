@@ -8,11 +8,13 @@ import {
 } from "../../lib/labelsConfig"
 import { BASE_MARGIN, subtitleReserve, titleReserve } from "../../lib/plotLayout"
 import {
-	currentChannelConfigsAtom,
 	currentLabelsAtom,
-	currentLegendConfigAtom,
 	currentRenderedFigureSlackAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+	renderLegendConfigAtom,
+} from "../../store/renderConfigs"
 import {
 	useCurrentDatasetStatus,
 	useCurrentDatasetView,
@@ -49,7 +51,7 @@ const SpinnerIcon = () => (
 export const ChartBody = () => {
 	const dataset = useCurrentDatasetView()
 	const status = useCurrentDatasetStatus()
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const bgStyle: React.CSSProperties | undefined =
 		channelConfigs.backgroundColor
 			? { backgroundColor: channelConfigs.backgroundColor }
@@ -121,10 +123,10 @@ export const ChartBody = () => {
 
 export const ChartCanvas = () => {
 	const dataset = useCurrentDatasetView()
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const legendCfg: LegendConfig = {
 		...DEFAULT_LEGEND_CONFIG,
-		...useAtomValue(currentLegendConfigAtom),
+		...useAtomValue(renderLegendConfigAtom),
 	}
 	const figureSlack = useAtomValue(currentRenderedFigureSlackAtom)
 	const bgStyle: React.CSSProperties | undefined =

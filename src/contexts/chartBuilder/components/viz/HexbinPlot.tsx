@@ -23,11 +23,13 @@ import {
 	overrideLinearDomain,
 } from "../../lib/scales"
 import {
-	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../store/atoms"
+import {
+	renderChannelConfigsAtom,
+} from "../../store/renderConfigs"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 import { Plot, type CoordFactory } from "./Plot"
@@ -35,7 +37,7 @@ import { Plot, type CoordFactory } from "./Plot"
 export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const dataset = useCurrentDatasetView()
 
