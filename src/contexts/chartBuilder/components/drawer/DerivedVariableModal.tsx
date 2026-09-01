@@ -387,7 +387,7 @@ const DerivedVariableEditor = ({
 								onInsert={(f) => insertToken(formulaRef, formula, setFormula, f)}
 							/>
 						</div>
-						<p className="text-xs text-stone-500 dark:text-stone-400">
+						<p className="vc-help">
 							Reference variables in braces and combine with add (+), subtract (-), multiply (*), divide (/) and
 							parentheses, e.g.{" "}
 							<code className="font-mono">{"({A} - {B}) * 100"}</code>. Every
@@ -414,7 +414,7 @@ const DerivedVariableEditor = ({
 								}
 							/>
 						</div>
-						<p className="text-xs text-stone-500 dark:text-stone-400">
+						<p className="vc-help">
 							Reference variables in braces, e.g.{" "}
 							<code className="font-mono">{"{Region} / {Year}"}</code>. Text
 							outside braces is kept as typed.
@@ -505,7 +505,7 @@ const DerivedVariableEditor = ({
 						>
 							+ Add rule
 						</button>
-						<p className="text-xs text-stone-500 dark:text-stone-400">
+						<p className="vc-help">
 							Rules run top to bottom; the first match wins. Compare with{" "}
 							<code className="font-mono">{"> < >= <= == !="}</code>, combine
 							with AND / OR, and reference variables in braces, e.g.{" "}

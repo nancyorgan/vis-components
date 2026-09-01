@@ -158,6 +158,44 @@ describe("applyDollarConversionToView", () => {
 		])
 	})
 
+	it("records the original cell text on the field for the data tray", () => {
+		const view = makeView(
+			[
+				{ Revenue: "$1,234.56" },
+				{ Revenue: "($900)" },
+				{ Revenue: "42" },
+				{ Revenue: "" },
+			],
+			[{ name: "Revenue", inferredType: "quantitative" }]
+		)
+		const out = applyDollarConversionToView(view, {})
+		const display = out?.fields[0]?.displayCells
+		expect(display?.["1234.56"]).toBe("$1,234.56")
+		expect(display?.["-900"]).toBe("($900)")
+		// Cells that never converted get no entry — the tray shows them as-is.
+		expect(display && Object.hasOwn(display, "42")).toBe(false)
+		expect(display && Object.hasOwn(display, "")).toBe(false)
+	})
+
+	it("keeps comma grouping for comma-only columns (no dollar hint)", () => {
+		const view = makeView(
+			[{ Count: "1,234" }],
+			[{ name: "Count", inferredType: "quantitative" }]
+		)
+		const out = applyDollarConversionToView(view, {})
+		expect(out?.fields[0]?.formatHint).toBeUndefined()
+		expect(out?.fields[0]?.displayCells?.["1234"]).toBe("1,234")
+	})
+
+	it("keeps the first spelling when two cells share a value", () => {
+		const view = makeView(
+			[{ Revenue: "$1,234.50" }, { Revenue: "$1,234.5" }],
+			[{ name: "Revenue", inferredType: "quantitative" }]
+		)
+		const out = applyDollarConversionToView(view, {})
+		expect(out?.fields[0]?.displayCells?.["1234.5"]).toBe("$1,234.50")
+	})
+
 	it("returns the same view object when nothing converts", () => {
 		const view = makeView(
 			[{ Value: "12", Name: "a" }],

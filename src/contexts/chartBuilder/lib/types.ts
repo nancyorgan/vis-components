@@ -36,6 +36,14 @@ export type Field = {
 	 * Never set on stored dataset fields — it exists only on the derived
 	 * `DatasetView`, so it never feeds content hashes or version compat. */
 	formatHint?: "dollar"
+	/** Original cell text for the cells this column's dollar/comma
+	 * conversion rewrote, keyed by the converted numeric string ("1234.56"
+	 * -> "$1,234.56"). Lets the data tray show the column exactly as it was
+	 * imported while every consumer downstream still reads plain numbers.
+	 * Only populated for converted cells — a plain "500" in a dollar column
+	 * has no entry and displays unchanged. VIEW-time only, like
+	 * `formatHint`. */
+	displayCells?: Record<string, string>
 	/** Marks a column minted by a per-visual derived variable (see
 	 * lib/derivedVariables.ts) so the Fields panel and data tray can badge it
 	 * and route edits to the derived-variable editor. Like `formatHint`, this

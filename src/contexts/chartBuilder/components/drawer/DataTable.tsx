@@ -2,7 +2,7 @@ import { useAtomValue, useSetAtom } from "jotai"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { effectiveDerivedName } from "../../lib/derivedVariables"
 import { compareByType } from "../../lib/drawOrder"
-import type { FieldType } from "../../lib/types"
+import type { Field, FieldType } from "../../lib/types"
 import {
 	currentDerivedVariablesAtom,
 	derivedVariableEditorAtom,
@@ -68,6 +68,18 @@ const alignmentClasses = (alignment: ColumnAlignment): string => {
 			return "text-left"
 		}
 	}
+}
+
+/** The text a cell shows. Dollar/comma columns are stored in the view as
+ * plain numbers ("1234.56") so scales and formulas can read them; the tray
+ * renders them back through the field's `displayCells` map so the column
+ * still reads the way it was imported ("$1,234.56"). Cells that weren't
+ * converted have no entry and show their stored value. */
+const displayCell = (field: Field, value: string | undefined): string => {
+	if (value == null) return ""
+	const display = field.displayCells
+	if (!display || !Object.hasOwn(display, value)) return value
+	return display[value] ?? value
 }
 
 export const DataTable = () => {
@@ -329,7 +341,7 @@ export const DataTable = () => {
 											alignment
 										)}`}
 									>
-										{row[f.name] ?? ""}
+										{displayCell(f, row[f.name])}
 									</td>
 								)
 							})}

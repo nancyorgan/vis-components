@@ -1,4 +1,4 @@
-import type { DatasetView, FieldType } from "./types"
+import type { DatasetView, Field, FieldType } from "./types"
 
 /** A successfully parsed dollar/comma-formatted cell. `dollar` records
  * whether the cell carried a "$" — that's what drives the default dollar
@@ -60,6 +60,10 @@ export const parseDollarCell = (raw: unknown): FormattedNumericCell | null => {
  * format defaults (see `dollarFormatDefaults.ts`). The hint lives only on
  * the derived view; stored dataset fields never carry it.
  *
+ * Each converted column also carries `displayCells` on the view's field —
+ * converted value -> original cell text — so the data tray can show the
+ * column exactly as imported without anything downstream losing the number.
+ *
  * Non-formatted cells in a converted column pass through untouched.
  * Pass-through (same object) when nothing converts, so the view keeps a
  * stable identity. */
@@ -86,18 +90,44 @@ export const applyDollarConversionToView = (
 		if (sawFormatted) convert.set(f.name, sawDollar)
 	}
 	if (convert.size === 0) return view
+	// Converted numeric string -> the original cell text, per column. The
+	// data tray renders through this so a column still READS the way it was
+	// imported ("$1,234.56") while every consumer downstream — scales,
+	// aggregators, formulas — sees the plain number. Keyed by value rather
+	// than row index so it survives sorting and the later view stages; two
+	// spellings of one value ("$1,234.5" / "$1,234.50") collapse to whichever
+	// row came first, which is the same call the column's own formatting
+	// would make.
+	const displays = new Map<string, Map<string, string>>()
 	const rows = view.rows.map((row) => {
 		let out = row
 		for (const name of convert.keys()) {
-			const cell = parseDollarCell(row[name])
+			const raw = row[name]
+			const cell = parseDollarCell(raw)
 			if (!cell) continue
 			if (out === row) out = { ...row }
-			out[name] = String(cell.value)
+			const text = String(cell.value)
+			out[name] = text
+			let column = displays.get(name)
+			if (!column) {
+				column = new Map<string, string>()
+				displays.set(name, column)
+			}
+			if (!column.has(text)) column.set(text, String(raw).trim())
 		}
 		return out
 	})
-	const fields = view.fields.map((f) =>
-		convert.get(f.name) ? { ...f, formatHint: "dollar" as const } : f,
-	)
+	const fields = view.fields.map((f) => {
+		if (!convert.has(f.name)) return f
+		const next: Field = { ...f }
+		if (convert.get(f.name)) next.formatHint = "dollar"
+		const column = displays.get(f.name)
+		// A plain record, not the Map: `Field` has to stay JSON-shaped (it
+		// shares a type with the stored, hashed dataset fields).
+		// `Object.fromEntries` defines own properties, so a stray "__proto__"
+		// key can't reach the prototype.
+		if (column) next.displayCells = Object.fromEntries(column)
+		return next
+	})
 	return { ...view, fields, rows }
 }
