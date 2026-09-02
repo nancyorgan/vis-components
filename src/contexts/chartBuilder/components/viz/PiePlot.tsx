@@ -522,6 +522,9 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 								labelRadiusPct: dataLabelsRadiusPct,
 								labelAngleDeg: dataLabelsCfg?.polarLabelAngle,
 								valueFieldMapped,
+								sliceOpacity: (groupValues) =>
+									groupHighlight(legendHighlight, groupValues, aestheticScales)
+										.opacityMul,
 							})}
 						/>
 					)}
@@ -603,6 +606,9 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 							rows: rowsForChart,
 							arc: resolvePieArc(channelConfigs.angle),
 							valueFieldMapped,
+							sliceOpacity: (groupValues) =>
+								groupHighlight(legendHighlight, groupValues, aestheticScales)
+									.opacityMul,
 						})}
 					/>
 				)}
@@ -750,6 +756,7 @@ export const buildPieAnchors = ({
 	labelRadiusPct,
 	labelAngleDeg,
 	valueFieldMapped,
+	sliceOpacity,
 }: {
 	stacks: Stack[]
 	pieCenters: ReadonlyArray<{
@@ -782,6 +789,10 @@ export const buildPieAnchors = ({
 	 * render no label (sparse labeling) instead of falling back to the
 	 * wedge's measure. */
 	valueFieldMapped?: boolean
+	/** Legend-hover fade for the wedge a label annotates (1 = no fade), so a
+	 * label recedes with its own wedge. Resolved by the caller, which holds
+	 * the highlight state and the aesthetic scales. */
+	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
 }): DataLabelAnchor[] => {
 	const anchors: DataLabelAnchor[] = []
 	const midRadius = pieRadius * ((labelRadiusPct ?? 100) / 100)
@@ -861,6 +872,7 @@ export const buildPieAnchors = ({
 				label: formatted,
 				hueValue,
 				sizeValue,
+				opacityMul: sliceOpacity?.(slice.groupValues),
 			})
 		})
 	})

@@ -366,7 +366,6 @@ const DerivedVariableEditor = ({
 
 				<RadioGroup
 					legend="Function"
-					orientation="horizontal"
 					value={kind}
 					options={KIND_OPTIONS}
 					onChange={setKind}
@@ -507,7 +506,7 @@ const DerivedVariableEditor = ({
 						</button>
 						<p className="vc-help">
 							Rules run top to bottom; the first match wins. Compare with{" "}
-							<code className="font-mono">{"> < >= <= == !="}</code>, combine
+							<code className="font-mono">{"> < >= <= == !="}</code>. Combine
 							with AND / OR, and reference variables in braces, e.g.{" "}
 							<code className="font-mono">{'{Region} == "West"'}</code> or{" "}
 							<code className="font-mono">{"1 < {B} OR {B} < 2"}</code>.

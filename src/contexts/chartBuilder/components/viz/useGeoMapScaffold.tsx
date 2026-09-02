@@ -396,6 +396,7 @@ export const useGeoMapScaffold = (
 			keyType: labelKeyType,
 			project: m.project,
 			inClip: m.inClip,
+			rowOpacity: (row) => markHighlight(row).opacityMul,
 		})
 		// Open-space preference for the overlap spread: displaced labels drift
 		// toward ocean / no-data regions rather than onto data-carrying ones.

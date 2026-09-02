@@ -49,6 +49,7 @@ import {
 	renderChannelConfigsAtom,
 	renderDataLabelsConfigAtom,
 } from "../../store/renderConfigs"
+import { rowHighlight, useLegendHighlight } from "../../store/useLegendHighlight"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 /** A pre-computed label position. Renderers like BarPlot / AreaPlot
@@ -76,6 +77,11 @@ export type DataLabelAnchor = {
 	 * sufficient because rules compare against the underlying number, not
 	 * its rounded/decimaled display form. */
 	labelValue?: unknown
+	/** Legend-hover fade multiplier for this anchor's mark (1 = fully
+	 * opaque). Aggregating renderers resolve it from their own slice
+	 * highlight so a label recedes with the slice it annotates instead of
+	 * staying bright over a faded bar / area / wedge. Unset → no fade. */
+	opacityMul?: number
 }
 
 type Props = {
@@ -130,6 +136,9 @@ type RenderableLabel = {
 	segments?: { text: string; fill: string }[]
 	/** Per-box alignment override (endpoint labels). Unset → `cfg.alignment`. */
 	alignment?: "left" | "center" | "right"
+	/** Legend-hover fade for this label (1 / unset = no fade). Mirrors the
+	 * fade applied to the mark the label annotates. */
+	opacityMul?: number
 }
 
 /** Map an alignment value onto the SVG `text-anchor` it renders as. */
@@ -336,6 +345,15 @@ const renderLabels = (
 				return (
 					<g
 						key={b.key}
+						// Legend-hover fade: a label recedes with its mark, so
+						// hovering one series leaves only that series' labels
+						// legible. Left off entirely at full opacity so the
+						// non-hover render is unchanged.
+						opacity={
+							b.opacityMul != null && b.opacityMul < 1
+								? b.opacityMul
+								: undefined
+						}
 						transform={
 							textAngle !== 0
 								? `rotate(${textAngle} ${b.cx} ${b.cy})`
@@ -417,6 +435,11 @@ export const DataLabelsLayer = ({
 	}
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
+	// Legend / mark hover: a label must fade with the mark it annotates. The
+	// row-based path resolves it per row here; the anchor path can't (a slice
+	// spans many rows), so aggregating renderers hand the fade down on each
+	// anchor's `opacityMul`.
+	const legendHighlight = useLegendHighlight()
 	// When wrapping is on, the overlap pass (`nudgeOverlaps`) must reserve
 	// each label's WRAPPED footprint — narrower and taller than the raw
 	// single-line string — or it would collide-check a phantom one-line box.
@@ -527,6 +550,7 @@ export const DataLabelsLayer = ({
 		type RenderBox = EndpointAwareBox & {
 			key: string
 			fill: string
+			opacityMul?: number
 		}
 		const renderBoxes: RenderBox[] = anchors.flatMap((a, i) => {
 			if (a.label === null) return []
@@ -560,6 +584,7 @@ export const DataLabelsLayer = ({
 					key: a.key,
 					fill,
 					label: a.label,
+					opacityMul: a.opacityMul,
 				},
 			]
 		})
@@ -631,6 +656,10 @@ export const DataLabelsLayer = ({
 					y2={seg.y2}
 					stroke={cfg.leaderLineColor ?? "#999999"}
 					strokeWidth={leaderWidth}
+					// Fades with the label it points at (legend hover).
+					opacity={
+						b.opacityMul != null && b.opacityMul < 1 ? b.opacityMul : undefined
+					}
 				/>,
 			]
 		})
@@ -680,6 +709,7 @@ export const DataLabelsLayer = ({
 	type RenderBox = EndpointAwareBox & {
 		key: string
 		fill: string
+		opacityMul?: number
 		/** Per-variable colored pieces (multi-field mode with field colors).
 		 *  When set, `renderLabels` draws one `<tspan>` per segment with its
 		 *  own fill instead of the single-color `label`. */
@@ -813,6 +843,9 @@ export const DataLabelsLayer = ({
 				fill,
 				label,
 				segments,
+				// `rowHighlight` guards on the hovered field being a column of
+				// the row, so an unrelated legend hover leaves labels alone.
+				opacityMul: rowHighlight(legendHighlight, row).opacityMul,
 			},
 		]
 	})

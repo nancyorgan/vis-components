@@ -97,7 +97,12 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 	const legendHighlight = useLegendHighlight()
 	// Direct mark hover highlights the point's series (by the hue field), so
 	// hovering a point recolors / outlines / fades like hovering its legend.
-	const markHoverField = aestheticScales.hue?.field.name ?? null
+	// With no hue mapped, the CONNECTION field is the series identity — that's
+	// the plain line chart (x + y + connection, no color encoding), where the
+	// thing the user points at is one line among several. Same fallback the
+	// radar renderer uses for its polygons.
+	const markHoverField =
+		aestheticScales.hue?.field.name ?? encodings.connection?.field ?? null
 	const markHover = useMarkHoverHighlight(markHoverField)
 	const publishHover = (row: Record<string, unknown>) =>
 		markHover.enter(markHoverField ? row[markHoverField] : undefined)
@@ -710,7 +715,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					aestheticScales.colorSlots.stem,
 					channelConfigs.colorSlots?.stem,
 					slotOpacityResolver("stem", channelConfigs, aestheticScales),
-					connectionColor
+					connectionColor,
+					legendHighlight
 				)}
 				{renderConnectionLines(
 					jitteredMarks,
@@ -725,7 +731,9 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					drawOrderLevels,
 					aestheticScales.hue?.field.type,
 					aestheticScales.themeInkFallback,
-					setHovered
+					setHovered,
+					legendHighlight,
+					publishHover
 				)}
 				{renderMarkPaths({
 					marks: sortByDrawOrder(
@@ -752,7 +760,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 				{renderTextLabels(
 					jitteredMarks,
 					encodings.text?.field ?? null,
-					channelConfigs
+					channelConfigs,
+					legendHighlight
 				)}
 				<DataLabelsLayer
 					rows={rowsForChart}

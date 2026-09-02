@@ -28,6 +28,10 @@ import {
 import { splitPolylineAtRange } from "../../../lib/dashRange"
 import type { DatasetView, Encodings, FieldType } from "../../../lib/types"
 import type { AestheticScales } from "../../../store/useAestheticScales"
+import {
+	rowHighlight,
+	type LegendHighlight,
+} from "../../../store/useLegendHighlight"
 import type { HoverState, Mark } from "./types"
 
 /** Group marks by connection-field value and draw one polyline per group.
@@ -59,6 +63,7 @@ type LineVisualProps = {
 	 *  still captures pointer events; visible lines never set this. */
 	pointerEvents?: "stroke"
 	onMouseMove?: (e: React.MouseEvent<SVGElement>) => void
+	onMouseEnter?: () => void
 	onMouseLeave?: () => void
 }
 
@@ -96,7 +101,16 @@ export const renderConnectionLines = (
 	 *  hit stroke that publishes a HoverTooltip showing the connection value
 	 *  plus every field constant across the series. Omitted = lines stay
 	 *  non-interactive (export/thumbnail captures). */
-	setHovered?: (h: HoverState | null) => void
+	setHovered?: (h: HoverState | null) => void,
+	/** Legend / mark-hover highlight. A line recedes with its series when
+	 *  another one is hovered — fade only, since a line's color comes from
+	 *  its own independent Line color slot (same reasoning as the stems). */
+	highlight: LegendHighlight | null = null,
+	/** Publish the hovered LINE's series to the highlight atom, so pointing
+	 *  at a line highlights it exactly like pointing at one of its points.
+	 *  On a line chart the line IS the mark the user aims for — the points
+	 *  are often small or sampled away entirely. */
+	publishHover?: (row: Record<string, unknown>) => void
 ) => {
 	const connectionField = encodings.connection?.field ?? null
 	if (!connectionField) return null
@@ -283,6 +297,9 @@ export const renderConnectionLines = (
 						strokeLinecap: strokeCap,
 						strokeLinejoin: "round",
 						pointerEvents: "stroke",
+						// The highlight publishes ONCE on enter; the tooltip
+						// tracks the pointer on move (below).
+						onMouseEnter: () => publishHover?.(sorted[0]?.row ?? {}),
 						// mousemove (not enter) so the tooltip follows the pointer
 						// along the line instead of sticking at the entry point.
 						onMouseMove: (e) =>
@@ -314,12 +331,32 @@ export const renderConnectionLines = (
 				lineSlot,
 				slotRow: sorted[0]?.row ?? { [connectionField]: groupValue },
 			})
+			// Legend / mark-hover highlight for this SERIES, resolved off its
+			// representative row — the same first-row convention `stroke` and
+			// the dash-gap hue sampling already use (the hovered field is a
+			// series-level attribute in practice). The matched line takes the
+			// same treatment as its points: recolored to the highlight fill,
+			// outlined-and-thickened when outline is on, and faded when it's
+			// another series. Mirrors AreaPlot's `effStroke` / `effThickness`
+			// so a line and an area edge highlight identically.
+			const mh = rowHighlight(
+				highlight,
+				sorted[0]?.row ?? { [connectionField]: groupValue }
+			)
+			const effStroke = mh.outline ?? mh.fill ?? stroke
+			const effThickness = mh.outline
+				? Math.max(lineThickness, mh.outlineWidth)
+				: lineThickness
+			// Folded into the shared `lineProps` so every branch below —
+			// solid, dashed, the gap-fill underlay, per-pattern runs, range
+			// segments — inherits it, and nothing changes when nothing is
+			// hovered.
 			const lineProps = {
 				fill: "none",
-				strokeWidth: lineThickness,
+				strokeWidth: effThickness,
 				strokeLinecap: strokeCap,
 				strokeLinejoin: "round",
-				opacity: lineOpacity,
+				opacity: lineOpacity * mh.opacityMul,
 			} as const
 			// One segment of this group's line. Solid: a single polyline.
 			// Non-solid: a dashed top line, stacked on an underlay (the
@@ -338,7 +375,7 @@ export const renderConnectionLines = (
 			): React.ReactElement[] => {
 				if (pts.length < 2) return []
 				if (dashArray === null && !blank) {
-					return [renderLine(keyBase, pts, { stroke, ...lineProps })]
+					return [renderLine(keyBase, pts, { stroke: effStroke, ...lineProps })]
 				}
 				const els: React.ReactElement[] = []
 				if (gapFill) {
@@ -346,6 +383,8 @@ export const renderConnectionLines = (
 					els.push(
 						renderLine(`${keyBase}-bg`, pts, {
 							stroke: resolveDashGapColor({
+								// The pre-highlight stroke — the hue/palette color the
+								// line inherits — so the ink pairing lookup can hit.
 								overrideKeys: [
 									hueValueRaw === null || hueValueRaw === undefined
 										? null
@@ -369,7 +408,7 @@ export const renderConnectionLines = (
 				if (dashArray !== null) {
 					els.push(
 						renderLine(keyBase, pts, {
-							stroke,
+							stroke: effStroke,
 							strokeDasharray: dashArray,
 							...lineProps,
 						})
@@ -481,7 +520,12 @@ export const renderAxisStems = (
 	stemOpacity: (row: Record<string, unknown>) => number,
 	/** Theme default single color for stems (used when the slot is in
 	 *  single-color mode or unconfigured) — a real color, not the point fill. */
-	connectionColor: string
+	connectionColor: string,
+	/** Legend / mark-hover highlight. A stem is part of its point's mark, so
+	 *  it takes the same treatment: recolored with the point when recolor is
+	 *  on, thickened when outline is on, faded when another series is
+	 *  hovered. A recolored dot on an un-recolored stem reads as a bug. */
+	highlight: LegendHighlight | null = null
 ) => {
 	const cfg = { ...DEFAULT_CONNECTION_CONFIG, ...channelConfigs.connection }
 	const stem = cfg.axisStem ?? "none"
@@ -554,6 +598,7 @@ export const renderAxisStems = (
 			stem === "x-axis" || stem === "custom-y"
 				? [m.cx, customY ?? baselineY]
 				: [customX ?? baselineX, m.cy]
+		const mh = rowHighlight(highlight, m.row)
 		return (
 			<line
 				key={`stem-${m.i}`}
@@ -562,10 +607,12 @@ export const renderAxisStems = (
 				y1={m.cy}
 				x2={x2}
 				y2={y2}
-				stroke={colorFor(m)}
-				strokeWidth={thickness}
+				stroke={mh.outline ?? mh.fill ?? colorFor(m)}
+				strokeWidth={
+					mh.outline ? Math.max(thickness, mh.outlineWidth) : thickness
+				}
 				strokeLinecap="round"
-				opacity={stemOpacity(m.row)}
+				opacity={stemOpacity(m.row) * mh.opacityMul}
 			/>
 		)
 	})

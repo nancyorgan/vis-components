@@ -94,7 +94,7 @@ export const TreemapPlot = (props: TreemapPlotProps = {}) => {
 					fillOpacity={style.opacity}
 					stroke={stroke}
 					strokeWidth={strokeWidth}
-					onMouseEnter={scaffold.hoverLeaf(d.row ?? {})}
+					onMouseEnter={scaffold.hoverLeaf(d.row ?? null, node)}
 				/>
 			)
 
@@ -113,6 +113,8 @@ export const TreemapPlot = (props: TreemapPlotProps = {}) => {
 						key={`lbl-${d.key}`}
 						x={x + rw / 2}
 						y={y + rh / 2}
+						// Recedes with its own tile on legend hover.
+						opacity={style.fadeMul < 1 ? style.fadeMul : undefined}
 						fill={labelStyle.fillFor(node)}
 						fontFamily={labelCfg.fontFamily}
 						fontSize={leafSize}

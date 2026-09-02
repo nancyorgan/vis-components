@@ -103,7 +103,7 @@ export const SunburstPlot = (props: SunburstPlotProps = {}) => {
 					fillOpacity={style ? style.opacity : undefined}
 					stroke={stroke}
 					strokeWidth={strokeWidth}
-					onMouseEnter={row ? scaffold.hoverLeaf(row) : undefined}
+					onMouseEnter={scaffold.hoverLeaf(row ?? null, node)}
 				/>
 			)
 
@@ -127,6 +127,10 @@ export const SunburstPlot = (props: SunburstPlotProps = {}) => {
 						key={`lbl-${d.key}`}
 						x={cx + Math.sin(midAngle) * midRadius}
 						y={cy - Math.cos(midAngle) * midRadius}
+						// Recedes with its own arc on legend hover.
+						opacity={
+							style && style.fadeMul < 1 ? style.fadeMul : undefined
+						}
 						fill={labelStyle.fillFor(node)}
 						fontFamily={labelCfg.fontFamily}
 						fontSize={arcFontSize}

@@ -232,6 +232,12 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 							/>,
 							<text
 								key={`lbl-${d.key}`}
+								// Recedes with its own container on legend hover
+								// (containers only carry a fade when a derived
+								// color makes them painted marks).
+								opacity={
+									style && style.fadeMul < 1 ? style.fadeMul : undefined
+								}
 								fill={labelStyle.fillFor(node)}
 								fontFamily={labelCfg.fontFamily}
 								fontSize={containerSize}
@@ -256,6 +262,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 							key={`lbl-${d.key}`}
 							x={rim.x}
 							y={rim.y}
+							opacity={style && style.fadeMul < 1 ? style.fadeMul : undefined}
 							fill={labelStyle.fillFor(node)}
 							fontFamily={labelCfg.fontFamily}
 							fontSize={rim.size}
@@ -291,7 +298,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 					fillOpacity={style.opacity}
 					stroke={stroke}
 					strokeWidth={strokeWidth}
-					onMouseEnter={scaffold.hoverLeaf(row)}
+					onMouseEnter={scaffold.hoverLeaf(row, node)}
 				/>
 			)
 			// Leaf label: the Data Labels value field's row value when mapped
@@ -308,6 +315,8 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 						key={`lbl-${d.key}`}
 						x={cx}
 						y={cy}
+						// Recedes with its own circle on legend hover.
+						opacity={style.fadeMul < 1 ? style.fadeMul : undefined}
 						fill={labelStyle.fillFor(node)}
 						fontFamily={labelCfg.fontFamily}
 						fontSize={leafSize}

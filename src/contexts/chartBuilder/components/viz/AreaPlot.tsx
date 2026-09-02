@@ -538,6 +538,9 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 							encodings,
 							rows: rowsForChart,
 							valueFieldMapped,
+							sliceOpacity: (groupValues) =>
+								groupHighlight(legendHighlight, groupValues, aestheticScales)
+									.opacityMul,
 						})}
 					/>
 				)}
@@ -1342,6 +1345,7 @@ export const buildAreaAnchors = ({
 	encodings,
 	rows,
 	valueFieldMapped,
+	sliceOpacity,
 }: {
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	categoryScale: PositionScale
@@ -1362,6 +1366,10 @@ export const buildAreaAnchors = ({
 	 * render no label (sparse labeling) instead of falling back to the
 	 * layer's measure. */
 	valueFieldMapped?: boolean
+	/** Legend-hover fade for the layer a label annotates (1 = no fade), so a
+	 * label recedes with its own area. Resolved by the caller, which holds
+	 * the highlight state and the aesthetic scales. */
+	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
 }): DataLabelAnchor[] => {
 	// Areas reduce "group" → "overlay" (no meaningful side-by-side); mirrors
 	// the same coercion used in `buildAreas` so the anchor positions match
@@ -1482,6 +1490,7 @@ export const buildAreaAnchors = ({
 				label: formatted,
 				hueValue,
 				sizeValue,
+				opacityMul: sliceOpacity?.(meta?.groupValues ?? {}),
 			})
 		})
 	})

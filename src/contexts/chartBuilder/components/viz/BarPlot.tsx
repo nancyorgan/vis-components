@@ -771,6 +771,9 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 						measureScale,
 						modes,
 						valueFieldMapped,
+						sliceOpacity: (groupValues) =>
+							groupHighlight(legendHighlight, groupValues, aestheticScales)
+								.opacityMul,
 					})}
 				{anyDataLabelsMapped && (
 					<DataLabelsLayer
@@ -791,6 +794,9 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 							encodings,
 							rows: rowsForChart,
 							valueFieldMapped,
+							sliceOpacity: (groupValues) =>
+								groupHighlight(legendHighlight, groupValues, aestheticScales)
+									.opacityMul,
 						})}
 					/>
 				)}
@@ -1281,6 +1287,9 @@ type BuildSliceLabelsArgs = {
 	 * that field is then authoritative: slices where it's blank render no
 	 * label instead of falling back to the slice's measure. */
 	valueFieldMapped?: boolean
+	/** Legend-hover fade for the slice a label sits on (1 = no fade), so a
+	 * label recedes with its own bar. */
+	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
 }
 
 /** Render the bar's measured value as a `<text>` label centered on each
@@ -1294,6 +1303,7 @@ const buildSliceLabels = ({
 	measureScale,
 	modes,
 	valueFieldMapped,
+	sliceOpacity,
 }: BuildSliceLabelsArgs): React.ReactNode[] => {
 	const cfg: TextConfig = { ...DEFAULT_TEXT_CONFIG, ...channelConfigs.text }
 	const labels: React.ReactNode[] = []
@@ -1331,6 +1341,9 @@ const buildSliceLabels = ({
 				colorKey !== undefined && cfg.colorOverrides[colorKey]
 					? cfg.colorOverrides[colorKey]
 					: cfg.color
+			// Legend-hover fade: the label recedes with its own slice.
+			const fadeMul = sliceOpacity?.(slice.groupValues) ?? 1
+			const fadeOpacity = fadeMul < 1 ? fadeMul : undefined
 
 			if (aggregation.isVertical) {
 				const measureCenter =
@@ -1340,6 +1353,7 @@ const buildSliceLabels = ({
 						key={`lbl-${stack.category}|${slice.key}`}
 						x={catCenter}
 						y={measureCenter}
+						opacity={fadeOpacity}
 						fill={color}
 						fontFamily={cfg.fontFamily}
 						fontSize={ptToPx(cfg.fontSize)}
@@ -1359,6 +1373,7 @@ const buildSliceLabels = ({
 						key={`lbl-${stack.category}|${slice.key}`}
 						x={measureCenter}
 						y={catCenter}
+						opacity={fadeOpacity}
 						fill={color}
 						fontFamily={cfg.fontFamily}
 						fontSize={ptToPx(cfg.fontSize)}
@@ -1402,6 +1417,7 @@ export const buildBarAnchors = ({
 	encodings,
 	rows,
 	valueFieldMapped,
+	sliceOpacity,
 }: {
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	categoryScale: ReturnType<typeof scaleBand<string>>
@@ -1428,6 +1444,10 @@ export const buildBarAnchors = ({
 	 * render no label (sparse labeling) instead of falling back to the
 	 * bar's measure. */
 	valueFieldMapped?: boolean
+	/** Legend-hover fade for the slice a label annotates (1 = no fade), so a
+	 * label recedes with its own bar. Resolved by the caller, which holds the
+	 * highlight state and the aesthetic scales. */
+	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
 }): DataLabelAnchor[] => {
 	const anchors: DataLabelAnchor[] = []
 	const maxLeaves = countMaxLeaves(aggregation.stacks, modes)
@@ -1519,6 +1539,7 @@ export const buildBarAnchors = ({
 				label: formatted,
 				hueValue,
 				sizeValue,
+				opacityMul: sliceOpacity?.(slice.groupValues),
 			})
 		})
 	}

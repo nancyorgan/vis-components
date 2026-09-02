@@ -167,7 +167,9 @@ export const renderMarkPaths = (args: {
 export const renderTextLabels = (
 	marks: Mark[],
 	textField: string | null,
-	channelConfigs: ChannelConfigs
+	channelConfigs: ChannelConfigs,
+	/** Legend / mark-hover highlight — a label fades with its own mark. */
+	highlight: LegendHighlight | null = null
 ) => {
 	if (!textField) return null
 	const cfg: TextConfig = { ...DEFAULT_TEXT_CONFIG, ...channelConfigs.text }
@@ -190,11 +192,13 @@ export const renderTextLabels = (
 					raw === undefined || raw === null
 						? undefined
 						: indexByValue.get(String(raw))
+				const opacityMul = rowHighlight(highlight, m.row).opacityMul
 				return (
 					<text
 						key={`txt-${m.i}`}
 						x={m.cx + offset}
 						y={m.cy}
+						opacity={opacityMul < 1 ? opacityMul : undefined}
 						fill={resolveTextColor(raw, cfg, idx)}
 						fontFamily={cfg.fontFamily}
 						fontSize={ptToPx(cfg.fontSize)}

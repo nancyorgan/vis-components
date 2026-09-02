@@ -35,6 +35,7 @@ export const buildGeoLabelAnchors = ({
 	keyType,
 	project,
 	inClip,
+	rowOpacity,
 }: {
 	rows: ReadonlyArray<Record<string, unknown>>
 	geographyField: string
@@ -50,6 +51,10 @@ export const buildGeoLabelAnchors = ({
 	keyType: RegionKeyType | "auto"
 	project: (lonlat: [number, number]) => [number, number] | null
 	inClip: (px: number, py: number) => boolean
+	/** Legend-hover fade for the region a label annotates (1 = no fade),
+	 *  resolved from its representative row so a label recedes with its own
+	 *  region. */
+	rowOpacity?: (row: Record<string, unknown>) => number
 }): DataLabelAnchor[] => {
 	const values = rows.map((r) => String(r[geographyField] ?? ""))
 	const { matched } = resolveGeography(
@@ -93,6 +98,7 @@ export const buildGeoLabelAnchors = ({
 			// (they compare the number, not its formatted string). Multi-field
 			// labels have no single backing value.
 			labelValue: value.field ? row[value.field] : undefined,
+			opacityMul: rowOpacity?.(row),
 		})
 	}
 	return anchors

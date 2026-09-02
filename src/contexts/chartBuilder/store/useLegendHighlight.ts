@@ -126,7 +126,17 @@ export const useMarkHoverHighlight = (
 	return {
 		enter: (value: unknown) => {
 			if (active && value !== undefined && value !== null) {
-				setHovered({ field: field as string, value: String(value) })
+				const next = { field: field as string, value: String(value) }
+				// Idempotent: re-publishing the entry that's already hovered
+				// returns the SAME object, so jotai skips the write and the
+				// whole chart doesn't re-render. Matters because hover handlers
+				// fire per mark (moving along one series) and, for lines, on
+				// every pointer move within the same line.
+				setHovered((prev) =>
+					prev && prev.field === next.field && prev.value === next.value
+						? prev
+						: next
+				)
 			}
 		},
 		leave: () => {

@@ -68,6 +68,9 @@ import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import {
 	rowHighlight,
 	useLegendHighlight,
+	useMarkHoverHighlight,
+	NEUTRAL_HIGHLIGHT,
+	type MarkHighlight,
 } from "../../store/useLegendHighlight"
 
 import { HoverTooltip, type TooltipState } from "./HoverTooltip"
@@ -109,6 +112,36 @@ export type HierarchyLayoutNode = {
 	data: HierarchyNode
 }
 
+/** The depth-1 ancestor's name — what "Top-level group" varies by. A
+ * root-level anonymous leaf has no name → the channel falls back. Shared by
+ * the mark resolvers, the label styling, and the hover-highlight publisher so
+ * all three agree on which group a node belongs to. */
+export const hierarchyRootNameOf = (
+	node: HierarchyLayoutNode
+): string | null => {
+	let a = node
+	while (a.depth > 1 && a.parent) a = a.parent
+	return a.data.label || null
+}
+
+/** A node's value on a DERIVED color source — the group it sits in, or its
+ * nesting level. */
+export const hierarchyDerivedValueOf = (
+	source: PackedDerivedSource,
+	node: HierarchyLayoutNode
+): unknown => (source === "rootGroup" ? hierarchyRootNameOf(node) : node.depth)
+
+/** The `hoveredLegendEntryAtom` field name a hierarchy chart publishes when
+ * its color comes from a DERIVED source rather than a dataset column. There
+ * IS no column to name — "Top-level group" and "Depth" are computed from tree
+ * position — so hover keys on this sentinel instead. The leading NUL keeps it
+ * un-collidable with a real field name, which matters because `rowHighlight`
+ * decides relevance by asking whether the hovered field is a column of the
+ * row: an unrelated chart therefore reads a derived hover as "not mine" and
+ * stays untouched. */
+export const hierarchyHighlightField = (source: PackedDerivedSource): string =>
+	`\u0000hierarchy:${source}`
+
 export type HierarchyMarkStyle = {
 	fill: string
 	opacity: number
@@ -116,6 +149,10 @@ export type HierarchyMarkStyle = {
 	 * match against the theme palette's exact swatch hexes, so they must
 	 * key on this (see `PatternDefItem.preModulationHue`). */
 	preModulationFill: string
+	/** The legend-hover fade alone (1 = not faded), already folded into
+	 * `opacity`. Exposed separately so a node's LABEL can recede with its
+	 * mark without also inheriting the mark's own opacity encoding. */
+	fadeMul: number
 }
 
 /**
@@ -183,6 +220,35 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 	const opaSource = parentField ? packedSourceOf(encodings.opacity) : null
 	const patternSource = parentField ? packedSourceOf(encodings.pattern) : null
 
+	// --- Hover highlight ----------------------------------------------------
+	// Which "series" a node belongs to depends on where its color comes from:
+	// a mapped hue FIELD (the row's value, exactly like every cartesian mark)
+	// or a DERIVED source — its top-level group / its depth — which no column
+	// carries. The derived case is the common one for these charts, so it gets
+	// the sentinel field above rather than being left out.
+	const highlightField = hueSource
+		? hierarchyHighlightField(hueSource)
+		: (aestheticScales.hue?.field.name ?? null)
+	/** How one node should render under the current hover. Derived colors
+	 *  compare the node's own group / depth (so CONTAINERS recede with their
+	 *  group too — with a derived color they're painted marks, not a wash);
+	 *  a hue field defers to the row, which leaves rowless containers
+	 *  untouched. Neutral when the hovered entry belongs to some other
+	 *  field — this chart isn't colored by it, so nothing should change. */
+	const nodeHighlight = (node: HierarchyLayoutNode): MarkHighlight => {
+		if (!legendHighlight) return NEUTRAL_HIGHLIGHT
+		if (hueSource) {
+			return legendHighlight.field === highlightField
+				? legendHighlight.resolve(hierarchyDerivedValueOf(hueSource, node))
+				: NEUTRAL_HIGHLIGHT
+		}
+		return rowHighlight(legendHighlight, node.data.row ?? {})
+	}
+	// Reverse direction: hovering a mark highlights its whole series exactly
+	// like hovering the matching legend entry would (the cartesian renderers'
+	// behavior, which the nested charts had been missing).
+	const markHover = useMarkHoverHighlight(highlightField)
+
 	// STABLE derived-scale domains, from the FULL dataset in tree order —
 	// the same recipe the sidebar panels use (`topLevelGroupNames` /
 	// `hierarchyDepthLevels`), NOT the laid-out nodes. The layout sorts
@@ -247,13 +313,6 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 	// panels / the sidebar swatches.
 	const labelRootNames = derivedRootNames
 	const labelMaxDepth = derivedDepthLevels.length
-	/** The depth-1 ancestor's name — what "Top-level group" varies by
-	 * (label twin of makeStyleResolvers' rootNameOf). */
-	const labelRootNameOf = (node: HierarchyLayoutNode): string | null => {
-		let a = node
-		while (a.depth > 1 && a.parent) a = a.parent
-		return a.data.label || null
-	}
 	// Depth is ORDINAL (same reasoning as the mark channels): prefer the
 	// theme's sequential ordinal palettes; rootGroup is categorical.
 	const labelHueFieldType: FieldType = labelHueSource
@@ -331,7 +390,7 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			if (labelHueSource) {
 				const value =
 					labelHueSource === "rootGroup"
-						? labelRootNameOf(node)
+						? hierarchyRootNameOf(node)
 						: String(node.depth)
 				const hueColor =
 					value !== null && labelHueScale
@@ -404,19 +463,37 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 		})
 
 	const tooltip = hovered ? <HoverTooltip state={hovered} /> : null
-	const clearHover = () => setHovered(null)
-	/** Standard leaf hover: id / parent / value / hue fields from the row. */
+	const clearHover = () => {
+		setHovered(null)
+		markHover.leave()
+	}
+	/** Standard leaf hover: id / parent / value / hue fields from the row,
+	 *  plus (given the node) the series publish that highlights everything
+	 *  sharing its color. A null row means an implicit container — no
+	 *  tooltip to show, but still a group to highlight. */
 	const hoverLeaf =
-		(row: Record<string, unknown>) => (e: React.MouseEvent) => {
-			const fields: TooltipState["fields"] = []
-			if (idField) fields.push({ name: idField, value: row[idField] })
-			if (parentField)
-				fields.push({ name: parentField, value: row[parentField] })
-			if (valueField) fields.push({ name: valueField, value: row[valueField] })
-			const hueField = aestheticScales.hue?.field.name
-			if (hueField && hueField !== parentField && hueField !== idField)
-				fields.push({ name: hueField, value: row[hueField] })
-			setHovered({ clientX: e.clientX, clientY: e.clientY, fields })
+		(row: Record<string, unknown> | null, node?: HierarchyLayoutNode) =>
+		(e: React.MouseEvent) => {
+			if (row) {
+				const fields: TooltipState["fields"] = []
+				if (idField) fields.push({ name: idField, value: row[idField] })
+				if (parentField)
+					fields.push({ name: parentField, value: row[parentField] })
+				if (valueField)
+					fields.push({ name: valueField, value: row[valueField] })
+				const hueField = aestheticScales.hue?.field.name
+				if (hueField && hueField !== parentField && hueField !== idField)
+					fields.push({ name: hueField, value: row[hueField] })
+				setHovered({ clientX: e.clientX, clientY: e.clientY, fields })
+			}
+			if (node)
+				markHover.enter(
+					hueSource
+						? hierarchyDerivedValueOf(hueSource, node)
+						: aestheticScales.hue && row
+							? row[aestheticScales.hue.field.name]
+							: undefined
+				)
 		}
 
 	/** Build the per-node style resolvers. The derived scales' domains are
@@ -424,13 +501,6 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 	 * `derivedDepthLevels`), so the resolvers no longer depend on the laid
 	 * out nodes — renderers just call this once inside their marks body. */
 	const makeStyleResolvers = () => {
-		/** The depth-1 ancestor's name — what "Top-level group" varies by.
-		 * A root-level anonymous leaf has no name → channel fallback. */
-		const rootNameOf = (node: HierarchyLayoutNode): string | null => {
-			let a = node
-			while (a.depth > 1 && a.parent) a = a.parent
-			return a.data.label || null
-		}
 		// Depth is ORDINAL on every channel — discrete, ordered levels the
 		// user can set individually (per-level overrides below), not a
 		// continuous quantity. Numeric-ordinal unit scales still spread
@@ -443,10 +513,7 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			source === "rootGroup" ? ("categorical" as const) : ("ordinal" as const)
 		const derivedDomainValues = (source: PackedDerivedSource): unknown[] =>
 			source === "rootGroup" ? derivedRootNames : derivedDepthLevels
-		const derivedValueOf = (
-			source: PackedDerivedSource,
-			node: HierarchyLayoutNode
-		): unknown => (source === "rootGroup" ? rootNameOf(node) : node.depth)
+		const derivedValueOf = hierarchyDerivedValueOf
 		/** Per-value overrides for a derived sat/bri scale: an explicit
 		 * number for this depth level / group name wins over the scale's
 		 * even spread. (Opacity doesn't need this wrapper — its categorical
@@ -620,11 +687,11 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			// legend entry. Containers (no row) resolve to the neutral result, so
 			// they never change. (Outline isn't applied here — hierarchy cells
 			// share edges, so a per-cell outline would read as noise.)
-			const mh = rowHighlight(legendHighlight, row ?? {})
+			const mh = nodeHighlight(node)
 			const opacity = baseOpacity * mh.opacityMul
 			if (mh.fill) fill = mh.fill
 
-			return { fill, opacity, preModulationFill }
+			return { fill, opacity, preModulationFill, fadeMul: mh.opacityMul }
 		}
 
 		// ── Pattern resolution ─────────────────────────────────────────────
@@ -677,7 +744,7 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			if (patternSource) {
 				const value =
 					patternSource === "rootGroup"
-						? rootNameOf(node)
+						? hierarchyRootNameOf(node)
 						: String(node.depth)
 				if (value === null) return null
 				const domain =
@@ -718,7 +785,13 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			}
 		}
 
-		return { styleFor, strokeFor, markStroke, rootNameOf, patternFor }
+		return {
+			styleFor,
+			strokeFor,
+			markStroke,
+			rootNameOf: hierarchyRootNameOf,
+			patternFor,
+		}
 	}
 
 	return {
