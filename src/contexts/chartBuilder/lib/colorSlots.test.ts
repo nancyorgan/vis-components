@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import type { ColorSlotConfig } from "./channelConfig"
-import { applicableColorSlots, COLOR_SLOT_DEFS, legacySlotColor } from "./colorSlots"
+import {
+	applicableColorSlots,
+	COLOR_SLOT_DEFS,
+	colorSlotEdited,
+	legacySlotColor,
+} from "./colorSlots"
 import { resolveSlotColor } from "./resolveLayerColor"
 import { makeHueScale } from "./scales"
 
@@ -169,6 +174,35 @@ describe("applicableColorSlots", () => {
 		)
 		expect(choropleth).not.toContain("geoPointFill")
 		expect(choropleth).not.toContain("geoPointStroke")
+	})
+})
+
+describe("colorSlotEdited", () => {
+	// Only the fields colorSlotEdited can reach: legacySlotColor sources and
+	// the registry themeColor lookups.
+	const theme = {
+		connectionColor: "#888888",
+		distributionOverlayFill: "#dddddd",
+	} as never
+
+	it("an absent slot is never an edit", () => {
+		expect(colorSlotEdited("line", undefined, {}, theme)).toBe(false)
+		expect(colorSlotEdited("violinFill", undefined, {}, theme)).toBe(false)
+	})
+
+	it("a non-inherit slot at its default single color is untouched (panels write a well-formed object on any touch)", () => {
+		const cfg: ColorSlotConfig = { field: null, singleColor: "#888888" }
+		expect(colorSlotEdited("line", cfg, {}, theme)).toBe(false)
+		expect(
+			colorSlotEdited("line", { ...cfg, singleColor: "#ff0000" }, {}, theme)
+		).toBe(true)
+	})
+
+	it("an inherit-capable slot (violin/box, regression) counts ANY stored config as an edit — its untouched state is Automatic (no config)", () => {
+		// Even at the slot's default color: "Single color" was explicitly chosen
+		// over Automatic, and picking Automatic deletes the config again.
+		const atDefault: ColorSlotConfig = { field: null, singleColor: "#dddddd" }
+		expect(colorSlotEdited("violinFill", atDefault, {}, theme)).toBe(true)
 	})
 })
 

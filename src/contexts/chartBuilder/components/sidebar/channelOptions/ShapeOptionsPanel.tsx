@@ -3,9 +3,11 @@ import { useAtom, useAtomValue } from "jotai"
 
 import {
 	DEFAULT_SHAPE,
+	DEFAULT_SHAPE_CONFIG,
 	type CustomGlyph,
 	type ShapeConfig,
 } from "../../../lib/channelConfig"
+import { overlayOn } from "../../../lib/colorSlots"
 import { CUSTOM_GLYPH_BASE } from "../../../lib/customGlyphs"
 import { SHAPE_PALETTE } from "../../../lib/scales"
 import {
@@ -150,6 +152,28 @@ export const ShapeOptionsPanel = () => {
 				suffix="px"
 				changed={valueChanged(cfg.outlineWidth, theme.outlineWidth)}
 			/>
+			{/* Border width for the violin outline / box strokes — its own knob,
+			 *  independent of the point marks' outline width above. Only shown
+			 *  while a violin/box overlay is actually rendering (scatter mode). */}
+			{modeId === "scatter" && overlayOn(configs) && (
+				<NumberInput
+					label="Violin / box outline"
+					labelClassName={LABEL_COL}
+					value={cfg.distributionOutlineWidth ?? 1}
+					min={0}
+					max={10}
+					step={0.5}
+					clamp
+					onChange={(distributionOutlineWidth) =>
+						updateCfg({ distributionOutlineWidth })
+					}
+					suffix="px"
+					changed={valueChanged(
+						cfg.distributionOutlineWidth,
+						DEFAULT_SHAPE_CONFIG.distributionOutlineWidth
+					)}
+				/>
+			)}
 			{/* Outline COLOR now lives in the unified Color menu (Outline
 			 *  subheader) — only outline WIDTH remains here. */}
 			{!fieldMapped && !glyphsInert && (
@@ -249,6 +273,8 @@ export const ShapeOptionsPanel = () => {
 					updateCfg({
 						outlineColor: theme.outlineColor,
 						outlineWidth: theme.outlineWidth,
+						distributionOutlineWidth:
+							DEFAULT_SHAPE_CONFIG.distributionOutlineWidth,
 					})
 				}}
 				underline

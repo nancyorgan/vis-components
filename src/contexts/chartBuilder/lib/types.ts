@@ -547,9 +547,20 @@ export type Theme = {
 	tickmarkColor: string
 	tickmarkThickness: number
 	tickmarkLength: number
-	// Axis spine defaults (the single line drawn along each axis)
+	// Axis spine defaults (the single line drawn along each axis).
+	// `spineColor` / `spineThickness` are the LEGACY shared fields; the
+	// per-axis fields below take precedence when set so users can style the
+	// x, y, and polar spines independently. Old themes that only carry the
+	// shared values still render correctly via the fallback. "Polar" is the
+	// polar-family spine: radar spokes / perimeter and the chord ring arc.
 	spineColor: string
 	spineThickness: number
+	xSpineColor?: string
+	xSpineThickness?: number
+	ySpineColor?: string
+	ySpineThickness?: number
+	polarSpineColor?: string
+	polarSpineThickness?: number
 	// Text encoding defaults — used as the starting point for the `text`
 	// channel's font/color when a user maps a field to it. Per-chart edits
 	// in the sidebar override these.

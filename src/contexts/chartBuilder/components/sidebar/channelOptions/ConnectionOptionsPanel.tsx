@@ -705,6 +705,7 @@ export const ConnectionOptionsPanel = () => {
 									spine={axis.spine ?? DEFAULT_SPINE_CONFIG}
 									onChange={(s) => updateAxis({ spine: s })}
 									theme={theme}
+									axis="polar"
 								/>
 							</CollapsibleSubsection>
 						</>

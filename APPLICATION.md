@@ -632,8 +632,8 @@ thickness / length; *Tick Labels* = **Label every** Nth tick (default
 5th; each group's graduation starts at 0 from its start angle) + the
 shared tick-label font editor (unset fields inherit the base text
 font); *Spine* = the thin arc drawn along each group's outer edge
-(theme spine color / thickness — the circular analogue of an axis
-line). Tick labels read radially outward and flip 180° past 6 o'clock
+(theme POLAR spine color / thickness — the circular analogue of an
+axis line). Tick labels read radially outward and flip 180° past 6 o'clock
 so they never render upside-down. The ring shrinks to reserve the
 axis's radial extent (tick length + widest label), and the node labels
 move outside the tick labels. State lives in `connection.chordAxis`;
@@ -1420,7 +1420,12 @@ The X-axis and Y-axis panels (under Encodings) configure:
   Tukey outliers as small open circles only while the underlying data
   points are hidden; when "Show points" is on the real points already
   mark those values, so the box suppresses its own outlier circles
-  rather than double-drawing them.
+  rather than double-drawing them. The Shape panel's **Violin / box
+  outline** (shown only while an overlay is on) drives the violin
+  outline and all box strokes (body, whiskers, caps, outlier circles) —
+  a separate knob from that panel's point **Outline width**; width 0
+  hides the borders. The median line stays 1.5× that width for
+  emphasis.
 - **Regression** (X position only) — offered when BOTH position axes
   are quantitative (the exact complement of the violin/box situation;
   the two sections never co-occur). "Add regression line" fits y-on-x
@@ -2252,7 +2257,11 @@ Theme settings:
 - **Defaults** — default fill, default shape, default radius, default
   opacity, fonts (separate for titles and text).
 - **Gridlines** — separate X and Y gridline color/thickness defaults.
-- **Tickmarks, spines, background colors, text encoding font,
+- **Spines** — separate X, Y, and Polar spine color/thickness
+  defaults. The polar spine covers radar spokes / perimeter and the
+  chord ring axis. Legacy themes carrying only the old shared
+  spine fields fall back to those everywhere.
+- **Tickmarks, background colors, text encoding font,
   distribution overlay defaults, connection thickness, scale-channel
   min/max ranges** — all theme-controlled.
 - **Data label defaults** — font size, weight, and style (italic /

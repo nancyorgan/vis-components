@@ -86,22 +86,61 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			/>
 		</Section>
 
-		{/* Axis spine */}
-		<Section title="Axis spine defaults">
+		{/* Axis spines — per-axis fields written on edit; the legacy shared
+		    spineColor/spineThickness remain the fallback for old themes. */}
+		<Section title="X spine defaults">
 			<ColorInput
 				label="Color"
-				value={theme.spineColor}
-				onChange={(v) => set("spineColor", v)}
+				value={theme.xSpineColor ?? theme.spineColor}
+				onChange={(v) => set("xSpineColor", v)}
 			/>
 			<NumberInput
 				label="Thickness"
-				value={theme.spineThickness}
-				onChange={(v) => set("spineThickness", v)}
+				value={theme.xSpineThickness ?? theme.spineThickness}
+				onChange={(v) => set("xSpineThickness", v)}
 				min={0}
 				max={5}
 				step={0.5}
 				suffix="px"
 			/>
+		</Section>
+
+		<Section title="Y spine defaults">
+			<ColorInput
+				label="Color"
+				value={theme.ySpineColor ?? theme.spineColor}
+				onChange={(v) => set("ySpineColor", v)}
+			/>
+			<NumberInput
+				label="Thickness"
+				value={theme.ySpineThickness ?? theme.spineThickness}
+				onChange={(v) => set("ySpineThickness", v)}
+				min={0}
+				max={5}
+				step={0.5}
+				suffix="px"
+			/>
+		</Section>
+
+		<Section title="Polar spine defaults">
+			<ColorInput
+				label="Color"
+				value={theme.polarSpineColor ?? theme.spineColor}
+				onChange={(v) => set("polarSpineColor", v)}
+			/>
+			<NumberInput
+				label="Thickness"
+				value={theme.polarSpineThickness ?? theme.spineThickness}
+				onChange={(v) => set("polarSpineThickness", v)}
+				min={0}
+				max={5}
+				step={0.5}
+				suffix="px"
+			/>
+			<p className="text-sm text-stone-600 dark:text-stone-400">
+				Spokes and perimeter on radar charts, and the ring axis on chord
+				diagrams.
+			</p>
 		</Section>
 	</SectionGroup>
 )

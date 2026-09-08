@@ -91,6 +91,10 @@ export const renderDistributionOverlays = (args: {
 	const categoryIndex = new Map<string, number>(
 		aggregation.stats.map((s, i) => [s.category, i])
 	)
+	// Border thickness from the Shape panel's "Violin / box outline" knob —
+	// deliberately independent of `shape.outlineWidth` (which the point marks
+	// read). 0 hides.
+	const strokeWidth = channelConfigs.shape?.distributionOutlineWidth ?? 1
 	const strokePalette = overlay.strokePalette ?? []
 	const fillPalette = overlay.fillPalette ?? []
 	const colorFromPalette = (
@@ -176,6 +180,7 @@ export const renderDistributionOverlays = (args: {
 								fillColor={fill}
 								fillOpacity={fillOpacity}
 								strokeOpacity={strokeOpacity}
+								strokeWidth={strokeWidth}
 							/>
 						)}
 						{overlay.showBoxPlot && (
@@ -190,6 +195,7 @@ export const renderDistributionOverlays = (args: {
 								fillColor={fill}
 								fillOpacity={fillOpacity}
 								strokeOpacity={strokeOpacity}
+								strokeWidth={strokeWidth}
 								showOutliers={!args.pointsShown}
 							/>
 						)}
@@ -211,6 +217,7 @@ const ViolinShape = ({
 	fillColor,
 	fillOpacity,
 	strokeOpacity,
+	strokeWidth,
 }: {
 	stats: { kde: { grid: number[]; density: number[] } }
 	center: number
@@ -222,6 +229,7 @@ const ViolinShape = ({
 	fillColor: string
 	fillOpacity: number
 	strokeOpacity: number
+	strokeWidth: number
 }) => {
 	const { grid, density } = stats.kde
 	const points: Array<[number, number]> = []
@@ -255,7 +263,7 @@ const ViolinShape = ({
 			fillOpacity={fillOpacity}
 			stroke={color}
 			strokeOpacity={strokeOpacity}
-			strokeWidth={1}
+			strokeWidth={strokeWidth}
 			strokeLinejoin="round"
 		/>
 	)
@@ -364,6 +372,7 @@ const BoxShape = ({
 	fillColor,
 	fillOpacity,
 	strokeOpacity,
+	strokeWidth,
 	showOutliers,
 }: {
 	box: {
@@ -383,6 +392,7 @@ const BoxShape = ({
 	fillColor: string
 	fillOpacity: number
 	strokeOpacity: number
+	strokeWidth: number
 	/** The outlier circles duplicate real data points when "Show points" is
 	 * on, so the caller turns them off in that case. */
 	showOutliers: boolean
@@ -412,8 +422,9 @@ const BoxShape = ({
 		const yTop = Math.min(q1Px, q3Px)
 		const yBot = Math.max(q1Px, q3Px)
 		return (
-			// stroke-opacity is inherited by every stroked child below.
-			<g strokeOpacity={strokeOpacity}>
+			// stroke-opacity and stroke-width are inherited by every stroked
+			// child below; the median line overrides width for emphasis.
+			<g strokeOpacity={strokeOpacity} strokeWidth={strokeWidth}>
 				<line x1={center} y1={loPx} x2={center} y2={hiPx} stroke={color} />
 				<line
 					x1={lo + halfWidth * 0.4}
@@ -444,7 +455,7 @@ const BoxShape = ({
 					x2={hi}
 					y2={medianPx}
 					stroke={color}
-					strokeWidth={1.5}
+					strokeWidth={strokeWidth * 1.5}
 				/>
 				{showOutliers &&
 					box.outliers.map((o, i) => {
@@ -472,8 +483,9 @@ const BoxShape = ({
 	const xLeft = Math.min(q1Px, q3Px)
 	const xRight = Math.max(q1Px, q3Px)
 	return (
-		// stroke-opacity is inherited by every stroked child below.
-		<g strokeOpacity={strokeOpacity}>
+		// stroke-opacity and stroke-width are inherited by every stroked
+		// child below; the median line overrides width for emphasis.
+		<g strokeOpacity={strokeOpacity} strokeWidth={strokeWidth}>
 			<line x1={loPx} y1={center} x2={hiPx} y2={center} stroke={color} />
 			<line
 				x1={loPx}
@@ -504,7 +516,7 @@ const BoxShape = ({
 				x2={medianPx}
 				y2={hi}
 				stroke={color}
-				strokeWidth={1.5}
+				strokeWidth={strokeWidth * 1.5}
 			/>
 			{showOutliers &&
 				box.outliers.map((o, i) => {

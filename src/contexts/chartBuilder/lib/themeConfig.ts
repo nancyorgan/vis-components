@@ -18,14 +18,18 @@ import {
 	type AxisConfig,
 	type ChannelConfigs,
 	type ChordAxisConfig,
+	type ColorSlotKey,
 	type ConnectionConfig,
 	type DataLabelsConfig,
 	type HueConfig,
 	type OpacityConfig,
+	type OpacitySlotKey,
 	type PatternConfig,
 	type ShapeConfig,
 	type TextConfig,
 } from "./channelConfig"
+import { colorSlotEdited } from "./colorSlots"
+import { opacitySlotEdited } from "./opacitySlots"
 import {
 	DEFAULT_BOX_ANNOTATION_STYLE,
 	DEFAULT_LINE_ANNOTATION_STYLE,
@@ -143,6 +147,32 @@ export const gridlineThemeFor = (
 	}
 }
 
+/** Resolve the theme's spine color/thickness for a specific axis, preferring
+ * the per-axis fields when set and falling back to the shared legacy fields.
+ * `polar` is the polar-family spine: radar spokes / perimeter and the chord
+ * ring arc. */
+export const spineThemeFor = (
+	t: Theme,
+	axis: "x" | "y" | "polar"
+): { color: string; thickness: number } => {
+	const perAxisColor =
+		axis === "x"
+			? t.xSpineColor
+			: axis === "y"
+				? t.ySpineColor
+				: t.polarSpineColor
+	const perAxisThickness =
+		axis === "x"
+			? t.xSpineThickness
+			: axis === "y"
+				? t.ySpineThickness
+				: t.polarSpineThickness
+	return {
+		color: perAxisColor ?? t.spineColor,
+		thickness: perAxisThickness ?? t.spineThickness,
+	}
+}
+
 /** Build a fresh AxisConfig with theme-driven gridline/tick/spine colors. */
 export const axisConfigFromTheme = (
 	t: Theme,
@@ -168,10 +198,7 @@ export const axisConfigFromTheme = (
 						thickness: t.tickmarkThickness,
 						length: t.tickmarkLength,
 					},
-		spine:
-			axis === "r"
-				? DEFAULT_AXIS_CONFIG.spine
-				: { color: t.spineColor, thickness: t.spineThickness },
+		spine: axis === "r" ? DEFAULT_AXIS_CONFIG.spine : spineThemeFor(t, axis),
 		distributionOverlay: {
 			...DEFAULT_AXIS_CONFIG.distributionOverlay,
 			color: t.distributionOverlayStroke,
@@ -343,8 +370,9 @@ export const connectionConfigFromTheme = (t: Theme): ConnectionConfig => ({
 	thickness: t.connectionThickness,
 })
 
-/** Theme-seeded chord ring-axis defaults: tick marks and spine take the same
- * theme fields the x / y axes seed from (see `axisConfigFromTheme`). Shared
+/** Theme-seeded chord ring-axis defaults: tick marks take the same theme
+ * fields the x / y axes seed from, and the spine (the arc along each group's
+ * outer edge) takes the POLAR spine fields (see `spineThemeFor`). Shared
  * by the Connection panel and ChordPlot so the drawn axis and the panel's
  * displayed values can't drift; also the dot baseline for the axis's
  * Tickmark / Spine controls. */
@@ -355,7 +383,7 @@ export const chordAxisConfigFromTheme = (t: Theme): ChordAxisConfig => ({
 		thickness: t.tickmarkThickness,
 		length: t.tickmarkLength,
 	},
-	spine: { color: t.spineColor, thickness: t.spineThickness },
+	spine: spineThemeFor(t, "polar"),
 })
 
 /** Theme-seeded `pattern` slice — see `shapeConfigFromTheme` for why this is a
@@ -374,6 +402,13 @@ export const angleConfigFromTheme = (t: Theme): AngleConfig => ({
 	...DEFAULT_ANGLE_CONFIG,
 	minAngle: t.angleMin,
 	maxAngle: t.angleMax,
+	// Radar spokes / perimeter draw from this spine; seed it from the theme's
+	// POLAR spine so new radars follow the theme like the chord ring does
+	// (spokes used to stay at DEFAULT_SPINE_CONFIG regardless of theme).
+	// EXISTING visuals keep their stored spine — only the dot baseline and
+	// new-visual seeding move. The Radar Spine color slot overrides the color
+	// at render time when configured.
+	spine: spineThemeFor(t, "polar"),
 })
 
 /** Build initial channelConfigs from the user's theme so new visualizations
@@ -598,7 +633,14 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 	],
 	hue: ({ configs, theme, fieldMapped }) => [
 		{ label: "default fill", changed: differs(configs.defaultFill, theme.defaultFill) },
-		{ label: "color slots", changed: !isEmptyConfigValue(configs.colorSlots) },
+		// Per-slot deviation, NOT mere presence: the panel writes a well-formed
+		// default slot object on any touch (a reset included), which must not dot.
+		{
+			label: "color slots",
+			changed: Object.entries(configs.colorSlots ?? {}).some(([key, slot]) =>
+				colorSlotEdited(key as ColorSlotKey, slot, configs, theme)
+			),
+		},
 		{ label: "fill scale edits", changed: hueScaleEdited(configs.hue) },
 		// Hexbin bin count (the Color panel's "Bins" input). Themes carry no
 		// hexbin default, so changed = explicitly set to a non-default value;
@@ -645,11 +687,25 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 					)),
 		},
 	],
-	opacity: ({ configs, theme }) => [
+	opacity: ({ configs, theme, fieldMapped }) => [
 		{ label: "default opacity", changed: differs(configs.defaultOpacity, theme.defaultOpacity) },
-		{ label: "opacity slots", changed: !isEmptyConfigValue(configs.opacitySlots) },
-		{ label: "opacity scale", changed: opacityScaleEdited(configs.opacity) },
-		{ label: "opacity stacking", changed: (configs.opacity?.stackMode ?? "stack") !== "stack" },
+		// Per-slot deviation, NOT mere presence: the panel writes a well-formed
+		// default slot object on any touch (a reset included), which must not dot.
+		{
+			label: "opacity slots",
+			changed: Object.entries(configs.opacitySlots ?? {}).some(([key, slot]) =>
+				opacitySlotEdited(key as OpacitySlotKey, slot)
+			),
+		},
+		// Scale + stacking edits live on `configs.opacity`, which is retained when
+		// the Vary-by field is cleared (so remapping restores them) — but with no
+		// field the panel shows neither control, so a stale edit must not light a
+		// dot the user can't clear (same gating as saturation / brightness).
+		{ label: "opacity scale", changed: fieldMapped && opacityScaleEdited(configs.opacity) },
+		{
+			label: "opacity stacking",
+			changed: fieldMapped && (configs.opacity?.stackMode ?? "stack") !== "stack",
+		},
 	],
 	shape: ({ configs, theme }) => [
 		{ label: "shape config", changed: differs(configs.shape, shapeConfigFromTheme(theme)) },

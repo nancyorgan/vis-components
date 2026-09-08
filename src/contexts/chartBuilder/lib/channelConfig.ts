@@ -732,6 +732,13 @@ export type ShapeConfig = {
 	/** Stroke width in pixels applied to every point mark. `0` hides
 	 * the outline entirely. */
 	outlineWidth: number
+	/** Stroke width (px) of the violin outline and all box strokes (body,
+	 * whiskers, caps, outlier circles) when a distribution overlay is on; the
+	 * median line draws at 1.5× this for emphasis. Its own knob, deliberately
+	 * independent of `outlineWidth` (which the point marks read). 0 hides the
+	 * borders. Optional so visuals saved before it existed load unchanged
+	 * (read as 1). */
+	distributionOutlineWidth?: number
 	/** Per-category override for the mark's fill color. Wins over the
 	 * encoding's hue color for that category — useful when the user wants
 	 * one specific category to render hollow ("none"), pair a light fill
@@ -760,6 +767,7 @@ export const DEFAULT_SHAPE_CONFIG: ShapeConfig = {
 	overrides: {},
 	outlineColor: "#ffffff",
 	outlineWidth: 1,
+	distributionOutlineWidth: 1,
 	fillOverrides: {},
 	strokeOverrides: {},
 	outlineColorRules: [],

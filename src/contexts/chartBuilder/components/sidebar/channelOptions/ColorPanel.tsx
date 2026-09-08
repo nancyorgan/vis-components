@@ -8,6 +8,7 @@ import {
 import type { ChartMode } from "../../../lib/chartMode"
 import {
 	applicableColorSlots,
+	colorSlotEdited,
 	legacySlotColor,
 	type ColorSlotDef,
 } from "../../../lib/colorSlots"
@@ -219,6 +220,7 @@ export const ColorSlotControls = ({
 	defaultColor,
 	acceptsFieldMapping = true,
 	inheritLabel,
+	inheritHelp,
 	clearSlot,
 	paletteKind = "categorical",
 	updateSlot,
@@ -228,6 +230,9 @@ export const ColorSlotControls = ({
 	defaultColor: string
 	acceptsFieldMapping?: boolean
 	inheritLabel?: string
+	/** Help prose shown while inheriting; defaults to the data-label wording
+	 *  ("Follows the Color mapping above."). */
+	inheritHelp?: React.ReactNode
 	clearSlot?: () => void
 	/** Which theme palette the single-color swatch's picker leads with.
 	 *  Data-label slots color TEXT, so they pass `"text"`; mark slots keep
@@ -301,7 +306,11 @@ export const ColorSlotControls = ({
 			) : null}
 			{inheriting && acceptsFieldMapping ? (
 				<p className="vc-help">
-					Follows the <strong>Color</strong> mapping above.
+					{inheritHelp ?? (
+						<>
+							Follows the <strong>Color</strong> mapping above.
+						</>
+					)}
 				</p>
 			) : field === null || !acceptsFieldMapping ? (
 				<div className="flex items-center gap-2">
@@ -362,7 +371,6 @@ const ColorSlotSubsection = ({
 	const theme = useCurrentTheme()
 
 	const slotCfg = configs.colorSlots?.[def.key]
-	const field = slotCfg?.field ?? null
 	// The single-color default for this slot: the legacy value it superseded,
 	// else the theme default for this target. `reset` returns to this.
 	const defaultColor = legacySlotColor(def.key, configs) ?? def.themeColor(theme)
@@ -384,13 +392,20 @@ const ColorSlotSubsection = ({
 			}
 		})
 
+	// Inherit-capable slots (violin/box, regression) render the Color mapping's
+	// colors while UNCONFIGURED, so they lead with an explicit "Automatic"
+	// option; picking it deletes the stored slot, returning to that state.
+	const clearSlot = () =>
+		setConfigs((prev) => {
+			if (!prev.colorSlots?.[def.key]) return prev
+			const { [def.key]: _removed, ...rest } = prev.colorSlots
+			return { ...prev, colorSlots: rest }
+		})
+
 	// This slot deviates when it has a field mapped, a picked palette, or a
-	// single color moved off the slot's default.
-	const slotChanged =
-		slotCfg != null &&
-		(field != null ||
-			slotCfg.paletteId != null ||
-			(slotCfg.singleColor != null && slotCfg.singleColor !== defaultColor))
+	// single color moved off the slot's default — shared with the top-level
+	// Color dot so they can't drift.
+	const slotChanged = colorSlotEdited(def.key, slotCfg, configs, theme)
 
 	return (
 		<CollapsibleSubsection title={def.label} changed={slotChanged || extraChanged}>
@@ -399,6 +414,9 @@ const ColorSlotSubsection = ({
 				slotCfg={slotCfg}
 				defaultColor={defaultColor}
 				acceptsFieldMapping={def.acceptsFieldMapping}
+				inheritLabel={def.inherit?.label}
+				inheritHelp={def.inherit?.help}
+				clearSlot={def.inherit ? clearSlot : undefined}
 				updateSlot={updateSlot}
 			/>
 			{extra}

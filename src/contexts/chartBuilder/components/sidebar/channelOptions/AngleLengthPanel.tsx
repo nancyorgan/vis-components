@@ -314,6 +314,7 @@ const RadarAxisControls = ({
 				spine={cfg.spine ?? DEFAULT_SPINE_CONFIG}
 				onChange={(s) => updateCfg({ spine: s })}
 				theme={theme}
+				axis="polar"
 				hideColorRow
 				showChanged={false}
 			/>

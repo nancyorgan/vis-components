@@ -120,6 +120,48 @@ describe("violin fill color slot mapped to a non-category field", () => {
 		expect(new Set(paletteFills(container))).toEqual(new Set(PALETTE))
 	})
 
+	it("an UNCONFIGURED slot follows the hue encoding on the category field (the panel's 'Automatic')", () => {
+		seed(
+			{
+				...emptyEncodings(),
+				x: { field: "proc" },
+				y: { field: "value" },
+				hue: { field: "proc" },
+			},
+			{}
+		)
+		const { container } = mount()
+		// ViolinShape paths carry fill-opacity + round joins at width 1; the two
+		// categories inherit two DIFFERENT hue colors.
+		const fills = [
+			...container.querySelectorAll(
+				'path[fill-opacity][stroke-linejoin="round"][stroke-width="1"]'
+			),
+		].map((p) => p.getAttribute("fill"))
+		expect(fills).toHaveLength(2)
+		expect(new Set(fills).size).toBe(2)
+	})
+
+	it("an explicit Single color slot overrides the hue inheritance", () => {
+		seed(
+			{
+				...emptyEncodings(),
+				x: { field: "proc" },
+				y: { field: "value" },
+				hue: { field: "proc" },
+			},
+			{ violinFill: { field: null, singleColor: "#123456" } }
+		)
+		const { container } = mount()
+		const fills = [
+			...container.querySelectorAll(
+				'path[fill-opacity][stroke-linejoin="round"][stroke-width="1"]'
+			),
+		].map((p) => p.getAttribute("fill"))
+		expect(fills).toHaveLength(2)
+		expect(new Set(fills)).toEqual(new Set(["#123456"]))
+	})
+
 	it("resolves a single-variable violin's fill from the panel's first row", () => {
 		// Only Y is mapped → the single-group render path (empty category
 		// field). The slot field resolves from the panel's first row — the

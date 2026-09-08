@@ -12,7 +12,11 @@ import {
 	MEASURE_OPTION_VALUE,
 	resolveHistogramMeasure,
 } from "../../../lib/histogramMeasure"
-import { applicableOpacitySlots, type OpacitySlotDef } from "../../../lib/opacitySlots"
+import {
+	applicableOpacitySlots,
+	opacitySlotEdited,
+	type OpacitySlotDef,
+} from "../../../lib/opacitySlots"
 import { resolveHierarchyIdField } from "../../../lib/buildHierarchy"
 import {
 	PACKED_MEASURE_OPTION_VALUE,
@@ -74,7 +78,11 @@ export const OpacityOptionsPanel = () => {
 
 	const theme = useCurrentTheme()
 	// Fill subsection changed = no-field default opacity moved, or the mapped
-	// opacity scale edited (same signals as the top-level Opacity dot).
+	// opacity scale edited (same signals as the top-level Opacity dot). Scale
+	// edits are retained when the Vary-by field is cleared (so remapping
+	// restores them), but with no field the panel shows no scale controls, so a
+	// stale edit must not light a dot the user can't clear — gate on the field,
+	// exactly as the top-level dot does.
 	const o = configs.opacity
 	const scaleChanged = o
 		? o.kind === "quantitative"
@@ -83,7 +91,8 @@ export const OpacityOptionsPanel = () => {
 			: Object.keys(o.overrides ?? {}).length > 0
 		: false
 	const fillChanged =
-		valueChanged(configs.defaultOpacity, theme.defaultOpacity) || scaleChanged
+		valueChanged(configs.defaultOpacity, theme.defaultOpacity) ||
+		(!!encodings.opacity?.field && scaleChanged)
 
 	// Flow diagrams (chord / sankey) draw NOTHING from the overall opacity —
 	// node arcs/rects and ribbons/links each read their own slot (Nodes /
@@ -443,9 +452,8 @@ const OpacitySlotSubsection = ({
 	const isQuant = fieldType === "quantitative" || fieldType === "temporal"
 
 	// This slot deviates when it has a field mapped or its level moved off the
-	// part's default.
-	const slotChanged =
-		slotCfg != null && (field != null || level !== def.defaultLevel)
+	// part's default — shared with the top-level Opacity dot so they can't drift.
+	const slotChanged = opacitySlotEdited(def.key, slotCfg)
 
 	return (
 		<CollapsibleSubsection title={def.label} changed={slotChanged}>

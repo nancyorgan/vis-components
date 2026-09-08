@@ -36,6 +36,7 @@ import {
 	patternConfigFromTheme,
 	resolveTextPickerPalette,
 	shapeConfigFromTheme,
+	spineThemeFor,
 	textConfigFromTheme,
 } from "./themeConfig"
 import { DEFAULT_LABELS_CONFIG, type LegendConfig } from "./labelsConfig"
@@ -197,12 +198,51 @@ describe("genuine edits light the dot; reverting clears it", () => {
 		expect(dot("hue", c)).toBe(true)
 	})
 
-	it("a populated color slot (Color): dots", () => {
-		const c = {
+	it("a genuinely edited color slot (Color): dots", () => {
+		// Single color moved off the slot default (theme connectionColor).
+		const recolored = {
 			...fresh,
-			colorSlots: { line: { field: null, value: "#f00" } },
+			colorSlots: { line: { field: null, singleColor: "#f00" } },
 		} as unknown as ChannelConfigs
-		expect(dot("hue", c)).toBe(true)
+		expect(dot("hue", recolored)).toBe(true)
+		// A field mapped to a slot dots even at the default color.
+		const mapped = {
+			...fresh,
+			colorSlots: { line: { field: "county", singleColor: "#888888" } },
+		} as unknown as ChannelConfigs
+		expect(dot("hue", mapped)).toBe(true)
+	})
+
+	it("an edited opacity slot (Opacity): dots", () => {
+		// Level moved off the part's default (Outline/border defaults to 1).
+		const leveled = {
+			...fresh,
+			opacitySlots: { border: { field: null, level: 0.5 } },
+		} as unknown as ChannelConfigs
+		expect(dot("opacity", leveled)).toBe(true)
+		// A field mapped to a slot dots even at the default level.
+		const mapped = {
+			...fresh,
+			opacitySlots: { border: { field: "county", level: 1 } },
+		} as unknown as ChannelConfigs
+		expect(dot("opacity", mapped)).toBe(true)
+	})
+
+	it("opacity scale / stacking edits dot only while a field is mapped", () => {
+		const scaled = {
+			...fresh,
+			opacity: { kind: "quantitative", min: 0.5, max: 1 },
+		} as unknown as ChannelConfigs
+		expect(dot("opacity", scaled, STUB_THEME, true)).toBe(true)
+		// Field cleared: the panel shows no scale controls, so the retained
+		// edit must not light a dot the user can't clear.
+		expect(dot("opacity", scaled, STUB_THEME, false)).toBe(false)
+		const grouped = {
+			...fresh,
+			opacity: { kind: "categorical", overrides: {}, stackMode: "group" },
+		} as unknown as ChannelConfigs
+		expect(dot("opacity", grouped, STUB_THEME, true)).toBe(true)
+		expect(dot("opacity", grouped, STUB_THEME, false)).toBe(false)
 	})
 
 	it("bar gap (Length): setting dots as its OWN control, clearing to null clears", () => {
@@ -253,6 +293,44 @@ describe("no phantom dots from drift or schema evolution", () => {
 	it("a connection slice missing newer fields is not a phantom", () => {
 		const partial = { thickness: STUB_THEME.connectionThickness, fill: "line" } as unknown as ChannelConfigs["connection"]
 		expect(dot("connection", { ...fresh, connection: partial })).toBe(false)
+	})
+
+	// The panels write a well-formed slot object on ANY touch — a reset
+	// included — so a slot sitting at its defaults must read as untouched.
+	it("a color slot reset back to its default is not a phantom", () => {
+		const resetSlot = {
+			...fresh,
+			colorSlots: {
+				line: { field: null, singleColor: STUB_THEME.connectionColor },
+			},
+		} as unknown as ChannelConfigs
+		expect(dot("hue", resetSlot)).toBe(false)
+		expect(dot("hue", resetSlot, STUB_THEME, true)).toBe(false)
+	})
+
+	it("an opacity slot reset back to its default is not a phantom", () => {
+		const resetSlot = {
+			...fresh,
+			opacitySlots: { border: { field: null, level: 1 } },
+		} as unknown as ChannelConfigs
+		expect(dot("opacity", resetSlot)).toBe(false)
+		expect(dot("opacity", resetSlot, STUB_THEME, true)).toBe(false)
+	})
+
+	it("an opacity slot's stale scale (field cleared) is not a phantom", () => {
+		// Vary-by set, per-value overrides made, then Vary-by cleared: the slot
+		// keeps the scale for a future remap, but shows no control for it.
+		const stale = {
+			...fresh,
+			opacitySlots: {
+				border: {
+					field: null,
+					level: 1,
+					opacity: { kind: "categorical", overrides: { A: 0.4 } },
+				},
+			},
+		} as unknown as ChannelConfigs
+		expect(dot("opacity", stale)).toBe(false)
 	})
 })
 
@@ -589,8 +667,11 @@ describe("opacity stackMode dot (phase 2)", () => {
 			...fresh,
 			opacity: { ...range, stackMode: "group" },
 		} as unknown as ChannelConfigs
-		expect(dot("opacity", cfg)).toBe(true)
-		const labels = explainChannelCustomization("opacity", cfg, STUB_THEME)
+		// Stacking is only reachable (and clearable) with an opacity field
+		// mapped, so the retained stackMode must not dot once the field is gone.
+		expect(dot("opacity", cfg, STUB_THEME, true)).toBe(true)
+		expect(dot("opacity", cfg, STUB_THEME, false)).toBe(false)
+		const labels = explainChannelCustomization("opacity", cfg, STUB_THEME, true)
 		expect(labels).toContain("opacity stacking")
 		expect(labels).not.toContain("opacity scale")
 	})
@@ -857,6 +938,65 @@ describe("chordAxisConfigFromTheme", () => {
 			length: 9,
 		})
 		expect(cfg.spine).toEqual({ color: "#654321", thickness: 4 })
+	})
+})
+
+// ── Per-axis spine theme fields ─────────────────────────────────────────────
+// x / y / polar spines can be themed independently; the legacy shared
+// spineColor/spineThickness remain the fallback so old themes keep working.
+describe("spineThemeFor", () => {
+	const perAxis: Theme = {
+		...STUB_THEME,
+		xSpineColor: "#111111",
+		xSpineThickness: 2,
+		ySpineColor: "#222222",
+		ySpineThickness: 3,
+		polarSpineColor: "#333333",
+		polarSpineThickness: 4,
+	}
+
+	it("falls back to the legacy shared fields when per-axis fields are unset", () => {
+		for (const axis of ["x", "y", "polar"] as const) {
+			expect(spineThemeFor(STUB_THEME, axis)).toEqual({
+				color: STUB_THEME.spineColor,
+				thickness: STUB_THEME.spineThickness,
+			})
+		}
+	})
+
+	it("prefers the per-axis fields when set", () => {
+		expect(spineThemeFor(perAxis, "x")).toEqual({ color: "#111111", thickness: 2 })
+		expect(spineThemeFor(perAxis, "y")).toEqual({ color: "#222222", thickness: 3 })
+		expect(spineThemeFor(perAxis, "polar")).toEqual({
+			color: "#333333",
+			thickness: 4,
+		})
+	})
+
+	it("axis configs seed their own axis's spine", () => {
+		expect(axisConfigFromTheme(perAxis, "x").spine).toEqual({
+			color: "#111111",
+			thickness: 2,
+		})
+		expect(axisConfigFromTheme(perAxis, "y").spine).toEqual({
+			color: "#222222",
+			thickness: 3,
+		})
+		// Radar's r axis draws no spine; it stays at the built-in default.
+		expect(axisConfigFromTheme(perAxis, "r").spine).toEqual(
+			DEFAULT_AXIS_CONFIG.spine
+		)
+	})
+
+	it("the chord ring axis and radar spokes seed from the POLAR spine", () => {
+		expect(chordAxisConfigFromTheme(perAxis).spine).toEqual({
+			color: "#333333",
+			thickness: 4,
+		})
+		expect(angleConfigFromTheme(perAxis).spine).toEqual({
+			color: "#333333",
+			thickness: 4,
+		})
 	})
 })
 

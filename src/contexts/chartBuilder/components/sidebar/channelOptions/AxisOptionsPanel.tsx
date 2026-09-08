@@ -18,7 +18,7 @@ import {
 import { COUNTRY_NAME_FORMAT } from "../../../lib/geo/countryNames"
 import { formatBreaksInput, parseBreaksInput } from "../../../lib/legendBreaks"
 import { naturalWrapAlignFor } from "../../../lib/tickLabelWrap"
-import { axisConfigFromTheme, valueChanged } from "../../../lib/themeConfig"
+import { axisConfigFromTheme, spineThemeFor, valueChanged } from "../../../lib/themeConfig"
 import type { FontConfig, LabelAlignment } from "../../../lib/labelsConfig"
 import { maxMeaningfulTicks } from "../../../lib/scales"
 import type { FieldType, Theme } from "../../../lib/types"
@@ -588,6 +588,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						spine={config.spine ?? DEFAULT_SPINE_CONFIG}
 						onChange={(s) => update({ spine: s })}
 						theme={theme}
+						axis={channel}
 					/>
 					{showSpineAtZero && (
 						<div className="flex flex-col gap-1">
@@ -1071,12 +1072,16 @@ export const SpineControls = ({
 	spine,
 	onChange,
 	theme,
+	axis,
 	hideColorRow = false,
 	showChanged = true,
 }: {
 	spine: SpineConfig
 	onChange: (s: SpineConfig) => void
 	theme: Theme
+	/** Which theme spine this control resets to / dots against — the x / y
+	 *  axis fields, or the polar fields (chord ring, radar spokes). */
+	axis: "x" | "y" | "polar"
 	/** Drop the Color row. Radar spokes take their color from the Color menu's
 	 *  "Radar Spine" slot, so the radar panel points at that instead. */
 	hideColorRow?: boolean
@@ -1085,12 +1090,13 @@ export const SpineControls = ({
 	showChanged?: boolean
 }) => {
 	const set = (next: Partial<SpineConfig>) => onChange({ ...spine, ...next })
+	const themeSpine = spineThemeFor(theme, axis)
 	// `||` (not `??`) so a 0 / undefined theme value falls back to the
 	// built-in default. A theme that somehow has `spineThickness: 0` would
 	// otherwise have "reset" produce an invisible spine (= no visible change
 	// for the user clicking the link).
-	const resetColor = theme.spineColor || DEFAULT_SPINE_CONFIG.color
-	const resetThickness = theme.spineThickness || DEFAULT_SPINE_CONFIG.thickness
+	const resetColor = themeSpine.color || DEFAULT_SPINE_CONFIG.color
+	const resetThickness = themeSpine.thickness || DEFAULT_SPINE_CONFIG.thickness
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -1101,7 +1107,7 @@ export const SpineControls = ({
 						labelClassName={LABEL_COL}
 						value={spine.color}
 						onChange={(color) => set({ color })}
-						changed={showChanged ? valueChanged(spine.color, theme.spineColor) : undefined}
+						changed={showChanged ? valueChanged(spine.color, themeSpine.color) : undefined}
 					/>
 					{spine.color !== resetColor && (
 						<ResetLink onClick={() => set({ color: resetColor })} underline />
@@ -1120,7 +1126,7 @@ export const SpineControls = ({
 					inputClassName="w-16"
 					suffix="px"
 					changed={
-						showChanged ? valueChanged(spine.thickness, theme.spineThickness) : undefined
+						showChanged ? valueChanged(spine.thickness, themeSpine.thickness) : undefined
 					}
 				/>
 				{spine.thickness !== resetThickness && (
@@ -1770,7 +1776,8 @@ const DistributionTypeControls = ({
 					<p className="vc-help">
 						Set violin / box colors under the <strong>Color</strong> menu →{" "}
 						<strong>Violin / Box Fill</strong> and{" "}
-						<strong>Violin / Box Outline</strong>.
+						<strong>Violin / Box Outline</strong>, and the border width under
+						the <strong>Shape</strong> menu → <strong>Violin / box outline</strong>.
 					</p>
 				</>
 			)}

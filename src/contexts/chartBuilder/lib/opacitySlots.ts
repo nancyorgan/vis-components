@@ -1,4 +1,8 @@
-import type { ChannelConfigs, OpacitySlotKey } from "./channelConfig"
+import type {
+	ChannelConfigs,
+	OpacitySlotConfig,
+	OpacitySlotKey,
+} from "./channelConfig"
 import type { ChartMode } from "./chartMode"
 import {
 	densityCurveFillOn,
@@ -171,6 +175,24 @@ export const OPACITY_SLOT_DEFS: Record<OpacitySlotKey, OpacitySlotDef> =
 		OpacitySlotKey,
 		OpacitySlotDef
 	>
+
+/** This slot deviates from its untouched state: a field mapped, or its level
+ * moved off the part's default. A slot OBJECT merely existing is NOT an edit —
+ * the panel writes a well-formed `{field: null, level: default}` on any touch
+ * (a reset included), so presence alone must not count. The single source for
+ * both the panel's subsection dot and the encoding row's channel dot, so the
+ * two can't drift. */
+export const opacitySlotEdited = (
+	key: OpacitySlotKey,
+	slotCfg: OpacitySlotConfig | undefined
+): boolean => {
+	if (!slotCfg) return false
+	if (slotCfg.field != null) return true
+	// A stray key with no registry entry renders nowhere (nothing to clear), so
+	// it never dots.
+	const def = OPACITY_SLOT_DEFS[key]
+	return def != null && slotCfg.level != null && slotCfg.level !== def.defaultLevel
+}
 
 /** Slots shown for a given chart mode + config — mode matches (or is universal)
  * AND the feature gate passes. Used by the Opacity panel to pick subheaders. */

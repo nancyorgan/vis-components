@@ -1,4 +1,8 @@
-import type { ChannelConfigs, ColorSlotKey } from "./channelConfig"
+import type {
+	ChannelConfigs,
+	ColorSlotConfig,
+	ColorSlotKey,
+} from "./channelConfig"
 import type { ChartMode } from "./chartMode"
 import type { Encodings, Theme } from "./types"
 
@@ -22,6 +26,14 @@ export type ColorSlotDef = {
 	/** When false, the slot offers a single color only — no "vary by" field
 	 * dropdown (e.g. the radar spine). */
 	acceptsFieldMapping: boolean
+	/** Present when an UNCONFIGURED slot does NOT render the default single
+	 * color but follows the main Color (hue) encoding (violin/box, regression).
+	 * The panel then leads the Vary-by list with this "Automatic" option —
+	 * which clears the stored slot — so the untouched state displays
+	 * truthfully, and "Single color" is an explicit stored choice that really
+	 * renders one color. Slots whose fall-through is just a single color must
+	 * NOT set this: there, "Single color" already describes the default. */
+	inherit?: { label: string; help: string }
 }
 
 const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
@@ -122,6 +134,14 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		themeColor: (t) => t.distributionOverlayFill,
 		acceptsFieldMapping: true,
+		// Unconfigured, the renderer inherits per-category colors from the hue
+		// encoding when it's mapped to the category-axis field (see
+		// renderDistributionOverlays) — so the default must not claim "Single
+		// color".
+		inherit: {
+			label: "Automatic",
+			help: "Matches the point colors when Color varies by the category variable; otherwise a single default color.",
+		},
 	},
 	{
 		key: "violinStroke",
@@ -130,6 +150,10 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		themeColor: (t) => t.distributionOverlayStroke,
 		acceptsFieldMapping: true,
+		inherit: {
+			label: "Automatic",
+			help: "Matches the point colors when Color varies by the category variable; otherwise a single default color.",
+		},
 	},
 	{
 		key: "densityCurveFill",
@@ -160,6 +184,12 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => regressionOn(configs),
 		themeColor: (t) => t.regressionStroke,
 		acceptsFieldMapping: true,
+		// Unconfigured, each per-group regression line inherits its hue group's
+		// color (see RegressionLayer) — same truth-in-labeling as the violin.
+		inherit: {
+			label: "Automatic",
+			help: "Matches each Color group's color when points are grouped; otherwise a single default color.",
+		},
 	},
 	{
 		key: "regressionCiFill",
@@ -168,6 +198,10 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => regressionCiOn(configs),
 		themeColor: (t) => t.regressionCiFill,
 		acceptsFieldMapping: true,
+		inherit: {
+			label: "Automatic",
+			help: "Matches each Color group's color when points are grouped; otherwise a single default color.",
+		},
 	},
 	{
 		key: "stem",
@@ -183,7 +217,9 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		label: "Radar Spine",
 		modes: m("radar"),
 		isApplicable: () => true,
-		themeColor: (t) => t.spineColor,
+		// Per-axis polar spine field first, legacy shared field as fallback —
+		// the same resolution `spineThemeFor(t, "polar")` applies.
+		themeColor: (t) => t.polarSpineColor ?? t.spineColor,
 		acceptsFieldMapping: false,
 	},
 	{
@@ -248,6 +284,34 @@ export const legacySlotColor = (
 		case "regressionCiFill":
 			return configs.x?.regression?.ciFillColor
 	}
+}
+
+/** This slot deviates from its untouched state: a field mapped, a palette
+ * picked, or its single color moved off the slot's default (the legacy
+ * per-feature color, else the theme color). A slot OBJECT merely existing is
+ * NOT an edit — the panel writes a well-formed `{field: null, singleColor:
+ * default}` on any touch (a reset included), so presence alone must not count.
+ * The single source for both the panel's subsection dot and the encoding row's
+ * channel dot, so the two can't drift. */
+export const colorSlotEdited = (
+	key: ColorSlotKey,
+	slotCfg: ColorSlotConfig | undefined,
+	configs: ChannelConfigs,
+	theme: Theme
+): boolean => {
+	if (!slotCfg) return false
+	// An inherit-capable slot's untouched state is "Automatic" (no stored
+	// config; renderers follow the Color mapping). There the panel stores a
+	// config only on an explicit choice — "Single color" or a field — and
+	// picking Automatic deletes it, so presence IS the edit.
+	if (COLOR_SLOT_DEFS[key]?.inherit) return true
+	if (slotCfg.field != null || slotCfg.paletteId != null) return true
+	if (slotCfg.singleColor == null) return false
+	// A stray key with no registry entry renders nowhere (nothing to clear), so
+	// it never dots.
+	const defaultColor =
+		legacySlotColor(key, configs) ?? COLOR_SLOT_DEFS[key]?.themeColor(theme)
+	return defaultColor != null && slotCfg.singleColor !== defaultColor
 }
 
 /** Slots shown for a given chart mode + config — mode matches AND the feature
