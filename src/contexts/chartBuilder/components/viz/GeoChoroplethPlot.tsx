@@ -39,8 +39,6 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 		noDataFill: mapConfig.noDataFill,
 		noDataPatternDef: noDataDef,
 		measureField: geo.measureField,
-		hueScale: geo.hueScale,
-		opacityScale: geo.opacityScale,
 		baseOutlineColor: geo.baseOutlineColor,
 		outlineHue: geo.outlineHue,
 		outlineColorRules: channelConfigs.shape?.outlineColorRules,
@@ -55,16 +53,22 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 	// pattern def are the complete def universe.
 	const patternDefs = useMemo(() => {
 		const defs = buildGeoPatternDefs(
-			[...geo.featureToRow.values()].map((row) => ({
-				row,
-				fill: resolveGeoFill(
+			[...geo.featureToRow.values()].map((row) => {
+				// Same resolution the region paths draw with (modulation included),
+				// so the `url(#...)` ids always match an emitted def.
+				const { fill, preModulationHue, satUnit, briUnit } = resolveGeoFill(
 					mapConfig.noDataFill,
 					row,
 					geo.measureField,
-					geo.hueScale,
-					geo.opacityScale
-				).fill,
-			})),
+					geo.aestheticScales,
+					channelConfigs
+				)
+				return {
+					row,
+					fill,
+					mod: { preModulationHue, satUnit, briUnit },
+				}
+			}),
 			geo.aestheticScales,
 			channelConfigs
 		)
@@ -72,8 +76,6 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 	}, [
 		geo.featureToRow,
 		geo.measureField,
-		geo.hueScale,
-		geo.opacityScale,
 		geo.aestheticScales,
 		mapConfig.noDataFill,
 		channelConfigs,

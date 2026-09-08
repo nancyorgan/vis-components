@@ -69,8 +69,6 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 		noDataFill: mapConfig.noDataFill,
 		noDataPatternDef: noDataDef,
 		measureField: geo.measureField,
-		hueScale: geo.hueScale,
-		opacityScale: geo.opacityScale,
 		baseOutlineColor: geo.baseOutlineColor,
 		outlineHue: geo.outlineHue,
 		outlineColorRules: channelConfigs.shape?.outlineColorRules,
@@ -86,16 +84,20 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 		const rows = [...geo.featureToRow.values()]
 		const defs = buildGeoPatternDefs(
 			[
-				...rows.map((row) => ({
-					row,
-					fill: resolveGeoFill(
+				...rows.map((row) => {
+					const { fill, preModulationHue, satUnit, briUnit } = resolveGeoFill(
 						mapConfig.noDataFill,
 						row,
 						geo.measureField,
-						geo.hueScale,
-						geo.opacityScale
-					).fill,
-				})),
+						aestheticScales,
+						channelConfigs
+					)
+					return {
+						row,
+						fill,
+						mod: { preModulationHue, satUnit, briUnit },
+					}
+				}),
 				...rows.map((row) => ({
 					row,
 					fill: resolveSlotColor(
@@ -115,8 +117,6 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 	}, [
 		geo.featureToRow,
 		geo.measureField,
-		geo.hueScale,
-		geo.opacityScale,
 		aestheticScales,
 		mapConfig.noDataFill,
 		pointFillSlot,

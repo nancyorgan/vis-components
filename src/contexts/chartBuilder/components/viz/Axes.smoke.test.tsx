@@ -468,16 +468,6 @@ describe("Axis drops gridlines under the opposing spine", () => {
 		expect(positions).toContain(inner.y1)
 	})
 
-	it("keeps the gridline when the opposing spine is nudged away", () => {
-		const positions = gridlinePositions({
-			config: {
-				spine: { color: "#000", thickness: 1 },
-				offsetY: 10,
-			},
-		})
-		expect(positions).toContain(inner.y1)
-	})
-
 	it("tracks a moved opposing spine (Set spine at 0): drops the gridline at the zero crossing, keeps the edge one", () => {
 		// yScale value 40 → pixel 176 (280 - 0.4·260) — an automatic gridline
 		// position for count 5. With the opposing x spine moved there, THAT
@@ -988,5 +978,102 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 			.filter((s): s is string => !!s && s !== "T")
 		// Two in-domain breaks → two ticks; the 2025 break is dropped.
 		expect(labels).toHaveLength(2)
+	})
+})
+
+describe("Axis 'Adjust position' nudge (tick labels only)", () => {
+	// The control lives in the Tick Labels section, so the nudge moves the
+	// tick LABELS and nothing else: the spine, tick marks, and gridlines all
+	// stay pinned where they were.
+	const xScale = scaleLinear().domain([0, 100]).range([inner.x0, inner.x1])
+
+	const SPINE = "#111111"
+	const TICKMARK = "#222222"
+	const GRID = "#333333"
+
+	const renderAxis = (offset?: {
+		offset?: number
+		offsetX?: number
+		offsetY?: number
+	}) =>
+		render(
+			wrapInSvg(
+				<Axis
+					scale={xScale}
+					orientation="x"
+					inner={inner}
+					label="X"
+					fieldType="quantitative"
+					config={{
+						tickCount: 5,
+						customFormat: "",
+						tickLabelAngle: 0,
+						jitterAmount: 0,
+						gridlines: {
+							enabled: true,
+							color: GRID,
+							thickness: 1,
+							count: 5,
+						},
+						tickmarks: { color: TICKMARK, thickness: 1, length: 5 },
+						spine: { color: SPINE, thickness: 1 },
+						distributionOverlay: {
+							showDensityViolin: false,
+							showBoxPlot: false,
+							showPoints: true,
+							color: "#000",
+							fillColor: "#000",
+							colorOverrides: {},
+							fillColorOverrides: {},
+						},
+						...offset,
+					}}
+				/>
+			)
+		).container
+
+	/** Every tick-label group's translate, as [x, y] pairs. */
+	const labelTranslates = (container: HTMLElement): [number, number][] =>
+		[...container.querySelectorAll("g[transform]")]
+			.map((g) => g.getAttribute("transform") ?? "")
+			.map((t) => /^translate\((-?[\d.]+),(-?[\d.]+)\)$/.exec(t))
+			.filter((m): m is RegExpExecArray => m !== null)
+			.map((m) => [Number(m[1]), Number(m[2])])
+
+	const linePositions = (container: HTMLElement, stroke: string) =>
+		[...container.querySelectorAll("line")]
+			.filter((l) => l.getAttribute("stroke") === stroke)
+			.map((l) => ({
+				x1: Number(l.getAttribute("x1")),
+				y1: Number(l.getAttribute("y1")),
+			}))
+
+	it("shifts the tick labels by the nudge", () => {
+		const base = labelTranslates(renderAxis())
+		const nudged = labelTranslates(renderAxis({ offsetX: 12, offsetY: -8 }))
+		expect(base.length).toBeGreaterThan(0)
+		expect(nudged).toEqual(base.map(([x, y]) => [x + 12, y - 8]))
+	})
+
+	it("leaves the spine, tick marks, and gridlines where they were", () => {
+		const base = renderAxis()
+		const nudged = renderAxis({ offsetX: 12, offsetY: -8 })
+		for (const stroke of [SPINE, TICKMARK, GRID]) {
+			expect(linePositions(nudged, stroke)).toEqual(
+				linePositions(base, stroke)
+			)
+		}
+		// The spine stays on the plot floor rather than following the nudge.
+		expect(linePositions(nudged, SPINE)[0]?.y1).toBe(inner.y1)
+	})
+
+	it("folds the legacy perpendicular `offset` into the label nudge", () => {
+		const base = labelTranslates(renderAxis())
+		// x-axis legacy offset: positive = down/away from the plot.
+		const legacy = labelTranslates(renderAxis({ offset: 10 }))
+		expect(legacy).toEqual(base.map(([x, y]) => [x, y + 10]))
+		expect(linePositions(renderAxis({ offset: 10 }), SPINE)[0]?.y1).toBe(
+			inner.y1
+		)
 	})
 })

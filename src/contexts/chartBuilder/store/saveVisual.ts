@@ -37,6 +37,7 @@ import {
 	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
+	currentFieldLevelOrderSpecsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
@@ -85,6 +86,7 @@ export const useSaveVisual = () => {
 			const dataLabelsConfig = get(currentDataLabelsConfigAtom)
 			const themeId = get(currentThemeIdAtom)
 			const fieldLevelOrders = get(currentFieldLevelOrdersAtom)
+			const fieldLevelOrderSpecs = get(currentFieldLevelOrderSpecsAtom)
 			const annotationsConfig = get(currentAnnotationsAtom)
 			const captionConfig = get(currentCaptionConfigAtom)
 			const mapConfig = get(currentMapConfigAtom)
@@ -129,6 +131,7 @@ export const useSaveVisual = () => {
 			dataLabelsConfig: { ...dataLabelsConfig },
 			themeId: themeId ?? undefined,
 			fieldLevelOrders: { ...fieldLevelOrders },
+			fieldLevelOrderSpecs: { ...fieldLevelOrderSpecs },
 			annotationsConfig: {
 				rectangles: [...annotationsConfig.rectangles],
 				circles: [...(annotationsConfig.circles ?? [])],
@@ -225,6 +228,11 @@ export const useLoadVisual = () => {
 			// visuals leave this undefined; the renderer treats missing entries
 			// as "no override" → smart-sort fallback.
 			set(currentFieldLevelOrdersAtom, visual.fieldLevelOrders ?? {})
+			// What the "Order by" picker was set to for each of those orders —
+			// added after level ordering shipped. Older visuals leave it
+			// undefined; the panel then shows an unset picker over an order it
+			// can't explain, exactly as it always did.
+			set(currentFieldLevelOrderSpecsAtom, visual.fieldLevelOrderSpecs ?? {})
 			// Per-visual annotations — added after first release. Older visuals
 			// (and any saved before this field was bound into the save cycle)
 			// leave it undefined; fall back to an empty annotation set so a prior
@@ -296,6 +304,7 @@ export const useResetVisual = () => {
 			set(currentDataLabelsEncodingsAtom, emptyDataLabelsEncodings())
 			set(currentDataLabelsConfigAtom, dataLabelsConfigFromTheme(defaultTheme))
 			set(currentFieldLevelOrdersAtom, {})
+			set(currentFieldLevelOrderSpecsAtom, {})
 			set(currentAnnotationsAtom, DEFAULT_ANNOTATIONS_CONFIG)
 			set(currentCaptionConfigAtom, DEFAULT_CAPTION_CONFIG)
 			set(currentMapConfigAtom, DEFAULT_MAP_CONFIG)

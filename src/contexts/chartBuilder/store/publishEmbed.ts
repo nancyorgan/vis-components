@@ -29,6 +29,7 @@ import type { EmbedPart } from "../../../embedRuntime/payload"
 import {
 	datasetIndexAtom,
 	embedInstancesAtom,
+	publishedEditAckAtom,
 	themeAtom,
 	themesAtom,
 	visualsAtom,
@@ -130,6 +131,10 @@ export const usePublishEmbed = () =>
 						publishedVersionId,
 					})
 				)
+				// The visual becomes "published" the instant this lands, which
+				// would otherwise trip PublishedEditGate's warning on the user's
+				// own deliberate publish. Pre-acknowledge it.
+				set(publishedEditAckAtom, args.visualId)
 				return urls
 			},
 			[]

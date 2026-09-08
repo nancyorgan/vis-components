@@ -72,9 +72,9 @@ type Props = {
 	 * gridline its stroke covers. Object presence = the opposing axis
 	 * renders; `config` may still be undefined (defaults apply). Typed as
 	 * the subset the suppression reads so callers can pass a full
-	 * AxisConfig or just the spine/offset fields. */
+	 * AxisConfig or just the spine field. */
 	opposingAxis?: {
-		config?: Pick<AxisConfig, "spine" | "offset" | "offsetX" | "offsetY">
+		config?: Pick<AxisConfig, "spine">
 		/** Where the opposing spine actually sits when it has been moved off
 		 * its default plot edge ("Set spine at 0" — see `spinePosition` below).
 		 * The gridline suppression must track the moved spine, not the edge. */
@@ -152,19 +152,16 @@ export const Axis = ({
 	const axisLine = isX
 		? { x1: inner.x0, y1: spineAt, x2: inner.x1, y2: spineAt }
 		: { x1: spineAt, y1: inner.y0, x2: spineAt, y2: inner.y1 }
-	// "Adjust position" nudge — shifts the spine + ticks + labels + title,
-	// WITHOUT moving the gridlines (which stay pinned to their data
-	// positions). Stored in screen coords (+x right, +y down). The legacy
-	// single `offset` was perpendicular-only (x-axis: positive = down, y-axis:
-	// positive = left); it's folded in only while the new fields are unset —
-	// the panel clears it on the first write of offsetX/offsetY.
+	// "Adjust position" nudge — shifts the TICK LABELS only. The control lives
+	// in the Tick Labels section, so nothing else moves: the spine, tick
+	// marks, title, and gridlines all stay pinned where they were. Stored in
+	// screen coords (+x right, +y down). The legacy single `offset` was
+	// perpendicular-only (x-axis: positive = down, y-axis: positive = left);
+	// it's folded in only while the new fields are unset — the panel clears it
+	// on the first write of offsetX/offsetY.
 	const legacyOffset = config?.offset ?? 0
-	const axisDx = config?.offsetX ?? (isX ? 0 : -legacyOffset)
-	const axisDy = config?.offsetY ?? (isX ? legacyOffset : 0)
-	const offsetTransform =
-		axisDx === 0 && axisDy === 0
-			? undefined
-			: `translate(${axisDx},${axisDy})`
+	const labelDx = config?.offsetX ?? (isX ? 0 : -legacyOffset)
+	const labelDy = config?.offsetY ?? (isX ? legacyOffset : 0)
 
 	const requestedCount = config?.tickCount ?? DEFAULT_TICK_COUNT
 	// Clamp to 0..maxMeaningfulTicks. `tickCount: 0` is a valid request that
@@ -424,18 +421,14 @@ export const Axis = ({
 		if (!opposingAxis) return true
 		const oppSpine = { ...DEFAULT_SPINE_CONFIG, ...opposingAxis.config?.spine }
 		if (!(oppSpine.thickness > 0)) return true
-		// The opposing spine follows ITS axis's position nudge (same legacy
-		// single-offset fold-in as `axisDx`/`axisDy` above, with the
-		// opposing orientation): only the component along this axis's
-		// gridline direction matters. A spine moved to a zero crossing
-		// ("Set spine at 0") is tracked at its moved position — the gridline
-		// there is the one it replaces, while the edge gridline stays.
-		const oppLegacy = opposingAxis.config?.offset ?? 0
+		// The opposing spine sits at the plot edge unless it was moved to a
+		// zero crossing ("Set spine at 0"), which is tracked at its moved
+		// position — the gridline there is the one it replaces, while the
+		// edge gridline stays. The "Adjust position" nudge does NOT enter
+		// here: it moves tick labels only, never the spine.
 		const spinePos = isX
-			? (opposingAxis.spinePosition ?? inner.x0) +
-				(opposingAxis.config?.offsetX ?? -oppLegacy)
-			: (opposingAxis.spinePosition ?? inner.y1) +
-				(opposingAxis.config?.offsetY ?? oppLegacy)
+			? (opposingAxis.spinePosition ?? inner.x0)
+			: (opposingAxis.spinePosition ?? inner.y1)
 		return Math.abs(pos - spinePos) > (oppSpine.thickness + grid.thickness) / 2 + 0.01
 	})
 
@@ -456,7 +449,7 @@ export const Axis = ({
 						opacity={0.6}
 					/>
 				))}
-			<g transform={offsetTransform}>
+			<g>
 				{/* Tick strokes (behind marks). Drawn here in the back pass — with
 				 *  the gridlines and before the mark renderer — so overlapping
 				 *  points/shapes paint over them. The matching labels stay in the
@@ -514,7 +507,7 @@ export const Axis = ({
 								<g
 									// eslint-disable-next-line react/no-array-index-key -- tick list is recomputed per render; label alone can collide
 									key={`${t.label}-${i}`}
-									transform={`translate(${x},${y})`}
+									transform={`translate(${x + labelDx},${y + labelDy})`}
 								>
 									{/* Tick STROKE moved to the back pass above so it draws
 										behind overlapping marks; only the label renders here. */}

@@ -201,7 +201,21 @@ categories). Types are inferred from the first ~50 non-empty values.
 Users override per-field in the Fields panel with a dropdown — useful
 when a numeric column like a zip code should be treated as categorical.
 For categorical/ordinal fields, users can also pin a custom level
-order (up/down arrows) instead of the smart-sort default.
+order (up/down arrows, drag, reverse) instead of the smart-sort default,
+or compute one with "Order by" — Alphabetical or another variable's
+aggregate, optionally scoped to one level of a third variable ("in the
+2023 level of year"), ascending or Decreasing.
+
+"Order by" stays ONE-SHOT: it computes an order and pins it like any
+manual reorder, and nothing re-derives it when the data changes. The
+picker's settings are nonetheless remembered per field (saved with the
+visual), so closing the field's chevron and reopening it shows what the
+levels were ordered by and lets the user change one knob instead of
+starting over. A hand reorder — arrows, drag, reverse, reset — drops the
+memory back to "—", since the pinned order is no longer the computed
+one, and a remembered choice that no longer resolves (the variable was
+deleted or retyped, the scope level is gone from newer data) shows as
+unset rather than as a dangling selection.
 
 **Renaming a variable** — clicking a field's name in the Fields panel
 (a pencil appears on hover) opens an inline editor; Enter/blur commits,
@@ -468,8 +482,19 @@ overrides / "None", hue-paired inks): choropleth region fills, dot-map
 dots, and bubble-map bubbles (over their point-fill slot color) all
 swap their fill for the pattern paint when the mark's row carries a
 pattern category (`lib/geo/geoMarkStyle.ts` — `resolveGeoPatternDef`).
-Geo fills apply no sat/bri modulation, so the resolved fill doubles as
-the pattern background and the ink-lookup key.
+
+Geo measure fills also run through **saturation / brightness**
+modulation, on the same anchored levels and the same
+mapped-but-unresolvable → channel default fallback as everywhere else
+(`resolveGeoFill` composes `resolveRowModulation`, the per-row helper
+`resolveMarkAesthetics` uses). So a choropleth with hue on one
+variable and brightness on another shades WITHIN each hue category,
+matching what its legend shows. The modulation applies to whatever the
+measure resolved to — a hue color, the opacity-only base fill, or (with
+no measure mapped) the no-data fill for matched rows. Un-joined regions
+never modulate: they stay on the flat no-data paint. Pattern-ink lookup
+still keys on the PRE-modulation color, and a pattern whose background
+isn't hue-driven modulates like the fill does.
 
 Data labels on maps anchor to REGIONS via the Data Labels section's
 **Geography** row (which replaces its X/Y position rows in geo modes) —
@@ -1350,19 +1375,20 @@ The X-axis and Y-axis panels (under Encodings) configure:
   the translucent gridline antialiases against the spine edge into a
   blurry double line. Whenever the opposing spine is visible
   (thickness > 0), any gridline its stroke covers is dropped — the
-  spine draws there instead. The test compares positions after both
-  axes' position nudges, and the tolerance is half the two strokes'
-  combined width. Cartesian coordinates only (`Axis`'s `opposingAxis`
+  spine draws there instead. The test compares the gridline against
+  the opposing spine's drawn position (the plot edge, or its zero
+  crossing under "Set spine at 0"), and the tolerance is half the two
+  strokes' combined width. Cartesian coordinates only (`Axis`'s `opposingAxis`
   prop, passed from `components/viz/coords/cartesian.tsx`); polar and radar axes
   have no opposing spine.
 - **Adjust position** (end of Tick Labels, behind a divider) — X / Y
-  pixel nudge that moves the whole axis (spine, tick marks, tick
-  labels, title) without moving the gridlines, which stay pinned to
-  their data positions. Same input convention as the data-labels
-  nudge: positive X = right, positive Y = up (stored in screen
-  coords, sign flipped at the input boundary). The legacy
-  perpendicular `offset` field is read while the new `offsetX`/
-  `offsetY` are unset and cleared on their first write.
+  pixel nudge that moves the TICK LABELS only. The control sits in the
+  Tick Labels section, so nothing else follows it: the spine, tick
+  marks, axis title, and gridlines all stay where they were. Same
+  input convention as the data-labels nudge: positive X = right,
+  positive Y = up (stored in screen coords, sign flipped at the input
+  boundary). The legacy perpendicular `offset` field is read while the
+  new `offsetX`/`offsetY` are unset and cleared on their first write.
 - **Tick label angle**, **label stride** (every Nth).
 - **Wrap text** (Tick Labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis
@@ -2491,6 +2517,21 @@ piece can't be measured). The snippets are editable textareas: hand
 edits survive until an option that rebuilds the snippet changes.
 Copying a snippet records an embed instance, which is what lets live
 embeds follow later version uploads.
+
+**Editing a published visual is flagged twice.** The landing page's
+Pin State column reports publish reality per instance; the editor
+adds the two signals a user in the middle of editing actually sees.
+Opening a visual that has at least one PUBLISHED instance (a publish
+record with live urls — a copied-but-unpublished snippet does not
+count, its urls are dead) puts up an acknowledge-to-continue notice —
+"This visual is already embedded. Edits you make here will affect
+published content." — with **I understand** (stay) and **Go back**
+(return to the library). While that visual stays open, the chart
+viewport wears a 4 px purple frame as the standing reminder. The
+notice re-appears on a later re-entry but not for a publish the user
+just made from the Export modal, and the frame costs no layout (an
+inset shadow, not a border) so it can't shift the export/embed size
+defaults measured off the viewport.
 
 **Export image** renders the chart in a preview iframe and downloads
 it as **PNG**, **JPEG**, **SVG**, or **PDF**:

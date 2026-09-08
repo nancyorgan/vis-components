@@ -401,16 +401,15 @@ export type AxisConfig = {
 	 * on the X axis config (fits are y-on-x). Optional so saved visuals load
 	 * unchanged — absent reads as disabled. */
 	regression?: RegressionConfig
-	/** LEGACY perpendicular nudge (px) that moves the axis decorations — spine,
-	 * tick marks, tick labels, and title — closer to or farther from the plot
-	 * area, WITHOUT moving the gridlines. Positive pushes the axis AWAY from
-	 * the plot (an x-axis moves vertically, a y-axis horizontally). Superseded
-	 * by `offsetX`/`offsetY` below — read only when those are unset; the panel
+	/** LEGACY perpendicular nudge (px) that moves the axis tick labels closer
+	 * to or farther from the plot area. Positive pushes them AWAY from the
+	 * plot (an x-axis moves vertically, a y-axis horizontally). Superseded by
+	 * `offsetX`/`offsetY` below — read only when those are unset; the panel
 	 * clears it on the first write of the new fields. */
 	offset?: number
 	/** "Adjust position" nudge (px, screen coords: +x right, +y down) applied
-	 * to the whole axis — spine, tick marks, tick labels, and title — WITHOUT
-	 * moving the gridlines (those stay pinned to their data positions). The
+	 * to the TICK LABELS only — the control lives in the Tick Labels section,
+	 * so the spine, tick marks, title, and gridlines all stay put. The
 	 * sidebar's Y input shows math convention (positive = up) and flips the
 	 * sign at the input boundary. Absent = 0. Ignored on the radial `r`
 	 * axis. */

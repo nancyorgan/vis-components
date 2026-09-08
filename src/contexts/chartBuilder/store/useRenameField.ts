@@ -23,6 +23,7 @@ import {
 	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
+	currentFieldLevelOrderSpecsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentReshapeConfigAtom,
@@ -54,6 +55,7 @@ export const renameFieldAcrossEditorAtoms = (
 		dataLabelsEncodings: get(currentDataLabelsEncodingsAtom),
 		fieldTypeOverrides: get(currentFieldOverridesAtom),
 		fieldLevelOrders: get(currentFieldLevelOrdersAtom),
+		fieldLevelOrderSpecs: get(currentFieldLevelOrderSpecsAtom),
 		channelConfigs: get(currentChannelConfigsAtom),
 		labelsConfig: get(currentLabelsAtom),
 		dataLabelsConfig: get(currentDataLabelsConfigAtom),
@@ -72,6 +74,8 @@ export const renameFieldAcrossEditorAtoms = (
 		set(currentFieldOverridesAtom, next.fieldTypeOverrides)
 	if (next.fieldLevelOrders !== state.fieldLevelOrders)
 		set(currentFieldLevelOrdersAtom, next.fieldLevelOrders)
+	if (next.fieldLevelOrderSpecs !== state.fieldLevelOrderSpecs)
+		set(currentFieldLevelOrderSpecsAtom, next.fieldLevelOrderSpecs)
 	if (next.channelConfigs !== state.channelConfigs)
 		set(currentChannelConfigsAtom, next.channelConfigs)
 	if (next.labelsConfig !== state.labelsConfig)

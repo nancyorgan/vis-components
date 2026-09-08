@@ -3,6 +3,7 @@ import { useAtom, useAtomValue } from "jotai"
 import {
 	blackAndWhiteModeAtom,
 	currentChannelConfigsAtom,
+	currentVisualPublishedAtom,
 	sidebarWidthAtom,
 } from "../store/atoms"
 import { useAutoSave } from "../store/useAutoSave"
@@ -20,6 +21,15 @@ import { useEnsureCurrentDatasetLoaded } from "../store/useCurrentDatasetView"
 const MIN_WIDTH = 240
 const MAX_WIDTH = 560
 
+/** Purple frame around the chart viewport while the open visual is
+ *  published: the standing reminder that edits here reach embedded content
+ *  (the modal on entry is the other half — see PublishedEditGate). Drawn as
+ *  an INSET SHADOW, not a border: the export/embed defaults measure this
+ *  element's bounding rect (`measureEditorChartSize` in ExportModal), so a
+ *  real border would silently inflate every default export by 8px. */
+const PUBLISHED_FRAME_CLASS =
+	"shadow-[inset_0_0_0_4px_var(--color-brand-500)]"
+
 export const EditorLayout = () => {
 	// Opening a visualization is what pulls its rows down — nothing loads row
 	// data before this point.
@@ -28,6 +38,9 @@ export const EditorLayout = () => {
 	const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom)
 	const blackAndWhite = useAtomValue(blackAndWhiteModeAtom)
 	const canvasSizeCfg = useAtomValue(currentChannelConfigsAtom).canvasSize
+	const publishedFrame = useAtomValue(currentVisualPublishedAtom)
+		? ` ${PUBLISHED_FRAME_CLASS}`
+		: ""
 	const fixedCanvas =
 		canvasSizeCfg?.enabled && canvasSizeCfg.width > 0 && canvasSizeCfg.height > 0
 			? canvasSizeCfg
@@ -105,7 +118,7 @@ export const EditorLayout = () => {
 							// and `m-auto` (not justify/align-center) keeps the
 							// rectangle's top-left reachable when it overflows.
 							<div
-								className="min-h-0 flex-1 overflow-auto bg-stone-200 dark:bg-stone-800"
+								className={`min-h-0 flex-1 overflow-auto bg-stone-200 dark:bg-stone-800${publishedFrame}`}
 								style={blackAndWhite ? { filter: "grayscale(1)" } : undefined}
 							>
 								<div className="flex min-h-full w-max min-w-full p-6">
@@ -124,7 +137,7 @@ export const EditorLayout = () => {
 						) : (
 							<div
 								data-editor-chart-viewport
-								className="min-h-0 flex-1 overflow-auto"
+								className={`min-h-0 flex-1 overflow-auto${publishedFrame}`}
 								style={blackAndWhite ? { filter: "grayscale(1)" } : undefined}
 							>
 								<ChartCanvas />

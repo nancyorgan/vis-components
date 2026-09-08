@@ -472,6 +472,11 @@ export const LibraryPage = () => {
 									<Link
 										to="/editor/$visualId"
 										params={{ visualId: d.visual.id }}
+										// The card (not the link or the thumbnail) is the drag
+										// source: a native link / image drag would otherwise
+										// start from those and carry the browser's own
+										// uri-list payload instead of the card's.
+										draggable={false}
 										className={`block overflow-hidden rounded-sm border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-stone-800 ${
 											isSelected
 												? "border-blue-500 ring-2 ring-blue-400 dark:border-blue-400 dark:ring-blue-500"
@@ -493,6 +498,7 @@ export const LibraryPage = () => {
 												<img
 													src={d.visual.thumbnail}
 													alt={d.visual.name}
+													draggable={false}
 													className="h-full w-full object-contain"
 												/>
 											) : (

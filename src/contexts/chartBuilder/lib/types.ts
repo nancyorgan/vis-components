@@ -270,6 +270,25 @@ import type { DerivedVariablesConfig } from "./derivedVariables"
 import type { MapConfig } from "./mapConfig"
 import type { ReshapeConfig } from "./reshape"
 
+/** The Fields panel's "Order by" picker settings for one categorical /
+ * ordinal field: what the last computed level order was computed FROM.
+ *
+ * This is a record of the CONTROLS, not a rule the pipeline evaluates —
+ * ordering stays one-shot (the computed order is pinned into
+ * `fieldLevelOrders` and never recomputed when the data changes). Keeping
+ * it lets the panel come back showing the choice instead of a blank picker.
+ *
+ * `by: "field"` always carries `byField`. `scopeField` without `scopeLevel`
+ * is the half-picked scope the panel allows (it orders across all rows) —
+ * both are kept so the controls restore exactly as the user left them. */
+export type FieldLevelOrderSpec = {
+	by: "alphabetical" | "field"
+	byField?: string
+	scopeField?: string
+	scopeLevel?: string
+	decreasing?: boolean
+}
+
 export type Visual = {
 	id: string
 	name: string
@@ -330,6 +349,15 @@ export type Visual = {
 	 * falls back to smart-sort otherwise. Optional for back-compat with
 	 * visuals saved before this feature shipped. */
 	fieldLevelOrders?: Record<string, string[]>
+	/** What the Fields panel's "Order by" picker was set to when each pinned
+	 * order was computed, keyed by field name. Purely a memory of the
+	 * controls — the ORDER itself lives in `fieldLevelOrders` and stays
+	 * one-shot (never recomputed from this) — so reopening a field's
+	 * chevron shows what it was ordered by and lets the user adjust one
+	 * knob instead of starting over. Cleared whenever the order is changed
+	 * by hand (arrows, drag, reverse, reset). Optional for back-compat with
+	 * visuals saved before the picker remembered anything. */
+	fieldLevelOrderSpecs?: Record<string, FieldLevelOrderSpec>
 	/** Per-visual rectangle annotations (shaded regions / highlight boxes
 	 * overlaid on the plot). Optional for back-compat with visuals saved
 	 * before annotations existed — falls back to DEFAULT_ANNOTATIONS_CONFIG

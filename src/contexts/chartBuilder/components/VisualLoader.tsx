@@ -5,6 +5,7 @@ import { currentDatasetIdAtom, visualsHydratedAtom } from "../store/atoms"
 import { useLoadVisual, useResetVisual } from "../store/saveVisual"
 
 import { EditorLayout } from "./EditorLayout"
+import { PublishedEditGate } from "./PublishedEditGate"
 
 export const VisualLoaderForNew = () => {
 	const reset = useResetVisual()
@@ -47,5 +48,12 @@ export const VisualLoaderForExisting = () => {
 		}
 	}, [hydrated, visualId, load, navigate])
 
-	return <EditorLayout />
+	return (
+		<>
+			{/* Only an existing visual can be published — the new-visual route
+			 *  has nothing to warn about. */}
+			<PublishedEditGate />
+			<EditorLayout />
+		</>
+	)
 }

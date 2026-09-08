@@ -25,6 +25,7 @@ import {
 	loadCurrentEncodings,
 	loadCurrentDerivedVariables,
 	loadCurrentFieldLevelOrders,
+	loadCurrentFieldLevelOrderSpecs,
 	loadCurrentFieldOverrides,
 	loadCurrentLabels,
 	loadCurrentLegend,
@@ -58,6 +59,7 @@ import {
 	saveCurrentDatasetId,
 	saveCurrentEncodings,
 	saveCurrentFieldLevelOrders,
+	saveCurrentFieldLevelOrderSpecs,
 	saveCurrentFieldOverrides,
 	saveCurrentLabels,
 	saveCurrentLegend,
@@ -102,6 +104,7 @@ import {
 	type DatasetMeta,
 	type EmbedInstance,
 	type Encodings,
+	type FieldLevelOrderSpec,
 	type FieldType,
 	type Folder,
 	type ParsedUpload,
@@ -735,6 +738,30 @@ export const currentVisualIdAtom = persistedAtom<string | null>(
 	saveCurrentVisualId
 )
 
+/** True when the visual open in the editor has at least one PUBLISHED embed
+ *  instance — the same test the Export modal's Embed tab uses (a publish id
+ *  AND public urls). A copied-but-never-published instance does NOT count:
+ *  its snippet urls are dead under the publish contract, so editing it
+ *  affects nothing public. Drives the purple viewport frame and the
+ *  on-entry warning in `PublishedEditGate`. */
+export const currentVisualPublishedAtom = atom((get) => {
+	const visualId = get(currentVisualIdAtom)
+	if (visualId === null) return false
+	return Object.values(get(embedInstancesAtom)).some(
+		(i) =>
+			i.visualId === visualId &&
+			i.publishId !== undefined &&
+			i.publishedUrls !== undefined
+	)
+})
+
+/** Visual id whose "this is published content" warning has been
+ *  acknowledged. Session-only and single-slot: the gate clears it when the
+ *  editor unmounts, so coming back to a published visual warns again, and a
+ *  publish made from inside the editor stamps it (the user just published on
+ *  purpose — warning them about their own action would be noise). */
+export const publishedEditAckAtom = atom<string | null>(null)
+
 export const currentEncodingsAtom = persistedAtom<Encodings>(
 	loadCurrentEncodings,
 	saveCurrentEncodings
@@ -781,6 +808,16 @@ export const currentFieldOverridesAtom = persistedAtom<
 export const currentFieldLevelOrdersAtom = persistedAtom<
 	Record<string, string[]>
 >(loadCurrentFieldLevelOrders, saveCurrentFieldLevelOrders)
+
+/** What the Fields panel's "Order by" picker was set to for each field whose
+ * levels carry a computed order, so reopening the field's chevron shows the
+ * choice instead of a blank picker. A memory of the CONTROLS only: ordering
+ * stays one-shot — nothing re-derives `currentFieldLevelOrdersAtom` from
+ * this — and any hand reorder (arrows, drag, reverse, reset) drops the
+ * entry, since the pinned order is no longer the computed one. */
+export const currentFieldLevelOrderSpecsAtom = persistedAtom<
+	Record<string, FieldLevelOrderSpec>
+>(loadCurrentFieldLevelOrderSpecs, saveCurrentFieldLevelOrderSpecs)
 
 export const drawerHeightAtom = persistedAtom<number>(
 	loadDrawerHeight,

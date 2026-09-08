@@ -7,7 +7,8 @@ import type {
 import { resolvePatternDefForItem } from "../buildPatternDefs"
 import type { ChannelConfigs, TextColorRule } from "../channelConfig"
 import type { PatternDefSpec } from "../patternDefs"
-import { applyAreaScale, applyHueScale } from "../scales"
+import { resolveRowModulation } from "../resolveMarkAesthetics"
+import { applyAreaScale, applyHueScale, modulateColor } from "../scales"
 import { resolveRuleColor } from "../textColorRules"
 import { featureId } from "./loadGeometry"
 
@@ -20,6 +21,25 @@ export const DEFAULT_OUTLINE_COLOR = "#ffffff"
 /** Base fill for the opacity-only path (no hue mapped): marks share this color
  *  and vary their alpha by the measure. */
 export const OPACITY_BASE_FILL = "#3730a3" // indigo-800
+
+/** What `resolveGeoFill` resolved for one geographic mark. */
+export type GeoFillResolved = {
+	/** The drawn fill, AFTER saturation/brightness modulation. */
+	fill: string
+	/** The measure color BEFORE modulation — the pattern-ink palette key
+	 *  (see `GeoPatternModulation`). */
+	preModulationHue: string
+	/** Set only on the opacity-only path (alpha varies over a shared base
+	 *  fill); undefined means full opacity. */
+	fillOpacity: number | undefined
+	/** A measure IS mapped but this row's value didn't resolve (blank/NA). */
+	measureMissing: boolean
+	/** Sat/bri units applied to `fill`, `null` when that channel contributed
+	 *  no modulation. Passed on to the pattern pass so a NO-HUE pattern
+	 *  background modulates like the fill. */
+	satUnit: number | null
+	briUnit: number | null
+}
 
 /**
  * Resolve a geographic mark's fill + fill-opacity from the mapped measure.
@@ -39,14 +59,22 @@ export const OPACITY_BASE_FILL = "#3730a3" // indigo-800
  * no-data pattern keys on. It stays false when no measure is mapped at all
  * (every region returns the base fill there; that's "no measure", not
  * "missing data").
+ *
+ * The resolved color then runs through SATURATION / BRIGHTNESS modulation
+ * (`resolveRowModulation` — the same units and fallback convention the
+ * cartesian renderers use), so a hue + brightness pairing shades within each
+ * hue on a map exactly as it does on a bar or a scatter. `preModulationHue` is
+ * kept for the pattern-ink invariant (see `GeoPatternModulation`).
  */
 export const resolveGeoFill = (
 	baseFill: string,
 	row: Record<string, unknown>,
 	measureField: AestheticFieldInfo | null,
-	hueScale: AestheticScales["hue"],
-	opacityScale: AestheticScales["opacity"]
-): { fill: string; fillOpacity: number | undefined; measureMissing: boolean } => {
+	aestheticScales: AestheticScales,
+	channelConfigs: ChannelConfigs
+): GeoFillResolved => {
+	const hueScale = aestheticScales.hue
+	const opacityScale = aestheticScales.opacity
 	let fill = baseFill
 	let fillOpacity: number | undefined
 	let measureMissing = false
@@ -64,7 +92,23 @@ export const resolveGeoFill = (
 			} else measureMissing = true
 		}
 	}
-	return { fill, fillOpacity, measureMissing }
+	const preModulationHue = fill
+	const { satUnit, briUnit } = resolveRowModulation(
+		row,
+		aestheticScales,
+		channelConfigs
+	)
+	if (satUnit !== null || briUnit !== null) {
+		fill = modulateColor(fill, satUnit, briUnit)
+	}
+	return {
+		fill,
+		preModulationHue,
+		fillOpacity,
+		measureMissing,
+		satUnit,
+		briUnit,
+	}
 }
 
 /** The `<pattern>` def for the map's OPTIONAL no-data pattern overlay
@@ -92,6 +136,23 @@ export const resolveNoDataPatternDef = (mapConfig: {
  *  renderers use). */
 const PATTERN_BG_FALLBACK = "#e2e8f0"
 
+/** The modulation half of a geo mark's resolved color, as the pattern pass
+ *  needs it (from `resolveGeoFill`).
+ *
+ *  INVARIANT: pattern-ink lookups match the theme palette's exact swatch
+ *  hexes, so they key on `preModulationHue` — sat/bri modulation rewrites the
+ *  fill hex out of the palette. `satUnit`/`briUnit` ride along so a pattern
+ *  whose background is NOT hue-driven modulates like the fill does.
+ *
+ *  OMIT for marks whose fill comes from a color SLOT (the bubble map's
+ *  `geoPointFill`): slots are their own color channels and apply no
+ *  modulation, so the fill itself is the palette key. */
+export type GeoPatternModulation = {
+	preModulationHue: string
+	satUnit: number | null
+	briUnit: number | null
+}
+
 /**
  * Resolve the pattern `<defs>` spec (or null) for one geographic mark — a
  * choropleth region, a bubble, or a dot. Defers to the shared
@@ -100,20 +161,27 @@ const PATTERN_BG_FALLBACK = "#e2e8f0"
  * PATTERN_NONE opt-outs, hue-paired inks).
  *
  * `fill` is the mark's ALREADY-RESOLVED fill (from `resolveGeoFill` or the
- * bubble color slot). Geo fills apply no sat/bri modulation, so the fill IS
- * the pre-modulation hue color — it serves as both the pattern's background
- * tile and the palette key for the ink lookup.
+ * bubble color slot); `mod` carries the pre-modulation hue + sat/bri units
+ * behind it (see `GeoPatternModulation`), and defaults to "fill IS the hue,
+ * no modulation" when omitted.
  */
 export const resolveGeoPatternDef = (
 	row: Record<string, unknown>,
 	fill: string,
 	aestheticScales: AestheticScales,
-	channelConfigs: ChannelConfigs
+	channelConfigs: ChannelConfigs,
+	mod?: GeoPatternModulation
 ): PatternDefSpec | null => {
 	const patternField = aestheticScales.pattern?.field ?? null
 	if (!patternField) return null
 	return resolvePatternDefForItem(
-		{ patternValue: row[patternField.name], fill, preModulationHue: fill },
+		{
+			patternValue: row[patternField.name],
+			fill,
+			preModulationHue: mod?.preModulationHue ?? fill,
+			satUnit: mod?.satUnit ?? null,
+			briUnit: mod?.briUnit ?? null,
+		},
 		aestheticScales,
 		channelConfigs,
 		channelConfigs.pattern?.backgroundColor ?? PATTERN_BG_FALLBACK
@@ -128,9 +196,16 @@ export const geoPatternFill = (
 	row: Record<string, unknown>,
 	fill: string,
 	aestheticScales: AestheticScales,
-	channelConfigs: ChannelConfigs
+	channelConfigs: ChannelConfigs,
+	mod?: GeoPatternModulation
 ): string => {
-	const def = resolveGeoPatternDef(row, fill, aestheticScales, channelConfigs)
+	const def = resolveGeoPatternDef(
+		row,
+		fill,
+		aestheticScales,
+		channelConfigs,
+		mod
+	)
 	return def === null ? fill : `url(#${def.svgId})`
 }
 
@@ -139,14 +214,24 @@ export const geoPatternFill = (
  *  hand the result to `<Plot patternDefs>` so every def is registered before
  *  any mark references it. */
 export const buildGeoPatternDefs = (
-	marks: Iterable<{ row: Record<string, unknown>; fill: string }>,
+	marks: Iterable<{
+		row: Record<string, unknown>
+		fill: string
+		mod?: GeoPatternModulation
+	}>,
 	aestheticScales: AestheticScales,
 	channelConfigs: ChannelConfigs
 ): PatternDefSpec[] => {
 	if (!aestheticScales.pattern) return []
 	const defs = new Map<string, PatternDefSpec>()
-	for (const { row, fill } of marks) {
-		const def = resolveGeoPatternDef(row, fill, aestheticScales, channelConfigs)
+	for (const { row, fill, mod } of marks) {
+		const def = resolveGeoPatternDef(
+			row,
+			fill,
+			aestheticScales,
+			channelConfigs,
+			mod
+		)
 		if (def && !defs.has(def.svgId)) defs.set(def.svgId, def)
 	}
 	return [...defs.values()]
@@ -204,7 +289,8 @@ export type RegionStyleResolvers = {
  * region basemap), so the fill/opacity/stroke precedence exists exactly once:
  *
  *  - FILL: the matched row's hue (preferred) / opacity measure via
- *    `resolveGeoFill`, swapped for a pattern ref when the row carries a
+ *    `resolveGeoFill` (sat/bri modulation included), swapped for a pattern
+ *    ref when the row carries a
  *    pattern category (see `geoPatternFill`); unmatched → `noDataFill`, or
  *    the no-data pattern ref when `noDataPatternDef` is set. A matched row
  *    whose measure value didn't resolve (blank/NA) also takes the no-data
@@ -220,8 +306,6 @@ export const buildRegionStyleResolvers = ({
 	noDataFill,
 	noDataPatternDef = null,
 	measureField,
-	hueScale,
-	opacityScale,
 	baseOutlineColor,
 	outlineHue,
 	outlineColorRules,
@@ -235,14 +319,12 @@ export const buildRegionStyleResolvers = ({
 	 *  def must also register it in `<Plot patternDefs>`. */
 	noDataPatternDef?: PatternDefSpec | null
 	measureField: AestheticFieldInfo | null
-	hueScale: AestheticScales["hue"]
-	opacityScale: AestheticScales["opacity"]
 	baseOutlineColor: string
 	outlineHue: AestheticScales["outlineHue"]
 	outlineColorRules: readonly TextColorRule[] | undefined
-	/** Full scales + configs, needed for the pattern channel (the individual
-	 *  hue/opacity fields above predate patterns and stay for call-site
-	 *  clarity). */
+	/** Full scales + configs: the hue / opacity measure scales, the pattern
+	 *  channel, and the saturation / brightness modulation all resolve from
+	 *  here (see `resolveGeoFill`). */
 	aestheticScales: AestheticScales
 	channelConfigs: ChannelConfigs
 }): RegionStyleResolvers => {
@@ -256,14 +338,19 @@ export const buildRegionStyleResolvers = ({
 	const paintOf = (
 		row: Record<string, unknown>
 	): { paint: string; noData: boolean } => {
-		const { fill, measureMissing } = resolveGeoFill(
-			noDataFill,
-			row,
-			measureField,
-			hueScale,
-			opacityScale
-		)
-		const paint = geoPatternFill(row, fill, aestheticScales, channelConfigs)
+		const { fill, measureMissing, preModulationHue, satUnit, briUnit } =
+			resolveGeoFill(
+				noDataFill,
+				row,
+				measureField,
+				aestheticScales,
+				channelConfigs
+			)
+		const paint = geoPatternFill(row, fill, aestheticScales, channelConfigs, {
+			preModulationHue,
+			satUnit,
+			briUnit,
+		})
 		// The row's own pattern-channel paint (an encoding) wins; otherwise a
 		// blank/NA measure renders like an unmatched region.
 		if (paint !== fill) return { paint, noData: false }
@@ -279,8 +366,13 @@ export const buildRegionStyleResolvers = ({
 		fillOpacityFor: (feature) => {
 			const row = rowFor(feature)
 			return row
-				? resolveGeoFill(noDataFill, row, measureField, hueScale, opacityScale)
-						.fillOpacity
+				? resolveGeoFill(
+						noDataFill,
+						row,
+						measureField,
+						aestheticScales,
+						channelConfigs
+					).fillOpacity
 				: undefined
 		},
 		strokeFor: (feature) => {

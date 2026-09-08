@@ -35,6 +35,7 @@ export const THEMES_VERSION = 2
 export const EMBED_INSTANCES_VERSION = 1
 export const FIELD_OVERRIDES_VERSION = 1
 export const FIELD_LEVEL_ORDERS_VERSION = 1
+export const FIELD_LEVEL_ORDER_SPECS_VERSION = 1
 export const ANNOTATIONS_VERSION = 4
 export const CAPTION_VERSION = 1
 export const MAP_CONFIG_VERSION = 8
@@ -589,6 +590,7 @@ export const embedInstancesMigrations = identityMigrations
 export const userFontsMigrations = identityMigrations
 export const fieldOverridesMigrations = identityMigrations
 export const fieldLevelOrdersMigrations = identityMigrations
+export const fieldLevelOrderSpecsMigrations = identityMigrations
 /** Annotations v1 → v2: backfill the `circles` list for configs saved before
  *  circle annotations shipped. v2 → v3: same for the `lineSegments` list.
  *  v3 → v4: same for the `texts` list (free-standing text labels).

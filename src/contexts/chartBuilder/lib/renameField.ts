@@ -20,6 +20,7 @@ import type {
 	DataLabelsEncodings,
 	Encodings,
 	Field,
+	FieldLevelOrderSpec,
 	FieldType,
 	Visual,
 } from "./types"
@@ -123,6 +124,48 @@ const renameInList = (
 		? list.map((v) => (v === oldName ? newName : v))
 		: list
 
+/** Rewrite the "Order by" picker memories for a field rename: the map key
+ * (the field whose levels were ordered) plus the variable references inside
+ * each spec — the ordered-by field and the scope variable. Passing
+ * `meltedVariable` switches to the melted case: the old name is a cell value
+ * of that column, so only a scope LEVEL scoped to it moves. Same reference when
+ * nothing mentions the old name. */
+const renameOrderSpecs = (
+	specs: Record<string, FieldLevelOrderSpec> | undefined,
+	oldName: string,
+	newName: string,
+	meltedVariable?: string
+): Record<string, FieldLevelOrderSpec> | undefined => {
+	if (!specs) return specs
+	// Keys are FIELD names, so they only move in the column-rename case; in
+	// the melted case the old name is a cell value and a same-named key is a
+	// coincidence, not a reference.
+	const keyed = meltedVariable
+		? specs
+		: (renameKey(specs, oldName, newName) ?? specs)
+	let changed = keyed !== specs
+	const next: Record<string, FieldLevelOrderSpec> = {}
+	for (const [key, spec] of Object.entries(keyed)) {
+		const patch: FieldLevelOrderSpec = { ...spec }
+		if (meltedVariable === undefined) {
+			if (spec.byField === oldName) patch.byField = newName
+			if (spec.scopeField === oldName) patch.scopeField = newName
+		} else if (
+			spec.scopeField === meltedVariable &&
+			spec.scopeLevel === oldName
+		) {
+			patch.scopeLevel = newName
+		}
+		const touched =
+			patch.byField !== spec.byField ||
+			patch.scopeField !== spec.scopeField ||
+			patch.scopeLevel !== spec.scopeLevel
+		changed = changed || touched
+		next[key] = touched ? patch : spec
+	}
+	return changed ? next : specs
+}
+
 /** Swap `{Old}` tokens in a Data-Labels template (exact token match — the
  * grammar has no nesting, so a literal replace is precise). */
 const renameLabelTokens = (
@@ -167,6 +210,7 @@ export type FieldNameConfigs = {
 	dataLabelsEncodings?: DataLabelsEncodings
 	fieldTypeOverrides: Record<string, FieldType>
 	fieldLevelOrders?: Record<string, string[]>
+	fieldLevelOrderSpecs?: Record<string, FieldLevelOrderSpec>
 	channelConfigs: ChannelConfigs
 	labelsConfig?: LabelsConfig
 	dataLabelsConfig?: DataLabelsConfig
@@ -393,6 +437,11 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 			newName
 		) as Record<string, FieldType>,
 		fieldLevelOrders: renameKey(state.fieldLevelOrders, oldName, newName),
+		fieldLevelOrderSpecs: renameOrderSpecs(
+			state.fieldLevelOrderSpecs,
+			oldName,
+			newName
+		),
 		channelConfigs,
 		dataLabelsConfig,
 		tooltipConfig,
@@ -641,6 +690,15 @@ const renameMeltedValueRefs = <T extends FieldNameConfigs>(
 		annotationsConfig,
 		dataLabelsConfig,
 		fieldLevelOrders,
+		// A renamed melted VALUE can also be the scope level a level order was
+		// computed "in" — the picker memory has to follow it or the restored
+		// controls point at a level that no longer exists.
+		fieldLevelOrderSpecs: renameOrderSpecs(
+			state.fieldLevelOrderSpecs,
+			oldName,
+			newName,
+			variableName
+		),
 	} as Partial<T>)
 }
 

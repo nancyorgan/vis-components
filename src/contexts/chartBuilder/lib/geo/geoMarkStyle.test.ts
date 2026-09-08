@@ -28,14 +28,44 @@ const opacityOver = (values: number[]): AestheticScales["opacity"] => ({
 	field: { name: "n", type: "quantitative" },
 })
 
+/** A unit scale over `values` on column `b` — sat/bri channels take one. */
+const unitOver = (
+	values: number[],
+	name: string
+): AestheticScales["brightness"] => ({
+	scale: makeOpacityScale(values, "quantitative") as UnitScale,
+	field: { name, type: "quantitative" },
+})
+
+const EMPTY_SCALES: AestheticScales = {
+	hue: null,
+	outlineHue: null,
+	saturation: null,
+	brightness: null,
+	pattern: null,
+	colorSlots: {},
+	opacitySlots: {},
+	opacity: null,
+	area: null,
+	shape: null,
+	length: null,
+	angle: null,
+}
+
+/** `EMPTY_SCALES` with the named channels filled in. */
+const scalesOf = (partial: Partial<AestheticScales>): AestheticScales => ({
+	...EMPTY_SCALES,
+	...partial,
+})
+
 describe("resolveGeoFill", () => {
 	it("returns the base fill unchanged when no measure is mapped", () => {
 		const { fill, fillOpacity } = resolveGeoFill(
 			"#base",
 			{ cat: "A" },
 			null,
-			null,
-			null
+			EMPTY_SCALES,
+			EMPTY_CHANNEL_CONFIGS
 		)
 		expect(fill).toBe("#base")
 		expect(fillOpacity).toBeUndefined()
@@ -47,8 +77,8 @@ describe("resolveGeoFill", () => {
 			"#base",
 			{ cat: "A" },
 			hue!.field,
-			hue,
-			null
+			scalesOf({ hue }),
+			EMPTY_CHANNEL_CONFIGS
 		)
 		expect(fill).not.toBe("#base")
 		expect(fillOpacity).toBeUndefined()
@@ -60,8 +90,8 @@ describe("resolveGeoFill", () => {
 			"#base",
 			{ n: 10 },
 			opacity!.field,
-			null,
-			opacity
+			scalesOf({ opacity }),
+			EMPTY_CHANNEL_CONFIGS
 		)
 		expect(fill).toBe(OPACITY_BASE_FILL)
 		expect(typeof fillOpacity).toBe("number")
@@ -74,8 +104,8 @@ describe("resolveGeoFill", () => {
 			"#base",
 			{ cat: "A", n: 10 },
 			hue!.field,
-			hue,
-			opacity
+			scalesOf({ hue, opacity }),
+			EMPTY_CHANNEL_CONFIGS
 		)
 		expect(fill).not.toBe(OPACITY_BASE_FILL)
 		expect(fillOpacity).toBeUndefined()
@@ -84,15 +114,97 @@ describe("resolveGeoFill", () => {
 	it("flags measureMissing when a mapped measure value is blank/NA", () => {
 		const hue = hueOver(["A", "B"])
 		// Blank cell → the hue scale can't resolve → base fill + missing flag.
-		const missing = resolveGeoFill("#base", { cat: "" }, hue!.field, hue, null)
+		const missing = resolveGeoFill(
+			"#base",
+			{ cat: "" },
+			hue!.field,
+			scalesOf({ hue }),
+			EMPTY_CHANNEL_CONFIGS
+		)
 		expect(missing.fill).toBe("#base")
 		expect(missing.measureMissing).toBe(true)
 		// A resolving value is NOT missing.
-		const ok = resolveGeoFill("#base", { cat: "A" }, hue!.field, hue, null)
+		const ok = resolveGeoFill(
+			"#base",
+			{ cat: "A" },
+			hue!.field,
+			scalesOf({ hue }),
+			EMPTY_CHANNEL_CONFIGS
+		)
 		expect(ok.measureMissing).toBe(false)
 		// No measure mapped at all is "no measure", not "missing data".
-		const none = resolveGeoFill("#base", { cat: "" }, null, null, null)
+		const none = resolveGeoFill(
+			"#base",
+			{ cat: "" },
+			null,
+			EMPTY_SCALES,
+			EMPTY_CHANNEL_CONFIGS
+		)
 		expect(none.measureMissing).toBe(false)
+	})
+
+	it("brightness modulates the hue color, and keeps the palette key", () => {
+		// Hue on `cat` + brightness on `b`: two rows of the SAME category must
+		// draw DIFFERENT shades of that category's palette color, and both keep
+		// the un-modulated color as the pattern-ink palette key.
+		const hue = hueOver(["A", "B"])
+		const brightness = unitOver([0, 100], "b")
+		const scales = scalesOf({ hue, brightness })
+		const dark = resolveGeoFill(
+			"#base",
+			{ cat: "A", b: 0 },
+			hue!.field,
+			scales,
+			EMPTY_CHANNEL_CONFIGS
+		)
+		const light = resolveGeoFill(
+			"#base",
+			{ cat: "A", b: 100 },
+			hue!.field,
+			scales,
+			EMPTY_CHANNEL_CONFIGS
+		)
+		expect(dark.fill).not.toBe(light.fill)
+		expect(dark.preModulationHue).toBe(light.preModulationHue)
+		expect(dark.fill).not.toBe(dark.preModulationHue)
+		expect(dark.briUnit).not.toBe(light.briUnit)
+	})
+
+	it("saturation modulates too, and an unmapped pair leaves the fill alone", () => {
+		const hue = hueOver(["A", "B"])
+		const saturation = unitOver([0, 100], "s")
+		const plain = resolveGeoFill(
+			"#base",
+			{ cat: "A", s: 0 },
+			hue!.field,
+			scalesOf({ hue }),
+			EMPTY_CHANNEL_CONFIGS
+		)
+		const muted = resolveGeoFill(
+			"#base",
+			{ cat: "A", s: 0 },
+			hue!.field,
+			scalesOf({ hue, saturation }),
+			EMPTY_CHANNEL_CONFIGS
+		)
+		expect(plain.fill).toBe(plain.preModulationHue)
+		expect(plain.satUnit).toBeNull()
+		expect(muted.fill).not.toBe(muted.preModulationHue)
+	})
+
+	it("modulates the opacity-only base fill as well", () => {
+		const opacity = opacityOver([0, 10])
+		const brightness = unitOver([0, 100], "b")
+		const r = resolveGeoFill(
+			"#base",
+			{ n: 10, b: 100 },
+			opacity!.field,
+			scalesOf({ opacity, brightness }),
+			EMPTY_CHANNEL_CONFIGS
+		)
+		expect(r.preModulationHue).toBe(OPACITY_BASE_FILL)
+		expect(r.fill).not.toBe(OPACITY_BASE_FILL)
+		expect(typeof r.fillOpacity).toBe("number")
 	})
 })
 
@@ -155,21 +267,6 @@ describe("resolveGeoOutlineColor", () => {
 })
 
 // ----- Pattern channel on geo marks ------------------------------------------
-
-const EMPTY_SCALES: AestheticScales = {
-	hue: null,
-	outlineHue: null,
-	saturation: null,
-	brightness: null,
-	pattern: null,
-	colorSlots: {},
-	opacitySlots: {},
-	opacity: null,
-	area: null,
-	shape: null,
-	length: null,
-	angle: null,
-}
 
 /** Scales with a categorical pattern field `p` over A/B (and optionally hue). */
 const patternScales = (withHue: boolean): AestheticScales => ({
@@ -280,8 +377,6 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 			featureToRow: new Map([["06", { cat: "A", p: "A" }]]),
 			noDataFill: "#nodata",
 			measureField: scales.hue!.field,
-			hueScale: scales.hue,
-			opacityScale: null,
 			baseOutlineColor: "#base",
 			outlineHue: null,
 			outlineColorRules: undefined,
@@ -307,12 +402,11 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 			noDataFill: "#nodata",
 			noDataPatternDef: noDataDef,
 			measureField: scales.hue!.field,
-			hueScale: scales.hue,
-			opacityScale: null,
 			baseOutlineColor: "#base",
 			outlineHue: null,
 			outlineColorRules: undefined,
-			aestheticScales: EMPTY_SCALES,
+			// Hue only — no pattern channel on this map.
+			aestheticScales: scalesOf({ hue: scales.hue }),
 			channelConfigs: EMPTY_CHANNEL_CONFIGS,
 		})
 		// A resolving measure keeps its scale color (no pattern channel here).
@@ -323,7 +417,11 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 	})
 
 	it("no-data pattern: a row's own pattern-channel category wins over it", () => {
-		const scales = patternScales(false) // pattern field only, no hue
+		// Pattern field + a hue measure whose value is blank on this row.
+		const scales = scalesOf({
+			...patternScales(false),
+			hue: hueOver(["A"]),
+		})
 		const noDataDef = resolveNoDataPatternDef({
 			noDataPattern: 1,
 			noDataFill: "#nodata",
@@ -333,9 +431,7 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 			featureToRow: new Map([["06", { cat: "", p: "A" }]]),
 			noDataFill: "#nodata",
 			noDataPatternDef: noDataDef,
-			measureField: hueOver(["A"])!.field, // measure mapped, value blank
-			hueScale: hueOver(["A"]),
-			opacityScale: null,
+			measureField: scales.hue!.field, // measure mapped, value blank
 			baseOutlineColor: "#base",
 			outlineHue: null,
 			outlineColorRules: undefined,
@@ -345,5 +441,62 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 		const fill = resolvers.fillFor(feature("06"))
 		expect(fill).toMatch(/^url\(#vc-pat-/)
 		expect(fill).not.toBe("url(#vc-pat-nodata)")
+	})
+})
+
+describe("buildRegionStyleResolvers with brightness mapped", () => {
+	const feature = (id: string): Feature => ({
+		type: "Feature",
+		id,
+		properties: {},
+		geometry: { type: "Point", coordinates: [0, 0] },
+	})
+
+	it("two regions of one hue category shade apart by brightness", () => {
+		// The faceted-choropleth case: hue gives each category its color,
+		// brightness varies WITHIN it. Both regions share `cat: "A"`, so only
+		// modulation can tell their fills apart.
+		const hue = hueOver(["A", "B"])
+		const resolvers = buildRegionStyleResolvers({
+			featureToRow: new Map([
+				["06", { cat: "A", b: 0 }],
+				["48", { cat: "A", b: 100 }],
+			]),
+			noDataFill: "#nodata",
+			measureField: hue!.field,
+			baseOutlineColor: "#base",
+			outlineHue: null,
+			outlineColorRules: undefined,
+			aestheticScales: scalesOf({
+				hue,
+				brightness: unitOver([0, 100], "b"),
+			}),
+			channelConfigs: EMPTY_CHANNEL_CONFIGS,
+		})
+		expect(resolvers.fillFor(feature("06"))).not.toBe(
+			resolvers.fillFor(feature("48"))
+		)
+		// Neither is the no-data paint, and neither region reads as no-data.
+		expect(resolvers.fillFor(feature("06"))).not.toBe("#nodata")
+		expect(resolvers.noDataFor(feature("06"))).toBe(false)
+		expect(resolvers.noDataFor(feature("48"))).toBe(false)
+	})
+
+	it("unmatched regions stay on the un-modulated no-data fill", () => {
+		const hue = hueOver(["A", "B"])
+		const resolvers = buildRegionStyleResolvers({
+			featureToRow: new Map([["06", { cat: "A", b: 100 }]]),
+			noDataFill: "#nodata",
+			measureField: hue!.field,
+			baseOutlineColor: "#base",
+			outlineHue: null,
+			outlineColorRules: undefined,
+			aestheticScales: scalesOf({
+				hue,
+				brightness: unitOver([0, 100], "b"),
+			}),
+			channelConfigs: EMPTY_CHANNEL_CONFIGS,
+		})
+		expect(resolvers.fillFor(feature("31"))).toBe("#nodata")
 	})
 })

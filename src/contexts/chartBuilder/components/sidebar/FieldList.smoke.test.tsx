@@ -7,12 +7,18 @@ import {
 	DEFAULT_DERIVED_VARIABLES_CONFIG,
 	type DerivedVariablesConfig,
 } from "../../lib/derivedVariables"
-import { emptyEncodings, type Dataset, type Field } from "../../lib/types"
+import {
+	emptyEncodings,
+	type Dataset,
+	type Field,
+	type FieldLevelOrderSpec,
+} from "../../lib/types"
 import {
 	currentDatasetIdAtom,
 	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
+	currentFieldLevelOrderSpecsAtom,
 	currentFieldOverridesAtom,
 	derivedVariableEditorAtom,
 	loadedDatasetsAtom,
@@ -67,7 +73,8 @@ const buildDataset = (fields: Field[] = FIELDS): Dataset =>
 
 const mount = (
 	fields: Field[] = FIELDS,
-	derived: DerivedVariablesConfig = DEFAULT_DERIVED_VARIABLES_CONFIG
+	derived: DerivedVariablesConfig = DEFAULT_DERIVED_VARIABLES_CONFIG,
+	orderSpecs: Record<string, FieldLevelOrderSpec> = {}
 ) => {
 	// Atom storage effects re-load from localStorage on init and would reset a
 	// snapshot-only seed to defaults, so the fixture goes into BOTH.
@@ -78,6 +85,7 @@ const mount = (
 	set("vis-components:currentDatasetId", ID)
 	set("vis-components:previewVersionId", null)
 	set("vis-components:currentDerivedVariables", { _v: 1, data: derived })
+	set("vis-components:currentFieldLevelOrderSpecs", { _v: 1, data: orderSpecs })
 	/* eslint-enable @th/use-wrapped-json-functions */
 	let atomStore: TestStore | undefined
 	const init = (snap: TestStore) => {
@@ -87,6 +95,7 @@ const mount = (
 		snap.set(previewVersionIdAtom, null)
 		snap.set(currentFieldOverridesAtom, {})
 		snap.set(currentFieldLevelOrdersAtom, {})
+		snap.set(currentFieldLevelOrderSpecsAtom, orderSpecs)
 		snap.set(currentDerivedVariablesAtom, derived)
 		snap.set(currentEncodingsAtom, {
 			...emptyEncodings(),
@@ -261,6 +270,91 @@ describe("FieldList — Order by picker", () => {
 		])
 		openRegionPanel(utils)
 		expect(utils.queryByLabelText("Order by")).toBeNull()
+	})
+})
+
+describe("FieldList — the Order by picker is remembered", () => {
+	it("restores the whole picker after the chevron is closed and reopened", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		pickOrderBy(utils, "f:sales")
+		fireEvent.change(utils.getByLabelText("in"), { target: { value: "year" } })
+		fireEvent.change(utils.getByLabelText("Level of year"), {
+			target: { value: "2023" },
+		})
+		fireEvent.click(utils.getByRole("checkbox"))
+		// 2023 sales descending: A=5, C=3, B=1.
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+
+		// Close and reopen — every control comes back as it was left, and the
+		// order is untouched (nothing recomputes on reopen).
+		openRegionPanel(utils)
+		expect(utils.queryByLabelText("Order by")).toBeNull()
+		openRegionPanel(utils)
+		expect((utils.getByLabelText("Order by") as HTMLSelectElement).value).toBe(
+			"f:sales"
+		)
+		expect((utils.getByLabelText("in") as HTMLSelectElement).value).toBe("year")
+		expect(
+			(utils.getByLabelText("Level of year") as HTMLSelectElement).value
+		).toBe("2023")
+		expect((utils.getByRole("checkbox") as HTMLInputElement).checked).toBe(true)
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+	})
+
+	it("adjusts one knob of a restored picker without starting over", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		pickOrderBy(utils, "f:sales")
+		fireEvent.change(utils.getByLabelText("in"), { target: { value: "year" } })
+		fireEvent.change(utils.getByLabelText("Level of year"), {
+			target: { value: "2023" },
+		})
+		expect(levelValues(utils.container)).toEqual(["B", "C", "A"])
+		openRegionPanel(utils)
+		openRegionPanel(utils)
+		// Only the scope level moves; the order-by field and scope variable
+		// come from the remembered spec. 2024 sales: A=1, C=5, B=8.
+		fireEvent.change(utils.getByLabelText("Level of year"), {
+			target: { value: "2024" },
+		})
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+	})
+
+	it("keeps the pinned order but forgets the picker on — and on a manual move", () => {
+		const utils = mount()
+		openRegionPanel(utils)
+		pickOrderBy(utils, "f:sales")
+		expect(utils.atomStore.get(currentFieldLevelOrderSpecsAtom)).toEqual({
+			region: { by: "field", byField: "sales" },
+		})
+		// "—" forgets the picker; the computed order stays pinned.
+		pickOrderBy(utils, "")
+		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
+		expect(utils.atomStore.get(currentFieldLevelOrderSpecsAtom)).toEqual({})
+
+		pickOrderBy(utils, "f:sales")
+		fireEvent.click(utils.getAllByTitle("Move up")[2]!)
+		expect(utils.atomStore.get(currentFieldLevelOrderSpecsAtom)).toEqual({})
+		openRegionPanel(utils)
+		openRegionPanel(utils)
+		expect((utils.getByLabelText("Order by") as HTMLSelectElement).value).toBe(
+			""
+		)
+	})
+
+	it("shows an unset picker when the remembered variable no longer qualifies", () => {
+		// `notes` is categorical, so it can't be ordered BY — a spec naming it
+		// is stale (the field was retyped since) and must not show as chosen.
+		const utils = mount(FIELDS, DEFAULT_DERIVED_VARIABLES_CONFIG, {
+			region: { by: "field", byField: "notes", scopeField: "year" },
+		})
+		openRegionPanel(utils)
+		expect((utils.getByLabelText("Order by") as HTMLSelectElement).value).toBe(
+			""
+		)
+		// With no order-by field there is no scope row to restore either.
+		expect(utils.queryByLabelText("in")).toBeNull()
 	})
 })
 

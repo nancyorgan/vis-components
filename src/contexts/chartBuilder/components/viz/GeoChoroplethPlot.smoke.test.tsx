@@ -95,6 +95,50 @@ const seedWithShape = (
 	/* eslint-enable @th/use-wrapped-json-functions */
 }
 
+/** Seed a hue + BRIGHTNESS map: both states share one hue category, so only
+ *  sat/bri modulation can tell their fills apart (the faceted-choropleth
+ *  report — a color encoding plus a brightness encoding on the same map).
+ *  No-data regions are off so exactly the matched regions draw. */
+const seedHuePlusBrightness = () => {
+	installInMemoryLocalStorage()
+	/* eslint-disable @th/use-wrapped-json-functions */
+	const set = (k: string, v: unknown) =>
+		localStorage.setItem(k, JSON.stringify(v))
+	set("vis-components:datasets", {
+		[DATASET_ID]: buildDatasetFixture({
+			id: DATASET_ID,
+			name: "rates",
+			filename: "rates.csv",
+			fields: [
+				{ name: "state", inferredType: "categorical" },
+				{ name: "grp", inferredType: "categorical" },
+				{ name: "rate", inferredType: "quantitative" },
+			],
+			rows: [
+				{ state: "CA", grp: "A", rate: "1" },
+				{ state: "TX", grp: "A", rate: "100" },
+			],
+		}),
+	})
+	set("vis-components:currentDatasetId", DATASET_ID)
+	set("vis-components:previewVersionId", null)
+	set("vis-components:currentEncodings", {
+		...emptyEncodings(),
+		connection: { field: "state" },
+		hue: { field: "grp" },
+		brightness: { field: "rate" },
+	})
+	set("vis-components:currentMapConfig", {
+		_v: MAP_CONFIG_VERSION,
+		data: {
+			...DEFAULT_MAP_CONFIG,
+			coordSystem: "geographic",
+			showNoDataRegions: false,
+		},
+	})
+	/* eslint-enable @th/use-wrapped-json-functions */
+}
+
 const mount = () =>
 	render(
 		<TestProvider>
@@ -483,6 +527,23 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 		expect(strokes).toContain("#ff0000")
 		expect(strokes).not.toContain("#ffffff")
 	})
+
+	it("shades regions of one hue category by the brightness encoding", async () => {
+		// Reported bug: on a map a hue + brightness pairing painted every region
+		// of a category the SAME color (the geo fill path skipped sat/bri
+		// modulation, though the legend showed the shades). Both states here sit
+		// in hue category "A", so equal fills mean modulation was dropped.
+		seedHuePlusBrightness()
+		const { container } = mount()
+		await waitFor(() => {
+			expect(container.querySelectorAll("path").length).toBe(2)
+		})
+		const fills = [...container.querySelectorAll("path")].map((p) =>
+			p.getAttribute("fill")
+		)
+		expect(fills).not.toContain(DEFAULT_MAP_CONFIG.noDataFill)
+		expect(fills[0]).not.toBe(fills[1])
+	})
 })
 
 /** World-country choropleth: verifies the FULL countries pipeline through the
@@ -675,4 +736,5 @@ describe("GeoChoroplethPlot (world-country choropleth)", () => {
 			expect(container.querySelector(`pattern[id="${id}"]`)).not.toBeNull()
 		}
 	})
+
 })

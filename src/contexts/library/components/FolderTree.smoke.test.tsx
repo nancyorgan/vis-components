@@ -295,6 +295,75 @@ describe("FolderTree drag-and-drop", () => {
 		expect(moved && "sortIndex" in moved).toBe(false)
 	})
 
+	it("dropping a visual on a row INSIDE a folder moves it into that folder", () => {
+		seedStorage(
+			[mkFolder("fl-a", null, "Alpha")],
+			[mkVisual("vis-1", null, "Loose"), mkVisual("vis-2", "fl-a", "Inside")]
+		)
+		const { getByTitle } = renderTree()
+		dragTo(getByTitle("Loose"), getByTitle("Inside"))
+		expect(readStoredVisuals().find((v) => v.id === "vis-1")?.folderId).toBe(
+			"fl-a"
+		)
+	})
+
+	it("highlights the FOLDER row while a drag is over its contents", () => {
+		seedStorage(
+			[mkFolder("fl-a", null, "Alpha")],
+			[mkVisual("vis-1", null, "Loose"), mkVisual("vis-2", "fl-a", "Inside")]
+		)
+		const { container, getByTitle } = renderTree()
+		const dataTransfer = makeFakeDataTransfer()
+		fireEvent.dragStart(getByTitle("Loose"), { dataTransfer })
+		fireEvent.dragEnter(getByTitle("Inside"), { dataTransfer })
+		fireEvent.dragOver(getByTitle("Inside"), { dataTransfer })
+		expect(folderRow(container, "Alpha").getAttribute("data-drop-zone")).toBe(
+			"inside"
+		)
+		// The hovered row itself stays plain — the target is the folder.
+		expect(getByTitle("Inside").getAttribute("data-drop-zone")).toBeNull()
+		fireEvent.dragLeave(getByTitle("Inside"), { dataTransfer })
+		expect(
+			folderRow(container, "Alpha").getAttribute("data-drop-zone")
+		).toBeNull()
+	})
+
+	it("dropping a visual on an unfiled row moves it to the root group", () => {
+		seedStorage(
+			[mkFolder("fl-a", null, "Alpha")],
+			[mkVisual("vis-1", "fl-a", "Filed"), mkVisual("vis-2", null, "Loose")]
+		)
+		const { getByTitle } = renderTree()
+		dragTo(getByTitle("Filed"), getByTitle("Loose"))
+		expect(readStoredVisuals().find((v) => v.id === "vis-1")?.folderId).toBe(
+			null
+		)
+	})
+
+	it("re-parents a folder dropped on a row inside another folder", () => {
+		seedStorage(
+			[mkFolder("fl-a", null, "Alpha"), mkFolder("fl-b", null, "Beta")],
+			[mkVisual("vis-1", "fl-a", "Inside")]
+		)
+		const { container, getByTitle } = renderTree()
+		dragTo(folderRow(container, "Beta"), getByTitle("Inside"))
+		expect(readStoredFolders().find((f) => f.id === "fl-b")?.parentId).toBe(
+			"fl-a"
+		)
+	})
+
+	it("refuses to drop a folder on a row inside its own descendant", () => {
+		seedStorage(
+			[mkFolder("fl-a", null, "Alpha"), mkFolder("fl-b", "fl-a", "Beta")],
+			[mkVisual("vis-1", "fl-b", "Deep")]
+		)
+		const { container, getByTitle } = renderTree()
+		dragTo(folderRow(container, "Alpha"), getByTitle("Deep"))
+		expect(readStoredFolders().find((f) => f.id === "fl-a")?.parentId).toBe(
+			null
+		)
+	})
+
 	it("refuses to drop a folder into its own descendant", () => {
 		seedStorage(
 			[mkFolder("fl-a", null, "Alpha"), mkFolder("fl-b", "fl-a", "Beta")],

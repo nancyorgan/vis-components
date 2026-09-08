@@ -56,24 +56,26 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 	const patternDefs = useMemo(
 		() =>
 			buildGeoPatternDefs(
-				geo.rowsForChart.map((row) => ({
-					row,
-					fill: resolveGeoFill(
+				geo.rowsForChart.map((row) => {
+					const { fill, preModulationHue, satUnit, briUnit } = resolveGeoFill(
 						channelConfigs.defaultFill ?? DEFAULT_FILL,
 						row,
 						geo.measureField,
-						geo.hueScale,
-						geo.opacityScale
-					).fill,
-				})),
+						aestheticScales,
+						channelConfigs
+					)
+					return {
+						row,
+						fill,
+						mod: { preModulationHue, satUnit, briUnit },
+					}
+				}),
 				aestheticScales,
 				channelConfigs
 			),
 		[
 			geo.rowsForChart,
 			geo.measureField,
-			geo.hueScale,
-			geo.opacityScale,
 			aestheticScales,
 			channelConfigs,
 		]
@@ -137,18 +139,25 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 				// Fill: hue wins; else opacity-only varies alpha over a base fill;
 				// else the default mark fill. Mirrors the bubble map / choropleth.
 				// A row with a pattern category swaps in its pattern ref.
-				const { fill: plainFill, fillOpacity } = resolveGeoFill(
+				const {
+					fill: plainFill,
+					fillOpacity,
+					preModulationHue,
+					satUnit,
+					briUnit,
+				} = resolveGeoFill(
 					channelConfigs.defaultFill ?? DEFAULT_FILL,
 					row,
 					geo.measureField,
-					geo.hueScale,
-					geo.opacityScale
+					aestheticScales,
+					channelConfigs
 				)
 				const fill = geoPatternFill(
 					row,
 					plainFill,
 					aestheticScales,
-					channelConfigs
+					channelConfigs,
+					{ preModulationHue, satUnit, briUnit }
 				)
 
 				// Border stroke precedence (mirrors the bubble map): a matching

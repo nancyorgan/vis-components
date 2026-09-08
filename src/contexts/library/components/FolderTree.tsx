@@ -139,18 +139,32 @@ const setMultiDragImage = (dt: DataTransfer, count: number) => {
 	setTimeout(() => badge.remove(), 0)
 }
 
+/** A visual row in the tree. Also a drop target for its OWN container
+ *  (`dropHandlers` come from the enclosing folder — or from the root row for
+ *  unfiled visuals): dragging over a folder's contents has to mean "into
+ *  that folder", or an expanded folder's rows would be dead space between
+ *  the only live target (its title row) and the next one. The highlight is
+ *  the container's — these rows never light up on their own, because
+ *  dropping "onto a visual" isn't a thing. */
 const VisualTreeItem = ({
 	visual,
 	depth,
 	isSelected,
 	onClick,
 	onDragStart,
+	dropHandlers,
 }: {
 	visual: Visual
 	depth: number
 	isSelected: boolean
 	onClick: (visualId: string, e: React.MouseEvent) => void
 	onDragStart: (e: React.DragEvent) => void
+	dropHandlers: {
+		onDragEnter: (e: React.DragEvent) => void
+		onDragOver: (e: React.DragEvent) => void
+		onDragLeave: () => void
+		onDrop: (e: React.DragEvent) => void
+	}
 }) => (
 	<Link
 		to="/editor/$visualId"
@@ -170,6 +184,10 @@ const VisualTreeItem = ({
 		draggable
 		onDragStart={(e) => onDragStart(e as unknown as React.DragEvent)}
 		onDragEnd={() => setCurrentDrag(null)}
+		onDragEnter={(e) => dropHandlers.onDragEnter(e as unknown as React.DragEvent)}
+		onDragOver={(e) => dropHandlers.onDragOver(e as unknown as React.DragEvent)}
+		onDragLeave={() => dropHandlers.onDragLeave()}
+		onDrop={(e) => dropHandlers.onDrop(e as unknown as React.DragEvent)}
 	>
 		<span className="w-4 flex-shrink-0" />
 		<span className="min-w-0 flex-1 truncate">{visual.name}</span>
@@ -190,6 +208,7 @@ type FolderTreeItemProps = {
 	selectedVisualIds: ReadonlySet<string>
 	onVisualClick: (visualId: string, e: React.MouseEvent) => void
 	resolveDropOn: (folder: Folder) => (e: React.DragEvent) => FolderDropZone | null
+	resolveDropInto: (folder: Folder) => () => FolderDropZone | null
 	onDropOn: (
 		folder: Folder
 	) => (e: React.DragEvent, zone: FolderDropZone) => void
@@ -211,6 +230,7 @@ const FolderTreeItem = ({
 	selectedVisualIds,
 	onVisualClick,
 	resolveDropOn,
+	resolveDropInto,
 	onDropOn,
 	onVisualDragStart,
 	depth,
@@ -222,6 +242,16 @@ const FolderTreeItem = ({
 		resolve: resolveDropOn(folder),
 		onDropPayload: onDropOn(folder),
 	})
+	// The folder's own visual rows, as a second target with no edge zones —
+	// a drop there always means "into this folder". Its own state (rather
+	// than the row's handlers reused) so the enter/leave counters stay
+	// independent, but the highlight it paints is the row's: what lights up
+	// is the folder, not the row the pointer happens to be over.
+	const contents = useFolderDropTarget({
+		resolve: resolveDropInto(folder),
+		onDropPayload: onDropOn(folder),
+	})
+	const rowDropZone = dropZone ?? contents.dropZone
 	const children = orderedSiblings(folders, folder.id)
 	const childVisuals = visuals.filter((v) => v.folderId === folder.id)
 	const isSelected = selectedId === folder.id
@@ -244,8 +274,8 @@ const FolderTreeItem = ({
 					isSelected
 						? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
 						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-				} ${dropZoneClass(dropZone)}`}
-				data-drop-zone={dropZone ?? undefined}
+				} ${dropZoneClass(rowDropZone)}`}
+				data-drop-zone={rowDropZone ?? undefined}
 				style={{ paddingLeft: `${depth * 16 + 4}px` }}
 				draggable={!editing}
 				onDragStart={(e) => {
@@ -382,6 +412,7 @@ const FolderTreeItem = ({
 							selectedVisualIds={selectedVisualIds}
 							onVisualClick={onVisualClick}
 							resolveDropOn={resolveDropOn}
+							resolveDropInto={resolveDropInto}
 							onDropOn={onDropOn}
 							onVisualDragStart={onVisualDragStart}
 							depth={depth + 1}
@@ -397,6 +428,7 @@ const FolderTreeItem = ({
 								isSelected={selectedVisualIds.has(v.id)}
 								onClick={onVisualClick}
 								onDragStart={onVisualDragStart(v.id)}
+								dropHandlers={contents.dropHandlers}
 							/>
 						))}
 				</>
@@ -528,6 +560,18 @@ export const FolderTree = ({
 			: null
 	}
 
+	// What the in-flight drag would do if dropped on one of `folder`'s
+	// contents rows: always "into this folder" — the edge zones exist to
+	// order a folder against a SIBLING ROW, which a contents row isn't.
+	const resolveDropInto = (folder: Folder) => () => {
+		const drag = getCurrentDrag()
+		if (!drag) return null
+		if (drag.kind === "visuals") return "inside" as const
+		return canDropFolderOn(folders, drag.folderId, folder.id)
+			? ("inside" as const)
+			: null
+	}
+
 	// "All visualizations" only ever means "move to the root group"; there
 	// are no rows above or below it to order against.
 	const resolveDropOnRoot = () => {
@@ -585,6 +629,14 @@ export const FolderTree = ({
 		}
 
 	const rootDrop = useFolderDropTarget({
+		resolve: resolveDropOnRoot,
+		onDropPayload: handleDropOn(null),
+	})
+
+	// Same contents rule one level up: the unfiled visuals listed below the
+	// tree are "All visualizations"'s contents, and dropping on one of them
+	// means the root group (lighting up that row, not the hovered one).
+	const rootContents = useFolderDropTarget({
 		resolve: resolveDropOnRoot,
 		onDropPayload: handleDropOn(null),
 	})
@@ -665,7 +717,7 @@ export const FolderTree = ({
 						selectedFolderId === null
 							? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
 							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-					} ${dropZoneClass(rootDrop.dropZone)}`}
+					} ${dropZoneClass(rootDrop.dropZone ?? rootContents.dropZone)}`}
 					{...rootDrop.dropHandlers}
 					onClick={() => onSelect(null)}
 					onKeyDown={(e) => {
@@ -696,6 +748,7 @@ export const FolderTree = ({
 						selectedVisualIds={selectedVisualIds}
 						onVisualClick={onVisualClick}
 						resolveDropOn={resolveDropOn}
+						resolveDropInto={resolveDropInto}
 						onDropOn={handleDropOn}
 						onVisualDragStart={onVisualDragStart}
 						depth={0}
@@ -716,6 +769,7 @@ export const FolderTree = ({
 							isSelected={selectedVisualIds.has(v.id)}
 							onClick={onVisualClick}
 							onDragStart={onVisualDragStart(v.id)}
+							dropHandlers={rootContents.dropHandlers}
 						/>
 					))}
 			</div>

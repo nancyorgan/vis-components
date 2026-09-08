@@ -35,6 +35,7 @@ const baseState = (): Required<FieldNameConfigs> => ({
 	dataLabelsEncodings: emptyDataLabelsEncodings(),
 	fieldTypeOverrides: {},
 	fieldLevelOrders: {},
+	fieldLevelOrderSpecs: {},
 	channelConfigs: {},
 	labelsConfig: DEFAULT_LABELS_CONFIG,
 	dataLabelsConfig: DEFAULT_DATA_LABELS_CONFIG,
@@ -172,6 +173,24 @@ describe("renameFieldInConfigs — standard (view-field) rewrite", () => {
 		})
 	})
 
+	it("follows the field into the Order-by picker memories", () => {
+		const state = baseState()
+		state.fieldLevelOrderSpecs = {
+			// Keyed by the ordered field, and referencing it as a scope.
+			sales: { by: "alphabetical" },
+			region: { by: "field", byField: "sales", scopeField: "year" },
+			other: { by: "field", byField: "year", scopeLevel: "sales" },
+		}
+		const next = renameFieldInConfigs(state, fields, "sales", "revenue")
+		expect(next.fieldLevelOrderSpecs).toEqual({
+			revenue: { by: "alphabetical" },
+			region: { by: "field", byField: "revenue", scopeField: "year" },
+			// A scope LEVEL is a cell value, not a column — untouched by a
+			// column rename even when the strings match.
+			other: { by: "field", byField: "year", scopeLevel: "sales" },
+		})
+	})
+
 	it("swaps the deep channel-config references", () => {
 		const state = baseState()
 		state.channelConfigs = {
@@ -285,6 +304,31 @@ describe("renameFieldInConfigs — melted (value-key) rewrite", () => {
 		}
 		return state
 	}
+
+	it("follows a renamed value into a remembered scope LEVEL", () => {
+		const state = meltedState()
+		state.fieldLevelOrderSpecs = {
+			region: { by: "field", byField: "value", scopeField: "category", scopeLevel: "jan" },
+			// Scoped to a different variable, so its matching level is a
+			// coincidence and stays put.
+			jan: { by: "field", byField: "value", scopeField: "region", scopeLevel: "jan" },
+		}
+		const next = renameFieldInConfigs(state, fields, "jan", "January")
+		expect(next.fieldLevelOrderSpecs).toEqual({
+			region: {
+				by: "field",
+				byField: "value",
+				scopeField: "category",
+				scopeLevel: "January",
+			},
+			jan: {
+				by: "field",
+				byField: "value",
+				scopeField: "region",
+				scopeLevel: "jan",
+			},
+		})
+	})
 
 	it("renames the value key in maps driven by the variable column", () => {
 		const state = meltedState()

@@ -32,6 +32,34 @@ export type MarkAesthetics = {
 	briUnit: number | null
 }
 
+/** Per-ROW saturation/brightness unit resolution — the sat/bri slice of
+ *  `resolveMarkAesthetics`, exported so renderers that resolve their fill by
+ *  another route (the geo family's measure-driven fills, see
+ *  `lib/geo/geoMarkStyle`) modulate by the SAME rule instead of re-deriving it.
+ *
+ *  Convention (shared with the GroupValues sibling `resolveGroupFill`): a
+ *  mapped channel whose value can't resolve — blank/NA cell, value outside the
+ *  scale's domain — falls back to the channel's DEFAULT level, exactly like an
+ *  unmapped channel. `null` means "no modulation from this channel". */
+export const resolveRowModulation = (
+	row: Record<string, unknown>,
+	aestheticScales: AestheticScales,
+	channelConfigs: ChannelConfigs
+): { satUnit: number | null; briUnit: number | null } => {
+	const sat = aestheticScales.saturation
+	const bri = aestheticScales.brightness
+	return {
+		satUnit:
+			(sat ? sat.scale(row[sat.field.name]) : null) ??
+			channelConfigs.defaultSaturation ??
+			null,
+		briUnit:
+			(bri ? bri.scale(row[bri.field.name]) : null) ??
+			channelConfigs.defaultBrightness ??
+			null,
+	}
+}
+
 /** Per-ROW mark aesthetics: hue → (capture pre-modulation hue) → sat/bri
  *  modulation → opacity → area-driven radius. The row-based sibling of
  *  `resolveLayerColor` (which consumes aggregated `GroupValues`); used by
@@ -44,8 +72,6 @@ export const resolveMarkAesthetics = (
 	channelConfigs: ChannelConfigs
 ): MarkAesthetics => {
 	const hue = aestheticScales.hue
-	const sat = aestheticScales.saturation
-	const bri = aestheticScales.brightness
 	const opacityAes = aestheticScales.opacity
 	const area = aestheticScales.area
 
@@ -56,19 +82,14 @@ export const resolveMarkAesthetics = (
 	}
 	const preModulationHue = fill
 
-	// Mapped-but-unresolvable rows (blank/NA cell, value outside the scale's
-	// domain) fall back to the channel's DEFAULT level, exactly like an
-	// unmapped channel — the same convention hue follows with `defaultFill`.
-	// Shared with the GroupValues sibling (`resolveGroupFill` /
-	// `resolveLayerColor`), so row- and group-based renderers can't drift.
-	const satUnit =
-		(sat ? sat.scale(row[sat.field.name]) : null) ??
-		channelConfigs.defaultSaturation ??
-		null
-	const briUnit =
-		(bri ? bri.scale(row[bri.field.name]) : null) ??
-		channelConfigs.defaultBrightness ??
-		null
+	// Mapped-but-unresolvable rows fall back to the channel's DEFAULT level —
+	// see `resolveRowModulation`, shared with the geo renderers so no fill path
+	// can drift from this convention.
+	const { satUnit, briUnit } = resolveRowModulation(
+		row,
+		aestheticScales,
+		channelConfigs
+	)
 	if (satUnit !== null || briUnit !== null) {
 		fill = modulateColor(fill, satUnit, briUnit)
 	}

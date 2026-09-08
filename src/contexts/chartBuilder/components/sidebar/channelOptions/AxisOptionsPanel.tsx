@@ -315,10 +315,11 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	const isContinuous =
 		effectiveType === "quantitative" || effectiveType === "temporal"
 
-	// Effective "Adjust position" nudge in screen px. The legacy single
-	// `offset` was perpendicular-only (x-axis: positive = down/away, y-axis:
-	// positive = left/away); it's folded in while the new 2D fields are unset
-	// — the control clears it on its first write.
+	// Effective "Adjust position" nudge in screen px, applied to the tick
+	// labels. The legacy single `offset` was perpendicular-only (x-axis:
+	// positive = down/away, y-axis: positive = left/away); it's folded in
+	// while the new 2D fields are unset — the control clears it on its first
+	// write.
 	const effOffsetX =
 		config.offsetX ?? (channel === "y" ? -(config.offset ?? 0) : 0)
 	const effOffsetY =
@@ -724,12 +725,12 @@ const Section = ({
 	</CollapsibleSubsection>
 )
 
-/** "Adjust position" X/Y nudge (data-labels style) that moves the whole axis
- *  (spine + tick marks + labels + title). The gridlines stay pinned to their
- *  data positions — only the axis chrome moves. Values arrive/leave in screen
- *  coords; the Y input shows math convention (positive = up), so the sign
- *  flips at this boundary in both directions. Renders at the end of the Tick
- *  Labels section behind a divider. */
+/** "Adjust position" X/Y nudge (data-labels style) that moves the TICK LABELS
+ *  only — the spine, tick marks, title, and gridlines all stay where they
+ *  were. Values arrive/leave in screen coords; the Y input shows math
+ *  convention (positive = up), so the sign flips at this boundary in both
+ *  directions. Renders at the end of the Tick Labels section behind a
+ *  divider. */
 const AxisAdjustPositionControl = ({
 	offsetX,
 	offsetY,
@@ -775,8 +776,8 @@ const AxisAdjustPositionControl = ({
 			changed={changed}
 		/>
 		<p className="vc-help">
-			Moves the whole axis — spine, tick marks, and labels — without moving
-			the gridlines. Positive X moves right; positive Y moves up.
+			Moves the tick labels only — the spine, tick marks, and gridlines stay
+			put. Positive X moves right; positive Y moves up.
 		</p>
 	</div>
 )

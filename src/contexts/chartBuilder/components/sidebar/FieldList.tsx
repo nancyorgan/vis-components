@@ -6,11 +6,12 @@ import {
 	orderLevelsByField,
 } from "../../lib/orderLevelsByField"
 import { applyLevelOrder, smartSortCategories } from "../../lib/smartSort"
-import type { Field, FieldType } from "../../lib/types"
+import type { Field, FieldLevelOrderSpec, FieldType } from "../../lib/types"
 import {
 	currentDatasetIdAtom,
 	currentDerivedVariablesAtom,
 	currentFieldLevelOrdersAtom,
+	currentFieldLevelOrderSpecsAtom,
 	currentFieldOverridesAtom,
 	datasetIndexAtom,
 	derivedVariableEditorAtom,
@@ -56,6 +57,7 @@ export const FieldList = () => {
 	const [levelOrders, setLevelOrders] = useAtom(
 		currentFieldLevelOrdersAtom
 	)
+	const [orderSpecs, setOrderSpecs] = useAtom(currentFieldLevelOrderSpecsAtom)
 	const derivedConfig = useAtomValue(currentDerivedVariablesAtom)
 	const setDerivedEditor = useSetAtom(derivedVariableEditorAtom)
 	const dataset = useCurrentDatasetView()
@@ -186,6 +188,16 @@ export const FieldList = () => {
 												pinnedOrder={levelOrders[field.name]}
 												setPinnedOrder={(next) =>
 													setLevelOrders((prev) => {
+														if (next === null) {
+															const { [field.name]: _, ...rest } = prev
+															return rest
+														}
+														return { ...prev, [field.name]: next }
+													})
+												}
+												orderSpec={orderSpecs[field.name]}
+												setOrderSpec={(next) =>
+													setOrderSpecs((prev) => {
 														if (next === null) {
 															const { [field.name]: _, ...rest } = prev
 															return rest
@@ -436,26 +448,32 @@ const keyToField = (key: string) =>
  * "in <level> of <variable>" scope, or Alphabetical (or toggling Decreasing)
  * computes an order and pins it like any manual reorder — the arrows keep
  * working on the result, and a manual move drops the picker back to "—"
- * since the order is no longer purely the computed one. */
+ * since the order is no longer purely the computed one.
+ *
+ * The picker's own settings persist (`orderSpec`, per field, saved with the
+ * visual) so closing the chevron doesn't erase what the levels were ordered
+ * by: reopening shows the choice, and changing one knob re-computes from
+ * there instead of making the user start over. It stays a record of the
+ * CONTROLS — the order is never re-derived from it when the data changes. */
 const LevelReorderPanel = ({
 	field,
 	type,
 	effectiveFields,
 	pinnedOrder,
 	setPinnedOrder,
+	orderSpec,
+	setOrderSpec,
 }: {
 	field: string
 	type: FieldType
 	effectiveFields: EffectiveField[]
 	pinnedOrder: string[] | undefined
 	setPinnedOrder: (next: string[] | null) => void
+	orderSpec: FieldLevelOrderSpec | undefined
+	setOrderSpec: (next: FieldLevelOrderSpec | null) => void
 }) => {
 	const dataset = useCurrentDatasetView()
 	const [collapsed, setCollapsed] = useState(false)
-	const [orderBy, setOrderBy] = useState("")
-	const [scopeVar, setScopeVar] = useState("")
-	const [scopeLevel, setScopeLevel] = useState("")
-	const [decreasing, setDecreasing] = useState(false)
 	// Drag state lives here rather than in dataTransfer so only rows from
 	// THIS field's panel can accept the drop — a level drag is meaningless
 	// in another field's list, and a foreign drag (library folder/visual)
@@ -485,6 +503,20 @@ const LevelReorderPanel = ({
 		(f): f is { name: string; type: "quantitative" | "temporal" } =>
 			f.type === "quantitative" || f.type === "temporal"
 	)
+	// The picker reads its values off the saved spec. Each is validated
+	// against what's actually selectable right now — the ordered-by variable
+	// can have been deleted or retyped, and a scope level can vanish when the
+	// dataset advances a version — so a stale reference shows as unset
+	// instead of a dangling selection the user can't act on.
+	const specBy =
+		orderSpec?.by === "alphabetical"
+			? "alpha"
+			: orderSpec?.by === "field" &&
+				  orderSpec.byField !== undefined &&
+				  orderByCandidates.some((c) => c.name === orderSpec.byField)
+				? fieldKey(orderSpec.byField)
+				: ""
+	const orderBy = specBy
 	const byField = keyToField(orderBy)
 	// "in the <level> of <variable>" scope candidates: any OTHER field —
 	// including quantitative ones, since a numeric-inferred `year` must
@@ -492,6 +524,12 @@ const LevelReorderPanel = ({
 	const scopeVarCandidates = effectiveFields.filter(
 		(f) => f.name !== field && f.name !== byField
 	)
+	const scopeVar =
+		orderBy !== "" &&
+		orderSpec?.scopeField !== undefined &&
+		scopeVarCandidates.some((c) => c.name === orderSpec.scopeField)
+			? orderSpec.scopeField
+			: ""
 	const scopeVarType = effectiveFields.find((f) => f.name === scopeVar)?.type
 	const scopeLevels =
 		scopeVar === ""
@@ -509,13 +547,34 @@ const LevelReorderPanel = ({
 					],
 					scopeVarType ?? "categorical"
 				)
+	const scopeLevel =
+		orderSpec?.scopeLevel !== undefined &&
+		scopeLevels.includes(orderSpec.scopeLevel)
+			? orderSpec.scopeLevel
+			: ""
+	const decreasing = orderSpec?.decreasing ?? false
 
-	const clearPicker = () => {
-		setOrderBy("")
-		setScopeVar("")
-		setScopeLevel("")
-		setDecreasing(false)
+	/** The spec a set of picker choices records. Sparse: absent keys mean
+	 * "not chosen", so a plain Alphabetical order stores just its `by`. */
+	const specFor = (
+		key: string,
+		desc: boolean,
+		sVar: string,
+		sLevel: string
+	): FieldLevelOrderSpec => {
+		const spec: FieldLevelOrderSpec =
+			key === "alpha"
+				? { by: "alphabetical" }
+				: { by: "field", byField: keyToField(key) ?? "" }
+		if (sVar !== "") spec.scopeField = sVar
+		if (sVar !== "" && sLevel !== "") spec.scopeLevel = sLevel
+		if (desc) spec.decreasing = true
+		return spec
 	}
+
+	/** A hand reorder makes the pinned order no longer the computed one, so
+	 * the remembered picker settings go with it. */
+	const clearPicker = () => setOrderSpec(null)
 
 	const move = (idx: number, delta: number) => {
 		const next = [...ordered]
@@ -553,6 +612,7 @@ const LevelReorderPanel = ({
 	const applyOrderBy = (key: string, desc: boolean, sVar: string, sLevel: string) => {
 		if (key === "alpha") {
 			setPinnedOrder(alphabeticalLevelOrder(discovered, desc))
+			setOrderSpec(specFor(key, desc, sVar, sLevel))
 			return
 		}
 		const name = keyToField(key)
@@ -571,6 +631,7 @@ const LevelReorderPanel = ({
 				scope
 			)
 		)
+		setOrderSpec(specFor(key, desc, sVar, sLevel))
 	}
 
 	const reset = () => {
@@ -615,18 +676,22 @@ const LevelReorderPanel = ({
 							})),
 						]}
 						onChange={(next) => {
-							setOrderBy(next)
-							// A stale scope on the new order-by field would be a
-							// self-scope — clear it before applying.
-							let sVar = scopeVar
-							let sLevel = scopeLevel
-							if (keyToField(next) === scopeVar) {
-								sVar = ""
-								sLevel = ""
-								setScopeVar("")
-								setScopeLevel("")
+							// "—" forgets what the order was computed from; the
+							// computed order itself stays pinned, exactly as a hand
+							// reorder leaves it.
+							if (next === "") {
+								setOrderSpec(null)
+								return
 							}
-							if (next !== "") applyOrderBy(next, decreasing, sVar, sLevel)
+							// A stale scope on the new order-by field would be a
+							// self-scope — drop it before applying.
+							const selfScope = keyToField(next) === scopeVar
+							applyOrderBy(
+								next,
+								decreasing,
+								selfScope ? "" : scopeVar,
+								selfScope ? "" : scopeLevel
+							)
 						}}
 						labelClassName={ORDER_LABEL_COL}
 						selectClassName="py-0.5 text-xs"
@@ -645,8 +710,6 @@ const LevelReorderPanel = ({
 									})),
 								]}
 								onChange={(next) => {
-									setScopeVar(next)
-									setScopeLevel("")
 									applyOrderBy(orderBy, decreasing, next, "")
 								}}
 								labelClassName={ORDER_LABEL_COL}
@@ -662,7 +725,6 @@ const LevelReorderPanel = ({
 										...scopeLevels.map((v) => ({ value: v, label: v })),
 									]}
 									onChange={(next) => {
-										setScopeLevel(next)
 										applyOrderBy(orderBy, decreasing, scopeVar, next)
 									}}
 									selectClassName="py-0.5 text-xs"
@@ -678,7 +740,6 @@ const LevelReorderPanel = ({
 								type="checkbox"
 								checked={decreasing}
 								onChange={(e) => {
-									setDecreasing(e.target.checked)
 									applyOrderBy(orderBy, e.target.checked, scopeVar, scopeLevel)
 								}}
 								className="h-3 w-3"
