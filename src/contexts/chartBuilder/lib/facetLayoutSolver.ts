@@ -18,6 +18,7 @@ import {
 	estimateExtraLeftMargin,
 	estimateInteriorBottomChrome,
 	estimateInteriorLeftChrome,
+	estimateLongestLineWidth,
 } from "./estimateMargins"
 import { lineCount } from "./multilineText"
 import {
@@ -360,6 +361,12 @@ const clampHorizontalYTitleX = (
 	return Math.max(minX, Math.min(maxX, anchorX))
 }
 
+/** Line-to-line step used by `renderMultilineTspans` (dy="1.2em"). */
+const TITLE_LINE_STEP_EM = 1.2
+/** Baseline-to-visual-center, as a fraction of font size (about half a cap
+ *  height). Lifts a centered title so its ink, not its baseline, centers. */
+const TITLE_CAP_CENTER_RATIO = 0.35
+
 const textAnchorFor = (align: Alignment): TextAnchorSpec =>
 	align === "left" ? "start" : align === "right" ? "end" : "middle"
 
@@ -368,6 +375,55 @@ const xForAlignment = (
 	left: number,
 	right: number
 ): number => (align === "left" ? left : align === "right" ? right : (left + right) / 2)
+
+/** First-line baseline y for the UPRIGHT ("read y-axis title horizontally")
+ *  y-title, which always sits CENTERED on the panel's plot span.
+ *
+ *  Alignment does NOT move an upright title along the axis (unlike the
+ *  rotated one, where "left"/"right" are the axis ends the text reads
+ *  between). An upright title reads left-to-right, so its align buttons do
+ *  what they say on a block of prose: they align the WRAPPED LINES against
+ *  each other (see `horizontalYTitleAnchorX`). Top/bottom placement is the
+ *  Adjust-position Y nudge's job.
+ *
+ *  Baselines, not edges: `<text>` puts its ALPHABETIC baseline at `y`, so a
+ *  single line lifts by half a cap height to center its ink rather than its
+ *  baseline. Multi-line titles stack DOWN from the first baseline
+ *  (`renderMultilineTspans`, 1.2em steps), so the first line also rises by
+ *  half the block's drop — the BLOCK centers, not line one. */
+const horizontalYTitleBaselineY = (
+	plotTop: number,
+	plotBottom: number,
+	fontSize: number,
+	lines: number
+): number => {
+	const blockDrop = TITLE_LINE_STEP_EM * fontSize * Math.max(0, lines - 1)
+	return (
+		(plotTop + plotBottom) / 2 - blockDrop / 2 + TITLE_CAP_CENTER_RATIO * fontSize
+	)
+}
+
+/** Anchor x for the upright y-title, given the RIGHT EDGE of the band the
+ *  left margin reserved for it and the width of its widest line.
+ *
+ *  The block's box is fixed — its right edge butts against the tick labels
+ *  and it extends `blockWidth` leftward, which is exactly the space
+ *  `estimateExtraLeftMargin` reserved. Alignment slides the ANCHOR inside
+ *  that box so the lines align within it while the box itself stays put:
+ *  end-anchored at the right edge, start-anchored at the left edge,
+ *  middle-anchored at the middle. The widest line spans the whole box in
+ *  every case, so no alignment can push ink into the tick labels or off the
+ *  canvas. */
+const horizontalYTitleAnchorX = (
+	align: Alignment,
+	rightEdge: number,
+	blockWidth: number
+): number =>
+	align === "left"
+		? rightEdge - blockWidth
+		: align === "center"
+			? rightEdge - blockWidth / 2
+			: rightEdge
 
 /** Compute the per-side global margin floors that hold the SHARED axis
  *  titles. The left floor holds the y-title (lives to the left of the
@@ -1717,22 +1773,28 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	const yTitle: TextRect | null = input.yTitle
 		? input.yTitle.horizontal
 			? {
-					// Horizontal title: text extends LEFT from titleX
-					// (textAnchor="end"), so the title's right edge lands at
-					// plotLeft - yTitleGap and the text body fills the left
-					// chrome reserved by `estimateExtraLeftMargin` for the title.
-					x: clampHorizontalYTitleX(
-						plotLeft - yTitleGap + yTOffsetX,
-						longestYLabelPx > 0 ? longestYLabelPx : input.yTitle.fontSize * 6,
-						canvasW,
+					// Horizontal title: the block's RIGHT EDGE lands at
+					// `plotLeft - yTitleGap`, just left of the tick labels, and
+					// the text body extends leftward into the chrome
+					// `estimateExtraLeftMargin` reserved for it. Alignment moves
+					// the anchor within that fixed box, not the box.
+					x: horizontalYTitleAnchorX(
+						input.yTitle.align,
+						clampHorizontalYTitleX(
+							plotLeft - yTitleGap + yTOffsetX,
+							longestYLabelPx > 0 ? longestYLabelPx : input.yTitle.fontSize * 6,
+							canvasW,
+						),
+						estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
 					),
 					y:
-						(input.yTitle.align === "left"
-							? plotTop + input.yTitle.fontSize
-							: input.yTitle.align === "right"
-								? plotBottom
-								: (plotTop + plotBottom) / 2) + yTOffsetY,
-					textAnchor: "end",
+						horizontalYTitleBaselineY(
+							plotTop,
+							plotBottom,
+							input.yTitle.fontSize,
+							lineCount(input.yTitle.text),
+						) + yTOffsetY,
+					textAnchor: textAnchorFor(input.yTitle.align),
 					rotation: 0,
 					width: yTitleGap,
 					height: input.yTitle.fontSize * 1.2,
@@ -1752,7 +1814,12 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 							: input.yTitle.align === "right"
 								? plotTop
 								: (plotTop + plotBottom) / 2) + yTOffsetY,
-					textAnchor: "middle",
+					// Anchor per alignment, exactly like the x-title: rotated -90°
+					// the text reads bottom-to-top, so "start" begins at the panel
+					// FLOOR and "end" finishes at the panel TOP. A hardcoded
+					// "middle" would center the title on that edge instead, leaving
+					// half the words hanging past the panel.
+					textAnchor: textAnchorFor(input.yTitle.align),
 					rotation: -90,
 					width: input.yTitle.fontSize * 1.2,
 					height: plotBottom - plotTop,

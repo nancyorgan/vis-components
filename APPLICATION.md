@@ -1840,6 +1840,25 @@ title, and facet/legend titles. Each title has:
 - Y-axis title only: a "Read horizontally" toggle that un-rotates the
   title from -90°.
 
+The alignment control positions each title against the PANEL's plot
+span, never the canvas — so left-aligning parks the text at the plot's
+edge, not the image's. For the y-axis title its meaning depends on the
+orientation, because the two orientations give the words different
+directions to run in:
+
+- **Rotated (default)** — the title reads bottom-to-top between the
+  two ends of the axis, so alignment picks which end it reads FROM:
+  Left starts the title at the panel floor, Right finishes it at the
+  panel ceiling, Center centers it on the panel.
+- **Read horizontally** — the title reads left-to-right in a block
+  that always sits centered on the axis, so alignment does what align
+  buttons do to prose: it aligns the WRAPPED LINES against each other
+  (Left flush-left, Center centered, Right flush-right). The block's
+  box doesn't move — its right edge stays against the tick labels, in
+  the left chrome reserved for it, and only the anchor slides inside
+  that box. Parking an upright title at the top or bottom of the axis
+  is the position offset's job (below), not alignment's.
+
 The panel is organized into four collapsed-by-default subsections:
 **Primary titles** (the Shift+Enter hint, Title, Subtitle), **Axis
 titles** (X-axis, Y-axis), **Facet titles** (present only when a

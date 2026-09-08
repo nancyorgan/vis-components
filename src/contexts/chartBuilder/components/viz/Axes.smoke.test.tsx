@@ -67,8 +67,57 @@ describe("Axis y-axis title positioning", () => {
 		const transform = titles[0]?.getAttribute("transform")
 		// Horizontal title doesn't get a rotate transform.
 		expect(transform ?? "").not.toContain("rotate")
-		// textAnchor="end" so the title's right edge sits at inner.x0 - 8
-		expect(titles[0]?.getAttribute("text-anchor")).toBe("end")
+		// Upright, the align buttons align the title's wrapped LINES, so the
+		// anchor follows the alignment (default "center" → "middle") and the
+		// x compensates to keep the block's box fixed against the tick labels.
+		expect(titles[0]?.getAttribute("text-anchor")).toBe("middle")
+		// It centers on the y-axis range (20..280 → 150) regardless of
+		// alignment; the vertical baseline does the centering, not `y`.
+		expect(titles[0]?.getAttribute("y")).toBe("150")
+		expect(titles[0]?.getAttribute("dominant-baseline")).toBe("middle")
+	})
+
+	it("upright y-axis title keeps its box fixed while alignment moves the anchor", () => {
+		const anchorFor = (titleAlignment: "left" | "center" | "right") => {
+			const { container } = render(
+				wrapInSvg(
+					<Axis
+						scale={yScale}
+						orientation="y"
+						inner={inner}
+						label="Negotiated rates"
+						fieldType="quantitative"
+						yTitleHorizontal
+						titleAlignment={titleAlignment}
+					/>
+				)
+			)
+			const t = [...container.querySelectorAll("text")].find(
+				(el) => el.textContent === "Negotiated rates"
+			)!
+			return {
+				anchor: t.getAttribute("text-anchor"),
+				x: Number(t.getAttribute("x")),
+				y: t.getAttribute("y"),
+			}
+		}
+		const left = anchorFor("left")
+		const center = anchorFor("center")
+		const right = anchorFor("right")
+		expect([left.anchor, center.anchor, right.anchor]).toEqual([
+			"start",
+			"middle",
+			"end",
+		])
+		// Right edge of the block is the same in all three (that's where the
+		// reserved band ends); left/center pull the anchor back by the whole
+		// / half block width, so the ink occupies the identical box.
+		const blockWidth = right.x - left.x
+		expect(blockWidth).toBeGreaterThan(0)
+		expect(center.x).toBeCloseTo(right.x - blockWidth / 2, 6)
+		// Alignment never moves the title along the axis.
+		expect(left.y).toBe(center.y)
+		expect(right.y).toBe(center.y)
 	})
 
 	it("right-aligns y-axis title via the titleAlignment prop", () => {

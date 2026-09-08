@@ -5,6 +5,7 @@ import {
 	type SolverInput,
 	type SolverPanelInput,
 } from "./facetLayoutSolver"
+import { estimateLongestLineWidth } from "./estimateMargins"
 import { BASE_MARGIN, POLAR_MARGIN } from "./plotLayout"
 
 /** Build a baseline input. Specific tests override individual fields. */
@@ -499,6 +500,76 @@ describe("solveFacetLayout — shared titles", () => {
 		const leftmostRot = specRotated.panels[0]!
 		// Horizontal y-title pushes plots rightward by the text width.
 		expect(leftmostHoriz.inner.x).toBeGreaterThan(leftmostRot.inner.x)
+	})
+
+	// A ROTATED y-title reads bottom-to-top between the two ends of the
+	// axis, so its alignment picks WHICH END the text reads from, against
+	// the PANEL's plot span:
+	//   left   → the start of the title sits at the panel FLOOR
+	//   right  → the end of the title sits at the panel CEILING
+	//   center → the title centers on the panel
+	it("rotated y-title anchors per alignment (start=floor, end=ceiling)", () => {
+		const panel = solveFacetLayout(baseline({ yTitle: yt })).panels[0]!
+		const top = panel.inner.y
+		const bottom = panel.inner.y + panel.inner.height
+
+		const left = solveFacetLayout(baseline({ yTitle: { ...yt, align: "left" } }))
+		expect(left.yTitle!.textAnchor).toBe("start")
+		expect(left.yTitle!.y).toBeCloseTo(bottom, 1)
+
+		const right = solveFacetLayout(baseline({ yTitle: { ...yt, align: "right" } }))
+		expect(right.yTitle!.textAnchor).toBe("end")
+		expect(right.yTitle!.y).toBeCloseTo(top, 1)
+
+		const center = solveFacetLayout(baseline({ yTitle: { ...yt, align: "center" } }))
+		expect(center.yTitle!.textAnchor).toBe("middle")
+		expect(center.yTitle!.y).toBeCloseTo((top + bottom) / 2, 1)
+	})
+
+	// An UPRIGHT ("read horizontally") y-title reads left-to-right, so its
+	// alignment does what align buttons do to a block of prose: it aligns the
+	// WRAPPED LINES against each other. It never moves the title along the
+	// axis — that always stays centered on the panel, and the Adjust-position
+	// Y nudge is how a user parks it at the top or bottom.
+	it("horizontal y-title centers on the panel for EVERY alignment", () => {
+		const horiz = { ...yt, text: "Negotiated\nrates", horizontal: true }
+		const panel = solveFacetLayout(baseline({ yTitle: horiz })).panels[0]!
+		const mid = panel.inner.y + panel.inner.height / 2
+		const ys = (["left", "center", "right"] as const).map(
+			(align) =>
+				solveFacetLayout(baseline({ yTitle: { ...horiz, align } })).yTitle!.y
+		)
+		// Same y for all three, and the two-line BLOCK straddles the middle:
+		// the first baseline sits half a line-step above it.
+		expect(ys[1]).toBeCloseTo(ys[0], 6)
+		expect(ys[2]).toBeCloseTo(ys[0], 6)
+		expect(ys[0]).toBeLessThan(mid)
+		expect(ys[0]).toBeGreaterThan(mid - horiz.fontSize)
+	})
+
+	it("horizontal y-title alignment anchors the lines inside a FIXED box", () => {
+		const horiz = {
+			...yt,
+			text: "A long title for\ndemonstration purposes",
+			horizontal: true,
+		}
+		const rects = Object.fromEntries(
+			(["left", "center", "right"] as const).map((align) => [
+				align,
+				solveFacetLayout(baseline({ yTitle: { ...horiz, align } })).yTitle!,
+			])
+		)
+		expect(rects.left.textAnchor).toBe("start")
+		expect(rects.center.textAnchor).toBe("middle")
+		expect(rects.right.textAnchor).toBe("end")
+
+		// The box is the same in all three: right edge against the tick
+		// labels, extending one widest-line leftward. Only the anchor moves
+		// within it, so the rendered ink occupies identical space.
+		const blockWidth = estimateLongestLineWidth(horiz.text, horiz.fontSize)
+		const rightEdge = rects.right.x
+		expect(rects.left.x).toBeCloseTo(rightEdge - blockWidth, 6)
+		expect(rects.center.x).toBeCloseTo(rightEdge - blockWidth / 2, 6)
 	})
 })
 

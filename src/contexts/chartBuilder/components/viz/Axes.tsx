@@ -593,19 +593,19 @@ export const Axis = ({
 									)
 								}
 								// Y-axis: rotated -90° (default) or upright (yTitleHorizontal).
-								// In the rotated branch the text reads bottom-to-top, so the
-								// alignment glyphs ("left/right") map to bottom/top of the
-								// axis. In the horizontal branch the text reads normally —
-								// the user sees the title in reading order — so the mapping
-								// flips: "left" pins to the top, "right" to the bottom.
-								const titleAlongY = (() => {
-									if (titleAlignment === "center")
-										return (inner.y0 + inner.y1) / 2
-									if (yTitleHorizontal) {
-										return titleAlignment === "left" ? inner.y0 : inner.y1
-									}
-									return titleAlignment === "left" ? inner.y1 : inner.y0
-								})()
+								// Rotated, the text reads bottom-to-top between the two axis
+								// ends, so alignment picks WHICH END it reads from: "left"
+								// starts the title at the panel FLOOR, "right" finishes it at
+								// the panel TOP. Upright, the title always centers on the axis
+								// and alignment aligns its wrapped LINES instead (below) —
+								// top/bottom placement is the Adjust-position Y nudge's job.
+								const titleAlongY = yTitleHorizontal
+									? (inner.y0 + inner.y1) / 2
+									: titleAlignment === "center"
+										? (inner.y0 + inner.y1) / 2
+										: titleAlignment === "left"
+											? inner.y1
+											: inner.y0
 								// Dynamically position the title left of the longest tick
 								// label so a long category name (e.g. "Cardiothoracic
 								// Surgery") doesn't render under the title. Estimate using
@@ -629,30 +629,32 @@ export const Axis = ({
 									longestLabelPx + tick.length + 12 + tickFontSize
 								)
 								if (yTitleHorizontal) {
-									// Position the title past the tick labels (same gap as
-									// the rotated branch) so it doesn't overlap them. With
-									// textAnchor="end" the title's right edge lands at
-									// `titleX`; tick labels live in the (inner.x0 -
-									// dynamicGap, inner.x0) range, so anchoring at
-									// `inner.x0 - dynamicGap` puts the title just to the
-									// left of the longest tick label.
-									const titleX = inner.x0 - dynamicGap
-									// Match the baseline to the alignment so a top-aligned
-									// title hangs inside the plot (instead of half-overflowing
-									// above it), and a bottom-aligned title sits just inside
-									// the plot floor.
-									const horizontalBaseline =
+									// The block's RIGHT EDGE lands past the tick labels (same
+									// gap as the rotated branch) so it doesn't overlap them:
+									// tick labels live in the (inner.x0 - dynamicGap, inner.x0)
+									// range, so the edge sits at `inner.x0 - dynamicGap` and
+									// the text extends `blockWidth` leftward from there.
+									// Alignment slides the ANCHOR inside that fixed box — the
+									// widest line spans the whole box either way — so the
+									// wrapped lines align against each other without the ink
+									// moving into the labels or off-canvas.
+									const rightEdge = inner.x0 - dynamicGap
+									const blockWidth = estimateLongestLineWidth(
+										label,
+										titleFontSize
+									)
+									const titleX =
 										titleAlignment === "left"
-											? "hanging"
-											: titleAlignment === "right"
-												? "auto"
-												: "middle"
+											? rightEdge - blockWidth
+											: titleAlignment === "center"
+												? rightEdge - blockWidth / 2
+												: rightEdge
 									return (
 										<text
 											x={titleX}
 											y={titleAlongY}
-											textAnchor="end"
-											dominantBaseline={horizontalBaseline}
+											textAnchor={alignAnchor}
+											dominantBaseline="middle"
 											fontSize={titleFontSize}
 											fontWeight={titleFontWeight}
 											fontStyle={titleFontStyle}
@@ -665,7 +667,12 @@ export const Axis = ({
 													: "fill-stone-700 dark:fill-stone-300"
 											}
 										>
-											{renderMultilineTspans(label, titleX)}
+											{/* `verticallyCentered` pairs with the "middle"
+												baseline so a WRAPPED title centers as a block
+												on the axis, not from its first line. */}
+											{renderMultilineTspans(label, titleX, {
+												verticallyCentered: true,
+											})}
 										</text>
 									)
 								}

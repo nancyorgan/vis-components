@@ -163,7 +163,7 @@ export const FieldList = () => {
 											}
 											className="contents"
 										/>
-										{reorderable && (
+										{reorderable ? (
 											<Disclosure.Button
 												className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
 												aria-label={`Reorder levels of ${field.name}`}
@@ -171,6 +171,10 @@ export const FieldList = () => {
 											>
 												<DisclosureChevron open={open} />
 											</Disclosure.Button>
+										) : (
+											/* Keeps the type dropdowns lined up across rows that have
+											   no levels to reorder. */
+											<span className="h-6 w-6 flex-shrink-0" aria-hidden />
 										)}
 									</div>
 									{reorderable && (
