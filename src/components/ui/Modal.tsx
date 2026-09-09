@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { combine as c } from "../../lib/cls"
 
@@ -27,6 +27,21 @@ type ModalProps = {
 	 * different from the neutral default (e.g. the red frame on a warning).
 	 * Appended last, so a border/ring here overrides the default one. */
 	panelClassName?: string
+	/** When true, the panel is anchored to the top of the viewport instead of
+	 * vertically centered — for a dialog whose height changes with its content
+	 * (the export modal's preview): growth extends the bottom edge only, so
+	 * the controls at the top stay pinned in place. */
+	anchorTop?: boolean
+	/** When true, the panel hugs its content's width instead of filling
+	 * `maxWidthPx` — inside a fixed slot of that width, LEFT-aligned, so the
+	 * left edge (and the controls along it) stays pinned while the panel grows
+	 * rightward with its content. Requires `maxWidthPx`. */
+	fitWidth?: boolean
+	/** With `fitWidth`: indents the panel's pinned left edge this far into the
+	 * slot, so a viewport-spanning slot can still start the panel at a
+	 * comfortable position (rather than hugging the screen's left edge) while
+	 * leaving all the room to its right for growth. */
+	fitWidthOffsetPx?: number
 	/** Extra classes on the body wrapper (the padded region under the title).
 	 * For a fixed-height dialog that owns its own inner scroll region: pair
 	 * `panelClassName="flex h-… flex-col"` with
@@ -42,10 +57,20 @@ export const Modal = ({
 	children,
 	widthClass = "max-w-md",
 	maxWidthPx,
+	anchorTop = false,
+	fitWidth = false,
+	fitWidthOffsetPx,
 	dismissOnBackdrop = true,
 	panelClassName,
 	bodyClassName,
 }: ModalProps) => {
+	// A text-selection drag that starts inside the panel (e.g. highlighting a
+	// dimension input) and releases over the backdrop fires the click on the
+	// backdrop — the common ancestor of press and release — so a bare onClick
+	// close would dismiss the modal mid-selection. Only close when the press
+	// itself began on the backdrop.
+	const pressBeganOnBackdrop = useRef(false)
+
 	useEffect(() => {
 		if (!open) return
 		const onKey = (e: KeyboardEvent) => {
@@ -57,33 +82,76 @@ export const Modal = ({
 
 	if (!open) return null
 
+	const panel = (
+		/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- click here only stops propagation so panel clicks don't hit the backdrop's click-away; Escape closes via the keydown listener above */
+		<div
+			className={c(
+				// max-h + overflow-y-auto is a backstop: a panel taller than the
+				// viewport (minus the backdrop's padding) scrolls internally
+				// instead of extending past the screen edges, where the title and
+				// buttons would be unreachable. Panels are expected to size
+				// themselves to fit; the scrollbar only appears when one doesn't.
+				"max-h-full overflow-y-auto rounded-md border border-stone-200 bg-white shadow-xl dark:border-stone-700 dark:bg-stone-900",
+				fitWidth ? "w-fit max-w-full" : "w-full",
+				maxWidthPx === undefined && !fitWidth && widthClass,
+				panelClassName
+			)}
+			style={
+				maxWidthPx === undefined || fitWidth
+					? undefined
+					: { maxWidth: maxWidthPx }
+			}
+			onClick={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+		>
+			{title && (
+				<div className="border-b border-stone-200 px-4 py-3 text-sm font-medium text-stone-900 dark:border-stone-700 dark:text-white">
+					{title}
+				</div>
+			)}
+			<div className={c("p-4", bodyClassName)}>{children}</div>
+		</div>
+	)
+
 	return createPortal(
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4 dark:bg-stone-950/60"
-			onClick={dismissOnBackdrop ? onClose : undefined}
+			className={c(
+				"fixed inset-0 z-50 flex justify-center bg-stone-900/40 px-4 py-6 dark:bg-stone-950/60",
+				anchorTop ? "items-start" : "items-center"
+			)}
+			onMouseDown={(e) => {
+				pressBeganOnBackdrop.current = e.target === e.currentTarget
+			}}
+			onClick={
+				dismissOnBackdrop
+					? (e) => {
+							if (e.target === e.currentTarget && pressBeganOnBackdrop.current)
+								onClose()
+					  }
+					: undefined
+			}
 			role="presentation"
 		>
-			{/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- click here only stops propagation so panel clicks don't hit the backdrop's click-away; Escape closes via the keydown listener above */}
-			<div
-				className={c(
-					"w-full overflow-hidden rounded-md border border-stone-200 bg-white shadow-xl dark:border-stone-700 dark:bg-stone-900",
-					maxWidthPx === undefined && widthClass,
-					panelClassName
-				)}
-				style={
-					maxWidthPx === undefined ? undefined : { maxWidth: maxWidthPx }
-				}
-				onClick={(e) => e.stopPropagation()}
-				role="dialog"
-				aria-modal="true"
-			>
-				{title && (
-					<div className="border-b border-stone-200 px-4 py-3 text-sm font-medium text-stone-900 dark:border-stone-700 dark:text-white">
-						{title}
-					</div>
-				)}
-				<div className={c("p-4", bodyClassName)}>{children}</div>
-			</div>
+			{fitWidth ? (
+				/* Fixed-width slot the fit-width panel is LEFT-aligned inside: the
+				   slot (not the panel) is what the backdrop centers, so the panel's
+				   left edge stays pinned while its width follows the content. h-full
+				   gives the panel's max-h backstop a definite height to resolve
+				   against. */
+				<div
+					className="flex h-full items-start justify-start"
+					style={{
+						width: maxWidthPx,
+						maxWidth: "100%",
+						paddingLeft: fitWidthOffsetPx,
+					}}
+				>
+					{panel}
+				</div>
+			) : (
+				panel
+			)}
 		</div>,
 		document.body
 	)

@@ -59,17 +59,16 @@ test.describe("Export image", () => {
 
 		const widthInput = page.getByLabel("Width (px)")
 		const heightInput = page.getByLabel("Height (px)")
-		// The export size now defaults to the live editor chart size, not a
-		// fixed 650×400. Pin it to a known 650×400 so the preview renders at
-		// 100% in the 1280×720 viewport and pointer deltas map 1:1 onto export
-		// pixels (the drag math below relies on that 1:1 mapping).
-		await widthInput.fill("650")
-		await heightInput.fill("400")
-		await expect(widthInput).toHaveValue("650")
-		await expect(heightInput).toHaveValue("400")
+		// The export size defaults to the live editor chart size, not a fixed
+		// value. Pin it to a known 640×320 — small enough that the preview
+		// renders at 100% inside the fixed, viewport-sized preview box in the
+		// 1280×800 test viewport — so pointer deltas map 1:1 onto export pixels
+		// (the drag math below relies on that 1:1 mapping).
+		await widthInput.fill("640")
+		await heightInput.fill("320")
+		await expect(widthInput).toHaveValue("640")
+		await expect(heightInput).toHaveValue("320")
 
-		// At 650×400 in a 1280×720 viewport the preview shows at 100%, so
-		// pointer deltas map 1:1 onto export pixels.
 		const corner = page.getByTestId("export-resize-corner")
 		const box = (await corner.boundingBox())!
 		const startX = box.x + box.width / 2
@@ -79,10 +78,14 @@ test.describe("Export image", () => {
 		await page.mouse.move(startX + 100, startY + 50, { steps: 5 })
 		await page.mouse.up()
 
-		await expect(widthInput).toHaveValue("750")
-		await expect(heightInput).toHaveValue("450")
+		await expect(widthInput).toHaveValue("740")
+		await expect(heightInput).toHaveValue("370")
 
 		// With the aspect locked, a width-only edge drag derives the height.
+		// Re-pin to 640×320 first so the preview is back at 100% (the corner
+		// drag grew it past the fixed box, which scales the display down).
+		await widthInput.fill("640")
+		await heightInput.fill("320")
 		await page.getByLabel("Lock aspect ratio").check()
 		const edge = page.getByTestId("export-resize-right")
 		const edgeBox = (await edge.boundingBox())!
@@ -90,11 +93,108 @@ test.describe("Export image", () => {
 		const edgeY = edgeBox.y + edgeBox.height / 2
 		await page.mouse.move(edgeX, edgeY)
 		await page.mouse.down()
-		await page.mouse.move(edgeX - 250, edgeY, { steps: 5 })
+		await page.mouse.move(edgeX - 140, edgeY, { steps: 5 })
 		await page.mouse.up()
 
 		await expect(widthInput).toHaveValue("500")
-		await expect(heightInput).toHaveValue("300")
+		await expect(heightInput).toHaveValue("250")
+	})
+
+	test("switching tabs keeps the popup and tab row in place", async ({
+		page,
+	}) => {
+		await page.addInitScript(seedFixtureScript(OUTLINE_HUE_SCATTER))
+		await page.goto(`/editor/${OUTLINE_HUE_SCATTER.visualId}`, {
+			waitUntil: "networkidle",
+		})
+		await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
+		await page.getByRole("button", { name: "Export" }).click()
+
+		// Both tabs share the pinned top-left layout: toggling between them
+		// must not move the popup's top-left corner or the tab buttons.
+		const dialog = page.locator('[role="dialog"]')
+		const embedTab = page.getByRole("button", { name: "Embed" })
+		const dialogBefore = (await dialog.boundingBox())!
+		const tabBefore = (await embedTab.boundingBox())!
+
+		await page.getByRole("button", { name: "Export image" }).click()
+		const dialogExport = (await dialog.boundingBox())!
+		const tabExport = (await embedTab.boundingBox())!
+		expect(dialogExport.x).toBe(dialogBefore.x)
+		expect(dialogExport.y).toBe(dialogBefore.y)
+		expect(tabExport.x).toBe(tabBefore.x)
+		expect(tabExport.y).toBe(tabBefore.y)
+
+		await embedTab.click()
+		const dialogBack = (await dialog.boundingBox())!
+		const tabBack = (await embedTab.boundingBox())!
+		expect(dialogBack.x).toBe(dialogBefore.x)
+		expect(dialogBack.y).toBe(dialogBefore.y)
+		expect(tabBack.x).toBe(tabBefore.x)
+		expect(tabBack.y).toBe(tabBefore.y)
+	})
+
+	test("popup resizes with the preview but the controls stay pinned", async ({
+		page,
+	}) => {
+		await openExportTab(page)
+
+		// The popup is pinned top-left and grows down/right with the preview:
+		// changing the dimensions must not move the controls above the preview
+		// (the Cancel/Save row below it rides the bottom edge by design).
+		await page.getByLabel("Width (px)").fill("500")
+		await page.getByLabel("Height (px)").fill("300")
+		const widthInput = page.getByLabel("Width (px)")
+		const formatSelect = page.getByLabel("Format")
+		const inputBefore = (await widthInput.boundingBox())!
+		const formatBefore = (await formatSelect.boundingBox())!
+
+		// Even at the maximum image size, the popup must keep a buffer to the
+		// viewport edges (an overflow cuts off the title bar) and the corner
+		// handle must stay on screen, draggable.
+		await page.getByLabel("Height (px)").fill("4000")
+		await page.getByLabel("Width (px)").fill("4000")
+
+		const inputAfter = (await widthInput.boundingBox())!
+		const formatAfter = (await formatSelect.boundingBox())!
+		expect(inputAfter.x).toBe(inputBefore.x)
+		expect(inputAfter.y).toBe(inputBefore.y)
+		expect(formatAfter.x).toBe(formatBefore.x)
+		expect(formatAfter.y).toBe(formatBefore.y)
+
+		// The action buttons sit BELOW the preview.
+		const save = (await page
+			.getByRole("button", { name: "Save PNG" })
+			.boundingBox())!
+		const preview = (await page
+			.locator('iframe[title="Export preview"]')
+			.boundingBox())!
+		expect(save.y).toBeGreaterThanOrEqual(preview.y + preview.height)
+
+		const dialog = page.locator('[role="dialog"]')
+		const box = (await dialog.boundingBox())!
+		const viewport = page.viewportSize()!
+		expect(box.y).toBeGreaterThanOrEqual(16)
+		expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 16)
+		expect(box.x).toBeGreaterThanOrEqual(16)
+		expect(box.x + box.width).toBeLessThanOrEqual(viewport.width - 16)
+
+		const corner = (await page
+			.getByTestId("export-resize-corner")
+			.boundingBox())!
+		expect(corner.x + corner.width).toBeLessThanOrEqual(viewport.width)
+		expect(corner.y + corner.height).toBeLessThanOrEqual(viewport.height)
+
+		// The preview shows TRUE SIZE as long as it fits on screen — the popup
+		// grows toward the screen's right edge rather than capping the preview
+		// at some fixed panel width.
+		await page.getByLabel("Width (px)").fill("1000")
+		await page.getByLabel("Height (px)").fill("300")
+		const iframe = (await page
+			.locator('iframe[title="Export preview"]')
+			.boundingBox())!
+		expect(iframe.width).toBe(1000)
+		expect(iframe.height).toBe(300)
 	})
 
 	test("reopening restores the last-exported dimensions", async ({

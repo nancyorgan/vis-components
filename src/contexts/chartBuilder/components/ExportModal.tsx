@@ -81,15 +81,29 @@ const MAX_EXPORT_DIM = 4096
 
 // Horizontal chrome inside the panel around the preview image: modal content
 // padding (p-4 → 16px each side) plus the preview box padding (p-3 → 12px each
-// side) plus its border. Used to grow the popup to the scaled image width.
+// side) plus its border. Used to cap the image width to the panel's slot.
 const PREVIEW_CHROME_X = 58
-// Space reserved for everything above/below the preview (title, tabs, size
-// controls, buttons, gaps) when fitting the preview to the viewport height.
-const PREVIEW_CHROME_Y = 300
-// Breathing room kept between the popup and the viewport edges.
+// Space reserved for everything above and below the preview image (title,
+// tabs, controls row, buttons, gaps, paddings, preview-box padding — measured
+// at 312px) PLUS the backdrop's py-6 and breathing room to the viewport
+// bottom, when capping the image height. Too small and the top-anchored popup
+// grows past the bottom of the screen.
+const PREVIEW_CHROME_Y = 380
+// Breathing room kept between the popup's slot and the viewport edges.
 const VIEWPORT_MARGIN = 48
-// Don't let the popup collapse narrower than the size controls need.
+// The export tab's SLOT — the fixed, viewport-derived layout box the popup is
+// pinned to the top-left of — spans the viewport, so the preview can show at
+// TRUE SIZE all the way to the screen's right edge. The popup resizes with
+// the preview inside it, growing DOWN and to the RIGHT only, so the controls
+// (pinned to the top-left) never move and the drag handles track the cursor
+// 1:1. ANCHOR_WIDTH sets where the pinned left edge sits: where a centered
+// popup of that width would start, so a small popup doesn't hug the screen's
+// left edge.
 const MIN_PANEL_WIDTH = 420
+const ANCHOR_WIDTH = 960
+// Content width of the Embed tab (the panel hugs its content in fitWidth
+// mode, and prose would otherwise stretch it to the slot).
+const EMBED_TAB_WIDTH = 640
 
 /** Measure an on-screen element's rendered size, clamped to the export
  *  bounds. Returns integer px dims, or `null` when the element is absent or
@@ -177,29 +191,30 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 		}
 	}
 
-	// Scale the preview down to fit the available space, so the whole figure
-	// stays visible (and in proportion) at any chosen dimensions.
-	const availW = Math.max(240, viewport.w - VIEWPORT_MARGIN - PREVIEW_CHROME_X)
+	// The popup is pinned to the top-left of a fixed, viewport-spanning slot
+	// and resizes WITH the preview — growing down and to the right only, so
+	// the preview shows at true size (the window communicates how big the
+	// figure is) while the controls above it never move. The image only scales
+	// down (never the popup's position) when it physically can't fit between
+	// its pinned top-left anchor and the screen's bottom/right edges.
+	const slotWidth = Math.max(MIN_PANEL_WIDTH, viewport.w - VIEWPORT_MARGIN)
+	const anchorOffset = Math.max(0, (slotWidth - ANCHOR_WIDTH) / 2)
+	const availW = Math.max(240, slotWidth - anchorOffset - PREVIEW_CHROME_X)
 	const availH = Math.max(160, viewport.h - PREVIEW_CHROME_Y)
 	const previewScale = Math.min(1, availW / width, availH / height)
 
-	// Grow the popup to the scaled image width so the preview isn't clipped,
-	// clamped between a usable minimum and the viewport.
-	const maxWidthPx =
-		tab === "export"
-			? Math.min(
-					viewport.w - VIEWPORT_MARGIN,
-					Math.max(MIN_PANEL_WIDTH, width * previewScale + PREVIEW_CHROME_X)
-			  )
-			: undefined
-
 	return (
+		// Both tabs use the same pinned top-left slot layout, so switching tabs
+		// never moves the popup or the tab row — only the right/bottom edges
+		// differ per tab.
 		<Modal
 			open={open}
 			onClose={onClose}
 			title="Export this visualization"
-			widthClass="max-w-2xl"
-			maxWidthPx={maxWidthPx}
+			maxWidthPx={slotWidth}
+			anchorTop
+			fitWidth
+			fitWidthOffsetPx={anchorOffset}
 		>
 			<div className="flex flex-col gap-4">
 				<div className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700">
@@ -218,7 +233,12 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 					</TabButton>
 				</div>
 				{tab === "embed" ? (
-					<EmbedTab visualId={visualId} onClose={onClose} />
+					// Fixed content width (the panel hugs its content in fitWidth
+					// mode): matches the max-w-2xl (672px) panel this tab used to
+					// get, minus the panel's p-4 padding.
+					<div className="max-w-full" style={{ width: EMBED_TAB_WIDTH }}>
+						<EmbedTab visualId={visualId} onClose={onClose} />
+					</div>
 				) : (
 					<ExportTab
 						visualId={visualId}
@@ -748,7 +768,11 @@ const ExportTab = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex gap-3">
+			{/* One left-packed row of controls (labels above, controls bottom-
+			    aligned). Left-packing keeps every control pinned in place while
+			    the panel grows/shrinks with the preview. Resolution sits LAST so
+			    hiding it (SVG) doesn't shift its neighbors. */}
+			<div className="flex flex-wrap items-end gap-3">
 				<NumberInput
 					label={`Width (${unit})`}
 					labelClassName="text-stone-600 dark:text-stone-400"
@@ -760,7 +784,7 @@ const ExportTab = ({
 					// Preserve the raw input's guard: an all-cleared / zero entry
 					// falls back to the default rather than committing 0.
 					onChange={(v) => onWidthChange(unitToPx(v, unit) || DEFAULT_WIDTH)}
-					inputClassName="w-40"
+					inputClassName="w-24"
 				/>
 				<NumberInput
 					label={`Height (${unit})`}
@@ -771,7 +795,7 @@ const ExportTab = ({
 					max={pxToUnit(MAX_EXPORT_DIM, unit)}
 					step={UNIT_STEP[unit]}
 					onChange={(v) => onHeightChange(unitToPx(v, unit) || DEFAULT_HEIGHT)}
-					inputClassName="w-40"
+					inputClassName="w-24"
 				/>
 				<label className="flex flex-col gap-1 text-sm">
 					<span className="text-stone-600 dark:text-stone-400">Units</span>
@@ -787,9 +811,8 @@ const ExportTab = ({
 						))}
 					</select>
 				</label>
-			</div>
-			<div className="flex items-center gap-3 text-sm">
-				<label className="flex items-center gap-2">
+				{/* Bottom padding centers the checkbox against the input row. */}
+				<label className="flex items-center gap-2 pb-1.5 text-sm">
 					<input
 						type="checkbox"
 						checked={aspectLocked}
@@ -799,7 +822,7 @@ const ExportTab = ({
 						Lock aspect ratio
 					</span>
 				</label>
-				<label className="ml-auto flex items-center gap-2">
+				<label className="flex flex-col gap-1 text-sm">
 					<span className="text-stone-600 dark:text-stone-400">Format</span>
 					<select
 						value={format}
@@ -814,7 +837,7 @@ const ExportTab = ({
 					</select>
 				</label>
 				{rasterized && (
-					<label className="flex items-center gap-2">
+					<label className="flex flex-col gap-1 text-sm">
 						<span className="text-stone-600 dark:text-stone-400">
 							Resolution
 						</span>
@@ -832,6 +855,12 @@ const ExportTab = ({
 					</label>
 				)}
 			</div>
+
+			{error && (
+				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+					{error}
+				</div>
+			)}
 
 			<div className="flex flex-col gap-2">
 				<span className="text-sm text-stone-600 dark:text-stone-400">
@@ -855,11 +884,13 @@ const ExportTab = ({
 						</span>
 					)}
 				</span>
-				<div className="flex justify-center overflow-auto rounded border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
-					{/* Fixed-size box holds the scaled-down iframe so the full figure
-					    stays visible in proportion; the iframe still renders at the
-					    true export resolution (the transform is display-only and
-					    doesn't affect capture). */}
+				<div className="w-fit rounded border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
+					{/* The box hugs the preview, so the popup resizes WITH the image —
+					    growing down/right only (the popup is pinned top-left), keeping
+					    the controls above in place and the drag handles tracking the
+					    cursor 1:1. The iframe still renders at the true export
+					    resolution (the transform is display-only and doesn't affect
+					    capture). */}
 					<div
 						className="relative"
 						style={{
@@ -891,12 +922,8 @@ const ExportTab = ({
 				</div>
 			</div>
 
-			{error && (
-				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
-					{error}
-				</div>
-			)}
-
+			{/* Actions ride the popup's bottom-right corner, below the preview —
+			    they move as the popup resizes with the image, by design. */}
 			<div className="flex justify-end gap-2">
 				<Button compact outline onClick={onClose}>
 					Cancel
