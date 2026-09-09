@@ -153,6 +153,16 @@ export type SolverInput = {
 	readonly xTitle?: SharedTitleInput
 	readonly yTitle?: SharedYTitleInput
 
+	/** Tick-label "Adjust position" nudges (screen px: +x right, +y down).
+	 *  The nudge moves ONLY the tick labels (see Axes.tsx `labelDx`/
+	 *  `labelDy`), so the axis-title gap — which targets a fixed distance
+	 *  from the labels' RENDERED edge — must track the component that moves
+	 *  labels TOWARD the title (y labels nudged left, x labels nudged
+	 *  down). Callers fold the legacy single `offset` in exactly like the
+	 *  renderer does. Omitted = 0. */
+	readonly yTickLabelDx?: number
+	readonly xTickLabelDy?: number
+
 	/** Per-panel facet label band. Omit for single-panel charts. */
 	readonly facetLabel?: FacetLabelInput
 
@@ -970,7 +980,17 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 
 	const edges = computeEdgePositions(input.panels)
 
-	const { left: estimatedLeftFloor, bottom: bottomFloor } =
+	// Tick-label position nudges move ONLY the labels (Axes.tsx labelDx/
+	// labelDy), so the labels' rendered edge shifts while the title's
+	// default position wouldn't. Fold the toward-the-title component into
+	// the title gaps below (y labels nudged LEFT, x labels nudged DOWN) so
+	// each title keeps its fixed distance from where the labels actually
+	// draw. The away component is ignored — titles never chase labels
+	// inward.
+	const yLabelNudgeTowardTitle = Math.max(0, -(input.yTickLabelDx ?? 0))
+	const xLabelNudgeTowardTitle = Math.max(0, input.xTickLabelDy ?? 0)
+
+	const { left: estimatedLeftFloor, bottom: estimatedBottomFloor } =
 		estimateGlobalFloors(
 			input.panels,
 			edges,
@@ -983,6 +1003,11 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 			cellMargin.left,
 			cellMargin.bottom
 		)
+	// `estimateExtraBottomMargin` doesn't know about the label nudge folded
+	// into xTitleGap below; grow the bottom chrome to match so the pushed-
+	// down title still fits inside the canvas.
+	const bottomFloor =
+		estimatedBottomFloor + (input.xTitle ? xLabelNudgeTowardTitle : 0)
 
 	// Tick+label chrome (no title space) for interior rows/cols when an
 	// axis isn't shared. Each panel renders its own x-axis ticks+labels
@@ -1092,7 +1117,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 							TICK_LINE_PAD +
 							TITLE_LABEL_GAP_PX +
 							yTitleFontSize / 2
-			)
+			) + yLabelNudgeTowardTitle
 		: 0
 	// The x-title sits below the BOTTOM row, so the xTitleGap is sized
 	// from THAT row's x-tick labels — same logic as yTitleGap above.
@@ -1145,7 +1170,11 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		return longestXLabelPx * sin + xTickFontSize * 1.4 * maxLines * cos
 	})()
 	const xTitleGap = input.xTitle
-		? TICK_LINE_PAD + xLabelVerticalPx + TITLE_LABEL_GAP_PX + input.xTitle.fontSize
+		? TICK_LINE_PAD +
+			xLabelVerticalPx +
+			TITLE_LABEL_GAP_PX +
+			input.xTitle.fontSize +
+			xLabelNudgeTowardTitle
 		: 0
 
 	// `estimateExtraLeftMargin` doesn't know about the extended yTitleGap

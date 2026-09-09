@@ -117,6 +117,11 @@ export const sampleRampCssStops = (
 		}
 	})
 
+/** Plot-area-normalized inset used by the auto (insideX = null) inside
+ * position: the legend's RIGHT edge sits this far in from the plot's right
+ * edge, mirroring the 0.02 the old top-left default kept off the y-spine. */
+export const INSIDE_AUTO_X_INSET = 0.02
+
 // Channels eligible for grouping into a single combined legend section
 // when they share a field. Hue/sat/bri/pattern/opacity/shape compose
 // into a per-stop swatch; length/angle compose into a line-segment
@@ -1034,9 +1039,20 @@ export const planLegendSections = ({
 		const plotBottomPx = CHART_PAD + BASE_MARGIN.bottom + insideExtras.bottom
 		const horizontalReserve = plotLeftPx + plotRightPx
 		const verticalReserve = plotTopPx + plotBottomPx
+		const top = `calc((100% - ${plotBottomPx}px) - ${legendCfg.insideY} * (100% - ${verticalReserve}px))`
+		// Auto X (null): hug the plot's upper-right corner by anchoring the
+		// legend's RIGHT edge a small inset in from the plot's right edge —
+		// left-edge anchoring can't express "in the corner" without knowing
+		// the legend's rendered width.
+		if (legendCfg.insideX == null) {
+			return {
+				right: `calc(${plotRightPx}px + ${INSIDE_AUTO_X_INSET} * (100% - ${horizontalReserve}px))`,
+				top,
+			}
+		}
 		return {
 			left: `calc(${plotLeftPx}px + ${legendCfg.insideX} * (100% - ${horizontalReserve}px))`,
-			top: `calc((100% - ${plotBottomPx}px) - ${legendCfg.insideY} * (100% - ${verticalReserve}px))`,
+			top,
 		}
 	}
 	// Bottom legend centers on the *plot's* horizontal midpoint, not the

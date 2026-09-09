@@ -6,6 +6,7 @@ import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fix
 import { describe, expect, it } from "vitest"
 import {
 	EMPTY_CHANNEL_CONFIGS,
+	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_SHAPE_CONFIG,
 } from "../../lib/channelConfig"
@@ -2002,5 +2003,85 @@ describe("Shape / Pattern legends — hover publishes the highlight entry", () =
 			(d as HTMLElement).style.transition.includes("opacity")
 		)
 		expect(transitions.length).toBe(0)
+	})
+})
+
+describe("Legend — bar-mode categorical flip only applies when stacked", () => {
+	// The bars-x legend flip exists so a top-down legend read matches the
+	// stack (first value = stack BOTTOM). Grouped bars lay out left-to-right
+	// in data order, so flipping there made the legend read opposite to the
+	// bars. Full-Legend mount: the gate lives in Legend itself, reading the
+	// resolved stackMode from the channel configs.
+	const DATASET_ID = "ds-bar-legend-order-test"
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "bars",
+			filename: "bars.csv",
+			fields: [
+				{ name: "Category", inferredType: "categorical" },
+				{ name: "Value", inferredType: "quantitative" },
+				{ name: "Group", inferredType: "categorical" },
+			],
+			rows: [
+				{ Category: "a", Value: "1", Group: "Alpha" },
+				{ Category: "a", Value: "2", Group: "Beta" },
+				{ Category: "b", Value: "3", Group: "Alpha" },
+				{ Category: "b", Value: "4", Group: "Beta" },
+			],
+		})
+
+	const mountLegend = (stackMode: "stack" | "group") => {
+		const store = installInMemoryLocalStorage()
+		const encodings = {
+			...emptyEncodings(),
+			x: { field: "Category" },
+			length: { field: "Value" },
+			hue: { field: "Group" },
+		}
+		const configs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG, stackMode },
+		}
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		store.set("vis-components:currentChannelConfigs", JSON.stringify(configs))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, configs)
+			snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+
+	const labelOrder = (container: HTMLElement): string[] =>
+		[...container.querySelectorAll<HTMLElement>("span[title]")].map(
+			(el) => el.getAttribute("title") ?? ""
+		)
+
+	it("stacked bars keep the flip: legend top matches stack top", () => {
+		const { container } = mountLegend("stack")
+		expect(labelOrder(container)).toEqual(["Beta", "Alpha"])
+	})
+
+	it("grouped bars list entries in data order, matching the bar layout", () => {
+		const { container } = mountLegend("group")
+		expect(labelOrder(container)).toEqual(["Alpha", "Beta"])
 	})
 })

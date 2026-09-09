@@ -219,6 +219,14 @@ export const buildSolverInput = ({
 					offsetY: labels.titleOffsets?.yAxisTitle?.y ?? 0,
 				}
 			: undefined,
+		// Tick-label "Adjust position" nudges, with the legacy single
+		// `offset` folded in exactly like Axes.tsx's labelDx/labelDy
+		// (legacy y: positive = left; legacy x: positive = down). The
+		// solver widens the axis-title gaps by the toward-the-title
+		// component so titles keep clear of the shifted labels.
+		yTickLabelDx:
+			channelConfigs.y?.offsetX ?? -(channelConfigs.y?.offset ?? 0),
+		xTickLabelDy: channelConfigs.x?.offsetY ?? (channelConfigs.x?.offset ?? 0),
 		facetLabel:
 			panelData.mode === "grid"
 				? panelData.compact !== undefined

@@ -684,7 +684,8 @@ export const TickFormatControl = ({
 					<option value=".0%">Percent (12%)</option>
 					<option value=".1%">Percent · 1 decimal (12.3%)</option>
 					<option value=".2e">Scientific (1.23e+4)</option>
-					<option value="$,.2f">Currency ($1,234.56)</option>
+					<option value="$,.0f">Currency · whole ($1,234)</option>
+					<option value="$,.2f">Currency · 2dp ($1,234.56)</option>
 					<option value=".3s">SI prefix (1.23k)</option>
 				</optgroup>
 				<optgroup label="Temporal">

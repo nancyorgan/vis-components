@@ -1,6 +1,7 @@
 import { useAtomValue } from "jotai"
 import { DEFAULT_OPACITY } from "../../lib/channelConfig"
 import { isFlowModeId } from "../../lib/packedMeasure"
+import { resolveStackMode } from "../../lib/stackMode"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { DEFAULT_TOOLTIP_CONFIG } from "../../lib/labelsConfig"
 import {
@@ -154,8 +155,11 @@ export const Legend = ({
 	// In stacked bars, the first-encountered value goes at the BOTTOM of the
 	// stack, so reading the legend top-down would land at the bottom slice
 	// first. Flip categorical legend order in bar mode so legend top matches
-	// stack top.
-	const reverseCategorical = modeDef.legend.reverseCategoricalOrder
+	// stack top. Grouped/overlaid bars lay out left-to-right in data order,
+	// so the flip only applies when the chart actually stacks.
+	const reverseCategorical =
+		modeDef.legend.reverseCategoricalOrder &&
+		resolveStackMode(configs, encodings) === "stack"
 
 	// Section planning + legend-box sizing are pure — see
 	// `lib/legendSections.planLegendSections`. `null` = nothing to render.

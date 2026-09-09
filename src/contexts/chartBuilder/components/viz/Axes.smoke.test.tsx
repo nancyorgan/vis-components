@@ -720,6 +720,42 @@ describe("Axis wrapTickLabels (Wrap text toggle)", () => {
 		expect(Number([...xs][0])).toBeLessThan(0)
 	})
 
+	it("aligns single-line and wrapped labels to the SAME slot edge", () => {
+		// Regression (Sept 2026): "Neurology" fits one line while its
+		// neighbors wrap; single-line labels used to anchor AT the tick
+		// (columnWidth 0) while wrapped blocks aligned within their own
+		// estimated width — mixed lengths rendered with mixed-looking
+		// alignment. Both must now align within the shared 90px per-tick
+		// slot (300px / 3 ticks × 0.9), i.e. ±45px around the tick.
+		const edgeFor = (align: "left" | "right") => {
+			const c = renderX({ wrapTickLabels: true, wrapTickLabelAlign: align })
+			const tspanXs = (name: string) => {
+				const label = [...c.querySelectorAll("text")].find((t) =>
+					t.textContent?.includes(name)
+				)
+				return [...(label?.querySelectorAll("tspan") ?? [])].map((ts) => ({
+					x: Number(ts.getAttribute("x")),
+					anchor: ts.getAttribute("text-anchor"),
+				}))
+			}
+			return { single: tspanXs("Neurology"), wrapped: tspanXs("Cardiothoracic") }
+		}
+
+		const left = edgeFor("left")
+		expect(left.single.length).toBe(1)
+		expect(left.wrapped.length).toBe(2)
+		for (const ts of [...left.single, ...left.wrapped]) {
+			expect(ts.anchor).toBe("start")
+			expect(ts.x).toBeCloseTo(-45)
+		}
+
+		const right = edgeFor("right")
+		for (const ts of [...right.single, ...right.wrapped]) {
+			expect(ts.anchor).toBe("end")
+			expect(ts.x).toBeCloseTo(45)
+		}
+	})
+
 	it("natural (center) alignment renders without per-line anchors", () => {
 		const c = renderX({ wrapTickLabels: true, wrapTickLabelAlign: "center" })
 		const label = [...c.querySelectorAll("text")].find((t) =>

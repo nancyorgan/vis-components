@@ -52,6 +52,7 @@ import {
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
 	currentRenderedGradientBarLengthAtom,
+	currentRenderedInsideAutoXAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
@@ -330,6 +331,16 @@ export const LegendPanel = () => {
 		(autoGradientBarLength && autoGradientBarLength > 0
 			? autoGradientBarLength
 			: 128)
+
+	// Effective top-left-anchored X of an AUTO inside legend (insideX null =
+	// hug the upper-right corner), published by ChartCanvas after each
+	// measure. Placeholder + step start for the inside "X" input, so the
+	// first interaction takes over from where the legend actually sits
+	// instead of jumping it back to the left edge. 3 decimals keeps the
+	// takeover shift sub-pixel at typical plot widths.
+	const autoInsideX = useAtomValue(currentRenderedInsideAutoXAtom)
+	const roundedAutoInsideX =
+		autoInsideX != null ? Math.round(autoInsideX * 1000) / 1000 : null
 
 	const modeDef = useChartModeDef()
 	// EFFECTIVE per-channel visibility for every read below: the raw sparse
@@ -764,14 +775,64 @@ export const LegendPanel = () => {
 						/>
 						{merged.position === "inside" && (
 							<>
-								<NumberInput
-									label="X"
-									labelClassName={LABEL_COL}
-									value={merged.insideX}
-									onChange={(insideX) => update({ insideX })}
-									step={0.02}
-									inputClassName="w-16"
-								/>
+								{/* X is nullable: blank/auto anchors the legend's RIGHT
+								 *  edge in the plot's upper-right corner — no top-left-
+								 *  anchored number can hug that corner without knowing
+								 *  the legend's width. The placeholder shows the
+								 *  equivalent top-left X published by the render; focus
+								 *  seeds it so every interaction steps from where the
+								 *  legend actually sits, and clearing reverts to auto
+								 *  (mirrors the Bar length input below). */}
+								<div className="flex items-center gap-2">
+									<label className="flex items-center gap-2 text-sm">
+										<span className={LABEL_COL}>X</span>
+										<input
+											type="number"
+											step={0.02}
+											value={merged.insideX ?? ""}
+											placeholder={
+												roundedAutoInsideX != null
+													? String(roundedAutoInsideX)
+													: "auto"
+											}
+											onChange={(e) =>
+												update({
+													insideX:
+														e.target.value === ""
+															? null
+															: Number(e.target.value),
+												})
+											}
+											// Native spinner buttons fire no keydown — from a
+											// blank input they'd jump to 0 (the left edge).
+											// Seed the rendered auto X on focus so every
+											// interaction steps from the visible position.
+											onFocus={() => {
+												if (merged.insideX != null) return
+												if (roundedAutoInsideX == null) return
+												update({ insideX: roundedAutoInsideX })
+											}}
+											// Belt-and-suspenders for the first arrow press
+											// racing the focus-fill.
+											onKeyDown={(e) => {
+												if (e.key !== "ArrowUp" && e.key !== "ArrowDown")
+													return
+												e.preventDefault()
+												const start =
+													merged.insideX ?? roundedAutoInsideX ?? 0
+												const step = e.key === "ArrowUp" ? 0.02 : -0.02
+												update({
+													insideX:
+														Math.round((start + step) * 1000) / 1000,
+												})
+											}}
+											className="w-16 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+										/>
+									</label>
+									{merged.insideX != null && (
+										<ResetLink onClick={() => update({ insideX: null })} />
+									)}
+								</div>
 								<NumberInput
 									label="Y"
 									labelClassName={LABEL_COL}

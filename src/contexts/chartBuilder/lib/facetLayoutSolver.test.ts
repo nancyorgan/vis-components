@@ -490,6 +490,45 @@ describe("solveFacetLayout — shared titles", () => {
 		expect(spec.yTitle?.rotation).toBe(0)
 	})
 
+	// The "Adjust position" nudge moves ONLY the tick labels; a leftward
+	// y-label nudge (negative dx) shifts the labels toward the title, so
+	// the title-to-plot-edge distance must grow by the same amount to keep
+	// the fixed title↔label gap. A rightward (inward) nudge leaves the
+	// title put — it never chases labels toward the plot. Distances are
+	// measured against the plot edge because the extra chrome can also
+	// shrink the plot in fit mode (absolute positions shift too).
+	it("y-title keeps its label gap under a leftward tick-label nudge", () => {
+		const gapFrom = (spec: ReturnType<typeof solveFacetLayout>) =>
+			spec.panels[0]!.inner.x - spec.yTitle!.x
+		const without = solveFacetLayout(baseline({ yTitle: yt }))
+		const nudged = solveFacetLayout(
+			baseline({ yTitle: yt, yTickLabelDx: -20 })
+		)
+		expect(gapFrom(nudged)).toBeCloseTo(gapFrom(without) + 20, 1)
+
+		const inward = solveFacetLayout(baseline({ yTitle: yt, yTickLabelDx: 20 }))
+		expect(gapFrom(inward)).toBeCloseTo(gapFrom(without), 1)
+	})
+
+	// Mirror for the x-axis: labels nudged DOWN (positive dy) push the
+	// x-title further below the plot's bottom edge.
+	it("x-title keeps its label gap under a downward tick-label nudge", () => {
+		const gapFrom = (spec: ReturnType<typeof solveFacetLayout>) => {
+			const p = spec.panels[0]!
+			return spec.xTitle!.y - (p.inner.y + p.inner.height)
+		}
+		const without = solveFacetLayout(baseline({ xTitle: xt }))
+		const nudged = solveFacetLayout(
+			baseline({ xTitle: xt, xTickLabelDy: 20 })
+		)
+		expect(gapFrom(nudged)).toBeCloseTo(gapFrom(without) + 20, 1)
+
+		const inward = solveFacetLayout(
+			baseline({ xTitle: xt, xTickLabelDy: -20 })
+		)
+		expect(gapFrom(inward)).toBeCloseTo(gapFrom(without), 1)
+	})
+
 	it("horizontal y-title reserves more left space than rotated", () => {
 		const longYT = { ...yt, text: "Sales (USD millions)", horizontal: true }
 		const specHorizontal = solveFacetLayout(baseline({ yTitle: longYT }))

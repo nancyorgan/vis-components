@@ -1,15 +1,18 @@
+import { useEffect } from "react"
 import useMeasure from "react-use-measure"
-import { useAtomValue } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai"
 import {
 	DEFAULT_LABELS_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
 	resolveTitleFont,
 	type LegendConfig,
 } from "../../lib/labelsConfig"
+import { INSIDE_AUTO_X_INSET } from "../../lib/legendSections"
 import { BASE_MARGIN, subtitleReserve, titleReserve } from "../../lib/plotLayout"
 import {
 	currentLabelsAtom,
 	currentRenderedFigureSlackAtom,
+	currentRenderedInsideAutoXAtom,
 } from "../../store/atoms"
 import {
 	renderChannelConfigsAtom,
@@ -270,6 +273,25 @@ const InsideLegendLayout = ({
 		bottom: extras.bottom + figureSlack.y / 2,
 		left: extras.left + figureSlack.x / 2,
 	}
+	// When X is auto (null = right-edge-anchored upper-right corner), publish
+	// the equivalent top-left-anchored X so the Legend panel's X input can
+	// show it as its placeholder — typing/stepping then starts from where the
+	// legend actually sits instead of jumping it back to the left. Mirrors
+	// the legend's own calc(): plot width = canvas minus the same horizontal
+	// reserve (extras.left/right are 0 in the auto case).
+	const setRenderedAutoX = useSetAtom(currentRenderedInsideAutoXAtom)
+	const autoPlotW =
+		canvasBounds.width -
+		(2 * CHART_PAD + BASE_MARGIN.left + BASE_MARGIN.right) -
+		figureSlack.x
+	const autoX =
+		legendCfg.insideX == null && autoPlotW > 0 && legendBounds.width > 0
+			? 1 - INSIDE_AUTO_X_INSET - legendBounds.width / autoPlotW
+			: null
+	useEffect(() => {
+		setRenderedAutoX(autoX)
+		return () => setRenderedAutoX(null)
+	}, [autoX, setRenderedAutoX])
 	return (
 		<div
 			ref={canvasRef}
@@ -308,7 +330,10 @@ export const computeInsideExtras = ({
 	legendH,
 	titleReserves,
 }: {
-	insideX: number
+	/** `null` = auto: right-edge-anchored in the plot's upper-right corner,
+	 *  which by construction never extends past the plot horizontally — no
+	 *  left/right reservation needed. */
+	insideX: number | null
 	insideY: number
 	canvasW: number
 	canvasH: number
@@ -365,7 +390,7 @@ export const computeInsideExtras = ({
 				)
 			: 0
 	const left =
-		insideX < 0
+		insideX != null && insideX < 0
 			? Math.max(
 					0,
 					(-CHART_PAD -
@@ -377,7 +402,7 @@ export const computeInsideExtras = ({
 				)
 			: 0
 	const right =
-		insideX > 0
+		insideX != null && insideX > 0
 			? Math.max(
 					0,
 					(-CHART_PAD -

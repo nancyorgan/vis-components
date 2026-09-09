@@ -1167,6 +1167,14 @@ export const currentRenderedFigureSlackAtom = atom<{
  *  Null until a gradient bar has rendered. */
 export const currentRenderedGradientBarLengthAtom = atom<number | null>(null)
 
+/** Effective top-left-anchored X of an AUTO (insideX = null) inside legend,
+ *  published by ChartCanvas's InsideLegendLayout after each measure. The
+ *  Legend panel's X input shows it as the placeholder so typing/stepping
+ *  starts from where the auto upper-right placement actually put the legend
+ *  instead of jumping it back to the left. Null until an auto inside legend
+ *  has rendered. */
+export const currentRenderedInsideAutoXAtom = atom<number | null>(null)
+
 /** Last rendered caption box dimensions (in px) plus the canvas dims they
  *  were measured against. PlotCanvas writes this after each layout pass so the
  *  Caption panel's Width / Height inputs can step UP/DOWN from the current

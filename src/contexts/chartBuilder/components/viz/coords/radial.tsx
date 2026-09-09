@@ -174,9 +174,9 @@ export const radial = (input: RadialInput): CoordSystem => {
 									? wrapTickLabel(t.label, tickWrapMaxPx(rTickSize), rTickSize)
 									: t.label,
 						}))
-						// Single-line labels align within the shared label column
-						// right of the spoke (as wide as the widest label line);
-						// wrapped blocks keep their within-block line alignment.
+						// All labels — single-line and wrapped — align within the
+						// shared label column right of the spoke (as wide as the
+						// widest label line), so mixed lengths keep a common edge.
 						const rColumnWidth = wrappedRTicks.reduce(
 							(w, t) =>
 								Math.max(w, estimateLongestLineWidth(t.label, rTickSize)),

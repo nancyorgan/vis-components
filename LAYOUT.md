@@ -311,6 +311,7 @@ xTitleGap = TICK_LINE_PAD (6)
           + xLabelVerticalPx   ← uses real rotated extent: labelW × |sin| + fontSize × 1.4 × |cos|
           + TITLE_LABEL_GAP_PX (25)
           + xTitle.fontSize
+          + max(0, xTickLabelDy)   ← tick-label "Adjust position" nudge toward the title
 
 yTitleGap = max(24 + fontSize/2,
                 longestYLabelPx
@@ -318,10 +319,21 @@ yTitleGap = max(24 + fontSize/2,
                 + TITLE_LABEL_GAP_PX (25)
                 + (yTitleHorizontal ? 0 : fontSize/2))
                   ↑ rotated y-title's bbox-half-extent
+          + max(0, -yTickLabelDx)  ← tick-label "Adjust position" nudge toward the title
 ```
 
 `longestYLabelPx` comes from PlotCanvas's `canvas.measureText` measurement
 when available; otherwise the 0.55-char-width estimate.
+
+The tick-label "Adjust position" nudge moves ONLY the tick labels (the
+spine, tick marks, title, and gridlines stay put), so the labels' rendered
+edge can shift toward the title. The gap formulas fold in the
+toward-the-title component (`yTickLabelDx < 0` = labels left, toward the
+y-title; `xTickLabelDy > 0` = labels down, toward the x-title) so the title
+keeps `TITLE_LABEL_GAP_PX` from where the labels actually draw; the away
+component is ignored — titles never chase labels inward. The x-side nudge
+also grows `bottomFloor` (the `estimateExtraBottomMargin` result doesn't
+know about it), so the pushed-down title still fits the canvas.
 
 ---
 

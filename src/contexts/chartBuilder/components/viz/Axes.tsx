@@ -289,27 +289,20 @@ export const Axis = ({
 	// PlotCanvas pre-wraps the panel-input labels the same way, so the
 	// solver's chrome reserves match what renders here.
 	const wrapEnabled = config?.wrapTickLabels === true
+	// Per-tick slot width — the wrap budget for x labels, and (when wrapping)
+	// the shared alignment frame every x label aligns within (below).
+	const xSlotPx =
+		ticks.length > 0
+			? ((inner.x1 - inner.x0) / ticks.length) * TICK_WRAP_SLOT_FRACTION
+			: 0
 	const wrappedTicks = (() => {
 		if (!wrapEnabled || ticks.length === 0) return ticks
-		const slotPx = isX
-			? ((inner.x1 - inner.x0) / ticks.length) * TICK_WRAP_SLOT_FRACTION
-			: tickWrapMaxPx(tickFontSize)
+		const slotPx = isX ? xSlotPx : tickWrapMaxPx(tickFontSize)
 		return ticks.map((t) => ({
 			...t,
 			label: wrapTickLabel(t.label, slotPx, tickFontSize),
 		}))
 	})()
-	// Single-line labels honor the Alignment setting too: y labels align to
-	// a common edge of the label column (as wide as the axis's widest label
-	// line); x labels have no column — each sits at its own tick — so they
-	// pass 0 and align AT the tick (left = label starts at the tick).
-	// Wrapped blocks keep their own within-block line alignment.
-	const labelColumnWidth = isX
-		? 0
-		: wrappedTicks.reduce(
-				(w, t) => Math.max(w, estimateLongestLineWidth(t.label, tickFontSize)),
-				0
-			)
 	// Auto-rotate categorical x-axis labels when their natural width
 	// exceeds the band width — keeps long category names from overlapping
 	// their neighbors without the user having to set tickLabelAngle. The
@@ -329,6 +322,22 @@ export const Axis = ({
 					wrapEnabled,
 				})
 			: (config?.tickLabelAngle ?? 0)
+	// Every label on an axis aligns within the SAME frame, wrapped or not —
+	// otherwise mixed label lengths render with mixed-looking alignment
+	// (single-line labels hugging their tick while wrapped neighbors straddle
+	// it). Y labels align within the shared label column (as wide as the
+	// axis's widest label line); unrotated x labels within their per-tick
+	// wrap slot, centered on the tick. Rotated x labels have no horizontal
+	// frame (the tspan coords live in rotated space), so they pass 0 and
+	// align AT the anchor point.
+	const labelColumnWidth = isX
+		? wrapEnabled && effectiveLabelAngle === 0
+			? xSlotPx
+			: 0
+		: wrappedTicks.reduce(
+				(w, t) => Math.max(w, estimateLongestLineWidth(t.label, tickFontSize)),
+				0
+			)
 	// Gridlines — computed from a separate count, span the full plot area
 	const grid = { ...DEFAULT_GRIDLINE_CONFIG, ...config?.gridlines }
 	const gridPositions: number[] = (() => {
@@ -562,7 +571,11 @@ export const Axis = ({
 											: titleAlignment === "right"
 												? inner.x1
 												: (inner.x0 + inner.x1) / 2
-									const titleY = inner.y1 + 6 + tickFontSize + 20
+									// Mirror of the y-side gap fix: labels nudged DOWN
+									// (positive labelDy) move toward the x-title, so push
+									// the title down by the same amount.
+									const titleY =
+										inner.y1 + 6 + tickFontSize + 20 + Math.max(0, labelDy)
 									return (
 										<text
 											x={titleX}
@@ -617,10 +630,16 @@ export const Axis = ({
 									0
 								)
 								const longestLabelPx = longestLabelChars * tickFontSize * 0.55 + 4
-								const dynamicGap = Math.max(
-									40 + tickFontSize,
-									longestLabelPx + tick.length + 12 + tickFontSize
-								)
+								// The "Adjust position" nudge moves ONLY the tick labels
+								// (`labelDx` above), so a leftward nudge shifts the labels'
+								// rendered edge toward the title. Widen the gap by that
+								// component so the title keeps clear; a rightward nudge is
+								// ignored (the title never chases labels inward).
+								const dynamicGap =
+									Math.max(
+										40 + tickFontSize,
+										longestLabelPx + tick.length + 12 + tickFontSize
+									) + Math.max(0, -labelDx)
 								if (yTitleHorizontal) {
 									// The block's RIGHT EDGE lands past the tick labels (same
 									// gap as the rotated branch) so it doesn't overlap them:

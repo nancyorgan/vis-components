@@ -412,8 +412,14 @@ export type LegendConfig = {
 	 * exceed [0, 1] to position the legend outside the plot rectangle. For
 	 * polar charts (pies) the same rectangle is the pie's bounding box, so
 	 * (0, 0) is the bottom-left of that box. Ignored for the four outside
-	 * presets. */
-	insideX: number
+	 * presets.
+	 *
+	 * `insideX: null` = auto: the legend hugs the plot's upper-RIGHT corner by
+	 * anchoring its RIGHT edge (a small inset in from the plot's right edge) —
+	 * the placement a top-left-anchored number can't express, because it would
+	 * have to know the legend's rendered width. Typing an X takes over with
+	 * the top-left-anchored coord above. */
+	insideX: number | null
 	insideY: number
 	/** Per-channel hide flags. A channel set to `true` is suppressed even
 	 * when its encoding is mapped (handy for hiding redundant hue legends
@@ -574,10 +580,12 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	enabled: true,
 	position: "right",
 	orientation: "vertical",
-	// Top-left of the plot area, with a small inset so the legend doesn't
-	// kiss the y-axis spine. Plot-area normalized: (0, 0) bottom-left,
-	// (1, 1) top-right.
-	insideX: 0.02,
+	// Upper-right corner of the plot area: X auto (null) anchors the legend's
+	// RIGHT edge just inside the plot's right edge — a top-left-anchored
+	// number can't hug that corner without knowing the legend's width. Y is
+	// plot-area normalized ((0, 0) bottom-left, (1, 1) top-right) with a small
+	// inset so the legend doesn't kiss the top spine.
+	insideX: null,
 	insideY: 0.98,
 	hidden: {},
 	showBorder: false,

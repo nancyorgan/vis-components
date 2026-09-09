@@ -82,6 +82,30 @@ describe("computeInsideExtras", () => {
 		expect(extras.top).toBe(0)
 	})
 
+	it("reserves no horizontal room for the auto upper-right X (null)", () => {
+		// Auto X anchors the legend's RIGHT edge inside the plot, so it can
+		// never spill past the canvas horizontally — even a wide legend must
+		// not shrink the chart. Vertical reservations still apply as usual.
+		const extras = computeInsideExtras({
+			...base,
+			legendW: 600,
+			insideX: null,
+			insideY: 0.98,
+		})
+		expect(extras.left).toBe(0)
+		expect(extras.right).toBe(0)
+	})
+
+	it("still reserves bottom room for a low auto-X legend", () => {
+		const extras = computeInsideExtras({
+			...base,
+			legendH: 500,
+			insideX: null,
+			insideY: 0.1,
+		})
+		expect(extras.bottom).toBeGreaterThan(0)
+	})
+
 	it("does not divide by zero at the guard boundaries", () => {
 		const atZeroX = computeInsideExtras({ ...base, insideX: 0, insideY: 0.5 })
 		const atOneY = computeInsideExtras({ ...base, insideX: 0.5, insideY: 1 })

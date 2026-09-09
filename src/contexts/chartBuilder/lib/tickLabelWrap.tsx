@@ -80,21 +80,22 @@ export const naturalWrapAlignFor = (
 
 /** Render a tick label with the chosen ALIGNMENT — wrapped or not.
  *
- *  Wrapped (multi-line) labels: the block keeps its position relative to the
- *  tick — `x` and `blockAnchor` describe where the single-line label would
- *  sit (centered under an x tick, right edge against the y axis, left edge
- *  at the radar spoke) — and only the lines WITHIN the block move. For a
- *  non-natural alignment we estimate the block width (widest line, same
- *  0.55-char heuristic the wrap itself uses), locate the block's edges from
- *  the anchor, and anchor every line at the chosen edge / center via a
- *  per-tspan `text-anchor`.
+ *  The block keeps its position relative to the tick — `x` and `blockAnchor`
+ *  describe where the single-line label would sit (centered under an x tick,
+ *  right edge against the y axis, left edge at the radar spoke) — and only
+ *  the lines WITHIN the block move: we locate the block's edges from the
+ *  anchor and anchor every line at the chosen edge / center via a per-tspan
+ *  `text-anchor`.
  *
- *  Single-line labels align within the axis's shared label COLUMN instead
- *  (their own block is exactly one line, so within-block alignment would be
- *  a no-op): the caller passes `columnWidth` — the widest label on the axis
- *  — and the label anchors at the chosen edge of that column. Axes with no
- *  column (x: each label just sits at its tick) pass 0, which degenerates
- *  to aligning AT the anchor point — left starts the label at its tick.
+ *  Wrapped and single-line labels on the same axis must share that block, or
+ *  a mix of label lengths renders with mixed-looking alignment (short labels
+ *  hugging their tick while wrapped neighbors straddle it — user-reported
+ *  Sept 2026 on a grouped bar x axis). So the block width is the caller's
+ *  `columnWidth` — the axis's shared label column (y/r: widest label line;
+ *  x: the per-tick wrap slot) — widened to the label's own estimated extent
+ *  (widest line, same 0.55-char heuristic the wrap itself uses) if that is
+ *  somehow larger. A `columnWidth` of 0 degenerates to aligning AT the
+ *  anchor point for single-line labels — left starts the label at its tick.
  *
  *  The natural alignment short-circuits to the plain render, so the width
  *  estimates (and their ±10% error) never affect the default appearance. */
@@ -146,5 +147,7 @@ export const renderWrappedTickLabel = ({
 	if (effective === naturalAlign) {
 		return renderMultilineTspans(label, x, { verticallyCentered })
 	}
-	return alignedRender(estimateLongestLineWidth(label, fontSize))
+	return alignedRender(
+		Math.max(columnWidth ?? 0, estimateLongestLineWidth(label, fontSize))
+	)
 }
