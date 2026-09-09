@@ -26,7 +26,9 @@ export type DerivedRule = {
 	/** A boolean expression over {Field} tokens, e.g. `{B} == 1 AND {C} > 3`.
 	 * Unparseable conditions never fire (the editor flags them inline). */
 	condition: string
-	/** Literal output text when the condition is the first to match. */
+	/** Output text when the condition is the first to match — a {Field}
+	 * template with the concat kind's semantics (tokens naming a present
+	 * column become that row's cell, unknown tokens stay literal). */
 	output: string
 }
 
@@ -47,7 +49,8 @@ export type DerivedVariable = {
 	 * stay literal so typos are visible. */
 	concat?: { template: string }
 	/** If/else: rules checked top-to-bottom, first true condition wins;
-	 * no match falls back to `fallback` ("Otherwise"). */
+	 * no match falls back to `fallback` ("Otherwise"). The fallback is a
+	 * {Field} template like the rule outputs, so "otherwise keep {B}" works. */
 	rules?: { rules: DerivedRule[]; fallback: string }
 }
 
@@ -77,6 +80,18 @@ export const nextDefaultDerivedName = (taken: Iterable<string>): string => {
  * single braces, no nesting. Kept in sync by the shared rename path
  * (`renameLabelTokens` rewrites both). */
 const TOKEN_RE = /\{([^{}]+)\}/g
+
+/** Substitute {Field} tokens against one row: tokens naming a known column
+ * become that row's cell, unknown tokens stay literal so typos are visible.
+ * Shared by the concat template and the if/else outputs and fallback. */
+const substituteTokens = (
+	template: string,
+	known: ReadonlySet<string>,
+	row: Record<string, string>
+): string =>
+	template.replace(TOKEN_RE, (token, field: string) =>
+		known.has(field) ? (row[field] ?? "") : token
+	)
 
 /** Problems that stop a variable from applying against the given upstream
  * column names (the view's columns plus every EARLIER derived variable).
@@ -195,14 +210,12 @@ export const buildDerivedCompute = (
 		const template = variable.concat?.template ?? ""
 		if (template.trim() === "") return null
 		const known = new Set(knownNames)
-		return (row) =>
-			template.replace(TOKEN_RE, (token, field: string) =>
-				known.has(field) ? (row[field] ?? "") : token
-			)
+		return (row) => substituteTokens(template, known, row)
 	}
 	const rules = variable.rules?.rules ?? []
 	if (rules.length === 0) return null
 	const fallback = variable.rules?.fallback ?? ""
+	const known = new Set(knownNames)
 	// Precompile once; unparseable conditions never fire (matching the
 	// data-label color rules' leniency) — the editor flags them inline.
 	const compiled = rules.flatMap((rule) => {
@@ -211,8 +224,9 @@ export const buildDerivedCompute = (
 	})
 	return (row) => {
 		for (const rule of compiled)
-			if (evaluateExpression(rule.expr, row) === true) return rule.output
-		return fallback
+			if (evaluateExpression(rule.expr, row) === true)
+				return substituteTokens(rule.output, known, row)
+		return substituteTokens(fallback, known, row)
 	}
 }
 

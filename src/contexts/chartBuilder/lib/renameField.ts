@@ -379,7 +379,8 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 
 	// Derived-variable expressions reference view fields through the same
 	// {Field} token grammar as the label templates, so the token swap covers
-	// math formulas, concat templates, and rule conditions alike. (In melted
+	// math formulas, concat templates, rule conditions, and the rule
+	// outputs/fallback templates alike. (In melted
 	// mode this is deliberately NOT run — like every other view-field surface;
 	// a melt column's name only appears in expressions as a string literal,
 	// and literals are never rewritten anywhere.)
@@ -406,8 +407,13 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 								condition:
 									renameLabelTokens(r.condition, oldName, newName) ??
 									r.condition,
+								output:
+									renameLabelTokens(r.output, oldName, newName) ?? r.output,
 							})
 						),
+						fallback:
+							renameLabelTokens(v.rules.fallback, oldName, newName) ??
+							v.rules.fallback,
 					})
 				: v.rules,
 		})

@@ -8,10 +8,17 @@ import {
 import { downloadVisualsBundle } from "../lib/downloadVisuals"
 import { upsertEmbedInstance } from "../lib/embedInstances"
 import { embedFontsInSvg } from "../lib/fontEmbed"
+import {
+	pxToUnit,
+	unitToPx,
+	UNIT_OPTIONS,
+	UNIT_STEP,
+} from "../lib/displayUnits"
 import { withJpegDpi, withPngDpi } from "../lib/imageDpi"
 import type { ExportUnit } from "../lib/storage"
 import { getStorageAdapter } from "../lib/storage/registry"
 import {
+	currentChannelConfigsAtom,
 	embedInstancesAtom,
 	exportSizesAtom,
 	exportUnitAtom,
@@ -44,27 +51,6 @@ const FORMAT_OPTIONS: Array<{ value: ImageFormat; label: string }> = [
 
 const RESOLUTION_OPTIONS = [1, 2, 3, 4]
 const DEFAULT_PIXEL_RATIO = 2
-
-// Display units for the size inputs. Sizes are stored, dragged, and exported
-// in px — the unit only converts what the inputs show, at the CSS-standard
-// 96 px/inch (so a chart exported at "6.5 in" embeds at true size in
-// 96 dpi-convention tools like Office and Figma).
-const UNIT_OPTIONS: ExportUnit[] = ["px", "in", "cm"]
-const PX_PER_UNIT: Record<ExportUnit, number> = {
-	px: 1,
-	in: 96,
-	cm: 96 / 2.54,
-}
-// Per-unit input step, each ≈10px so stepping feels the same in every unit.
-const UNIT_STEP: Record<ExportUnit, number> = { px: 10, in: 0.1, cm: 0.25 }
-
-/** Convert stored px to the display unit. px shows whole numbers; physical
- *  units show 2 decimals (≈0.4px precision — below layout significance). */
-const pxToUnit = (px: number, unit: ExportUnit): number =>
-	unit === "px" ? px : Number((px / PX_PER_UNIT[unit]).toFixed(2))
-
-const unitToPx = (v: number, unit: ExportUnit): number =>
-	Math.round(v * PX_PER_UNIT[unit])
 
 // Fallback iframe dimensions for the embed snippets, used only when the
 // on-screen chart / legend can't be measured (e.g. modal opened before the
@@ -153,28 +139,54 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	const ratioRef = useRef<number>(DEFAULT_WIDTH / DEFAULT_HEIGHT)
 	const viewport = useViewportSize()
 	const exportSizes = useAtomValue(exportSizesAtom)
+	// The modal always opens for the CURRENT visual (SaveBar), so the current
+	// channel configs are this visual's. A fixed canvas size prescribes the
+	// export dimensions outright — see the open effect below.
+	const canvasSizeCfg = useAtomValue(currentChannelConfigsAtom).canvasSize
+	const fixedCanvas = canvasSizeCfg?.enabled ? canvasSizeCfg : null
+	const setUnit = useSetAtom(exportUnitAtom)
 
 	useEffect(() => {
 		if (aspectLocked) ratioRef.current = width / height
 	}, [aspectLocked, width, height])
 
-	// On open, restore the size this visual was last exported at. With no
-	// saved size, default to the editor's CURRENT on-screen chart size (not a
-	// fixed 650×400): the export embed then solves the same layout, so
-	// absolute-pixel title offsets export exactly where the user placed them.
-	// Falls back to the fixed default only when the editor chart isn't
-	// measurable (e.g. modal opened before the chart mounted).
+	// On open, seed the export size. A fixed canvas size (Aesthetics → Canvas
+	// size) wins outright — the user prescribed exact dimensions, so exports
+	// carry them through (including the unit they were set in), regardless of
+	// what any previous export used. Otherwise restore the size this visual
+	// was last exported at; with no saved size, default to the editor's
+	// CURRENT on-screen chart size (not a fixed 650×400): the export embed
+	// then solves the same layout, so absolute-pixel title offsets export
+	// exactly where the user placed them. Falls back to the fixed default
+	// only when the editor chart isn't measurable (e.g. modal opened before
+	// the chart mounted).
 	//
-	// Also fires when exportSizes updates post-export, but by then the saved
-	// entry equals the live state, so those sets are no-ops.
+	// Seeds ONCE per open (the ref): the effect's deps also change post-export
+	// (exportSizes) and on config edits, and re-seeding then would snap a size
+	// the user tweaked inside the modal back to the canvas dims.
+	const seededRef = useRef(false)
 	useEffect(() => {
-		if (!open || !visualId) return
+		if (!open) {
+			seededRef.current = false
+			return
+		}
+		if (!visualId || seededRef.current) return
+		seededRef.current = true
 		const saved = exportSizes[visualId]
+		if (fixedCanvas) {
+			const clampDim = (n: number) =>
+				Math.min(MAX_EXPORT_DIM, Math.max(MIN_EXPORT_DIM, Math.round(n)))
+			setWidth(clampDim(fixedCanvas.width))
+			setHeight(clampDim(fixedCanvas.height))
+			setAspectLocked(saved?.aspectLocked ?? false)
+			setUnit(fixedCanvas.unit ?? "px")
+			return
+		}
 		const editorSize = saved ? null : measureEditorChartSize()
 		setWidth(saved?.width ?? editorSize?.width ?? DEFAULT_WIDTH)
 		setHeight(saved?.height ?? editorSize?.height ?? DEFAULT_HEIGHT)
 		setAspectLocked(saved?.aspectLocked ?? false)
-	}, [open, visualId, exportSizes])
+	}, [open, visualId, exportSizes, fixedCanvas, setUnit])
 
 	if (!visualId) return null
 

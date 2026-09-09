@@ -137,6 +137,50 @@ describe("applyDerivedVariablesToView — rules", () => {
 		expect(next?.rows.map((r) => r.tier)).toEqual(["high", "east+", "other"])
 	})
 
+	it("substitutes {Field} tokens in outputs and the fallback", () => {
+		const next = applyDerivedVariablesToView(
+			BASE,
+			config(
+				variable({
+					name: "tier",
+					kind: "rules",
+					rules: {
+						rules: [{ condition: "{sales} >= 10", output: "sold {sales}" }],
+						fallback: "{region}",
+					},
+				})
+			)
+		)
+		expect(next?.rows.map((r) => r.tier)).toEqual([
+			"sold 10",
+			"East",
+			"West",
+		])
+	})
+
+	it("keeps unknown tokens in outputs literal, and blank cells substitute empty", () => {
+		const next = applyDerivedVariablesToView(
+			BASE,
+			config(
+				variable({
+					name: "tier",
+					kind: "rules",
+					rules: {
+						rules: [{ condition: "{sales} >= 9", output: "{typo}" }],
+						fallback: "sales={sales}",
+					},
+				})
+			)
+		)
+		// Row 3's blank sales never matches the condition, and the fallback
+		// substitutes its blank cell as empty text.
+		expect(next?.rows.map((r) => r.tier)).toEqual([
+			"{typo}",
+			"{typo}",
+			"sales=",
+		])
+	})
+
 	it("skips unparseable rules without killing the parseable ones", () => {
 		const next = applyDerivedVariablesToView(
 			BASE,

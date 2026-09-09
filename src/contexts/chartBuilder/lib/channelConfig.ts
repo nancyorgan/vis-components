@@ -2,6 +2,7 @@
 // isn't in the map, defaults are used. Each channel's shape is independent.
 
 import type { GradientInterpolation } from "./colorInterpolate"
+import type { DisplayUnit } from "./displayUnits"
 import type { DrawOrderConfig } from "./drawOrder"
 import type { FontConfig, LabelAlignment } from "./labelsConfig"
 
@@ -300,6 +301,10 @@ export type CanvasSizeConfig = {
 	width: number
 	/** Canvas height in pixels. Default 600. */
 	height: number
+	/** Unit the sidebar's width/height inputs display in. Display-only —
+	 * width/height above stay px-truth (converted at 96 px/inch, matching
+	 * the Export modal's unit convention). Absent = px. */
+	unit?: DisplayUnit
 }
 
 export const DEFAULT_HISTOGRAM_CONFIG: HistogramConfig = {

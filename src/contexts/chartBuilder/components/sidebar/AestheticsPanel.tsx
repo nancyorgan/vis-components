@@ -4,10 +4,20 @@ import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import type { AspectRatioConfig, CanvasSizeConfig } from "../../lib/channelConfig"
+import {
+	pxToUnit,
+	unitToPx,
+	UNIT_OPTIONS,
+	UNIT_STEP,
+	type DisplayUnit,
+} from "../../lib/displayUnits"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
 import { currentChannelConfigsAtom } from "../../store/atoms"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+
+// Smallest usable canvas edge, in px (matches the Export modal's floor).
+const MIN_CANVAS_DIM = 50
 
 /** Per-visual aesthetic settings that don't fit neatly under a single
  * encoding channel. */
@@ -35,6 +45,7 @@ export const AestheticsPanel = () => {
 		setConfigs((prev) => ({ ...prev, aspectRatio: next ?? undefined }))
 
 	const canvasSize = configs.canvasSize ?? null
+	const canvasUnit = canvasSize?.unit ?? "px"
 	const setCanvasSize = (next: CanvasSizeConfig | null) =>
 		setConfigs((prev) => ({ ...prev, canvasSize: next ?? undefined }))
 
@@ -105,6 +116,7 @@ export const AestheticsPanel = () => {
 									enabled: e.target.checked,
 									width: canvasSize?.width ?? 1000,
 									height: canvasSize?.height ?? 600,
+									unit: canvasSize?.unit,
 								})
 							}
 							className="cursor-pointer"
@@ -113,32 +125,64 @@ export const AestheticsPanel = () => {
 					</label>
 					{canvasSize?.enabled && (
 						<>
+							<label className="flex items-center gap-2 text-sm">
+								<span className={`shrink-0 ${LABEL_COL}`}>Units</span>
+								<select
+									value={canvasUnit}
+									onChange={(e) =>
+										setCanvasSize({
+											...canvasSize,
+											unit: e.target.value as DisplayUnit,
+										})
+									}
+									className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+								>
+									{UNIT_OPTIONS.map((u) => (
+										<option key={u} value={u}>
+											{u}
+										</option>
+									))}
+								</select>
+							</label>
 							<NumberInput
 								label="Width"
 								labelClassName={LABEL_COL}
-								value={canvasSize.width}
-								onChange={(width) => setCanvasSize({ ...canvasSize, width })}
-								min={50}
-								step={10}
+								value={pxToUnit(canvasSize.width, canvasUnit)}
+								onChange={(v) =>
+									setCanvasSize({
+										...canvasSize,
+										// Preserve the raw input's guard: an all-cleared / zero
+										// entry falls back to the default rather than committing 0.
+										width: unitToPx(v, canvasUnit) || 1000,
+									})
+								}
+								min={pxToUnit(MIN_CANVAS_DIM, canvasUnit)}
+								step={UNIT_STEP[canvasUnit]}
 								clamp
-								suffix="px"
+								suffix={canvasUnit}
 							/>
 							<NumberInput
 								label="Height"
 								labelClassName={LABEL_COL}
-								value={canvasSize.height}
-								onChange={(height) => setCanvasSize({ ...canvasSize, height })}
-								min={50}
-								step={10}
+								value={pxToUnit(canvasSize.height, canvasUnit)}
+								onChange={(v) =>
+									setCanvasSize({
+										...canvasSize,
+										height: unitToPx(v, canvasUnit) || 600,
+									})
+								}
+								min={pxToUnit(MIN_CANVAS_DIM, canvasUnit)}
+								step={UNIT_STEP[canvasUnit]}
 								clamp
-								suffix="px"
+								suffix={canvasUnit}
 							/>
 						</>
 					)}
 					<p className="vc-help">
-						Draws the chart inside a fixed pixel rectangle instead of
-						filling the viewport. The canvas shows as a white rectangle;
-						the viewport area outside it is shaded gray.
+						Draws the chart inside a fixed rectangle instead of filling the
+						viewport, and exports default to these dimensions. Inches and cm
+						convert at the standard 96 px/inch. The canvas shows as a white
+						rectangle; the viewport area outside it is shaded gray.
 					</p>
 				</div>
 				<div className="flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">

@@ -429,9 +429,12 @@ describe("renameFieldInConfigs — derived variables", () => {
 					concat: { template: "sold: {sales}" },
 					rules: {
 						rules: [
-							{ condition: "{sales} > 1 AND {region} == \"West\"", output: "hi" },
+							{
+								condition: "{sales} > 1 AND {region} == \"West\"",
+								output: "hi {sales}",
+							},
 						],
-						fallback: "",
+						fallback: "kept {sales}",
 					},
 				},
 			],
@@ -439,7 +442,7 @@ describe("renameFieldInConfigs — derived variables", () => {
 		return state
 	}
 
-	it("swaps {tokens} in formulas, templates, and rule conditions", () => {
+	it("swaps {tokens} in formulas, templates, conditions, outputs, and the fallback", () => {
 		const state = derivedState()
 		const next = renameFieldInConfigs(state, fields, "sales", "revenue")
 		const v = next.derivedVariablesConfig.variables[0]
@@ -448,6 +451,8 @@ describe("renameFieldInConfigs — derived variables", () => {
 		expect(v.rules?.rules[0].condition).toBe(
 			'{revenue} > 1 AND {region} == "West"'
 		)
+		expect(v.rules?.rules[0].output).toBe("hi {revenue}")
+		expect(v.rules?.fallback).toBe("kept {revenue}")
 	})
 
 	it("rewrites only the payloads that mention the name", () => {

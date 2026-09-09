@@ -157,8 +157,12 @@ a blanked box saves as), then one of three **functions**:
   numbers, string equality otherwise; ordering is numeric-only;
   blank cells never match) combined with `AND` / `OR`
   (case-insensitive; AND binds tighter), e.g.
-  `{B} == 1 AND {C} > 3` or `1 < {B} OR {B} < 2`. Outputs are
-  literal text. Unparseable rules never fire.
+  `{B} == 1 AND {C} > 3` or `1 < {B} OR {B} < 2`. Outputs — the
+  per-rule value and the "Otherwise" fallback alike — are templates
+  in the Combine-text grammar: tokens naming a present column
+  substitute that row's cell (so "otherwise keep `{B}`" passes B
+  through), unknown tokens stay literal, and plain text is just
+  text. Unparseable rules never fire.
 
 An **"Insert variable"** dropdown puts a token at the cursor, and a
 live preview shows the first rows' referenced cells beside the

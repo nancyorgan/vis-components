@@ -33,6 +33,7 @@ import {
 	type AnnotationsConfig,
 } from "./annotationsConfig"
 import { DEFAULT_CAPTION_CONFIG, type CaptionConfig } from "./captionConfig"
+import type { DisplayUnit } from "./displayUnits"
 
 import type { ChannelConfigs, DataLabelsConfig } from "./channelConfig"
 import {
@@ -1062,7 +1063,7 @@ export const saveExportSizes = (v: Record<string, ExportSize>): void =>
 /** Unit the Export modal's dimension inputs display in. Display-only — sizes
  * are stored and exported in px regardless. Device-local UI state, like the
  * sidebar widths. */
-export type ExportUnit = "px" | "in" | "cm"
+export type ExportUnit = DisplayUnit
 export const loadExportUnit = (): ExportUnit =>
 	safeGet<ExportUnit>(KEY_EXPORT_UNIT, "px")
 export const saveExportUnit = (v: ExportUnit): void =>

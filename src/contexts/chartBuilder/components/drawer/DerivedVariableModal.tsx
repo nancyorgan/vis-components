@@ -242,12 +242,21 @@ const DerivedVariableEditor = ({
 					.map((m) => m[1])
 					.filter((f, i, all) => upstreamNames.has(f) && all.indexOf(f) === i)
 			const fields: string[] = []
+			// Outputs and the fallback are {Field} templates too, so the columns
+			// they read belong in the preview alongside the condition fields.
+			const addTokens = (text: string) => {
+				for (const m of text.matchAll(/\{([^{}]+)\}/g))
+					if (upstreamNames.has(m[1]) && !fields.includes(m[1]))
+						fields.push(m[1])
+			}
 			for (const r of meaningfulRules) {
 				const parsed = parseExpression(r.condition)
 				if (parsed.ok)
 					for (const f of parsed.fields)
 						if (!fields.includes(f)) fields.push(f)
+				addTokens(r.output)
 			}
+			addTokens(fallback)
 			return fields
 		})().slice(0, 3)
 		return {
@@ -265,6 +274,7 @@ const DerivedVariableEditor = ({
 		formula,
 		template,
 		meaningfulRules,
+		fallback,
 		upstream,
 	])
 
@@ -510,6 +520,9 @@ const DerivedVariableEditor = ({
 							with AND / OR, and reference variables in braces, e.g.{" "}
 							<code className="font-mono">{'{Region} == "West"'}</code> or{" "}
 							<code className="font-mono">{"1 < {B} OR {B} < 2"}</code>.
+							Outputs are text and may reference variables in braces too —
+							an output of <code className="font-mono">{"{B}"}</code> keeps
+							that row&apos;s value of B.
 						</p>
 					</div>
 				)}
