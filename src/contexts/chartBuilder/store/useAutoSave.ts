@@ -10,6 +10,8 @@ import {
 	currentDatasetIdAtom,
 	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
+	currentFieldLevelOrderSpecsAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	currentLegendConfigAtom,
@@ -48,6 +50,11 @@ export const useAutoSave = () => {
 	const dataLabelsEncodings = useAtomValue(currentDataLabelsEncodingsAtom)
 	const dataLabelsConfig = useAtomValue(currentDataLabelsConfigAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
+	// Level reorders (drag/arrows/"Order by" pins) live on their own atoms;
+	// leaving them unwatched meant a pure reorder never saved, so embeds and
+	// image exports (which render the SAVED visual) kept the old order.
+	const fieldLevelOrders = useAtomValue(currentFieldLevelOrdersAtom)
+	const fieldLevelOrderSpecs = useAtomValue(currentFieldLevelOrderSpecsAtom)
 	const name = useAtomValue(currentVisualNameAtom)
 	const annotations = useAtomValue(currentAnnotationsAtom)
 	const caption = useAtomValue(currentCaptionConfigAtom)
@@ -85,6 +92,8 @@ export const useAutoSave = () => {
 		dataLabelsEncodings,
 		dataLabelsConfig,
 		overrides,
+		fieldLevelOrders,
+		fieldLevelOrderSpecs,
 		name,
 		annotations,
 		caption,
