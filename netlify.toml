@@ -1,0 +1,25 @@
+# Static deploy of the browser-local build (no self-host server).
+#
+# The app is one artifact that runs both ways: served by the self-host
+# server, which answers GET /api/config, or as plain static files, which
+# don't. src/lib/serverMode.ts probes at boot and picks. On a static host
+# the SPA fallback below answers /api/config with index.html and HTTP 200 —
+# the probe requires JSON of the exact config shape, so it correctly falls
+# back to browser-local. Nothing here needs to disable it.
+[build]
+  command = "pnpm build:static"
+  publish = "dist"
+
+# Client-side routing: deep links like /editor/<id> must serve the app
+# rather than 404. Netlify prefers a real file over a redirect rule, so
+# dist/embed-runtime.html is still served as itself.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
