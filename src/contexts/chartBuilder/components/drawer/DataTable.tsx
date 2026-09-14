@@ -70,11 +70,12 @@ const alignmentClasses = (alignment: ColumnAlignment): string => {
 	}
 }
 
-/** The text a cell shows. Dollar/comma columns are stored in the view as
- * plain numbers ("1234.56") so scales and formulas can read them; the tray
- * renders them back through the field's `displayCells` map so the column
- * still reads the way it was imported ("$1,234.56"). Cells that weren't
- * converted have no entry and show their stored value. */
+/** The text a cell shows. Dollar/comma and percent columns are stored in
+ * the view as plain numbers ("1234.56", "0.14") so scales and formulas can
+ * read them; the tray renders them back through the field's `displayCells`
+ * map so the column still reads the way it was imported ("$1,234.56",
+ * "14%"). Cells that weren't converted have no entry and show their stored
+ * value. */
 const displayCell = (field: Field, value: string | undefined): string => {
 	if (value == null) return ""
 	const display = field.displayCells

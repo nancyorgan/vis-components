@@ -30,19 +30,22 @@ export type Field = {
 	 * existed load unchanged, and an absent list means "never renamed". */
 	sourceNames?: string[]
 	/** Display-format hint derived at VIEW time (see
-	 * `applyDollarConversionToView`): "dollar" marks a quantitative column
-	 * whose raw cells were dollar-formatted ("$1,234.56"), cueing the
-	 * render-side default currency formatting for axes / labels / legends.
-	 * Never set on stored dataset fields — it exists only on the derived
-	 * `DatasetView`, so it never feeds content hashes or version compat. */
-	formatHint?: "dollar"
-	/** Original cell text for the cells this column's dollar/comma
-	 * conversion rewrote, keyed by the converted numeric string ("1234.56"
-	 * -> "$1,234.56"). Lets the data tray show the column exactly as it was
-	 * imported while every consumer downstream still reads plain numbers.
-	 * Only populated for converted cells — a plain "500" in a dollar column
-	 * has no entry and displays unchanged. VIEW-time only, like
-	 * `formatHint`. */
+	 * `applyDollarConversionToView` / `applyPercentConversionToView`):
+	 * "dollar" marks a quantitative column whose raw cells were
+	 * dollar-formatted ("$1,234.56"), "percent" one whose raw cells were
+	 * percent-formatted ("14%", stored in the view as the fraction "0.14").
+	 * Either cues the render-side default formatting for axes / labels /
+	 * legends (see `formatHintDefaults.ts`). Never set on stored dataset
+	 * fields — it exists only on the derived `DatasetView`, so it never
+	 * feeds content hashes or version compat. */
+	formatHint?: "dollar" | "percent"
+	/** Original cell text for the cells this column's dollar/comma or
+	 * percent conversion rewrote, keyed by the converted numeric string
+	 * ("1234.56" -> "$1,234.56", "0.14" -> "14%"). Lets the data tray show
+	 * the column exactly as it was imported while every consumer downstream
+	 * still reads plain numbers. Only populated for converted cells — a
+	 * plain "500" in a dollar column has no entry and displays unchanged.
+	 * VIEW-time only, like `formatHint`. */
 	displayCells?: Record<string, string>
 	/** Marks a column minted by a per-visual derived variable (see
 	 * lib/derivedVariables.ts) so the Fields panel and data tray can badge it

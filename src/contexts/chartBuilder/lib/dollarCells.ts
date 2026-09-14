@@ -57,7 +57,7 @@ export const parseDollarCell = (raw: unknown): FormattedNumericCell | null => {
  *
  * Columns where any converted cell carried a "$" get `formatHint: "dollar"`
  * on the VIEW's field entry — that's the cue for the render-side dollar
- * format defaults (see `dollarFormatDefaults.ts`). The hint lives only on
+ * format defaults (see `formatHintDefaults.ts`). The hint lives only on
  * the derived view; stored dataset fields never carry it.
  *
  * Each converted column also carries `displayCells` on the view's field —

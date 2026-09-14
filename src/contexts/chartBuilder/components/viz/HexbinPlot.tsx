@@ -118,6 +118,8 @@ export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 			yFieldType: yType,
 			xMaxTicks,
 			yMaxTicks,
+			xDomainPinned: props.xMinOverride != null && props.xMaxOverride != null,
+			yDomainPinned: props.yMinOverride != null && props.yMaxOverride != null,
 			showXAxis: props.showXAxis !== false,
 			showYAxis: props.showYAxis !== false,
 			showXAxisTitle: props.showXAxisTitle ?? true,

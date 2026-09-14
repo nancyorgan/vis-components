@@ -4,7 +4,7 @@ import {
 	applyPercentConversionToView,
 	parsePercentCell,
 } from "./percentCells"
-import type { DatasetView } from "./types"
+import type { DatasetView, FieldType } from "./types"
 
 describe("parsePercentCell", () => {
 	it("parses simple percents to fractions", () => {
@@ -37,15 +37,13 @@ describe("parsePercentCell", () => {
 
 const makeView = (
 	rows: Array<Record<string, string>>,
-	fieldNames: string[]
+	fieldNames: string[],
+	inferredType: FieldType = "categorical"
 ): DatasetView => ({
 	id: "d1",
 	name: "test",
 	filename: "test.csv",
-	fields: fieldNames.map((name) => ({
-		name,
-		inferredType: "categorical",
-	})),
+	fields: fieldNames.map((name) => ({ name, inferredType })),
 	rows,
 	createdAt: 0,
 	versionId: "dv1",
@@ -56,6 +54,34 @@ const makeView = (
 })
 
 describe("applyPercentConversionToView", () => {
+	it("converts percent cells in an inferred-quantitative column and tags the hint", () => {
+		const view = makeView(
+			[
+				{ group: "a", share: "14%" },
+				{ group: "b", share: "50%" },
+			],
+			["group", "share"],
+			"quantitative"
+		)
+		const out = applyPercentConversionToView(view, {})
+		expect(out?.rows).toEqual([
+			{ group: "a", share: "0.14" },
+			{ group: "b", share: "0.5" },
+		])
+		const share = out?.fields.find((f) => f.name === "share")
+		expect(share?.formatHint).toBe("percent")
+		// The tray reads the imported text back through displayCells.
+		expect(share?.displayCells).toEqual({ "0.14": "14%", "0.5": "50%" })
+		expect(out?.fields.find((f) => f.name === "group")?.formatHint)
+			.toBeUndefined()
+	})
+
+	it("skips a percent column the user has overridden to categorical", () => {
+		const view = makeView([{ share: "14%" }], ["share"], "quantitative")
+		expect(applyPercentConversionToView(view, { share: "categorical" }))
+			.toBe(view)
+	})
+
 	it("converts percent cells in a quantitative-overridden column", () => {
 		const view = makeView(
 			[

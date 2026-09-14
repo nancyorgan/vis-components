@@ -9,7 +9,7 @@ import {
 	QUANTITATIVE_LEGEND_CHANNELS,
 	type LegendConfig,
 } from "./labelsConfig"
-import type { DatasetView, Encodings } from "./types"
+import type { DatasetView, Encodings, Field } from "./types"
 
 /** The default d3-format spec applied wherever a dollar-hinted field's
  * format is still "Auto": grouped, up to two decimals, trailing zeros
@@ -18,32 +18,47 @@ import type { DatasetView, Encodings } from "./types"
  * axis ticks. */
 export const DOLLAR_FORMAT_SPEC = "$,.2~f"
 
-/** The view fields tagged "dollar" by `applyDollarConversionToView`. */
-export const dollarFieldSet = (
-	view: DatasetView | undefined,
-): ReadonlySet<string> => {
-	const out = new Set<string>()
+/** The default for a percent-hinted field (cells "14%" held in the view as
+ * the fraction 0.14): d3's "%" type multiplies back by 100, up to two
+ * decimals with trailing zeros trimmed — "14%", "12.5%", "14.55%". */
+export const PERCENT_FORMAT_SPEC = ".2~%"
+
+/** The default spec for each view-time format hint. */
+export const FORMAT_HINT_SPECS: Record<
+	NonNullable<Field["formatHint"]>,
+	string
+> = {
+	dollar: DOLLAR_FORMAT_SPEC,
+	percent: PERCENT_FORMAT_SPEC,
+}
+
+/** Field name -> default format spec, for every view field carrying a
+ * format hint (tagged by the dollar / percent cell conversions). */
+export type HintedFormats = ReadonlyMap<string, string>
+
+export const hintedFormats = (view: DatasetView | undefined): HintedFormats => {
+	const out = new Map<string, string>()
 	for (const f of view?.fields ?? [])
-		if (f.formatHint === "dollar") out.add(f.name)
+		if (f.formatHint) out.set(f.name, FORMAT_HINT_SPECS[f.formatHint])
 	return out
 }
 
 const isAuto = (spec: string | undefined): boolean => (spec ?? "").trim() === ""
 
-/** Fold the dollar default into the RENDER-side channel configs: any x / y /
- * r axis (or angle) whose mapped field carries the dollar hint and whose
- * `customFormat` is still "" (Auto) renders with `DOLLAR_FORMAT_SPEC`.
+/** Fold the hint defaults into the RENDER-side channel configs: any x / y /
+ * r axis (or angle) whose mapped field carries a format hint and whose
+ * `customFormat` is still "" (Auto) renders with that hint's spec.
  *
  * Read-time only — the STORED configs are never written, so the sidebar's
  * Format box keeps showing Auto, the theme-diff "changed" dot stays honest,
  * and any user-picked spec (non-empty) wins untouched. Identity-preserving
  * when nothing applies. */
-export const applyDollarDefaultsToChannelConfigs = (
+export const applyFormatHintsToChannelConfigs = (
 	configs: ChannelConfigs,
 	encodings: Encodings,
-	dollarFields: ReadonlySet<string>,
+	hinted: HintedFormats,
 ): ChannelConfigs => {
-	if (dollarFields.size === 0) return configs
+	if (hinted.size === 0) return configs
 	let out = configs
 	for (const ch of ["x", "y", "r"] as const) {
 		// A positional axis without its own field can still be the MEASURE
@@ -52,24 +67,26 @@ export const applyDollarDefaultsToChannelConfigs = (
 		// horizontal → x, radar spokes → r). Axes that don't render at all
 		// ignore their config, so the fallback never mislabels anything.
 		const field = encodings[ch]?.field ?? encodings.length?.field
-		if (!field || !dollarFields.has(field)) continue
+		const spec = field ? hinted.get(field) : undefined
+		if (!spec) continue
 		const existing = configs[ch]
 		if (!isAuto(existing?.customFormat)) continue
 		if (out === configs) out = { ...configs }
 		out[ch] = {
 			...(existing ?? DEFAULT_AXIS_CONFIG),
-			customFormat: DOLLAR_FORMAT_SPEC,
+			customFormat: spec,
 		}
 	}
 	const angleField = encodings.angle?.field
-	if (angleField && dollarFields.has(angleField)) {
+	const angleSpec = angleField ? hinted.get(angleField) : undefined
+	if (angleSpec) {
 		const existing = configs.angle
 		if (isAuto(existing?.customFormat)) {
 			if (out === configs) out = { ...configs }
 			out.angle = {
 				...DEFAULT_ANGLE_CONFIG,
 				...(existing ?? {}),
-				customFormat: DOLLAR_FORMAT_SPEC,
+				customFormat: angleSpec,
 			}
 		}
 	}
@@ -77,29 +94,30 @@ export const applyDollarDefaultsToChannelConfigs = (
 }
 
 /** Same read-time defaulting for the quantitative legend channels: a
- * gradient bar / size / opacity legend over a dollar-hinted field formats
- * its break labels with `DOLLAR_FORMAT_SPEC` while its per-channel format
- * is still "" (Auto). Identity-preserving when nothing applies. */
-export const applyDollarDefaultsToLegendConfig = <
+ * gradient bar / size / opacity legend over a hinted field formats its
+ * break labels with the hint's spec while its per-channel format is still
+ * "" (Auto). Identity-preserving when nothing applies. */
+export const applyFormatHintsToLegendConfig = <
 	T extends Pick<Partial<LegendConfig>, "channels">,
 >(
 	legendCfg: T,
 	encodings: Encodings,
-	dollarFields: ReadonlySet<string>,
+	hinted: HintedFormats,
 ): T => {
-	if (dollarFields.size === 0) return legendCfg
+	if (hinted.size === 0) return legendCfg
 	let channels = legendCfg.channels
 	let changed = false
 	for (const ch of QUANTITATIVE_LEGEND_CHANNELS) {
 		const field = encodings[ch]?.field
-		if (!field || !dollarFields.has(field)) continue
+		const spec = field ? hinted.get(field) : undefined
+		if (!spec) continue
 		const existing = channels?.[ch]
 		if (!isAuto(existing?.format)) continue
 		channels = {
 			...(channels ?? {}),
 			[ch]: {
 				...(existing ?? DEFAULT_LEGEND_CHANNEL_CONFIG),
-				format: DOLLAR_FORMAT_SPEC,
+				format: spec,
 			},
 		}
 		changed = true
@@ -107,23 +125,22 @@ export const applyDollarDefaultsToLegendConfig = <
 	return changed ? { ...legendCfg, channels } : legendCfg
 }
 
-/** Same read-time defaulting for data labels: a dollar-hinted field with no
- * explicit per-field format spec gets `DOLLAR_FORMAT_SPEC` in
- * `fieldFormats`. Keyed by field NAME (like `fieldFormats` itself), so it
- * covers single- and multi-field labels alike. Identity-preserving when
- * nothing applies. */
-export const applyDollarDefaultsToDataLabels = <
+/** Same read-time defaulting for data labels: a hinted field with no
+ * explicit per-field format spec gets the hint's spec in `fieldFormats`.
+ * Keyed by field NAME (like `fieldFormats` itself), so it covers single-
+ * and multi-field labels alike. Identity-preserving when nothing applies. */
+export const applyFormatHintsToDataLabels = <
 	T extends Pick<Partial<DataLabelsConfig>, "fieldFormats">,
 >(
 	cfg: T,
-	dollarFields: ReadonlySet<string>,
+	hinted: HintedFormats,
 ): T => {
-	if (dollarFields.size === 0) return cfg
+	if (hinted.size === 0) return cfg
 	let formats = cfg.fieldFormats
 	let changed = false
-	for (const field of dollarFields) {
+	for (const [field, spec] of hinted) {
 		if (!isAuto(formats?.[field])) continue
-		formats = { ...(formats ?? {}), [field]: DOLLAR_FORMAT_SPEC }
+		formats = { ...(formats ?? {}), [field]: spec }
 		changed = true
 	}
 	return changed ? { ...cfg, fieldFormats: formats } : cfg

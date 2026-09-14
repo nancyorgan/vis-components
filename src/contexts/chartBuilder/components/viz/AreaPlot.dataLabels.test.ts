@@ -145,4 +145,16 @@ describe("buildAreaAnchors — sparse value column (valueFieldMapped)", () => {
 		expect(anchors.find((a) => a.key === "1|A")?.label).toBe("note")
 		expect(anchors.find((a) => a.key === "2|A")?.label).toBe("20")
 	})
+
+	it("carries the RAW labelValue so text-color / position rules compare numerically", () => {
+		const anchors = buildAreaAnchors({
+			aggregation: sparseAggregation as any,
+			categoryScale,
+			measureScale,
+			stackMode: "stack",
+			decimals: null,
+		})
+		expect(anchors.find((a) => a.key === "1|A")?.labelValue).toBe("note")
+		expect(anchors.find((a) => a.key === "2|A")?.labelValue).toBe(20)
+	})
 })

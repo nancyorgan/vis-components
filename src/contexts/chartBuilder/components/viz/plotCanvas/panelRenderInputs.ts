@@ -284,6 +284,15 @@ export const resolvePanelRenderInputs = ({
 			: measureAxis === "x"
 				? xMaxOverride ?? sharedGroupMax
 				: undefined
+	// The user-pinned subset of the measure bounds (no shared-group
+	// fallback) — Bar/Area keep these ends exact through `.nice()` and
+	// switch to evenly spaced ticks when both are set.
+	const measurePinnedBounds =
+		measureAxis === "y"
+			? { min: yMinOverride, max: yMaxOverride }
+			: measureAxis === "x"
+				? { min: xMinOverride, max: xMaxOverride }
+				: undefined
 	// Polar R-axis overrides. Mirrors the cartesian Y override
 	// resolution above but reads dedicated polar-specific
 	// fields (overallRRange, rowRAxisOverrides, etc.) so
@@ -326,6 +335,7 @@ export const resolvePanelRenderInputs = ({
 		yMaxOverride,
 		measureMinOverride,
 		measureMaxOverride,
+		measurePinnedBounds,
 		rMinOverride,
 		rMaxOverride,
 		radiusScale,

@@ -178,8 +178,25 @@
  * Utility layer — one-offs that Tailwind doesn't cover
  * -------------------------------------------------------------------------- */
 @layer utilities {
-	/* Example pattern — uncomment if you need it:
-	 *
-	 * .text-balance { text-wrap: balance; }
-	 */
+	/* Fixed-width legend ("Legend width" in the Legend panel). The legend
+	 * box is exactly as wide as the user typed, so labels that no longer fit
+	 * must WRAP instead of truncating (stacked entries use Tailwind's
+	 * `.truncate`) or pushing the row wider (horizontal entries use
+	 * `.vc-legend-label` + `whitespace-nowrap`, and their cells are
+	 * `.vc-legend-hentry` with `flex-shrink-0`). Lives in the utilities layer
+	 * so it out-cascades `.truncate` (same layer, higher specificity).
+	 * `overflow-wrap: anywhere` also shrinks the labels' min-content width,
+	 * which is what lets a horizontal row squeeze down to the fixed width. */
+	.vc-legend-fixed-width .truncate,
+	.vc-legend-fixed-width .vc-legend-label {
+		overflow: visible;
+		text-overflow: clip;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		min-width: 0;
+	}
+	.vc-legend-fixed-width .vc-legend-hentry {
+		flex-shrink: 1;
+		min-width: 0;
+	}
 }

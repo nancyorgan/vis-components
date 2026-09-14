@@ -29,10 +29,14 @@ export const PatternLegend = ({
 	const display = reverseCategorical ? [...entries].reverse() : entries
 	const bgColor = configs.pattern?.backgroundColor ?? "#e2e8f0"
 	const isHorizontal = orientation === "horizontal"
+	// `vc-legend-hentry` / `vc-legend-label` let a fixed-width legend
+	// (`.vc-legend-fixed-width`) shrink the cell and wrap the label.
 	const cellClass = isHorizontal
-		? "flex flex-shrink-0 items-center gap-1.5"
+		? "vc-legend-hentry flex flex-shrink-0 items-center gap-1.5"
 		: "flex items-center gap-2"
-	const labelClass = isHorizontal ? "whitespace-nowrap" : "min-w-0 truncate"
+	const labelClass = isHorizontal
+		? "vc-legend-label whitespace-nowrap"
+		: "min-w-0 truncate"
 	const rows = display.map(({ v, i }) => {
 				const resolved = resolvePatternForCategory(
 					v,

@@ -204,6 +204,23 @@ Every field is tagged with one of: `quantitative` (numbers),
 categories). Types are inferred from the first ~50 non-empty values.
 Users override per-field in the Fields panel with a dropdown — useful
 when a numeric column like a zip code should be treated as categorical.
+
+**Formatted numeric cells** infer quantitative like plain numbers:
+dollar / comma-grouped cells ("$1,234.56", "($900)", "1,234") and
+percent cells ("14%", "-2.5 %"). The conversion is a VIEW-time
+transform (`lib/dollarCells.ts`, `lib/percentCells.ts`), never a data
+rewrite: in every effectively-quantitative column (inferred, or
+overridden to quantitative) the cells become plain numeric strings —
+"1234.56", and percents become fractions, "0.14" — so scales,
+aggregators, and Math formulas all read numbers. The data tray keeps
+showing the imported text. A converted column carries a format hint
+("dollar" / "percent") that the render path folds in wherever a Format
+box is still Auto — axis ticks, gradient / size legends, data labels
+render as "$1,234.56" / "14%" — without writing any config, so the
+sidebar keeps showing Auto and a user-picked spec always wins.
+Overriding such a field back to categorical (or ordinal) restores the
+original "$1,234.56" / "14%" labels everywhere.
+
 For categorical/ordinal fields, users can also pin a custom level
 order (up/down arrows, drag, reverse) instead of the smart-sort default,
 or compute one with "Order by" — Alphabetical or another variable's
@@ -1366,6 +1383,16 @@ The X-axis and Y-axis panels (under Encodings) configure:
   range are dropped, and a break coinciding with an automatic tick
   draws once. Tick labels simply follow the ticks — every tick gets a
   label; there is no separate label-position control.
+  **Count composes with Scale range**: while the domain is auto-fit
+  (either bound blank), Count is a density hint and the ticks snap to
+  round "nice" values, so the exact number may differ. Once BOTH min
+  and max are pinned (Scale range, or a facet range override), the
+  axis lays out exactly Count evenly spaced ticks from min to max
+  inclusive — 0.04–0.24 with Count 6 gives 0.04, 0.08, 0.12, 0.16,
+  0.20, 0.24 — and "Match tick count" gridlines follow the same
+  layout. Pinned bounds are also respected exactly on bar / area
+  measure axes (the auto-fit rounding-outward applies only to blank
+  ends).
 - **Gridlines** — enabled toggle, color, thickness, custom count
   (default: match tick count). "Match tick count" follows the
   AUTOMATIC tick layout only — the Ticks section's custom breaks get
@@ -1945,6 +1972,23 @@ horizontally" toggle instead).
 Position options: left, right, top, bottom, inside. Inside placement
 uses two number inputs labeled "X" and "Y" (0–1, relative to plot
 rect corners).
+
+**Legend width** (its own group between Position and Orientation)
+fixes the legend box's width. The number input takes px, in, or cm
+(a unit picker beside it; inches and cm convert at the standard
+96 px/inch, and the stored value is always pixels — the unit only
+changes what the field shows). Blank = auto, the content-sized width
+the legend has always had; the field's placeholder shows that
+rendered auto width, and the first interaction (focus, spinner, or
+arrow key) steps from it rather than from 0. Clearing the field, or
+the reset link, returns to auto. A fixed width applies in every
+position and overrides the auto estimate and the viewport caps that
+otherwise bound multi-column legends. When the box becomes too
+narrow for its text, labels WRAP onto extra lines — stacked entries
+stop truncating with an ellipsis, and horizontal entries shrink to
+fit the row instead of pushing it wider. (The "legends grow rather
+than wrap" rule describes AUTO sizing; an explicit width is the user
+asking for wrapping.) Image export reproduces each wrapped line.
 
 **Orientation and Legend columns are independent controls, and each
 owns exactly one axis of the layout.** Orientation (Stacked /

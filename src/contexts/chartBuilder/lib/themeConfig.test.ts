@@ -471,6 +471,19 @@ describe("legend section changed dot", () => {
 		expect(legendHasCustomization({ ...base, columns: 2 }, STUB_THEME)).toBe(true)
 	})
 
+	it("a fixed legend width lights the properties group; the display unit alone does not", () => {
+		expect(
+			explainLegendCustomization({ ...base, width: 240 }, STUB_THEME).has(
+				"properties",
+			),
+		).toBe(true)
+		// `widthUnit` is display-only (px stays truth) — switching it is not a
+		// customization of the rendered legend.
+		expect(
+			explainLegendCustomization({ ...base, widthUnit: "cm" }, STUB_THEME).size,
+		).toBe(0)
+	})
+
 	it("changing the column gap lights the properties group", () => {
 		expect(
 			explainLegendCustomization({ ...base, columnGap: -10 }, STUB_THEME).has(

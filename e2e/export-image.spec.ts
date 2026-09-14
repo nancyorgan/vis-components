@@ -15,7 +15,7 @@ const openExportTab = async (page: import("@playwright/test").Page) => {
 	await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
 
 	await page.getByRole("button", { name: "Export" }).click()
-	await page.getByRole("button", { name: "Export image" }).click()
+	// The modal opens on the "Export image" tab by default.
 
 	// The preview iframe cold-boots the embed app; wait for its chart AND
 	// legend so the capture has both to serialize.
@@ -111,13 +111,14 @@ test.describe("Export image", () => {
 		await page.getByRole("button", { name: "Export" }).click()
 
 		// Both tabs share the pinned top-left layout: toggling between them
-		// must not move the popup's top-left corner or the tab buttons.
+		// must not move the popup's top-left corner or the tab buttons. The
+		// modal opens on "Export image", so toggle to Embed and back.
 		const dialog = page.locator('[role="dialog"]')
 		const embedTab = page.getByRole("button", { name: "Embed" })
 		const dialogBefore = (await dialog.boundingBox())!
 		const tabBefore = (await embedTab.boundingBox())!
 
-		await page.getByRole("button", { name: "Export image" }).click()
+		await embedTab.click()
 		const dialogExport = (await dialog.boundingBox())!
 		const tabExport = (await embedTab.boundingBox())!
 		expect(dialogExport.x).toBe(dialogBefore.x)
@@ -125,7 +126,7 @@ test.describe("Export image", () => {
 		expect(tabExport.x).toBe(tabBefore.x)
 		expect(tabExport.y).toBe(tabBefore.y)
 
-		await embedTab.click()
+		await page.getByRole("button", { name: "Export image" }).click()
 		const dialogBack = (await dialog.boundingBox())!
 		const tabBack = (await embedTab.boundingBox())!
 		expect(dialogBack.x).toBe(dialogBefore.x)
@@ -227,7 +228,7 @@ test.describe("Export image", () => {
 		await openExportTab(page)
 
 		// The default is now the live editor chart size, not a fixed 650×400,
-		// so pin it → at the default 2× multiplier that's a 1300×800 bitmap.
+		// so pin it → at the default 4× multiplier that's a 2600×1600 bitmap.
 		await page.getByLabel("Width (px)").fill("650")
 		await page.getByLabel("Height (px)").fill("400")
 		const downloadPromise = page.waitForEvent("download")
@@ -237,15 +238,15 @@ test.describe("Export image", () => {
 
 		// PNG IHDR: width at bytes 16–19, height at 20–23 (big-endian).
 		expect(png.subarray(1, 4).toString("ascii")).toBe("PNG")
-		expect(png.readUInt32BE(16)).toBe(1300)
-		expect(png.readUInt32BE(20)).toBe(800)
+		expect(png.readUInt32BE(16)).toBe(2600)
+		expect(png.readUInt32BE(20)).toBe(1600)
 
-		// DPI stamp (pHYs, inserted right after IHDR at byte 33): the 2×
-		// multiplier exports at 192 dpi → 7559 px/meter — this is what makes
+		// DPI stamp (pHYs, inserted right after IHDR at byte 33): the 4×
+		// multiplier exports at 384 dpi → 15118 px/meter — this is what makes
 		// PowerPoint/Word insert the image at the chosen physical size.
 		expect(png.subarray(37, 41).toString("ascii")).toBe("pHYs")
-		expect(png.readUInt32BE(41)).toBe(7559)
-		expect(png.readUInt32BE(45)).toBe(7559)
+		expect(png.readUInt32BE(41)).toBe(15118)
+		expect(png.readUInt32BE(45)).toBe(15118)
 		expect(png[49]).toBe(1) // unit: meters
 	})
 })

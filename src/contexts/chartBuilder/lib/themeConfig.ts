@@ -980,6 +980,8 @@ export const explainLegendCustomization = (
 		{ group: "properties", changed: differs(cfg.orientation, base.orientation) },
 		{ group: "properties", changed: isInside && differs(cfg.insideX, base.insideX) },
 		{ group: "properties", changed: isInside && differs(cfg.insideY, base.insideY) },
+		// `widthUnit` is display-only (px stays truth), so only the width dots.
+		{ group: "properties", changed: differs(cfg.width, base.width) },
 		{ group: "properties", changed: differs(cfg.showBorder, base.showBorder) },
 		{ group: "properties", changed: differs(cfg.borderColor, base.borderColor) },
 		{ group: "properties", changed: differs(cfg.borderRadius, base.borderRadius) },

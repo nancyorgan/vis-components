@@ -205,6 +205,8 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 			yFieldType: yType,
 			xMaxTicks,
 			yMaxTicks,
+			xDomainPinned: props.xMinOverride != null && props.xMaxOverride != null,
+			yDomainPinned: props.yMinOverride != null && props.yMaxOverride != null,
 			showXAxis: showX,
 			showYAxis: showY,
 			showXAxisTitle: props.showXAxisTitle ?? true,

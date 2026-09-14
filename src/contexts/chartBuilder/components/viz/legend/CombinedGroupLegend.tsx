@@ -745,10 +745,12 @@ export const CombinedGroupLegend = ({
 						return (
 							<div
 								key={s}
-								className="flex flex-shrink-0 flex-row items-center gap-1.5"
+								className="vc-legend-hentry flex flex-shrink-0 flex-row items-center gap-1.5"
 							>
 								<ComposedSwatch {...entry} swatchShape={swatchShape} swatchSize={swatchSize} />
-								<span className="whitespace-nowrap">{fmt(s, i)}</span>
+								<span className="vc-legend-label whitespace-nowrap">
+									{fmt(s, i)}
+								</span>
 							</div>
 						)
 					})}
@@ -790,9 +792,9 @@ export const CombinedGroupLegend = ({
 					const entry = buildEntry(v)
 					return (
 						<EntryHoverWrap key={v} field={highlightField} value={v}>
-							<div className="flex flex-shrink-0 flex-row items-center gap-1.5">
+							<div className="vc-legend-hentry flex flex-shrink-0 flex-row items-center gap-1.5">
 								<ComposedSwatch {...entry} swatchShape={swatchShape} swatchSize={swatchSize} />
-								<span className="whitespace-nowrap" title={v}>
+								<span className="vc-legend-label whitespace-nowrap" title={v}>
 									{v}
 								</span>
 							</div>

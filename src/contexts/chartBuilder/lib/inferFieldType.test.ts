@@ -106,12 +106,16 @@ describe("inferFieldType", () => {
 		expect(inferFieldType(["($1,234)", "$5.50"])).toBe("quantitative")
 	})
 
-	it("does NOT treat malformed comma grouping or percents as numeric", () => {
+	it("returns 'quantitative' for percent-formatted numbers", () => {
+		expect(inferFieldType(["14%", "25%", "-2.5 %"])).toBe("quantitative")
+		// Mixed plain and percent cells are still all numbers.
+		expect(inferFieldType(["14%", "12"])).toBe("quantitative")
+	})
+
+	it("does NOT treat malformed comma grouping or non-numeric percents as numeric", () => {
 		// "1,23" is a European decimal comma — grouping must be strict 3s.
 		expect(inferFieldType(["1,23", "4,56"])).toBe("categorical")
-		// Percent columns stay categorical: their conversion is override-driven
-		// (see percentCells.ts), unlike the automatic dollar conversion.
-		expect(inferFieldType(["14%", "25%"])).toBe("categorical")
+		expect(inferFieldType(["abc%", "%"])).toBe("categorical")
 	})
 
 	it("still recognizes common real date formats", () => {

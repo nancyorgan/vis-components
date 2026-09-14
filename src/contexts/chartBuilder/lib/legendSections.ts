@@ -871,11 +871,22 @@ export const planLegendSections = ({
 		LEGEND_MIN_WIDTH_PX,
 		Math.min(LEGEND_MAX_WIDTH_PX, estimatedLegendWidth),
 	)
+	// User-fixed legend width ("Legend width" in the sidebar), px-truth. When
+	// set it REPLACES every auto/estimated width and every viewport cap
+	// below — the user asked for exactly this many pixels — and the inner box
+	// gets `vc-legend-fixed-width`, whose CSS lets labels wrap onto extra
+	// lines instead of truncating or pushing a horizontal row wider. ≤ 0 /
+	// null / absent = auto (the historical content sizing).
+	const fixedWidth =
+		legendCfg.width != null && legendCfg.width > 0
+			? Math.round(legendCfg.width)
+			: null
 	// If a horizontal-on-right/left legend's content still exceeds the
 	// capped column width (rare — would need a section with many breaks
 	// or unusually wide swatches), let the column scroll horizontally
-	// rather than clipping silently.
+	// rather than clipping silently. A fixed width wraps instead.
 	const wantsInnerXScroll =
+		fixedWidth == null &&
 		legendCfg.orientation === "horizontal" &&
 		(legendCfg.position === "right" || legendCfg.position === "left") &&
 		horizontalRowEstimate + INNER_PAD + SAFETY_PAD > LEGEND_MAX_WIDTH_PX
@@ -985,11 +996,18 @@ export const planLegendSections = ({
 	// outer; the inner needs to fill that width (block, not inline-block)
 	// so long labels truncate via the swatch's `truncate` class instead
 	// of overflowing past the legend column's right edge.
-	const innerClass = isInside
-		? "inline-block p-3"
-		: wantsInnerXScroll
-			? "block p-4 overflow-x-auto"
-			: "block p-4"
+	// A fixed width fills the outer's exact width (block) in every position
+	// and switches label overflow from truncate/overflow to wrapping.
+	const innerClass =
+		fixedWidth != null
+			? isInside
+				? "block p-3 vc-legend-fixed-width"
+				: "block p-4 vc-legend-fixed-width"
+			: isInside
+				? "inline-block p-3"
+				: wantsInnerXScroll
+					? "block p-4 overflow-x-auto"
+					: "block p-4"
 	// One column of sections. Multi-column packing goes through
 	// `LegendColumns` instead (see `packSections`), and the single-section
 	// entry-wrap case renders its own columns — so this is always the stack.
@@ -1061,7 +1079,7 @@ export const planLegendSections = ({
 	// rightward by (left - right) / 2 from the wrapper center, so we add
 	// the equivalent marginLeft on top of `self-center` to compensate.
 	const plotCenterShiftPx = BASE_MARGIN.left - BASE_MARGIN.right
-	const outerStyle: CSSProperties | undefined = isInside
+	const positionOuterStyle: CSSProperties | undefined = isInside
 		? {
 				...insideStyle(),
 				...(columnMaxWidth ? { maxWidth: columnMaxWidth } : {}),
@@ -1099,6 +1117,12 @@ export const planLegendSections = ({
 								...(columnMaxWidth ? { maxWidth: columnMaxWidth } : {}),
 							}
 						: undefined
+	// The user's fixed width wins over the estimate AND the viewport caps: an
+	// explicit "300px" must be 300px, not "at most what's left of the row".
+	const outerStyle: CSSProperties | undefined =
+		fixedWidth != null
+			? { ...positionOuterStyle, width: fixedWidth, maxWidth: undefined }
+			: positionOuterStyle
 	const innerStyle: CSSProperties = {
 		...bodyStyle,
 		backgroundColor: legendCfg.backgroundColor ?? "transparent",
@@ -1124,6 +1148,10 @@ export const planLegendSections = ({
 		...(alignSwatchColumn
 			? { ["--vc-legend-swatch-col" as string]: `${SWATCH_W}px` }
 			: {}),
+		// Fixed width: the inner box spans the outer exactly (overriding the
+		// multi-column `fit-content`), so the border/background match the
+		// width the user typed and labels wrap against that edge.
+		...(fixedWidth != null ? { width: "100%", maxWidth: "100%" } : {}),
 	}
 
 	return {

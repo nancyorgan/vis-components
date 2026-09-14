@@ -50,7 +50,7 @@ const FORMAT_OPTIONS: Array<{ value: ImageFormat; label: string }> = [
 ]
 
 const RESOLUTION_OPTIONS = [1, 2, 3, 4]
-const DEFAULT_PIXEL_RATIO = 2
+const DEFAULT_PIXEL_RATIO = 4
 
 // Fallback iframe dimensions for the embed snippets, used only when the
 // on-screen chart / legend can't be measured (e.g. modal opened before the
@@ -131,7 +131,7 @@ const useViewportSize = () => {
 }
 
 export const ExportModal = ({ open, onClose, visualId }: Props) => {
-	const [tab, setTab] = useState<Tab>("embed")
+	const [tab, setTab] = useState<Tab>("export")
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [height, setHeight] = useState(DEFAULT_HEIGHT)
 	const [aspectLocked, setAspectLocked] = useState(false)

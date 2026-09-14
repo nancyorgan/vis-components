@@ -29,6 +29,11 @@ export type CartesianInput = {
 	/** Maximum "meaningful" tick count (clamp for axis config). */
 	xMaxTicks?: number
 	yMaxTicks?: number
+	/** True when BOTH bounds of the (continuous) axis are user-pinned — the
+	 * axis then lays out exactly `tickCount` evenly spaced ticks from min
+	 * to max (see `Axis.domainPinned`). */
+	xDomainPinned?: boolean
+	yDomainPinned?: boolean
 	/** Toggles whether ticks, labels, spine, and title render. Gridlines still
 	 * render in the back layer even when this is false — used by faceted
 	 * panels to suppress interior axis decorations while keeping gridline
@@ -133,6 +138,7 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 							config={input.xAxisConfig}
 							fieldType={input.xFieldType}
 							maxMeaningfulTicks={input.xMaxTicks}
+							domainPinned={input.xDomainPinned}
 							tickFont={input.tickFont}
 							titleFont={input.xAxisTitleFont}
 							showTicksAndLabels={input.showXAxis}
@@ -156,6 +162,7 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 							config={input.yAxisConfig}
 							fieldType={input.yFieldType}
 							maxMeaningfulTicks={input.yMaxTicks}
+							domainPinned={input.yDomainPinned}
 							tickFont={input.tickFont}
 							titleFont={input.yAxisTitleFont}
 							showTicksAndLabels={input.showYAxis}

@@ -742,6 +742,7 @@ export const PlotCanvas = () => {
 					yMaxOverride,
 					measureMinOverride,
 					measureMaxOverride,
+					measurePinnedBounds,
 					rMinOverride,
 					rMaxOverride,
 					radiusScale,
@@ -813,6 +814,7 @@ export const PlotCanvas = () => {
 					yMaxOverride,
 					measureMinOverride,
 					measureMaxOverride,
+					measurePinnedBounds,
 					// Histogram measure-color global domain max (undefined
 					// unless a Count/Density color/opacity source is active).
 					measureColorMaxOverride,

@@ -392,6 +392,14 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 			.domain([measureMin, measureMax])
 			.range(isVertical ? [inner.y1, inner.y0] : [inner.x0, inner.x1])
 			.nice()
+		// `.nice()` rounds the auto-fit ends outward; a USER-pinned end
+		// (Scale range / facet override) must stay exactly where typed.
+		const pinned = props.measurePinnedBounds
+		if (pinned?.min != null || pinned?.max != null) {
+			const [d0, d1] = measureScale.domain()
+			measureScale.domain([pinned.min ?? d0, pinned.max ?? d1])
+		}
+		const measurePinned = pinned?.min != null && pinned?.max != null
 
 		const xScale: PositionScale = isVertical ? categoryScale : measureScale
 		const yScale: PositionScale = isVertical ? measureScale : categoryScale
@@ -399,6 +407,8 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 		return cartesian({
 			xScale,
 			yScale,
+			xDomainPinned: !isVertical && measurePinned,
+			yDomainPinned: isVertical && measurePinned,
 			xAxisConfig: channelConfigs.x,
 			yAxisConfig: channelConfigs.y,
 			xLabel: isVertical
@@ -1488,6 +1498,8 @@ export const buildAreaAnchors = ({
 				cy: aggregation.isVertical ? measurePoint : px,
 				key: `${sv.stack.category}|${layerKey}`,
 				label: formatted,
+				// Raw value feeds the conditional text-color / position rules.
+				labelValue,
 				hueValue,
 				sizeValue,
 				opacityMul: sliceOpacity?.(meta?.groupValues ?? {}),

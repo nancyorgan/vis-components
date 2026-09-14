@@ -1113,3 +1113,100 @@ describe("Axis 'Adjust position' nudge (tick labels only)", () => {
 		)
 	})
 })
+
+describe("Axis domainPinned (Scale range min + max both set)", () => {
+	// Count + Scale range compose: with both ends pinned the axis lays out
+	// exactly `tickCount` evenly spaced ticks from min to max inclusive,
+	// instead of d3's nice density-hint ticks (which for 0.04–0.24 / 6 gave
+	// 0.05, 0.10, 0.15, 0.20 — neither the count nor the ends).
+	const pinnedScale = scaleLinear().domain([0.04, 0.24]).range([400, 0])
+
+	const cfg = (extra: Record<string, unknown> = {}) => ({
+		tickCount: 6,
+		customFormat: "",
+		tickLabelAngle: 0,
+		jitterAmount: 0,
+		gridlines: { enabled: true, color: "#abcdef", thickness: 1, count: null },
+		tickmarks: { color: "#000", thickness: 1, length: 5 },
+		spine: { color: "#000", thickness: 1 },
+		distributionOverlay: {
+			showDensityViolin: false,
+			showBoxPlot: false,
+			showPoints: true,
+			color: "#000",
+			fillColor: "#000",
+			colorOverrides: {},
+			fillColorOverrides: {},
+		},
+		categoricalTickStride: 1,
+		min: 0.04,
+		max: 0.24,
+		...extra,
+	})
+
+	const mount = (config: ReturnType<typeof cfg>, domainPinned: boolean) =>
+		render(
+			wrapInSvg(
+				<Axis
+					scale={pinnedScale}
+					orientation="y"
+					inner={inner}
+					label="Y"
+					fieldType="quantitative"
+					config={config}
+					domainPinned={domainPinned}
+				/>
+			)
+		).container
+
+	const tickLabels = (container: HTMLElement): string[] =>
+		[...container.querySelectorAll("text")]
+			.map((t) => t.textContent)
+			.filter((s): s is string => !!s && s !== "Y")
+
+	it("lays out exactly tickCount ticks from min to max inclusive", () => {
+		expect(tickLabels(mount(cfg(), true))).toEqual([
+			"0.04",
+			"0.08",
+			"0.12",
+			"0.16",
+			"0.2",
+			"0.24",
+		])
+	})
+
+	it("keeps d3's nice ticks when the domain is not pinned", () => {
+		expect(tickLabels(mount(cfg(), false))).toEqual([
+			"0.05",
+			"0.10",
+			"0.15",
+			"0.20",
+		])
+	})
+
+	it("'Match tick count' gridlines follow the even layout", () => {
+		const container = mount(cfg(), true)
+		const gridYs = [...container.querySelectorAll("line")]
+			.filter((l) => l.getAttribute("stroke") === "#abcdef")
+			.map((l) => Math.round(Number(l.getAttribute("y1"))))
+			.sort((a, b) => a - b)
+		// 6 evenly spaced gridlines across the 400px range → 80px apart.
+		expect(gridYs).toEqual([0, 80, 160, 240, 320, 400])
+	})
+
+	it("custom breaks still add to the even layout", () => {
+		expect(tickLabels(mount(cfg({ breaks: [0.1] }), true))).toEqual([
+			"0.04",
+			"0.08",
+			"0.1",
+			"0.12",
+			"0.16",
+			"0.2",
+			"0.24",
+		])
+	})
+
+	it("Count 0 + pinned domain → no automatic ticks", () => {
+		expect(tickLabels(mount(cfg({ tickCount: 0 }), true))).toEqual([])
+	})
+})

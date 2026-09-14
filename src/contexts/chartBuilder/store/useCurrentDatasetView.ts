@@ -59,9 +59,9 @@ export const currentRawDatasetViewAtom = atom(
 )
 
 /** The raw view with the per-visual wide→long reshape applied when active,
- * BEFORE percent-cell conversion. Kept as its own stage so
- * `reshapeAppliedAtom` can detect the reshape by identity without the
- * percent conversion registering as a reshape. */
+ * BEFORE the percent / dollar cell conversions. Kept as its own stage so
+ * `reshapeAppliedAtom` can detect the reshape by identity without a cell
+ * conversion registering as a reshape. */
 const reshapedDatasetViewAtom = atom((get): DatasetView | undefined =>
 	applyReshapeToView(
 		get(currentRawDatasetViewAtom),
@@ -88,12 +88,11 @@ export const preDerivedDatasetViewAtom = atom((get): DatasetView | undefined =>
 
 /** The dataset view the editor renders: the raw view with the per-visual
  * wide→long reshape applied when active, then percent-formatted cells
- * ("14%") converted to numeric fractions ("0.14") in columns the user has
- * overridden to quantitative, then dollar/comma-formatted cells
- * ("$1,234.56") converted to plain numeric strings in effectively-
- * quantitative columns (tagging those fields with the "dollar" format
- * hint), then the per-visual derived variables appended as computed
- * columns. A derived atom rather than a per-component derive so the view
+ * ("14%") converted to numeric fractions ("0.14") and dollar/comma-
+ * formatted cells ("$1,234.56") converted to plain numeric strings, both
+ * in effectively-quantitative columns (inferred or overridden; tagging
+ * those fields with the "percent" / "dollar" format hint), then the
+ * per-visual derived variables appended as computed columns. A derived atom rather than a per-component derive so the view
  * (and its `fields`/`rows` arrays) keeps a stable identity between store
  * updates — memos and effects may key on it safely. */
 export const currentDatasetViewAtom = atom((get): DatasetView | undefined =>
@@ -107,7 +106,7 @@ export const currentDatasetViewAtom = atom((get): DatasetView | undefined =>
  * `applyReshapeToView` passes the raw view through by identity when it
  * doesn't apply, so an object comparison is exact. Drives the tray button's
  * "Reshape ✓" active state. Compares the reshape STAGE, not the final view,
- * so percent-cell conversion alone doesn't read as a reshape. */
+ * so a cell conversion alone doesn't read as a reshape. */
 export const reshapeAppliedAtom = atom((get): boolean => {
 	const raw = get(currentRawDatasetViewAtom)
 	return raw !== undefined && get(reshapedDatasetViewAtom) !== raw

@@ -1167,6 +1167,12 @@ export const currentRenderedFigureSlackAtom = atom<{
  *  Null until a gradient bar has rendered. */
 export const currentRenderedGradientBarLengthAtom = atom<number | null>(null)
 
+/** Rendered width (px) of the legend's inner box, published by `Legend`
+ *  after each render, so the Legend panel's "Legend width" input can show
+ *  the auto width as its placeholder and step from it on first interaction
+ *  instead of jumping to 0. Null until a legend has rendered. */
+export const currentRenderedLegendWidthAtom = atom<number | null>(null)
+
 /** Effective top-left-anchored X of an AUTO (insideX = null) inside legend,
  *  published by ChartCanvas's InsideLegendLayout after each measure. The
  *  Legend panel's X input shows it as the placeholder so typing/stepping

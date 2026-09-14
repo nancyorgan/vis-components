@@ -2085,3 +2085,129 @@ describe("Legend — bar-mode categorical flip only applies when stacked", () =>
 		expect(labelOrder(container)).toEqual(["Alpha", "Beta"])
 	})
 })
+
+/** "Legend width": a user-fixed box width (px truth) replaces the auto
+ *  estimate in every position and flips label overflow from truncating /
+ *  row-widening to WRAPPING (via the `vc-legend-fixed-width` hook class the
+ *  CSS keys on). Blank / ≤ 0 keeps the historical content sizing. */
+describe("Legend — fixed legend width", () => {
+	const DATASET_ID = "ds-legend-fixed-width"
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "tiers",
+			filename: "tiers.csv",
+			fields: [
+				{ name: "Tier", inferredType: "categorical" },
+				{ name: "Region", inferredType: "categorical" },
+			],
+			rows: [
+				{ Tier: "A", Region: "east" },
+				{ Tier: "B", Region: "west" },
+			],
+		})
+
+	const mountLegend = (legend: Partial<LegendConfig>) => {
+		const store = installInMemoryLocalStorage()
+		const encodings = {
+			...emptyEncodings(),
+			hue: { field: "Tier" },
+			shape: { field: "Region" },
+		}
+		const channelConfigs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			shape: DEFAULT_SHAPE_CONFIG,
+		}
+		const legendCfg: LegendConfig = { ...DEFAULT_LEGEND_CONFIG, ...legend }
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		store.set(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify(channelConfigs)
+		)
+		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, channelConfigs)
+			snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+			snap.set(currentLegendConfigAtom, legendCfg)
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+
+	const outer = (container: HTMLElement): HTMLElement =>
+		container.querySelector<HTMLElement>("[data-legend-root]") as HTMLElement
+	const inner = (container: HTMLElement): HTMLElement =>
+		container.querySelector<HTMLElement>(
+			"[data-legend-root] > div"
+		) as HTMLElement
+
+	it("auto (null) keeps the content-sized box and truncating labels", () => {
+		const { container } = mountLegend({ width: null })
+		expect(outer(container).style.width).not.toBe("300px")
+		expect(inner(container).classList.contains("vc-legend-fixed-width")).toBe(
+			false
+		)
+	})
+
+	it("a fixed width pins the outer box and switches the inner to the wrap hook", () => {
+		const { container } = mountLegend({ width: 300 })
+		expect(outer(container).style.width).toBe("300px")
+		expect(outer(container).style.maxWidth).toBe("")
+		const box = inner(container)
+		expect(box.classList.contains("vc-legend-fixed-width")).toBe(true)
+		expect(box.classList.contains("block")).toBe(true)
+		expect(box.style.width).toBe("100%")
+	})
+
+	it("applies in every position, including inside and top", () => {
+		for (const position of ["inside", "top", "bottom", "left"] as const) {
+			const { container, unmount } = mountLegend({ width: 180, position })
+			expect(outer(container).style.width).toBe("180px")
+			expect(
+				inner(container).classList.contains("vc-legend-fixed-width")
+			).toBe(true)
+			unmount()
+		}
+	})
+
+	it("wins over the multi-column viewport cap", () => {
+		const { container } = mountLegend({ width: 260, columns: 2 })
+		expect(outer(container).style.width).toBe("260px")
+		expect(outer(container).style.maxWidth).toBe("")
+		// Multi-column normally hugs content (`fit-content`); fixed fills.
+		expect(inner(container).style.width).toBe("100%")
+	})
+
+	it("≤ 0 reads as auto", () => {
+		const { container } = mountLegend({ width: 0 })
+		expect(inner(container).classList.contains("vc-legend-fixed-width")).toBe(
+			false
+		)
+	})
+
+	it("horizontal entries carry the shrink + wrap marker classes the CSS keys on", () => {
+		const { container } = mountLegend({ width: 200, orientation: "horizontal" })
+		const entries = container.querySelectorAll(".vc-legend-hentry")
+		const labels = container.querySelectorAll(".vc-legend-label")
+		// Two hue entries (Swatch) + two shape entries (ShapeLegend).
+		expect(entries.length).toBe(4)
+		expect(labels.length).toBe(4)
+	})
+})

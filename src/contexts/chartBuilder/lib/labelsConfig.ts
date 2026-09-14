@@ -1,4 +1,5 @@
 import { ptToPx } from "./fontUnit"
+import type { DisplayUnit } from "./displayUnits"
 
 // ---------------------------------------------------------------------------
 // Font types
@@ -421,6 +422,17 @@ export type LegendConfig = {
 	 * the top-left-anchored coord above. */
 	insideX: number | null
 	insideY: number
+	/** Fixed width of the legend box in PIXELS (the px-truth behind the
+	 * sidebar's "Legend width" input, whatever unit it displays). `null` /
+	 * absent = auto: the legend sizes itself to its content as it always
+	 * has. When set, the box is exactly this wide in every position, and any
+	 * label that no longer fits WRAPS onto extra lines instead of truncating
+	 * with an ellipsis (stacked entries) or pushing the row wider
+	 * (horizontal entries). Values ≤ 0 read as auto. */
+	width?: number | null
+	/** Display unit for the "Legend width" input — px / in / cm at the
+	 * CSS-standard 96 px/inch. DISPLAY-ONLY: `width` stays px. Absent = px. */
+	widthUnit?: DisplayUnit
 	/** Per-channel hide flags. A channel set to `true` is suppressed even
 	 * when its encoding is mapped (handy for hiding redundant hue legends
 	 * when hue and facet share a field). */
@@ -587,6 +599,7 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	// inset so the legend doesn't kiss the top spine.
 	insideX: null,
 	insideY: 0.98,
+	width: null,
 	hidden: {},
 	showBorder: false,
 	borderColor: "#e2e8f0",

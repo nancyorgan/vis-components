@@ -50,10 +50,14 @@ export const ShapeLegend = ({
 	const fallbackStroke = legendStrokeColor ?? "#1f2937"
 	void outlineColor
 	const isHorizontal = orientation === "horizontal"
+	// `vc-legend-hentry` / `vc-legend-label` let a fixed-width legend
+	// (`.vc-legend-fixed-width`) shrink the cell and wrap the label.
 	const cellClass = isHorizontal
-		? "flex flex-shrink-0 items-center gap-1.5"
+		? "vc-legend-hentry flex flex-shrink-0 items-center gap-1.5"
 		: "flex items-center gap-2"
-	const labelClass = isHorizontal ? "whitespace-nowrap" : "min-w-0 truncate"
+	const labelClass = isHorizontal
+		? "vc-legend-label whitespace-nowrap"
+		: "min-w-0 truncate"
 	// Swatch-size control: radius of each glyph; the box grows with it so
 	// larger glyphs don't clip (16px floor keeps the default look unchanged).
 	const r = swatchSize ?? 5

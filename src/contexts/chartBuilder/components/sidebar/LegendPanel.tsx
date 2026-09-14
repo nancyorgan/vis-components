@@ -6,6 +6,13 @@ import {
 	densityCurveOn,
 } from "../../lib/colorSlots"
 import { CHIP_INK } from "../../lib/previewInk"
+import {
+	PX_PER_UNIT,
+	UNIT_OPTIONS,
+	UNIT_STEP,
+	pxToUnit,
+	type DisplayUnit,
+} from "../../lib/displayUnits"
 import { effectiveType } from "../../lib/fieldType"
 import { histogramMeasureColorDomain } from "../../lib/histogramMeasureColor"
 import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
@@ -53,6 +60,7 @@ import {
 	currentLegendConfigAtom,
 	currentRenderedGradientBarLengthAtom,
 	currentRenderedInsideAutoXAtom,
+	currentRenderedLegendWidthAtom,
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
@@ -318,6 +326,48 @@ export const LegendPanel = () => {
 			: undefined
 
 	const update = (next: Partial<LegendConfig>) => setCfg({ ...merged, ...next })
+
+	// "Legend width": px-truth (`merged.width`) shown in the user's display
+	// unit. Blank = auto, with the RENDERED auto width (published by Legend
+	// after each render) as the placeholder, so the first interaction —
+	// focus, spinner click, or arrow key — steps from the visible number
+	// instead of jumping to 0 ([[auto-input-step-from-displayed]]). The px
+	// value is stored UNROUNDED (7.5 cm = 283.46px) so the displayed unit
+	// value round-trips exactly and the field never rewrites what was typed;
+	// the renderer rounds. `widthDraft` holds in-progress text ("1.", "0.2")
+	// that a px→unit round trip would otherwise clobber mid-keystroke.
+	const widthUnit: DisplayUnit = merged.widthUnit ?? "px"
+	const autoLegendWidth = useAtomValue(currentRenderedLegendWidthAtom)
+	const [widthDraft, setWidthDraft] = useState<string | null>(null)
+	const widthToUnit = (px: number): number =>
+		widthUnit === "px" ? Math.round(px) : pxToUnit(px, widthUnit)
+	const widthDisplay =
+		widthDraft ?? (merged.width != null ? String(widthToUnit(merged.width)) : "")
+	const widthPlaceholder =
+		autoLegendWidth != null ? String(widthToUnit(autoLegendWidth)) : "auto"
+	const commitWidthText = (text: string) => {
+		const trimmed = text.trim()
+		if (trimmed === "") {
+			setWidthDraft(null)
+			update({ width: null })
+			return
+		}
+		setWidthDraft(text)
+		const n = Number(trimmed)
+		if (!Number.isFinite(n)) return
+		update({ width: Math.max(0, n * PX_PER_UNIT[widthUnit]) })
+	}
+	const stepWidth = (dir: 1 | -1) => {
+		const startPx = merged.width ?? autoLegendWidth ?? 0
+		const stepSize = UNIT_STEP[widthUnit]
+		const decimals = (String(stepSize).split(".")[1] ?? "").length
+		const nextUnit = Math.max(
+			0,
+			Number((widthToUnit(startPx) + stepSize * dir).toFixed(decimals))
+		)
+		setWidthDraft(String(nextUnit))
+		update({ width: nextUnit * PX_PER_UNIT[widthUnit] })
+	}
 
 	// Rendered auto length of the gradient bar, published by the legend's
 	// GradientBarRamp after each render. Placeholder + step start for the
@@ -843,6 +893,73 @@ export const LegendPanel = () => {
 								/>
 							</>
 						)}
+					</div>
+
+					{/* Legend width group — a fixed box width (px truth, shown in
+					 *  px / in / cm) between Position and Orientation. Blank = auto.
+					 *  Labels that stop fitting wrap onto extra lines in the render. */}
+					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+						<div className="flex items-center gap-2">
+							<label className="flex items-center gap-2 text-sm">
+								<span className={LABEL_COL}>Legend width</span>
+								<input
+									type="number"
+									min={0}
+									step={UNIT_STEP[widthUnit]}
+									value={widthDisplay}
+									placeholder={widthPlaceholder}
+									onChange={(e) => commitWidthText(e.target.value)}
+									onBlur={() => setWidthDraft(null)}
+									// Native spinner buttons fire no keydown — from a blank
+									// input they'd jump to 0. Seed the rendered auto width
+									// on focus so every interaction steps from the visible
+									// number; clearing the field reverts to auto.
+									onFocus={() => {
+										if (merged.width != null) return
+										if (autoLegendWidth == null) return
+										update({ width: autoLegendWidth })
+									}}
+									// Belt-and-suspenders for the first arrow press racing
+									// the focus-fill.
+									onKeyDown={(e) => {
+										if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
+										e.preventDefault()
+										stepWidth(e.key === "ArrowUp" ? 1 : -1)
+									}}
+									aria-label="Legend width"
+									className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+								/>
+							</label>
+							<select
+								aria-label="Legend width unit"
+								value={widthUnit}
+								onChange={(e) => {
+									setWidthDraft(null)
+									update({ widthUnit: e.target.value as DisplayUnit })
+								}}
+								className="rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+							>
+								{UNIT_OPTIONS.map((u) => (
+									<option key={u} value={u}>
+										{u}
+									</option>
+								))}
+							</select>
+							{merged.width != null && (
+								<ResetLink
+									onClick={() => {
+										setWidthDraft(null)
+										update({ width: null })
+									}}
+								/>
+							)}
+						</div>
+						<p className="vc-help">
+							Fixes the legend box at this width in every position; leave
+							blank to size it to its content. Labels that no longer fit
+							wrap onto extra lines. Inches and cm convert at the standard
+							96 px/inch.
+						</p>
 					</div>
 
 					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">

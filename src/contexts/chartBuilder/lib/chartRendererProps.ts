@@ -111,6 +111,13 @@ export type MeasureAxisRendererProps = PerAxisScalesRendererProps & {
 	/** Lower bound for the measure axis. Defaults to 0 (the bar-/area-
 	 *  baseline convention) when unset. */
 	measureMinOverride?: number
+	/** The subset of `measureMin/MaxOverride` the USER pinned (Scale range
+	 *  or a facet range override) — as opposed to the shared-group data
+	 *  extent PlotCanvas falls back to on shared axes. Pinned ends are
+	 *  restored exactly after the measure scale's `.nice()` (user-set
+	 *  bounds are respected, never rounded outward), and when both are
+	 *  set the axis lays out exactly `tickCount` evenly spaced ticks. */
+	measurePinnedBounds?: { min?: number; max?: number }
 	/** Histogram measure-color (Fill color / opacity varying by Count /
 	 *  Density): the GLOBAL domain max every panel's bars AND the legend
 	 *  ramp share. PlotCanvas sets it (via `histogramMeasureColorDomain`)

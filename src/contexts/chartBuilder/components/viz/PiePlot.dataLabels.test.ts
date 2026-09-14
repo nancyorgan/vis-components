@@ -149,4 +149,13 @@ describe("buildPieAnchors — sparse value column (valueFieldMapped)", () => {
 		expect(anchors.find((a) => a.key === "A|n")?.label).toBe("peak")
 		expect(anchors.find((a) => a.key === "A|s")?.label).toBe("3")
 	})
+
+	it("carries the RAW labelValue so text-color / position rules compare numerically", () => {
+		const anchors = buildPieAnchors({
+			...baseArgs,
+			stacks: sparseStacks as any,
+		})
+		expect(anchors.find((a) => a.key === "A|n")?.labelValue).toBe("peak")
+		expect(anchors.find((a) => a.key === "A|s")?.labelValue).toBe(3)
+	})
 })

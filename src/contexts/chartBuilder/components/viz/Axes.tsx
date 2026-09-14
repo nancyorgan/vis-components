@@ -7,6 +7,9 @@ import {
 } from "../../lib/channelConfig"
 import { ptToPx, resolveTickFontSizePx } from "../../lib/fontUnit"
 import { estimateLongestLineWidth } from "../../lib/estimateMargins"
+import { format as d3Format } from "d3-format"
+
+import { evenlySpacedTicks } from "../../lib/evenTicks"
 import { buildTickFormatter } from "../../lib/formatTick"
 import {
 	textAnchorFromAlignment,
@@ -86,6 +89,15 @@ type Props = {
 	 * spine crosses the OPPOSING scale at 0 instead of hugging the edge.
 	 * Only the spine line moves — ticks, labels, and title stay at the edge. */
 	spinePosition?: number
+	/** True when BOTH ends of this continuous axis are user-pinned (Scale
+	 * range min + max, or a facet range override). The automatic tick layout
+	 * then places exactly `tickCount` evenly spaced ticks from min to max
+	 * inclusive instead of d3's "nice" density-hint ticks, so the Count and
+	 * Scale range controls compose the way users expect (0.04–0.24 with
+	 * Count 6 → 0.04, 0.08, …, 0.24). Gridlines in "match tick count" mode
+	 * (and explicit gridline counts) follow the same rule. Ignored on
+	 * categorical axes. */
+	domainPinned?: boolean
 }
 
 const DEFAULT_TICK_COUNT = 5
@@ -107,6 +119,7 @@ export const Axis = ({
 	showTitle = true,
 	opposingAxis,
 	spinePosition,
+	domainPinned = false,
 }: Props) => {
 	const drawBack = layer !== "front"
 	const drawFront = layer !== "back" && showTicksAndLabels
@@ -200,6 +213,29 @@ export const Axis = ({
 	// fully custom ticks). Labels simply follow the ticks.
 	const customBreaks = resolveBreaks(config?.breaks)
 
+	// The AUTOMATIC tick layout for a continuous axis, shared by the tick
+	// list and the gridlines' "match tick count" / explicit-count modes.
+	// Default: d3's nice ticks (`count` is a density hint). Fully pinned
+	// domain: exactly `count` evenly spaced values from min to max inclusive
+	// — the user chose both ends, so the ticks land on them.
+	const useEvenTicks = domainPinned && isContinuousScale
+	const autoTicks = (count: number): unknown[] => {
+		if (count <= 0 || !isContinuousScale) return []
+		const s = scale as unknown as {
+			ticks: (count: number) => unknown[]
+			domain: () => unknown[]
+		}
+		if (!useEvenTicks) return s.ticks(count)
+		const dom = s.domain()
+		const toNum = (v: unknown) => (v instanceof Date ? v.getTime() : Number(v))
+		const even = evenlySpacedTicks(
+			toNum(dom[0]),
+			toNum(dom[dom.length - 1]),
+			count
+		)
+		return fieldType === "temporal" ? even.map((ms) => new Date(ms)) : even
+	}
+
 	const ticks: Array<{ pos: number; label: string }> = (() => {
 		const s = scale as unknown as {
 			ticks?: (count: number) => unknown[]
@@ -210,12 +246,19 @@ export const Axis = ({
 		if (typeof s.ticks === "function") {
 			// `tickCount: 0` is a valid "no automatic ticks" request — custom
 			// breaks (if any) then carry the whole tick list.
-			const auto = tickCount === 0 ? [] : s.ticks(tickCount)
+			const auto = autoTicks(tickCount)
 			const values = [...auto, ...(customBreaks ?? [])]
 			if (values.length === 0) return []
-			const fallback = s.tickFormat?.(
-				tickCount > 0 ? tickCount : Math.max(2, DEFAULT_TICK_COUNT)
-			)
+			// Even ticks on a pinned quantitative axis can step by values d3's
+			// nice-step precision would truncate (0–1 in 4 → 0.333…), so
+			// format them at their own precision, trimming trailing zeros.
+			// Temporal axes keep d3's multi-scale time formatter.
+			const fallback =
+				useEvenTicks && fieldType !== "temporal"
+					? (v: unknown) => d3Format(",~f")(Number(v))
+					: s.tickFormat?.(
+							tickCount > 0 ? tickCount : Math.max(2, DEFAULT_TICK_COUNT)
+						)
 			const fmt = customFmt ?? fallback
 			// Sort by axis value (breaks land between the auto ticks) and de-dup
 			// on pixel position so a break that coincides with an auto tick
@@ -362,9 +405,9 @@ export const Axis = ({
 				// gridline up with a pinned tick). Specific numbers decouple
 				// gridlines from ticks entirely.
 				const requestedGridCount = grid.count ?? tickCount
-				return s
-					.ticks(requestedGridCount)
-					.map((v) => (scale as unknown as (x: unknown) => number)(v))
+				return autoTicks(requestedGridCount).map((v) =>
+					(scale as unknown as (x: unknown) => number)(v)
+				)
 			}
 			// Categorical — derive gridline positions from the same stride logic
 			// the ticks use. The previous behavior was "one gridline per

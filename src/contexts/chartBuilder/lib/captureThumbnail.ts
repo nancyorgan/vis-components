@@ -309,6 +309,70 @@ const appendLegendCapture = (
 		wrapper.append(rect)
 	}
 
+	// A text node that WRAPS (fixed-width legends let labels flow onto extra
+	// lines) spans several line boxes. Emitting one <text> for the whole node
+	// would print the full label on one overlong line at the block's vertical
+	// center, so split it into its rendered lines: walk the characters, group
+	// consecutive ones by line-box top, and union each group's rects. Single-
+	// line text (the common case, and any environment without per-range
+	// client rects) takes the one-rect fast path.
+	const renderedLines = (
+		node: Node,
+		content: string
+	): Array<{ text: string; rect: DOMRect }> => {
+		const range = doc.createRange()
+		range.selectNodeContents(node)
+		const whole = range.getBoundingClientRect()
+		const single = [{ text: content, rect: whole }]
+		if (node.nodeType !== Node.TEXT_NODE) return single
+		const raw = node.textContent ?? ""
+		const lineRects =
+			typeof range.getClientRects === "function"
+				? range.getClientRects()
+				: undefined
+		if (!lineRects || lineRects.length <= 1) return single
+		const lines: Array<{
+			chars: string[]
+			left: number
+			right: number
+			top: number
+			bottom: number
+		}> = []
+		for (let i = 0; i < raw.length; i++) {
+			range.setStart(node, i)
+			range.setEnd(node, i + 1)
+			const r = range.getBoundingClientRect()
+			// Collapsed whitespace at a wrap point has no box; attach it to the
+			// current line so word spacing inside a line is preserved.
+			if (r.width === 0 && r.height === 0) {
+				lines.at(-1)?.chars.push(raw[i])
+				continue
+			}
+			const last = lines.at(-1)
+			if (last && Math.abs(last.top - r.top) < 1) {
+				last.chars.push(raw[i])
+				last.left = Math.min(last.left, r.left)
+				last.right = Math.max(last.right, r.right)
+				last.bottom = Math.max(last.bottom, r.bottom)
+			} else {
+				lines.push({
+					chars: [raw[i]],
+					left: r.left,
+					right: r.right,
+					top: r.top,
+					bottom: r.bottom,
+				})
+			}
+		}
+		const out = lines
+			.map((l) => ({
+				text: l.chars.join("").replaceAll(/\s+/g, " ").trim(),
+				rect: new DOMRect(l.left, l.top, l.right - l.left, l.bottom - l.top),
+			}))
+			.filter((l) => l.text !== "")
+		return out.length > 0 ? out : single
+	}
+
 	const addText = (
 		node: Node,
 		style: CSSStyleDeclaration,
@@ -316,30 +380,30 @@ const appendLegendCapture = (
 	) => {
 		const content = (node.textContent ?? "").replaceAll(/\s+/g, " ").trim()
 		if (!content) return
-		const range = doc.createRange()
-		range.selectNodeContents(node)
-		const r = range.getBoundingClientRect()
-		if (r.width === 0 || r.height === 0) return
-		const text = doc.createElementNS(SVG_NS, "text")
-		text.setAttribute("x", String(r.left - origin.left))
-		text.setAttribute("y", String(r.top + r.height / 2 - origin.top))
-		text.setAttribute("dominant-baseline", "central")
-		text.setAttribute("font-size", style.fontSize || "16px")
-		text.setAttribute(
-			"font-family",
-			style.fontFamily || "system-ui, sans-serif"
-		)
-		text.setAttribute("font-weight", style.fontWeight || "400")
-		if (style.fontStyle && style.fontStyle !== "normal") {
-			text.setAttribute("font-style", style.fontStyle)
+		for (const line of renderedLines(node, content)) {
+			const r = line.rect
+			if (r.width === 0 || r.height === 0) continue
+			const text = doc.createElementNS(SVG_NS, "text")
+			text.setAttribute("x", String(r.left - origin.left))
+			text.setAttribute("y", String(r.top + r.height / 2 - origin.top))
+			text.setAttribute("dominant-baseline", "central")
+			text.setAttribute("font-size", style.fontSize || "16px")
+			text.setAttribute(
+				"font-family",
+				style.fontFamily || "system-ui, sans-serif"
+			)
+			text.setAttribute("font-weight", style.fontWeight || "400")
+			if (style.fontStyle && style.fontStyle !== "normal") {
+				text.setAttribute("font-style", style.fontStyle)
+			}
+			if (style.textDecorationLine.includes("underline")) {
+				text.setAttribute("text-decoration", "underline")
+			}
+			text.setAttribute("fill", style.color)
+			if (opacity < 1) text.setAttribute("opacity", String(opacity))
+			text.textContent = line.text
+			wrapper.append(text)
 		}
-		if (style.textDecorationLine.includes("underline")) {
-			text.setAttribute("text-decoration", "underline")
-		}
-		text.setAttribute("fill", style.color)
-		if (opacity < 1) text.setAttribute("opacity", String(opacity))
-		text.textContent = content
-		wrapper.append(text)
 	}
 
 	// `inherited` accumulates ancestor opacity — computed style only reports

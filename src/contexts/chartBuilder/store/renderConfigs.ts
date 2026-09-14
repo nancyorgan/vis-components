@@ -2,11 +2,12 @@ import { atom } from "jotai"
 
 import type { ChannelConfigs, DataLabelsConfig } from "../lib/channelConfig"
 import {
-	applyDollarDefaultsToChannelConfigs,
-	applyDollarDefaultsToDataLabels,
-	applyDollarDefaultsToLegendConfig,
-	dollarFieldSet,
-} from "../lib/dollarFormatDefaults"
+	applyFormatHintsToChannelConfigs,
+	applyFormatHintsToDataLabels,
+	applyFormatHintsToLegendConfig,
+	hintedFormats,
+	type HintedFormats,
+} from "../lib/formatHintDefaults"
 import type { LegendConfig } from "../lib/labelsConfig"
 
 import {
@@ -17,28 +18,29 @@ import {
 } from "./atoms"
 import { currentDatasetViewAtom } from "./useCurrentDatasetView"
 
-/** Names of the current view's fields whose raw cells were dollar-formatted
- * ("$1,234.56") — tagged by `applyDollarConversionToView` at the view seam. */
-export const dollarFieldsAtom = atom(
-	(get): ReadonlySet<string> => dollarFieldSet(get(currentDatasetViewAtom)),
+/** Default format spec per current-view field whose raw cells were
+ * dollar-formatted ("$1,234.56") or percent-formatted ("14%") — tagged by
+ * the cell conversions at the view seam. */
+export const hintedFormatsAtom = atom(
+	(get): HintedFormats => hintedFormats(get(currentDatasetViewAtom)),
 )
 
-/** RENDER-side channel configs: the stored configs with the dollar format
- * default folded in — an axis mapped to a dollar-hinted field whose Format
- * is still "Auto" renders as currency ("$1,234.56") without any config
- * write.
+/** RENDER-side channel configs: the stored configs with the format-hint
+ * defaults folded in — an axis mapped to a dollar- or percent-hinted field
+ * whose Format is still "Auto" renders as "$1,234.56" / "14%" without any
+ * config write.
  *
  * Read these from the chart / legend / solver render path ONLY. The sidebar
  * panels and the persistence layer (save/autosave) must keep reading
  * `currentChannelConfigsAtom` — the stored value stays "", so the Format box
  * still shows Auto, the theme-diff "changed" dot stays honest, and clearing
- * a user spec returns to the dollar default rather than baking it in. */
+ * a user spec returns to the hint default rather than baking it in. */
 export const renderChannelConfigsAtom = atom(
 	(get): ChannelConfigs =>
-		applyDollarDefaultsToChannelConfigs(
+		applyFormatHintsToChannelConfigs(
 			get(currentChannelConfigsAtom),
 			get(currentEncodingsAtom),
-			get(dollarFieldsAtom),
+			get(hintedFormatsAtom),
 		),
 )
 
@@ -47,10 +49,10 @@ export const renderChannelConfigsAtom = atom(
  * break-label formats. */
 export const renderLegendConfigAtom = atom(
 	(get): LegendConfig =>
-		applyDollarDefaultsToLegendConfig(
+		applyFormatHintsToLegendConfig(
 			get(currentLegendConfigAtom),
 			get(currentEncodingsAtom),
-			get(dollarFieldsAtom),
+			get(hintedFormatsAtom),
 		),
 )
 
@@ -58,8 +60,8 @@ export const renderLegendConfigAtom = atom(
  * {@link renderChannelConfigsAtom}, for per-field label formats. */
 export const renderDataLabelsConfigAtom = atom(
 	(get): DataLabelsConfig =>
-		applyDollarDefaultsToDataLabels(
+		applyFormatHintsToDataLabels(
 			get(currentDataLabelsConfigAtom),
-			get(dollarFieldsAtom),
+			get(hintedFormatsAtom),
 		),
 )

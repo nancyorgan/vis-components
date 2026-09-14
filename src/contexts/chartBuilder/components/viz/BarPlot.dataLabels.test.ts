@@ -170,6 +170,22 @@ describe("buildBarAnchors — sparse value column (valueFieldMapped)", () => {
 		expect(anchors.find((a) => a.key === "A|")?.label).toBe("call-out")
 		expect(anchors.find((a) => a.key === "B|")?.label).toBe("20")
 	})
+
+	it("carries the RAW labelValue alongside the formatted label so text-color / position rules can compare numerically", () => {
+		// Regression: bar anchors used to omit `labelValue`, so
+		// `resolveLabelFill` saw `undefined` and no conditional rule ever fired
+		// on bar charts (while scatter / lollipop labels, which go through the
+		// per-row path, worked).
+		const anchors = buildBarAnchors({
+			aggregation: sparseAggregation as any,
+			categoryScale,
+			measureScale,
+			modes: [],
+			decimals: null,
+		})
+		expect(anchors.find((a) => a.key === "A|")?.labelValue).toBe("call-out")
+		expect(anchors.find((a) => a.key === "B|")?.labelValue).toBe(20)
+	})
 })
 
 describe("buildBarAnchors — negative slices", () => {

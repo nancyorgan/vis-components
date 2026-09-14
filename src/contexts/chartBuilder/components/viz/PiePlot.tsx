@@ -870,6 +870,8 @@ export const buildPieAnchors = ({
 				cy,
 				key: `${stack.category}|${slice.key}`,
 				label: formatted,
+				// Raw value feeds the conditional text-color / position rules.
+				labelValue,
 				hueValue,
 				sizeValue,
 				opacityMul: sliceOpacity?.(slice.groupValues),

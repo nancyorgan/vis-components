@@ -1,4 +1,5 @@
-import { useAtomValue } from "jotai"
+import { useEffect, useRef } from "react"
+import { useAtomValue, useSetAtom } from "jotai"
 import { DEFAULT_OPACITY } from "../../lib/channelConfig"
 import { isFlowModeId } from "../../lib/packedMeasure"
 import { resolveStackMode } from "../../lib/stackMode"
@@ -25,6 +26,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
+	currentRenderedLegendWidthAtom,
 	currentThemeIdAtom,
 	currentTooltipConfigAtom,
 	themeAtom,
@@ -133,6 +135,18 @@ export const Legend = ({
 		legendCfg.auxLegendSwatchStroke ?? theme.legendSwatchStroke ?? "#ffffff"
 	const dataset = useCurrentDatasetView()
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
+	// Publish the inner box's rendered width so the sidebar's "Legend width"
+	// input can show the auto width as its placeholder (and step from it).
+	// Hooks stay above the early returns below. No deps: cheap, and the width changes with data, fonts, and every
+	// legend option, so re-measuring after each render is the honest signal.
+	const innerRef = useRef<HTMLDivElement | null>(null)
+	const setRenderedWidth = useSetAtom(currentRenderedLegendWidthAtom)
+	useEffect(() => {
+		const el = innerRef.current
+		if (!el) return
+		const px = el.offsetWidth
+		if (px > 0) setRenderedWidth(Math.round(px))
+	})
 	const modeDef = useChartModeDef()
 	// Fold the mode's default-hidden channels (e.g. the Size legend starts
 	// off in flow / hierarchy modes) into the effective map so every
@@ -199,7 +213,7 @@ export const Legend = ({
 			className={outerClass}
 			style={pullStyle ? { ...outerStyle, ...pullStyle } : outerStyle}
 		>
-			<div className={innerClass} style={innerStyle}>
+			<div ref={innerRef} className={innerClass} style={innerStyle}>
 				{(() => {
 					const sectionNodes = sections.map((s) => {
 						// Pick a channel key for font / title override lookups. A

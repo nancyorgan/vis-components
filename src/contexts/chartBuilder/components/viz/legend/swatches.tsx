@@ -337,7 +337,7 @@ export const Swatch = ({
 	<div
 		className={
 			horizontal
-				? "flex flex-shrink-0 items-center gap-1.5"
+				? "vc-legend-hentry flex flex-shrink-0 items-center gap-1.5"
 				: "flex items-center gap-2"
 		}
 	>
@@ -399,7 +399,9 @@ export const Swatch = ({
 		</SwatchCell>
 		<span
 			className={
-				horizontal ? "whitespace-nowrap" : "min-w-0 truncate"
+				horizontal
+					? "vc-legend-label whitespace-nowrap"
+					: "min-w-0 truncate"
 			}
 			title={String(children)}
 		>

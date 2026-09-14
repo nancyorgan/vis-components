@@ -530,6 +530,14 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			.domain([measureMin, measureMax])
 			.range(isVertical ? [inner.y1, inner.y0] : [inner.x0, inner.x1])
 			.nice()
+		// `.nice()` rounds the auto-fit ends outward; a USER-pinned end
+		// (Scale range / facet override) must stay exactly where typed.
+		const pinned = props.measurePinnedBounds
+		if (pinned?.min != null || pinned?.max != null) {
+			const [d0, d1] = measureScale.domain()
+			measureScale.domain([pinned.min ?? d0, pinned.max ?? d1])
+		}
+		const measurePinned = pinned?.min != null && pinned?.max != null
 
 		const xScale: PositionScale = isVertical ? categoryScale : measureScale
 		const yScale: PositionScale = isVertical ? measureScale : categoryScale
@@ -537,6 +545,8 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 		return cartesian({
 			xScale,
 			yScale,
+			xDomainPinned: !isVertical && measurePinned,
+			yDomainPinned: isVertical && measurePinned,
 			xAxisConfig: channelConfigs.x,
 			yAxisConfig: channelConfigs.y,
 			xLabel: isVertical
@@ -1537,6 +1547,9 @@ export const buildBarAnchors = ({
 				cy: aggregation.isVertical ? measurePoint : catCenter,
 				key: `${stack.category}|${slice.key}`,
 				label: formatted,
+				// Raw (unformatted) value so conditional text-color / position
+				// rules compare against the number, not its display string.
+				labelValue,
 				hueValue,
 				sizeValue,
 				opacityMul: sliceOpacity?.(slice.groupValues),
