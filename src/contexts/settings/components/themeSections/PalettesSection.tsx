@@ -6,24 +6,12 @@ import { ColorInput as UiColorInput } from "../../../../components/ui/ColorInput
 import { Section, SectionGroup } from "./controls"
 import {
 	reorderPaletteColors,
+	reorderPalettes,
 	updateCategoricalPalette,
 } from "./paletteHelpers"
 import type { ThemeSectionProps } from "./types"
 
-/** One editable palette card — star (set-as-default), name, swatch row with
- *  add / remove-last and drag-to-reorder. Shared by the categorical and ordinal lists, which
- *  differ only in which theme key holds the default, how a patch is applied,
- *  and what a swatch is called ("Hue" vs "Step"). */
-const PaletteCard = ({
-	palette,
-	isDefault,
-	swatchNoun,
-	deleteDisabled,
-	isReadOnly,
-	onMakeDefault,
-	onUpdate,
-	onDelete,
-}: {
+type PaletteCardProps = {
 	palette: SavedCategoricalPalette
 	isDefault: boolean
 	/** Singular noun for a color slot, used in the swatch's screen-reader
@@ -31,12 +19,36 @@ const PaletteCard = ({
 	swatchNoun: string
 	deleteDisabled: boolean
 	/** The surrounding fieldset disables the inputs, but not a drag on the
-	 *  swatch wrappers — so read-only has to switch dragging off here. */
+	 *  swatch wrappers or the grip — so read-only has to switch dragging
+	 *  off here. */
 	isReadOnly: boolean
+	/** True while this card is the one being dragged through its list. */
+	isDragging: boolean
+	/** Fires when a drag starts on the card's grip. The owning list records
+	 *  which card is moving; the card itself only dims. */
+	onGripDragStart: (e: React.DragEvent) => void
 	onMakeDefault: () => void
 	onUpdate: (patch: Partial<SavedCategoricalPalette>) => void
 	onDelete: () => void
-}) => {
+}
+
+/** One editable palette card — grip (drag the whole palette to reorder the
+ *  list), star (set-as-default), name, swatch row with add / remove-last and
+ *  drag-to-reorder. Shared by the categorical and ordinal lists, which differ
+ *  only in which theme key holds the default, how a patch is applied, and
+ *  what a swatch is called ("Hue" vs "Step"). */
+const PaletteCard = ({
+	palette,
+	isDefault,
+	swatchNoun,
+	deleteDisabled,
+	isReadOnly,
+	isDragging,
+	onGripDragStart,
+	onMakeDefault,
+	onUpdate,
+	onDelete,
+}: PaletteCardProps) => {
 	// Drag-to-reorder state, mirroring the level list in FieldList: the
 	// swatch being dragged and the insertion gap (0..n) under the pointer.
 	const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -56,8 +68,33 @@ const PaletteCard = ({
 	const lastIndex = palette.colors.length - 1
 
 	return (
-	<div className="flex flex-col gap-1.5 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+	<div
+		className={`flex flex-col gap-1.5 rounded-lg border border-stone-200 p-3 dark:border-stone-700 ${
+			isDragging ? "opacity-50" : ""
+		}`}
+	>
 		<div className="flex items-center gap-2">
+			{/* Only the grip is draggable, not the whole card: a draggable
+			 *  ancestor would swallow text selection in the name input and
+			 *  compete with the swatch drags below. */}
+			<span
+				data-testid="palette-drag-handle"
+				aria-hidden
+				draggable={!isReadOnly}
+				title={isReadOnly ? undefined : "Drag to reorder palettes"}
+				onDragStart={(e) => {
+					if (isReadOnly) {
+						e.preventDefault()
+						return
+					}
+					onGripDragStart(e)
+				}}
+				className={`select-none leading-none text-stone-400 dark:text-stone-500 ${
+					isReadOnly ? "" : "cursor-grab"
+				}`}
+			>
+				⠿
+			</span>
 			<button
 				type="button"
 				title={isDefault ? "Default palette" : "Set as default"}
@@ -201,6 +238,116 @@ const PaletteCard = ({
 	)
 }
 
+/** A categorical or ordinal palette list with drag-to-reorder of whole
+ *  cards. Owns the card-level drag state; the per-swatch drags inside each
+ *  card keep their own. The two never collide because each handler bails
+ *  when its own drag index is null — a swatch drag leaves this list's index
+ *  null, and a card drag leaves every swatch's null. Each list has its own
+ *  state, so a categorical card dropped on the ordinal list is ignored. */
+const PaletteList = ({
+	palettes,
+	isReadOnly,
+	onReorder,
+	cardProps,
+}: {
+	palettes: SavedCategoricalPalette[]
+	isReadOnly: boolean
+	onReorder: (next: SavedCategoricalPalette[]) => void
+	cardProps: (
+		palette: SavedCategoricalPalette
+	) => Pick<
+		PaletteCardProps,
+		| "isDefault"
+		| "swatchNoun"
+		| "deleteDisabled"
+		| "onMakeDefault"
+		| "onUpdate"
+		| "onDelete"
+	>
+}) => {
+	const [dragIndex, setDragIndex] = useState<number | null>(null)
+	const [dropSlot, setDropSlot] = useState<number | null>(null)
+	const endDrag = () => {
+		setDragIndex(null)
+		setDropSlot(null)
+	}
+	const activeSlot =
+		dragIndex !== null &&
+		dropSlot !== null &&
+		dropSlot !== dragIndex &&
+		dropSlot !== dragIndex + 1
+			? dropSlot
+			: null
+	const lastIndex = palettes.length - 1
+
+	return (
+		<>
+			{palettes.map((palette, i) => (
+				<div
+					key={palette.id}
+					data-testid="palette-card"
+					onDragOver={(e) => {
+						if (dragIndex === null) return
+						// preventDefault is what marks this card a valid target.
+						e.preventDefault()
+						e.dataTransfer.dropEffect = "move"
+						// Cards stack vertically, so the pointer's half picks the
+						// gap above or below this card.
+						const rect = e.currentTarget.getBoundingClientRect()
+						const after = e.clientY - rect.top > rect.height / 2
+						setDropSlot(after ? i + 1 : i)
+					}}
+					onDrop={(e) => {
+						if (dragIndex === null) return
+						e.preventDefault()
+						if (dropSlot !== null) {
+							const next = reorderPalettes(palettes, dragIndex, dropSlot)
+							if (next) onReorder(next)
+						}
+						endDrag()
+					}}
+					// dragend fires on the grip and bubbles up here. A swatch
+					// drag ending bubbles here too; clearing null state is harmless.
+					onDragEnd={endDrag}
+					className="relative"
+				>
+					{/* Drop indicator: a horizontal line centered in the 8px gap
+					 *  above this card. The trailing gap hangs off the last card's
+					 *  bottom edge. */}
+					{activeSlot === i && (
+						<span
+							aria-hidden
+							data-testid="palette-card-drop-indicator"
+							className="pointer-events-none absolute inset-x-0 -top-[5px] h-0.5 rounded-full bg-indigo-500"
+						/>
+					)}
+					{activeSlot === lastIndex + 1 && i === lastIndex && (
+						<span
+							aria-hidden
+							data-testid="palette-card-drop-indicator"
+							className="pointer-events-none absolute inset-x-0 -bottom-[5px] h-0.5 rounded-full bg-indigo-500"
+						/>
+					)}
+					<PaletteCard
+						palette={palette}
+						isReadOnly={isReadOnly}
+						isDragging={dragIndex === i}
+						onGripDragStart={(e) => {
+							setDragIndex(i)
+							setDropSlot(null)
+							// Firefox refuses to start a drag with no payload, even
+							// though the drop reads the index from local state.
+							e.dataTransfer.setData("text/plain", palette.id)
+							e.dataTransfer.effectAllowed = "move"
+						}}
+						{...cardProps(palette)}
+					/>
+				</div>
+			))}
+		</>
+	)
+}
+
 export const PalettesSection = ({
 	theme,
 	set,
@@ -277,23 +424,23 @@ export const PalettesSection = ({
 				<p className="text-sm text-stone-600 dark:text-stone-400">
 					Named color palettes assigned to categories when hue is mapped to
 					a categorical field. Mark one as the default for new
-					visualizations. Drag swatches to reorder.
+					visualizations. Drag swatches to reorder colors, or drag the ⠿
+					handle to reorder palettes.
 				</p>
-				{theme.categoricalPalettes.map((palette) => (
-					<PaletteCard
-						key={palette.id}
-						palette={palette}
-						isDefault={palette.id === theme.defaultCategoricalPaletteId}
-						swatchNoun="Hue"
-						deleteDisabled={theme.categoricalPalettes.length <= 1}
-						isReadOnly={isReadOnly}
-						onMakeDefault={() =>
-							set("defaultCategoricalPaletteId", palette.id)
-						}
-						onUpdate={(patch) => updateCatPalette(palette.id, patch)}
-						onDelete={() => deleteCatPalette(palette.id)}
-					/>
-				))}
+				<PaletteList
+					palettes={theme.categoricalPalettes}
+					isReadOnly={isReadOnly}
+					onReorder={(next) => set("categoricalPalettes", next)}
+					cardProps={(palette) => ({
+						isDefault: palette.id === theme.defaultCategoricalPaletteId,
+						swatchNoun: "Hue",
+						deleteDisabled: theme.categoricalPalettes.length <= 1,
+						onMakeDefault: () =>
+							set("defaultCategoricalPaletteId", palette.id),
+						onUpdate: (patch) => updateCatPalette(palette.id, patch),
+						onDelete: () => deleteCatPalette(palette.id),
+					})}
+				/>
 				<button
 					type="button"
 					onClick={addCatPalette}
@@ -348,21 +495,21 @@ export const PalettesSection = ({
 					Use these for ordered categories (e.g., &quot;low / medium / high&quot;)
 					where a sequential ramp reads as ordered, instead of the
 					arbitrary colors a categorical palette uses. Drag swatches to
-					reorder.
+					reorder colors, or drag the ⠿ handle to reorder palettes.
 				</p>
-				{ordinalPalettes.map((palette) => (
-					<PaletteCard
-						key={palette.id}
-						palette={palette}
-						isDefault={palette.id === theme.defaultOrdinalPaletteId}
-						swatchNoun="Step"
-						deleteDisabled={ordinalPalettes.length <= 1}
-						isReadOnly={isReadOnly}
-						onMakeDefault={() => set("defaultOrdinalPaletteId", palette.id)}
-						onUpdate={(patch) => updateOrdPalette(palette.id, patch)}
-						onDelete={() => deleteOrdPalette(palette.id)}
-					/>
-				))}
+				<PaletteList
+					palettes={ordinalPalettes}
+					isReadOnly={isReadOnly}
+					onReorder={(next) => set("ordinalPalettes", next)}
+					cardProps={(palette) => ({
+						isDefault: palette.id === theme.defaultOrdinalPaletteId,
+						swatchNoun: "Step",
+						deleteDisabled: ordinalPalettes.length <= 1,
+						onMakeDefault: () => set("defaultOrdinalPaletteId", palette.id),
+						onUpdate: (patch) => updateOrdPalette(palette.id, patch),
+						onDelete: () => deleteOrdPalette(palette.id),
+					})}
+				/>
 				<button
 					type="button"
 					onClick={addOrdPalette}

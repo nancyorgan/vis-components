@@ -56,9 +56,15 @@ export type TitlesFontConfig = FontStyles & {
 	secondaryWeight?: number
 	legendWeight?: number
 	/** Optional per-slot families, falling back to the shared `family` like
-	 * the weights above. Axis / facet titles always follow `family`. */
+	 * the weights above. `secondaryFamily` covers axis + facet titles. */
 	subtitleFamily?: string
+	secondaryFamily?: string
 	legendFamily?: string
+	/** Optional axis / facet title color + style, falling back to the shared
+	 * `color` / `italic` / `underline` when unset. */
+	secondaryColor?: string
+	secondaryItalic?: boolean
+	secondaryUnderline?: boolean
 	/** Theme-default alignments for the chart title / subtitle / legend
 	 * section titles. These are the BASE the per-visual `titleAlignments`
 	 * overrides layer on top of (see `titleAlignmentOf`) — kept out of
@@ -1021,16 +1027,25 @@ export const resolveTitleFont = (
 	const slotFamily =
 		slot === "subtitle"
 			? base.titles.subtitleFamily
-			: slot === "legend"
-				? base.titles.legendFamily
-				: undefined
+			: slot === "secondary"
+				? base.titles.secondaryFamily
+				: slot === "legend"
+					? base.titles.legendFamily
+					: undefined
+	// Only axis / facet titles carry a per-slot color + style; the other
+	// tiers follow the shared title values.
+	const secondary = slot === "secondary"
+	const slotColor = secondary ? base.titles.secondaryColor : undefined
+	const slotItalic = secondary ? base.titles.secondaryItalic : undefined
+	const slotUnderline = secondary ? base.titles.secondaryUnderline : undefined
 	return {
 		family: override?.family ?? slotFamily ?? base.titles.family,
-		color: override?.color ?? base.titles.color,
+		color: override?.color ?? slotColor ?? base.titles.color,
 		size: ptToPx(override?.size ?? size),
 		weight: override?.weight ?? slotWeight ?? base.titles.weight,
-		italic: override?.italic ?? base.titles.italic ?? false,
-		underline: override?.underline ?? base.titles.underline ?? false,
+		italic: override?.italic ?? slotItalic ?? base.titles.italic ?? false,
+		underline:
+			override?.underline ?? slotUnderline ?? base.titles.underline ?? false,
 	}
 }
 

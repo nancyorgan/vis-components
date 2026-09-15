@@ -30,19 +30,40 @@ export const reorderPaletteColors = (
 	from: number,
 	slot: number
 ): Pick<SavedCategoricalPalette, "colors" | "patternInks"> | null => {
-	if (slot === from || slot === from + 1) return null
-	const to = slot > from ? slot - 1 : slot
-	const move = <T>(list: T[]): T[] => {
-		const next = [...list]
-		const [item] = next.splice(from, 1)
-		next.splice(to, 0, item as T)
-		return next
-	}
-	const colors = move(palette.colors)
+	if (isNoOpSlot(from, slot)) return null
+	const colors = moveToSlot(palette.colors, from, slot)
 	if (!palette.patternInks) return { colors }
 	// Pad sparse inks to the color count first so the same permutation
 	// applies to both arrays.
 	const inks = [...palette.patternInks]
 	while (inks.length < palette.colors.length) inks.push(null)
-	return { colors, patternInks: move(inks.slice(0, palette.colors.length)) }
+	return {
+		colors,
+		patternInks: moveToSlot(inks.slice(0, palette.colors.length), from, slot),
+	}
+}
+
+/** Drag-reorder a whole palette within its list (categorical or ordinal):
+ *  same insertion-gap contract as `reorderPaletteColors`. Returns null for
+ *  a no-op drop. Palette defaults are tracked by id, so moving a card never
+ *  changes which palette is the default. */
+export const reorderPalettes = <T>(
+	palettes: T[],
+	from: number,
+	slot: number
+): T[] | null =>
+	isNoOpSlot(from, slot) ? null : moveToSlot(palettes, from, slot)
+
+/** The gaps on either side of the dragged item leave the order unchanged. */
+const isNoOpSlot = (from: number, slot: number) =>
+	slot === from || slot === from + 1
+
+/** Pull `from` out and re-insert it at insertion gap `slot`, indexed
+ *  against the ORIGINAL list (so slot n appends). */
+const moveToSlot = <T>(list: T[], from: number, slot: number): T[] => {
+	const to = slot > from ? slot - 1 : slot
+	const next = [...list]
+	const [item] = next.splice(from, 1)
+	next.splice(to, 0, item as T)
+	return next
 }

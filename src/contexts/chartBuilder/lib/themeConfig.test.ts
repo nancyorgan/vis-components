@@ -1025,7 +1025,11 @@ describe("labelsFromTheme", () => {
 		axisTitleFontWeight: 400,
 		legendTitleFontWeight: 300,
 		subtitleFontFamily: "Georgia, 'Times New Roman', serif",
+		axisTitleFontFamily: "'DM Sans', ui-sans-serif, sans-serif",
 		legendTitleFontFamily: "Inter, system-ui, sans-serif",
+		axisTitleFontColor: "#aa0000",
+		axisTitleFontItalic: false,
+		axisTitleFontUnderline: false,
 		titleAlignment: "left",
 		subtitleAlignment: "right",
 		legendTitleAlignment: "center",
@@ -1053,7 +1057,11 @@ describe("labelsFromTheme", () => {
 			secondaryWeight: 400,
 			legendWeight: 300,
 			subtitleFamily: "Georgia, 'Times New Roman', serif",
+			secondaryFamily: "'DM Sans', ui-sans-serif, sans-serif",
 			legendFamily: "Inter, system-ui, sans-serif",
+			secondaryColor: "#aa0000",
+			secondaryItalic: false,
+			secondaryUnderline: false,
 			primaryAlignment: "left",
 			subtitleAlignment: "right",
 			legendAlignment: "center",
@@ -1089,7 +1097,11 @@ describe("labelsFromTheme", () => {
 		expect(titles.secondaryWeight).toBeUndefined()
 		expect(titles.legendWeight).toBeUndefined()
 		expect(titles.subtitleFamily).toBeUndefined()
+		expect(titles.secondaryFamily).toBeUndefined()
 		expect(titles.legendFamily).toBeUndefined()
+		expect(titles.secondaryColor).toBeUndefined()
+		expect(titles.secondaryItalic).toBeUndefined()
+		expect(titles.secondaryUnderline).toBeUndefined()
 		expect(titles.primaryAlignment).toBeUndefined()
 		expect(titles.subtitleAlignment).toBeUndefined()
 		expect(titles.legendAlignment).toBeUndefined()

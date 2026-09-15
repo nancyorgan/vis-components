@@ -1138,7 +1138,12 @@ export const labelsFromTheme = (t: Theme): LabelsConfig => ({
 			secondaryWeight: t.axisTitleFontWeight,
 			legendWeight: t.legendTitleFontWeight,
 			subtitleFamily: t.subtitleFontFamily,
+			secondaryFamily: t.axisTitleFontFamily,
 			legendFamily: t.legendTitleFontFamily,
+			// Axis / facet title color + style; unset follows the Main title.
+			secondaryColor: t.axisTitleFontColor,
+			secondaryItalic: t.axisTitleFontItalic,
+			secondaryUnderline: t.axisTitleFontUnderline,
 			// Base alignments for title / subtitle / legend titles — the layer
 			// under per-visual titleAlignments (titleAlignmentOf).
 			primaryAlignment: t.titleAlignment,

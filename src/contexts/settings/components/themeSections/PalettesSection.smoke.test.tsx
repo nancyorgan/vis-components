@@ -33,9 +33,25 @@ const THEME: Theme = {
 	defaultOrdinalPaletteId: "ord-1",
 }
 
-const mount = (isReadOnly = false) => {
+/** Three palettes per list, for the card-level reorder tests. */
+const MULTI_THEME: Theme = {
+	...THEME,
+	categoricalPalettes: [
+		{ id: "cat-a", name: "Alpha", colors: ["#a00000", "#0a0000"] },
+		{ id: "cat-b", name: "Beta", colors: ["#b00000", "#0b0000"] },
+		{ id: "cat-c", name: "Gamma", colors: ["#c00000", "#0c0000"] },
+	],
+	defaultCategoricalPaletteId: "cat-b",
+	ordinalPalettes: [
+		{ id: "ord-a", name: "Ramp A", colors: ["#eeeeee", "#111111"] },
+		{ id: "ord-b", name: "Ramp B", colors: ["#dddddd", "#222222"] },
+	],
+	defaultOrdinalPaletteId: "ord-a",
+}
+
+const mount = (isReadOnly = false, theme: Theme = THEME) => {
 	const set = vi.fn() as unknown as ThemeSetter & ReturnType<typeof vi.fn>
-	render(<PalettesSection theme={THEME} set={set} isReadOnly={isReadOnly} />)
+	render(<PalettesSection theme={theme} set={set} isReadOnly={isReadOnly} />)
 	// The group is a CollapsibleSubsection that starts closed.
 	fireEvent.click(screen.getByText("Color palettes"))
 	return { set }
@@ -46,6 +62,14 @@ const swatchesOf = (name: string): HTMLElement[] => {
 	const nameInput = screen.getByDisplayValue(name)
 	const card = nameInput.closest(".rounded-lg") as HTMLElement
 	return within(card).getAllByTestId("palette-swatch")
+}
+
+/** The card wrapper (drop target) and grip (drag source) of the palette
+ *  whose name input holds `name`. */
+const cardOf = (name: string) => {
+	const nameInput = screen.getByDisplayValue(name)
+	const card = nameInput.closest("[data-testid='palette-card']") as HTMLElement
+	return { card, grip: within(card).getByTestId("palette-drag-handle") }
 }
 
 /** happy-dom's DataTransfer has no usable setData and its DragEvent drops
@@ -94,6 +118,148 @@ const dragTo = (
 	dragEvent("drop", target)
 	fireEvent.dragEnd(source, { dataTransfer })
 }
+
+/** Drag a card's grip onto another card, landing in its top or bottom
+ *  half — the half picks the insertion gap. */
+const dragCardTo = (
+	grip: HTMLElement,
+	target: HTMLElement,
+	half: "top" | "bottom"
+) => {
+	const dataTransfer = makeFakeDataTransfer()
+	const top = 200
+	const height = 80
+	target.getBoundingClientRect = () =>
+		({
+			top,
+			height,
+			bottom: top + height,
+			left: 0,
+			right: 300,
+			width: 300,
+			x: 0,
+			y: top,
+		}) as DOMRect
+	const clientY = half === "top" ? top + 1 : top + height - 1
+	const dragEvent = (kind: "dragOver" | "drop", node: HTMLElement) => {
+		const event = createEvent[kind](node, { dataTransfer })
+		Object.defineProperty(event, "clientY", { value: clientY })
+		fireEvent(node, event)
+	}
+	fireEvent.dragStart(grip, { dataTransfer })
+	dragEvent("dragOver", target)
+	dragEvent("drop", target)
+	fireEvent.dragEnd(grip, { dataTransfer })
+}
+
+describe("PalettesSection — drag to reorder whole palettes", () => {
+	it("tells the user palettes can be dragged by the handle", () => {
+		mount(false, MULTI_THEME)
+		expect(screen.getAllByText(/drag the ⠿ handle to reorder palettes/)).toHaveLength(2)
+	})
+
+	it("moves a categorical palette to the end without touching the default", () => {
+		const { set } = mount(false, MULTI_THEME)
+		// Drag Alpha onto the bottom half of Gamma → Beta, Gamma, Alpha.
+		dragCardTo(cardOf("Alpha").grip, cardOf("Gamma").card, "bottom")
+
+		expect(set).toHaveBeenCalledTimes(1)
+		expect(set).toHaveBeenCalledWith("categoricalPalettes", [
+			MULTI_THEME.categoricalPalettes[1],
+			MULTI_THEME.categoricalPalettes[2],
+			MULTI_THEME.categoricalPalettes[0],
+		])
+	})
+
+	it("moves an ordinal palette backward when dropped on a top half", () => {
+		const { set } = mount(false, MULTI_THEME)
+		dragCardTo(cardOf("Ramp B").grip, cardOf("Ramp A").card, "top")
+
+		expect(set).toHaveBeenCalledWith("ordinalPalettes", [
+			MULTI_THEME.ordinalPalettes![1],
+			MULTI_THEME.ordinalPalettes![0],
+		])
+	})
+
+	it("reorders palettes when the drop lands on a swatch inside a card", () => {
+		const { set } = mount(false, MULTI_THEME)
+		// The swatch's own drag handlers bail (no swatch drag in flight), so
+		// the event bubbles to the card wrapper.
+		const target = swatchesOf("Gamma")[0]!
+		dragCardTo(cardOf("Alpha").grip, target, "bottom")
+		// The wrapper measures ITSELF for the half, and happy-dom's wrapper
+		// rect is all zeros, so any clientY reads as "below" → trailing gap.
+		expect(set).toHaveBeenCalledWith("categoricalPalettes", [
+			MULTI_THEME.categoricalPalettes[1],
+			MULTI_THEME.categoricalPalettes[2],
+			MULTI_THEME.categoricalPalettes[0],
+		])
+	})
+
+	it("ignores a categorical card dropped on the ordinal list", () => {
+		const { set } = mount(false, MULTI_THEME)
+		dragCardTo(cardOf("Alpha").grip, cardOf("Ramp B").card, "bottom")
+		expect(set).not.toHaveBeenCalled()
+	})
+
+	it("draws a horizontal line in the target gap while dragging", () => {
+		mount(false, MULTI_THEME)
+		const dataTransfer = makeFakeDataTransfer()
+		const { grip } = cardOf("Alpha")
+		const { card: target } = cardOf("Gamma")
+		target.getBoundingClientRect = () =>
+			({ top: 200, height: 80, bottom: 280 }) as DOMRect
+		expect(screen.queryByTestId("palette-card-drop-indicator")).toBeNull()
+
+		fireEvent.dragStart(grip, { dataTransfer })
+		// Bottom half of the last card → trailing gap, line on its bottom edge.
+		const over = createEvent.dragOver(target, { dataTransfer })
+		Object.defineProperty(over, "clientY", { value: 279 })
+		fireEvent(target, over)
+		let line = screen.getByTestId("palette-card-drop-indicator")
+		expect(target.contains(line)).toBe(true)
+		expect(line.className).toContain("-bottom-")
+
+		// Top half → the gap above it.
+		const overTop = createEvent.dragOver(target, { dataTransfer })
+		Object.defineProperty(overTop, "clientY", { value: 201 })
+		fireEvent(target, overTop)
+		line = screen.getByTestId("palette-card-drop-indicator")
+		expect(line.className).toContain("-top-")
+
+		// The dragged card dims while in flight.
+		expect(cardOf("Alpha").card.querySelector(".rounded-lg")!.className).toContain("opacity-50")
+
+		fireEvent.dragEnd(grip, { dataTransfer })
+		expect(screen.queryByTestId("palette-card-drop-indicator")).toBeNull()
+	})
+
+	it("writes nothing when a card is dropped back where it was", () => {
+		const { set } = mount(false, MULTI_THEME)
+		dragCardTo(cardOf("Beta").grip, cardOf("Beta").card, "top")
+		dragCardTo(cardOf("Beta").grip, cardOf("Gamma").card, "top")
+		expect(set).not.toHaveBeenCalled()
+	})
+
+	it("is not draggable on a read-only theme", () => {
+		const { set } = mount(true, MULTI_THEME)
+		const { grip } = cardOf("Alpha")
+		expect(grip.getAttribute("draggable")).toBe("false")
+		dragCardTo(grip, cardOf("Gamma").card, "bottom")
+		expect(set).not.toHaveBeenCalled()
+	})
+
+	it("leaves swatch drags working inside a reorderable list", () => {
+		const { set } = mount(false, MULTI_THEME)
+		const swatches = swatchesOf("Beta")
+		dragTo(swatches[0]!, swatches[1]!, "right")
+		expect(set).toHaveBeenCalledWith("categoricalPalettes", [
+			MULTI_THEME.categoricalPalettes[0],
+			{ ...MULTI_THEME.categoricalPalettes[1], colors: ["#0b0000", "#b00000"] },
+			MULTI_THEME.categoricalPalettes[2],
+		])
+	})
+})
 
 describe("PalettesSection — drag to reorder swatches", () => {
 	it("tells the user swatches can be dragged", () => {

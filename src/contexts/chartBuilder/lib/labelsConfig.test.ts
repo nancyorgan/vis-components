@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	DEFAULT_BASE_FONT_CONFIG,
 	facetTitleColorOf,
 	fontWeightDisplayName,
 	fontWeightOptionsFor,
@@ -12,6 +13,7 @@ import {
 	legendSwatchSize,
 	migrateLabelsConfig,
 	resolveLegendHidden,
+	resolveTitleFont,
 } from "./labelsConfig"
 
 /** Migration regressions on this code path are silent — the user clicks
@@ -478,5 +480,73 @@ describe("fontWeightOptionsFor", () => {
 				extra
 			).map((o) => o.value)
 		).toEqual([400, 700])
+	})
+})
+
+// ── resolveTitleFont: axis-title (secondary) slot ───────────────────────────
+// The theme's "Axis title" section writes per-slot family / color / style
+// into `baseFont.titles.secondary*`. Only the secondary slot (axis + facet
+// titles) reads them; every other tier keeps following the shared values.
+describe("resolveTitleFont secondary slot", () => {
+	const base = {
+		...DEFAULT_BASE_FONT_CONFIG,
+		titles: {
+			...DEFAULT_BASE_FONT_CONFIG.titles,
+			family: "Inter, system-ui, sans-serif",
+			color: "#111111",
+			italic: false,
+			underline: false,
+			secondaryFamily: "Georgia, 'Times New Roman', serif",
+			secondaryColor: "#aa0000",
+			secondaryItalic: true,
+			secondaryUnderline: true,
+		},
+	}
+
+	it("axis titles take the per-slot family / color / style", () => {
+		const f = resolveTitleFont(base, "secondary", undefined)
+		expect(f.family).toBe("Georgia, 'Times New Roman', serif")
+		expect(f.color).toBe("#aa0000")
+		expect(f.italic).toBe(true)
+		expect(f.underline).toBe(true)
+	})
+
+	it("other tiers ignore the secondary slot", () => {
+		for (const slot of ["primary", "subtitle", "legend"] as const) {
+			const f = resolveTitleFont(base, slot, undefined)
+			expect(f.family).toBe("Inter, system-ui, sans-serif")
+			expect(f.color).toBe("#111111")
+			expect(f.italic).toBe(false)
+			expect(f.underline).toBe(false)
+		}
+	})
+
+	it("unset secondary fields fall back to the shared title values", () => {
+		const f = resolveTitleFont(
+			{
+				...base,
+				titles: { ...base.titles, secondaryFamily: undefined,
+					secondaryColor: undefined, secondaryItalic: undefined,
+					secondaryUnderline: undefined, italic: true },
+			},
+			"secondary",
+			undefined
+		)
+		expect(f.family).toBe("Inter, system-ui, sans-serif")
+		expect(f.color).toBe("#111111")
+		expect(f.italic).toBe(true)
+		expect(f.underline).toBe(false)
+	})
+
+	it("per-visual overrides still win over the slot", () => {
+		const f = resolveTitleFont(base, "secondary", {
+			family: "Arial, sans-serif",
+			color: "#00ff00",
+			italic: false,
+		})
+		expect(f.family).toBe("Arial, sans-serif")
+		expect(f.color).toBe("#00ff00")
+		expect(f.italic).toBe(false)
+		expect(f.underline).toBe(true)
 	})
 })

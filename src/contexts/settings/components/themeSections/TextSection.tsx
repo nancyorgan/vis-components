@@ -102,9 +102,20 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 
 		<Section title="Axis title">
 			<p className="text-sm text-stone-600 dark:text-stone-400">
-				Also styles facet titles. Family and color follow the Main
-				title font.
+				Also styles facet titles. Family, color, and style fall back
+				to the Main title font.
 			</p>
+			<FontFamilyRow
+				label="Family"
+				value={theme.axisTitleFontFamily}
+				onChange={(v) => set("axisTitleFontFamily", v)}
+				onDefault={() => set("axisTitleFontFamily", undefined)}
+			/>
+			<ColorInput
+				label="Color"
+				value={theme.axisTitleFontColor ?? theme.titleFontColor}
+				onChange={(v) => set("axisTitleFontColor", v)}
+			/>
 			<NumberInput
 				label="Size"
 				value={theme.titleSecondarySize}
@@ -116,10 +127,18 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 			/>
 			<FontWeightRow
 				label="Weight"
-				family={theme.titleFontFamily}
+				family={theme.axisTitleFontFamily ?? theme.titleFontFamily}
 				value={theme.axisTitleFontWeight}
 				onChange={(w) => set("axisTitleFontWeight", w)}
 				onDefault={() => set("axisTitleFontWeight", undefined)}
+			/>
+			<StyleToggleRow
+				italic={theme.axisTitleFontItalic ?? theme.titleFontItalic ?? false}
+				underline={
+					theme.axisTitleFontUnderline ?? theme.titleFontUnderline ?? false
+				}
+				onItalic={(v) => set("axisTitleFontItalic", v)}
+				onUnderline={(v) => set("axisTitleFontUnderline", v)}
 			/>
 		</Section>
 
