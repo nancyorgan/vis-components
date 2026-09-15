@@ -6,6 +6,7 @@ import type {
 
 import { Section, SectionGroup, SelectInput } from "./controls"
 import type { ThemeSectionProps } from "./types"
+import { Button } from "../../../../components/ui/Button"
 
 const PALETTE_NAMES: PaletteName[] = [
 	"viridis",
@@ -216,13 +217,12 @@ export const GradientsSection = ({
 						]}
 					/>
 				))}
-				<button
-					type="button"
+				<Button compact
 					onClick={addLinGradient}
-					className="self-start rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					Add gradient
-				</button>
+				</Button>
 			</Section>
 
 			{/* Diverging gradients */}
@@ -259,13 +259,12 @@ export const GradientsSection = ({
 						]}
 					/>
 				))}
-				<button
-					type="button"
+				<Button compact
 					onClick={addDivGradient}
-					className="self-start rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					Add gradient
-				</button>
+				</Button>
 			</Section>
 		</SectionGroup>
 	)

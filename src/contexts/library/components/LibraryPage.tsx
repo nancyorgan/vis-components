@@ -339,8 +339,10 @@ export const LibraryPage = () => {
 				"Visualizations")
 
 	return (
-		<div className="flex h-[calc(100vh-57px)]">
-			<div className="flex-shrink-0" style={{ width: sidebarWidth }}>
+		<div className="flex">
+			{/* Folder rail stays put beneath the sticky header while the page
+			 *  (grid + footer) scrolls as one document. */}
+			<div className="vc-sticky-rail flex-shrink-0" style={{ width: sidebarWidth }}>
 				<FolderTree
 					selectedFolderId={selectedFolderId}
 					onSelect={setSelectedFolderId}
@@ -355,7 +357,7 @@ export const LibraryPage = () => {
 			>
 				<div className="h-8 w-0.5 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-stone-500" />
 			</div>
-			<div className="flex-1 overflow-y-auto">
+			<div className="min-w-0 flex-1">
 				<div className="mx-auto max-w-6xl px-6 py-10">
 					<div className="mb-6 flex flex-wrap items-center gap-3">
 						<h1 className="mr-auto text-xl font-semibold text-stone-900 dark:text-white">
@@ -383,7 +385,6 @@ export const LibraryPage = () => {
 						{(missingPreviewCount > 0 || backfillProgress !== null) && (
 							<Button
 								compact
-								outline
 								disabled={backfillProgress !== null}
 								onClick={onRegeneratePreviews}
 								title="Render each visualization without a preview offscreen and save a new thumbnail"
@@ -406,8 +407,8 @@ export const LibraryPage = () => {
 						</p>
 					)}
 					{selectedCount > 0 && (
-						<div className="mb-4 flex flex-wrap items-center gap-2 rounded-sm border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-900/20">
-							<span className="text-sm font-medium text-blue-900 dark:text-blue-200">
+						<div className="mb-4 flex flex-wrap items-center gap-2 rounded-card border border-brand-200 bg-brand-50 px-3 py-2 dark:border-brand-800 dark:bg-brand-900/20">
+							<span className="text-sm font-medium text-brand-900 dark:text-brand-200">
 								{selectedCount} selected
 							</span>
 							<div className="ml-auto flex items-center gap-2">
@@ -436,7 +437,7 @@ export const LibraryPage = () => {
 							onToggleAllVisible={toggleAllVisible}
 						/>
 					) : gridRows.length === 0 ? (
-						<div className="flex flex-col items-center gap-4 rounded-sm border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
+						<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
 							<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
 								{query
 									? `No visualizations match "${query}".`
@@ -477,9 +478,9 @@ export const LibraryPage = () => {
 										// start from those and carry the browser's own
 										// uri-list payload instead of the card's.
 										draggable={false}
-										className={`block overflow-hidden rounded-sm border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-stone-800 ${
+										className={`block overflow-hidden rounded-card border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-stone-800 ${
 											isSelected
-												? "border-blue-500 ring-2 ring-blue-400 dark:border-blue-400 dark:ring-blue-500"
+												? "border-brand-500 ring-2 ring-brand-400 dark:border-brand-400 dark:ring-brand-500"
 												: "border-stone-200 dark:border-stone-700"
 										}`}
 									>
@@ -591,7 +592,7 @@ export const LibraryPage = () => {
 						will be unpublished — their public embed URLs will stop working.
 					</p>
 					<div className="flex justify-end gap-2">
-						<Button compact outline onClick={() => setBulkDeleteOpen(false)}>
+						<Button compact onClick={() => setBulkDeleteOpen(false)}>
 							Cancel
 						</Button>
 						<Button compact danger onClick={onBulkDelete}>
@@ -611,7 +612,7 @@ const ViewToggle = ({
 	view: "grid" | "table"
 	onChange: (next: "grid" | "table") => void
 }) => (
-	<div className="inline-flex overflow-hidden rounded-sm border border-stone-300 dark:border-stone-700">
+	<div className="inline-flex overflow-hidden rounded-control border border-stone-300 dark:border-stone-700">
 		<button
 			type="button"
 			onClick={() => onChange("grid")}

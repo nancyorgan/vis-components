@@ -103,14 +103,14 @@ const useFolderDropTarget = ({
 
 /** Highlight for a row the current drag may drop INTO (nest / move). */
 const DROP_HOVER_CLASS =
-	"bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40 dark:ring-blue-500"
+	"vc-nav-active ring-1 ring-brand-400 dark:ring-brand-500"
 
 /** Insertion line for an "order it here" drop, drawn as an inset shadow on
  *  the row's leading / trailing edge so it can't shift the row's height the
- *  way a border would. Literal blue-500 — it reads on both themes, so it
+ *  way a border would. Brand-500 purple reads on both themes, so it
  *  needs no dark variant. */
-const DROP_BEFORE_CLASS = "shadow-[inset_0_2px_0_0_#3b82f6]"
-const DROP_AFTER_CLASS = "shadow-[inset_0_-2px_0_0_#3b82f6]"
+const DROP_BEFORE_CLASS = "shadow-[inset_0_2px_0_0_var(--color-brand-500)]"
+const DROP_AFTER_CLASS = "shadow-[inset_0_-2px_0_0_var(--color-brand-500)]"
 
 /** Row classes for a resolved drop zone (null = not a drop target now). */
 const dropZoneClass = (zone: FolderDropZone | null): string => {
@@ -171,7 +171,7 @@ const VisualTreeItem = ({
 		params={{ visualId: visual.id }}
 		className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
 			isSelected
-				? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+				? "vc-nav-active"
 				: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
 		}`}
 		style={{ paddingLeft: `${depth * 16 + 4}px` }}
@@ -272,7 +272,7 @@ const FolderTreeItem = ({
 			<div
 				className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
 					isSelected
-						? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+						? "vc-nav-active"
 						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
 				} ${dropZoneClass(rowDropZone)}`}
 				data-drop-zone={rowDropZone ?? undefined}
@@ -309,7 +309,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onToggleExpanded(folder.id)
 						}}
-						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-th-electric-indigo-700 dark:text-th-electric-indigo-300"
+						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-vc-brand-text dark:text-th-electric-indigo-300"
 					>
 						<svg
 							viewBox="0 0 8 8"
@@ -343,7 +343,7 @@ const FolderTreeItem = ({
 					/>
 				) : (
 					<span
-						className="min-w-0 flex-1 truncate font-bold text-th-electric-indigo-700 dark:text-th-electric-indigo-300"
+						className="min-w-0 flex-1 truncate font-bold text-vc-brand-text dark:text-th-electric-indigo-300"
 						onDoubleClick={(e) => {
 							e.stopPropagation()
 							setEditing(true)
@@ -715,7 +715,7 @@ export const FolderTree = ({
 				<div
 					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
 						selectedFolderId === null
-							? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+							? "vc-nav-active"
 							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
 					} ${dropZoneClass(rootDrop.dropZone ?? rootContents.dropZone)}`}
 					{...rootDrop.dropHandlers}

@@ -31,6 +31,7 @@ import { MarkSection } from "./themeSections/MarkSection"
 import { PalettesSection } from "./themeSections/PalettesSection"
 import { PatternsSection } from "./themeSections/PatternsSection"
 import { TextSection } from "./themeSections/TextSection"
+import { Button } from "../../../components/ui/Button"
 
 export const ThemesPage = () => {
 	const [themes, setThemes] = useAtom(themesAtom)
@@ -272,23 +273,20 @@ export const ThemesPage = () => {
 						</p>
 					</div>
 					<div className="flex flex-col gap-1.5">
-						<button
-							type="button"
+						<Button compact
 							onClick={exportTheme}
-							className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
 							title={`Download "${editingTheme.name}" as a JSON file`}
 						>
 							Export theme
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							compact
 							onClick={() => fileInputRef.current?.click()}
 							disabled={isReadOnly}
-							className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
 							title="Replace this theme's settings with a JSON file"
 						>
 							Import theme…
-						</button>
+						</Button>
 						<input
 							ref={fileInputRef}
 							type="file"
@@ -355,13 +353,9 @@ export const ThemesPage = () => {
 				 *  for the two bundled themes, which the bootstrap re-adds. */}
 				{canDelete && (
 					<div className="mt-10 flex justify-end border-t border-stone-200 pt-4 dark:border-stone-700">
-						<button
-							type="button"
-							onClick={requestDelete}
-							className="rounded border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-stone-900 dark:text-red-400 dark:hover:bg-red-900/20"
-						>
+						<Button compact danger onClick={requestDelete}>
 							Delete this theme
-						</button>
+						</Button>
 					</div>
 				)}
 			</div>

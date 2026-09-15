@@ -88,7 +88,7 @@ export const SaveBar = () => {
 					value={name}
 					onChange={(e) => setName(e.target.value)}
 					placeholder="Untitled visualization"
-					className={`min-w-0 rounded-sm border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-stone-900 transition-colors outline-none hover:border-stone-200 focus:border-stone-400 dark:text-white dark:hover:border-stone-700 dark:focus:border-stone-500 ${
+					className={`min-w-0 rounded-control border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-stone-900 transition-colors outline-none hover:border-stone-200 focus:border-stone-400 dark:text-white dark:hover:border-stone-700 dark:focus:border-stone-500 ${
 						nameTaken ? "border-red-400 dark:border-red-500" : ""
 					}`}
 				/>

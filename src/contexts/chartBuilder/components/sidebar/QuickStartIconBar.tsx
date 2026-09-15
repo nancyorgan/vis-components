@@ -31,6 +31,7 @@ import {
 } from "../../store/atoms"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { Button } from "../../../../components/ui/Button"
 
 type Pending = {
 	chartType: QuickStartChartType
@@ -547,7 +548,7 @@ export const QuickStartIconBar = () => {
 						if (dx !== 0)
 							el.style.transform = `translateX(calc(-50% + ${dx}px))`
 					}}
-					className="pointer-events-none fixed z-50 max-w-56 -translate-x-1/2 rounded-md bg-white px-2 py-1 text-center text-xs font-medium text-th-electric-indigo-700 shadow-md ring-1 ring-stone-200"
+					className="pointer-events-none fixed z-50 max-w-56 -translate-x-1/2 rounded-md bg-white px-2 py-1 text-center text-xs font-medium text-vc-brand-text shadow-md ring-1 ring-stone-200"
 					style={{ left: hovered.x, top: hovered.y + 6 }}
 				>
 					{hovered.label}
@@ -561,20 +562,16 @@ export const QuickStartIconBar = () => {
 						starting point? Your current encoding will be overwritten.
 					</div>
 					<div className="flex gap-2">
-						<button
-							type="button"
+						<Button compact
 							onClick={confirmPending}
-							className="rounded bg-stone-800 px-3 py-1 text-sm font-medium text-white hover:bg-stone-700 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300"
 						>
 							Replace
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button compact
 							onClick={cancelPending}
-							className="rounded border border-stone-300 px-3 py-1 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
 						>
 							Keep current
-						</button>
+						</Button>
 					</div>
 				</div>
 			)}

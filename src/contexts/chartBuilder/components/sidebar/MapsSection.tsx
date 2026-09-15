@@ -142,16 +142,16 @@ const CoordSystemToggle = ({
 		{ key: "geographic", label: "Geographic" },
 	]
 	const segBase =
-		"px-2 py-1 text-sm border-l first:border-l-0 border-stone-300 dark:border-stone-700"
+		"px-2 py-1 text-sm border-l first:border-l-0 border-vc-brand-text"
 	const segClass = (active: boolean) =>
 		active
-			? `${segBase} bg-brand-500 text-white`
-			: `${segBase} bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700`
+			? `${segBase} vc-toggle-on`
+			: `${segBase} vc-toggle-off`
 	return (
 		<div
 			role="radiogroup"
 			aria-label="Coordinate system"
-			className="inline-flex self-start overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+			className="inline-flex self-start overflow-hidden rounded border border-vc-brand-text"
 		>
 			{segments.map((s) => (
 				<button
@@ -171,7 +171,7 @@ const CoordSystemToggle = ({
 
 /** Read-only join summary: "{matched} of {total} matched" plus an optional
  *  "{n} unmatched (show)" disclosure that reveals the unmatched values. Helper
- *  prose on the light-purple panel uses `text-th-electric-indigo-700` (the base
+ *  prose on the light-purple panel uses `text-vc-brand-text` (the base
  *  500 fails AA against the panel background). */
 const MatchStatus = () => {
 	const { matchedCount, unmatched, total, loading } = useGeoResolution()

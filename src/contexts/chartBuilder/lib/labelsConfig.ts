@@ -65,6 +65,12 @@ export type TitlesFontConfig = FontStyles & {
 	secondaryColor?: string
 	secondaryItalic?: boolean
 	secondaryUnderline?: boolean
+	/** Optional legend section title color / size / style. Color + style
+	 * fall back to the shared values; size falls back to `secondarySize`. */
+	legendColor?: string
+	legendSize?: number
+	legendItalic?: boolean
+	legendUnderline?: boolean
 	/** Theme-default alignments for the chart title / subtitle / legend
 	 * section titles. These are the BASE the per-visual `titleAlignments`
 	 * overrides layer on top of (see `titleAlignmentOf`) — kept out of
@@ -1008,14 +1014,16 @@ export const resolveTitleFont = (
 	slot: "primary" | "subtitle" | "secondary" | "legend",
 	override: Partial<FontConfig> | undefined
 ): FontConfig => {
-	// Legend section titles share the secondary SIZE but carry their own
-	// per-slot weight, so they can diverge from axis titles in weight only.
+	// Legend section titles default to the secondary (axis title) SIZE but
+	// may carry their own per-slot size.
 	const size =
 		slot === "primary"
 			? base.titles.primarySize
 			: slot === "subtitle"
 				? base.titles.subtitleSize
-				: base.titles.secondarySize
+				: slot === "legend"
+					? (base.titles.legendSize ?? base.titles.secondarySize)
+					: base.titles.secondarySize
 	const slotWeight =
 		slot === "subtitle"
 			? base.titles.subtitleWeight
@@ -1032,12 +1040,26 @@ export const resolveTitleFont = (
 				: slot === "legend"
 					? base.titles.legendFamily
 					: undefined
-	// Only axis / facet titles carry a per-slot color + style; the other
-	// tiers follow the shared title values.
-	const secondary = slot === "secondary"
-	const slotColor = secondary ? base.titles.secondaryColor : undefined
-	const slotItalic = secondary ? base.titles.secondaryItalic : undefined
-	const slotUnderline = secondary ? base.titles.secondaryUnderline : undefined
+	// Axis / facet titles and legend section titles carry a per-slot color +
+	// style; the primary / subtitle tiers follow the shared title values.
+	const slotColor =
+		slot === "secondary"
+			? base.titles.secondaryColor
+			: slot === "legend"
+				? base.titles.legendColor
+				: undefined
+	const slotItalic =
+		slot === "secondary"
+			? base.titles.secondaryItalic
+			: slot === "legend"
+				? base.titles.legendItalic
+				: undefined
+	const slotUnderline =
+		slot === "secondary"
+			? base.titles.secondaryUnderline
+			: slot === "legend"
+				? base.titles.legendUnderline
+				: undefined
 	return {
 		family: override?.family ?? slotFamily ?? base.titles.family,
 		color: override?.color ?? slotColor ?? base.titles.color,

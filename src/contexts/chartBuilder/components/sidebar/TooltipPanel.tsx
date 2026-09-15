@@ -204,7 +204,7 @@ export const TooltipPanel = () => {
 							onChange={(e) => update({ customHtml: e.target.value })}
 							placeholder="<strong>{{state}}</strong><br/>Sales: {{sales}}"
 							rows={6}
-							className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
 						<div className="flex items-start justify-between gap-2">
 							{merged.customHtml !== "" && merged.customHtml !== defaultHtml && (
@@ -223,7 +223,7 @@ export const TooltipPanel = () => {
 							onChange={(e) => update({ customCss: e.target.value })}
 							placeholder="background: #111; color: #fff; border-radius: 8px;"
 							rows={6}
-							className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
 						<div className="flex items-start justify-between gap-2">
 							{merged.customCss !== "" && merged.customCss !== DEFAULT_TOOLTIP_CSS && (

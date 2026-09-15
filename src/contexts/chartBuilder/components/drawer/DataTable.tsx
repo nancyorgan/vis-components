@@ -238,7 +238,7 @@ export const DataTable = () => {
 												}}
 												title={`Edit the derived variable ${f.name}`}
 												aria-label={`Edit derived variable ${f.name}`}
-												className="flex-shrink-0 font-serif text-xs italic text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+												className="flex-shrink-0 font-serif text-xs italic text-brand-500 hover:text-brand-700 dark:text-indigo-400 dark:hover:text-indigo-300"
 											>
 												ƒ
 											</button>
@@ -307,7 +307,7 @@ export const DataTable = () => {
 								onClick={() => setDerivedEditor({ mode: "new" })}
 								title="New derived variable"
 								aria-label="New derived variable"
-								className="w-full text-base leading-none font-medium text-stone-500 hover:text-indigo-600 dark:text-stone-400 dark:hover:text-indigo-400"
+								className="w-full text-base leading-none font-medium text-stone-500 hover:text-brand-500 dark:text-stone-400 dark:hover:text-indigo-400"
 							>
 								+
 							</button>

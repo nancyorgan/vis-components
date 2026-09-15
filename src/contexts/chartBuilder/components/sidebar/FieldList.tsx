@@ -42,7 +42,7 @@ const TYPE_BADGE_CLASSES: Record<FieldType, string> = {
 	temporal:
 		"bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
 	ordinal:
-		"bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+		"bg-purple-100 text-brand-500 dark:bg-purple-900/30 dark:text-purple-300",
 }
 
 const TYPE_ABBR: Record<FieldType, string> = {
@@ -133,7 +133,7 @@ export const FieldList = () => {
 												}
 												aria-label={`Edit derived variable ${field.name}`}
 												title="Derived variable — click to edit the calculation"
-												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-brand-500 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
 											>
 												ƒ
 											</button>
@@ -141,7 +141,7 @@ export const FieldList = () => {
 											<span
 												aria-label="Derived variable"
 												title="Derived variable — computed from other variables"
-												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-brand-500 dark:bg-indigo-900/30 dark:text-indigo-300"
 											>
 												ƒ
 											</span>

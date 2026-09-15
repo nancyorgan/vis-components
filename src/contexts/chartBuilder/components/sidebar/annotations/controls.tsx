@@ -232,15 +232,15 @@ export const LayerRow = ({
 		<div
 			role="group"
 			aria-label="Layer order"
-			className="inline-flex overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+			className="inline-flex overflow-hidden rounded border border-vc-brand-text"
 		>
 			<button
 				type="button"
 				onClick={() => onChange("behind")}
 				className={
 					zOrder === "behind"
-						? "bg-brand-500 px-2 py-1 text-sm text-white"
-						: "bg-white px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+						? "vc-toggle-on px-2 py-1 text-sm"
+						: "vc-toggle-off px-2 py-1 text-sm"
 				}
 				aria-pressed={zOrder === "behind"}
 			>
@@ -251,8 +251,8 @@ export const LayerRow = ({
 				onClick={() => onChange("front")}
 				className={
 					zOrder === "front"
-						? "bg-brand-500 px-2 py-1 text-sm text-white"
-						: "bg-white px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+						? "vc-toggle-on px-2 py-1 text-sm"
+						: "vc-toggle-off px-2 py-1 text-sm"
 				}
 				aria-pressed={zOrder === "front"}
 			>

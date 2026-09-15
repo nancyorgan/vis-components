@@ -90,7 +90,7 @@ export const DeleteVisualButton = ({
 							: ""}
 					</p>
 					<div className="flex justify-end gap-2">
-						<Button compact outline onClick={() => setOpen(false)}>
+						<Button compact onClick={() => setOpen(false)}>
 							Cancel
 						</Button>
 						<Button compact danger onClick={onConfirm}>

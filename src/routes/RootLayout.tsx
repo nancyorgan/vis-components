@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useAtomValue } from "jotai"
 import { Outlet, useRouterState } from "@tanstack/react-router"
 
+import { Footer } from "../components/Footer"
 import { Header } from "../components/Header"
 import { EMBED_PATH_PREFIX } from "../lib/embedPath"
 import { UploadNoticeModal } from "../contexts/chartBuilder/components/UploadNoticeModal"
@@ -48,6 +49,11 @@ const useUserFontRegistration = () => {
 export const RootLayout = () => {
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
 	const isEmbed = pathname.startsWith(EMBED_PATH_PREFIX)
+	/** The editor fills the viewport and scrolls internally, so a footer
+	 *  would only eat chart space. Document-flow pages (library, settings)
+	 *  keep it as the end-of-page band. */
+	const isEditor = pathname.startsWith("/editor/")
+	const showFooter = !isEmbed && !isEditor
 	useGlobalFileDropGuard()
 	useUserFontRegistration()
 	return (
@@ -56,6 +62,7 @@ export const RootLayout = () => {
 			<main className="flex-1">
 				<Outlet />
 			</main>
+			{showFooter && <Footer />}
 			{/* Above the outlet so an upload notice survives the navigation that
 			 *  creating a new visualization performs. Embeds never upload. */}
 			{!isEmbed && <UploadNoticeModal />}

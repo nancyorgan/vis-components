@@ -11,50 +11,37 @@ import { Button } from "./ui/Button"
 
 export const Header = () => {
 	return (
-		<header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-white px-4 py-2.5 dark:border-stone-800 dark:bg-stone-900">
+		<header className="sticky top-0 z-10 flex items-center justify-between bg-white px-4 py-2.5 shadow-md shadow-stone-200/60 dark:bg-stone-900 dark:shadow-stone-950/40">
 			<div className="flex items-center gap-6">
 				<Link
 					to="/"
-					className="font-heading flex items-center gap-2 text-sm font-semibold tracking-tight text-stone-900 dark:text-white"
+					className="font-brand flex items-center gap-2 text-lg font-bold text-stone-900 dark:text-white"
 				>
 					<svg viewBox="0 0 32 32" width={28} height={28} aria-hidden="true">
-						{/* Oval-cut sapphire: central table + radiating kite/girdle facets on an elliptical girdle, lit from top-left. Facets read by color alone. */}
-						<ellipse cx={16} cy={16} rx={13} ry={8.5} fill="#1e3a8a" />
-						{/* girdle facets (outer ring, darker) */}
-						<polygon points="21,16 28.01,12.75 28.01,19.25" fill="#1d4ed8" />
-						<polygon points="19.54,18.33 28.01,19.25 20.98,23.85" fill="#1e40af" />
-						<polygon points="16,19.3 20.98,23.85 11.02,23.85" fill="#1e3a8a" />
-						<polygon points="12.46,18.33 11.02,23.85 3.99,19.25" fill="#1e40af" />
-						<polygon points="11,16 3.99,19.25 3.99,12.75" fill="#1d4ed8" />
-						<polygon points="12.46,13.67 3.99,12.75 11.02,8.15" fill="#2563eb" />
-						<polygon points="16,12.7 11.02,8.15 20.98,8.15" fill="#2563eb" />
-						<polygon points="19.54,13.67 20.98,8.15 28.01,12.75" fill="#1d4ed8" />
-						{/* crown kite facets (mid tones) */}
-						<polygon points="21,16 19.54,18.33 28.01,19.25" fill="#60a5fa" />
-						<polygon points="19.54,18.33 16,19.3 20.98,23.85" fill="#3b82f6" />
-						<polygon points="16,19.3 12.46,18.33 11.02,23.85" fill="#3b82f6" />
-						<polygon points="12.46,18.33 11,16 3.99,19.25" fill="#60a5fa" />
-						<polygon points="11,16 12.46,13.67 3.99,12.75" fill="#93c5fd" />
-						<polygon points="12.46,13.67 16,12.7 11.02,8.15" fill="#bfdbfe" />
-						<polygon points="16,12.7 19.54,13.67 20.98,8.15" fill="#bfdbfe" />
-						<polygon points="19.54,13.67 21,16 28.01,12.75" fill="#93c5fd" />
-						{/* table (flat top, brightest) */}
-						<polygon
-							points="21,16 19.54,18.33 16,19.3 12.46,18.33 11,16 12.46,13.67 16,12.7 19.54,13.67"
-							fill="#dbeafe"
-						/>
-						{/* smooth girdle outline */}
-						<ellipse
-							cx={16}
-							cy={16}
-							rx={13}
-							ry={8.5}
-							fill="none"
-							stroke="#172554"
-							strokeWidth={0.9}
-						/>
+						{/* Abstract gemstone: a dot lattice in the classic crown-over-pavilion profile (4/6/5/3/2/1), lit from top-left so it ramps pale blue → violet. One hero dot on the girdle plus three medium dots give it a size hierarchy; the rest stay small so nothing overlaps. Same drawing as the favicon in index.html. */}
+						<circle cx={9.18} cy={6.5} r={1.55} fill="#bfdbfe" />
+						<circle cx={13.73} cy={6.5} r={1.55} fill="#93c5fd" />
+						<circle cx={18.27} cy={6.5} r={1.55} fill="#60a5fa" />
+						<circle cx={22.83} cy={6.5} r={2.3} fill="#3b82f6" />
+						<circle cx={4.63} cy={11.5} r={1.55} fill="#bfdbfe" />
+						<circle cx={9.18} cy={11.5} r={1.55} fill="#93c5fd" />
+						<circle cx={13.73} cy={11.5} r={3.15} fill="#60a5fa" />
+						<circle cx={18.27} cy={11.5} r={1.55} fill="#3b82f6" />
+						<circle cx={22.83} cy={11.5} r={1.55} fill="#6366f1" />
+						<circle cx={27.38} cy={11.5} r={2.3} fill="#7c3aed" />
+						<circle cx={6.9} cy={16.5} r={1.55} fill="#60a5fa" />
+						<circle cx={11.45} cy={16.5} r={1.55} fill="#3b82f6" />
+						<circle cx={16} cy={16.5} r={1.55} fill="#6366f1" />
+						<circle cx={20.55} cy={16.5} r={1.55} fill="#6366f1" />
+						<circle cx={25.1} cy={16.5} r={1.55} fill="#7c3aed" />
+						<circle cx={11.45} cy={21.3} r={1.55} fill="#6366f1" />
+						<circle cx={16} cy={21.3} r={2.3} fill="#7c3aed" />
+						<circle cx={20.55} cy={21.3} r={1.55} fill="#7c3aed" />
+						<circle cx={13.73} cy={25.7} r={1.45} fill="#7c3aed" />
+						<circle cx={18.27} cy={25.7} r={1.45} fill="#6d28d9" />
+						<circle cx={16} cy={29.5} r={1.3} fill="#6d28d9" />
 					</svg>
-					vis-components
+					Zafiro
 				</Link>
 				<span
 					className="-ml-4 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-stone-500 dark:bg-stone-800 dark:text-stone-400"
@@ -227,7 +214,7 @@ const BlackAndWhiteToggle = () => {
 			aria-pressed={active}
 			className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
 				active
-					? "bg-stone-900 text-white dark:bg-white dark:text-stone-900"
+					? "vc-toggle-on"
 					: "text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
 			}`}
 		>

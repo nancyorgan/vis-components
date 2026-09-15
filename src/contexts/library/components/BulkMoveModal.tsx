@@ -38,7 +38,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 						onClick={() => setTarget(null)}
 						className={`w-full px-3 py-1.5 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
 							target === null
-								? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+								? "vc-nav-active font-medium"
 								: "text-stone-700 dark:text-stone-300"
 						}`}
 					>
@@ -51,7 +51,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 							onClick={() => setTarget(f.id)}
 							className={`w-full px-3 py-1.5 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
 								target === f.id
-									? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+									? "vc-nav-active font-medium"
 									: "text-stone-700 dark:text-stone-300"
 							}`}
 							style={{ paddingLeft: `${12 + depth * 12}px` }}
@@ -61,7 +61,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 					))}
 				</div>
 				<div className="flex justify-end gap-2">
-					<Button compact outline onClick={onCancel}>
+					<Button compact onClick={onCancel}>
 						Cancel
 					</Button>
 					<Button compact onClick={() => onConfirm(target)}>

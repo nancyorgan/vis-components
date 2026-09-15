@@ -57,7 +57,7 @@ const InsertVariableSelect = ({
 		onChange={(e) => {
 			if (e.target.value) onInsert(e.target.value)
 		}}
-		className="rounded-sm border border-stone-300 bg-white px-1.5 py-1 text-xs text-stone-600 hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+		className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-xs text-stone-600 hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
 	>
 		<option value="">Insert variable…</option>
 		{fields.map((f) => (
@@ -510,7 +510,7 @@ const DerivedVariableEditor = ({
 							onClick={() =>
 								setRules((prev) => [...prev, { condition: "", output: "" }])
 							}
-							className="self-start text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+							className="self-start text-xs text-brand-500 hover:underline dark:text-indigo-400"
 						>
 							+ Add rule
 						</button>
@@ -550,7 +550,7 @@ const DerivedVariableEditor = ({
 											{f}
 										</th>
 									))}
-									<th className="px-2 py-1 font-medium text-indigo-600 dark:text-indigo-400">
+									<th className="px-2 py-1 font-medium text-brand-500 dark:text-indigo-400">
 										{effectiveName}
 									</th>
 								</tr>
@@ -590,7 +590,7 @@ const DerivedVariableEditor = ({
 					<span />
 				)}
 				<div className="flex gap-2">
-					<Button compact outline onClick={onClose}>
+					<Button compact onClick={onClose}>
 						Cancel
 					</Button>
 					<Button compact disabled={saveDisabled} onClick={onSave}>

@@ -480,7 +480,7 @@ export const TextStyleSection = ({
 					onChange={(e) => onChange({ text: e.target.value })}
 					placeholder={placeholder}
 					rows={2}
-					className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 				/>
 			</label>
 			<SelectInput

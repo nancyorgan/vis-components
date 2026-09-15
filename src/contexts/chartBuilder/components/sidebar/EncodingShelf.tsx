@@ -39,6 +39,7 @@ import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { ChannelOptionsPanel } from "./channelOptions/ChannelOptionsPanel"
+import { Button } from "../../../../components/ui/Button"
 
 type Props = {
 	channel: EncodingChannel
@@ -405,20 +406,16 @@ export const EncodingShelf = ({ channel }: Props) => {
 						{conflictMessage} Proceed?
 					</div>
 					<div className="flex gap-2">
-						<button
-							type="button"
+						<Button compact
 							onClick={confirmOverride}
-							className="rounded bg-amber-600 px-2 py-0.5 text-sm font-medium text-white hover:bg-amber-700"
 						>
 							Yes
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button compact
 							onClick={cancelOverride}
-							className="rounded border border-stone-300 bg-white px-2 py-0.5 text-sm text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300"
 						>
 							No, skip
-						</button>
+						</Button>
 					</div>
 				</div>
 			)}

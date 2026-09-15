@@ -550,3 +550,73 @@ describe("resolveTitleFont secondary slot", () => {
 		expect(f.underline).toBe(true)
 	})
 })
+
+// ── resolveTitleFont: legend section title slot ─────────────────────────────
+// The theme's "Legend text" section writes per-slot color / size / style into
+// `baseFont.titles.legend*`. Only the legend slot reads them; size falls back
+// to the axis-title (secondary) size when unset.
+describe("resolveTitleFont legend slot", () => {
+	const base = {
+		...DEFAULT_BASE_FONT_CONFIG,
+		titles: {
+			...DEFAULT_BASE_FONT_CONFIG.titles,
+			color: "#111111",
+			secondarySize: 13,
+			italic: false,
+			underline: false,
+			legendColor: "#0000aa",
+			legendSize: 11,
+			legendItalic: true,
+			legendUnderline: true,
+		},
+	}
+
+	it("legend titles take the per-slot color / size / style", () => {
+		const f = resolveTitleFont(base, "legend", undefined)
+		expect(f.color).toBe("#0000aa")
+		expect(f.size).toBe(resolveTitleFont(base, "legend", { size: 11 }).size)
+		expect(f.italic).toBe(true)
+		expect(f.underline).toBe(true)
+	})
+
+	it("other tiers ignore the legend slot", () => {
+		for (const slot of ["primary", "subtitle", "secondary"] as const) {
+			const f = resolveTitleFont(base, slot, undefined)
+			expect(f.color).toBe("#111111")
+			expect(f.italic).toBe(false)
+			expect(f.underline).toBe(false)
+		}
+		expect(resolveTitleFont(base, "secondary", undefined).size).toBe(
+			resolveTitleFont(base, "secondary", { size: 13 }).size
+		)
+	})
+
+	it("unset legend fields fall back to the shared values and secondary size", () => {
+		const f = resolveTitleFont(
+			{
+				...base,
+				titles: { ...base.titles, legendColor: undefined,
+					legendSize: undefined, legendItalic: undefined,
+					legendUnderline: undefined, italic: true },
+			},
+			"legend",
+			undefined
+		)
+		expect(f.color).toBe("#111111")
+		expect(f.size).toBe(resolveTitleFont(base, "secondary", undefined).size)
+		expect(f.italic).toBe(true)
+		expect(f.underline).toBe(false)
+	})
+
+	it("per-visual overrides still win over the slot", () => {
+		const f = resolveTitleFont(base, "legend", {
+			color: "#00ff00",
+			size: 20,
+			italic: false,
+		})
+		expect(f.color).toBe("#00ff00")
+		expect(f.size).toBe(resolveTitleFont(base, "primary", { size: 20 }).size)
+		expect(f.italic).toBe(false)
+		expect(f.underline).toBe(true)
+	})
+})

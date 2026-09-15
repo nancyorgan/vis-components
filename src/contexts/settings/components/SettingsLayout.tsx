@@ -6,15 +6,15 @@ import { ThemesSubNav } from "./ThemesSubNav"
 const navLink =
 	"flex items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors"
 const navIdle =
-	"text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
-const navActive =
-	"bg-blue-50 text-blue-700 font-medium dark:bg-blue-900/30 dark:text-blue-300"
+	"text-brand-700 hover:bg-stone-100 hover:text-brand-900 dark:text-brand-300 dark:hover:bg-stone-800 dark:hover:text-brand-200"
+const navActive = "vc-nav-active font-medium text-brand-700 dark:text-brand-300"
 
 export const SettingsLayout = () => {
 	return (
-		<div className="flex h-[calc(100vh-57px)]">
-			{/* Sidebar navigation */}
-			<aside className="flex w-52 flex-shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900">
+		<div className="flex">
+			{/* Sidebar navigation — sticky beneath the header while the page
+			 *  (content + footer) scrolls as one document. */}
+			<aside className="vc-sticky-rail flex w-52 flex-shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900">
 				<div className="border-b border-stone-200 px-4 py-3 dark:border-stone-700">
 					<h2 className="text-sm font-semibold text-stone-900 dark:text-white">
 						Settings
@@ -48,11 +48,10 @@ export const SettingsLayout = () => {
 			</aside>
 			{/* Content area. `relative` makes this the containing block for the
 			 * absolutely-positioned bits inside the form controls (sr-only labels,
-			 * NumberInput spinner arrows). Without it, those escape this pane's
-			 * overflow clipping and position against the document instead, which
-			 * inflates the page height — giving a phantom window scrollbar (a
-			 * second scrollbar beside this pane's) and a tall blank region below. */}
-			<div className="relative flex-1 overflow-y-auto">
+			 * NumberInput spinner arrows) so they position against this pane
+			 * rather than the document and can't inflate the page height. The
+			 * pane itself doesn't scroll: the window does, footer included. */}
+			<div className="relative min-w-0 flex-1">
 				<Outlet />
 			</div>
 		</div>

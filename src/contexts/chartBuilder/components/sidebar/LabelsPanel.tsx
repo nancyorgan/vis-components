@@ -782,8 +782,14 @@ export const LabelsPanel = () => {
 								onAlignment={(a) => keys.forEach((k) => setAlignment(k, a))}
 								baseAlignment={labels.baseFont.titles.legendAlignment}
 								placeholder={encodings[group[0]].field ?? ""}
-								baseColor={labels.baseFont.titles.color}
-								baseSize={labels.baseFont.titles.secondarySize}
+								baseColor={
+									labels.baseFont.titles.legendColor ??
+									labels.baseFont.titles.color
+								}
+								baseSize={
+									labels.baseFont.titles.legendSize ??
+									labels.baseFont.titles.secondarySize
+								}
 								baseFamily={
 									labels.baseFont.titles.legendFamily ??
 									labels.baseFont.titles.family
@@ -913,8 +919,10 @@ const AlignmentGlyph = ({ a }: { a: LabelAlignment }) => {
 
 /** Shared segmented-button treatment for the alignment controls, matching the
  * B/I/U `StyleButton`s that sit directly below them in the font editor: white
- * background + border, an active state that fills stone-200. Keeps the Align /
- * Vertical-align / Style rows visually consistent. */
+ * background + stone border, an active state that fills stone-200 (light gray
+ * off, dark gray on). Deliberately NOT the purple .vc-toggle-off/on pair —
+ * Nancy asked for the alignment AND font-style pickers to stay gray
+ * (2026-09-15). */
 const segmentButtonClass = (on: boolean) =>
 	`flex h-7 w-7 items-center justify-center rounded border text-sm ${
 		on
@@ -1222,7 +1230,7 @@ const LabelRow = ({
 									onChange={(e) => onChange(e.target.value)}
 									placeholder={placeholder}
 									rows={isMultiline ? 2 : 1}
-									className="min-w-0 flex-1 resize-y rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+									className="min-w-0 flex-1 resize-y rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 								/>
 							</label>
 						)}

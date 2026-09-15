@@ -394,7 +394,7 @@ const UploadPromptModal = () => {
 					)}
 
 					<div className="flex justify-end gap-2">
-						<Button compact outline onClick={() => setPending(null)}>
+						<Button compact onClick={() => setPending(null)}>
 							Cancel
 						</Button>
 						<Button

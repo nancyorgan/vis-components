@@ -129,7 +129,7 @@ export const VisualsTable = ({
 }: Props) => {
 	if (rows.length === 0) {
 		return (
-			<div className="flex flex-col items-center gap-4 rounded-sm border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
+			<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
 				<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
 					No visualizations match the current filters.
 				</p>
@@ -145,7 +145,7 @@ export const VisualsTable = ({
 	const someVisibleSelected =
 		selectedVisibleCount > 0 && !allVisibleSelected
 	return (
-		<div className="overflow-x-auto rounded-sm border border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800">
+		<div className="overflow-x-auto rounded-card border border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800">
 			<table className="min-w-full text-sm">
 				<thead>
 					<tr>
@@ -231,7 +231,7 @@ export const VisualsTable = ({
 								key={key}
 								className={`border-b border-stone-100 last:border-b-0 dark:border-stone-800 ${
 									isSelected
-										? "bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+										? "bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/30"
 										: "hover:bg-stone-50 dark:hover:bg-stone-700/30"
 								}`}
 							>

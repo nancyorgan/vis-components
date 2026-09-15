@@ -151,7 +151,6 @@ export const FontsPage = () => {
 							</div>
 							<Button
 								compact
-								outline
 								onClick={() => setRemoving(font)}
 							>
 								Remove

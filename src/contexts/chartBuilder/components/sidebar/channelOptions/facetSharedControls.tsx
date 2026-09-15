@@ -32,8 +32,8 @@ export type ShareAxisPickerProps = {
 
 const buttonClass = (active: boolean) =>
 	active
-		? "flex items-center justify-center px-2 py-1 text-sm bg-brand-500 text-white"
-		: "flex items-center justify-center px-2 py-1 text-sm bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+		? "vc-toggle-on flex items-center justify-center px-2 py-1 text-sm"
+		: "vc-toggle-off flex items-center justify-center px-2 py-1 text-sm"
 
 export const ShareAxisPicker = ({
 	value,
@@ -46,7 +46,7 @@ export const ShareAxisPicker = ({
 		<div
 			role="group"
 			aria-label={ariaLabel}
-			className="inline-flex overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+			className="inline-flex overflow-hidden rounded border border-vc-brand-text"
 		>
 			<button
 				type="button"
@@ -105,7 +105,7 @@ export const PolarShareAxisPicker = ({
 		<div
 			role="group"
 			aria-label={ariaLabel}
-			className="inline-flex overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+			className="inline-flex overflow-hidden rounded border border-vc-brand-text"
 		>
 			<button
 				type="button"

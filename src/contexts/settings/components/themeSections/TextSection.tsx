@@ -199,12 +199,34 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 				onChange={(v) => set("legendTitleFontFamily", v)}
 				onDefault={() => set("legendTitleFontFamily", undefined)}
 			/>
+			<ColorInput
+				label="Title color"
+				value={theme.legendTitleFontColor ?? theme.titleFontColor}
+				onChange={(v) => set("legendTitleFontColor", v)}
+			/>
+			<NumberInput
+				label="Title size"
+				value={theme.legendTitleFontSize ?? theme.titleSecondarySize}
+				onChange={(v) => set("legendTitleFontSize", v)}
+				min={8}
+				max={36}
+				step={1}
+				suffix="pt"
+			/>
 			<FontWeightRow
 				label="Title weight"
 				family={theme.legendTitleFontFamily ?? theme.titleFontFamily}
 				value={theme.legendTitleFontWeight}
 				onChange={(w) => set("legendTitleFontWeight", w)}
 				onDefault={() => set("legendTitleFontWeight", undefined)}
+			/>
+			<StyleToggleRow
+				italic={theme.legendTitleFontItalic ?? theme.titleFontItalic ?? false}
+				underline={
+					theme.legendTitleFontUnderline ?? theme.titleFontUnderline ?? false
+				}
+				onItalic={(v) => set("legendTitleFontItalic", v)}
+				onUnderline={(v) => set("legendTitleFontUnderline", v)}
 			/>
 			<AlignmentRow
 				label="Title alignment"

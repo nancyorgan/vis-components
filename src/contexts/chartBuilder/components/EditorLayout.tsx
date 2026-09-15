@@ -77,7 +77,7 @@ export const EditorLayout = () => {
 	)
 
 	return (
-		<div className="flex h-[calc(100vh-57px)] flex-col">
+		<div className="flex vc-page-fill flex-col">
 			<SaveBar />
 			<div
 				className="grid min-h-0 flex-1"

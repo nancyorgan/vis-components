@@ -113,7 +113,7 @@ export const ColorInput = ({
 						disabled={disabled}
 						spellCheck={false}
 						className={c(
-							"w-24 rounded-sm border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
+							"w-24 rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
 							!HEX_PATTERN.test(textValue) &&
 								"border-amber-400 focus:border-amber-500"
 						)}

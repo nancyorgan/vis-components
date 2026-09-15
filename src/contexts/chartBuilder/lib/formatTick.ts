@@ -1,21 +1,36 @@
-import { format as d3Format } from "d3-format"
+import { format as d3Format, formatSpecifier } from "d3-format"
 import { timeFormat } from "d3-time-format"
 
 import type { AxisConfig } from "./channelConfig"
 import type { FieldType } from "./types"
 
+/** For an SI-prefix spec (d3 type `s`, e.g. `.2s` → "3.0k"), a formatter
+ * for the value 0 that prints a plain "0" (keeping any `$` / sign / fill from
+ * the spec). d3 applies `s` precision as SIGNIFICANT digits, so zero — which
+ * has no prefix to absorb them — comes out as "0.0" / "0.00" next to "3k"
+ * ticks. `null` for every other spec type. */
+const zeroFormatterForSiSpec = (spec: string): ((v: number) => string) | null => {
+	const parsed = formatSpecifier(spec)
+	if (parsed.type !== "s") return null
+	parsed.type = "f"
+	parsed.precision = 0
+	return d3Format(parsed.toString())
+}
+
 const safeFormat = (spec: string): ((v: unknown) => string) => {
 	try {
 		const f = d3Format(spec)
+		const zero = zeroFormatterForSiSpec(spec)
+		const fmtNumber = (n: number) => (zero && n === 0 ? zero(n) : f(n))
 		return (v) => {
-			if (typeof v === "number") return f(v)
+			if (typeof v === "number") return fmtNumber(v)
 			// Categorical/ordinal scales hand us domain entries as strings even
 			// when the underlying values are numeric (CSV imports, bin labels
 			// like "1", "2", "3"). Coerce so users can apply `$,.2f` etc. to
 			// numeric-looking ordinal bins.
 			if (typeof v === "string" && v.trim() !== "") {
 				const n = Number(v)
-				if (Number.isFinite(n)) return f(n)
+				if (Number.isFinite(n)) return fmtNumber(n)
 			}
 			return String(v ?? "")
 		}

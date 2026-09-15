@@ -254,11 +254,11 @@ export const NumberInput = ({
 						className={c(
 							// `pr-5` reserves room for the spinner column so the
 							// value text doesn't slide under the ▲▼ buttons.
-							"w-20 rounded-sm border border-stone-300 bg-white py-1 pr-5 pl-1.5 text-sm text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
+							"w-20 rounded-control border border-stone-300 bg-white py-1 pr-5 pl-1.5 text-sm text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
 							inputClassName
 						)}
 					/>
-					<div className="absolute inset-y-0 right-0 flex w-4 flex-col overflow-hidden rounded-r-sm border-l border-stone-300 dark:border-stone-700">
+					<div className="absolute inset-y-0 right-0 flex w-4 flex-col overflow-hidden rounded-r-control border-l border-stone-300 dark:border-stone-700">
 						{spinnerButton(1)}
 						<div className="border-t border-stone-300 dark:border-stone-700" />
 						{spinnerButton(-1)}

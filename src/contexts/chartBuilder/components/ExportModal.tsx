@@ -534,7 +534,7 @@ const EmbedTab = ({
 					running browser-local, so there is nowhere public to publish to.
 				</div>
 				<div className="flex items-center justify-end">
-					<Button compact outline onClick={onClose}>
+					<Button compact onClick={onClose}>
 						Done
 					</Button>
 				</div>
@@ -613,7 +613,6 @@ const EmbedTab = ({
 				{published && (
 					<Button
 						compact
-						outline
 						disabled={busy !== null}
 						onClick={() => void onUnpublish()}
 					>
@@ -651,7 +650,7 @@ const EmbedTab = ({
 										setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
 									}
 									rows={3}
-									className="rounded-sm border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+									className="rounded-control border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
 									onFocus={(e) => e.currentTarget.select()}
 								/>
 								<div className="flex items-center justify-end">
@@ -680,7 +679,7 @@ const EmbedTab = ({
 						Open embed in new tab
 					</a>
 				)}
-				<Button compact outline onClick={onClose}>
+				<Button compact onClick={onClose}>
 					Done
 				</Button>
 			</div>
@@ -937,7 +936,7 @@ const ExportTab = ({
 			{/* Actions ride the popup's bottom-right corner, below the preview —
 			    they move as the popup resizes with the image, by design. */}
 			<div className="flex justify-end gap-2">
-				<Button compact outline onClick={onClose}>
+				<Button compact onClick={onClose}>
 					Cancel
 				</Button>
 				<Button compact onClick={onDownload} disabled={busy}>

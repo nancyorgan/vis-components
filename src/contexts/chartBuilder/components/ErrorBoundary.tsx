@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react"
+import { Button } from "../../../components/ui/Button"
 
 type Props = {
 	children: ReactNode
@@ -59,20 +60,14 @@ export class ErrorBoundary extends Component<Props, State> {
 					)}
 				</div>
 				<div className="flex gap-2">
-					<button
-						type="button"
+					<Button compact
 						onClick={this.reset}
-						className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-900 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
 					>
 						Try again
-					</button>
-					<button
-						type="button"
-						onClick={() => window.location.reload()}
-						className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200"
-					>
+					</Button>
+					<Button compact onClick={() => window.location.reload()}>
 						Reload page
-					</button>
+					</Button>
 				</div>
 			</div>
 		)

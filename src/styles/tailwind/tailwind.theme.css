@@ -16,6 +16,12 @@
 		"Liberation Mono", "Courier New", monospace;
 	--font-tabular: "Inter", var(--font-mono);
 
+	/* Semantic corner radii: `rounded-control` for buttons / text boxes /
+	   selects, `rounded-card` for landing-page cards and panel containers.
+	   Tune here rather than swapping rounded-* classes site by site. */
+	--radius-control: 0.5rem;
+	--radius-card: 0.5rem;
+
 	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2), 0 0 1px 0 rgba(0, 0, 0, 0.2);
 	--shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 0 2px 0 rgba(0, 0, 0, 0.2);
 	--shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.25), 0 0 3px 0 rgba(0, 0, 0, 0.25);
@@ -119,19 +125,19 @@
 	--color-th-aquamarine-950: #012d23;
 	--color-th-aquamarine: var(--color-th-aquamarine-400);
 
-	--color-th-electric-indigo-50: #f5f3ff;
-	--color-th-electric-indigo-100: #e9e8ff;
-	--color-th-electric-indigo-200: #d6d4ff;
-	--color-th-electric-indigo-300: #b9b1ff;
-	--color-th-electric-indigo-400: #9685ff;
-	--color-th-electric-indigo-500: #6f4dff;
-	--color-th-electric-indigo-600: #6230f7;
-	--color-th-electric-indigo-700: #551ee3;
-	--color-th-electric-indigo-800: #4618bf;
-	--color-th-electric-indigo-900: #38129c;
-	--color-th-electric-indigo-950: #220b6a;
-	--color-th-electric-indigo-1000: #17074c;
-	--color-th-electric-indigo-1100: #0e0333;
+	--color-th-electric-indigo-50: #f4f3ff;
+	--color-th-electric-indigo-100: #e6e9fe;
+	--color-th-electric-indigo-200: #d6daff;
+	--color-th-electric-indigo-300: #afb4fd;
+	--color-th-electric-indigo-400: #848bfd;
+	--color-th-electric-indigo-500: #4d5bff;
+	--color-th-electric-indigo-600: #3443f7;
+	--color-th-electric-indigo-700: #2335e3;
+	--color-th-electric-indigo-800: #1b2bbf;
+	--color-th-electric-indigo-900: #15229c;
+	--color-th-electric-indigo-950: #08156a;
+	--color-th-electric-indigo-1000: #060e4c;
+	--color-th-electric-indigo-1100: #050632;
 	--color-th-electric-indigo: var(--color-th-electric-indigo-500);
 
 	--color-th-true-blue: #3a79c4;

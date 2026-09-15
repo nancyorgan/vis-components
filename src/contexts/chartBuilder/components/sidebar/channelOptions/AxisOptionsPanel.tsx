@@ -1646,18 +1646,18 @@ const DistributionTypeControls = ({
 	const setOverlay = (next: Partial<DistributionOverlayConfig>) =>
 		onChange({ distributionOverlay: { ...overlay, ...next } })
 
-	const segBase = "px-2 py-1 text-sm border-l first:border-l-0 border-stone-300 dark:border-stone-700"
+	const segBase = "px-2 py-1 text-sm border-l first:border-l-0 border-vc-brand-text"
 	const segClass = (active: boolean) =>
 		active
-			? `${segBase} bg-brand-500 text-white`
-			: `${segBase} bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700`
+			? `${segBase} vc-toggle-on`
+			: `${segBase} vc-toggle-off`
 
 	return (
 		<div className="flex flex-col gap-2">
 			<div
 				role="radiogroup"
 				aria-label="Distribution type"
-				className="inline-flex self-start overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+				className="inline-flex self-start overflow-hidden rounded border border-vc-brand-text"
 			>
 				{segments.map((s) => (
 					<button
@@ -1800,16 +1800,16 @@ const SegmentedRadioRow = <K extends string>({
 	onChange: (key: K) => void
 }) => {
 	const segBase =
-		"px-2 py-1 text-sm border-l first:border-l-0 border-stone-300 dark:border-stone-700"
+		"px-2 py-1 text-sm border-l first:border-l-0 border-vc-brand-text"
 	const segClass = (active: boolean) =>
 		active
-			? `${segBase} bg-brand-500 text-white`
-			: `${segBase} bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700`
+			? `${segBase} vc-toggle-on`
+			: `${segBase} vc-toggle-off`
 	return (
 		<div
 			role="radiogroup"
 			aria-label={ariaLabel}
-			className="inline-flex self-start overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+			className="inline-flex self-start overflow-hidden rounded border border-vc-brand-text"
 		>
 			{segments.map((s) => (
 				<button

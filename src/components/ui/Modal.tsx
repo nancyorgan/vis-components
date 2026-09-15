@@ -210,7 +210,7 @@ export const ConfirmDialog = ({
 				{message}
 			</div>
 			<div className="flex justify-end gap-2">
-				<Button compact outline onClick={onCancel}>
+				<Button compact onClick={onCancel}>
 					{cancelLabel}
 				</Button>
 				<Button compact danger={destructive || warning} onClick={onConfirm}>

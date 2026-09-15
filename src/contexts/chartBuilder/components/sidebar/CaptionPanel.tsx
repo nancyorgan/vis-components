@@ -24,7 +24,7 @@ import {
 } from "../../store/useFontOptions"
 
 const UNIT_SELECT_CLASS =
-	"rounded-sm border border-stone-300 bg-white px-1 py-1 text-sm text-stone-700 outline-none hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+	"rounded-control border border-stone-300 bg-white px-1 py-1 text-sm text-stone-700 outline-none hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 
 /** A NumberInput with a trailing px/% unit selector — used for the position
  *  offsets, which sensibly start stepping from 0. */
@@ -180,7 +180,7 @@ export const CaptionPanel = () => {
 						const n = Number(raw)
 						if (Number.isFinite(n) && n >= 0) setValue(n)
 					}}
-					className="w-20 rounded-sm border border-stone-300 bg-white px-1.5 py-1 text-sm text-stone-900 outline-none hover:border-stone-400 focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+					className="w-20 rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm text-stone-900 outline-none hover:border-stone-400 focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
 				/>
 				<select
 					aria-label={`${label} unit`}
@@ -226,7 +226,7 @@ export const CaptionPanel = () => {
 							onChange={(e) => update({ text: e.target.value })}
 							placeholder="A short caption shown below the x-axis title…"
 							rows={4}
-							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
 					</label>
 

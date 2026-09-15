@@ -153,7 +153,7 @@
 	}
 
 	& h2 {
-		@apply text-brand-500;
+		@apply text-vc-brand-text;
 	}
 
 	& h1 {
@@ -240,7 +240,7 @@
 	}
 
 	& a {
-		@apply text-brand-600 underline dark:text-brand-500;
+		@apply text-vc-brand-text underline;
 	}
 
 	& ol {

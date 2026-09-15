@@ -30,6 +30,10 @@
 		"Quicksand", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
 		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 	--font-heading: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+	/* Wordmark face for the "Zafiro" brand text in the header (font-brand).
+	 * Only Fraunces 700 is loaded in index.html — keep the wordmark at
+	 * font-bold so the browser doesn't synthesize another weight. */
+	--font-brand: "Fraunces", "Quicksand", ui-sans-serif, system-ui, sans-serif;
 
 	/* Quicksand renders noticeably lighter than DM Sans at the same weight, so
 	 * the UI weight scale shifts up one step: body text 400→500 (base layer
@@ -55,12 +59,17 @@
 	/* Editor sidebar (the column with Encodings, Base font, etc.) */
 	--color-vc-sidebar: #fafafa; /* soft gray */
 
+	/* Brand color used AS TEXT (section headers, helper prose, links, purple
+	 * badges). A touch darker than the brand 500 button color so small type
+	 * holds up on the light option panels. */
+	--color-vc-brand-text: #4433ff;
+
 	/* Sidebar section headers (Fields, Encodings, Base font, …) */
-	--color-vc-section-header: #4530e3; /* dark purple */
+	--color-vc-section-header: var(--color-vc-brand-text);
 
 	/* Shaded panel behind each option group (Hue, Opacity, Axis, …).
 	 * Consumed by the .vc-option-panel component class below. */
-	--color-vc-option-panel: #e9e6ff; /* light: soft lavender */
+	--color-vc-option-panel: #ebedff; /* light: soft periwinkle */
 	--color-vc-option-panel-dark: rgb(41 37 36 / 0.5); /* dark: stone-800 @ 50% */
 
 	/* Add more project-local tokens below as they emerge. Candidates to
@@ -75,6 +84,17 @@
  * Base layer — global element defaults
  * -------------------------------------------------------------------------- */
 @layer base {
+	/* App chrome heights. The header renders 55px tall (py-2.5 + h-8
+	 * controls + 1px border) and is sticky, so `.vc-sticky-rail` offsets by
+	 * it; the footer is an ordinary block after the page content on the
+	 * library and settings pages only (RootLayout omits it on the editor).
+	 * The editor shell (`.vc-page-fill`) subtracts just the header so it
+	 * fits the viewport and the window never scrolls there. */
+	:root {
+		--vc-header-h: 55px;
+		--vc-footer-h: 40px;
+	}
+
 	/* Headings render in the --font-heading face (currently Quicksand). Covers
 	 * the sidebar section headers too — AsideSection renders them as <h3>. Use
 	 * the `font-heading` utility for header-like elements that aren't <h1>–<h6>. */
@@ -142,7 +162,7 @@
 	.vc-help {
 		font-size: 0.75rem; /* matches text-xs */
 		line-height: 1rem;
-		color: var(--color-th-electric-indigo-700);
+		color: var(--color-vc-brand-text);
 	}
 	.dark .vc-help {
 		color: var(--color-stone-400);
@@ -156,6 +176,73 @@
 		line-height: 1.25rem;
 		font-weight: 600;
 		color: var(--color-vc-section-header);
+	}
+
+	/* Toggle / segmented-control states. Every ACTION button in the app is
+	 * the filled brand <Button> (or <Button danger> for destructive ones);
+	 * this pair is only for on/off state controls — Pie/Donut-style
+	 * segmented groups and similar. They own
+	 * COLORS only (fill, border color, text); call sites keep `border` +
+	 * rounding/spacing.
+	 *
+	 *   .vc-toggle-off  light purple fill, brand-purple text + border
+	 *   .vc-toggle-on   brand-500 fill (same purple as <Button>), white text
+	 *
+	 * NOT for the glyph swatch pickers (pattern / dash / shape / legend
+	 * swatch shape / no-data pattern): those keep their original white +
+	 * stone-border chips with a stone-900 selected ring — Nancy asked for
+	 * them to stay exactly as they were (2026-09-15). Also NOT for the text
+	 * alignment pickers (`segmentButtonClass` in LabelsPanel) or the B/I/U
+	 * font-style toggles (`StyleButton` in LabelsPanel, `StyleToggleBtn` in
+	 * settings controls.tsx): those stay light gray off / dark gray on, per
+	 * Nancy (2026-09-15).
+	 * Tokens are the sidebar's own: --color-vc-option-panel under
+	 * --color-vc-brand-text. */
+	.vc-toggle-off {
+		background-color: var(--color-vc-option-panel);
+		border-color: var(--color-vc-brand-text);
+		color: var(--color-vc-brand-text);
+		transition-property: background-color, color;
+		transition-duration: 150ms;
+	}
+	.vc-toggle-off:hover:not(:disabled) {
+		background-color: color-mix(
+			in srgb,
+			var(--color-vc-option-panel),
+			var(--color-vc-brand-text) 12%
+		);
+	}
+	.dark .vc-toggle-off {
+		background-color: color-mix(in srgb, var(--color-vc-brand-text), transparent 82%);
+		border-color: var(--color-brand-300);
+		color: var(--color-brand-200);
+	}
+	.dark .vc-toggle-off:hover:not(:disabled) {
+		background-color: color-mix(in srgb, var(--color-vc-brand-text), transparent 70%);
+	}
+
+	/* Selected row in a settings/side nav (e.g. the active theme in the
+	 * Themes sub-nav). Same light purple as the sidebar option panels and
+	 * .vc-toggle-off so "selected" reads as the builder's brand purple, not
+	 * a stray blue. COLORS only; call sites keep rounding/spacing. */
+	.vc-nav-active {
+		background-color: var(--color-vc-option-panel);
+		color: var(--color-vc-brand-text);
+	}
+	.dark .vc-nav-active {
+		background-color: color-mix(in srgb, var(--color-vc-brand-text), transparent 82%);
+		color: var(--color-brand-200);
+	}
+
+	.vc-toggle-on {
+		background-color: var(--color-brand-500);
+		border-color: var(--color-brand-500);
+		color: #ffffff;
+	}
+	.dark .vc-toggle-on {
+		background-color: var(--color-brand-600);
+		border-color: var(--color-brand-600);
+		color: var(--color-stone-100);
 	}
 
 	/* Legend swatch cell: the fixed-width column a legend entry's graphic
@@ -178,6 +265,26 @@
  * Utility layer — one-offs that Tailwind doesn't cover
  * -------------------------------------------------------------------------- */
 @layer utilities {
+	/* Editor shell: exactly fills the viewport below the sticky header (the
+	 * editor has no footer). The editor manages its own inner scrolling
+	 * (sidebar, chart viewport), so the window must not scroll or there'd be
+	 * two scrollbars. Library and Settings do NOT use this — they flow as
+	 * ordinary documents (window scrolls, footer at the end) with a
+	 * `.vc-sticky-rail` side nav. */
+	.vc-page-fill {
+		height: calc(100vh - var(--vc-header-h));
+	}
+
+	/* Side rail (folder tree, settings nav) that stays in view beneath the
+	 * sticky header while the rest of the page scrolls with the window. Its
+	 * fixed height gives the rail's own `overflow-y-auto` list a bound. */
+	.vc-sticky-rail {
+		position: sticky;
+		top: var(--vc-header-h);
+		height: calc(100vh - var(--vc-header-h));
+		align-self: flex-start;
+	}
+
 	/* Fixed-width legend ("Legend width" in the Legend panel). The legend
 	 * box is exactly as wide as the user typed, so labels that no longer fit
 	 * must WRAP instead of truncating (stacked entries use Tailwind's

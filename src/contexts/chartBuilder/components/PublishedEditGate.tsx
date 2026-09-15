@@ -41,7 +41,7 @@ export const PublishedEditGate = () => {
 			onClose={acknowledge}
 			dismissOnBackdrop={false}
 			title={
-				<span className="text-brand-700 dark:text-brand-300">
+				<span className="text-brand-500 dark:text-brand-300">
 					Already embedded
 				</span>
 			}
@@ -57,7 +57,7 @@ export const PublishedEditGate = () => {
 					published content.
 				</div>
 				<div className="flex justify-end gap-2">
-					<Button compact outline onClick={() => void navigate({ to: "/" })}>
+					<Button compact onClick={() => void navigate({ to: "/" })}>
 						Go back
 					</Button>
 					<Button compact onClick={acknowledge}>

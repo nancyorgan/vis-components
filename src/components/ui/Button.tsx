@@ -7,7 +7,6 @@ import { combine as c } from "../../lib/cls"
 
 export type ButtonProps = Omit<JSX.IntrinsicElements["button"], "ref"> & {
 	compact?: boolean
-	outline?: boolean
 	themeBase?: boolean
 	themeInfo?: boolean
 	/** Destructive / warning action — red fill AND red edges. Use this
@@ -18,15 +17,16 @@ export type ButtonProps = Omit<JSX.IntrinsicElements["button"], "ref"> & {
 }
 
 const spacing = {
-	compact: "rounded-sm px-3 py-1.5 text-sm shadow",
-	regular: "rounded-sm px-6 py-2 text-sm shadow",
+	compact: "rounded-control px-3 py-1.5 text-sm shadow",
+	regular: "rounded-control px-6 py-2 text-sm shadow",
 }
 
 const filled =
 	"bg-brand-text-aa bg-stone-900 text-white transition-all hover:shadow-lg hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
 
-const outlineStyles =
-	"border border-stone-700 bg-transparent text-stone-800 transition-all hover:bg-stone-800 hover:text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-500 dark:text-stone-300 dark:hover:bg-stone-700"
+// There is deliberately NO outline / secondary variant: every non-destructive
+// action button in the app is this filled brand purple (Nancy, 2026-09-15).
+// On/off state controls use the .vc-toggle-* classes in vis-components.css.
 
 // `bg-error-text-aa` (styles/tailwind/Button.css) is the red sibling of
 // `bg-brand-text-aa` — it owns fill, both edge colors, hover/active, dark
@@ -35,15 +35,9 @@ const dangerStyles =
 	"bg-error-text-aa transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-	function Button({ className, compact, outline, danger, themeInfo, ...p }, ref) {
+	function Button({ className, compact, danger, themeInfo, ...p }, ref) {
 		const sizeClass = compact ? spacing.compact : spacing.regular
-		// Outline wins over danger: a bordered red button is a different
-		// affordance, and no caller asks for one today.
-		const themeClass = outline
-			? outlineStyles
-			: danger
-				? dangerStyles
-				: filled
+		const themeClass = danger ? dangerStyles : filled
 		return (
 			<button
 				ref={ref}

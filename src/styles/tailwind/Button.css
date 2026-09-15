@@ -3,12 +3,12 @@
 	@apply border-y border-t-brand-400 border-b-brand-600 bg-brand-500 text-white;
 }
 
-.bg-brand-text-aa:hover {
+.bg-brand-text-aa:hover:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-brand-500), black 10%);
 	border-top-color: color-mix(in srgb, var(--color-brand-400), black 10%);
 }
 
-.bg-brand-text-aa:active {
+.bg-brand-text-aa:active:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-brand-500), black 20%);
 	border-top-color: color-mix(in srgb, var(--color-brand-400), black 20%);
 }
@@ -20,12 +20,12 @@
 		@apply border-y border-t-brand-500 border-b-brand-700 bg-brand-600 text-stone-300;
 	}
 
-	.bg-brand-text-aa:hover {
+	.bg-brand-text-aa:hover:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-brand-600), black 10%);
 		border-top-color: color-mix(in srgb, var(--color-brand-500), black 10%);
 	}
 
-	.bg-brand-text-aa:active {
+	.bg-brand-text-aa:active:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-brand-600), black 20%);
 		border-top-color: color-mix(in srgb, var(--color-brand-500), black 20%);
 	}
@@ -36,12 +36,12 @@
 	@apply border-y border-t-success-600 border-b-success-800 bg-success-700 text-white;
 }
 
-.bg-success-text-aa:hover {
+.bg-success-text-aa:hover:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-success-700), black 10%);
 	border-top-color: color-mix(in srgb, var(--color-success-600), black 10%);
 }
 
-.bg-success-text-aa:active {
+.bg-success-text-aa:active:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-success-700), black 20%);
 	border-top-color: color-mix(in srgb, var(--color-success-600), black 20%);
 }
@@ -53,12 +53,12 @@
 		@apply border-y border-t-success-700 border-b-success-900 bg-success-800 text-stone-300;
 	}
 
-	.bg-success-text-aa:hover {
+	.bg-success-text-aa:hover:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-success-800), black 10%);
 		border-top-color: color-mix(in srgb, var(--color-success-700), black 10%);
 	}
 
-	.bg-success-text-aa:active {
+	.bg-success-text-aa:active:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-success-800), black 20%);
 		border-top-color: color-mix(in srgb, var(--color-success-700), black 20%);
 	}
@@ -69,12 +69,12 @@
 	@apply border-y border-t-error-500 border-b-error-700 bg-error-600 text-white;
 }
 
-.bg-error-text-aa:hover {
+.bg-error-text-aa:hover:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-error-600), black 10%);
 	border-top-color: color-mix(in srgb, var(--color-error-500), black 10%);
 }
 
-.bg-error-text-aa:active {
+.bg-error-text-aa:active:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-error-600), black 20%);
 	border-top-color: color-mix(in srgb, var(--color-error-500), black 20%);
 }
@@ -86,12 +86,12 @@
 		@apply border-y border-t-error-700 border-b-error-900 bg-error-800 text-stone-200;
 	}
 
-	.bg-error-text-aa:hover {
+	.bg-error-text-aa:hover:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-error-800), black 10%);
 		border-top-color: color-mix(in srgb, var(--color-error-700), black 10%);
 	}
 
-	.bg-error-text-aa:active {
+	.bg-error-text-aa:active:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-error-800), black 20%);
 		border-top-color: color-mix(in srgb, var(--color-error-700), black 20%);
 	}
@@ -102,12 +102,12 @@
 	@apply border-y border-t-warning-300 border-b-warning-500 bg-warning-400 text-stone-700;
 }
 
-.bg-warning-text-aa:hover {
+.bg-warning-text-aa:hover:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-warning-400), black 10%);
 	border-top-color: color-mix(in srgb, var(--color-warning-300), black 10%);
 }
 
-.bg-warning-text-aa:active {
+.bg-warning-text-aa:active:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-warning-400), black 20%);
 	border-top-color: color-mix(in srgb, var(--color-warning-300), black 20%);
 }
@@ -119,12 +119,12 @@
 		@apply border-y border-t-warning-700 border-b-warning-900 bg-warning-800 text-stone-300;
 	}
 
-	.bg-warning-text-aa:hover {
+	.bg-warning-text-aa:hover:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-warning-800), black 10%);
 		border-top-color: color-mix(in srgb, var(--color-warning-700), black 10%);
 	}
 
-	.bg-warning-text-aa:active {
+	.bg-warning-text-aa:active:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-warning-800), black 20%);
 		border-top-color: color-mix(in srgb, var(--color-warning-700), black 20%);
 	}
@@ -135,12 +135,12 @@
 	@apply border-y border-t-info-500 border-b-info-700 bg-info-600 text-white;
 }
 
-.bg-info-text-aa:hover {
+.bg-info-text-aa:hover:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-info-600), black 10%);
 	border-top-color: color-mix(in srgb, var(--color-info-500), black 10%);
 }
 
-.bg-info-text-aa:active {
+.bg-info-text-aa:active:not(:disabled) {
 	background-color: color-mix(in srgb, var(--color-info-600), black 20%);
 	border-top-color: color-mix(in srgb, var(--color-info-500), black 20%);
 }
@@ -152,12 +152,12 @@
 		@apply border-y border-t-info-700 border-b-info-900 bg-info-800 text-white;
 	}
 
-	.bg-info-text-aa:hover {
+	.bg-info-text-aa:hover:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-info-800), black 10%);
 		border-top-color: color-mix(in srgb, var(--color-info-700), black 10%);
 	}
 
-	.bg-info-text-aa:active {
+	.bg-info-text-aa:active:not(:disabled) {
 		background-color: color-mix(in srgb, var(--color-info-800), black 20%);
 		border-top-color: color-mix(in srgb, var(--color-info-700), black 20%);
 	}
@@ -193,7 +193,12 @@
 .bg-brand-text-aa[aria-disabled]:hover,
 .bg-brand-text-aa:disabled,
 .bg-brand-text-aa[aria-disabled] {
-	@apply border-[#767676] bg-[#767676] text-white;
+	/* Disabled keeps the variant's own hue, just desaturated — Button.tsx
+	 * adds `disabled:opacity-60` for the fade, so together it reads as a
+	 * washed-out version of the live button rather than an unrelated gray
+	 * (Nancy, 2026-09-15). */
+	filter: saturate(0.35);
+	box-shadow: none;
 }
 
 :global(.dark) {
@@ -221,6 +226,7 @@
 	.bg-brand-text-aa[aria-disabled]:hover,
 	.bg-brand-text-aa:disabled,
 	.bg-brand-text-aa[aria-disabled] {
-		@apply border-metal-700 bg-metal-700 text-stone-300;
+		filter: saturate(0.35);
+		box-shadow: none;
 	}
 }

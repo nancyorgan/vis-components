@@ -39,6 +39,7 @@ import { FacetScopeControl } from "./controls"
 import { LineSegmentEditor } from "./LineSegmentEditor"
 import { RectangleEditor } from "./RectangleEditor"
 import { TextAnnotationEditor } from "./TextAnnotationEditor"
+import { Button } from "../../../../../components/ui/Button"
 
 export const AnnotationsPanel = () => {
 	const [cfg, setCfg] = useAtom(currentAnnotationsAtom)
@@ -253,34 +254,30 @@ export const AnnotationsPanel = () => {
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex flex-wrap gap-2">
-				<button
-					type="button"
+				<Button compact
 					onClick={addRectangle}
-					className="self-start rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					+ Rectangle
-				</button>
-				<button
-					type="button"
+				</Button>
+				<Button compact
 					onClick={addCircle}
-					className="self-start rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					+ Circle
-				</button>
-				<button
-					type="button"
+				</Button>
+				<Button compact
 					onClick={addLineSegment}
-					className="self-start rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					+ Line
-				</button>
-				<button
-					type="button"
+				</Button>
+				<Button compact
 					onClick={addText}
-					className="self-start rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					+ Text
-				</button>
+				</Button>
 			</div>
 			{cfg.rectangles.length === 0 &&
 				circles.length === 0}

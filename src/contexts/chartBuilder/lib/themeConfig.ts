@@ -1144,6 +1144,12 @@ export const labelsFromTheme = (t: Theme): LabelsConfig => ({
 			secondaryColor: t.axisTitleFontColor,
 			secondaryItalic: t.axisTitleFontItalic,
 			secondaryUnderline: t.axisTitleFontUnderline,
+			// Legend section title color / size / style; unset follows the
+			// Main title (size follows the Axis title size).
+			legendColor: t.legendTitleFontColor,
+			legendSize: t.legendTitleFontSize,
+			legendItalic: t.legendTitleFontItalic,
+			legendUnderline: t.legendTitleFontUnderline,
 			// Base alignments for title / subtitle / legend titles — the layer
 			// under per-visual titleAlignments (titleAlignmentOf).
 			primaryAlignment: t.titleAlignment,

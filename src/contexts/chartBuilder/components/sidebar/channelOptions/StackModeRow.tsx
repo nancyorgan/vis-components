@@ -88,7 +88,7 @@ export const StackModeRow = ({
 			<div
 				role="group"
 				aria-label={rowLabel}
-				className="flex flex-1 overflow-hidden rounded border border-stone-300 dark:border-stone-700"
+				className="flex flex-1 overflow-hidden rounded border border-vc-brand-text"
 			>
 				{options.map((opt) => {
 					const active = opt.id === value
@@ -100,8 +100,8 @@ export const StackModeRow = ({
 							aria-pressed={active}
 							className={
 								active
-									? "flex-1 bg-brand-500 px-1.5 py-1 text-sm text-white"
-									: "flex-1 bg-white px-1.5 py-1 text-sm text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+									? "vc-toggle-on flex-1 px-1.5 py-1 text-sm"
+									: "vc-toggle-off flex-1 px-1.5 py-1 text-sm"
 							}
 						>
 							{opt.label}

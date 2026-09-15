@@ -30,6 +30,28 @@ describe("buildTickFormatter", () => {
 		expect(f!(3.14159)).toBe("3.14")
 	})
 
+	it("prints an exact zero under an SI-prefix spec as a plain 0", () => {
+		// d3's `s` type spends its precision as significant digits, so 0 has
+		// nothing to trim into a prefix and rendered as "0.0" beside "3.0k".
+		const f = buildTickFormatter(cfg({ customFormat: ".2s" }), "quantitative")
+		expect(f!(3000)).toBe("3.0k")
+		expect(f!(0)).toBe("0")
+		expect(f!(-0)).toBe("0")
+		expect(f!("0")).toBe("0")
+		// Non-zero values keep d3's SI semantics untouched.
+		expect(f!(12500)).toBe("13k")
+		// Currency / grouping flags survive on the zero label.
+		const money = buildTickFormatter(
+			cfg({ customFormat: "$,.3s" }),
+			"quantitative"
+		)
+		expect(money!(0)).toBe("$0")
+		expect(money!(1500)).toBe("$1.50k")
+		// Non-SI specs are untouched — `.2f` still says 0.00.
+		const fixed = buildTickFormatter(cfg({ customFormat: ".2f" }), "quantitative")
+		expect(fixed!(0)).toBe("0.00")
+	})
+
 	it("applies thousands grouping via the ',' preset", () => {
 		const f = buildTickFormatter(cfg({ customFormat: ",.2f" }), "quantitative")
 		expect(f!(1234.5)).toBe("1,234.50")

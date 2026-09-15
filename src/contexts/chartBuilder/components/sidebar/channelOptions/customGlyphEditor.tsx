@@ -19,6 +19,7 @@ import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 
 import { PREVIEW_SIZE } from "./glyphShared"
+import { Button } from "../../../../../components/ui/Button"
 
 /** Shared chip-button styling for the shape rows (built-in glyphs inline
  *  the same string; new custom-glyph chips reuse it from here). */
@@ -211,14 +212,12 @@ export const CustomGlyphEditor = ({
 					aria-label="Custom shape text"
 					className="w-20 rounded border border-stone-300 bg-white px-2 py-1 dark:border-stone-700 dark:bg-stone-900"
 				/>
-				<button
-					type="button"
+				<Button compact
 					onClick={submitText}
 					disabled={!canSubmit}
-					className="rounded border border-stone-300 bg-white px-2 py-1 text-stone-700 hover:border-stone-500 disabled:opacity-40 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
 				>
 					Add
-				</button>
+				</Button>
 				<span className="text-stone-500 dark:text-stone-400">or</span>
 				<label className="cursor-pointer text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white">
 					upload image

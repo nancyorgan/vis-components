@@ -476,7 +476,7 @@ export type Theme = {
 	subtitleFontWeight?: number
 	/** Axis titles + facet titles (the `secondary` title tier). */
 	axisTitleFontWeight?: number
-	/** Legend section titles — same size tier as axis titles, weight only. */
+	/** Legend section titles. */
 	legendTitleFontWeight?: number
 	/** Per-slot font families for the subtitle / axis / legend section
 	 * titles. Unset falls back to the shared `titleFontFamily`. */
@@ -489,6 +489,13 @@ export type Theme = {
 	axisTitleFontColor?: string
 	axisTitleFontItalic?: boolean
 	axisTitleFontUnderline?: boolean
+	/** Legend section title color / size / italic / underline. Unset falls
+	 * back to the Main title color / style and the Axis title size
+	 * (`titleSecondarySize`). */
+	legendTitleFontColor?: string
+	legendTitleFontSize?: number
+	legendTitleFontItalic?: boolean
+	legendTitleFontUnderline?: boolean
 	/** Default alignments for the chart title / subtitle / legend section
 	 * titles. Unset = "center". Per-visual alignment edits override these. */
 	titleAlignment?: "left" | "center" | "right"

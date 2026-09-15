@@ -10,6 +10,7 @@ import {
 	updateCategoricalPalette,
 } from "./paletteHelpers"
 import type { ThemeSectionProps } from "./types"
+import { Button } from "../../../../components/ui/Button"
 
 type PaletteCardProps = {
 	palette: SavedCategoricalPalette
@@ -441,13 +442,12 @@ export const PalettesSection = ({
 						onDelete: () => deleteCatPalette(palette.id),
 					})}
 				/>
-				<button
-					type="button"
+				<Button compact
 					onClick={addCatPalette}
-					className="self-start rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					Add palette
-				</button>
+				</Button>
 				<div className="flex flex-col gap-1 border-t border-stone-200 pt-3 dark:border-stone-700">
 					<label
 						htmlFor={textPaletteSelectId}
@@ -510,13 +510,12 @@ export const PalettesSection = ({
 						onDelete: () => deleteOrdPalette(palette.id),
 					})}
 				/>
-				<button
-					type="button"
+				<Button compact
 					onClick={addOrdPalette}
-					className="self-start rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+					className="self-start"
 				>
 					Add ordinal palette
-				</button>
+				</Button>
 			</Section>
 		</SectionGroup>
 	)

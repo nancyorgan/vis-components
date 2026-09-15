@@ -243,7 +243,7 @@ export const ThemesSubNav = () => {
 				onDrop={dropOnFolder(folder)}
 				className={c(
 					"rounded",
-					dragOver === folder && "bg-blue-50 dark:bg-blue-900/20"
+					dragOver === folder && "vc-nav-active"
 				)}
 			>
 				<button
@@ -253,7 +253,7 @@ export const ThemesSubNav = () => {
 							? gate({ kind: "toggle-folder" })
 							: setExpanded((prev) => ({ ...prev, [folder]: !prev[folder] }))
 					}
-					className="flex w-full items-center gap-1 rounded px-1 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+					className="flex w-full items-center gap-1 rounded px-1 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-stone-900 hover:bg-stone-100 dark:text-white dark:hover:bg-stone-800"
 				>
 					<SectionChevron open={open} />
 					<span className="min-w-0 flex-1 truncate">
@@ -298,7 +298,7 @@ export const ThemesSubNav = () => {
 										"flex w-full items-center gap-1 rounded px-2 py-1 text-left text-xs",
 										draggingId === t.id && "opacity-50",
 										isActive
-											? "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+											? "vc-nav-active"
 											: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
 									)}
 								>
@@ -321,13 +321,9 @@ export const ThemesSubNav = () => {
 		<div className="ml-4 flex flex-col gap-1 border-l border-stone-200 pl-2 dark:border-stone-700">
 			{renderFolder("managed")}
 			{renderFolder("custom")}
-			<button
-				type="button"
-				onClick={() => setAddOpen(true)}
-				className="mt-1 rounded border border-dashed border-stone-300 bg-white px-2 py-1 text-xs font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
-			>
+			<Button compact onClick={() => setAddOpen(true)} className="mt-1 self-start">
 				+ Add a new theme
-			</button>
+			</Button>
 			<AddThemeDialog
 				open={addOpen}
 				themes={themes}
@@ -419,13 +415,13 @@ const AddThemeDialog = ({
 						as a new entry — your other themes are untouched.
 					</p>
 					<div className="flex justify-end">
-						<Button compact outline onClick={onPickImport}>
+						<Button compact onClick={onPickImport}>
 							Choose JSON file…
 						</Button>
 					</div>
 				</div>
 				<div className="flex justify-end border-t border-stone-200 pt-3 dark:border-stone-700">
-					<Button compact outline onClick={onCancel}>
+					<Button compact onClick={onCancel}>
 						Cancel
 					</Button>
 				</div>

@@ -50,7 +50,7 @@ export const MoveToFolderButton = ({
 						}}
 						className={`w-full px-3 py-1 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
 							currentFolderId === null
-								? "font-medium text-blue-600"
+								? "font-medium text-brand-700 dark:text-brand-300"
 								: "text-stone-700 dark:text-stone-300"
 						}`}
 					>
@@ -67,7 +67,7 @@ export const MoveToFolderButton = ({
 							}}
 							className={`w-full px-3 py-1 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
 								currentFolderId === f.id
-									? "font-medium text-blue-600"
+									? "font-medium text-brand-700 dark:text-brand-300"
 									: "text-stone-700 dark:text-stone-300"
 							}`}
 							style={{ paddingLeft: `${12 + depth * 12}px` }}

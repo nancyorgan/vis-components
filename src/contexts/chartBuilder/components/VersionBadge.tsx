@@ -129,7 +129,7 @@ export const VersionBadge = () => {
 			<button
 				type="button"
 				onClick={() => setOpen((v) => !v)}
-				className={`flex items-center gap-2 rounded-sm border px-2 py-1 text-sm transition-colors ${
+				className={`flex items-center gap-2 rounded-control border px-2 py-1 text-sm transition-colors ${
 					view.isLatest
 						? "border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
 						: "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
