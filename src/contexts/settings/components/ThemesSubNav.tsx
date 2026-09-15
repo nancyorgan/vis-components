@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { useAtom, useSetAtom } from "jotai"
 import {
 	isManagedTheme,
@@ -75,6 +76,16 @@ export const ThemesSubNav = () => {
 	const [editingThemeId, setEditingThemeId] = useAtom(editingThemeIdAtom)
 	const setUnlockedThemeId = useSetAtom(unlockedThemeIdAtom)
 	const [addOpen, setAddOpen] = useState(false)
+	const navigate = useNavigate()
+
+	/** Every way of picking a theme lands the editor on it. The sub-nav is
+	 *  mounted on EVERY settings page (Fonts, Sharing, …), so setting the
+	 *  atom alone would silently change the selection while the user stays
+	 *  parked on the page they came from. */
+	const openTheme = (themeId: string) => {
+		setEditingThemeId(themeId)
+		void navigate({ to: "/settings/themes" })
+	}
 
 	// Both folders start open: seeing WHICH themes are managed is not
 	// editing them, and hiding the list would only make the two system
@@ -108,7 +119,7 @@ export const ThemesSubNav = () => {
 			// Passing the gate grants edit access to THIS theme only — the
 			// editor re-locks as soon as a different managed theme is picked.
 			setUnlockedThemeId(action.themeId)
-			setEditingThemeId(action.themeId)
+			openTheme(action.themeId)
 		} else if (action.kind === "toggle-folder")
 			setExpanded((prev) => ({ ...prev, managed: !prev.managed }))
 		else
@@ -166,7 +177,7 @@ export const ThemesSubNav = () => {
 				...seed,
 			},
 		])
-		setEditingThemeId(id)
+		openTheme(id)
 		setAddOpen(false)
 	}
 
@@ -206,7 +217,7 @@ export const ThemesSubNav = () => {
 			setThemes((prev) => [...prev, ...reKeyed])
 			// Jump to the first imported theme so the user can see what they got.
 			const first = reKeyed[0]
-			if (first) setEditingThemeId(first.id)
+			if (first) openTheme(first.id)
 			setAddOpen(false)
 		} catch (error) {
 			window.alert(
@@ -281,7 +292,7 @@ export const ThemesSubNav = () => {
 									onClick={() =>
 										managed
 											? gate({ kind: "select", themeId: t.id })
-											: setEditingThemeId(t.id)
+											: openTheme(t.id)
 									}
 									className={c(
 										"flex w-full items-center gap-1 rounded px-2 py-1 text-left text-xs",

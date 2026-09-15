@@ -12,7 +12,10 @@ import {
 	type DatasetView,
 	type Encodings,
 } from "../../../lib/types"
-import { computeDataLabelOverflow } from "./dataLabelReserve"
+import {
+	LABEL_RESERVE_PAD_PX,
+	computeDataLabelOverflow,
+} from "./dataLabelReserve"
 import { measureMaxLabelWidth } from "./measureText"
 
 const view = (rows: Array<Record<string, string>>): DatasetView => ({
@@ -78,7 +81,7 @@ const labelPx = (text: string, dataLabels: DataLabelsConfig): number => {
 	return measured > 0 ? measured : text.length * fontPx * 0.55
 }
 
-const cap = (n: number) => Math.max(0, Math.min(400, Math.ceil(n)))
+const cap = (n: number) => Math.max(0, Math.ceil(n))
 
 describe("computeDataLabelOverflow", () => {
 	it("reserves nothing without a dataset", () => {
@@ -113,7 +116,7 @@ describe("computeDataLabelOverflow", () => {
 			dataLabels,
 		})
 		expect(r.left).toBe(0)
-		expect(r.right).toBe(cap(labelPx(LONG, dataLabels) - BASE_MARGIN.right))
+		expect(r.right).toBe(cap(labelPx(LONG, dataLabels) + LABEL_RESERVE_PAD_PX - BASE_MARGIN.right))
 		expect(r.right).toBeGreaterThan(0)
 	})
 
@@ -126,7 +129,7 @@ describe("computeDataLabelOverflow", () => {
 			dataLabels,
 		})
 		expect(r.right).toBe(0)
-		expect(r.left).toBe(cap(labelPx(LONG, dataLabels) - BASE_MARGIN.left))
+		expect(r.left).toBe(cap(labelPx(LONG, dataLabels) + LABEL_RESERVE_PAD_PX - BASE_MARGIN.left))
 	})
 
 	it("center alignment splits the width half to each side", () => {
@@ -138,8 +141,8 @@ describe("computeDataLabelOverflow", () => {
 			dataLabels,
 		})
 		const half = labelPx(LONG, dataLabels) / 2
-		expect(r.right).toBe(cap(half - BASE_MARGIN.right))
-		expect(r.left).toBe(cap(half - BASE_MARGIN.left))
+		expect(r.right).toBe(cap(half + LABEL_RESERVE_PAD_PX - BASE_MARGIN.right))
+		expect(r.left).toBe(cap(half + LABEL_RESERVE_PAD_PX - BASE_MARGIN.left))
 	})
 
 	it("a positive xOffset shifts reserve to the right, away from the left", () => {
@@ -154,14 +157,20 @@ describe("computeDataLabelOverflow", () => {
 		expect(at(10).left).toBe(0)
 	})
 
-	it("caps each side's reserve at 400px", () => {
+	it("does not cap the reserve — a very long label reserves its full width", () => {
+		// The solver owns the floor (fit-mode clamp); the estimate itself must
+		// report the real demand so a 700px end-of-line label can compress the
+		// plot instead of clipping at a fixed 400px.
+		const dataLabels = labelsOn({ alignment: "left" })
+		const long = "B".repeat(600)
 		const r = computeDataLabelOverflow({
 			...base,
-			dataset: view([{ cat: "a", val: "1", name: "B".repeat(600) }]),
+			dataset: view([{ cat: "a", val: "1", name: long }]),
 			encodings: scatterEncodings(),
-			dataLabels: labelsOn({ alignment: "left" }),
+			dataLabels,
 		})
-		expect(r.right).toBe(400)
+		expect(r.right).toBeGreaterThan(400)
+		expect(r.right).toBe(cap(labelPx(long, dataLabels) + LABEL_RESERVE_PAD_PX - BASE_MARGIN.right))
 	})
 
 	it("uses sizeMax for the width estimate when the size channel is mapped", () => {

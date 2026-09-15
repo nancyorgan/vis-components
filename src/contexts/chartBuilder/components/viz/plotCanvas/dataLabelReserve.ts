@@ -22,12 +22,30 @@ import { measureMaxLabelWidth } from "./measureText"
  *  at an outermost data point may extend past the plot's natural
  *  margins depending on alignment + offset + size encoding. PlotCanvas
  *  reserves extra room in the canvas so labels stay in view. The 0.55
- *  px/char heuristic matches the legend's longest-label estimate;
- *  cap at 400px so a pathological dataset doesn't blow out the plot.
+ *  px/char fallback heuristic matches the legend's longest-label estimate.
+ *
+ *  The reserve is NOT capped here: like a wide legend, a long end-of-line
+ *  label compresses the plot as far as needed so it stays in the viewport
+ *  (the plot may shrink to nothing, exactly as it does beside an oversized
+ *  legend). The solver only clamps the pair so the canvas never grows past
+ *  the container in fit mode (LAYOUT.md §2). A fixed 400px cap used to
+ *  live here, and any label wider than that clipped off the right edge.
  *
  *  Pure: PlotCanvas calls this inside its `dataLabelOverflow` useMemo,
  *  whose dep array (deliberately primitives — `dataLabels` is a
  *  freshly-spread object every render) governs recomputation. */
+/** Breathing room (px) added to the overflowing side of the label. The
+ *  reserve otherwise lands exactly on the measured glyph edge, and canvas
+ *  measureText excludes the trailing side bearing while subpixel /
+ *  antialiased rendering (and a webfont measured a hair narrow) can still
+ *  nibble the last character. Same idea as the x-tick overhang's +3. */
+export const LABEL_RESERVE_PAD_PX = 4
+
+/** Upper bound on distinct label strings measured per template. Sorted
+ *  longest-first before the cut, so only strings shorter than every kept
+ *  one are dropped. */
+const MAX_MEASURED_CANDIDATES = 2000
+
 export const computeDataLabelOverflow = ({
 	dataset,
 	encodings,
@@ -117,26 +135,36 @@ export const computeDataLabelOverflow = ({
 	for (const rule of dataLabels.positionRules ?? []) {
 		profiles.push({ ...baseProfile, xOffset: rule.xOffset })
 	}
-	// Longest RENDERED label across all rows per distinct template,
-	// composed identically to the layer via `buildLabelText`. In
-	// multi-field mode that's the full template output (wider than any
-	// single field), so the reserved margin tracks what actually draws —
-	// otherwise the combined label clips off the right, the very bug the
-	// measure-based reserve fixes.
-	const longestByTemplate = new Map<string | undefined, string>()
+	// Candidate RENDERED labels per distinct template, composed identically
+	// to the layer via `buildLabelText`. In multi-field mode that's the full
+	// template output (wider than any single field), so the reserved margin
+	// tracks what actually draws.
+	//
+	// Every DISTINCT string is a candidate, not just the longest by character
+	// count: glyph widths vary ~3× between faces like "i" and "W", so
+	// "9.0% Medicare Traditional" (25 chars) measures NARROWER than
+	// "46.8% Employer-Sponsored" (24 chars) — picking by length reserved for
+	// the former and clipped the latter's last glyph. Candidates are capped
+	// (longest-by-length first) so a huge dataset doesn't pay a measureText
+	// per row; anything beyond the cap is shorter than every kept string by
+	// enough characters that it can't out-measure them in practice.
+	const candidatesByTemplate = new Map<string | undefined, string[]>()
 	for (const p of profiles) {
-		if (longestByTemplate.has(p.template)) continue
+		if (candidatesByTemplate.has(p.template)) continue
 		const labelCfg = {
 			decimals: dataLabels.decimals,
 			labelTemplate: p.template,
 			fieldFormats: dataLabels.fieldFormats,
 		}
-		let longestStr = ""
+		const distinct = new Set<string>()
 		for (const row of dataset.rows) {
 			const text = buildLabelText(row, value, labelCfg, fallbackField)
-			if (text && text.length > longestStr.length) longestStr = text
+			if (text) distinct.add(text)
 		}
-		longestByTemplate.set(p.template, longestStr)
+		const candidates = [...distinct]
+			.sort((a, b) => b.length - a.length)
+			.slice(0, MAX_MEASURED_CANDIDATES)
+		candidatesByTemplate.set(p.template, candidates)
 	}
 	// When the user maps the `size` channel on data labels, each
 	// label's rendered font size lerps into `[sizeMin, sizeMax]`.
@@ -149,32 +177,33 @@ export const computeDataLabelOverflow = ({
 			? Math.max(dataLabels.fontSize, dataLabels.sizeMax ?? dataLabels.fontSize)
 			: dataLabels.fontSize
 	)
-	// Cap the reserve so a pathological label doesn't collapse the plot,
-	// but keep it generous enough for long series names (e.g. a full
-	// category label on the last point of a line) — 200px clipped those.
-	const cap = (n: number) => Math.max(0, Math.min(400, Math.ceil(n)))
+	// Whole pixels, never negative. No upper cap (see the module comment).
+	const cap = (n: number) => Math.max(0, Math.ceil(n))
 	let right = 0
 	let left = 0
 	for (const p of profiles) {
-		const longestStr = longestByTemplate.get(p.template) ?? ""
-		if (longestStr === "") continue
-		// Measure the actual rendered width of the longest label with the
-		// data-label font (family + weight + style) via canvas measureText,
-		// mirroring the axis-tick fix (see measureMaxLabelWidth). The old
-		// `chars * fontSize * 0.55` heuristic ignored font family/weight and
-		// under-reserved for wide/bold faces, so end-of-line series labels
-		// (a category name on the last point of a line) clipped off the right
-		// edge. Fall back to the heuristic when canvas isn't available (SSR /
-		// non-DOM env), where measureMaxLabelWidth returns 0.
+		const candidates = candidatesByTemplate.get(p.template) ?? []
+		if (candidates.length === 0) continue
+		// Measure the actual rendered width of every candidate with the
+		// data-label font (family + weight + style) via canvas measureText
+		// and keep the widest, mirroring the axis-tick fix (see
+		// measureMaxLabelWidth). The old `chars * fontSize * 0.55` heuristic
+		// ignored font family/weight and under-reserved for wide/bold faces,
+		// so end-of-line series labels clipped off the right edge. Fall back
+		// to the heuristic (on the longest string — candidates are sorted
+		// longest-first) when canvas isn't available (SSR / non-DOM env),
+		// where measureMaxLabelWidth returns 0.
 		const measured = measureMaxLabelWidth(
-			[longestStr],
+			candidates,
 			dataLabels.fontFamily,
 			fontSizeForEstimate,
 			dataLabels.fontWeight,
 			dataLabels.italic,
 		)
 		const labelPx =
-			measured > 0 ? measured : longestStr.length * fontSizeForEstimate * 0.55
+			measured > 0
+				? measured
+				: (candidates[0]?.length ?? 0) * fontSizeForEstimate * 0.55
 		// Fraction of label width that lands to each side of the anchor:
 		//   left  align → full width to the RIGHT, none to the left
 		//   center      → half each way
@@ -183,16 +212,15 @@ export const computeDataLabelOverflow = ({
 			p.alignment === "left" ? 1 : p.alignment === "center" ? 0.5 : 0
 		const leftFraction =
 			p.alignment === "right" ? 1 : p.alignment === "center" ? 0.5 : 0
+		// Pad only the side(s) the text actually extends toward.
+		const rightExtent =
+			rightFraction > 0 ? labelPx * rightFraction + LABEL_RESERVE_PAD_PX : 0
+		const leftExtent =
+			leftFraction > 0 ? labelPx * leftFraction + LABEL_RESERVE_PAD_PX : 0
 		// Subtract BASE_MARGIN on each side — the chart already reserves
 		// space there; only excess past the natural margin counts.
-		right = Math.max(
-			right,
-			cap(p.xOffset + labelPx * rightFraction - BASE_MARGIN.right)
-		)
-		left = Math.max(
-			left,
-			cap(-p.xOffset + labelPx * leftFraction - BASE_MARGIN.left)
-		)
+		right = Math.max(right, cap(p.xOffset + rightExtent - BASE_MARGIN.right))
+		left = Math.max(left, cap(-p.xOffset + leftExtent - BASE_MARGIN.left))
 	}
 	return { left, right }
 }

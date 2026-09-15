@@ -2401,3 +2401,78 @@ describe("solveFacetLayout — continuous x-tick right overhang", () => {
 		expect(rightGap(rotated)).toBeCloseTo(BASE_MARGIN.right, 5)
 	})
 })
+
+describe("solveFacetLayout — data-label reserves (extraLeft/RightMargin)", () => {
+	// Fit mode = minPanelPx 0 (what PlotCanvas passes unless scrollMode is
+	// "scroll"). The reserve is uncapped upstream, so the solver must be the
+	// one that stops it from swallowing the plot.
+	const fit = (overrides: Partial<SolverInput> = {}) =>
+		baseline({ minPanelPx: 0, ...overrides })
+
+	it("passes a moderate right reserve through unchanged (plot shrinks by exactly that much)", () => {
+		const plain = solveFacetLayout(fit())
+		const reserved = solveFacetLayout(fit({ extraRightMargin: 250 }))
+		expect(reserved.canvas.width).toBe(plain.canvas.width)
+		expect(reserved.scroll).toBeNull()
+		const p0 = plain.panels[0]!
+		const p1 = reserved.panels[0]!
+		expect(p1.inner.x).toBe(p0.inner.x)
+		expect(p1.inner.width).toBe(p0.inner.width - 250)
+	})
+
+	it("honors a right reserve past the old 400px cap when the plot can afford it", () => {
+		const plain = solveFacetLayout(fit({ containerWidth: 1400 }))
+		const reserved = solveFacetLayout(
+			fit({ containerWidth: 1400, extraRightMargin: 700 })
+		)
+		expect(reserved.canvas.width).toBe(1400)
+		expect(reserved.scroll).toBeNull()
+		expect(reserved.panels[0]!.inner.width).toBe(
+			plain.panels[0]!.inner.width - 700
+		)
+	})
+
+	it("fit mode: a reserve wider than the container collapses the plot instead of growing the canvas", () => {
+		// No floor — like a wide legend, the label wins and the plot may go
+		// to zero width. But fit mode never scrolls, so the canvas stays put.
+		const plain = solveFacetLayout(fit()).panels[0]!.inner
+		const spec = solveFacetLayout(fit({ extraRightMargin: 5000 }))
+		expect(spec.canvas.width).toBe(800)
+		expect(spec.scroll).toBeNull()
+		const inner = spec.panels[0]!.inner
+		expect(inner.x).toBe(plain.x)
+		expect(inner.width).toBeGreaterThanOrEqual(0)
+		expect(inner.width).toBeLessThanOrEqual(2)
+	})
+
+	it("fit mode: splits an over-budget pair proportionally between left and right", () => {
+		const spec = solveFacetLayout(
+			fit({ extraLeftMargin: 1000, extraRightMargin: 3000 })
+		)
+		expect(spec.canvas.width).toBe(800)
+		expect(spec.scroll).toBeNull()
+		const inner = spec.panels[0]!.inner
+		expect(inner.width).toBeGreaterThanOrEqual(0)
+		const plain = solveFacetLayout(fit()).panels[0]!.inner
+		const leftGiven = inner.x - plain.x
+		const rightGiven = plain.x + plain.width - (inner.x + inner.width)
+		expect(leftGiven).toBeGreaterThan(0)
+		expect(rightGiven).toBeGreaterThan(0)
+		// 1:3 ratio, allowing a px of floor rounding on each side.
+		expect(Math.abs(rightGiven - 3 * leftGiven)).toBeLessThanOrEqual(3)
+	})
+
+	it("scroll mode: does not clamp — the canvas grows and scroll is emitted", () => {
+		const spec = solveFacetLayout(
+			baseline({ minPanelPx: 200, extraRightMargin: 1500 })
+		)
+		expect(spec.canvas.width).toBeGreaterThan(800)
+		expect(spec.scroll).not.toBeNull()
+		expect(spec.panels[0]!.inner.width).toBeGreaterThanOrEqual(0)
+		// Full reserve sits to the right of the panel.
+		const inner = spec.panels[0]!.inner
+		expect(spec.canvas.width - (inner.x + inner.width)).toBeGreaterThanOrEqual(
+			1500 + BASE_MARGIN.right
+		)
+	})
+})

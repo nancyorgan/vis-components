@@ -50,6 +50,7 @@ import type { FieldType } from "../../lib/types"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import type { UniversalRendererProps } from "../../lib/chartRendererProps"
 import { computeDataLabelOverflow } from "./plotCanvas/dataLabelReserve"
+import { useFontsVersion } from "./plotCanvas/useFontsVersion"
 import { resolveFacetTitleStyles } from "./plotCanvas/facetTitleStyles"
 import { buildSolverPanelInputs } from "./plotCanvas/solverPanelInputs"
 import { buildSolverInput } from "./plotCanvas/solverSpec"
@@ -113,6 +114,10 @@ export const PlotCanvas = () => {
 	)
 	const setFigureSlack = useSetAtom(currentRenderedFigureSlackAtom)
 	const setRenderedCaptionBox = useSetAtom(currentRenderedCaptionBoxAtom)
+	// Bumps when webfonts finish loading so the canvas-measured widths below
+	// (tick labels, data-label reserve) are recomputed against the real face
+	// instead of the fallback they may have been measured with on first paint.
+	const fontsVersion = useFontsVersion()
 	// Extra canvas room reserved on the left/right so edge data labels stay
 	// in view — the estimate itself lives in computeDataLabelOverflow. Deps
 	// are primitives because `dataLabels` is freshly spread each render (the
@@ -160,6 +165,8 @@ export const PlotCanvas = () => {
 			overrides,
 			channelConfigs,
 			mapConfig,
+			// Re-measure once the label font has actually loaded.
+			fontsVersion,
 		],
 	)
 
@@ -349,6 +356,9 @@ export const PlotCanvas = () => {
 		facetCfg.overallYRange,
 		facetCfg.overallXRange,
 		bounds.width,
+		// Tick-label widths are canvas-measured with the tick font; re-run
+		// once that font has actually loaded.
+		fontsVersion,
 		],
 	)
 

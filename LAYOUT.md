@@ -44,6 +44,25 @@ Canvas
 │                                    that spills past inner.x1 on a CONTINUOUS
 │                                    x-axis (see §5); 0 for band axes
 │
+│  The data-label reserves are UNCAPPED at the source (dataLabelReserve.ts
+│  canvas-measures EVERY distinct rendered label with the label font and
+│  keeps the widest — never "longest by character count", since
+│  "9.0% Medicare Traditional" out-counts but under-measures
+│  "46.8% Employer-Sponsored" — plus a LABEL_RESERVE_PAD_PX (4) breathing
+│  pad on the overflowing side): a long
+│  end-of-line label compresses the plot as far as needed, the way a wide
+│  legend does, so it stays in the viewport — down to a zero-width plot,
+│  with NO floor (an oversized legend collapses the chart the same way).
+│  In FIT mode (minPanelPx 0, no pixel override — a fixed aspect ratio
+│  shadows to this) `clampLabelReserves` scales the left+right pair down
+│  proportionally to the container's remaining width, so the reserve can
+│  never grow the canvas and emit a scroll in a never-scroll mode; a label
+│  wider than the viewport then clips. Scroll mode and pixel overrides
+│  grow the canvas instead, so the reserves pass through whole.
+│  PlotCanvas re-measures (tick labels + this reserve) when the document's
+│  webfonts finish loading (`useFontsVersion`), since a first-paint measure
+│  against the fallback face under-reserves for a wider webfont.
+│
 ├─ Inner grid = canvas - outer reserves
 │  ├─ Distributed across cols by colWeights[c] (= max xWeight in col c,
 │  │    OR 1 under shareY + categoryCount, OR 1 under !proportionalSizing)
@@ -635,6 +654,7 @@ explicit justification in the doc but materially affect layout:
 | `MIN_TITLE_X` | 12 + fontSize/2 | facetLayoutSolver.ts | Floor for y-title's distance from canvas left edge |
 | `DEFAULT_MIN_PX_PER_CATEGORY` | 20 | facetLayoutSolver.ts | Scroll-mode floor: each category gets ≥20px |
 | `DEFAULT_MIN_PANEL_PX` | 200 | facetLayoutSolver.ts | Scroll-mode floor: each panel gets ≥200px |
+| `LABEL_RESERVE_PAD_PX` | 4 | dataLabelReserve.ts | Breathing pad on the overflowing side of the data-label edge reserve, so measureText's side-bearing/subpixel shortfall can't nibble the last glyph (§2) |
 
 ---
 

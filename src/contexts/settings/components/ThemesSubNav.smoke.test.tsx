@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 import { TestProvider, type TestStore } from "../../../testSupport/TestProvider"
 import {
@@ -17,11 +17,19 @@ import { encodeThemeDrag, THEME_DRAG_TYPE } from "../lib/themeFolders"
 
 import { ThemesSubNav } from "./ThemesSubNav"
 
+// Picking a theme routes to the Themes page; stubbing beats standing up a
+// RouterProvider for a sidebar assertion.
+const navigate = vi.fn()
+vi.mock("@tanstack/react-router", () => ({
+	useNavigate: () => navigate,
+}))
+
 /** Smoke coverage for the Managed / Custom theme folders: the
  *  administrator dialog gates selecting and re-filing a managed theme, and
  *  a drag across the boundary is what promotes one. */
 
 afterEach(cleanup)
+beforeEach(() => navigate.mockClear())
 
 const MINE: SavedTheme = {
 	...SYSTEM_LIGHT_THEME,
@@ -58,6 +66,23 @@ const dataTransfer = (themeId?: string) => ({
 })
 
 describe("ThemesSubNav folders", () => {
+	it("selecting a custom theme also routes to the Themes page", () => {
+		// The sub-nav is mounted on every settings page (Fonts, Sharing), so
+		// a click from those pages must leave them — not just swap the atom.
+		const { store } = mount()
+		fireEvent.click(screen.getByText("My theme"))
+		expect(store.get(editingThemeIdAtom)).toBe("th-mine")
+		expect(navigate).toHaveBeenCalledWith({ to: "/settings/themes" })
+	})
+
+	it("selecting a managed theme routes only after the dialog is confirmed", () => {
+		mount()
+		fireEvent.click(screen.getByText("System (Dark)"))
+		expect(navigate).not.toHaveBeenCalled()
+		fireEvent.click(screen.getByText("Yes, proceed"))
+		expect(navigate).toHaveBeenCalledWith({ to: "/settings/themes" })
+	})
+
 	it("files the bundled themes under Managed and the rest under Custom", () => {
 		mount()
 		expect(screen.getByText("Managed Themes")).toBeTruthy()

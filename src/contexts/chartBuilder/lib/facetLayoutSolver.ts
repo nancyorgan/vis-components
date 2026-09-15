@@ -524,19 +524,53 @@ const estimateGlobalFloors = (
 	return { left, bottom }
 }
 
-/** Compute the canvas reserves above/around the plot grid.
+
+/** Clamp the data-label reserves so the canvas never grows in fit mode.
  *
- *  - TOP: reserves space for the chart title + subtitle (legacy convention).
- *  - LEFT / BOTTOM / RIGHT: ZERO. Shared x-title and y-title render INSIDE
- *    the cell's BASE_MARGIN.bottom / BASE_MARGIN.left chrome (matches the
- *    legacy Axes component behavior). The chrome is sized to hold both
- *    the tick labels AND the title; `estimateExtraLeftMargin` /
- *    `estimateExtraBottomMargin` grow leftFloor / bottomFloor when the
- *    title text demands more room than the default reserve.
+ *  The reserves arrive uncapped (dataLabelReserve.ts): a long label at the
+ *  last point of a line compresses the figure as far as needed to stay in
+ *  the viewport, exactly like a wide legend does — down to a zero-width
+ *  plot if the label demands it (there is deliberately NO floor; a legend
+ *  wider than the viewport collapses the chart the same way). What the
+ *  clamp prevents is the reserve exceeding the container: in FIT mode the
+ *  natural canvas width is just the reserves, so an unclamped pair wider
+ *  than the container would grow the canvas and emit a horizontal scroll
+ *  in a mode whose contract is "never scroll". The two reserves scale down
+ *  proportionally to the budget left after the other horizontal chrome.
+ *  Scroll mode and pixel panel overrides grow the canvas by design, so
+ *  they pass through untouched (the label stays in view via the scroll
+ *  wrapper). A fixed aspect ratio shadows the input to fit mode first.
  *
- *  This eliminates the extra whitespace the v1 solver produced — y-title
- *  sat outside BASE_MARGIN.left in its own strip, x-title sat below the
- *  bottom row at canvasH. */
+ *  The chrome estimate is conservative (full per-cell margins for every
+ *  column, though shared interior columns reserve less) — under-estimating
+ *  the budget leaves the plot slightly wider than zero, never negative. */
+const clampLabelReserves = (
+	input: SolverInput,
+	cellMargin: CellMargin,
+	leftFloor: number,
+	otherLeftReserve: number,
+): { left: number; right: number } => {
+	const left = Math.max(0, input.extraLeftMargin ?? 0)
+	const right = Math.max(0, input.extraRightMargin ?? 0)
+	const total = left + right
+	if (total === 0) return { left, right }
+	const fitMode =
+		(input.minPanelPx ?? DEFAULT_MIN_PANEL_PX) === 0 &&
+		!(input.panelWidthOverride != null && input.panelWidthOverride > 0)
+	if (!fitMode) return { left, right }
+	const chrome =
+		input.cols * (cellMargin.left + cellMargin.right) +
+		leftFloor +
+		Math.max(0, input.gapX) * (input.cols - 1)
+	const budget = Math.max(0, input.containerWidth - otherLeftReserve - chrome)
+	if (total <= budget) return { left, right }
+	const scale = budget / total
+	return {
+		left: Math.floor(left * scale),
+		right: Math.floor(right * scale),
+	}
+}
+
 const computeOuterReserves = (
 	input: SolverInput,
 	cellMargin: CellMargin,
@@ -624,7 +658,14 @@ const computeOuterReserves = (
 	// left for data labels that extend past the plot's natural edge.
 	// Right-aligned labels grow LEFT from their anchor (eating into the
 	// y-tick label band), so the left reservation matches the right
-	// one but in the opposite direction.
+	// one but in the opposite direction. In fit mode the pair is clamped
+	// so the canvas never outgrows the container (`clampLabelReserves`).
+	const labelReserve = clampLabelReserves(
+		input,
+		cellMargin,
+		leftFloor,
+		leftGrow + rowHeaderBand,
+	)
 	//
 	// Title-offset semantics (LAYOUT.md §8): canvas matches the
 	// container; the user's offset is interpreted as "shift the
@@ -636,8 +677,8 @@ const computeOuterReserves = (
 	return {
 		top: titleHeight + subtitleHeight + topGrow + columnHeaderBand,
 		bottom: bottomGrow + (input.extraBottomMargin ?? 0),
-		left: leftGrow + (input.extraLeftMargin ?? 0) + rowHeaderBand,
-		right: input.extraRightMargin ?? 0,
+		left: leftGrow + labelReserve.left + rowHeaderBand,
+		right: labelReserve.right,
 		titleHeight,
 		subtitleHeight,
 		xTitleHeight,
