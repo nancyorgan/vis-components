@@ -200,11 +200,13 @@ describe("PalettePickerButton", () => {
 
 	it("gradient stop rows carry the picker offering the theme palette", () => {
 		// QuantitativePanel with no stored config seeds the theme default
-		// gradient (viridis preset → Step 1..5 rows). Every stop row gets the
-		// circular-arrow popover offering the theme's default categorical
-		// palette; picking commits through the row's onColor (here the
-		// preset→custom transition, with the picked color on that stop).
-		const theme = buildTestTheme()
+		// gradient — pinned to the viridis preset here so it seeds Step 1..5
+		// rows (the system theme's own default is a saved 2-stop gradient).
+		// Every stop row gets the circular-arrow popover offering the theme's
+		// default categorical palette; picking commits through the row's
+		// onColor (here the preset→custom transition, with the picked color on
+		// that stop).
+		const theme = buildTestTheme({ defaultGradientPalette: "viridis" })
 		const update = vi.fn()
 		const { getByLabelText } = themedWith(
 			theme,

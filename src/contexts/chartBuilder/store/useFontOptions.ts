@@ -23,10 +23,16 @@ export type FontFamilyOption = { label: string; value: string }
 /** Built-in family presets + the user's added Google Fonts. */
 export const useFontFamilyOptions = (): FontFamilyOption[] => {
 	const fonts = useAtomValue(userFontsAtom)
-	return useMemo(
-		() => [...FONT_FAMILY_OPTIONS, ...userFontFamilyOptions(fonts)],
-		[fonts]
-	)
+	return useMemo(() => {
+		// A user library entry for a family the app now bundles (e.g. Fraunces,
+		// added to a library before it shipped built in) would list twice —
+		// the built-in row wins.
+		const builtin = new Set(FONT_FAMILY_OPTIONS.map((o) => o.value))
+		return [
+			...FONT_FAMILY_OPTIONS,
+			...userFontFamilyOptions(fonts).filter((o) => !builtin.has(o.value)),
+		]
+	}, [fonts])
 }
 
 /** Per-stack weight lists for the user's added fonts — pass as the third

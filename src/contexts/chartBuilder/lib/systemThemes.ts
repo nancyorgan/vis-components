@@ -1,106 +1,219 @@
-import type { SavedTheme, SavedThemeMeta, Theme } from "./types"
+import type {
+	SavedCategoricalPalette,
+	SavedTheme,
+	SavedThemeMeta,
+	Theme,
+} from "./types"
 
-/** The bundled categorical palette. Sole declaration — `store/atoms.ts`
- *  reaches it through `LIGHT_THEME_BASE` rather than keeping a copy. */
-const SET3_COLORS = [
-	"#8DD3C7",
-	"#FFFFB3",
-	"#BEBADA",
-	"#FB8072",
-	"#80B1D3",
-	"#FDB462",
-	"#B3DE69",
-	"#FCCDE5",
-	"#D9D9D9",
-	"#BC80BD",
-	"#CCEBC5",
-	"#FFED6F",
+// ---------------------------------------------------------------------------
+// Bundled palettes. Lifted from Nancy's hand-built "Test Theme" pair
+// (2026-09-15). Palette ids are kept VERBATIM from those themes — a visual
+// picks palettes by id, so visuals built on the originals keep their picks
+// when switched to the system themes.
+// ---------------------------------------------------------------------------
+
+/** Pattern inks shared by the light and dark categorical palettes. */
+const CATEGORICAL_INKS = [
+	"#f2c5cf",
+	"#fbe7bc",
+	"#c6fbee",
+	"#80dfff",
+	"#fbb67e",
+	"#5cb0cc",
+	"#dcdbdb",
+	"#fafafa",
 ]
 
-/** Sequential ordinal palette — light → dark blues. Stands in as the
- *  default for ORDINAL hue mappings (e.g., a "rating: low/mid/high"
- *  field) where the categorical Set 3 would read as unrelated colors. */
-const ORDINAL_BLUES = [
-	"#deebf7",
-	"#c6dbef",
-	"#9ecae1",
-	"#6baed6",
-	"#4292c6",
-	"#2171b5",
+/** Deep, saturated shades — the light theme's text palette. */
+const DEEP_COLORS = ["#BD002C", "#C28800", "#009970", "#118AB2", "#DB8000"]
+const DEEP_INKS = ["#ff8fab", "#fbdc98", "#74ecce", "#8bddf9", "#ffc085"]
+
+/** Pale tints — the light theme's background-fill palette. */
+const TINT_COLORS = ["#FFCCD8", "#FFF1D1", "#D1FFF3", "#D6F5FF", "#FFE6D1"]
+const TINT_INKS = ["#fdecf1", "#f9dea4", "#e5fff9", "#ecf9fd", "#f8efe7"]
+
+/** Mid tints — the area-fill palette. */
+const AREA_COLORS = ["#FFA3B9", "#FFE5A8", "#AAEEDC", "#96D8EE", "#FFC18F"]
+const AREA_INKS = ["#fde8ed", "#fff7e5", "#d3f8ef", "#ccf2ff", "#fde5c9"]
+
+const LIGHT_CATEGORICAL_PALETTES: SavedCategoricalPalette[] = [
+	{
+		id: "migrated",
+		name: "Categorical palette",
+		colors: [
+			"#EF476F",
+			"#FFD166",
+			"#0AD6A0",
+			"#118AB2",
+			"#EE7D20",
+			"#083B4D",
+			"#B0B0B0",
+			"#D1D1D1",
+		],
+		patternInks: CATEGORICAL_INKS,
+	},
+	{
+		id: "cat-mohtmuv1-dcxj",
+		name: "Text Palette",
+		colors: [...DEEP_COLORS, "#0A3B4D", "#888888"],
+		patternInks: [...DEEP_INKS, "#92c3d3", "#d6d6d6"],
+	},
+	{
+		id: "cat-mpd3z8av-n270",
+		name: "Area Fill Palette",
+		colors: [...AREA_COLORS, "#92B7C3"],
+		patternInks: [...AREA_INKS, "#d4ebf2"],
+	},
+	{
+		id: "cat-mqphdwv2-255y",
+		name: "Background Fill Palette",
+		colors: [...TINT_COLORS, "#efefef"],
+		patternInks: [...TINT_INKS, "#dedede"],
+	},
 ]
 
-/** The "Light" system theme — these are the values the editor shipped with
- * before per-user themes existed. Used as the baseline for new accounts
- * and the seed for any user theme that the user creates without copying
- * an existing one.
+/** The dark theme swaps the navy sixth swatch for cream (`#FEFFF0`) in each
+ *  palette and names the tints as the text palette. Same ids as the light
+ *  list, so palette picks survive a light↔dark switch. */
+const DARK_CATEGORICAL_PALETTES: SavedCategoricalPalette[] = [
+	{
+		id: "migrated",
+		name: "Categorical palette",
+		colors: [
+			"#EF476F",
+			"#FFD166",
+			"#0AD6A0",
+			"#118AB2",
+			"#EE7D20",
+			"#FEFFF0",
+			"#B0B0B0",
+			"#D1D1D1",
+		],
+		patternInks: CATEGORICAL_INKS,
+	},
+	{
+		id: "cat-mqphdwv2-255y",
+		name: "Text Fill Palette",
+		colors: [...TINT_COLORS, "#FEFFF0", "#efefef"],
+		patternInks: [...TINT_INKS, null, "#dedede"],
+	},
+	{
+		id: "cat-mpd3z8av-n270",
+		name: "Area Fill Palette",
+		colors: [...AREA_COLORS, "#FEFFF0"],
+		patternInks: [...AREA_INKS, "#d4ebf2"],
+	},
+	{
+		id: "cat-mohtmuv1-dcxj",
+		name: "Background Fill Palette",
+		colors: [...DEEP_COLORS, "#FEFFF0", "#888888"],
+		patternInks: [...DEEP_INKS, "#92c3d3", "#d6d6d6"],
+	},
+]
+
+/** Sequential palettes for ORDINAL hue mappings (e.g. "rating:
+ *  low/mid/high"), where a categorical palette would read as unrelated
+ *  colors. Shared by both system themes. */
+const ORDINAL_PALETTES: SavedCategoricalPalette[] = [
+	{
+		id: "ord-mu3311sr-gznl",
+		name: "Pinks",
+		colors: ["#F8B4C4", "#F698AE", "#F47C98", "#EF476F", "#B73754", "#7E273A"],
+	},
+	// Id predates the recolor (it started life as the bundled Blues ramp).
+	{ id: "blues", name: "Yellows", colors: ["#FFD166", "#FFC233", "#FFB300", "#C08600"] },
+	{
+		id: "ord-mqpgl958-6x39",
+		name: "Greens",
+		colors: ["#b5f2dc", "#47dda7", "#1cb57d", "#1b9367", "#007043", "#005232"],
+	},
+	{
+		id: "ord-mqpggw0o-3rea",
+		name: "Blues",
+		colors: ["#b2d6f7", "#84bff5", "#3c98eb", "#107cda", "#0563c7", "#003063"],
+	},
+	{ id: "ord-mqpglg0a-egea", name: "Stoplight Bold", colors: ["#47DDA7", "#FFB300", "#DB0000"] },
+	{ id: "ord-mqpglpy2-j5no", name: "Stoplight Fill", colors: ["#daf8ed", "#fef1c0", "#fdefec"] },
+]
+
+const FRAUNCES = "'Fraunces', system-ui, sans-serif"
+const QUICKSAND = "'Quicksand', system-ui, sans-serif"
+
+/** The "Light" system theme's REQUIRED fields. Used as the baseline for new
+ * accounts and the seed for any user theme that the user creates without
+ * copying an existing one.
  *
  * Also the single source of truth for `store/atoms.ts`'s `DEFAULT_THEME`
  * (the baseline `themeAtom` falls back to and the floor `migrateTheme`
  * merges legacy blobs onto) — keep the two in one declaration, never two
- * copies. Treat as immutable: it is spread, never mutated in place. */
+ * copies. Treat as immutable: it is spread, never mutated in place.
+ *
+ * ONLY required `Theme` fields belong here. This object is the backfill floor
+ * `themeOf` merges under every saved theme, so an OPTIONAL field placed here
+ * would be frozen into every old custom theme that never set it (and would
+ * shadow the per-consumer `??` fallback that "absent" is supposed to reach).
+ * The system themes' optional styling lives in `SYSTEM_THEME_STYLE`. */
 export const LIGHT_THEME_BASE: Theme = {
-	defaultFill: "#d1d5db",
-	defaultRadius: 4,
-	defaultOpacity: 0.85,
+	defaultFill: "#EF476F",
+	defaultRadius: 6,
+	defaultOpacity: 1,
 	defaultShape: 0,
 	outlineColor: "#ffffff",
-	outlineWidth: 1,
-	titleFontFamily: "system-ui, sans-serif",
-	titleFontColor: "#111827",
-	titlePrimarySize: 20,
+	outlineWidth: 1.5,
+	titleFontFamily: FRAUNCES,
+	titleFontColor: "#000000",
+	titlePrimarySize: 16,
 	titleSubtitleSize: 14,
-	titleSecondarySize: 13,
-	textFontFamily: "system-ui, sans-serif",
+	titleSecondarySize: 12,
+	textFontFamily: QUICKSAND,
 	textFontSize: 12,
-	textFontColor: "#4a5568",
-	categoricalPalettes: [{ id: "set3", name: "Set 3", colors: SET3_COLORS }],
-	ordinalPalettes: [
-		{ id: "blues", name: "Blues (light→dark)", colors: ORDINAL_BLUES },
-	],
+	textFontColor: "#000000",
+	categoricalPalettes: LIGHT_CATEGORICAL_PALETTES,
+	ordinalPalettes: ORDINAL_PALETTES,
 	linearGradients: [
 		{
-			id: "default-linear",
-			name: "Blue scale",
-			low: "#f7fbff",
-			high: "#08306b",
+			id: "migrated-linear",
+			name: "Light Theme Gradient",
+			low: "#ffe5e5",
+			high: "#b30027",
 		},
 	],
 	divergingGradients: [
 		{
-			id: "default-diverging",
-			name: "Red–Yellow–Green",
-			low: "#d73027",
-			mid: "#ffffbf",
-			high: "#1a9850",
+			id: "migrated-diverging",
+			name: "Light Theme Diverging",
+			low: "#0763c7",
+			mid: "#ffffff",
+			high: "#ef476f",
 		},
 	],
-	defaultCategoricalPaletteId: "set3",
-	defaultOrdinalPaletteId: "blues",
-	defaultTextPaletteId: null,
-	defaultGradientPalette: "viridis",
-	patternInkColor: "#0f172a",
-	patternBackgroundColor: "#e2e8f0",
-	gridlineColor: "#e2e8f0",
+	defaultCategoricalPaletteId: "migrated",
+	defaultOrdinalPaletteId: "ord-mu3311sr-gznl",
+	defaultTextPaletteId: "cat-mohtmuv1-dcxj",
+	defaultGradientPalette: "migrated-linear",
+	patternInkColor: "#000000",
+	patternBackgroundColor: "#EFEFEF",
+	gridlineColor: "#cfcfcf",
 	gridlineThickness: 1,
-	tickmarkColor: "#94a3b8",
+	tickmarkColor: "#ffffff",
 	tickmarkThickness: 1,
-	tickmarkLength: 4,
-	spineColor: "#94a3b8",
-	spineThickness: 1,
+	tickmarkLength: 3,
+	spineColor: "#0A1E33",
+	spineThickness: 0,
 	textEncodingFontFamily: "system-ui, sans-serif",
-	textEncodingFontSize: 11,
-	textEncodingFontWeight: 500,
-	textEncodingColor: "#111827",
-	dataLabelsFontSize: 11,
-	dataLabelsFontWeight: 500,
+	textEncodingFontSize: 12,
+	textEncodingFontWeight: 300,
+	textEncodingColor: "#0A1E33",
+	dataLabelsFontSize: 12,
+	dataLabelsFontWeight: 300,
 	dataLabelsItalic: false,
 	dataLabelsUnderline: false,
-	distributionOverlayStroke: "#475569",
-	distributionOverlayFill: "#cbd5e1",
-	regressionStroke: "#475569",
-	regressionCiFill: "#cbd5e1",
+	distributionOverlayStroke: "#000000",
+	distributionOverlayFill: "#DBDBDB",
+	regressionStroke: "#000000",
+	regressionCiFill: "#DBDBDB",
 	connectionThickness: 2,
-	connectionColor: "#888888",
+	connectionColor: "#000000",
 	lengthMin: 4,
 	lengthMax: 40,
 	angleMin: -180,
@@ -108,38 +221,62 @@ export const LIGHT_THEME_BASE: Theme = {
 	areaMin: 3,
 	areaMax: 18,
 	// Saturation / brightness levels are ANCHORED on 0.5 = the palette color
-	// itself (see `anchoredComponent` in lib/scales), so these ranges are
-	// symmetric about it: the middle of a category spread lands on the real
-	// color, with darker/grayer below and lighter/more saturated above.
-	saturationMin: 0.15,
-	saturationMax: 0.85,
-	brightnessMin: 0.15,
+	// itself (see `anchoredComponent` in lib/scales): the middle of a
+	// category spread lands on the real color, darker/grayer below and
+	// lighter/more saturated above.
+	saturationMin: 0.2,
+	saturationMax: 1,
+	brightnessMin: 0.25,
 	brightnessMax: 0.85,
 	chartBackgroundColor: null,
-	legendBackgroundColor: "#ffffff",
-	legendSwatchColor: "#4f8eda",
+	legendBackgroundColor: null,
+	legendSwatchColor: "#e0e0e0",
 	legendSwatchStroke: "#ffffff",
 }
 
-/** Dark companion to LIGHT_THEME_BASE — same structure, dark backgrounds
- * + lighter text + muted gridlines. Demonstrates that the multi-theme
- * machinery works for non-trivially different palettes. */
+/** Dark companion to LIGHT_THEME_BASE — same structure, a navy chart
+ * background, near-white text and the dark palette variants. */
 const DARK_THEME_BASE: Theme = {
 	...LIGHT_THEME_BASE,
-	titleFontColor: "#f8fafc",
-	textFontColor: "#cbd5e1",
-	patternBackgroundColor: "#1f2937",
-	gridlineColor: "#334155",
-	tickmarkColor: "#64748b",
-	spineColor: "#64748b",
-	textEncodingColor: "#f8fafc",
-	distributionOverlayStroke: "#94a3b8",
-	distributionOverlayFill: "#475569",
-	regressionStroke: "#94a3b8",
-	regressionCiFill: "#475569",
-	chartBackgroundColor: "#0f172a",
-	legendBackgroundColor: "#1f2937",
-	legendSwatchColor: "#7aa8e8",
+	outlineColor: "#040038",
+	titleFontColor: "#FAFAFA",
+	textFontColor: "#FAFAFA",
+	categoricalPalettes: DARK_CATEGORICAL_PALETTES,
+	chartBackgroundColor: "#040038",
+}
+
+/** OPTIONAL `Theme` fields the two system themes ship with. Kept out of
+ * `LIGHT_THEME_BASE` on purpose (see its doc) — these are applied to the
+ * bundled `SavedTheme`s only, never backfilled into user themes. */
+const SYSTEM_THEME_STYLE: Partial<Theme> = {
+	titleFontWeight: 700,
+	titleAlignment: "left",
+	subtitleFontFamily: QUICKSAND,
+	subtitleFontWeight: 300,
+	axisTitleFontFamily: FRAUNCES,
+	axisTitleFontWeight: 300,
+	legendTitleFontFamily: QUICKSAND,
+	legendTitleFontWeight: 500,
+	legendTitleAlignment: "left",
+	textFontWeight: 300,
+	dataLabelsFontFamily: QUICKSAND,
+	dataLabelsColor: "#000000",
+	xGridlineThickness: 0,
+	xSpineColor: "#000000",
+	xSpineThickness: 1,
+	ySpineColor: "#000000",
+	polarSpineColor: "#000000",
+	polarSpineThickness: 1,
+	annotationFillColor: "#eeeeee",
+	annotationFillOpacity: 1,
+	annotationLineColor: "#000000",
+	annotationLineThickness: 1,
+	annotationTextFontFamily: "'DM Sans', ui-sans-serif, sans-serif",
+	annotationTextFontSize: 12,
+	annotationTextFontWeight: 300,
+	annotationTextColor: "#000000",
+	annotationTextBoxFillOpacity: 1,
+	annotationTextBoxBorderColor: "#000000",
 }
 
 export const SYSTEM_LIGHT_THEME: SavedTheme = {
@@ -148,6 +285,7 @@ export const SYSTEM_LIGHT_THEME: SavedTheme = {
 	isSystem: true,
 	managed: true,
 	...LIGHT_THEME_BASE,
+	...SYSTEM_THEME_STYLE,
 }
 
 export const SYSTEM_DARK_THEME: SavedTheme = {
@@ -156,6 +294,8 @@ export const SYSTEM_DARK_THEME: SavedTheme = {
 	isSystem: true,
 	managed: true,
 	...DARK_THEME_BASE,
+	...SYSTEM_THEME_STYLE,
+	dataLabelsColor: "#FAFAFA",
 }
 
 /** Bundled with the app — these always exist in `themesAtom` and start out

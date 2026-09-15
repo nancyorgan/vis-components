@@ -29,8 +29,8 @@ import { idbGet, idbSet } from "./storage/idb"
 const SVG_NS = "http://www.w3.org/2000/svg"
 
 /** Google-hosted families the app ships with (index.html's <link> — DM Sans,
- * DM Mono, Inter for chart text, Quicksand for UI chrome that leaks into
- * captures via computed styles). css2 URLs mirror index.html so the
+ * DM Mono, Inter, Quicksand and Fraunces for chart text; Quicksand doubles
+ * as UI chrome that leaks into captures via computed styles). css2 URLs mirror index.html so the
  * stylesheet fetch hits the browser's HTTP cache. Keyed lowercase. */
 const BUILTIN_WEBFONT_CSS: Record<string, string> = {
 	"dm sans":
@@ -41,6 +41,8 @@ const BUILTIN_WEBFONT_CSS: Record<string, string> = {
 		"https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
 	quicksand:
 		"https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap",
+	fraunces:
+		"https://fonts.googleapis.com/css2?family=Fraunces:wght@300..700&display=swap",
 }
 
 // ---------------------------------------------------------------------------

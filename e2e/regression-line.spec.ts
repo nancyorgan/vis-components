@@ -7,9 +7,26 @@ import { seedFixtureScript, type SeedFixture } from "./seed"
  *  fitted path appears; plus a seeded check that a saved visual with the
  *  CI band on renders line + band without any interaction. */
 
-// Default theme regressionStroke / regressionCiFill (systemThemes.ts).
+// Distinctive colors seeded on the fixture's regression config, so the
+// path counts below never pick up theme-colored strokes (spines, gridlines)
+// and don't depend on the system theme's regression defaults.
 const LINE_STROKE = "#475569"
 const BAND_FILL = "#cbd5e1"
+
+const regressionConfig = (enabled: boolean, showCi: boolean) => ({
+	enabled,
+	kind: "linear",
+	degree: 2,
+	drawPosition: "front",
+	perGroup: false,
+	groupField: null,
+	showCi,
+	ciLevel: 95,
+	color: LINE_STROKE,
+	ciFillColor: BAND_FILL,
+	strokeWidth: 2,
+	lineStyle: "solid",
+})
 
 const rows = Array.from({ length: 30 }, (_, i) => ({
 	x: String(i + 1),
@@ -42,7 +59,12 @@ const countLinePaths = (page: import("@playwright/test").Page) =>
 	)
 
 test("toggling Add regression line draws the fitted path", async ({ page }) => {
-	const fx = baseFixture("reg-toggle")
+	// Regression off, but with the distinctive line color already set — the
+	// toggle merges `enabled` into this config, so the drawn path carries it.
+	const fx: SeedFixture = {
+		...baseFixture("reg-toggle"),
+		channelConfigs: { x: { regression: regressionConfig(false, false) } },
+	}
 	await page.addInitScript(seedFixtureScript(fx))
 	await page.goto(`/editor/${fx.visualId}`, { waitUntil: "networkidle" })
 	await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
@@ -65,24 +87,7 @@ test("seeded visual with CI on renders the line and the band", async ({
 }) => {
 	const fx: SeedFixture = {
 		...baseFixture("reg-seeded"),
-		channelConfigs: {
-			x: {
-				regression: {
-					enabled: true,
-					kind: "linear",
-					degree: 2,
-					drawPosition: "front",
-					perGroup: false,
-					groupField: null,
-					showCi: true,
-					ciLevel: 95,
-					color: LINE_STROKE,
-					ciFillColor: BAND_FILL,
-					strokeWidth: 2,
-					lineStyle: "solid",
-				},
-			},
-		},
+		channelConfigs: { x: { regression: regressionConfig(true, true) } },
 	}
 	await page.addInitScript(seedFixtureScript(fx))
 	await page.goto(`/editor/${fx.visualId}`, { waitUntil: "networkidle" })

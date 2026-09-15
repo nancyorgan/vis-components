@@ -40,6 +40,10 @@ const sparseDarkClone = (): SavedTheme => {
 	// The field from the original bug report (a pre-extraction-era theme
 	// missing it made NumberInputs drop to their min).
 	delete raw.textEncodingFontSize
+	// OPTIONAL styling the bundled themes ship with today (SYSTEM_THEME_STYLE);
+	// an old clone never carried it, and it must stay absent after rehydration.
+	delete raw.annotationFillColor
+	delete raw.titleFontWeight
 	return raw as unknown as SavedTheme
 }
 
@@ -53,9 +57,9 @@ describe("themeOf", () => {
 	it("never overrides values the saved theme carries", () => {
 		const t = themeOf(sparseDarkClone())
 		// Dark-derived values survive the light-base backfill.
-		expect(t.chartBackgroundColor).toBe("#0f172a")
-		expect(t.legendSwatchColor).toBe("#7aa8e8")
-		expect(t.textEncodingColor).toBe("#f8fafc")
+		expect(t.chartBackgroundColor).toBe("#040038")
+		expect(t.titleFontColor).toBe("#FAFAFA")
+		expect(t.textFontColor).toBe("#FAFAFA")
 	})
 })
 
@@ -65,7 +69,7 @@ describe("normalizeSavedTheme", () => {
 		expect(n.id).toBe("th-old-dark")
 		expect(n.name).toBe("My dark theme")
 		expect(n.isSystem).toBe(false)
-		expect(n.chartBackgroundColor).toBe("#0f172a")
+		expect(n.chartBackgroundColor).toBe("#040038")
 		expect(n.textEncodingFontSize).toBe(LIGHT_THEME_BASE.textEncodingFontSize)
 		expect(n.dataLabelsFontWeight).toBe(LIGHT_THEME_BASE.dataLabelsFontWeight)
 	})
@@ -177,8 +181,8 @@ describe("themesAtom rehydration", () => {
 		)
 		expect(mine!.dataLabelsFontSize).toBe(LIGHT_THEME_BASE.dataLabelsFontSize)
 		// The user's dark-derived choices are untouched.
-		expect(mine!.chartBackgroundColor).toBe("#0f172a")
-		expect(mine!.legendBackgroundColor).toBe("#1f2937")
+		expect(mine!.chartBackgroundColor).toBe("#040038")
+		expect(mine!.outlineColor).toBe("#040038")
 	})
 
 	it("keeps inserting missing system themes ahead of user themes", () => {

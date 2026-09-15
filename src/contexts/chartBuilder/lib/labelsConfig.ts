@@ -149,6 +149,8 @@ export const FONT_FAMILY_OPTIONS: Array<{ label: string; value: string }> = [
 	{ label: "DM Sans", value: "'DM Sans', ui-sans-serif, sans-serif" },
 	{ label: "DM Mono", value: "'DM Mono', ui-monospace, monospace" },
 	{ label: "Inter", value: "Inter, system-ui, sans-serif" },
+	{ label: "Quicksand", value: "'Quicksand', system-ui, sans-serif" },
+	{ label: "Fraunces", value: "'Fraunces', system-ui, sans-serif" },
 ]
 
 // ---------------------------------------------------------------------------
@@ -184,6 +186,10 @@ const FAMILY_WEIGHTS: Record<string, number[]> = {
 	"'DM Sans', ui-sans-serif, sans-serif": [300, 400, 500, 600, 700],
 	"'DM Mono', ui-monospace, monospace": [300, 400, 500],
 	"Inter, system-ui, sans-serif": ALL_WEIGHTS,
+	// Both loaded as variable fonts at wght 300–700 (index.html); the system
+	// themes use Quicksand 300/500 and Fraunces 300/700.
+	"'Quicksand', system-ui, sans-serif": [300, 400, 500, 600, 700],
+	"'Fraunces', system-ui, sans-serif": [300, 400, 500, 600, 700],
 }
 
 /** Safe middle ground for family strings we don't recognize (older saved

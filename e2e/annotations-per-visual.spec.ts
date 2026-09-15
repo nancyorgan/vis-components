@@ -90,7 +90,10 @@ const storedRectCount = (visualId: string): number => {
 
 // Default rectangle fill (annotationsConfig.newRectangle) — used to locate
 // the rendered annotation in the SVG.
-const annotRect = "main svg rect[fill='#facc15']"
+// Rectangle annotations carry `data-annotation=<id>` on the <rect>; matching
+// on that (not the fill) keeps the spec independent of the theme's annotation
+// fill default, which seeds every new rectangle.
+const annotRect = "main svg rect[data-annotation]"
 
 test("rectangle annotations are scoped per-visual", async ({ page }) => {
 	await page.addInitScript(seedTwoVisuals)

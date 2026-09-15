@@ -107,11 +107,10 @@ describe("BrightnessOptionsPanel — categorical field", () => {
 				<BrightnessOptionsPanel />
 			</TestProvider>
 		)
-		// Theme default brightness range 0.15–0.85, 3 categories → 0.15/0.5/0.85.
-		// The range is symmetric about the 0.5 anchor by design, so the middle
-		// category lands ON the palette color and the outer two bracket it.
-		expect((getByLabelText("A") as HTMLInputElement).value).toBe("0.15")
-		expect((getByLabelText("B") as HTMLInputElement).value).toBe("0.5")
+		// Theme default brightness range 0.25–0.85, 3 categories → an even
+		// min / midpoint / max spread (0.25 / 0.55 / 0.85).
+		expect((getByLabelText("A") as HTMLInputElement).value).toBe("0.25")
+		expect((getByLabelText("B") as HTMLInputElement).value).toBe("0.55")
 		expect((getByLabelText("C") as HTMLInputElement).value).toBe("0.85")
 	})
 

@@ -94,9 +94,10 @@ import type { StorageContentAdapter } from "../lib/storage/adapter"
 import { getStorageAdapter } from "../lib/storage/registry"
 import {
 	LIGHT_THEME_BASE,
-	normalizeSavedThemes,
 	SYSTEM_LIGHT_THEME,
 	SYSTEM_THEMES,
+	normalizeSavedThemes,
+	themeOf,
 } from "../lib/systemThemes"
 import {
 	type DataLabelsEncodings,
@@ -902,9 +903,13 @@ const migrateTheme = (raw: Record<string, unknown>): Theme => {
 	return base
 }
 
+/** The legacy single theme — what a visual with no `themeId` renders with
+ * (`useCurrentTheme`'s fallback). With no legacy blob to migrate it is the
+ * COMPLETE System (Light) theme, optional styling included, so an un-themed
+ * visual looks exactly like one that picked the system theme. */
 export const themeAtom = persistedAtom<Theme>(() => {
 	const raw = loadTheme()
-	if (!raw) return DEFAULT_THEME
+	if (!raw) return themeOf(SYSTEM_LIGHT_THEME)
 	return migrateTheme(raw as unknown as Record<string, unknown>)
 }, saveTheme)
 

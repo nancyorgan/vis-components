@@ -10,6 +10,7 @@ import {
 	type PatternConfig,
 } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+import { LIGHT_THEME_BASE } from "../../lib/systemThemes"
 import {
 	emptyDataLabelsEncodings,
 	emptyEncodings,
@@ -247,7 +248,7 @@ describe("Pattern channel drives connection-line dash (scatter/line chart)", () 
 		const container = mount({
 			patternField: "status",
 			configs: {
-				categoricalPalette: ["#888888"],
+				categoricalPalette: [LIGHT_THEME_BASE.connectionColor],
 				categoricalPalettePatternInks: ["#ff00aa"],
 			},
 		})
