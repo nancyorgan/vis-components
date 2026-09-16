@@ -140,7 +140,7 @@ describe("BarPlot — histogram Fill color/opacity by measure", () => {
 		// ...and renders quantitative break labels spanning the count domain
 		// (max bin = 6 over these data) — the signal it's a [0, max] ramp.
 		const hasMaxBreak = [...container.querySelectorAll("span")].some(
-			(s) => s.textContent === "6.00"
+			(s) => s.textContent === "6"
 		)
 		expect(hasMaxBreak).toBe(true)
 	})

@@ -142,8 +142,8 @@ describe("BarPlot — faceted histogram Fill color by Count", () => {
 			(s) => s.textContent
 		)
 		// Largest per-panel bin (panel B's 6) is the ramp's high break…
-		expect(spans).toContain("6.00")
+		expect(spans).toContain("6")
 		// …and the pooled bin count (9 = 5+4 or 3+6) must NOT be.
-		expect(spans).not.toContain("9.00")
+		expect(spans).not.toContain("9")
 	})
 })

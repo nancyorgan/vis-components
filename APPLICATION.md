@@ -1555,9 +1555,14 @@ The X-axis and Y-axis panels (under Encodings) configure:
   Rotated x labels flip that default with their anchor: negative
   angles naturally right-align, positive left-align.
 - **Tick label format** — a dropdown of preset d3-format strings (e.g.,
-  comma-separated thousands, percent, scientific, currency) that
-  populates an editable text box. The user can pick a preset and then
-  refine it as raw d3-format syntax.
+  comma-separated thousands, whole numbers, percent, scientific,
+  currency, SI prefix, plus temporal presets and a Literal "as-is"
+  option) that populates an editable text box. The user can pick a
+  preset and then refine it as raw d3-format syntax. Every format
+  dropdown in the sidebar — x / y / r tick labels, the chord ring
+  axis's Tick Labels, per-field data labels, legend measure labels —
+  offers this ONE preset list (`FormatPresetOptions`); only the
+  countries-level Geography group (§ maps) is conditional.
 - **Distribution overlay** — adds a violin or box plot on the value
   axis of strip plots (categorical × quantitative). The box draws its
   Tukey outliers as small open circles only while the underlying data
