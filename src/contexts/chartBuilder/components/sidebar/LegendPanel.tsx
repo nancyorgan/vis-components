@@ -50,6 +50,7 @@ import {
 	parseBreaksInput,
 	resolveLegendBreaks,
 } from "../../lib/legendBreaks"
+import { isHierarchyModeId, packedSourceOf } from "../../lib/packedMeasure"
 import { DEFAULT_PATTERN_INK } from "../../lib/patterns"
 import { SHAPE_PALETTE, symbolPath } from "../../lib/scales"
 import {
@@ -372,6 +373,15 @@ export const LegendPanel = () => {
 	// `merged.hidden` so mode defaults never get baked into the saved visual
 	// (which would light the "changed" dot on a fresh chart).
 	const effHidden = resolveLegendHidden(merged.hidden, modeDef.legend)
+	// Tree modes (packed circles / treemap / sunburst): Fill color varied by
+	// a DERIVED source (Top-level group / Nesting depth) has no field but
+	// renders a discrete Color legend (legendSections' derived-hue section),
+	// so its "Legends shown" toggle must surface too. Gated like the section:
+	// a mapped connection, or there is no tree to derive from.
+	const hueDerivedActive =
+		isHierarchyModeId(modeDef.id) &&
+		packedSourceOf(encodings.hue) !== null &&
+		!!encodings.connection?.field
 
 	const setHidden = (channel: LegendChannel, hidden: boolean) => {
 		const nextHidden = { ...merged.hidden, [channel]: hidden }
@@ -389,9 +399,9 @@ export const LegendPanel = () => {
 	// imply the user could turn on a section that doesn't exist).
 	const mappedLegendChannels = LEGEND_CHANNELS.filter((ch) => {
 		// A measure source (Count/Density) counts as "mapped" for hue / opacity
-		// even though it has no field.
+		// even though it has no field — as does a hierarchy-derived hue.
 		const measureMapped =
-			(ch === "hue" && hueMeasureActive) ||
+			(ch === "hue" && (hueMeasureActive || hueDerivedActive)) ||
 			(ch === "opacity" && opacityMeasureActive)
 		if (!encodings[ch]?.field && !measureMapped) return false
 		if (ch === "length" && modeDef.legend.hideLengthInThisMode) return false
@@ -578,7 +588,10 @@ export const LegendPanel = () => {
 	const hueRendersSwatches =
 		mappedLegendChannels.includes("hue") &&
 		!effHidden.hue &&
-		(rendersSwatches(hueType) ||
+		// A derived tree hue (Top-level group / depth) has no field type but
+		// renders discrete swatches, so the swatch controls apply to it too.
+		(hueDerivedActive ||
+			rendersSwatches(hueType) ||
 			((hueType === "quantitative" || hueType === "temporal") &&
 				quantForcedToSwatches(hueField)))
 	const outlineHueRendersSwatches =

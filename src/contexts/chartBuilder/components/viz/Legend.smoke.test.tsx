@@ -2268,6 +2268,119 @@ describe("Legend — fixed legend width", () => {
 		expect(labels.length).toBe(4)
 	})
 })
+describe("Hierarchy-derived Color legend (Top-level group / Nesting depth)", () => {
+	const DATASET_ID = "ds-legend-derived-hue"
+	// Same fruit tree as the hierarchy renderer suites: id auto-detects to
+	// Child, so Watermelon nests inside Melon (three depth levels).
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "fruit",
+			filename: "fruit.csv",
+			fields: [
+				{ name: "Parent", inferredType: "categorical" },
+				{ name: "Child", inferredType: "categorical" },
+				{ name: "Value", inferredType: "quantitative" },
+			],
+			rows: [
+				{ Parent: "Pome", Child: "Apple", Value: "7" },
+				{ Parent: "Pome", Child: "Pear", Value: "7" },
+				{ Parent: "Citrus", Child: "Lemon", Value: "8" },
+				{ Parent: "Melon", Child: "Watermelon", Value: "" },
+				{ Parent: "Watermelon", Child: "Mini", Value: "1" },
+				{ Parent: "Watermelon", Child: "Seedless", Value: "6" },
+			],
+		})
+
+	const mountLegend = (opts: {
+		source: "rootGroup" | "depth"
+		layout?: "sunburst" | "treemap" | "packed-circles"
+		hidden?: LegendConfig["hidden"]
+		dropConnection?: boolean
+	}) => {
+		const store = installInMemoryLocalStorage()
+		const encodings = {
+			...emptyEncodings(),
+			...(opts.dropConnection ? {} : { connection: { field: "Parent" } }),
+			area: { field: "Value" },
+			hue: { field: null, measureSource: opts.source },
+		}
+		const configs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			connection: { hierarchyLayout: opts.layout ?? "sunburst" },
+		} as typeof EMPTY_CHANNEL_CONFIGS
+		const legendCfg: LegendConfig = {
+			...DEFAULT_LEGEND_CONFIG,
+			hidden: opts.hidden ?? {},
+		}
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		store.set("vis-components:currentChannelConfigs", JSON.stringify(configs))
+		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, configs)
+			snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+			snap.set(currentLegendConfigAtom, legendCfg)
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+
+	it("sunburst colored by Top-level group shows a 'Top-level group' Color section listing the root groups", () => {
+		const { container } = mountLegend({ source: "rootGroup" })
+		expect(container.textContent).toContain("Top-level group")
+		for (const g of ["Pome", "Citrus", "Melon"])
+			expect(container.textContent).toContain(g)
+		// Nested / leaf names are not groups.
+		expect(container.textContent).not.toContain("Watermelon")
+		expect(container.textContent).not.toContain("Apple")
+	})
+
+	it("colored by Nesting depth lists one entry per level", () => {
+		const { container } = mountLegend({ source: "depth", layout: "treemap" })
+		expect(container.textContent).toContain("Nesting depth")
+		const labels = Array.from(container.querySelectorAll("span")).map(
+			(el) => el.textContent?.trim()
+		)
+		for (const lvl of ["1", "2", "3"]) expect(labels).toContain(lvl)
+	})
+
+	it("honors the 'Legends shown' Color toggle", () => {
+		const { container } = mountLegend({
+			source: "rootGroup",
+			hidden: { hue: true },
+		})
+		expect(container.textContent ?? "").not.toContain("Top-level group")
+	})
+
+	it("renders nothing for the derived source without a mapped connection (no tree to derive from)", () => {
+		const { container } = mountLegend({
+			source: "rootGroup",
+			dropConnection: true,
+		})
+		expect(container.textContent ?? "").not.toContain("Top-level group")
+	})
+})
+
+/** Filled radar: legend swatches stand for the series POLYGON, so they
+ *  mirror the Pattern menu's separate "Polygon fill" picks — not the point
+ *  fill — and drop the line-dash overlay (radar polygons don't dash). */
 describe("Legend — filled-radar polygon pattern swatches", () => {
 	const patternIds = (container: HTMLElement) =>
 		[...container.querySelectorAll("pattern")].map((p) => p.getAttribute("id") ?? "")

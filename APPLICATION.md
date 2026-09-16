@@ -710,6 +710,12 @@ ordinal — never a gradient), so each offers a per-value editor:
   ordinal palettes first AND the categorical palettes — an ordered
   variable with few levels often wants distinct hues over a ramp; the
   chosen palette's colors snapshot into `ordinalPalette` either way.
+  A derived Fill color gets a **Color legend** exactly like a field
+  would: a discrete section titled "Top-level group" / "Nesting depth"
+  over the same tree-order domain the marks are scaled on (so swatch
+  slots match the circles/arcs and the panel's override swatches),
+  shown by default and toggled under Legends → "Legends shown" → Color.
+  Hovering an entry highlights that group / level's marks.
 - Fill opacity: one 0–1 value per group / per level
   (`OpacityConfig.overrides`); unset values spread evenly.
 - Saturation / Brightness: one 0–1 value per group / per level
@@ -2182,7 +2188,10 @@ map mark highlights its category when a CATEGORICAL color is mapped
 hovering a flow node — or a link, which reports its source node —
 highlights that node's series.
 
-Per-channel visibility lives in the "Legends shown" toggles. Every
+Per-channel visibility lives in the "Legends shown" toggles. A channel
+counts as mapped when it has a field OR a derived source that renders a
+legend (histogram Count/Density, the tree modes' Top-level group /
+Nesting depth on Fill color). Every
 mapped channel defaults to shown, EXCEPT the Size (area) legend in
 the flow and hierarchy modes (sankey, chord, packed circles, treemap,
 sunburst): there the size encoding IS the diagram's geometry, so the

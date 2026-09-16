@@ -241,13 +241,16 @@ export const Legend = ({
 						// Categorical sections publish their field so each entry can
 						// highlight matching marks on hover. Quantitative / temporal
 						// (gradient) and slot sections opt out — there are no discrete
-						// category rows to hover, and slots aren't the main marks.
+						// category rows to hover, and slots aren't the main marks. A
+						// derived-source section (tree modes' Top-level group / depth)
+						// carries its own sentinel key instead of a column name.
 						const highlightField =
 							legendHighlightEnabled &&
 							(s.kind === "single" || s.kind === "combined") &&
 							s.type !== "quantitative" &&
 							s.type !== "temporal"
-								? s.field
+								? ((s.kind === "single" ? s.highlightField : undefined) ??
+									s.field)
 								: undefined
 						const node = (
 							<LegendSection

@@ -28,6 +28,7 @@ import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont } from "../../lib/labelsConfig"
 import {
 	hierarchyDepthLevels,
+	hierarchyHighlightField,
 	packedSourceOf,
 	topLevelGroupNames,
 	type PackedDerivedSource,
@@ -130,17 +131,6 @@ export const hierarchyDerivedValueOf = (
 	source: PackedDerivedSource,
 	node: HierarchyLayoutNode
 ): unknown => (source === "rootGroup" ? hierarchyRootNameOf(node) : node.depth)
-
-/** The `hoveredLegendEntryAtom` field name a hierarchy chart publishes when
- * its color comes from a DERIVED source rather than a dataset column. There
- * IS no column to name — "Top-level group" and "Depth" are computed from tree
- * position — so hover keys on this sentinel instead. The leading NUL keeps it
- * un-collidable with a real field name, which matters because `rowHighlight`
- * decides relevance by asking whether the hovered field is a column of the
- * row: an unrelated chart therefore reads a derived hover as "not mine" and
- * stays untouched. */
-export const hierarchyHighlightField = (source: PackedDerivedSource): string =>
-	`\u0000hierarchy:${source}`
 
 export type HierarchyMarkStyle = {
 	fill: string

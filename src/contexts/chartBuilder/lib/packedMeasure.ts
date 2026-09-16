@@ -53,6 +53,18 @@ export const PACKED_DERIVED_LABELS: Record<PackedDerivedSource, string> = {
 	depth: "Nesting depth",
 }
 
+/** The `hoveredLegendEntryAtom` field name a hierarchy chart publishes when
+ * its color comes from a DERIVED source rather than a dataset column. There
+ * IS no column to name — "Top-level group" and "Depth" are computed from tree
+ * position — so hover keys on this sentinel instead. The leading NUL keeps it
+ * un-collidable with a real field name, which matters because `rowHighlight`
+ * decides relevance by asking whether the hovered field is a column of the
+ * row: an unrelated chart therefore reads a derived hover as "not mine" and
+ * stays untouched. Shared by the renderer scaffold (marks) and the legend
+ * planner (the derived Color section's entries) so both sides key alike. */
+export const hierarchyHighlightField = (source: PackedDerivedSource): string =>
+	`\u0000hierarchy:${source}`
+
 /** The channels whose dropdowns offer the derived variables. Both sources
  * fit all five: "Top-level group" is categorical (hue palette; per-group
  * opacity overrides; sat/bri spread groups evenly across their min→max;

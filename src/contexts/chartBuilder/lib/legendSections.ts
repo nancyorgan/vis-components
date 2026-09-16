@@ -2,7 +2,16 @@ import type { CSSProperties } from "react"
 import type { ChannelConfigs, ColorSlotKey } from "./channelConfig"
 import { densityCurveGroupField, densityCurveOn } from "./colorSlots"
 import { flowNodeNames, resolveFlowEndpoints } from "./buildFlowGraph"
-import { isFlowModeId } from "./packedMeasure"
+import { resolveHierarchyIdField } from "./buildHierarchy"
+import {
+	hierarchyDepthLevels,
+	hierarchyHighlightField,
+	isFlowModeId,
+	isHierarchyModeId,
+	PACKED_DERIVED_LABELS,
+	packedSourceOf,
+	topLevelGroupNames,
+} from "./packedMeasure"
 import { LEGEND_CANDIDATE_CHANNELS } from "./channels"
 import type { ChartModeDef } from "./chartModes/types"
 import {
@@ -154,6 +163,11 @@ export type SingleSection = {
 	 * header. Lets a split-out section show its own title rather than the
 	 * group's first channel. */
 	titleChannel?: GroupChannel
+	/** Hover-highlight key when it differs from `field` — set for sections
+	 * over a DERIVED source (the tree modes' Top-level group / Nesting
+	 * depth) whose value no column carries, so entries publish the same
+	 * sentinel the renderer's marks compare against. Absent = `field`. */
+	highlightField?: string
 }
 export type CombinedSection = {
 	kind: "combined"
@@ -415,6 +429,47 @@ export const planLegendSections = ({
 		})
 	}
 
+	// --- Hierarchy-derived Color (Top-level group / Nesting depth) ---
+	// In the tree modes Fill color can vary by a DERIVED source instead of a
+	// field (see packedMeasure.ts); that has no `encodings.hue.field`, so the
+	// loop above skips it. Add a discrete Color section over the same STABLE
+	// dataset-order domain the renderer scales with (`topLevelGroupNames` /
+	// `hierarchyDepthLevels` — the recipe useHierarchyScaffold and the Color
+	// panel share), so palette slots line up with the marks and the sidebar's
+	// override swatches. It leads the legend like a field-backed Color
+	// section would, honors the "Legends shown" toggle, and keys hover on the
+	// scaffold's derived sentinel since no column carries the value.
+	const derivedHueSource = isHierarchyModeId(modeDef.id)
+		? packedSourceOf(encodings.hue)
+		: null
+	const derivedParentField = encodings.connection?.field
+	if (derivedHueSource && derivedParentField && !legendCfg.hidden.hue) {
+		const valueField = encodings.area?.field ?? null
+		const idField = resolveHierarchyIdField(
+			configs.connection?.hierarchyIdField ?? null,
+			dataset.rows,
+			dataset.fields.map((f) => f.name),
+			derivedParentField,
+			valueField
+		)
+		const values =
+			derivedHueSource === "rootGroup"
+				? topLevelGroupNames(dataset.rows, derivedParentField, idField, valueField)
+				: hierarchyDepthLevels(dataset.rows, derivedParentField, idField, valueField)
+		if (values.length > 0) {
+			sections.unshift({
+				kind: "single",
+				channel: "hue",
+				field: PACKED_DERIVED_LABELS[derivedHueSource],
+				// rootGroup is categorical; depth is ORDINAL (ordered levels,
+				// colored through the ordinal palettes) — same as the marks.
+				type: derivedHueSource === "rootGroup" ? "categorical" : "ordinal",
+				values,
+				highlightField: hierarchyHighlightField(derivedHueSource),
+			})
+		}
+	}
+
 	// --- Histogram measure (Count / Density) sections ---
 	// Fill color / opacity can vary by the bins' DERIVED measure instead of a
 	// field; that has no `encodings[ch].field`, so the loop above skips it. Add
@@ -436,8 +491,9 @@ export const planLegendSections = ({
 		] as const
 	).filter(
 		// Explicit count/density check (not just truthy): the shared
-		// `measureSource` slot also carries the packed (rootGroup/depth) and
-		// hexbin (hexCount) sources, which have their own sections.
+		// `measureSource` slot also carries the hierarchy-derived
+		// (rootGroup/depth, above) and hexbin (hexCount, below) sources,
+		// which have their own sections.
 		(e): e is [("hue" | "opacity"), "count" | "density"] =>
 			(e[1] === "count" || e[1] === "density") &&
 			!legendCfg.hidden[e[0] as LegendChannel]
