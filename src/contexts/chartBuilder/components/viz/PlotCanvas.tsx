@@ -252,9 +252,21 @@ export const PlotCanvas = () => {
 		dataset ? effectiveType(dataset, fieldName, overrides) : undefined
 	const mode = useMemo(
 		() => getChartModeDef(encodings, getType, channelConfigs, mapConfig),
-		// dataset/overrides change rarely; recomputing on every render is fine
+		// dataset/overrides change rarely; recomputing on every render is fine.
+		// Every config-gated detection input must be listed here: the histogram
+		// toggles (bars-x/-y) and the hierarchy Layout picker (packed circles /
+		// treemap / sunburst / chord / sankey) — omitting one means the picker
+		// appears dead until the next remount.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[encodings, dataset, overrides, channelConfigs.x?.histogram, channelConfigs.y?.histogram, mapConfig]
+		[
+			encodings,
+			dataset,
+			overrides,
+			channelConfigs.x?.histogram,
+			channelConfigs.y?.histogram,
+			channelConfigs.connection?.hierarchyLayout,
+			mapConfig,
+		]
 	)
 	// Narrow the registry's `string` id back to the ChartMode union for use
 	// with helpers that take a typed mode (axisFieldsFor, hasXAxis, etc.).
