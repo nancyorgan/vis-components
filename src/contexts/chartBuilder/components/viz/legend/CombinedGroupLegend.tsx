@@ -234,7 +234,7 @@ export const CombinedGroupLegend = ({
 	// the exact non-quant case that reaches here.
 	const areaSizeScale =
 		channels.includes("area") && type === "ordinal"
-			? makeAreaScale(values, type, configs.area)
+			? makeAreaScale(values, type, configs.area, undefined, true, pinnedOrder)
 			: null
 	const areaRadiusFor = (v: string): number | null =>
 		areaSizeScale ? applyAreaScale(areaSizeScale, v, type) : null
@@ -539,7 +539,14 @@ export const CombinedGroupLegend = ({
 		const domainOverride =
 			resolveLegendDomain(values, type, channelCfg) ?? undefined
 		const areaScale = hasArea
-			? makeAreaScale(values, type, configs.area, domainOverride)
+			? makeAreaScale(
+					values,
+					type,
+					configs.area,
+					domainOverride,
+					true,
+					pinnedOrder,
+				)
 			: null
 		const angleScale = hasAngle
 			? makeAngleScale(values, type, configs.angle, domainOverride)

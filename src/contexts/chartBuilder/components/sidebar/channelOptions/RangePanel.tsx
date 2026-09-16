@@ -174,9 +174,9 @@ export const AreaOptionsPanel = () => {
 const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
 	const theme = useCurrentTheme()
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	// Follow the Fields reorder for row ORDER only — the spread scale below stays
-	// built from discovery-order `categories`, so each level's auto radius (and
-	// the drawn mark) is unchanged; only the display sequence tracks the pin.
+	// The Fields reorder sets the RANK: the spread scale below re-ranks the
+	// levels by the pinned order (first → min, last → max), so each row's auto
+	// radius matches the drawn mark and the size legend after a reorder.
 	const areaField = useAtomValue(currentEncodingsAtom).area?.field ?? null
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const levelOrder = areaField ? levelOrders[areaField] : undefined
@@ -187,10 +187,14 @@ const AreaOrdinalLevels = ({ categories }: { categories: string[] }) => {
 
 	// Auto-spread defaults come from the REAL scale (with overrides stripped),
 	// so the shown default is exactly what an unset category renders as.
-	const spreadScale = makeAreaScale(categories, "ordinal", {
-		minRadius: min,
-		maxRadius: max,
-	})
+	const spreadScale = makeAreaScale(
+		categories,
+		"ordinal",
+		{ minRadius: min, maxRadius: max },
+		undefined,
+		true,
+		levelOrder,
+	)
 	const spreadFor = (cat: string) =>
 		Math.round((applyAreaScale(spreadScale, cat, "ordinal") ?? min) * 10) / 10
 

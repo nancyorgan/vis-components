@@ -1239,6 +1239,14 @@ The **Area** panel additionally carries a **Scale by** choice
   doubled value quadruples the ink). The size legend follows the
   same scale, so legend swatches stay consistent with the marks.
 
+A NON-numeric ordinal Size variable sizes by RANK: the levels spread
+evenly from the min to the max radius in their level order — the
+Fields panel's pinned order when the user has set one (first level →
+smallest, last → largest), else first-seen order (never smart-sorted).
+Reordering the levels under Fields therefore re-ranks the marks, the
+size legend, and the Area panel's per-category default sizes together
+(`makeAreaScale`'s trailing `pinnedOrder`).
+
 ### 4.4 Connection panel
 Connection is the line/area glue. Controls:
 

@@ -21,6 +21,7 @@ export const AreaLegend = ({
 	type,
 	values,
 	configs,
+	pinnedOrder,
 	channelCfg,
 	swatchColor,
 	swatchStroke,
@@ -56,14 +57,16 @@ export const AreaLegend = ({
 						])
 						.clamp(true),
 				} satisfies ReturnType<typeof makeAreaScale>)
-			: makeAreaScale(values, type, configs.area, domain)
+			: makeAreaScale(values, type, configs.area, domain, true, pinnedOrder)
 	const color = swatchColor ?? "#4f8eda"
 	const stroke = swatchStroke ?? "#ffffff"
 	// Each swatch to draw: its radius + its label. Numeric fields sample
 	// value breaks; a NON-numeric ordinal draws one swatch per category
 	// (sized by the category's rank), so the size key reads the same way the
-	// per-category sidebar editor does.
-	const ordinalCats = type === "ordinal" ? ordinalAreaCategories(values) : null
+	// per-category sidebar editor does. The pinned level order (Fields
+	// reorder) sets the rank, so rows list — and swatches grow — in that order.
+	const ordinalCats =
+		type === "ordinal" ? ordinalAreaCategories(values, pinnedOrder) : null
 	let entries: Array<{ key: string; label: string; r: number }>
 	if (ordinalCats) {
 		entries = ordinalCats.map((c) => ({

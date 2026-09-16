@@ -24,6 +24,7 @@ import type { Encodings, FieldType } from "../lib/types"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
 } from "./atoms"
@@ -108,6 +109,10 @@ export const useAestheticScales = (): AestheticScales => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const channelConfigs = useAtomValue(currentChannelConfigsAtom)
 	const legendCfg = useAtomValue(currentLegendConfigAtom)
+	// Pinned level orders re-rank ordinal SIZE: the first pinned level draws
+	// smallest, the last largest — so a Fields reorder moves the marks, the
+	// legend, and the sidebar spread defaults together.
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()
 	const themeInkFallback = useThemeInkFallback()
 
@@ -301,6 +306,8 @@ export const useAestheticScales = (): AestheticScales => {
 							area.field.type,
 							channelConfigs.area,
 							areaDomain,
+							true,
+							levelOrders[area.field.name],
 						),
 						field: area.field,
 					}
@@ -350,5 +357,13 @@ export const useAestheticScales = (): AestheticScales => {
 			opacitySlots: opacitySlotsScales,
 			themeInkFallback,
 		}
-	}, [dataset, encodings, overrides, channelConfigs, legendCfg, themeInkFallback])
+	}, [
+		dataset,
+		encodings,
+		overrides,
+		channelConfigs,
+		legendCfg,
+		levelOrders,
+		themeInkFallback,
+	])
 }

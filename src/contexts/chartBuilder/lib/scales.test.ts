@@ -17,6 +17,7 @@ import {
 	modulateColor,
 	outlinePaletteForHueType,
 	parseNumericCell,
+	ordinalAreaCategories,
 } from "./scales"
 
 describe("makeHueScale (categorical)", () => {
@@ -207,6 +208,24 @@ describe("makeAreaScale — non-numeric ordinal", () => {
 		expect(applyAreaScale(areaScale, "low", "ordinal")).toBeCloseTo(4)
 		expect(applyAreaScale(areaScale, "med", "ordinal")).toBeCloseTo(10)
 		expect(applyAreaScale(areaScale, "high", "ordinal")).toBeCloseTo(16)
+	})
+
+	it("re-ranks by the pinned level order — first pinned → min, last → max", () => {
+		// Data discovery order is low/med/high; the user reversed the levels.
+		const areaScale = makeAreaScale(values, "ordinal", cfg, undefined, true, [
+			"high",
+			"med",
+			"low",
+		])
+		expect(applyAreaScale(areaScale, "high", "ordinal")).toBeCloseTo(4)
+		expect(applyAreaScale(areaScale, "med", "ordinal")).toBeCloseTo(10)
+		expect(applyAreaScale(areaScale, "low", "ordinal")).toBeCloseTo(16)
+		// The legend / sidebar category list follows the same rank.
+		expect(ordinalAreaCategories(values, ["high", "med", "low"])).toEqual([
+			"high",
+			"med",
+			"low",
+		])
 	})
 
 	it("ignores sizeBy — rank order has no magnitude, so the spread stays even", () => {

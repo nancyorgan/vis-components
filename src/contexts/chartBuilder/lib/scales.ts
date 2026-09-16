@@ -351,21 +351,28 @@ export type AreaScale =
 	| { kind: "numeric"; scale: ReturnType<typeof scaleSqrt<number, number>> }
 	| { kind: "ordinal"; radiusFor: (raw: unknown) => number | null }
 
-/** Distinct categories of a NON-numeric ordinal, in first-seen order — the
- *  exact order `makeAreaScale` spreads them across the radius range. Returns
- *  null when the values are empty or all-numeric (those size continuously
- *  from the value, not by category rank). Shared by the area size legend and
- *  the sidebar per-category editor so both agree on which categories exist
- *  and in what order. */
+/** Distinct categories of a NON-numeric ordinal, in rank order — the exact
+ *  order `makeAreaScale` spreads them across the radius range. The user's
+ *  pinned level order (Fields reorder) wins; otherwise first-seen order.
+ *  Returns null when the values are empty or all-numeric (those size
+ *  continuously from the value, not by category rank). Shared by the area
+ *  size legend and the sidebar per-category editor so both agree on which
+ *  categories exist and in what order. */
 export const ordinalAreaCategories = (
 	rawValues: unknown[],
+	pinnedOrder?: readonly string[],
 ): string[] | null => {
 	const parsed = rawValues
 		.map((v) => parseValue(v, "ordinal"))
 		.filter((v) => v !== null) as Array<number | string>
 	if (parsed.length === 0) return null
 	if (parsed.every((v) => typeof v === "number")) return null
-	return [...new Set(parsed.map(String))]
+	const discovered = [...new Set(parsed.map(String))]
+	// Only a USER pin re-ranks; without one keep first-seen order (never
+	// smart-sort — an ordinal's data order is its rank until the user says otherwise).
+	return pinnedOrder && pinnedOrder.length > 0
+		? applyLevelOrder(discovered, "ordinal", pinnedOrder)
+		: discovered
 }
 
 export const makeAreaScale = (
@@ -374,15 +381,19 @@ export const makeAreaScale = (
 	config: AreaConfig = DEFAULT_AREA_CONFIG,
 	domainOverride?: [number, number],
 	clamp = true,
+	/** User-pinned level order for the field (Fields reorder). Re-ranks a
+	 *  non-numeric ordinal: first pinned level → minRadius, last → maxRadius. */
+	pinnedOrder?: readonly string[],
 ): AreaScale => {
 	if (type === "ordinal") {
-		const unique = ordinalAreaCategories(rawValues)
+		const unique = ordinalAreaCategories(rawValues, pinnedOrder)
 		if (unique) {
 			// A non-numeric ordinal has no magnitude, only rank order, so the
 			// area/diameter (√ vs. linear) distinction is meaningless — spread
 			// the categories at EVEN radius steps across [minRadius, maxRadius]
 			// (first → min, last → max), matching how the length/angle channels
-			// handle ordinals. Per-category overrides win.
+			// handle ordinals. Rank follows the pinned order when the user has
+			// reordered the field's levels. Per-category overrides win.
 			const n = Math.max(1, unique.length - 1)
 			const { minRadius, maxRadius } = config
 			const overrides = config.overrides ?? {}
