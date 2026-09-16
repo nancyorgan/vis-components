@@ -155,21 +155,38 @@ export const GradientBarRamp = ({
 	orientation: "vertical" | "horizontal"
 	barStyle: GradientBarStyle
 }) => {
-	const { length, radius, tickLength, tickThickness, tickColor } = barStyle
+	const {
+		length,
+		thickness,
+		radius,
+		tickLength,
+		tickThickness,
+		tickColor,
+		borderWidth,
+		borderColor,
+	} = barStyle
 	const hasTicks = tickLength > 0 && tickThickness > 0
 	const isVertical = orientation === "vertical"
-	// Publish the rendered length (px along the bar's axis) after every
-	// render so the Legend panel's "Bar length" input can placeholder the
-	// auto size and step from it ([[auto-input-step-from-displayed]])
-	// instead of jumping to 0 on the first spinner press. Last ramp wins
-	// when several render — they share the legend's orientation + config,
-	// so their lengths agree in practice.
+	// The border is drawn OUTSIDE the ramp: the bar's border-box grows
+	// by `borderWidth` on every side, and the tick / label tracks inset by
+	// the same amount so their 0% / 100% still line up with the gradient's
+	// ends rather than the border's outer edge.
+	const border =
+		borderWidth > 0 ? { border: `${borderWidth}px solid ${borderColor}` } : undefined
+	const inset = borderWidth
+	// Publish the rendered RAMP length (px along the bar's axis, border
+	// excluded — `client*` stops at the padding box) after every render so
+	// the Legend panel's "Bar length" input can placeholder the auto size
+	// and step from it ([[auto-input-step-from-displayed]]) instead of
+	// jumping to 0 on the first spinner press. Last ramp wins when several
+	// render — they share the legend's orientation + config, so their
+	// lengths agree in practice.
 	const barRef = useRef<HTMLDivElement | null>(null)
 	const setRenderedLength = useSetAtom(currentRenderedGradientBarLengthAtom)
 	useEffect(() => {
 		const el = barRef.current
 		if (!el) return
-		const px = isVertical ? el.offsetHeight : el.offsetWidth
+		const px = isVertical ? el.clientHeight : el.clientWidth
 		if (px > 0) setRenderedLength(Math.round(px))
 	})
 	const gradientDirection = isVertical ? "to top" : "to right"
@@ -186,17 +203,30 @@ export const GradientBarRamp = ({
 			length !== null
 				? { height: `${length}px` }
 				: { minHeight: "8rem" as const }
+		// Bar outer size = ramp + border on each side (border-box).
+		const barSizing =
+			length !== null
+				? { height: `${length + 2 * inset}px` }
+				: { minHeight: `calc(8rem + ${2 * inset}px)` }
+		// Tick + label tracks span only the ramp, not the border.
+		const trackInset = { marginTop: inset, marginBottom: inset }
 		return (
 			<div className="flex flex-row items-stretch">
 				<div
 					ref={barRef}
-					className="w-3 flex-shrink-0"
-					style={{ background: gradientCss, borderRadius: radius, ...sizing }}
+					className="flex-shrink-0"
+					style={{
+						background: gradientCss,
+						borderRadius: radius,
+						width: thickness + 2 * inset,
+						...barSizing,
+						...border,
+					}}
 				/>
 				{hasTicks && (
 					<div
 						className="relative flex-shrink-0"
-						style={{ width: tickLength }}
+						style={{ width: tickLength, ...trackInset }}
 						aria-hidden="true"
 					>
 						{stops.map((s) => (
@@ -213,7 +243,7 @@ export const GradientBarRamp = ({
 						))}
 					</div>
 				)}
-				<div className="relative ml-2 flex flex-col" style={sizing}>
+				<div className="relative ml-2 flex flex-col" style={{ ...sizing, ...trackInset }}>
 					{/* Invisible zero-height in-flow copies give the column the
 					 *  width of its widest label, so the absolutely-positioned
 					 *  visible labels below can align (left/center/right) within
@@ -256,17 +286,24 @@ export const GradientBarRamp = ({
 			className={
 				length !== null ? "flex flex-col" : "flex w-full min-w-32 flex-col"
 			}
-			style={length !== null ? { width: `${length}px` } : undefined}
+			// Fixed length is the RAMP's; the border adds to it on both ends
+			// (auto stretches to the legend's width, ramp = width − 2·border).
+			style={length !== null ? { width: `${length + 2 * inset}px` } : undefined}
 		>
 			<div
 				ref={barRef}
-				className="h-3 w-full"
-				style={{ background: gradientCss, borderRadius: radius }}
+				className="w-full"
+				style={{
+					background: gradientCss,
+					borderRadius: radius,
+					height: thickness + 2 * inset,
+					...border,
+				}}
 			/>
 			{hasTicks && (
 				<div
-					className="relative w-full"
-					style={{ height: tickLength }}
+					className="relative"
+					style={{ height: tickLength, marginLeft: inset, marginRight: inset }}
 					aria-hidden="true"
 				>
 					{stops.map((s) => (
@@ -283,7 +320,10 @@ export const GradientBarRamp = ({
 					))}
 				</div>
 			)}
-			<div className="relative mt-1 h-5 w-full">
+			<div
+				className="relative mt-1 h-5"
+				style={{ marginLeft: inset, marginRight: inset }}
+			>
 				{stops.map((s) => (
 					<span
 						key={s.key}

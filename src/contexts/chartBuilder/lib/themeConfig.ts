@@ -1001,7 +1001,19 @@ export const explainLegendCustomization = (
 		},
 		{
 			group: "gradient",
+			changed: differs(cfg.gradientBarThickness, base.gradientBarThickness),
+		},
+		{
+			group: "gradient",
 			changed: differs(cfg.gradientBarRadius, base.gradientBarRadius),
+		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarBorderWidth, base.gradientBarBorderWidth),
+		},
+		{
+			group: "gradient",
+			changed: differs(cfg.gradientBarBorderColor, base.gradientBarBorderColor),
 		},
 		{
 			group: "gradient",

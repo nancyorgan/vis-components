@@ -478,9 +478,23 @@ export type LegendConfig = {
 	 * historical sizing: 8rem minimum height vertical, full legend width
 	 * horizontal). Only consulted when `gradientLegendStyle` is `"bar"`. */
 	gradientBarLength?: number | null
+	/** Gradient bar thickness in pixels — the bar's width when the legend is
+	 * vertical, its height when horizontal (the cross-axis of
+	 * `gradientBarLength`). `null` / absent = 12 (the historical `w-3` /
+	 * `h-3` strip). */
+	gradientBarThickness?: number | null
 	/** Gradient bar corner radius in pixels. `null` / absent = 2 (the
 	 * historical `rounded-sm` look); `0` = square corners. */
 	gradientBarRadius?: number | null
+	/** Border stroke thickness in pixels drawn around the gradient bar.
+	 * `null` / absent / `0` = no border (the historical look). The border
+	 * sits OUTSIDE the ramp — the bar grows by the border on every side —
+	 * so the 0% / 100% stops, and the ticks / labels keyed to them, stay
+	 * put when a border is turned on. */
+	gradientBarBorderWidth?: number | null
+	/** Border color. `null` / absent = the same neutral stone gray as the
+	 * default tick color. Ignored while `gradientBarBorderWidth` is off. */
+	gradientBarBorderColor?: string | null
 	/** Length in pixels of the tick marks drawn at each break stop, extending
 	 * outward from the bar toward its labels. `null` / absent / `0` = no
 	 * ticks (the historical look). */
@@ -625,7 +639,10 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	backgroundColor: "#ffffff",
 	gradientLegendStyle: "bar",
 	gradientBarLength: null,
+	gradientBarThickness: null,
 	gradientBarRadius: null,
+	gradientBarBorderWidth: null,
+	gradientBarBorderColor: null,
 	gradientBarTickLength: null,
 	gradientBarTickThickness: null,
 	gradientBarTickColor: null,
@@ -653,13 +670,25 @@ export const DEFAULT_GRADIENT_BAR_TICK_COLOR = "#78716c"
 /** Historical gradient-bar corner radius (`rounded-sm` = 2px). */
 export const DEFAULT_GRADIENT_BAR_RADIUS = 2
 
+/** Historical gradient-bar thickness (`w-3` / `h-3` = 12px). */
+export const DEFAULT_GRADIENT_BAR_THICKNESS = 12
+
+/** Default gradient-bar border color — matches the tick default so a bar
+ * with both ticks and a border reads as one stroke system. */
+export const DEFAULT_GRADIENT_BAR_BORDER_COLOR = DEFAULT_GRADIENT_BAR_TICK_COLOR
+
 /** The gradient bar's fully-resolved display options — the sparse
  * `gradientBar*` fields on `LegendConfig` with defaults applied, in the
  * shape the legend renderer consumes. */
 export type GradientBarStyle = {
 	/** Bar length in px; `null` = auto (historical sizing). */
 	length: number | null
+	/** Cross-axis size in px (width vertical, height horizontal). */
+	thickness: number
 	radius: number
+	/** `0` = no border. */
+	borderWidth: number
+	borderColor: string
 	/** `0` = no ticks. */
 	tickLength: number
 	tickThickness: number
@@ -670,7 +699,10 @@ export type GradientBarStyle = {
 
 export const resolveGradientBarStyle = (cfg: LegendConfig): GradientBarStyle => ({
 	length: cfg.gradientBarLength ?? null,
+	thickness: Math.max(0, cfg.gradientBarThickness ?? DEFAULT_GRADIENT_BAR_THICKNESS),
 	radius: cfg.gradientBarRadius ?? DEFAULT_GRADIENT_BAR_RADIUS,
+	borderWidth: Math.max(0, cfg.gradientBarBorderWidth ?? 0),
+	borderColor: cfg.gradientBarBorderColor ?? DEFAULT_GRADIENT_BAR_BORDER_COLOR,
 	tickLength: cfg.gradientBarTickLength ?? 0,
 	tickThickness: cfg.gradientBarTickThickness ?? 1,
 	tickColor: cfg.gradientBarTickColor ?? DEFAULT_GRADIENT_BAR_TICK_COLOR,

@@ -2123,7 +2123,14 @@ controls:
   legend is stacked, its width when horizontal. Auto keeps the
   historical sizing (8rem minimum height vertical; full legend width
   horizontal).
+- **Bar thickness** (px, default 12) — the bar's width when stacked,
+  its height when horizontal; the cross-axis of Bar length.
 - **Corner radius** (px, default 2) — 0 gives square corners.
+- **Border thickness** (px, default 0 = no border) — above 0 draws a
+  solid stroke around the bar, outside the gradient (the bar grows by
+  the border; the ramp's 0% / 100% ends, and the ticks / labels keyed
+  to them, don't move). **Border color** (default the same neutral
+  stone gray as ticks) appears only once the border is on.
 - **Tick length** (px, default 0 = no ticks) — above 0 draws a tick
   mark at each break stop, extending outward from the bar toward its
   labels (below a horizontal bar, right of a vertical one). **Tick

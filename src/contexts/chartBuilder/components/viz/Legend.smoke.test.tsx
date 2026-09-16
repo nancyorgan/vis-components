@@ -415,10 +415,13 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 				orientation="horizontal"
 				gradientBarStyle={{
 					length: 200,
+					thickness: 20,
 					radius: 0,
 					tickLength: 6,
 					tickThickness: 2,
 					tickColor: "#ff0000",
+					borderWidth: 0,
+					borderColor: "#78716c",
 					labelAlign: "left",
 				}}
 			/>
@@ -429,6 +432,8 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		expect(strip).not.toBeNull()
 		// Radius 0 = square corners.
 		expect(strip?.style.borderRadius).toBe("0px")
+		// Thickness is the horizontal bar's height.
+		expect(strip?.style.height).toBe("20px")
 		// Length pins the OUTER wrapper's width (bar + tick row + labels all
 		// track it) instead of the auto full-width layout.
 		const wrapper = strip?.parentElement as HTMLElement
@@ -444,9 +449,53 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		// labelAlign "left" anchors each label's LEFT edge at its stop — no
 		// centering transform on the label spans.
 		const label = [...container.querySelectorAll("span")].find(
-			(s) => s.textContent === "0.00"
+			(s) => s.textContent === "0"
 		)
 		expect(label?.className ?? "").not.toContain("-translate-x-1/2")
+	})
+
+	it("gradient bar border draws outside the ramp and insets the tick + label tracks", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="quantitative"
+				values={numericValues}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				gradientLegendStyle="bar"
+				orientation="horizontal"
+				gradientBarStyle={{
+					length: 200,
+					thickness: 12,
+					radius: 2,
+					tickLength: 6,
+					tickThickness: 1,
+					tickColor: "#ff0000",
+					borderWidth: 3,
+					borderColor: "#00ff00",
+					labelAlign: "center",
+				}}
+			/>
+		)
+		const strip = container.querySelector(
+			'div[style*="linear-gradient"]'
+		) as HTMLElement | null
+		expect(strip).not.toBeNull()
+		expect(strip?.style.border).toBe("3px solid #00ff00")
+		// The bar grows by the border on each side so the 12px ramp is intact,
+		// and along the bar too: a 200px length is the RAMP's, so the wrapper
+		// (which the `w-full` bar fills, border-box) widens to 206px.
+		expect(strip?.style.height).toBe("18px")
+		expect(strip?.parentElement?.style.width).toBe("206px")
+		// Tick track and label track inset by the border width so 0% / 100%
+		// stay aligned with the gradient's ends, not the border's outer edge.
+		const tickTrack = container.querySelector(
+			'div[aria-hidden="true"][style*="height: 6px"]'
+		) as HTMLElement | null
+		expect(tickTrack?.style.marginLeft).toBe("3px")
+		expect(tickTrack?.style.marginRight).toBe("3px")
+		const labelTrack = strip?.parentElement?.lastElementChild as HTMLElement
+		expect(labelTrack.style.marginLeft).toBe("3px")
 	})
 
 	it("gradient bar defaults keep the historical look: rounded, no ticks, centered labels", () => {
@@ -466,9 +515,12 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		) as HTMLElement | null
 		// rounded-sm equivalent (2px) now comes from the style, not a class.
 		expect(strip?.style.borderRadius).toBe("2px")
+		// No border by default — the bar stays the bare 12px ramp.
+		expect(strip?.style.border).toBe("")
+		expect(strip?.style.height).toBe("12px")
 		// No barStyle prop → no ticks rendered.
 		const label = [...container.querySelectorAll("span")].find(
-			(s) => s.textContent === "0.00"
+			(s) => s.textContent === "0"
 		)
 		expect(label?.className ?? "").toContain("-translate-x-1/2")
 	})

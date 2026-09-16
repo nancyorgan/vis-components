@@ -19,7 +19,9 @@ import { effectiveType } from "../../lib/fieldType"
 import { histogramMeasureColorDomain } from "../../lib/histogramMeasureColor"
 import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
 import {
+	DEFAULT_GRADIENT_BAR_BORDER_COLOR,
 	DEFAULT_GRADIENT_BAR_RADIUS,
+	DEFAULT_GRADIENT_BAR_THICKNESS,
 	DEFAULT_GRADIENT_BAR_TICK_COLOR,
 	DEFAULT_LEGEND_CHANNEL_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
@@ -1159,6 +1161,24 @@ export const LegendPanel = () => {
 							</div>
 							<div className="flex items-center gap-2">
 								<NumberInput
+									label="Bar thickness"
+									labelClassName={LABEL_COL}
+									value={merged.gradientBarThickness ?? DEFAULT_GRADIENT_BAR_THICKNESS}
+									min={0}
+									step={1}
+									onChange={(gradientBarThickness) =>
+										update({ gradientBarThickness: Math.max(0, gradientBarThickness) })
+									}
+									inputClassName="w-16"
+									suffix="px"
+								/>
+								{merged.gradientBarThickness != null &&
+									merged.gradientBarThickness !== DEFAULT_GRADIENT_BAR_THICKNESS && (
+										<ResetLink onClick={() => update({ gradientBarThickness: null })} />
+									)}
+							</div>
+							<div className="flex items-center gap-2">
+								<NumberInput
 									label="Corner radius"
 									labelClassName={LABEL_COL}
 									value={merged.gradientBarRadius ?? DEFAULT_GRADIENT_BAR_RADIUS}
@@ -1173,6 +1193,43 @@ export const LegendPanel = () => {
 										<ResetLink onClick={() => update({ gradientBarRadius: null })} />
 									)}
 							</div>
+							{/* Border thickness is the switch ([[legend-swatch-outline]]
+							 *  convention): 0 (the default) draws no border and hides
+							 *  the color picker, which is inert until there's a stroke
+							 *  to color. */}
+							<NumberInput
+								label="Border thickness"
+								labelClassName={LABEL_COL}
+								value={merged.gradientBarBorderWidth ?? 0}
+								min={0}
+								step={0.5}
+								onChange={(gradientBarBorderWidth) =>
+									update({ gradientBarBorderWidth: Math.max(0, gradientBarBorderWidth) })
+								}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+							{(merged.gradientBarBorderWidth ?? 0) > 0 && (
+								<div className="flex items-center gap-2">
+									<ColorInput
+										label="Border color"
+										labelClassName={LABEL_COL}
+										value={
+											merged.gradientBarBorderColor ??
+											DEFAULT_GRADIENT_BAR_BORDER_COLOR
+										}
+										onChange={(gradientBarBorderColor) =>
+											update({ gradientBarBorderColor })
+										}
+										showHexInput
+									/>
+									{merged.gradientBarBorderColor != null && (
+										<ResetLink
+											onClick={() => update({ gradientBarBorderColor: null })}
+										/>
+									)}
+								</div>
+							)}
 							<NumberInput
 								label="Tick length"
 								labelClassName={LABEL_COL}
@@ -1221,8 +1278,9 @@ export const LegendPanel = () => {
 							<p className="vc-help">
 								Bar length is the gradient&apos;s height when the legend is
 								stacked, its width when horizontal — clear for the automatic
-								size. Tick length above 0 draws a mark at each break stop,
-								between the bar and its labels.
+								size. Bar thickness is the other dimension. Border thickness above 0 outlines the bar. Tick length
+								above 0 draws a mark at each break stop, between the bar and
+								its labels.
 							</p>
 						</div>
 					)}
