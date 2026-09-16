@@ -30,6 +30,7 @@ import {
 	orderedSiblings,
 	reorderFolder,
 } from "../lib/folderOrder"
+import { UNFILED_FOLDER_ID } from "../lib/folderSubtree"
 
 const newFolderId = () =>
 	`fl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -710,7 +711,22 @@ export const FolderTree = ({
 					</svg>
 				</button>
 			</div>
-			<div className="flex-1 overflow-y-auto px-1 py-1">
+			{/* Clicking the panel's own whitespace — below/between the rows,
+			 *  not on any of them — filters to the visuals that aren't in any
+			 *  folder: the ones still waiting to be catalogued. Row clicks
+			 *  stop here as the row's own target, so only a bare-container
+			 *  click counts. This is a pointer-only shortcut on the panel's
+			 *  background, not a control: the container wraps real buttons,
+			 *  so it can't take a button role itself, and the same filter
+			 *  is reachable by URL (`?folder=unfiled`). */}
+			{/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- background shortcut, see above */}
+			<div
+				className="flex-1 overflow-y-auto px-1 py-1"
+				data-testid="folder-tree-body"
+				onClick={(e) => {
+					if (e.target === e.currentTarget) onSelect(UNFILED_FOLDER_ID)
+				}}
+			>
 				{/* "All visualizations" root item */}
 				<div
 					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${

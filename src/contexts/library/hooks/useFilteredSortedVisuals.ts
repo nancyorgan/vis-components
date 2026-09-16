@@ -9,7 +9,7 @@ import type {
 	Folder,
 	Visual,
 } from "../../chartBuilder/lib/types"
-import { folderSubtreeIds } from "../lib/folderSubtree"
+import { folderSelectionPredicate } from "../lib/folderSubtree"
 
 export type SortField =
 	| "name"
@@ -82,7 +82,9 @@ type Args = {
 	visuals: Visual[]
 	datasets: Record<string, DatasetLike>
 	folders: Folder[]
-	folderId: string | null // selected folder filter; null = all
+	/** Selected folder filter; null = all, `UNFILED_FOLDER_ID` = visuals
+	 * not in any folder, otherwise that folder's whole subtree. */
+	folderId: string | null
 	/** Selected dataset filter by NAME; null = all datasets. Matching by name
 	 * (not id) means one dropdown entry per name collapses same-named datasets
 	 * — e.g. two uploads of "sales.csv" with different content — so the filter
@@ -121,18 +123,12 @@ export const useFilteredSortedVisuals = ({
 			}
 		})
 
-		// Selecting a folder shows its whole subtree, not just direct children.
-		const folderFilter =
-			folderId === null ? null : folderSubtreeIds(folders, folderId)
+		// Selecting a folder shows its whole subtree, not just direct children;
+		// the unfiled selection shows only visuals outside every folder.
+		const inSelectedFolder = folderSelectionPredicate(folders, folderId)
 
 		const filtered = decorated.filter((d) => {
-			const vFolder = d.visual.folderId ?? null
-			if (
-				folderFilter !== null &&
-				(vFolder === null || !folderFilter.has(vFolder))
-			) {
-				return false
-			}
+			if (!inSelectedFolder(d.visual.folderId)) return false
 			if (datasetName !== null && d.datasetName !== datasetName) {
 				return false
 			}
@@ -202,19 +198,13 @@ export const useFilteredSortedLandingRows = ({
 		const { field, dir } = parseSort(sort)
 		const q = query.trim().toLowerCase()
 
-		// Selecting a folder shows its whole subtree, not just direct children.
-		const folderFilter =
-			folderId === null ? null : folderSubtreeIds(folders, folderId)
+		// Selecting a folder shows its whole subtree, not just direct children;
+		// the unfiled selection shows only visuals outside every folder.
+		const inSelectedFolder = folderSelectionPredicate(folders, folderId)
 
 		// Filter visuals first — row derivation only runs on the surviving set.
 		const filteredVisuals = visuals.filter((v) => {
-			const vFolder = v.folderId ?? null
-			if (
-				folderFilter !== null &&
-				(vFolder === null || !folderFilter.has(vFolder))
-			) {
-				return false
-			}
+			if (!inSelectedFolder(v.folderId)) return false
 			if (datasetName !== null) {
 				const vName = v.datasetId ? datasets[v.datasetId]?.name ?? "" : ""
 				if (vName !== datasetName) return false

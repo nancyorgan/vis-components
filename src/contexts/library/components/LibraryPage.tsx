@@ -40,6 +40,7 @@ import { BulkMoveModal } from "./BulkMoveModal"
 import { DeleteVisualButton } from "./DeleteVisualButton"
 import { DownloadVisualsButton } from "./DownloadVisualsButton"
 import { DuplicateVisualButton } from "./DuplicateVisualButton"
+import { UNFILED_FOLDER_ID } from "../lib/folderSubtree"
 import { FolderTree } from "./FolderTree"
 import { MoveToFolderButton } from "./MoveToFolderButton"
 import { RegeneratePreviewButton } from "./RegeneratePreviewButton"
@@ -137,7 +138,11 @@ export const LibraryPage = () => {
 			folderRestoredRef.current = true
 			if (selectedFolderId === null) {
 				const stored = loadLibrarySelectedFolderId()
-				if (stored !== null && folders.some((f) => f.id === stored)) {
+				if (
+					stored !== null &&
+					(stored === UNFILED_FOLDER_ID ||
+						folders.some((f) => f.id === stored))
+				) {
 					void navigate({
 						search: (prev) => ({ ...prev, folder: stored }),
 						replace: true,
@@ -335,8 +340,10 @@ export const LibraryPage = () => {
 	const selectedFolderName =
 		selectedFolderId === null
 			? "All visualizations"
-			: (folders.find((f) => f.id === selectedFolderId)?.name ??
-				"Visualizations")
+			: selectedFolderId === UNFILED_FOLDER_ID
+				? "Not in a folder"
+				: (folders.find((f) => f.id === selectedFolderId)?.name ??
+					"Visualizations")
 
 	return (
 		<div className="flex">
@@ -441,9 +448,11 @@ export const LibraryPage = () => {
 							<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
 								{query
 									? `No visualizations match "${query}".`
-									: selectedFolderId
-										? "This folder is empty."
-										: "No visualizations yet. Start a new one to upload a data set and build a visualization."}
+									: selectedFolderId === UNFILED_FOLDER_ID
+										? "Every visualization is in a folder."
+										: selectedFolderId
+											? "This folder is empty."
+											: "No visualizations yet. Start a new one to upload a data set and build a visualization."}
 							</p>
 							<Link to="/editor/new" className="mt-2">
 								<Button>New visualization</Button>

@@ -9,6 +9,7 @@ import { DEFAULT_LABELS_CONFIG } from "../../chartBuilder/lib/labelsConfig"
 import type { Folder, Visual } from "../../chartBuilder/lib/types"
 import { emptyEncodings } from "../../chartBuilder/lib/types"
 import { setCurrentDrag } from "../lib/folderDnd"
+import { UNFILED_FOLDER_ID } from "../lib/folderSubtree"
 import { FolderTree } from "./FolderTree"
 
 // FolderTree only needs Link from the router; render it as a plain anchor
@@ -102,10 +103,10 @@ const readStoredFolders = (): Folder[] => {
 
 /* eslint-enable @th/no-storage-outside-try */
 
-const renderTree = () =>
+const renderTree = (onSelect: (id: string | null) => void = () => {}) =>
 	render(
 		<TestProvider>
-			<FolderTree selectedFolderId={null} onSelect={() => {}} />
+			<FolderTree selectedFolderId={null} onSelect={onSelect} />
 		</TestProvider>
 	)
 
@@ -374,5 +375,34 @@ describe("FolderTree drag-and-drop", () => {
 		expect(readStoredFolders().find((f) => f.id === "fl-a")?.parentId).toBe(
 			null
 		)
+	})
+})
+
+describe("FolderTree selection", () => {
+	it("clicking the panel's own whitespace selects the unfiled set", () => {
+		seedStorage([mkFolder("fl-a", null, "Alpha")], [mkVisual("vis-1", null)])
+		const onSelect = vi.fn()
+		const { getByTestId } = renderTree(onSelect)
+		fireEvent.click(getByTestId("folder-tree-body"))
+		expect(onSelect).toHaveBeenCalledTimes(1)
+		expect(onSelect).toHaveBeenCalledWith(UNFILED_FOLDER_ID)
+	})
+
+	it("clicking a folder row selects that folder, not the unfiled set", () => {
+		seedStorage([mkFolder("fl-a", null, "Alpha")], [])
+		const onSelect = vi.fn()
+		const { container } = renderTree(onSelect)
+		fireEvent.click(folderRow(container, "Alpha"))
+		expect(onSelect).toHaveBeenCalledTimes(1)
+		expect(onSelect).toHaveBeenCalledWith("fl-a")
+	})
+
+	it("clicking \"All visualizations\" selects everything (null)", () => {
+		seedStorage([], [])
+		const onSelect = vi.fn()
+		const { container } = renderTree(onSelect)
+		fireEvent.click(folderRow(container, "All visualizations"))
+		expect(onSelect).toHaveBeenCalledTimes(1)
+		expect(onSelect).toHaveBeenCalledWith(null)
 	})
 })

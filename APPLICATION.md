@@ -2687,7 +2687,13 @@ are the way to re-order those.
 
 Selecting a folder in the sidebar shows the visuals of its entire
 subtree — descendant folders included — in both the grid and table
-views. Checking one or more visuals (the card checkbox in grid view,
+views. "All visualizations" shows everything; clicking the sidebar's
+empty space — below or between the rows, not on one — shows only the
+visuals that aren't in any folder (the page heading reads "Not in a
+folder"; no folder row is highlighted), so what still needs cataloguing
+is one click away. That
+selection is a URL state (`?folder=unfiled`) like any folder and is
+remembered across visits the same way. Checking one or more visuals (the card checkbox in grid view,
 the row checkbox in table view) raises a bulk-action bar above the
 listing with **Move…**, **Duplicate**, **Download**, **Delete…** and
 **Clear**. The first three are ordinary (brand-colored) buttons,

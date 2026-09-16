@@ -1037,7 +1037,8 @@ export const loadLibraryCollapsedFolders = (): ReadonlySet<string> =>
 export const saveLibraryCollapsedFolders = (v: ReadonlySet<string>): void =>
 	safeSet(KEY_LIBRARY_COLLAPSED_FOLDERS, [...v])
 
-/** Folder the library grid was last filtered to (null = all visuals). */
+/** Folder the library grid was last filtered to (null = all visuals; may
+ * also hold the library's "unfiled" sentinel). */
 export const loadLibrarySelectedFolderId = (): string | null =>
 	safeGet<string | null>(KEY_LIBRARY_SELECTED_FOLDER, null)
 export const saveLibrarySelectedFolderId = (id: string | null): void =>

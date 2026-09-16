@@ -4,7 +4,8 @@ import { LibraryPage } from "./components/LibraryPage"
 // URL search params for the library page. Defaults are intentionally chosen so
 // that the "clean URL" /  matches the default UI state.
 //
-// folder  — selected folder id; absent = root ("All visualizations")
+// folder  — selected folder id; absent = root ("All visualizations");
+//           "unfiled" (UNFILED_FOLDER_ID) = visuals not in any folder
 // dataset — selected dataset NAME filter; absent = all datasets
 // view    — "grid" | "table"; absent = "grid"
 // q       — search query string; absent = ""
