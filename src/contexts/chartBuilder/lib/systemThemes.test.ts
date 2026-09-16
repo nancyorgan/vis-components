@@ -44,6 +44,7 @@ const sparseDarkClone = (): SavedTheme => {
 	// an old clone never carried it, and it must stay absent after rehydration.
 	delete raw.annotationFillColor
 	delete raw.titleFontWeight
+	delete raw.mapLeaderLineColor
 	return raw as unknown as SavedTheme
 }
 

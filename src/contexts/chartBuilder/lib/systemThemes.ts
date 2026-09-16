@@ -72,9 +72,13 @@ const LIGHT_CATEGORICAL_PALETTES: SavedCategoricalPalette[] = [
 	},
 ]
 
-/** The dark theme swaps the navy sixth swatch for cream (`#FEFFF0`) in each
- *  palette and names the tints as the text palette. Same ids as the light
- *  list, so palette picks survive a light↔dark switch. */
+/** Dark-theme swatches: cream (`#FEFFF0`) and its pattern ink replace the
+ *  navy sixth swatch in every palette, and the pale tints are the text
+ *  palette. Same ids as the light list, so palette picks survive a
+ *  light↔dark switch. */
+const CREAM = "#FEFFF0"
+const CREAM_INK = "#eaecc5"
+
 const DARK_CATEGORICAL_PALETTES: SavedCategoricalPalette[] = [
 	{
 		id: "migrated",
@@ -85,29 +89,29 @@ const DARK_CATEGORICAL_PALETTES: SavedCategoricalPalette[] = [
 			"#0AD6A0",
 			"#118AB2",
 			"#EE7D20",
-			"#FEFFF0",
+			CREAM,
 			"#B0B0B0",
 			"#D1D1D1",
 		],
-		patternInks: CATEGORICAL_INKS,
+		patternInks: CATEGORICAL_INKS.map((ink, i) => (i === 5 ? CREAM_INK : ink)),
 	},
 	{
 		id: "cat-mqphdwv2-255y",
-		name: "Text Fill Palette",
-		colors: [...TINT_COLORS, "#FEFFF0", "#efefef"],
-		patternInks: [...TINT_INKS, null, "#dedede"],
+		name: "Text Palette",
+		colors: [...TINT_COLORS, CREAM, "#efefef"],
+		patternInks: [...TINT_INKS, CREAM_INK, "#dedede"],
 	},
 	{
 		id: "cat-mpd3z8av-n270",
 		name: "Area Fill Palette",
-		colors: [...AREA_COLORS, "#FEFFF0"],
-		patternInks: [...AREA_INKS, "#d4ebf2"],
+		colors: [...AREA_COLORS, CREAM],
+		patternInks: [...AREA_INKS, CREAM_INK],
 	},
 	{
 		id: "cat-mohtmuv1-dcxj",
 		name: "Background Fill Palette",
-		colors: [...DEEP_COLORS, "#FEFFF0", "#888888"],
-		patternInks: [...DEEP_INKS, "#92c3d3", "#d6d6d6"],
+		colors: [...DEEP_COLORS, CREAM, "#888888"],
+		patternInks: [...DEEP_INKS, CREAM_INK, "#d6d6d6"],
 	},
 ]
 
@@ -234,15 +238,30 @@ export const LIGHT_THEME_BASE: Theme = {
 	legendSwatchStroke: "#ffffff",
 }
 
-/** Dark companion to LIGHT_THEME_BASE — same structure, a navy chart
- * background, near-white text and the dark palette variants. */
+/** Dark companion to LIGHT_THEME_BASE — same structure on a navy chart
+ * background: near-white text, ticks, connections and overlays, the dark
+ * palette variants, and navy pattern ink / legend swatches. */
+const DARK_INK = "#FAFAFA"
+const DARK_BG = "#040038"
+
 const DARK_THEME_BASE: Theme = {
 	...LIGHT_THEME_BASE,
-	outlineColor: "#040038",
-	titleFontColor: "#FAFAFA",
-	textFontColor: "#FAFAFA",
+	outlineColor: DARK_BG,
+	titleFontColor: DARK_INK,
+	textFontColor: DARK_INK,
 	categoricalPalettes: DARK_CATEGORICAL_PALETTES,
-	chartBackgroundColor: "#040038",
+	// The pale tints are the dark theme's "Text Palette".
+	defaultTextPaletteId: "cat-mqphdwv2-255y",
+	patternInkColor: DARK_BG,
+	tickmarkColor: DARK_INK,
+	distributionOverlayStroke: "#EF476F",
+	distributionOverlayFill: "#F2C5CF",
+	regressionStroke: CREAM,
+	regressionCiFill: "#FCFDF7",
+	connectionColor: DARK_INK,
+	chartBackgroundColor: DARK_BG,
+	legendSwatchColor: DARK_BG,
+	legendSwatchStroke: DARK_INK,
 }
 
 /** OPTIONAL `Theme` fields the two system themes ship with. Kept out of
@@ -288,6 +307,24 @@ export const SYSTEM_LIGHT_THEME: SavedTheme = {
 	...SYSTEM_THEME_STYLE,
 }
 
+/** Dark overrides of `SYSTEM_THEME_STYLE`: every ink that is black in the
+ * light theme goes near-white, plus per-axis gridlines, the annotation text
+ * box fill and map leader lines that the light theme leaves unset. */
+const DARK_THEME_STYLE: Partial<Theme> = {
+	dataLabelsColor: DARK_INK,
+	xGridlineColor: DARK_INK,
+	yGridlineColor: DARK_INK,
+	rGridlineColor: DARK_INK,
+	xSpineColor: DARK_INK,
+	ySpineColor: DARK_INK,
+	polarSpineColor: DARK_INK,
+	annotationLineColor: DARK_INK,
+	annotationTextColor: DARK_INK,
+	annotationTextBoxFillColor: DARK_BG,
+	annotationTextBoxBorderColor: DARK_INK,
+	mapLeaderLineColor: DARK_INK,
+}
+
 export const SYSTEM_DARK_THEME: SavedTheme = {
 	id: "system-dark",
 	name: "System (Dark)",
@@ -295,7 +332,7 @@ export const SYSTEM_DARK_THEME: SavedTheme = {
 	managed: true,
 	...DARK_THEME_BASE,
 	...SYSTEM_THEME_STYLE,
-	dataLabelsColor: "#FAFAFA",
+	...DARK_THEME_STYLE,
 }
 
 /** Bundled with the app — these always exist in `themesAtom` and start out
