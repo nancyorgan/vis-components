@@ -329,45 +329,32 @@ export const LegendPanel = () => {
 
 	// "Legend width": px-truth (`merged.width`) shown in the user's display
 	// unit. Blank = auto, with the RENDERED auto width (published by Legend
-	// after each render) as the placeholder, so the first interaction —
-	// focus, spinner click, or arrow key — steps from the visible number
-	// instead of jumping to 0 ([[auto-input-step-from-displayed]]). The px
-	// value is stored UNROUNDED (7.5 cm = 283.46px) so the displayed unit
-	// value round-trips exactly and the field never rewrites what was typed;
-	// the renderer rounds. `widthDraft` holds in-progress text ("1.", "0.2")
-	// that a px→unit round trip would otherwise clobber mid-keystroke.
+	// after each render) as the placeholder, so the first spinner click or
+	// arrow key steps from the visible number instead of jumping to 0
+	// ([[auto-input-step-from-displayed]] — NumberInput steps from a numeric
+	// placeholder). The px value is stored UNROUNDED (7.5 cm = 283.46px) and
+	// converted back at 4 decimals, so anything a user would type in cm / in
+	// round-trips to the same number and NumberInput keeps the in-progress
+	// text ("1.", "7.567") — it drops its draft whenever the value it gets
+	// back differs from what was typed. The placeholder (auto width) shows
+	// the friendlier 2-decimal form; the renderer rounds the px.
 	const widthUnit: DisplayUnit = merged.widthUnit ?? "px"
 	const autoLegendWidth = useAtomValue(currentRenderedLegendWidthAtom)
-	const [widthDraft, setWidthDraft] = useState<string | null>(null)
 	const widthToUnit = (px: number): number =>
-		widthUnit === "px" ? Math.round(px) : pxToUnit(px, widthUnit)
-	const widthDisplay =
-		widthDraft ?? (merged.width != null ? String(widthToUnit(merged.width)) : "")
+		widthUnit === "px"
+			? Math.round(px)
+			: Number((px / PX_PER_UNIT[widthUnit]).toFixed(4))
+	const widthValue = merged.width != null ? widthToUnit(merged.width) : null
 	const widthPlaceholder =
-		autoLegendWidth != null ? String(widthToUnit(autoLegendWidth)) : "auto"
-	const commitWidthText = (text: string) => {
-		const trimmed = text.trim()
-		if (trimmed === "") {
-			setWidthDraft(null)
-			update({ width: null })
-			return
-		}
-		setWidthDraft(text)
-		const n = Number(trimmed)
-		if (!Number.isFinite(n)) return
+		autoLegendWidth != null
+			? String(
+					widthUnit === "px"
+						? Math.round(autoLegendWidth)
+						: pxToUnit(autoLegendWidth, widthUnit)
+				)
+			: "auto"
+	const commitWidthUnit = (n: number) =>
 		update({ width: Math.max(0, n * PX_PER_UNIT[widthUnit]) })
-	}
-	const stepWidth = (dir: 1 | -1) => {
-		const startPx = merged.width ?? autoLegendWidth ?? 0
-		const stepSize = UNIT_STEP[widthUnit]
-		const decimals = (String(stepSize).split(".")[1] ?? "").length
-		const nextUnit = Math.max(
-			0,
-			Number((widthToUnit(startPx) + stepSize * dir).toFixed(decimals))
-		)
-		setWidthDraft(String(nextUnit))
-		update({ width: nextUnit * PX_PER_UNIT[widthUnit] })
-	}
 
 	// Rendered auto length of the gradient bar, published by the legend's
 	// GradientBarRamp after each render. Placeholder + step start for the
@@ -834,51 +821,20 @@ export const LegendPanel = () => {
 								 *  legend actually sits, and clearing reverts to auto
 								 *  (mirrors the Bar length input below). */}
 								<div className="flex items-center gap-2">
-									<label className="flex items-center gap-2 text-sm">
-										<span className={LABEL_COL}>X</span>
-										<input
-											type="number"
-											step={0.02}
-											value={merged.insideX ?? ""}
-											placeholder={
-												roundedAutoInsideX != null
-													? String(roundedAutoInsideX)
-													: "auto"
-											}
-											onChange={(e) =>
-												update({
-													insideX:
-														e.target.value === ""
-															? null
-															: Number(e.target.value),
-												})
-											}
-											// Native spinner buttons fire no keydown — from a
-											// blank input they'd jump to 0 (the left edge).
-											// Seed the rendered auto X on focus so every
-											// interaction steps from the visible position.
-											onFocus={() => {
-												if (merged.insideX != null) return
-												if (roundedAutoInsideX == null) return
-												update({ insideX: roundedAutoInsideX })
-											}}
-											// Belt-and-suspenders for the first arrow press
-											// racing the focus-fill.
-											onKeyDown={(e) => {
-												if (e.key !== "ArrowUp" && e.key !== "ArrowDown")
-													return
-												e.preventDefault()
-												const start =
-													merged.insideX ?? roundedAutoInsideX ?? 0
-												const step = e.key === "ArrowUp" ? 0.02 : -0.02
-												update({
-													insideX:
-														Math.round((start + step) * 1000) / 1000,
-												})
-											}}
-											className="w-16 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-										/>
-									</label>
+									<NumberInput
+										label="X"
+										labelClassName={LABEL_COL}
+										value={merged.insideX ?? null}
+										step={0.02}
+										placeholder={
+											roundedAutoInsideX != null
+												? String(roundedAutoInsideX)
+												: "auto"
+										}
+										onChange={(insideX) => update({ insideX })}
+										onClear={() => update({ insideX: null })}
+										inputClassName="w-16"
+									/>
 									{merged.insideX != null && (
 										<ResetLink onClick={() => update({ insideX: null })} />
 									)}
@@ -900,43 +856,23 @@ export const LegendPanel = () => {
 					 *  Labels that stop fitting wrap onto extra lines in the render. */}
 					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
 						<div className="flex items-center gap-2">
-							<label className="flex items-center gap-2 text-sm">
-								<span className={LABEL_COL}>Legend width</span>
-								<input
-									type="number"
-									min={0}
-									step={UNIT_STEP[widthUnit]}
-									value={widthDisplay}
-									placeholder={widthPlaceholder}
-									onChange={(e) => commitWidthText(e.target.value)}
-									onBlur={() => setWidthDraft(null)}
-									// Native spinner buttons fire no keydown — from a blank
-									// input they'd jump to 0. Seed the rendered auto width
-									// on focus so every interaction steps from the visible
-									// number; clearing the field reverts to auto.
-									onFocus={() => {
-										if (merged.width != null) return
-										if (autoLegendWidth == null) return
-										update({ width: autoLegendWidth })
-									}}
-									// Belt-and-suspenders for the first arrow press racing
-									// the focus-fill.
-									onKeyDown={(e) => {
-										if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
-										e.preventDefault()
-										stepWidth(e.key === "ArrowUp" ? 1 : -1)
-									}}
-									aria-label="Legend width"
-									className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-								/>
-							</label>
+							<NumberInput
+								label="Legend width"
+								labelClassName={LABEL_COL}
+								min={0}
+								step={UNIT_STEP[widthUnit]}
+								value={widthValue}
+								placeholder={widthPlaceholder}
+								onChange={commitWidthUnit}
+								onClear={() => update({ width: null })}
+								inputClassName="w-20"
+							/>
 							<select
 								aria-label="Legend width unit"
 								value={widthUnit}
-								onChange={(e) => {
-									setWidthDraft(null)
+								onChange={(e) =>
 									update({ widthUnit: e.target.value as DisplayUnit })
-								}}
+								}
 								className="rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
 							>
 								{UNIT_OPTIONS.map((u) => (
@@ -946,12 +882,7 @@ export const LegendPanel = () => {
 								))}
 							</select>
 							{merged.width != null && (
-								<ResetLink
-									onClick={() => {
-										setWidthDraft(null)
-										update({ width: null })
-									}}
-								/>
+								<ResetLink onClick={() => update({ width: null })} />
 							)}
 						</div>
 						<p className="vc-help">
@@ -1213,61 +1144,31 @@ export const LegendPanel = () => {
 						<div className="flex flex-col gap-2">
 							{/* Auto (null) is orientation-dependent (8rem minimum
 							 *  vertical, full legend width horizontal) — not one fixed
-							 *  px value — so this is a clear-to-null raw input
-							 *  (NumberInput can't emit null). The placeholder shows the
-							 *  RENDERED auto length (published by GradientBarRamp) and
-							 *  the first interaction — focus, spinner click, or arrow
-							 *  key — steps from that displayed value instead of jumping
+							 *  px value — so this is a clear-to-null input (`onClear`).
+							 *  The placeholder shows the RENDERED auto length (published
+							 *  by GradientBarRamp) and the first spinner click / arrow
+							 *  key steps from that displayed value instead of jumping
 							 *  to 0 ([[auto-input-step-from-displayed]]). */}
 							<div className="flex items-center gap-2">
-								<label className="flex items-center gap-2 text-sm">
-									<span className={LABEL_COL}>Bar length</span>
-									<input
-										type="number"
-										min={0}
-										step={1}
-										value={merged.gradientBarLength ?? ""}
-										placeholder={
-											autoGradientBarLength != null
-												? String(autoGradientBarLength)
-												: "auto"
-										}
-										onChange={(e) =>
-											update({
-												gradientBarLength:
-													e.target.value === ""
-														? null
-														: Math.max(0, Number(e.target.value)),
-											})
-										}
-										// Native spinner buttons fire no keydown — from a
-										// blank input they'd jump to min (0). Seed the auto
-										// value on focus so every interaction steps from
-										// the visible number; clearing reverts to auto.
-										onFocus={() => {
-											if (merged.gradientBarLength != null) return
-											update({
-												gradientBarLength: resolveGradientBarLengthStart(),
-											})
-										}}
-										// Belt-and-suspenders for the first arrow press
-										// racing the focus-fill.
-										onKeyDown={(e) => {
-											if (e.key !== "ArrowUp" && e.key !== "ArrowDown")
-												return
-											e.preventDefault()
-											const step = e.key === "ArrowUp" ? 1 : -1
-											update({
-												gradientBarLength: Math.max(
-													0,
-													resolveGradientBarLengthStart() + step,
-												),
-											})
-										}}
-										className="w-16 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-									/>
-									<span className="text-sm text-stone-600">px</span>
-								</label>
+								<NumberInput
+									label="Bar length"
+									labelClassName={LABEL_COL}
+									min={0}
+									step={1}
+									value={merged.gradientBarLength ?? null}
+									placeholder={
+										autoGradientBarLength != null
+											? String(autoGradientBarLength)
+											: "auto"
+									}
+									stepBase={resolveGradientBarLengthStart()}
+									onChange={(gradientBarLength) =>
+										update({ gradientBarLength: Math.max(0, gradientBarLength) })
+									}
+									onClear={() => update({ gradientBarLength: null })}
+									inputClassName="w-16"
+									suffix="px"
+								/>
 								{merged.gradientBarLength != null && (
 									<ResetLink onClick={() => update({ gradientBarLength: null })} />
 								)}

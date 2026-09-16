@@ -70,18 +70,10 @@ const setup4x1 = async (page: Page): Promise<void> => {
 	})
 	await facetBtn.click()
 	await expandSubsection(page, "Dimension")
-	await enc
-		.locator("label")
-		.filter({ hasText: /^Rows$/ })
-		.locator('input[type="number"]')
-		.first()
-		.fill("4")
-	await enc
-		.locator("label")
-		.filter({ hasText: /^Columns$/ })
-		.locator('input[type="number"]')
-		.first()
-		.fill("1")
+	// Rows / Columns are NumberInputs (`type="text"`, label via htmlFor) —
+	// locate by accessible label, not a label>input descendant query.
+	await enc.getByLabel(/^Rows$/).first().fill("4")
+	await enc.getByLabel(/^Columns$/).first().fill("1")
 	// Gap Y lives under the "Custom sizing" subheader, which setGapY reaches
 	// into across the sweep.
 	await expandSubsection(page, "Custom sizing")

@@ -1401,22 +1401,19 @@ export const FontEditor = ({
 				</label>
 			)}
 			{afterColor}
-			<label className="flex items-center gap-2 text-sm">
-				<span className={LABEL_COL}>Size</span>
-				<input
-					type="number"
+			{/* Blank = inherit the theme size, shown as the placeholder; the
+			 *  first spinner click / arrow key steps from that displayed size
+			 *  rather than from the 6pt floor. */}
+			<div className="flex items-center gap-2">
+				<NumberInput
+					label="Size"
+					labelClassName={LABEL_COL}
+					value={value.size ?? null}
 					min={6}
 					max={72}
 					step={1}
-					value={value.size ?? ""}
-					onChange={(e) => {
-						const raw = e.target.value
-						if (raw === "") {
-							onChange({ ...value, size: undefined })
-						} else {
-							onChange({ ...value, size: Number(raw) })
-						}
-					}}
+					onChange={(size) => onChange({ ...value, size })}
+					onClear={() => onChange({ ...value, size: undefined })}
 					placeholder={
 						showResetFields
 							? baseSize !== undefined
@@ -1424,13 +1421,12 @@ export const FontEditor = ({
 								: "inherit"
 							: ""
 					}
-					className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					suffix="pt"
 				/>
-				<span className="text-sm text-stone-600">pt</span>
 				{showResetFields && value.size !== undefined && (
 					<ResetLink onClick={() => reset("size")} />
 				)}
-			</label>
+			</div>
 			<label className="flex items-center gap-2 text-sm">
 				<span className={LABEL_COL}>Weight</span>
 				<select

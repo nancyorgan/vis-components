@@ -1621,9 +1621,11 @@ const CustomStopRow = ({
 				className="contents"
 				palette={palette}
 			/>
-			{/* Stays a raw input: a blank field commits `null` ("auto" — position
-			 *  the stop evenly / use the data extent), which the NumberInput
-			 *  primitive can't express. No visible label of its own, so an
+			{/* Stays a raw, spinner-less input (the row is too tight for the
+			 *  NumberInput's ▲▼ column). A blank field commits `null` ("auto" —
+			 *  position the stop evenly / use the data extent). Arrow keys on a
+			 *  blank field step from the displayed auto placeholder instead of
+			 *  the native jump to 0/1. No visible label of its own, so an
 			 *  aria-label carries the association. */}
 			<input
 				type="number"
@@ -1631,6 +1633,14 @@ const CustomStopRow = ({
 				onChange={(e) =>
 					onValue(e.target.value === "" ? null : Number(e.target.value))
 				}
+				onKeyDown={(e) => {
+					if (value != null) return
+					if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
+					const base = Number(placeholder)
+					if (placeholder === undefined || !Number.isFinite(base)) return
+					e.preventDefault()
+					onValue(base + (e.key === "ArrowUp" ? 1 : -1))
+				}}
 				placeholder={placeholder ?? "auto"}
 				aria-label={`${label} stop value`}
 				className="no-spinner w-12 min-w-0 flex-shrink rounded border border-stone-300 bg-white px-0.5 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"

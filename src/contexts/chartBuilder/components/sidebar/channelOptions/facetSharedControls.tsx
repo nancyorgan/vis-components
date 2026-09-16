@@ -4,7 +4,6 @@
  *  any one panel — so the panels can compose the same controls without
  *  one panel importing UI from another. */
 
-import type { KeyboardEvent } from "react"
 import { useEffect, useMemo } from "react"
 
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
@@ -158,8 +157,6 @@ const cls = (base: string, extra?: string) =>
 
 const boundInputClass =
 	"w-16 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
-const dimInputClass =
-	"w-20 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
 
 /** "Share ___" label + segmented picker row. `label` is the visible
  *  copy (the standalone panels lowercase the axis name, the wrap panel
@@ -320,11 +317,10 @@ export const GapInput = ({
 	</div>
 )
 
-/** Panel width / height input with the focus-fill stepping pattern
- *  ([[auto-input-step-from-displayed]]): the placeholder shows the
- *  solver-published auto dimension, and the first interaction — focus,
- *  spinner click, or arrow key — steps from that DISPLAYED value rather
- *  than jumping to min (1). Blank commits null (= auto). */
+/** Panel width / height input ([[auto-input-step-from-displayed]]): the
+ *  placeholder shows the solver-published auto dimension, and the first
+ *  spinner click / arrow key steps from that DISPLAYED value rather than
+ *  jumping to min (1). Blank commits null (= auto). */
 export const PanelDimInput = ({
 	label,
 	value,
@@ -339,51 +335,25 @@ export const PanelDimInput = ({
 	onCommit: (next: number | null) => void
 	className?: string
 }) => {
-	// Step start: explicit value → auto dim → 200 (covers the brief mount
-	// window before the first layout pass publishes).
-	const resolveStart = (): number => {
-		if (value != null) return value
-		return autoPx && autoPx > 0 ? Math.round(autoPx) : 200
-	}
-	// Native spinner buttons fire no keydown — they'd jump blank → min.
-	// Seed the input with the auto value on focus so every interaction
-	// steps from the visible number.
-	const onFocus = () => {
-		if (value != null) return
-		onCommit(resolveStart())
-	}
-	// Belt-and-suspenders for the first arrow press racing the focus-fill.
-	const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-		if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
-		const start = resolveStart()
-		const step = e.key === "ArrowUp" ? 1 : -1
-		e.preventDefault()
-		onCommit(Math.max(1, start + step))
-	}
+	// Before the first layout pass publishes an auto dim the placeholder
+	// reads "auto"; `stepBase` keeps the first step sensible (200) instead
+	// of dropping to min.
 	return (
-		<label className={cls("mt-2 flex items-center gap-2 text-sm", className)}>
-			<span className={LABEL_COL}>{label}</span>
-			<input
-				type="number"
-				min={1}
-				step={1}
-				value={value ?? ""}
-				placeholder={autoPx ? String(autoPx) : "auto"}
-				onChange={(e) => {
-					const raw = e.target.value.trim()
-					if (raw === "") {
-						onCommit(null)
-						return
-					}
-					const n = Number(raw)
-					if (Number.isFinite(n) && n > 0) onCommit(n)
-				}}
-				onFocus={onFocus}
-				onKeyDown={onKeyDown}
-				className={dimInputClass}
-			/>
-			<span className="text-stone-600 dark:text-stone-400">px</span>
-		</label>
+		<NumberInput
+			label={label}
+			labelClassName={LABEL_COL}
+			className={cls("mt-2", className)}
+			min={1}
+			step={1}
+			value={value ?? null}
+			placeholder={autoPx && autoPx > 0 ? String(Math.round(autoPx)) : "auto"}
+			stepBase={200}
+			onChange={(n) => {
+				if (n > 0) onCommit(n)
+			}}
+			onClear={() => onCommit(null)}
+			suffix="px"
+		/>
 	)
 }
 

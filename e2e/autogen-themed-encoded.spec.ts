@@ -1074,18 +1074,13 @@ const expandFacetOptions = async (page: Page): Promise<void> => {
 	await btn.click().catch(() => {})
 }
 
-/** Within the (already-expanded) FacetOptionsPanel, set the Cols number
- *  input. The panel has two number inputs labelled "Rows" and "Cols" —
- *  the second one is what we target. Sets cols=1 for the "tall stack"
- *  scenarios. */
+/** Within the (already-expanded) FacetOptionsPanel, set the Columns
+ *  number input (a NumberInput: `type="text"` with the label associated
+ *  via htmlFor — locate by accessible label). Sets cols=1 for the "tall
+ *  stack" scenarios. */
 const setFacetCols = async (page: Page, cols: number): Promise<void> => {
 	const encodingsPanel = page.locator('[id="aside-section-Encodings"]')
-	// FacetOptionsPanel uses placeholder=String(grid.cols) on the number
-	// input nested in <label><span>Cols</span><input/></label>. Scope
-	// through the label text to disambiguate from Rows.
-	const colsInput = encodingsPanel.locator("label").filter({
-		hasText: /^Cols$/,
-	}).locator("input[type=\"number\"]")
+	const colsInput = encodingsPanel.getByLabel(/^Columns$/)
 	if ((await colsInput.count()) === 0) return
 	await colsInput.first().fill(String(cols)).catch(() => {})
 }

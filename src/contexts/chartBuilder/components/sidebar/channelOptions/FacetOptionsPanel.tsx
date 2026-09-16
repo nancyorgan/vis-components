@@ -10,6 +10,7 @@ import {
 	type PanelAxisOverride,
 } from "../../../lib/channelConfig"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { facetAxisMapping } from "../../../lib/facetAxisMapping"
@@ -346,39 +347,41 @@ export const FacetOptionsPanel = () => {
 	return (
 		<div className="vc-option-panel">
 			{/* ─── Dimension ───────────────────────────────────────────── */}
+			{/* Blank = auto grid. The placeholder shows the resolved auto
+			 *  count, and the first spinner click / arrow key steps from it
+			 *  rather than from 1. */}
 			<CollapsibleSubsection title="Dimension">
-				<label className="flex items-center gap-2 text-sm">
-					<span className={LABEL_COL}>Rows</span>
-					<input
-						type="number"
-						min={1}
-						max={maxPerAxis}
-						step={1}
-						value={cfg.rows ?? ""}
-						placeholder={String(grid.rows)}
-						onChange={(e) => {
-							const patch = commitAxis("rows", e.target.value)
-							if (patch) updateCfg(patch)
-						}}
-						className="w-20 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
-					/>
-				</label>
-				<label className="mt-2 flex items-center gap-2 text-sm">
-					<span className={LABEL_COL}>Columns</span>
-					<input
-						type="number"
-						min={1}
-						max={maxPerAxis}
-						step={1}
-						value={cfg.cols ?? ""}
-						placeholder={String(grid.cols)}
-						onChange={(e) => {
-							const patch = commitAxis("cols", e.target.value)
-							if (patch) updateCfg(patch)
-						}}
-						className="w-20 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
-					/>
-				</label>
+				<NumberInput
+					label="Rows"
+					labelClassName={LABEL_COL}
+					min={1}
+					max={maxPerAxis}
+					step={1}
+					clamp
+					value={cfg.rows ?? null}
+					placeholder={String(grid.rows)}
+					onChange={(n) => {
+						const patch = commitAxis("rows", String(n))
+						if (patch) updateCfg(patch)
+					}}
+					onClear={() => updateCfg({ rows: null })}
+				/>
+				<NumberInput
+					label="Columns"
+					labelClassName={LABEL_COL}
+					className="mt-2"
+					min={1}
+					max={maxPerAxis}
+					step={1}
+					clamp
+					value={cfg.cols ?? null}
+					placeholder={String(grid.cols)}
+					onChange={(n) => {
+						const patch = commitAxis("cols", String(n))
+						if (patch) updateCfg(patch)
+					}}
+					onClear={() => updateCfg({ cols: null })}
+				/>
 			</CollapsibleSubsection>
 
 			{/* ─── Polar: R axis (radar only — pies have no R channel) ───

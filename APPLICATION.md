@@ -864,6 +864,14 @@ current chart type AND has a configurable default. Examples:
 X-position, Y-position, and Facet panels are always available; users
 can configure axis settings even before a field is mapped.
 
+**Blank-means-auto number inputs** (panel width / height, facet rows /
+columns, legend width, inside-legend X, gradient bar length, caption
+width / height, title and label font sizes): a blank field
+shows the resolved auto value greyed as its placeholder. The first
+spinner click or arrow key steps from that displayed number — never
+from the field's minimum or 0 — and focusing the field commits
+nothing. Clearing the field returns it to auto.
+
 ### 4.1 Color panel (the hue channel)
 The hue channel's panel is labeled **"Color"** in the UI. The fill
 palette section branches on field type:
@@ -1979,9 +1987,9 @@ fixes the legend box's width. The number input takes px, in, or cm
 96 px/inch, and the stored value is always pixels — the unit only
 changes what the field shows). Blank = auto, the content-sized width
 the legend has always had; the field's placeholder shows that
-rendered auto width, and the first interaction (focus, spinner, or
-arrow key) steps from it rather than from 0. Clearing the field, or
-the reset link, returns to auto. A fixed width applies in every
+rendered auto width, and the first spinner click or arrow key steps
+from it rather than from 0 (focusing alone changes nothing). Clearing
+the field, or the reset link, returns to auto. A fixed width applies in every
 position and overrides the auto estimate and the viewport caps that
 otherwise bound multi-column legends. When the box becomes too
 narrow for its text, labels WRAP onto extra lines — stacked entries

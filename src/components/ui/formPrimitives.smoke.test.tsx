@@ -64,6 +64,112 @@ describe("form primitives — label / id association", () => {
 describe("NumberInput", () => {
 	afterEach(cleanup)
 
+	it("a blank (auto) field steps from its numeric placeholder, not from min", () => {
+		// [[auto-input-step-from-displayed]]: the user sees "250" greyed in
+		// the field; the first ArrowUp / spinner press must land on 251, not
+		// jump to min (1) and climb from there.
+		let captured: number | null = null
+		const { container } = render(
+			<NumberInput
+				label="Panel width"
+				value={null}
+				min={1}
+				placeholder="250"
+				onChange={(n) => {
+					captured = n
+				}}
+				onClear={() => {}}
+			/>
+		)
+		const input = container.querySelector(
+			'input[inputmode="decimal"]'
+		) as HTMLInputElement
+		expect(input.value).toBe("")
+		fireEvent.focus(input)
+		expect(captured).toBeNull()
+		fireEvent.keyDown(input, { key: "ArrowUp" })
+		expect(captured).toBe(251)
+		expect(input.value).toBe("251")
+	})
+
+	it("a blank field's spinner steps from the placeholder too", () => {
+		let captured: number | null = null
+		const { getByLabelText } = render(
+			<NumberInput
+				label="Size"
+				value={null}
+				min={6}
+				placeholder="14"
+				onChange={(n) => {
+					captured = n
+				}}
+				onClear={() => {}}
+			/>
+		)
+		fireEvent.mouseDown(getByLabelText("Decrement"))
+		fireEvent.mouseUp(getByLabelText("Decrement"))
+		expect(captured).toBe(13)
+	})
+
+	it("falls back to stepBase when the placeholder isn't numeric", () => {
+		let captured: number | null = null
+		const { container } = render(
+			<NumberInput
+				label="Height"
+				value={null}
+				min={1}
+				placeholder="auto"
+				stepBase={200}
+				onChange={(n) => {
+					captured = n
+				}}
+			/>
+		)
+		const input = container.querySelector('input[inputmode="decimal"]')!
+		fireEvent.keyDown(input, { key: "ArrowDown" })
+		expect(captured).toBe(199)
+	})
+
+	it("emptying the field fires onClear (not onChange) and shows the placeholder", () => {
+		let changes = 0
+		let cleared = 0
+		const { container, rerender } = render(
+			<NumberInput
+				label="Rows"
+				value={3}
+				placeholder="2"
+				onChange={() => {
+					changes += 1
+				}}
+				onClear={() => {
+					cleared += 1
+				}}
+			/>
+		)
+		const input = container.querySelector(
+			'input[inputmode="decimal"]'
+		) as HTMLInputElement
+		fireEvent.change(input, { target: { value: "" } })
+		expect(cleared).toBe(1)
+		expect(changes).toBe(0)
+		// The caller stores null and passes it back: the field stays blank.
+		rerender(
+			<NumberInput
+				label="Rows"
+				value={null}
+				placeholder="2"
+				onChange={() => {
+					changes += 1
+				}}
+				onClear={() => {
+					cleared += 1
+				}}
+			/>
+		)
+		expect(input.value).toBe("")
+		expect(input.placeholder).toBe("2")
+	})
+
 	it("fires onChange with the parsed numeric value", () => {
 		let captured: number | null = null
 		const { container } = render(

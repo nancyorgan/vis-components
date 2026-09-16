@@ -20,7 +20,14 @@ import { LabeledField } from "./LabeledField"
  *  freely; we commit to `onChange` only once the text parses to a finite
  *  number. Custom ▲▼ spinner buttons (and the Up/Down arrow keys) step by
  *  `step`, replacing the native number-input spinners that a text input
- *  doesn't provide — so users keep click-to-step AND can type negatives. */
+ *  doesn't provide — so users keep click-to-step AND can type negatives.
+ *
+ *  Blank-means-auto inputs: pass `value={null}` (or `undefined`) plus an
+ *  `onClear` callback. The field shows its `placeholder` (the auto value
+ *  the renderer resolved), emptying the field fires `onClear` instead of
+ *  `onChange`, and the first spinner click / arrow press steps from the
+ *  DISPLAYED placeholder number (or `stepBase` when the placeholder isn't
+ *  numeric) — never from `min` or 0. Nothing is committed on focus. */
 export const NumberInput = ({
 	id,
 	label,
@@ -36,6 +43,8 @@ export const NumberInput = ({
 	labelClassName,
 	inline,
 	placeholder,
+	stepBase,
+	onClear,
 	suffix,
 	changed,
 }: {
@@ -43,8 +52,13 @@ export const NumberInput = ({
 	 *  the caller needs to reference it elsewhere (e.g. ARIA wiring). */
 	id?: string
 	label: React.ReactNode
-	value: number
+	/** `null`/`undefined` = blank field ("auto"); the placeholder shows through. */
+	value: number | null | undefined
 	onChange: (next: number) => void
+	/** Fired when the user empties the field. Without it a blank field is
+	 *  just an unresolved draft that snaps back to `value` on blur; with it
+	 *  the caller can store "auto" (null) and pass `value={null}` back. */
+	onClear?: () => void
 	min?: number
 	max?: number
 	step?: number
@@ -57,6 +71,10 @@ export const NumberInput = ({
 	labelClassName?: string
 	inline?: boolean
 	placeholder?: string
+	/** Where the first step starts from when the field is blank and the
+	 *  placeholder isn't a number (e.g. "auto" before the renderer has
+	 *  published a value). A numeric placeholder always wins over this. */
+	stepBase?: number
 	/** Optional unit indicator rendered to the right of the input — e.g.
 	 *  "px", "%", "°". Plain string, not a click target. */
 	suffix?: React.ReactNode
@@ -120,6 +138,12 @@ export const NumberInput = ({
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const text = e.target.value
+		// An emptied field means "back to auto" for nullable callers.
+		if (text.trim() === "" && onClear) {
+			setDraft("")
+			onClear()
+			return
+		}
 		const committed = commit(text)
 		// Reflect a clamp immediately (e.g. typing 999 with max 12 shows 12),
 		// otherwise keep the user's raw text so they can keep typing.
@@ -137,17 +161,21 @@ export const NumberInput = ({
 	// Resolve the number the next step should start from. Prefer the live
 	// draft, then the committed value, then the placeholder (so an input
 	// showing an auto-computed placeholder steps UP/DOWN from that displayed
-	// value instead of snapping to 0/min), then `min`, then 0. This keeps the
-	// first spinner click / arrow press a +1 nudge from what the user sees,
-	// rather than dropping to the floor and climbing back up.
+	// value instead of snapping to 0/min), then `stepBase`, then `min`, then
+	// 0. This keeps the first spinner click / arrow press a +1 nudge from
+	// what the user sees, rather than dropping to the floor and climbing
+	// back up.
 	const resolveBase = (): number => {
 		const draftTrim = draft?.trim()
-		const candidates: Array<number | undefined> = [
+		const candidates: Array<number | null | undefined> = [
 			draftTrim && draftTrim !== "-" && draftTrim !== "." && draftTrim !== "-."
 				? Number(draftTrim)
 				: undefined,
 			value,
-			placeholder !== undefined ? Number(placeholder) : undefined,
+			placeholder !== undefined && placeholder.trim() !== ""
+				? Number(placeholder)
+				: undefined,
+			stepBase,
 			typeof min === "number" ? min : undefined,
 		]
 		const found = candidates.find(
@@ -207,7 +235,8 @@ export const NumberInput = ({
 		stepValue(e.key === "ArrowUp" ? 1 : -1)
 	}
 
-	const display = draft ?? (Number.isFinite(value) ? String(value) : "")
+	const display =
+		draft ?? (typeof value === "number" && Number.isFinite(value) ? String(value) : "")
 
 	const spinnerButton = (dir: 1 | -1) => (
 		<button

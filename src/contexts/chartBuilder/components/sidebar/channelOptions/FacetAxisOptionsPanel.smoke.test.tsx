@@ -161,7 +161,7 @@ describe("FacetAxisOptionsPanel — mirrored row / col share controls", () => {
 		expect(utils.getByText("X axis range")).toBeTruthy()
 	})
 
-	it("panel height input focus-fills from the displayed auto value", () => {
+	it("panel height input steps from the auto value, not from min=1", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs(),
@@ -169,11 +169,14 @@ describe("FacetAxisOptionsPanel — mirrored row / col share controls", () => {
 		)
 		expand(utils, /custom sizing/i)
 		const input = utils.getByLabelText(/Panel height/) as HTMLInputElement
-		// No solver-published dims in this jsdom mount → falls back to 200,
-		// but the point is it fills on focus instead of stepping from min=1.
+		// No solver-published dims in this jsdom mount → the placeholder reads
+		// "auto" and the step base falls back to 200. Focus commits nothing;
+		// the first arrow press lands one step above the base instead of at 2.
 		expect(input.value).toBe("")
 		fireEvent.focus(input)
-		expect(input.value).toBe("200")
+		expect(input.value).toBe("")
+		fireEvent.keyDown(input, { key: "ArrowUp" })
+		expect(input.value).toBe("201")
 	})
 })
 

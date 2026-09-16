@@ -67,39 +67,26 @@ const setup4x1 = async (page: Page): Promise<void> => {
 	})
 	await facetBtn.click()
 	await expandSubsection(page, "Dimension")
-	await enc
-		.locator("label")
-		.filter({ hasText: /^Rows$/ })
-		.locator('input[type="number"]')
-		.first()
-		.fill("4")
-	await enc
-		.locator("label")
-		.filter({ hasText: /^Columns$/ })
-		.locator('input[type="number"]')
-		.first()
-		.fill("1")
+	// Rows / Columns are NumberInputs (`type="text"`, label via htmlFor) —
+	// locate by accessible label, not a label>input descendant query.
+	await enc.getByLabel(/^Rows$/).first().fill("4")
+	await enc.getByLabel(/^Columns$/).first().fill("1")
 	// Panel width / height live under the "Custom sizing" subheader, which
 	// setPanelHeight / setPanelWidth reach into next.
 	await expandSubsection(page, "Custom sizing")
 	await page.waitForTimeout(400)
 }
 
-/** Set a PanelDimInput. The label carries a "px" unit suffix (so no $ anchor),
- *  and the input materializes its auto-placeholder on first interaction —
- *  `fill()` would race that and mangle the value, so type like a user:
- *  click, select-all, type, Enter. */
+/** Set a PanelDimInput — a NumberInput (`type="text"`, label via htmlFor,
+ *  "px" suffix beside it). Blank = auto; typing like a user (click,
+ *  select-all, type, Enter) mirrors how the field is actually used. */
 const setPanelDim = async (
 	page: Page,
 	label: "Panel height" | "Panel width",
 	v: number | null,
 ): Promise<void> => {
 	const enc = page.locator('[id="aside-section-Encodings"]')
-	const input = enc
-		.locator("label")
-		.filter({ hasText: new RegExp(`^${label}`) })
-		.locator('input[type="number"]')
-		.first()
+	const input = enc.getByLabel(new RegExp(`^${label}`)).first()
 	await input.click()
 	await page.keyboard.press("ControlOrMeta+a")
 	if (v == null) {
@@ -256,18 +243,10 @@ test("panel-width override: 4 cols × 250 px wide on a 1×4 layout", async ({
 	})
 	await facetBtn.click()
 	await expandSubsection(page, "Dimension")
-	await enc
-		.locator("label")
-		.filter({ hasText: /^Rows$/ })
-		.locator('input[type="number"]')
-		.first()
-		.fill("1")
-	await enc
-		.locator("label")
-		.filter({ hasText: /^Columns$/ })
-		.locator('input[type="number"]')
-		.first()
-		.fill("4")
+	// Rows / Columns are NumberInputs (`type="text"`, label via htmlFor) —
+	// locate by accessible label, not a label>input descendant query.
+	await enc.getByLabel(/^Rows$/).first().fill("1")
+	await enc.getByLabel(/^Columns$/).first().fill("4")
 	await expandSubsection(page, "Custom sizing")
 	await page.waitForTimeout(400)
 

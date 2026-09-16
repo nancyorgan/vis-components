@@ -336,25 +336,17 @@ const BarGapControl = ({
 }) => (
 	<>
 		<div className="flex items-center gap-2">
-			<label className="flex items-center gap-2 text-sm">
-				<span className={LABEL_COL}>Bar gap</span>
-				<input
-					type="number"
-					min={0}
-					step={1}
-					value={barGapPx ?? ""}
-					placeholder="auto"
-					onChange={(e) =>
-						onChange(
-							e.target.value === ""
-								? null
-								: Math.max(0, Number(e.target.value))
-						)
-					}
-					className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
-				/>
-				<span className="text-sm text-stone-600">px</span>
-			</label>
+			<NumberInput
+				label="Bar gap"
+				labelClassName={LABEL_COL}
+				min={0}
+				step={1}
+				value={barGapPx}
+				placeholder="auto"
+				onChange={(next) => onChange(Math.max(0, next))}
+				onClear={() => onChange(null)}
+				suffix="px"
+			/>
 			{barGapPx !== null && (
 				<ResetLink
 					onClick={() => onChange(null)}
@@ -501,26 +493,20 @@ export const LengthOptionsPanel = () => {
 
 	return (
 		<div className="vc-option-panel">
-			<label className="flex items-center gap-2 text-sm">
-				<span className={LABEL_COL}>Length</span>
-				<input
-					type="number"
-					min={2}
-					max={200}
-					step={1}
-					value={currentLength ?? ""}
-					placeholder="—"
-					onChange={(e) =>
-						setConfigs((prev) => ({
-							...prev,
-							defaultLength:
-								e.target.value === "" ? null : Number(e.target.value),
-						}))
-					}
-					className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-				/>
-				<span className="text-sm text-stone-600">px</span>
-			</label>
+			<NumberInput
+				label="Length"
+				labelClassName={LABEL_COL}
+				min={2}
+				max={200}
+				step={1}
+				value={currentLength}
+				placeholder="—"
+				onChange={(defaultLength) =>
+					setConfigs((prev) => ({ ...prev, defaultLength }))
+				}
+				onClear={() => setConfigs((prev) => ({ ...prev, defaultLength: null }))}
+				suffix="px"
+			/>
 			<div className="vc-help">
 				Set a length to render all marks as line segments. Clear to use shapes.
 			</div>

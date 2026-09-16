@@ -109,11 +109,26 @@ describe("LegendPanel — Legend width", () => {
 		expect(input.value).toBe("")
 	})
 
-	it("focusing a blank field seeds the rendered auto width so stepping starts there", () => {
+	it("a blank field steps from the rendered auto width (placeholder), not from 0", () => {
 		const { input, cfg } = mount()
+		// Focus alone commits nothing — the field stays auto.
 		fireEvent.focus(input)
-		expect(cfg()?.width).toBe(212)
+		expect(cfg()?.width).toBeNull()
+		// First arrow press: 212 + one 10px step.
 		fireEvent.keyDown(input, { key: "ArrowUp" })
 		expect(cfg()?.width).toBe(222)
+		expect(input.value).toBe("222")
+	})
+
+	it("a blank field's spinner also steps from the placeholder", () => {
+		const { input, cfg } = mount()
+		// The ▼ button sits beside the input inside NumberInput's wrapper;
+		// scope to it (the panel has several NumberInputs).
+		const decrement = within(input.parentElement as HTMLElement).getByLabelText(
+			"Decrement"
+		)
+		fireEvent.mouseDown(decrement)
+		fireEvent.mouseUp(decrement)
+		expect(cfg()?.width).toBe(202)
 	})
 })

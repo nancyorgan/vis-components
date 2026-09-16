@@ -143,44 +143,28 @@ export const CaptionPanel = () => {
 		const unitKey = dim === "width" ? "widthUnit" : "heightUnit"
 		const setValue = (v: number) =>
 			update({ [valueKey]: v } as Partial<CaptionConfig>)
-		const step = (dir: 1 | -1) => {
-			const start = value > 0 ? value : resolveDimStart(dim, unit)
-			setValue(Math.max(0, start + dir))
-		}
 		return (
-			<div className="flex items-center gap-2 text-sm">
-				<label htmlFor={`${dimIdBase}-${dim}`} className={LABEL_COL}>
-					{label}
-				</label>
-				<input
+			<div className="flex items-center gap-2">
+				{/* Blank (0) = auto. The placeholder shows the current rendered
+				 *  size, and the first spinner click / arrow key steps from that
+				 *  displayed number rather than from 0; `stepBase` covers the
+				 *  window before any box has rendered. */}
+				<NumberInput
 					id={`${dimIdBase}-${dim}`}
-					type="number"
+					label={label}
+					labelClassName={LABEL_COL}
 					min={0}
 					step={1}
-					value={value > 0 ? value : ""}
+					value={value > 0 ? value : null}
 					placeholder={
 						renderedBox ? String(resolveDimStart(dim, unit)) : "auto"
 					}
-					// Seed the field with the current rendered size on focus so the
-					// native spinner / arrow keys step from it rather than from 0.
-					onFocus={() => {
-						if (value <= 0) setValue(resolveDimStart(dim, unit))
+					stepBase={resolveDimStart(dim, unit)}
+					onChange={(n) => {
+						if (n >= 0) setValue(n)
 					}}
-					onKeyDown={(e) => {
-						if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
-						e.preventDefault()
-						step(e.key === "ArrowUp" ? 1 : -1)
-					}}
-					onChange={(e) => {
-						const raw = e.target.value.trim()
-						if (raw === "") {
-							setValue(0)
-							return
-						}
-						const n = Number(raw)
-						if (Number.isFinite(n) && n >= 0) setValue(n)
-					}}
-					className="w-20 rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm text-stone-900 outline-none hover:border-stone-400 focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+					onClear={() => setValue(0)}
+					inputClassName="w-20"
 				/>
 				<select
 					aria-label={`${label} unit`}
