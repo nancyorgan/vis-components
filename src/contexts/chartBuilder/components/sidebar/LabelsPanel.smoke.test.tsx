@@ -293,3 +293,77 @@ describe("LabelsPanel — collapsible subsections", () => {
 		expect(sectionHeader(container, "Legend titles")).toBeNull()
 	})
 })
+
+// ---------------------------------------------------------------------------
+// Alignment vs. theme base
+// ---------------------------------------------------------------------------
+
+/** The renderer resolves a title's alignment as the per-visual
+ *  `titleAlignments` entry, else the THEME base (`baseFont.titles.
+ *  primaryAlignment`). The sidebar keeps the map sparse by dropping entries
+ *  that match that base — so on a theme whose primary title is left-aligned,
+ *  clicking Center must WRITE "center" (dropping it would fall back to left,
+ *  which is the bug that made the button look dead). */
+describe("LabelsPanel — alignment writes relative to the theme base", () => {
+	afterEach(cleanup)
+
+	const AlignProbe = () => {
+		const labels = useAtomValue(currentLabelsAtom)
+		return (
+			<div
+				data-testid="align-probe"
+				data-title-align={labels.titleAlignments?.title ?? ""}
+			/>
+		)
+	}
+
+	const seedWithBase = (primaryAlignment: "left" | "center" | "right") =>
+		seedStorage({
+			encodings: emptyEncodings(),
+			labels: {
+				baseFont: {
+					...DEFAULT_LABELS_CONFIG.baseFont,
+					titles: { ...DEFAULT_LABELS_CONFIG.baseFont.titles, primaryAlignment },
+				},
+			},
+		})
+
+	const openTitleAlign = (container: HTMLElement) => {
+		expandSection(container, "Primary titles")
+		fireEvent.click(rowToggle(container, "Title")!)
+		const btn = (label: string) =>
+			container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
+		return { center: btn("Center")!, left: btn("Align left")!, right: btn("Align right")! }
+	}
+
+	it("theme base LEFT: clicking Center writes an explicit 'center' entry", () => {
+		seedWithBase("left")
+		const { container } = renderPanel(AlignProbe)
+		const probe = container.querySelector<HTMLElement>('[data-testid="align-probe"]')!
+		const { center, left } = openTitleAlign(container)
+
+		// Untouched → no entry; the Left button reflects the theme base.
+		expect(probe.dataset.titleAlign).toBe("")
+		expect(left.getAttribute("aria-pressed")).toBe("true")
+
+		fireEvent.click(center)
+		expect(probe.dataset.titleAlign).toBe("center")
+		expect(center.getAttribute("aria-pressed")).toBe("true")
+
+		// Back to the base drops the entry again (map stays sparse).
+		fireEvent.click(left)
+		expect(probe.dataset.titleAlign).toBe("")
+	})
+
+	it("theme base CENTER (default): Center drops the entry, Left/Right write one", () => {
+		seedWithBase("center")
+		const { container } = renderPanel(AlignProbe)
+		const probe = container.querySelector<HTMLElement>('[data-testid="align-probe"]')!
+		const { center, right } = openTitleAlign(container)
+
+		fireEvent.click(right)
+		expect(probe.dataset.titleAlign).toBe("right")
+		fireEvent.click(center)
+		expect(probe.dataset.titleAlign).toBe("")
+	})
+})

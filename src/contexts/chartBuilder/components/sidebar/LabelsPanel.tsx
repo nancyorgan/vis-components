@@ -113,7 +113,13 @@ export const LabelsPanel = () => {
 	const setAlignment = (key: LabelFontKey, value: LabelAlignment) => {
 		setLabels((prev) => {
 			const next = { ...prev.titleAlignments }
-			if (value === "center") {
+			// Keep the persisted map sparse: drop the entry when it matches the
+			// theme-seeded base for this key (center for every slot except the
+			// primary title / subtitle, whose base comes from the theme). An
+			// unconditional "center → delete" broke Center on a theme with a
+			// left/right primary alignment: the renderer resolves a missing entry
+			// to the theme base, so the click looked like a no-op.
+			if (value === baseTitleAlignmentOf(prev.baseFont.titles, key)) {
 				delete next[key]
 			} else {
 				next[key] = value
