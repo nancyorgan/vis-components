@@ -153,20 +153,30 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 				: []
 		)
 		// Radial room the axis needs beyond the ring: tick marks plus the
-		// widest tick label (labels run radially, so width IS radial extent).
-		let maxTickLabelWidth = 0
+		// deepest tick label. Radial labels run outward along the tick, so
+		// width IS radial extent; upright ("vertical") labels keep their
+		// screen orientation, so the depth is the label box's projection onto
+		// the tick's direction — full width at 3 / 9 o'clock, just the line
+		// height at 12 / 6.
+		const verticalLabels = axisCfg.verticalLabels === true
+		const labelRadialDepth = (tick: ChordAxisTick, width: number) =>
+			verticalLabels
+				? Math.abs(Math.sin(tick.angle)) * width +
+					Math.abs(Math.cos(tick.angle)) * axisLabelFont.size
+				: width
+		let maxTickLabelDepth = 0
 		for (const ticks of ticksByIndex.values()) {
 			for (const t of ticks) {
 				if (t.label === null) continue
-				maxTickLabelWidth = Math.max(
-					maxTickLabelWidth,
-					hierarchyLabelWidth(t.label, axisLabelFont.size)
+				maxTickLabelDepth = Math.max(
+					maxTickLabelDepth,
+					labelRadialDepth(t, hierarchyLabelWidth(t.label, axisLabelFont.size))
 				)
 			}
 		}
 		const axisExtent = axisOn
 			? axisTickmarks.length +
-				(maxTickLabelWidth > 0 ? TEXT_GAP + maxTickLabelWidth : 0)
+				(maxTickLabelDepth > 0 ? TEXT_GAP + maxTickLabelDepth : 0)
 			: 0
 
 		const radius = Math.min(w, h) / 2 - LABEL_GUTTER - axisExtent
@@ -238,6 +248,7 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 					// the tick's angle (chord angle 0 = 12 o'clock → -90°).
 					const deg = (tick.angle * 180) / Math.PI - 90
 					const flip = tick.angle > Math.PI
+					const labelStart = radius + axisTickmarks.length + TEXT_GAP
 					axisMarks.push(
 						<g
 							key={`axis-tick-${name}-${tick.value}`}
@@ -252,14 +263,44 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 								stroke={axisTickmarks.color}
 								strokeWidth={axisTickmarks.thickness}
 							/>
-							{tick.label !== null && (
+							{tick.label !== null && verticalLabels && (
+								// "Make all tick labels vertical": undo the group's
+								// rotation so the text stays upright on screen, and
+								// center the label box just past the tick — pushed
+								// out by half its projection onto the tick direction
+								// so its near edge (or corner) clears the tick end at
+								// every angle.
+								<text
+									transform={`translate(${
+										labelStart +
+										labelRadialDepth(
+											tick,
+											hierarchyLabelWidth(tick.label, axisLabelFont.size)
+										) /
+											2
+									}, 0) rotate(${-deg})`}
+									data-orientation="vertical"
+									fill={axisLabelFont.color}
+									fontFamily={axisLabelFont.family}
+									fontSize={axisLabelFont.size}
+									fontWeight={axisLabelFont.fontWeight}
+									fontStyle={axisLabelFont.fontStyle}
+									textDecoration={axisLabelFont.textDecoration}
+									textAnchor="middle"
+									dominantBaseline="middle"
+								>
+									{tick.label}
+								</text>
+							)}
+							{tick.label !== null && !verticalLabels && (
 								// Labels read outward along the tick; past 6
 								// o'clock they flip 180° in place so they never
 								// render upside-down (the d3 chord convention).
 								<text
-									transform={`translate(${radius + axisTickmarks.length + TEXT_GAP}, 0)${
+									transform={`translate(${labelStart}, 0)${
 										flip ? " rotate(180)" : ""
 									}`}
+									data-orientation="radial"
 									fill={axisLabelFont.color}
 									fontFamily={axisLabelFont.family}
 									fontSize={axisLabelFont.size}

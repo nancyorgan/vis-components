@@ -920,6 +920,11 @@ export type ChordAxisConfig = {
 	/** Tick LABEL font override; unset fields inherit the base text font
 	 * (`labels.baseFont.text`), exactly like the x / y tick-label fonts. */
 	tickLabelFont?: Partial<FontConfig>
+	/** "Make all tick labels vertical": draw every tick label upright in
+	 * screen space (unrotated, reading left-to-right) just outside its tick,
+	 * instead of the default radial orientation (text runs outward along the
+	 * tick, flipping past 6 o'clock). Sparse — absent / `false` = radial. */
+	verticalLabels?: boolean
 	/** The "spine" here is the thin arc drawn along each group's outer edge
 	 * (the circular analogue of the x / y axis line); absent =
 	 * `DEFAULT_SPINE_CONFIG`. */

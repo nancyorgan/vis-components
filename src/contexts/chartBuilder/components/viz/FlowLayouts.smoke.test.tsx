@@ -337,6 +337,57 @@ describe("ChordPlot", () => {
 		expect(label?.getAttribute("font-size")).toBe("12") // 9pt → 12px
 	})
 
+	it("tick labels read radially by default and upright with verticalLabels", () => {
+		const radial = mountFlow("chord", {
+			configsExtra: {
+				connection: {
+					hierarchyLayout: "chord",
+					chordAxis: { enabled: true, tickCount: 5, customFormat: "", labelEvery: 1 },
+				} as never,
+			},
+		})
+		const radialLabels = [
+			...radial.querySelectorAll('g[data-kind="chord-axis-tick"] text'),
+		]
+		expect(radialLabels.length).toBeGreaterThan(0)
+		for (const t of radialLabels) {
+			expect(t.getAttribute("data-orientation")).toBe("radial")
+			expect(["start", "end"]).toContain(t.getAttribute("text-anchor"))
+		}
+
+		const upright = mountFlow("chord", {
+			configsExtra: {
+				connection: {
+					hierarchyLayout: "chord",
+					chordAxis: {
+						enabled: true,
+						tickCount: 5,
+						customFormat: "",
+						labelEvery: 1,
+						verticalLabels: true,
+					},
+				} as never,
+			},
+		})
+		const ticks = [...upright.querySelectorAll('g[data-kind="chord-axis-tick"]')]
+		const uprightLabels = ticks.flatMap((g) => [...g.querySelectorAll("text")])
+		expect(uprightLabels.length).toBe(radialLabels.length)
+		for (const g of ticks) {
+			const text = g.querySelector("text")
+			if (!text) continue
+			// The group rotates by `deg`; the label counter-rotates by exactly
+			// -deg so its net screen rotation is zero (upright), and it's
+			// centered on its anchor point rather than reading outward.
+			const groupDeg = /rotate\((-?[\d.]+)\)/.exec(g.getAttribute("transform") ?? "")
+			const textDeg = /rotate\((-?[\d.]+)\)/.exec(text.getAttribute("transform") ?? "")
+			expect(groupDeg).not.toBeNull()
+			expect(textDeg).not.toBeNull()
+			expect(Number(groupDeg![1]) + Number(textDeg![1])).toBeCloseTo(0, 6)
+			expect(text.getAttribute("data-orientation")).toBe("vertical")
+			expect(text.getAttribute("text-anchor")).toBe("middle")
+		}
+	})
+
 	it("node labels honor the Node-titles font override, alignment, and offset", () => {
 		const container = mountFlow("chord", {
 			labelsExtra: {

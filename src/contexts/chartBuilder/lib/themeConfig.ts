@@ -898,6 +898,7 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 						(ax.tickmarks !== undefined &&
 							differs(ax.tickmarks, themeAx.tickmarks)) ||
 						!!ax.tickLabelFont ||
+						!!ax.verticalLabels ||
 						(ax.spine !== undefined && differs(ax.spine, themeAx.spine))
 					)
 				})(),

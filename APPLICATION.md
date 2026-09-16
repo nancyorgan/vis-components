@@ -642,22 +642,27 @@ only; checkbox, off by default): graduated value tick marks around the
 ring showing each node's flow total (d3's classic chord group ticks —
 every group shares ONE step so the ring reads as a single scale).
 Enabling it reveals **Ticks / Tick Labels / Spine** subheaders
-mirroring the x / y position panels: *Ticks* = the shared Format
-control (custom d3-format; Auto = SI-prefixed calibrated to the step,
-fixed decimals for fractional steps) + **Count** (target tick marks
-around the FULL ring, default 100 — the axis is continuous, so it
-takes a count like the continuous x / y axes, never the categorical
+mirroring the x / y position panels: *Ticks* = **Count** (target tick
+marks around the FULL ring, default 100 — the axis is continuous, so
+it takes a count like the continuous x / y axes, never the categorical
 "Tick every" stride; the step snaps to a nice round flow value and
 each node gets ticks proportional to its total) + tick-mark color /
-thickness / length; *Tick Labels* = **Label every** Nth tick (default
-5th; each group's graduation starts at 0 from its start angle) + the
-shared tick-label font editor (unset fields inherit the base text
-font); *Spine* = the thin arc drawn along each group's outer edge
+thickness / length; *Tick Labels* = the shared **Format** control
+(same preset dropdown + custom d3-format spec as the x / y Tick Labels
+section; Auto = SI-prefixed calibrated to the step, fixed decimals for
+fractional steps) + **Label every** Nth tick (default 5th; each
+group's graduation starts at 0 from its start angle) + the shared
+tick-label font editor (unset fields inherit the base text font);
+*Spine* = the thin arc drawn along each group's outer edge
 (theme POLAR spine color / thickness — the circular analogue of an
 axis line). Tick labels read radially outward and flip 180° past 6 o'clock
-so they never render upside-down. The ring shrinks to reserve the
-axis's radial extent (tick length + widest label), and the node labels
-move outside the tick labels. State lives in `connection.chordAxis`;
+so they never render upside-down; the Tick Labels **Make all tick labels
+vertical** toggle (off by default) instead keeps every label upright in
+screen space, centered just past its tick mark. The ring shrinks to
+reserve the axis's radial extent (tick length + deepest label — the
+widest label when radial, the label box's projection onto the tick
+direction when vertical), and the node labels move outside the tick
+labels. State lives in `connection.chordAxis`;
 `lib/chordAxis.ts` owns the tick math (a derived step that would emit
 >200 ticks in one group re-derives so the main thread stays
 responsive).

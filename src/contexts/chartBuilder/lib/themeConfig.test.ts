@@ -388,6 +388,21 @@ describe("connection dot is scoped to the Connection dropdown", () => {
 		expect(dot("connection", withConn({ pointSampling: "first-only" }), STUB_THEME, false)).toBe(false)
 		expect(dot("connection", withConn({ axisStem: "x-axis" }))).toBe(true)
 	})
+	it("chord axis verticalLabels dots Connection even while the axis is hidden", () => {
+		const themeAx = chordAxisConfigFromTheme(STUB_THEME)
+		expect(dot("connection", withConn({ chordAxis: { ...themeAx } }))).toBe(false)
+		expect(
+			dot("connection", withConn({ chordAxis: { ...themeAx, verticalLabels: true } }))
+		).toBe(true)
+		expect(
+			explainChannelCustomization(
+				"connection",
+				withConn({ chordAxis: { ...themeAx, verticalLabels: true } }),
+				STUB_THEME,
+				true
+			)
+		).toContain("chord axis")
+	})
 	it("radar-only fillPolygon and Opacity-menu fillOpacity do NOT dot Connection", () => {
 		expect(dot("connection", withConn({ fillPolygon: true, fillOpacity: 0.25 }))).toBe(false)
 	})

@@ -242,6 +242,7 @@ export const ConnectionOptionsPanel = () => {
 		tickmarks: valueChanged(cfg.chordAxis?.tickmarks, themeAxis.tickmarks),
 		labelEvery: axis.labelEvery !== themeAxis.labelEvery,
 		tickLabelFont: valueChanged(cfg.chordAxis?.tickLabelFont, undefined),
+		verticalLabels: axis.verticalLabels === true,
 		spine: valueChanged(cfg.chordAxis?.spine, themeAxis.spine),
 	}
 
@@ -609,15 +610,8 @@ export const ConnectionOptionsPanel = () => {
 						<>
 							<CollapsibleSubsection
 								title="Ticks"
-								changed={
-									axisCh.format || axisCh.tickCount || axisCh.tickmarks
-								}
+								changed={axisCh.tickCount || axisCh.tickmarks}
 							>
-								<TickFormatControl
-									value={axis.customFormat}
-									changed={axisCh.format}
-									onChange={(customFormat) => updateAxis({ customFormat })}
-								/>
 								<div className="flex flex-col gap-1.5">
 									<div className="flex items-center gap-2 text-sm">
 										<NumberInput
@@ -658,8 +652,20 @@ export const ConnectionOptionsPanel = () => {
 							</CollapsibleSubsection>
 							<CollapsibleSubsection
 								title="Tick Labels"
-								changed={axisCh.labelEvery || axisCh.tickLabelFont}
+								changed={
+									axisCh.format ||
+									axisCh.labelEvery ||
+									axisCh.verticalLabels ||
+									axisCh.tickLabelFont
+								}
 							>
+								{/* Format lives with the labels it shapes — same placement as
+								 *  the x / y Tick Labels section. */}
+								<TickFormatControl
+									value={axis.customFormat}
+									changed={axisCh.format}
+									onChange={(customFormat) => updateAxis({ customFormat })}
+								/>
 								<div className="mb-1.5 flex items-center gap-2 text-sm">
 									<NumberInput
 										label="Label every"
@@ -689,6 +695,18 @@ export const ConnectionOptionsPanel = () => {
 											underline
 										/>
 									)}
+								</div>
+								{/* Sparse flag: off writes `undefined` so an untouched
+								 *  axis carries no `verticalLabels` key. */}
+								<div className="mb-1.5">
+									<Toggle
+										label="Make all tick labels vertical"
+										checked={axis.verticalLabels === true}
+										onChange={(on) =>
+											updateAxis({ verticalLabels: on ? true : undefined })
+										}
+										changed={axisCh.verticalLabels}
+									/>
 								</div>
 								<TickLabelFontControl
 									value={axis.tickLabelFont}
