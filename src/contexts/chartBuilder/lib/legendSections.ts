@@ -28,6 +28,7 @@ import {
 	resolveTitleFont,
 	type SwatchShapeChannel,
 	type TextFontConfig,
+	titleAlignmentOf,
 } from "./labelsConfig"
 import { histogramMeasureColorDomain } from "./histogramMeasureColor"
 import { DEFAULT_HEXBIN_BIN_COUNT, resolveHexbinCells } from "./hexbins"
@@ -215,6 +216,20 @@ export type PlanLegendSectionsInput = {
 	 *  domain — ordering decides WHICH wrap-mode panels survive grid
 	 *  truncation. Optional so pure callers/tests can omit it. */
 	levelOrders?: Record<string, readonly string[]>
+	/** Optional text measurer (canvas `measureText`, in px) for the widest of
+	 *  `texts` at the given font. The component injects the real one so the
+	 *  legend column is budgeted from RENDERED glyph widths — the 0.55-em
+	 *  character heuristic under-reserves wide faces (Quicksand, Nunito) and
+	 *  clipped the last letter of titles like "Semester". Returning 0 (or
+	 *  omitting the function — pure callers, SSR, happy-dom) falls back to
+	 *  the heuristic. */
+	measureText?: (
+		texts: readonly string[],
+		fontFamily: string | null | undefined,
+		fontSize: number,
+		fontWeight?: number,
+		italic?: boolean,
+	) => number
 }
 
 export type LegendPlan = {
@@ -251,6 +266,7 @@ export const planLegendSections = ({
 	modeDef,
 	insideExtras,
 	levelOrders,
+	measureText,
 }: PlanLegendSectionsInput): LegendPlan | null => {
 	const hideLength = modeDef.legend.hideLengthInThisMode
 	const hideAngle = modeDef.legend.hideAngleInThisMode
@@ -613,12 +629,13 @@ export const planLegendSections = ({
 
 	// Compute the widest legend label so the legend can size itself to fit
 	// its content rather than the fixed 224px column the old `w-56` reserved.
-	// Heuristic: longest stringified value across all visible sections, times
-	// the 0.55-char-px constant we use elsewhere for estimating proportional
-	// font widths. Add the swatch width, gap, inner padding, and a small
-	// safety pad so labels don't bump the legend border. Capped at
-	// LEGEND_MAX_WIDTH_PX so a single very long value doesn't blow out the
-	// chart area; anything longer gets `truncate` ellipsis as before.
+	// Widths come from the injected canvas measurer at the rendered font
+	// (family / weight / italic); without one, fall back to the longest
+	// stringified value times the 0.55-char-px constant we use elsewhere for
+	// estimating proportional font widths. Add the swatch width, gap, inner
+	// padding, and a small safety pad so labels don't bump the legend border.
+	// Capped at LEGEND_MAX_WIDTH_PX so a single very long value doesn't blow
+	// out the chart area; anything longer gets `truncate` ellipsis as before.
 	const LEGEND_MIN_WIDTH_PX = 100
 	const LEGEND_MAX_WIDTH_PX = 560
 	// Per-channel swatch widths. ComposedSwatch / hue / shape glyphs cap at
@@ -746,6 +763,7 @@ export const planLegendSections = ({
 	const SWATCH_GAP = 8
 	const INNER_PAD = 32 // matches the `p-4` on the inner div
 	const SAFETY_PAD = 6
+	const labelTexts: string[] = []
 	const longestLabelChars = sections.reduce((max, s) => {
 		const uniques = new Set<string>()
 		for (const v of s.values) {
@@ -780,22 +798,38 @@ export const planLegendSections = ({
 				uniques.add(decorateOpenEndLabel(fmt(b), i, breaks, dataExt))
 			})
 		}
+		for (const str of uniques) labelTexts.push(str)
 		const localMax = [...uniques].reduce(
 			(m, str) => Math.max(m, str.length),
 			0
 		)
 		return Math.max(max, localMax)
 	}, 0)
-	const estimatedLabelPx = longestLabelChars * textFont.size * 0.55
+	const measuredLabelPx =
+		measureText?.(
+			labelTexts,
+			textFont.family,
+			textFont.size,
+			textFont.weight,
+			textFont.italic,
+		) ?? 0
+	const estimatedLabelPx =
+		measuredLabelPx > 0
+			? measuredLabelPx
+			: longestLabelChars * textFont.size * 0.55
 	// Legend section TITLES (the field name OR the user's per-channel
 	// override) are often longer than the LABELS, and render at the
 	// secondary-title font size (larger than text). Without measuring
 	// them, a long title like "silliness_score" overflows past the
 	// legend column's right edge. Walk each section's title text and
-	// estimate its pixel width at the SAME resolved per-legend font the
+	// measure its pixel width at the SAME resolved per-legend font the
 	// section renders with (base secondary size + the per-legend size
 	// override) so the legend column grows to fit. Falls back to the
 	// field name when no override is set — same logic LegendSection uses.
+	// A LEFT-aligned title is indented to the label column (LegendSection
+	// lines it up with the entry text, past the swatch + row gap), so its
+	// budget must include that indent or the title's tail clips at the
+	// legend's right edge even when the title alone would have fit.
 	const estimatedTitlePx = sections.reduce((max, s) => {
 		const keyChannel =
 			s.kind === "single"
@@ -809,12 +843,28 @@ export const planLegendSections = ({
 			s.kind === "slot" ? LEGEND_FRIENDLY_NAME[s.legendKey] : s.field
 		// Three-state: undefined → fallback name, "" → no header (0 width).
 		const titleText = override === undefined ? fallback : override
-		const titleFontSize = resolveTitleFont(
+		if (titleText.length === 0) return max
+		const fontKey = legendFontKey(keyChannel as LegendChannel)
+		const titleFont = resolveTitleFont(
 			labels.baseFont,
 			"legend",
-			labels.fontOverrides?.[legendFontKey(keyChannel as LegendChannel)]
-		).size
-		return Math.max(max, titleText.length * titleFontSize * 0.55)
+			labels.fontOverrides?.[fontKey]
+		)
+		const measuredTitlePx =
+			measureText?.(
+				[titleText],
+				titleFont.family,
+				titleFont.size,
+				titleFont.weight,
+				titleFont.italic,
+			) ?? 0
+		const titlePx =
+			measuredTitlePx > 0
+				? measuredTitlePx
+				: titleText.length * titleFont.size * 0.55
+		const titleIndent =
+			titleAlignmentOf(labels, fontKey) === "left" ? SWATCH_W + SWATCH_GAP : 0
+		return Math.max(max, titleIndent + titlePx)
 	}, 0)
 	// When the user picks Horizontal orientation, size-style legends
 	// (area / length / angle) lay every swatch out in one no-wrap row.

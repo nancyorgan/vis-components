@@ -2108,7 +2108,11 @@ rendered auto width, and the first spinner click or arrow key steps
 from it rather than from 0 (focusing alone changes nothing). Clearing
 the field, or the reset link, returns to auto. A fixed width applies in every
 position and overrides the auto estimate and the viewport caps that
-otherwise bound multi-column legends. When the box becomes too
+otherwise bound multi-column legends. That auto width budgets from
+MEASURED text (canvas `measureText` of every label and title at the
+legend's resolved fonts, re-planned once webfonts finish loading) rather
+than a per-character estimate, so a wide face never clips a title's
+last letter. When the box becomes too
 narrow for its text, labels WRAP onto extra lines — stacked entries
 stop truncating with an ellipsis, and horizontal entries shrink to
 fit the row instead of pushing it wider. (The "legends grow rather

@@ -3,7 +3,19 @@ import { rgb as d3Rgb } from "d3-color"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+
+/** Controllable stand-in for the canvas text measurer the legend planner
+ *  budgets its column from. `pxPerChar` 0 (the default for every other
+ *  block in this file) reports "no canvas" so the planner falls back to its
+ *  character heuristic — the same path happy-dom takes without the mock. */
+const measureMock = vi.hoisted(() => ({ pxPerChar: 0 }))
+vi.mock("./plotCanvas/measureText", () => ({
+	measureMaxLabelWidth: (texts: readonly string[]) =>
+		measureMock.pxPerChar > 0
+			? Math.max(0, ...texts.map((t) => t.length)) * measureMock.pxPerChar
+			: 0,
+}))
 import {
 	EMPTY_CHANNEL_CONFIGS,
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
@@ -2268,6 +2280,104 @@ describe("Legend — fixed legend width", () => {
 		expect(labels.length).toBe(4)
 	})
 })
+
+/** Auto legend width is budgeted from MEASURED text (canvas `measureText`
+ *  at the rendered font), not the 0.55-em character heuristic alone — wide
+ *  faces (Quicksand) clipped the last letter of titles like "Semester". A
+ *  LEFT-aligned title is indented to the label column, so its budget also
+ *  carries the swatch + gap indent. */
+describe("Legend — auto width from measured text", () => {
+	const DATASET_ID = "ds-legend-measured-width"
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "grades",
+			filename: "grades.csv",
+			fields: [{ name: "Semester", inferredType: "categorical" }],
+			rows: [{ Semester: "Fall" }, { Semester: "Spring" }],
+		})
+
+	const mountLegend = (legendAlignment?: "left" | "center" | "right") => {
+		const store = installInMemoryLocalStorage()
+		const encodings = { ...emptyEncodings(), hue: { field: "Semester" } }
+		const labels = {
+			...DEFAULT_LABELS_CONFIG,
+			baseFont: {
+				...DEFAULT_LABELS_CONFIG.baseFont,
+				titles: {
+					...DEFAULT_LABELS_CONFIG.baseFont.titles,
+					...(legendAlignment ? { legendAlignment } : {}),
+				},
+			},
+		}
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, EMPTY_CHANNEL_CONFIGS)
+			snap.set(currentLabelsAtom, labels)
+			snap.set(currentLegendConfigAtom, {
+				...DEFAULT_LEGEND_CONFIG,
+				position: "right",
+			})
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+	const outerWidth = (container: HTMLElement): number =>
+		Number.parseFloat(
+			(container.querySelector<HTMLElement>("[data-legend-root]") as HTMLElement)
+				.style.width
+		)
+	const withMeasurer = <T,>(pxPerChar: number, run: () => T): T => {
+		measureMock.pxPerChar = pxPerChar
+		try {
+			return run()
+		} finally {
+			measureMock.pxPerChar = 0
+		}
+	}
+
+	it("a wide measured face grows the column past the character heuristic", () => {
+		const heuristic = mountLegend("center")
+		const w0 = outerWidth(heuristic.container)
+		heuristic.unmount()
+		// 20 px per glyph is far wider than 0.55 em at any default size.
+		const measured = withMeasurer(20, () => mountLegend("center"))
+		const w1 = outerWidth(measured.container)
+		expect(w0).toBeGreaterThan(0)
+		expect(w1).toBeGreaterThan(w0)
+		// Title "Semester" (8 glyphs → 160 px) is the widest element; the box
+		// is that plus the inner padding + safety pad (32 + 6).
+		expect(w1).toBe(160 + 38)
+	})
+
+	it("a left-aligned title also reserves the swatch-column indent it is pushed by", () => {
+		const centered = withMeasurer(20, () => mountLegend("center"))
+		const wCenter = outerWidth(centered.container)
+		centered.unmount()
+		const left = withMeasurer(20, () => mountLegend("left"))
+		const wLeft = outerWidth(left.container)
+		// Indent = swatch column (≥ 22 px) + the 8 px row gap.
+		expect(wLeft - wCenter).toBeGreaterThanOrEqual(30)
+	})
+})
+
 describe("Hierarchy-derived Color legend (Top-level group / Nesting depth)", () => {
 	const DATASET_ID = "ds-legend-derived-hue"
 	// Same fruit tree as the hierarchy renderer suites: id auto-detects to

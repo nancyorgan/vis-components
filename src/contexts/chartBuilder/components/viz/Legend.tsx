@@ -39,6 +39,8 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { LegendSection } from "./legend/LegendSection"
 import { LegendColumns } from "./legend/swatches"
+import { measureMaxLabelWidth } from "./plotCanvas/measureText"
+import { useFontsVersion } from "./plotCanvas/useFontsVersion"
 
 // Legend.tsx stays the import entry point for the legend: the per-channel
 // renderers and swatch primitives live under `./legend/`, and the pure
@@ -147,6 +149,12 @@ export const Legend = ({
 		const px = el.offsetWidth
 		if (px > 0) setRenderedWidth(Math.round(px))
 	})
+	// The width budget below measures label / title text with canvas
+	// `measureText`. Before a webfont arrives that measures the FALLBACK
+	// face, which is often narrower than the real one — the column then
+	// lands short and the last glyph clips. Subscribing to the fonts version
+	// re-renders (and so re-plans) once the real face is in.
+	useFontsVersion()
 	const modeDef = useChartModeDef()
 	// Fold the mode's default-hidden channels (e.g. the Size legend starts
 	// off in flow / hierarchy modes) into the effective map so every
@@ -187,6 +195,7 @@ export const Legend = ({
 		modeDef,
 		insideExtras,
 		levelOrders,
+		measureText: measureMaxLabelWidth,
 	})
 	if (!plan) return null
 	const {
