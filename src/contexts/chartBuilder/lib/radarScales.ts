@@ -3,6 +3,7 @@ import { scaleLinear, scaleTime } from "d3-scale"
 
 import { DEFAULT_ANGLE_CONFIG, type AngleConfig } from "./channelConfig"
 import type { RadialScales } from "./coords/types"
+import { buildTickFormatter } from "./formatTick"
 import { parseValue } from "./scales"
 import { applyLevelOrder } from "./smartSort"
 import type { FieldType } from "./types"
@@ -62,12 +63,20 @@ export const buildRadarScales = (args: {
 }): RadialScales => {
 	const angleBounds = resolveAngleBounds(args.angleConfig)
 	const angleTickCount = args.angleConfig?.tickCount ?? 6
+	// The Angle panel's "Format" (Spoke labels section): a d3-format /
+	// d3-time-format spec for the perimeter labels. Empty → the built-in
+	// per-type formatting below.
+	const angleFormat = buildTickFormatter(
+		{ customFormat: args.angleConfig?.customFormat ?? "" },
+		args.angleType,
+	)
 	const angle = buildAngleScale(
 		args.angleRaws,
 		args.angleType,
 		args.angleLevelOrder,
 		angleBounds,
 		angleTickCount,
+		angleFormat,
 	)
 	const r = buildRScale(
 		args.rRaws,
@@ -124,9 +133,26 @@ const buildAngleScale = (
 	levelOrder: ReadonlyArray<string> | undefined,
 	bounds: { startRad: number; endRad: number },
 	tickCount: number,
+	/** User format for the perimeter labels; `null` = built-in formatting. */
+	customFmt: ((v: unknown) => string) | null = null,
 ): AngleBundle => {
 	const { startRad, endRad } = bounds
 	const sweep = endRad - startRad
+	// Built-in label text per type; the user's format spec wins when set.
+	// Temporal raws arrive as epoch ms in the discrete path and as Dates in
+	// the continuous one — normalize to Date before formatting.
+	const labelFor = (raw: number | Date | string): string => {
+		if (customFmt) {
+			const v =
+				type === "temporal" && typeof raw === "number" ? new Date(raw) : raw
+			return customFmt(v)
+		}
+		if (typeof raw === "string") return raw
+		if (raw instanceof Date) return raw.toISOString().slice(0, 10)
+		return type === "temporal"
+			? new Date(raw).toISOString().slice(0, 10)
+			: formatNumberTick(raw)
+	}
 	if (type === "categorical" || type === "ordinal") {
 		const parsed = raws
 			.map((v) => parseValue(v, type))
@@ -150,8 +176,8 @@ const buildAngleScale = (
 			if (i === undefined) return null
 			return startRad + (i / denom) * sweep
 		}
-		const ticks = domain.map((label, i) => ({
-			label,
+		const ticks = domain.map((value, i) => ({
+			label: labelFor(value),
 			angle: startRad + (i / denom) * sweep,
 		}))
 		return { scale, ticks }
@@ -181,10 +207,7 @@ const buildAngleScale = (
 			return startRad + (i / denom) * sweep
 		}
 		const ticks = uniqueNums.map((num, i) => ({
-			label:
-				type === "temporal"
-					? new Date(num).toISOString().slice(0, 10)
-					: formatNumberTick(num),
+			label: labelFor(num),
 			angle: startRad + (i / denom) * sweep,
 		}))
 		return { scale, ticks }
@@ -210,11 +233,11 @@ const buildAngleScale = (
 			? scaleTime()
 					.domain([new Date(lo), new Date(hi)])
 					.ticks(tickCount)
-					.map((d) => ({ raw: d, label: d.toISOString().slice(0, 10) }))
+					.map((d) => ({ raw: d, label: labelFor(d) }))
 			: scaleLinear()
 					.domain([lo, hi])
 					.ticks(tickCount)
-					.map((n) => ({ raw: n, label: formatNumberTick(n) }))
+					.map((n) => ({ raw: n, label: labelFor(n) }))
 	const seenLabels = new Set<string>()
 	const tickSource = tickSourceRaw.filter(({ label }) => {
 		if (seenLabels.has(label)) return false

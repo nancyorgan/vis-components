@@ -455,8 +455,9 @@ export type AxisConfig = {
 	 * to the TICK LABELS only — the control lives in the Tick Labels section,
 	 * so the spine, tick marks, title, and gridlines all stay put. The
 	 * sidebar's Y input shows math convention (positive = up) and flips the
-	 * sign at the input boundary. Absent = 0. Ignored on the radial `r`
-	 * axis. */
+	 * sign at the input boundary. Absent = 0. On the radar `r` axis the same
+	 * nudge moves the ring labels along the 12 o'clock spoke (rings and
+	 * spokes stay put). */
 	offsetX?: number
 	offsetY?: number
 	/** "Set spine at 0": draw THIS axis's spine where the PERPENDICULAR
@@ -926,6 +927,16 @@ export type AngleConfig = {
 	 *  anchor. 0 keeps them upright (matches the chosen "Stay horizontal"
 	 *  default). */
 	tickLabelAngle?: number
+	/** Label every Nth spoke (1 = label all). Spokes still draw at every
+	 *  angle tick; only the perimeter labels thin out — the radar analog of
+	 *  the categorical axis's "Label every" stride. Walks from the first
+	 *  spoke; unlike the linear axis no "last" label is forced, because on a
+	 *  full sweep the last spoke sits next to the first. */
+	tickLabelEvery?: number
+	/** Extra radial distance (px) between the spoke tip and the perimeter
+	 *  label, on top of the renderer's base gap. Positive pushes labels
+	 *  away from the chart; negative pulls them onto it. 0 = base gap. */
+	tickLabelDistance?: number
 	/** Spoke color + thickness — the lines from center to perimeter at
 	 *  each angle tick. Defaults to the system theme's spine color when
 	 *  unset. */
@@ -945,6 +956,8 @@ export const DEFAULT_ANGLE_CONFIG: AngleConfig = {
 	tickCount: 6,
 	customFormat: "",
 	tickLabelAngle: 0,
+	tickLabelEvery: 1,
+	tickLabelDistance: 0,
 	spine: DEFAULT_SPINE_CONFIG,
 	donutHoleRadius: 0,
 }

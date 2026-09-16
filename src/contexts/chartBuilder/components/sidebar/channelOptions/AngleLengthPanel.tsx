@@ -9,7 +9,7 @@ import {
 	type AngleConfig,
 } from "../../../lib/channelConfig"
 import { useChartModeDef } from "../../../store/useChartModeDef"
-import { angleConfigFromTheme } from "../../../lib/themeConfig"
+import { angleConfigFromTheme, valueChanged } from "../../../lib/themeConfig"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
@@ -17,10 +17,11 @@ import {
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import type { Theme } from "../../../lib/types"
 
+import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
-import { SpineControls } from "./AxisOptionsPanel"
+import { SpineControls, TickFormatControl, ordinalSuffix } from "./AxisOptionsPanel"
 
 // ---------------------------------------------------------------------------
 // Angle
@@ -38,10 +39,9 @@ export const AngleOptionsPanel = () => {
 	const themeAngle = angleConfigFromTheme(theme)
 	const cfg = configs.angle ?? themeAngle
 
-	// Radar mode owns the perimeter spokes + tick labels around the dial,
-	// so when the chart resolves to radar AND both r + angle are mapped,
-	// surface axis-style controls (tick count, spine color/thickness,
-	// label angle, tick marks) below the data-range min/max boxes.
+	// Radar mode owns the perimeter spokes + labels around the dial, so when
+	// the chart resolves to radar AND both r + angle are mapped, surface the
+	// Spokes / Spoke Labels sections below the Angle Extent section.
 	const modeId = useChartModeDef().id
 	const isRadarMode = modeId === "radar"
 	const showRadarAxisControls = isRadarMode && fieldMapped
@@ -69,6 +69,30 @@ export const AngleOptionsPanel = () => {
 	}
 
 	if (fieldMapped) {
+		const extentChanged =
+			valueChanged(cfg.minAngle, themeAngle.minAngle) ||
+			valueChanged(cfg.maxAngle, themeAngle.maxAngle)
+		const extent = (
+			<AngleExtentControls
+				cfg={cfg}
+				themeAngle={themeAngle}
+				updateCfg={updateCfg}
+				help={
+					isRadarMode
+						? "Sweep around the dial. Defaults: 0° → 360° (full circle starting at 12 o'clock)."
+						: isPieMode
+							? "Angular sweep of the pie. Defaults to a full circle; narrow the range (e.g. -90° – 90°) to make a gauge."
+							: `Defaults: ${themeAngle.minAngle}° – ${themeAngle.maxAngle}°`
+				}
+			/>
+		)
+		// Mark-rotation angle (scatter etc.): the extent range is the only
+		// control, and a lone section needs no header — keep it flat.
+		if (!isRadarMode && !isPieMode) {
+			return <div className="vc-option-panel">{extent}</div>
+		}
+		// Polar modes (radar, pies) group the controls under collapsible
+		// subsections so the panel opens as a compact list of headers.
 		return (
 			<div className="vc-option-panel">
 				{isPieMode && (
@@ -78,57 +102,23 @@ export const AngleOptionsPanel = () => {
 						updateCfg={updateCfg}
 					/>
 				)}
-				<div className="flex items-center gap-2">
-					<NumberInput
-						label="Min"
-						labelClassName={LABEL_COL}
-						value={cfg.minAngle}
-						min={-360}
-						max={360}
-						step={5}
-						onChange={(minAngle) => updateCfg({ minAngle })}
-						inputClassName="w-20"
-						suffix="°"
-					/>
-					{cfg.minAngle !== themeAngle.minAngle && (
-						<ResetLink
-							onClick={() => updateCfg({ minAngle: themeAngle.minAngle })}
-							underline
-						/>
-					)}
-				</div>
-				<div className="flex items-center gap-2">
-					<NumberInput
-						label="Max"
-						labelClassName={LABEL_COL}
-						value={cfg.maxAngle}
-						min={-360}
-						max={360}
-						step={5}
-						onChange={(maxAngle) => updateCfg({ maxAngle })}
-						inputClassName="w-20"
-						suffix="°"
-					/>
-					{cfg.maxAngle !== themeAngle.maxAngle && (
-						<ResetLink
-							onClick={() => updateCfg({ maxAngle: themeAngle.maxAngle })}
-							underline
-						/>
-					)}
-				</div>
-				<div className="vc-help">
-					{isRadarMode
-						? "Sweep around the dial. Defaults: 0° → 360° (full circle starting at 12 o'clock)."
-						: isPieMode
-							? "Angular sweep of the pie. Defaults to a full circle; narrow the range (e.g. -90° – 90°) to make a gauge."
-							: `Defaults: ${themeAngle.minAngle}° – ${themeAngle.maxAngle}°`}
-				</div>
+				<CollapsibleSubsection title="Angle Extent" changed={extentChanged}>
+					{extent}
+				</CollapsibleSubsection>
 				{showRadarAxisControls && (
-					<RadarAxisControls
-						cfg={cfg}
-						updateCfg={updateCfg}
-						theme={theme}
-					/>
+					<>
+						<RadarSpokesSection
+							cfg={cfg}
+							themeAngle={themeAngle}
+							updateCfg={updateCfg}
+							theme={theme}
+						/>
+						<RadarSpokeLabelsSection
+							cfg={cfg}
+							themeAngle={themeAngle}
+							updateCfg={updateCfg}
+						/>
+					</>
 				)}
 			</div>
 		)
@@ -167,6 +157,63 @@ export const AngleOptionsPanel = () => {
 		</div>
 	)
 }
+
+/** Min / Max sweep bounds (degrees) plus the per-mode helper line. Shared by
+ *  the flat mark-rotation layout and the polar modes' "Angle Extent"
+ *  subsection so the rows are identical either way. */
+const AngleExtentControls = ({
+	cfg,
+	themeAngle,
+	updateCfg,
+	help,
+}: {
+	cfg: AngleConfig
+	themeAngle: AngleConfig
+	updateCfg: (next: Partial<AngleConfig>) => void
+	help: string
+}) => (
+	<>
+		<div className="flex items-center gap-2">
+			<NumberInput
+				label="Min"
+				labelClassName={LABEL_COL}
+				value={cfg.minAngle}
+				min={-360}
+				max={360}
+				step={5}
+				onChange={(minAngle) => updateCfg({ minAngle })}
+				inputClassName="w-20"
+				suffix="°"
+			/>
+			{cfg.minAngle !== themeAngle.minAngle && (
+				<ResetLink
+					onClick={() => updateCfg({ minAngle: themeAngle.minAngle })}
+					underline
+				/>
+			)}
+		</div>
+		<div className="flex items-center gap-2">
+			<NumberInput
+				label="Max"
+				labelClassName={LABEL_COL}
+				value={cfg.maxAngle}
+				min={-360}
+				max={360}
+				step={5}
+				onChange={(maxAngle) => updateCfg({ maxAngle })}
+				inputClassName="w-20"
+				suffix="°"
+			/>
+			{cfg.maxAngle !== themeAngle.maxAngle && (
+				<ResetLink
+					onClick={() => updateCfg({ maxAngle: themeAngle.maxAngle })}
+					underline
+				/>
+			)}
+		</div>
+		<div className="vc-help">{help}</div>
+	</>
+)
 
 /** Pie ↔ Donut toggle plus the donut hole-radius input, styled to match
  *  the Line/Area "Chart type" toggle in ConnectionOptionsPanel. "Donut"
@@ -233,28 +280,29 @@ const PieDonutControls = ({
 	)
 }
 
-/** Radar-mode axis chrome controls — number of spokes (tick count),
- *  perimeter label rotation, spoke (spine) color/thickness, and the
- *  tick-mark notches at each spoke. Only mounted when the active mode
- *  resolves to radar AND a field is mapped to angle. */
-const RadarAxisControls = ({
+/** Radar "Spokes" subsection — number of spokes (quantitative / temporal
+ *  angle only) and spoke thickness / style via the shared Spine control.
+ *  Only mounted when the active mode resolves to radar AND a field is
+ *  mapped to angle. */
+const RadarSpokesSection = ({
 	cfg,
+	themeAngle,
 	updateCfg,
 	theme,
 }: {
 	cfg: AngleConfig
+	themeAngle: AngleConfig
 	updateCfg: (next: Partial<AngleConfig>) => void
 	theme: Theme
 }) => {
-	const tickCount = cfg.tickCount ?? DEFAULT_ANGLE_CONFIG.tickCount ?? 6
-	const tickLabelAngle =
-		cfg.tickLabelAngle ?? DEFAULT_ANGLE_CONFIG.tickLabelAngle ?? 0
+	const defaultTickCount = themeAngle.tickCount ?? DEFAULT_ANGLE_CONFIG.tickCount ?? 6
+	const tickCount = cfg.tickCount ?? defaultTickCount
+	const changed =
+		valueChanged(cfg.tickCount, themeAngle.tickCount) ||
+		valueChanged(cfg.spine, themeAngle.spine)
 
 	return (
-		<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
-			<div className="text-sm text-stone-700 dark:text-stone-300">
-				Spokes
-			</div>
+		<CollapsibleSubsection title="Spokes" changed={changed}>
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Spokes"
@@ -267,11 +315,9 @@ const RadarAxisControls = ({
 					onChange={(n) => updateCfg({ tickCount: n })}
 					inputClassName="w-16"
 				/>
-				{tickCount !== (DEFAULT_ANGLE_CONFIG.tickCount ?? 6) && (
+				{tickCount !== defaultTickCount && (
 					<ResetLink
-						onClick={() =>
-							updateCfg({ tickCount: DEFAULT_ANGLE_CONFIG.tickCount })
-						}
+						onClick={() => updateCfg({ tickCount: defaultTickCount })}
 						underline
 					/>
 				)}
@@ -280,6 +326,55 @@ const RadarAxisControls = ({
 				Quantitative / temporal angle only. Categorical angle always shows one
 				spoke per category.
 			</p>
+			{/* Spoke styling reuses the x/y axis Spine control (same labels, same
+			    ranges). The color row is dropped — spoke color lives in the Color
+			    menu's "Radar Spine" slot — and the per-line "changed" dots stay
+			    off; the section header carries the dot instead. */}
+			<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+				<p className="vc-help">
+					Set spoke color under the <strong>Color</strong> menu →{" "}
+					<strong>Radar Spine</strong>.
+				</p>
+				<SpineControls
+					spine={cfg.spine ?? DEFAULT_SPINE_CONFIG}
+					onChange={(s) => updateCfg({ spine: s })}
+					theme={theme}
+					axis="polar"
+					hideColorRow
+					showChanged={false}
+				/>
+			</div>
+		</CollapsibleSubsection>
+	)
+}
+
+/** Radar "Spoke Labels" subsection — the perimeter labels at each spoke:
+ *  rotation, number / date format, label stride (every Nth spoke), and
+ *  radial distance from the chart. */
+const RadarSpokeLabelsSection = ({
+	cfg,
+	themeAngle,
+	updateCfg,
+}: {
+	cfg: AngleConfig
+	themeAngle: AngleConfig
+	updateCfg: (next: Partial<AngleConfig>) => void
+}) => {
+	const defaultLabelAngle = themeAngle.tickLabelAngle ?? 0
+	const tickLabelAngle = cfg.tickLabelAngle ?? defaultLabelAngle
+	const defaultEvery = themeAngle.tickLabelEvery ?? 1
+	const labelEvery = cfg.tickLabelEvery ?? defaultEvery
+	const defaultDistance = themeAngle.tickLabelDistance ?? 0
+	const labelDistance = cfg.tickLabelDistance ?? defaultDistance
+	const formatChanged = valueChanged(cfg.customFormat, themeAngle.customFormat)
+	const changed =
+		valueChanged(cfg.tickLabelAngle, themeAngle.tickLabelAngle) ||
+		formatChanged ||
+		valueChanged(cfg.tickLabelEvery, themeAngle.tickLabelEvery) ||
+		valueChanged(cfg.tickLabelDistance, themeAngle.tickLabelDistance)
+
+	return (
+		<CollapsibleSubsection title="Spoke Labels" changed={changed}>
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Label angle"
@@ -293,40 +388,72 @@ const RadarAxisControls = ({
 					inputClassName="w-20"
 					suffix="°"
 				/>
-				{tickLabelAngle !== (DEFAULT_ANGLE_CONFIG.tickLabelAngle ?? 0) && (
+				{tickLabelAngle !== defaultLabelAngle && (
 					<ResetLink
-						onClick={() =>
-							updateCfg({ tickLabelAngle: DEFAULT_ANGLE_CONFIG.tickLabelAngle })
-						}
+						onClick={() => updateCfg({ tickLabelAngle: defaultLabelAngle })}
 						underline
 					/>
 				)}
 			</div>
-			{/* Spoke styling reuses the x/y axis Spine control (same labels, same
-			    ranges). The color row is dropped — spoke color lives in the Color
-			    menu's "Radar Spine" slot — and the "changed" dots stay off. */}
-			<span className="text-sm text-stone-600 dark:text-stone-400">Spokes</span>
-			<p className="vc-help">
-				Set spoke color under the <strong>Color</strong> menu →{" "}
-				<strong>Radar Spine</strong>.
-			</p>
-			<SpineControls
-				spine={cfg.spine ?? DEFAULT_SPINE_CONFIG}
-				onChange={(s) => updateCfg({ spine: s })}
-				theme={theme}
-				axis="polar"
-				hideColorRow
-				showChanged={false}
+			<TickFormatControl
+				value={cfg.customFormat ?? ""}
+				changed={formatChanged}
+				onChange={(customFormat) => updateCfg({ customFormat })}
 			/>
-		</div>
+			<div className="flex items-center gap-2 text-sm">
+				<NumberInput
+					label="Label every"
+					labelClassName={LABEL_COL}
+					value={labelEvery}
+					min={1}
+					max={36}
+					step={1}
+					clamp
+					onChange={(tickLabelEvery) => updateCfg({ tickLabelEvery })}
+					inputClassName="w-20"
+				/>
+				<span className="text-sm text-stone-600">
+					{labelEvery > 1 ? `${ordinalSuffix(labelEvery)} spoke` : "spoke"}
+				</span>
+				{labelEvery !== defaultEvery && (
+					<ResetLink
+						onClick={() => updateCfg({ tickLabelEvery: defaultEvery })}
+						underline
+					/>
+				)}
+			</div>
+			<div className="flex items-center gap-2">
+				<NumberInput
+					label="Distance"
+					labelClassName={LABEL_COL}
+					value={labelDistance}
+					min={-200}
+					max={200}
+					step={1}
+					onChange={(tickLabelDistance) => updateCfg({ tickLabelDistance })}
+					inputClassName="w-20"
+					suffix="px"
+				/>
+				{labelDistance !== defaultDistance && (
+					<ResetLink
+						onClick={() => updateCfg({ tickLabelDistance: defaultDistance })}
+						underline
+					/>
+				)}
+			</div>
+			<p className="vc-help">
+				Moves the labels away from the chart. Negative values pull them onto
+				it.
+			</p>
+		</CollapsibleSubsection>
 	)
 }
 
 /** Bar charts' gap-between-bars knob, in PIXELS; bar width is whatever
  *  remains of each category slot, so one input controls both. Auto (null)
  *  is the proportional 15%-of-slot gap — not a fixed px value — so this is
- *  a clear-to-null raw input (NumberInput can't emit null), mirroring the
- *  panel's default-length input below. */
+ *  a clear-to-null input (`onClear`), mirroring the panel's default-length
+ *  input below. */
 const BarGapControl = ({
 	barGapPx,
 	onChange,

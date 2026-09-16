@@ -1202,6 +1202,27 @@ facet panels of different widths. Auto (stored as null, cleared via
 the empty input or reset) is the proportional 15%-of-slot gap.
 Histograms ignore it — their bars always abut.
 
+**Angle** on the polar modes (radar, pies) groups its controls under
+collapsible subsections (all start collapsed), so the panel opens as a
+short list of headers.
+Pies lead with the Pie / Donut chart-type toggle above the sections.
+- **Angle Extent** — the **Min** / **Max** sweep in degrees (a gauge on
+  pies, a partial dial on radar).
+- **Spokes** (radar only) — the spoke count (quantitative / temporal
+  angle; categorical angle always gets one spoke per category) and the
+  spoke line's thickness / dash via the shared Spine control. Spoke
+  color lives in the Color menu's Radar Spine slot.
+- **Spoke Labels** (radar only) — the perimeter labels at each spoke:
+  **Label angle** (rotation), **Format** (the same preset dropdown +
+  custom d3-format / d3-time-format box the x / y axes use),
+  **Label every** N spokes (labels thin out from the first spoke; the
+  spokes themselves all still draw), and **Distance** — px moved
+  radially away from the chart (the layout shrinks the radar to keep
+  pushed-out labels inside the cell); negative values pull the labels
+  onto the disc, where they anchor so they read toward the center.
+Angle mapped to mark rotation (e.g. on a scatter) has only the
+Min / Max range, so that layout stays flat with no headers.
+
 The **Area** panel additionally carries a **Scale by** choice
 (`AreaConfig.sizeBy`) that applies everywhere the channel sizes marks
 — scatter bubbles, geo bubble maps, packed circles:
@@ -1482,6 +1503,8 @@ The X-axis and Y-axis panels (under Encodings) configure:
   positive Y = up (stored in screen coords, sign flipped at the input
   boundary). The legacy perpendicular `offset` field is read while the
   new `offsetX`/`offsetY` are unset and cleared on their first write.
+  The radar **R** panel has the same control: it moves the r-tick
+  labels along the 12 o'clock spoke, and the rings and spokes stay put.
 - **Tick label angle**, **label stride** (every Nth).
 - **Wrap text** (Tick Labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis

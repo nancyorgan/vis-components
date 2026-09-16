@@ -16,6 +16,7 @@ import { sampleMarkersByConnection } from "../../lib/connectionSampling"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
 import { radial } from "./coords"
+import { SPOKE_LABEL_PADDING } from "./coords/radial"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import type { PatternDefSpec } from "../../lib/patternDefs"
 import {
@@ -82,11 +83,6 @@ type RadarPlotProps = ChartRendererBaseProps & {
  *  actual padding grows past this when the longest angle-tick label
  *  wouldn't fit (see `coord` factory below). */
 const PERIMETER_PADDING_MIN = 32
-
-/** Matches `SPOKE_LABEL_PADDING` in coords/radial.tsx — the radial gap
- *  between the spoke tip and the label's anchor point. Duplicated here
- *  to keep RadarPlot's padding math self-contained. */
-const SPOKE_LABEL_PADDING = 12
 
 /** Polar coord renderer for radar (spider) charts.
  *
@@ -271,9 +267,15 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			return max
 		})()
 		const lineHeight = tickFont.size * 1.4
-		const horizMax =
-			halfW - SPOKE_LABEL_PADDING - longestAngleLabelPx - 4
-		const vertMax = halfH - SPOKE_LABEL_PADDING - lineHeight / 2 - 4
+		// A positive "Distance" (Angle panel → Spoke labels) pushes the
+		// labels further out, so the radius must give up that much more room
+		// for them to stay inside the cell. A negative distance pulls labels
+		// onto the disc and reserves nothing extra.
+		const labelGap =
+			SPOKE_LABEL_PADDING +
+			Math.max(0, channelConfigs.angle?.tickLabelDistance ?? 0)
+		const horizMax = halfW - labelGap - longestAngleLabelPx - 4
+		const vertMax = halfH - labelGap - lineHeight / 2 - 4
 		// Floor at the historical default (half − 32) so cells without
 		// long labels stay the same size as before, and at 8px so the
 		// radar never collapses to nothing.

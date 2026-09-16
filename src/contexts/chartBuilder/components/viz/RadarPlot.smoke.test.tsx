@@ -324,6 +324,42 @@ describe("RadarPlot — basics", () => {
 		)
 		expect(rings.length).toBeGreaterThan(0)
 	})
+
+	it("the r-axis 'Adjust position' nudge moves the r-tick labels only (screen px); rings stay put", () => {
+		// r-tick labels are the numeric texts along the 12 o'clock spoke;
+		// the perimeter angle labels are the metric letters.
+		const rLabelPositions = (c: HTMLElement) =>
+			[...c.querySelectorAll("text")]
+				.filter((t) => /^\d/.test(t.textContent ?? ""))
+				.map((t) => [
+					Number(t.getAttribute("x")),
+					Number(t.getAttribute("y")),
+				])
+		const ringRadii = (c: HTMLElement) =>
+			[...c.querySelectorAll("circle")]
+				.filter((el) => el.getAttribute("fill") === "none")
+				.map((el) => el.getAttribute("r"))
+
+		const base = mount()
+		const nudged = mount({
+			extraConfigs: {
+				r: { ...DEFAULT_AXIS_CONFIG, offsetX: 10, offsetY: -5 },
+			},
+		})
+		const before = rLabelPositions(base)
+		const after = rLabelPositions(nudged)
+		expect(before.length).toBeGreaterThan(0)
+		expect(after.length).toBe(before.length)
+		before.forEach(([x, y], i) => {
+			expect(after[i]![0]).toBeCloseTo(x + 10)
+			expect(after[i]![1]).toBeCloseTo(y - 5)
+		})
+		expect(ringRadii(nudged)).toEqual(ringRadii(base))
+	})
+})
+
+/** Pattern fills on radar: the polygon body and the points are SEPARATE
+ *  pattern targets (Pattern menu → "Polygon fill" vs "Point fill"). */
 describe("RadarPlot — pattern fills", () => {
 	const isPatternUrl = (fill: string | null) =>
 		!!fill && fill.startsWith("url(#vc-pat-")
@@ -450,4 +486,66 @@ describe("RadarPlot — series paint order", () => {
 	})
 })
 
+describe("RadarPlot — Angle panel Spoke Labels (label every / distance)", () => {
+	// Perimeter labels are the single-letter metric names; the r-tick labels
+	// are numeric.
+	const spokeLabels = (c: HTMLElement) =>
+		[...c.querySelectorAll("text")].filter((t) =>
+			/^[A-D]$/.test(t.textContent ?? ""),
+		)
+
+	it("'Label every' thins the perimeter labels while every spoke still draws", () => {
+		const c = mount({
+			extraConfigs: { angle: { ...DEFAULT_ANGLE_CONFIG, tickLabelEvery: 2 } },
+		})
+		expect(spokeLabels(c).map((t) => t.textContent)).toEqual(["A", "C"])
+		// 4 categories → still 4 spokes.
+		expect(c.querySelectorAll("line").length).toBe(4)
+	})
+
+	it("a positive 'Distance' pushes labels radially outward; negative pulls them onto the disc and flips the anchor", () => {
+		const labelA = (c: HTMLElement) =>
+			spokeLabels(c).find((t) => t.textContent === "A")!
+		const labelB = (c: HTMLElement) =>
+			spokeLabels(c).find((t) => t.textContent === "B")!
+		// "A" sits at 12 o'clock, so its spoke's tip is the topmost line end and
+		// the label sits `gap` px above it. Measuring the GAP (not the absolute
+		// y) isolates the distance from the fit math, which also shrinks the
+		// radar to keep pushed-out labels inside the cell.
+		const spokeTipY = (c: HTMLElement) =>
+			Math.min(
+				...[...c.querySelectorAll("line")].map((l) =>
+					Number(l.getAttribute("y2")),
+				),
+			)
+		const gapAboveTip = (c: HTMLElement) =>
+			spokeTipY(c) - Number(labelA(c).getAttribute("y"))
+
+		const base = mount()
+		const baseGap = gapAboveTip(base)
+		expect(baseGap).toBeGreaterThan(0)
+
+		const out = mount({
+			extraConfigs: {
+				angle: { ...DEFAULT_ANGLE_CONFIG, tickLabelDistance: 20 },
+			},
+		})
+		expect(gapAboveTip(out)).toBeCloseTo(baseGap + 20)
+		// The chart gave up room for the pushed-out labels: the tip moved in.
+		expect(spokeTipY(out)).toBeGreaterThan(spokeTipY(base))
+
+		const inward = mount({
+			extraConfigs: {
+				angle: { ...DEFAULT_ANGLE_CONFIG, tickLabelDistance: -30 },
+			},
+		})
+		// Onto the disc: the label now sits BELOW the spoke tip, and the
+		// radar itself did not shrink (negative distance reserves nothing).
+		expect(gapAboveTip(inward)).toBeCloseTo(baseGap - 30)
+		expect(spokeTipY(inward)).toBeCloseTo(spokeTipY(base))
+		// "B" sits at 3 o'clock: outside it anchors "start" (reads outward);
+		// inside the disc it anchors "end" (reads toward the center).
+		expect(labelB(base).getAttribute("text-anchor")).toBe("start")
+		expect(labelB(inward).getAttribute("text-anchor")).toBe("end")
+	})
 })

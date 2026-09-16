@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { DEFAULT_ANGLE_CONFIG } from "./channelConfig"
 import { buildRadarScales } from "./radarScales"
 
 const TWO_PI = Math.PI * 2
@@ -308,6 +309,55 @@ describe("buildRadarScales", () => {
 			expect(defaultScales.angleTicks.length).toBeGreaterThanOrEqual(
 				scales.angleTicks.length,
 			)
+		})
+	})
+
+	describe("angle customFormat (Spoke Labels → Format)", () => {
+		const base = {
+			angleField: "v",
+			rField: "score",
+			rType: "quantitative" as const,
+			center: { cx: 100, cy: 100 },
+			maxRadius: 100,
+		}
+
+		it("formats discrete quantitative spoke labels with the user's spec", () => {
+			const scales = buildRadarScales({
+				...base,
+				angleType: "quantitative",
+				angleRaws: [0, 10, 20],
+				rRaws: [1, 2, 3],
+				angleConfig: { ...DEFAULT_ANGLE_CONFIG, customFormat: ".1f" },
+			})
+			expect(scales.angleTicks.map((t) => t.label)).toEqual([
+				"0.0",
+				"10.0",
+				"20.0",
+			])
+		})
+
+		it("formats continuous quantitative tick labels with the user's spec", () => {
+			const raws = Array.from({ length: 21 }, (_, i) => i * 100)
+			const scales = buildRadarScales({
+				...base,
+				angleType: "quantitative",
+				angleRaws: raws,
+				rRaws: raws,
+				angleConfig: { ...DEFAULT_ANGLE_CONFIG, customFormat: "$,.0f" },
+			})
+			expect(scales.angleTicks.length).toBeGreaterThan(1)
+			for (const t of scales.angleTicks) expect(t.label).toMatch(/^\$[\d,]+$/)
+		})
+
+		it("an empty spec keeps the built-in formatting", () => {
+			const scales = buildRadarScales({
+				...base,
+				angleType: "quantitative",
+				angleRaws: [0, 10, 20],
+				rRaws: [1, 2, 3],
+				angleConfig: { ...DEFAULT_ANGLE_CONFIG, customFormat: "" },
+			})
+			expect(scales.angleTicks.map((t) => t.label)).toEqual(["0", "10", "20"])
 		})
 	})
 })

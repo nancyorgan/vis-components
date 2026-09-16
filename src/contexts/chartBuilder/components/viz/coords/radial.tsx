@@ -44,7 +44,9 @@ export type RadialInput = {
 	showRAxisTitle?: boolean
 }
 
-const SPOKE_LABEL_PADDING = 12
+/** Radial gap between a spoke's tip and its label's anchor point. RadarPlot
+ *  reserves the same gap when it sizes the disc to keep labels in the cell. */
+export const SPOKE_LABEL_PADDING = 12
 const R_TICK_LABEL_OFFSET = 6
 
 /** Radial coord system: renders a disc with concentric grid rings at each
@@ -82,6 +84,22 @@ export const radial = (input: RadialInput): CoordSystem => {
 	const rTickItalic = rTickFont?.italic ?? tickFont.italic
 	const rTickUnderline = rTickFont?.underline ?? tickFont.underline
 	const labelRotation = angleAxisConfig?.tickLabelAngle ?? 0
+	// Spoke labels section: "Label every" thins the perimeter labels (spokes
+	// still draw at every tick) and "Distance" moves them radially — past
+	// the base gap when positive, onto the disc when negative.
+	const labelEvery = Math.max(
+		1,
+		Math.round(angleAxisConfig?.tickLabelEvery ?? 1),
+	)
+	const labelDistance = angleAxisConfig?.tickLabelDistance ?? 0
+	const labelRadius = (maxRadius: number) =>
+		maxRadius + SPOKE_LABEL_PADDING + labelDistance
+	// "Adjust position" nudge (r-axis Tick Labels section) — shifts the r-tick
+	// LABELS only, in screen px (+x right, +y down); the rings and spokes stay
+	// pinned. The legacy perpendicular `offset` never applied to `r`, so only
+	// the 2D fields are read here.
+	const rLabelDx = rAxisConfig?.offsetX ?? 0
+	const rLabelDy = rAxisConfig?.offsetY ?? 0
 
 	return {
 		kind: "radial",
@@ -129,14 +147,27 @@ export const radial = (input: RadialInput): CoordSystem => {
 			if (!input.showRAxis) return null
 			return (
 				<g aria-hidden>
-					{angleTicks.map((t) => {
-						const labelRadius = maxRadius + SPOKE_LABEL_PADDING
-						const x = center.cx + Math.sin(t.angle) * labelRadius
-						const y = center.cy - Math.cos(t.angle) * labelRadius
-						// Pick horizontal anchor so labels read away from the spoke.
+					{angleTicks.map((t, i) => {
+						if (i % labelEvery !== 0) return null
+						const r = labelRadius(maxRadius)
+						const x = center.cx + Math.sin(t.angle) * r
+						const y = center.cy - Math.cos(t.angle) * r
+						// Pick horizontal anchor so labels read away from the spoke
+						// tip: outward when the label sits outside the perimeter,
+						// inward (toward the center) when a negative Distance has
+						// pulled it onto the disc.
 						const sinV = Math.sin(t.angle)
+						const inside = r < maxRadius
 						const anchor =
-							sinV > 0.1 ? "start" : sinV < -0.1 ? "end" : "middle"
+							sinV > 0.1
+								? inside
+									? "end"
+									: "start"
+								: sinV < -0.1
+									? inside
+										? "start"
+										: "end"
+									: "middle"
 						const transform =
 							labelRotation === 0
 								? undefined
@@ -183,8 +214,8 @@ export const radial = (input: RadialInput): CoordSystem => {
 							0
 						)
 						return wrappedRTicks.map((t) => {
-						const x = center.cx + R_TICK_LABEL_OFFSET
-						const y = center.cy - t.radius
+						const x = center.cx + R_TICK_LABEL_OFFSET + rLabelDx
+						const y = center.cy - t.radius + rLabelDy
 						const label = t.label
 						return (
 							<text

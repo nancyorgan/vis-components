@@ -145,7 +145,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			ch.tickLabelColor ||
 			ch.wrapTickLabels ||
 			ch.wrapTickLabelAlign ||
-			(channel !== "r" && ch.offset),
+			ch.offset,
 		Spine: ch.spine || ch.spineAtZero,
 		Gridlines: ch.gridlines,
 	}
@@ -631,30 +631,29 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						update({ tickLabelFont, tickLabelColor: undefined })
 					}
 				/>
-				{channel !== "r" && (
-					<AxisAdjustPositionControl
-						offsetX={effOffsetX}
-						offsetY={effOffsetY}
-						changed={ch.offset}
-						onChange={(next) =>
-							// Writing the new 2D fields supersedes the legacy
-							// perpendicular `offset`; clear it so the two sources
-							// can't drift out of sync.
-							update({
-								offsetX: next.offsetX ?? effOffsetX,
-								offsetY: next.offsetY ?? effOffsetY,
-								offset: undefined,
-							})
-						}
-						onReset={() =>
-							update({
-								offset: undefined,
-								offsetX: undefined,
-								offsetY: undefined,
-							})
-						}
-					/>
-				)}
+				<AxisAdjustPositionControl
+					radial={channel === "r"}
+					offsetX={effOffsetX}
+					offsetY={effOffsetY}
+					changed={ch.offset}
+					onChange={(next) =>
+						// Writing the new 2D fields supersedes the legacy
+						// perpendicular `offset`; clear it so the two sources
+						// can't drift out of sync.
+						update({
+							offsetX: next.offsetX ?? effOffsetX,
+							offsetY: next.offsetY ?? effOffsetY,
+							offset: undefined,
+						})
+					}
+					onReset={() =>
+						update({
+							offset: undefined,
+							offsetX: undefined,
+							offsetY: undefined,
+						})
+					}
+				/>
 			</Section>
 
 			{channel !== "r" && (
@@ -776,17 +775,22 @@ const Section = ({
 
 /** "Adjust position" X/Y nudge (data-labels style) that moves the TICK LABELS
  *  only — the spine, tick marks, title, and gridlines all stay where they
- *  were. Values arrive/leave in screen coords; the Y input shows math
- *  convention (positive = up), so the sign flips at this boundary in both
- *  directions. Renders at the end of the Tick Labels section behind a
- *  divider. */
+ *  were. On the radar `r` axis the same nudge moves the ring labels along
+ *  the 12 o'clock spoke; the rings and spokes stay put. Values arrive/leave
+ *  in screen coords; the Y input shows math convention (positive = up), so
+ *  the sign flips at this boundary in both directions. Renders at the end
+ *  of the Tick Labels section behind a divider. */
 const AxisAdjustPositionControl = ({
+	radial = false,
 	offsetX,
 	offsetY,
 	changed,
 	onChange,
 	onReset,
 }: {
+	/** Radar `r` axis: the helper names rings + spokes instead of the
+	 *  cartesian spine / tick marks / gridlines. */
+	radial?: boolean
 	/** Effective nudge in screen px (legacy `offset` already folded in). */
 	offsetX: number
 	offsetY: number
@@ -825,8 +829,10 @@ const AxisAdjustPositionControl = ({
 			changed={changed}
 		/>
 		<p className="vc-help">
-			Moves the tick labels only — the spine, tick marks, and gridlines stay
-			put. Positive X moves right; positive Y moves up.
+			{radial
+				? "Moves the tick labels only — the rings and spokes stay put. "
+				: "Moves the tick labels only — the spine, tick marks, and gridlines stay put. "}
+			Positive X moves right; positive Y moves up.
 		</p>
 	</div>
 )
