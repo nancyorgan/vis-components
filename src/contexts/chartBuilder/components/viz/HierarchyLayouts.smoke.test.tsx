@@ -4,7 +4,11 @@ import { installInMemoryLocalStorage } from "../../../../testSupport/localStorag
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 
-import { type ChannelConfigs } from "../../lib/channelConfig"
+import {
+	DEFAULT_DATA_LABELS_CONFIG,
+	type ChannelConfigs,
+	type DataLabelsConfig,
+} from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
 import {
 	emptyDataLabelsEncodings,
@@ -13,6 +17,7 @@ import {
 } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
+	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentDatasetIdAtom,
 	currentEncodingsAtom,
@@ -59,6 +64,7 @@ const mountLayout = (
 		rootGroupHue?: boolean
 		patternField?: string
 		dataLabelsValueField?: string
+		dataLabelsConfig?: Partial<DataLabelsConfig>
 	} = {}
 ) => {
 	const store = installInMemoryLocalStorage()
@@ -94,6 +100,15 @@ const mountLayout = (
 			})
 		)
 	}
+	if (opts.dataLabelsConfig) {
+		store.set(
+			"vis-components:currentDataLabelsConfig",
+			JSON.stringify({
+				...DEFAULT_DATA_LABELS_CONFIG,
+				...opts.dataLabelsConfig,
+			})
+		)
+	}
 	/* eslint-enable @th/use-wrapped-json-functions */
 
 	const init = (snap: TestStore) => {
@@ -109,6 +124,12 @@ const mountLayout = (
 			snap.set(currentDataLabelsEncodingsAtom, {
 				...emptyDataLabelsEncodings(),
 				value: { field: opts.dataLabelsValueField },
+			})
+		}
+		if (opts.dataLabelsConfig) {
+			snap.set(currentDataLabelsConfigAtom, {
+				...DEFAULT_DATA_LABELS_CONFIG,
+				...opts.dataLabelsConfig,
 			})
 		}
 	}
@@ -247,5 +268,96 @@ describe("Data Labels value field (shared labelStyle — see the packed suite fo
 		expect(texts).not.toContain("Lemon")
 		// Melon is an implicit container ring — its name stays.
 		expect(texts).toContain("Melon")
+	})
+})
+
+/** The sunburst emits its arc labels through the shared DataLabelsLayer
+ *  (`positionGate="layout"`), so the Data Labels fine-tuning — text
+ *  background, offsets, alignment, ring-relative R — applies there like on a
+ *  pie. The treemap still draws its own labels, so the same config leaves
+ *  it untouched. */
+describe("SunburstPlot Data Labels fine-tuning (shared layer)", () => {
+	const labelByText = (container: HTMLElement, text: string) =>
+		[...container.querySelectorAll("text")].find(
+			(t) => t.textContent === text
+		) ?? null
+
+	it("labels render without any Value / position mapping (layout gate)", () => {
+		const container = mountLayout("sunburst")
+		const texts = [...container.querySelectorAll("text")].map(
+			(t) => t.textContent ?? ""
+		)
+		expect(texts).toContain("Melon")
+		expect(texts).toContain("Lemon")
+	})
+
+	it("Text Background draws one rect per label; off by default", () => {
+		const plain = mountLayout("sunburst")
+		expect(plain.querySelectorAll("rect").length).toBe(0)
+		const withBg = mountLayout("sunburst", {
+			dataLabelsConfig: { textBackground: true },
+		})
+		const labels = withBg.querySelectorAll("text").length
+		expect(labels).toBeGreaterThan(0)
+		expect(withBg.querySelectorAll("rect").length).toBe(labels)
+	})
+
+	it("X / Y pixel nudges shift every label", () => {
+		const base = labelByText(mountLayout("sunburst"), "Melon")!
+		const nudged = labelByText(
+			mountLayout("sunburst", {
+				dataLabelsConfig: { xOffset: 10, yOffset: -4 },
+			}),
+			"Melon"
+		)!
+		expect(Number(nudged.getAttribute("x"))).toBeCloseTo(
+			Number(base.getAttribute("x")) + 10
+		)
+		expect(Number(nudged.getAttribute("y"))).toBeCloseTo(
+			Number(base.getAttribute("y")) - 4
+		)
+	})
+
+	it("Alignment maps onto text-anchor (left → start)", () => {
+		const base = labelByText(mountLayout("sunburst"), "Melon")!
+		expect(base.getAttribute("text-anchor")).toBe("middle")
+		const left = labelByText(
+			mountLayout("sunburst", { dataLabelsConfig: { alignment: "left" } }),
+			"Melon"
+		)!
+		expect(left.getAttribute("text-anchor")).toBe("start")
+	})
+
+	it("ring-relative R moves labels across their ring without dropping them", () => {
+		const base = mountLayout("sunburst")
+		const outer = mountLayout("sunburst", {
+			dataLabelsConfig: { ringLabelRadius: 100 },
+		})
+		const baseMelon = labelByText(base, "Melon")!
+		const outerMelon = labelByText(outer, "Melon")!
+		const moved =
+			baseMelon.getAttribute("x") !== outerMelon.getAttribute("x") ||
+			baseMelon.getAttribute("y") !== outerMelon.getAttribute("y")
+		expect(moved).toBe(true)
+		// A wider ring position only lengthens each arc, so the fit gate
+		// keeps every label the default placement had.
+		expect(outer.querySelectorAll("text").length).toBeGreaterThanOrEqual(
+			base.querySelectorAll("text").length
+		)
+	})
+
+	it("treemap ignores the shared-layer fine-tuning (labels still self-drawn)", () => {
+		const plain = mountLayout("treemap")
+		const withBg = mountLayout("treemap", {
+			dataLabelsConfig: { textBackground: true, xOffset: 10 },
+		})
+		// Treemap rects are the leaf tiles themselves — no background rects
+		// join them, and label positions don't move.
+		expect(withBg.querySelectorAll("rect").length).toBe(
+			plain.querySelectorAll("rect").length
+		)
+		expect(labelByText(withBg, "Lemon")!.getAttribute("x")).toBe(
+			labelByText(plain, "Lemon")!.getAttribute("x")
+		)
 	})
 })

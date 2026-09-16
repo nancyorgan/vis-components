@@ -1676,9 +1676,11 @@ padding so the inner rects stay aligned.
   layout call and mark emission: `pack` → circles (container labels
   on the top rim, leaves centered), `treemap` → rects (LEAF labels
   only, centered — no container header strips by design; grouping
-  reads through color), `partition` → arcs (labels at arc centroids
-  when the arc can hold them; sunburst draws its own polar geometry
-  like the pie renderer, so canvas traits stay cartesian).
+  reads through color), `partition` → arcs (labels on the arc's
+  mid-angle when the arc can hold them, emitted through the shared
+  `DataLabelsLayer` in its `"layout"` gate so the Data Labels
+  fine-tuning applies — see §6.5; sunburst draws its own polar
+  geometry like the pie renderer, so canvas traits stay cartesian).
   Labels render only when they fit, and are STYLED by the Data Labels
   section (§6.5): the **Value** field picks each leaf's text (default:
   the node's name from the ID column — so flat / anonymous-grouped
@@ -1778,10 +1780,24 @@ is layer-wide (no first/last split). The layer also has these
 controls:
 
 In the TREE layouts (packed circles / treemap / sunburst) labels are
-placed by the layout itself, not this overlay layer — the panel hides
-its position rows and the position / overlap / background fine-tuning
-there, and a note says so. Value, Color, Size, and Text Properties
-still apply (see §6.2); Value defaults to each row's name. Chord /
+placed by the layout itself, so the panel hides its position rows and
+a note says so. Value, Color, Size, and Text Properties still apply
+(see §6.2); Value defaults to each row's name. Packed circles and
+treemap draw their labels themselves, so the position / overlap /
+background fine-tuning stands down there too. The SUNBURST hands its
+arc anchors (already placed, styled, and fit-gated) to this layer in a
+`"layout"` gate — no position or Value mapping required, and the
+per-series "Which labels" selection stands down (no series) — so it
+keeps the rest of the fine-tuning like a pie: Avoid overlaps (the 2-D
+spread, as on maps), Alignment, text Angle, Wrap text (the fit gate
+then measures the widest wrapped line, so wrapping is how a long name
+fits a narrow arc), X/Y pixel nudges, position rules, and Text
+Background. Its **Adjust position** polar pair is Angle (the pie's
+`polarLabelAngle`, rotating every label off its arc's midpoint) and a
+RING-relative **R** (`ringLabelRadius`, percent across the ring's
+thickness from the inner edge — 50% (default) is the middle, 100% the
+outer edge, >100% outside the ring); the pie's center-relative R
+doesn't transfer because each ring sits at its own radius. Chord /
 sankey label styling is a planned follow-up.
 
 In the GEO modes (choropleth / bubble map / dot map) labels anchor to

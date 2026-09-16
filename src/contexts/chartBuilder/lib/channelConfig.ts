@@ -1861,8 +1861,17 @@ export type DataLabelsConfig = {
 	 *  every label, rotating it off its slice's midpoint angle. Positive =
 	 *  clockwise, matching d3's arc convention (0° = 12 o'clock). The
 	 *  cartesian polar analogue of `xOffset`. Ignored by non-polar
-	 *  renderers. */
+	 *  renderers. Sunbursts share it (rotating each label off its arc's
+	 *  midpoint). */
 	polarLabelAngle?: number
+	/** Sunburst label placement — the label's distance ACROSS its ring as a
+	 *  PERCENT of the ring's radial thickness, measured from the inner
+	 *  edge. `50` (the default) is the middle of the ring; `0` the inner
+	 *  edge, `100` the outer edge; `>100` pushes labels outside the ring
+	 *  (into the next ring, or clear of the outermost). Rings differ in
+	 *  radius, so the pie's center-relative `polarLabelRadius` doesn't
+	 *  transfer — this is the ring-relative analogue. Ignored elsewhere. */
+	ringLabelRadius?: number
 	/** When true, draw a filled rounded rect behind each label so the text
 	 *  reads cleanly over gridlines / dense marks instead of colliding with
 	 *  them. */
@@ -1992,6 +2001,7 @@ export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	wrapMaxChars: 20,
 	polarLabelRadius: 100,
 	polarLabelAngle: 0,
+	ringLabelRadius: 50,
 	textBackground: false,
 	textBackgroundColor: null,
 	textBackgroundRadius: 2,

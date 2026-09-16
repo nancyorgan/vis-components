@@ -141,15 +141,23 @@ export const DataLabelsPanel = () => {
 	const isGeoMode = modeDef.canvas.coordFamily === "geo"
 	// Tree layouts (packed circles / treemap / sunburst): labels are PLACED
 	// by the layout (leaf centers, container rims, arc centroids), so the
-	// position rows and every position/overlap fine-tuning control stand
-	// down — Value, Color, Size, and Text Properties still apply. Chord /
-	// sankey label styling is a follow-up; their panel is unchanged.
+	// position rows stand down — Value, Color, Size, and Text Properties
+	// still apply. Packed circles / treemap draw their labels themselves, so
+	// the position / overlap / background fine-tuning stands down there too.
+	// The sunburst hands its arc anchors to the shared label layer, so it
+	// keeps the full fine-tuning set (polar nudges included, like a pie).
+	// Chord / sankey label styling is a follow-up; their panel is unchanged.
 	const isTreeMode = isHierarchyModeId(chartMode)
+	const isSunburstMode = chartMode === "sunburst"
+	const fineTuningApplies = !isTreeMode || isSunburstMode
 	// Pie family — labels are placed in polar terms (distance from center +
 	// angular nudge) rather than the cartesian X/Y pixel offsets that make
 	// no sense around a wedge.
 	const isPolarMode =
 		chartMode === "pies" || chartMode === "pies-x" || chartMode === "pies-y"
+	// No per-series endpoints: regions on a map, nodes in a sunburst. The
+	// "Which labels" selection is hidden AND skipped by the renderer there.
+	const noSeriesEndpoints = isGeoMode || isSunburstMode
 	// Bar charts (incl. histograms, which are bars over binned categories) are
 	// the only mode where "Bar position" (label placement along the measure
 	// axis) applies — gate the control on it.
@@ -177,10 +185,10 @@ export const DataLabelsPanel = () => {
 	// populations coexist). The pairs read effective values (override ?? base)
 	// and write into the endpoint override blocks. Geo modes never split:
 	// the labelPoints selection is hidden AND skipped there (no series on a
-	// map), so a stored "first-last" from a previous chart must not split
-	// the controls.
+	// map — nor in a sunburst), so a stored "first-last" from a previous
+	// chart must not split the controls.
 	const splitEndpoints =
-		!isGeoMode && effectiveLabelPoints(merged) === "first-last"
+		!noSeriesEndpoints && effectiveLabelPoints(merged) === "first-last"
 	const patchEndpoint = (
 		key: "firstLabel" | "lastLabel",
 		p: Partial<EndpointLabelOverrides>
@@ -204,6 +212,9 @@ export const DataLabelsPanel = () => {
 		(isPolarMode &&
 			((merged.polarLabelAngle ?? 0) !== 0 ||
 				(merged.polarLabelRadius ?? 100) !== 100)) ||
+		(isSunburstMode &&
+			((merged.polarLabelAngle ?? 0) !== 0 ||
+				(merged.ringLabelRadius ?? 50) !== 50)) ||
 		(splitEndpoints &&
 			(endpointPositionEdited(merged.firstLabel) ||
 				endpointPositionEdited(merged.lastLabel)))
@@ -214,7 +225,7 @@ export const DataLabelsPanel = () => {
 	// geo-only: the color/thickness inputs are gated behind the toggle, so
 	// the toggle alone decides their contribution — like Text Background.)
 	const selectionChanged =
-		(!isGeoMode && effectiveLabelPoints(merged) !== "all") ||
+		(!noSeriesEndpoints && effectiveLabelPoints(merged) !== "all") ||
 		merged.avoidOverlaps === true ||
 		(isGeoMode && merged.leaderLines === true)
 	const textPositionChanged = (merged.arcWrapLevels ?? []).length > 0
@@ -389,7 +400,9 @@ export const DataLabelsPanel = () => {
 			 *  the pack / treemap / partition layout. */}
 			{isTreeMode && (
 				<p className="vc-help">
-					Labels are placed by the layout (leaf centers, container rims).
+					{isSunburstMode
+						? "Labels sit on each arc that can hold them; fine-tune placement under Position Adjustment. "
+						: "Labels are placed by the layout (leaf centers, container rims). "}
 					Value, Color, and Size apply — Value defaults to each row&apos;s
 					name from the ID column.
 				</p>
@@ -538,20 +551,22 @@ export const DataLabelsPanel = () => {
 			{/* Layer-wide toggles: which labels to keep and how to handle
 			 *  collisions. Grouped under their own subsection so they read as
 			 *  a distinct concern from the per-channel mappings above. */}
-			{/* Selection / overlap / position controls act on the overlay
-			 *  layer's positioned labels — inert for layout-placed tree
-			 *  labels, so they stand down there (as does Text Background,
-			 *  which the tree renderers don't draw). */}
-			{!isTreeMode && (
+			{/* Selection / overlap / position controls act on the shared label
+			 *  layer's positioned labels — inert for the self-drawn packed /
+			 *  treemap labels, so they stand down there (as does Text
+			 *  Background, which those renderers don't draw). The sunburst
+			 *  renders through the layer, so it keeps them. */}
+			{fineTuningApplies && (
 			<>
 			<CollapsibleSubsection
 				title="Label selection and overlap"
 				changed={selectionChanged}
 			>
 				<div className="flex flex-col gap-2">
-				{/* Per-series endpoint selection is meaningless on a map (no
-				 *  series) — the renderer skips it there, so the control hides. */}
-				{!isGeoMode && (
+				{/* Per-series endpoint selection is meaningless on a map or a
+				 *  sunburst (no series) — the renderer skips it there, so the
+				 *  control hides. */}
+				{!noSeriesEndpoints && (
 				<SelectInput
 					label="Which labels"
 					labelClassName={LABEL_COL}
@@ -793,6 +808,41 @@ export const DataLabelsPanel = () => {
 						</p>
 					</>
 				)}
+				{/* Sunburst: same Angle nudge; R is RING-relative (percent across
+				 *  the ring's thickness) since each ring sits at its own radius. */}
+				{isSunburstMode && (
+					<>
+						<div className="flex flex-col gap-2 text-sm">
+							<NumberInput
+								label="Angle"
+								labelClassName={LABEL_COL}
+								value={merged.polarLabelAngle ?? 0}
+								step={5}
+								onChange={(polarLabelAngle) => updateCfg({ polarLabelAngle })}
+								inputClassName="w-16"
+								suffix="°"
+							/>
+							<NumberInput
+								label="R"
+								labelClassName={LABEL_COL}
+								value={merged.ringLabelRadius ?? 50}
+								min={0}
+								max={200}
+								step={5}
+								onChange={(ringLabelRadius) => updateCfg({ ringLabelRadius })}
+								inputClassName="w-16"
+								suffix="%"
+							/>
+						</div>
+						<p className="vc-help">
+							Angle rotates every label off its arc&apos;s midpoint (positive =
+							clockwise). R is the label&apos;s position across its ring as a
+							percent of the ring&apos;s thickness — 50% is the middle, 0% the
+							inner edge, 100% the outer edge, higher pushes labels outside the
+							ring.
+						</p>
+					</>
+				)}
 				{splitEndpoints ? (
 					<>
 						{/* First/Last offset pairs — effective values shown, writes
@@ -893,7 +943,7 @@ export const DataLabelsPanel = () => {
 				/>
 			</CollapsibleSubsection>
 
-			{!isTreeMode && (
+			{fineTuningApplies && (
 			<CollapsibleSubsection title="Text Background" changed={textBackgroundChanged}>
 				<TextBackgroundPanel
 					cfg={merged}

@@ -82,6 +82,14 @@ export type DataLabelAnchor = {
 	 * highlight so a label recedes with the slice it annotates instead of
 	 * staying bright over a faded bar / area / wedge. Unset → no fade. */
 	opacityMul?: number
+	/** Pre-resolved label fill. Layout renderers (`positionGate: "layout"`)
+	 * resolve color themselves — their hierarchy-derived sources (top-level
+	 * group / nesting depth) have no row value to look up — so the layer
+	 * takes this verbatim instead of running its hue lookup. */
+	fill?: string
+	/** Pre-resolved font size in PX, same reason as `fill` (depth-driven
+	 * sizing lives in the layout renderer's style resolvers). */
+	fontSize?: number
 }
 
 type Props = {
@@ -105,8 +113,13 @@ type Props = {
 	 * legacy `x` + `y` still satisfy it so saved pie visuals keep working.
 	 * `"geo"` (maps) wants `geography` mapped — anchors arrive pre-positioned
 	 * at region centroids, and the per-series `labelPoints` selection stands
-	 * down (there are no series ends on a map). */
-	positionGate?: "xy" | "polar" | "geo"
+	 * down (there are no series ends on a map). `"layout"` (hierarchy
+	 * layouts — sunburst) wants nothing mapped: the renderer's layout places
+	 * AND styles every anchor (text, fill, size) and decides which nodes get
+	 * a label at all, so the layer only applies the fine-tuning — offsets,
+	 * position rules, alignment, wrap, rotation, text background, and a 2-D
+	 * overlap spread (no series → `labelPoints` stands down here too). */
+	positionGate?: "xy" | "polar" | "geo" | "layout"
 	/** Geo only: "is this pixel open map space?" (ocean / no-data regions).
 	 * Handed to the 2-D overlap spread so displaced labels prefer landing
 	 * there over covering data-carrying regions. Unset → no preference. */
@@ -506,19 +519,32 @@ export const DataLabelsLayer = ({
 	// (pies) gate on `angle` alone — `r` is optional (unmapped → labels sit
 	// on the pie's border). Legacy `x` + `y` still satisfy it so saved pie
 	// visuals from before the polar channels keep rendering.
+	// Layout-placed anchors (`"layout"`) skip both gates: the renderer has
+	// already chosen the labeled nodes and their text (names by default, the
+	// Value field when mapped), so an unmapped Value must not blank them.
 	const positionMapped =
-		positionGate === "polar"
-			? Boolean(angleField) || (Boolean(xField) && Boolean(yField))
-			: positionGate === "geo"
-				? Boolean(encodings.geography?.field)
-				: Boolean(xField) && Boolean(yField)
+		positionGate === "layout"
+			? true
+			: positionGate === "polar"
+				? Boolean(angleField) || (Boolean(xField) && Boolean(yField))
+				: positionGate === "geo"
+					? Boolean(encodings.geography?.field)
+					: Boolean(xField) && Boolean(yField)
 	// "Value" is satisfied by a single mapped field OR multi-field mode with
 	// at least one field checked (multi-field mode leaves `value.field` null).
 	const valueMapped =
+		positionGate === "layout" ||
 		Boolean(valueField) ||
 		(encodings.value.multiField === true &&
 			(encodings.value.fields?.length ?? 0) > 0)
 	if (!positionMapped || !valueMapped) return null
+	// Anchors without per-series endpoints: maps (regions) and layout-placed
+	// labels (tree nodes). The `labelPoints` selection is skipped for them —
+	// a stored "last per series" from a previous chart must not silently
+	// drop every label but one — and colliding labels spread in ANY
+	// direction, since their anchors scatter over a plane rather than
+	// lining up along a series.
+	const seriesless = positionGate === "geo" || positionGate === "layout"
 
 	// --- Anchor-based path (bars/areas). --------------------------------
 	if (anchors) {
@@ -558,10 +584,15 @@ export const DataLabelsLayer = ({
 				hueScale && a.hueValue !== undefined
 					? (applyHueScale(hueScale, a.hueValue, hueFieldType) ?? null)
 					: null
-			const fill = resolveLabelFill(cfg, a.hueValue, hueColor, a.labelValue)
-			const fontSize = sizeField
-				? resolveLabelSize(a.sizeValue, cfg, sizeValues)
-				: ptToPx(cfg.fontSize)
+			// A pre-resolved fill / size (layout renderers) wins over the
+			// layer's own lookup.
+			const fill =
+				a.fill ?? resolveLabelFill(cfg, a.hueValue, hueColor, a.labelValue)
+			const fontSize =
+				a.fontSize ??
+				(sizeField
+					? resolveLabelSize(a.sizeValue, cfg, sizeValues)
+					: ptToPx(cfg.fontSize))
 			// A matching position rule REPLACES the base offsets for this label
 			// (same first-match-wins walk — and same backing value — as the
 			// text-color rules).
@@ -596,19 +627,16 @@ export const DataLabelsLayer = ({
 		const lastAxis: "x" | "y" =
 			yType === "categorical" || yType === "ordinal" ? "y" : "x"
 		const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
-		// Maps have no per-series endpoints, so the `labelPoints` selection is
-		// skipped there — a stored "last per series" from a previous chart must
-		// not silently drop every region label but one.
-		const filtered =
-			positionGate === "geo"
-				? layoutBoxes
-				: applyLabelPoints(layoutBoxes, cfg, lastAxis)
-		// Overlap pass: maps spread colliding labels in ANY direction (their
-		// anchors scatter over a plane, and a downward-only pile looks lopsided
-		// with leader lines); series charts keep the vertical-only nudge, which
-		// preserves the reading order of stacked end-of-line labels.
+		const filtered = seriesless
+			? layoutBoxes
+			: applyLabelPoints(layoutBoxes, cfg, lastAxis)
+		// Overlap pass: seriesless anchors (maps, layout-placed labels) spread
+		// colliding labels in ANY direction (a downward-only pile looks
+		// lopsided around a ring or with leader lines); series charts keep the
+		// vertical-only nudge, which preserves the reading order of stacked
+		// end-of-line labels.
 		const finalBoxes = cfg.avoidOverlaps
-			? positionGate === "geo"
+			? seriesless
 				? spreadOverlaps2D(filtered, { prefer: preferOpenSpace })
 				: nudgeOverlaps(filtered)
 			: filtered

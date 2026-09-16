@@ -369,6 +369,16 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 			}
 			return d.label || null
 		},
+		/** The raw value behind `textFor` — the leaf's Value cell when one
+		 * is mapped (and the row has it), else the node's name. Feeds the
+		 * Data Labels conditional rules (position / text-color), which
+		 * compare against the backing value rather than its formatted
+		 * display form. */
+		valueFor: (node: HierarchyLayoutNode, isLeaf: boolean): unknown => {
+			const d = node.data
+			if (isLeaf && labelValueField && d.row) return d.row[labelValueField]
+			return d.label || undefined
+		},
 		/** A node's label fill via the Data Labels precedence chain. The
 		 * derived sources resolve from tree position (so implicit
 		 * containers color too); the field path needs a row — rowless
