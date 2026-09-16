@@ -2511,8 +2511,11 @@ charts immediately.
 
 A small catch-all panel:
 
-- **Chart background color** — transparent (default), theme default,
-  or custom.
+- **Chart background color** — transparent, theme default, or custom.
+  Fresh charts start on the theme default (transparent when the theme
+  declares no background), and switching themes in the editor re-seeds
+  it from the new theme — replacing a custom pick — like the legend
+  background.
 - **Scroll mode** — "Fit" (canvas matches container, panels shrink to
   fit) or "Scroll" (preserve minimum panel/category sizes, scroll if
   needed). Avoids squishing very long or wide visuals so much that

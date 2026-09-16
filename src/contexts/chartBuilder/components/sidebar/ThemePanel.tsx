@@ -100,6 +100,12 @@ export const ThemePanel = () => {
 						defaultGradientColors: fromTheme.defaultGradientColors,
 						patternInkColor: fromTheme.patternInkColor,
 						defaultPatternInk: fromTheme.defaultPatternInk,
+						// Chart background follows the theme like the legend
+						// background does: a theme that declares a background
+						// should not leave the chart transparent after a switch
+						// (Aesthetics ▸ Chart background reads the theme as its
+						// baseline, so this also keeps its "changed" dot honest).
+						backgroundColor: fromTheme.backgroundColor,
 						// Merge nested configs so user overrides survive.
 						shape: mergedShape,
 						pattern: mergedPattern,

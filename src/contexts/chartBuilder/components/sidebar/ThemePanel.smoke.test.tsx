@@ -11,6 +11,7 @@ import {
 } from "../../lib/systemThemes"
 import type { SavedTheme } from "../../lib/types"
 import {
+	currentChannelConfigsAtom,
 	currentThemeIdAtom,
 	themesAtom,
 	userDefaultThemeIdAtom,
@@ -79,5 +80,36 @@ describe("ThemePanel default theme link", () => {
 	it("is absent for the theme that already holds the slot", () => {
 		mount("system-light")
 		expect(defaultLink()).toBeNull()
+	})
+})
+
+describe("ThemePanel applyTheme chart background", () => {
+	it("carries the new theme's chart background into the live configs", () => {
+		const { store } = mount(SYSTEM_LIGHT_THEME.id)
+		// Light theme is transparent; switching to the dark theme (which
+		// declares a background) must not leave the chart transparent.
+		store.set(currentChannelConfigsAtom, {
+			...store.get(currentChannelConfigsAtom),
+			backgroundColor: null,
+		})
+		fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
+			target: { value: SYSTEM_DARK_THEME.id },
+		})
+		expect(store.get(currentChannelConfigsAtom).backgroundColor).toBe(
+			SYSTEM_DARK_THEME.chartBackgroundColor
+		)
+		expect(SYSTEM_DARK_THEME.chartBackgroundColor).not.toBeNull()
+	})
+
+	it("switching to a transparent theme clears the background", () => {
+		const { store } = mount(SYSTEM_DARK_THEME.id)
+		store.set(currentChannelConfigsAtom, {
+			...store.get(currentChannelConfigsAtom),
+			backgroundColor: "#040038",
+		})
+		fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
+			target: { value: SYSTEM_LIGHT_THEME.id },
+		})
+		expect(store.get(currentChannelConfigsAtom).backgroundColor).toBeNull()
 	})
 })
