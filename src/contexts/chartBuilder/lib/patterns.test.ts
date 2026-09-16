@@ -5,7 +5,6 @@ import {
 	buildThemeInkFallback,
 	inkForHueColor,
 	PATTERN_NONE,
-	resolvePatternForCategory,
 	resolvePatternForMark,
 } from "./patterns"
 
@@ -40,22 +39,6 @@ describe("resolvePatternForMark", () => {
 		const b = resolvePatternForMark("B", 1, "#fff", config)
 		expect(b).not.toBeNull()
 		expect(b?.paletteIdx).toBe(2)
-	})
-})
-
-describe("resolvePatternForCategory", () => {
-	it("returns null when the category override is PATTERN_NONE", () => {
-		const result = resolvePatternForCategory("A", 0, {
-			...DEFAULT_PATTERN_CONFIG,
-			overrides: { A: PATTERN_NONE },
-		})
-		expect(result).toBeNull()
-	})
-
-	it("returns a pattern spec for un-overridden categories", () => {
-		const result = resolvePatternForCategory("A", 0, DEFAULT_PATTERN_CONFIG)
-		expect(result).not.toBeNull()
-		expect(result?.paletteIdx).toBe(0)
 	})
 })
 

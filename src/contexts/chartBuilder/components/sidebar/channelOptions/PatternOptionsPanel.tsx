@@ -186,6 +186,16 @@ export const PatternOptionsPanel = () => {
 	// palette + glyph as the legacy "dash" rendering, but we skip the
 	// Point-fill row and Color picker downstream.
 	const showFillRow = patternMode !== "dashOnly"
+	// Filled radar: the series polygons have a BODY to pattern, separate
+	// from their points — a "Polygon fill" subsection joins the panel with
+	// its own picks (`pattern.polygonOverrides` / `defaultPolygonPattern`),
+	// so a hatched polygon can sit under plain dots. Shown in dashOnly too
+	// (hiding the points leaves the polygons). Radar always maps
+	// connection, so this never coincides with the plain fill form.
+	const radarPolygonFilled =
+		modeDef.id === "radar" &&
+		connectionMapped &&
+		configs.connection?.fillPolygon === true
 
 	// Line-dash state lives on the CONNECTION config (the renderers'
 	// source): the no-field default dash, the gap-fill choice, and the
@@ -427,6 +437,30 @@ export const PatternOptionsPanel = () => {
 		const { [value]: _removed, ...rest } = cfg.inkColors
 		updateCfg({ inkColors: rest })
 	}
+	// Polygon-fill state (radar only) — the same shapes as the point-fill
+	// `overrides` / `inkColors` / `defaultPattern`, stored beside them on the
+	// pattern config so the two picks never share an index.
+	const polygonOverrides = cfg.polygonOverrides ?? {}
+	const polygonInkColors = cfg.polygonInkColors ?? {}
+	const setPolygonOverride = (
+		value: string,
+		idx: number | typeof PATTERN_NONE
+	) => updateCfg({ polygonOverrides: { ...polygonOverrides, [value]: idx } })
+	const resetPolygonOverride = (value: string) => {
+		const { [value]: _removed, ...rest } = polygonOverrides
+		updateCfg({ polygonOverrides: rest })
+	}
+	const setPolygonInk = (value: string, color: string) =>
+		updateCfg({ polygonInkColors: { ...polygonInkColors, [value]: color } })
+	const resetPolygonInk = (value: string) => {
+		const { [value]: _removed, ...rest } = polygonInkColors
+		updateCfg({ polygonInkColors: rest })
+	}
+	const defaultPolygonIdx = cfg.defaultPolygonPattern ?? null
+	const polygonSubsectionChanged = patternFieldMapped
+		? nonEmptyMap(polygonOverrides) || nonEmptyMap(polygonInkColors)
+		: defaultPolygonIdx !== null ||
+			(cfg.defaultPolygonPatternInk ?? null) !== null
 
 	const previewBg =
 		cfg.backgroundColor ?? DEFAULT_PATTERN_CONFIG.backgroundColor
@@ -458,11 +492,32 @@ export const PatternOptionsPanel = () => {
 
 		const setDefaultPattern = (next: number | null) =>
 			setConfigs((prev) => ({ ...prev, defaultPattern: next }))
+		// The polygon-fill twin of the default point-fill row: same swatches,
+		// writing `pattern.defaultPolygonPattern` instead.
+		const polygonInk = cfg.defaultPolygonPatternInk ?? defaultInk
+		const polygonTarget = {
+			activeIdx: defaultPolygonIdx,
+			setIdx: (next: number | null) =>
+				updateCfg({ defaultPolygonPattern: next }),
+			ink: polygonInk,
+			ariaName: "Polygon pattern option",
+		}
 		const renderDefaultSwatchRow = (
 			label: string | null,
 			palette: readonly unknown[],
 			Glyph: typeof PatternGlyph | typeof LineDashGlyph,
-			showNone: boolean
+			showNone: boolean,
+			target: {
+				activeIdx: number | null
+				setIdx: (next: number | null) => void
+				ink: string
+				ariaName: string
+			} = {
+				activeIdx: defaultPatternIdx,
+				setIdx: setDefaultPattern,
+				ink: defaultInk,
+				ariaName: "Pattern option",
+			}
 		) => (
 			<div className="flex flex-col gap-1 text-sm">
 				{label && (
@@ -472,10 +527,10 @@ export const PatternOptionsPanel = () => {
 					{showNone && (
 						<button
 							type="button"
-							onClick={() => setDefaultPattern(null)}
-							aria-pressed={defaultPatternIdx === null}
+							onClick={() => target.setIdx(null)}
+							aria-pressed={target.activeIdx === null}
 							className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
-								defaultPatternIdx === null
+								target.activeIdx === null
 									? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
 									: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
 							}`}
@@ -484,15 +539,15 @@ export const PatternOptionsPanel = () => {
 						</button>
 					)}
 					{palette.map((_, idx) => {
-						const selected = idx === defaultPatternIdx
+						const selected = idx === target.activeIdx
 						return (
 							<button
 								// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
 								key={idx}
 								type="button"
-								onClick={() => setDefaultPattern(idx)}
+								onClick={() => target.setIdx(idx)}
 								aria-pressed={selected}
-								aria-label={`Pattern option ${idx + 1}`}
+								aria-label={`${target.ariaName} ${idx + 1}`}
 								className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 									selected
 										? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
@@ -502,7 +557,7 @@ export const PatternOptionsPanel = () => {
 								<Glyph
 									idx={idx}
 									selected={selected}
-									inkColor={defaultInk}
+									inkColor={target.ink}
 									bgColor={previewBg}
 								/>
 							</button>
@@ -692,6 +747,50 @@ export const PatternOptionsPanel = () => {
 			</>
 		)
 
+		// Filled-radar "Polygon fill" — the default polygon pattern + its ink.
+		// The Background swatch is shared with the point fill (one tile color
+		// when hue is unmapped), so it only moves in here when the Point-fill
+		// rows that normally host it are absent (dashOnly: points hidden).
+		const polygonSubsection = radarPolygonFilled && (
+			<CollapsibleSubsection
+				title="Polygon fill"
+				defaultOpen
+				changed={polygonSubsectionChanged}
+			>
+				<div className="flex flex-col gap-3">
+					{renderDefaultSwatchRow(
+						null,
+						PATTERN_PALETTE,
+						PatternGlyph,
+						true,
+						polygonTarget
+					)}
+					{defaultPolygonIdx !== null && (
+						<ColorRow
+							label="Ink color"
+							value={polygonInk}
+							onChange={(c) => updateCfg({ defaultPolygonPatternInk: c })}
+							onClear={() => updateCfg({ defaultPolygonPatternInk: null })}
+							clearLabel="reset"
+							placeholder={resetInk}
+						/>
+					)}
+					{!showFillRow && (
+						<ColorRow
+							label="Background"
+							value={cfg.backgroundColor}
+							onChange={(c) => updateCfg({ backgroundColor: c })}
+							onClear={() =>
+								updateCfg({ backgroundColor: theme.defaultFill })
+							}
+							clearLabel="reset"
+							placeholder={theme.defaultFill}
+						/>
+					)}
+				</div>
+			</CollapsibleSubsection>
+		)
+
 		return (
 			<div className="vc-option-panel">
 				{patternMode === "compound" ? (
@@ -712,6 +811,7 @@ export const PatternOptionsPanel = () => {
 								{gapFillRow}
 							</div>
 						</CollapsibleSubsection>
+						{polygonSubsection}
 						<CollapsibleSubsection
 							title="Point fill"
 							defaultOpen
@@ -740,6 +840,7 @@ export const PatternOptionsPanel = () => {
 						{rangeNeedsDashHint}
 						{blankRangeHint}
 						<div className="px-2">{gapFillRow}</div>
+						{polygonSubsection}
 					</>
 				) : (
 					<>
@@ -781,7 +882,15 @@ export const PatternOptionsPanel = () => {
 										},
 									}),
 						}))
-						updateCfg({ backgroundColor: theme.patternBackgroundColor })
+						updateCfg({
+							backgroundColor: theme.patternBackgroundColor,
+							// Filled-radar polygon defaults live on the pattern config;
+							// only touched where the Polygon fill section exists, so
+							// other charts' saves don't grow null keys.
+							...(radarPolygonFilled
+								? { defaultPolygonPattern: null, defaultPolygonPatternInk: null }
+								: {}),
+						})
 					}}
 					underline
 					className="self-start"
@@ -844,17 +953,23 @@ export const PatternOptionsPanel = () => {
 			 *  it's on (matching the renderer, where a custom dasharray wins). */
 			customActive?: boolean
 			onCustom?: () => void
+			/** Accessible-name prefix for the row's buttons ("pattern" by
+			 *  default). The Polygon-fill rows pass "polygon pattern" so they
+			 *  stay distinguishable from the Point-fill rows beside them. */
+			ariaKind?: string
 		}
 	) => {
 		const Glyph = args.Glyph
 		const customActive = !!args.customActive
+		const kind = args.ariaKind ?? "pattern"
+		const optionName = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} option`
 		return (
 			<div className="flex flex-wrap gap-1">
 				<button
 					type="button"
 					onClick={args.setNone}
 					aria-pressed={args.isNone && !customActive}
-					aria-label={`No pattern for ${v}`}
+					aria-label={`No ${kind} for ${v}`}
 					className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
 						args.isNone && !customActive
 							? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
@@ -873,7 +988,7 @@ export const PatternOptionsPanel = () => {
 							type="button"
 							onClick={() => args.setIdx(idx)}
 							aria-pressed={selected}
-							aria-label={`Pattern option ${idx + 1}`}
+							aria-label={`${optionName} ${idx + 1}`}
 							className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 								selected
 									? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
@@ -908,7 +1023,18 @@ export const PatternOptionsPanel = () => {
 		)
 	}
 
-	const renderColorPicker = (v: string, ink: string, hasInk: boolean) => (
+	const renderColorPicker = (
+		v: string,
+		ink: string,
+		hasInk: boolean,
+		/** Which ink map the picker writes — the point fill's by default; the
+		 *  Polygon-fill rows pass their own setters. */
+		target: {
+			set: (value: string, color: string) => void
+			reset: (value: string) => void
+			ariaKind: string
+		} = { set: setCategoryInk, reset: resetCategoryInk, ariaKind: "Pattern" }
+	) => (
 		<div className="flex items-center gap-2">
 			<label className="flex items-center gap-2">
 				<span className="text-sm text-stone-600 dark:text-stone-400">Color</span>
@@ -916,8 +1042,8 @@ export const PatternOptionsPanel = () => {
 					type="text"
 					value={hasInk ? ink : ""}
 					onChange={(e) => {
-						if (e.target.value === "") resetCategoryInk(v)
-						else setCategoryInk(v, e.target.value)
+						if (e.target.value === "") target.reset(v)
+						else target.set(v, e.target.value)
 					}}
 					placeholder={ink}
 					className="w-24 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
@@ -926,9 +1052,9 @@ export const PatternOptionsPanel = () => {
 			<input
 				type="color"
 				value={ink}
-				onChange={(e) => setCategoryInk(v, e.target.value)}
+				onChange={(e) => target.set(v, e.target.value)}
 				className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
-				aria-label={`Pattern color for ${v}`}
+				aria-label={`${target.ariaKind} color for ${v}`}
 			/>
 			{/* Hand-rolled rather than a `ColorInput` because this row's empty
 			 *  text box means "use the hue-paired/default ink", which
@@ -937,8 +1063,8 @@ export const PatternOptionsPanel = () => {
 			 *  Color row). */}
 			<PalettePickerButton
 				current={ink}
-				onPick={(color) => setCategoryInk(v, color)}
-				label={`Pick palette pattern color for ${v}`}
+				onPick={(color) => target.set(v, color)}
+				label={`Pick palette ${target.ariaKind.toLowerCase()} color for ${v}`}
 			/>
 		</div>
 	)
@@ -1054,6 +1180,62 @@ export const PatternOptionsPanel = () => {
 		)
 	}
 
+	// One category's Polygon-fill controls (filled radar): the same swatch +
+	// ink layout as Point fill, writing the polygon maps. Like point fills
+	// in line-chart context, a category with no pick renders no pattern.
+	const renderPolygonCategory = (v: string, i: number, display?: string) => {
+		const override = polygonOverrides[v]
+		const isNone = override === undefined || override === PATTERN_NONE
+		const activeIdx = typeof override === "number" ? override : -1
+		const hasInk = polygonInkColors[v] !== undefined
+		const ink = polygonInkColors[v] ?? effectiveInkFor(i, v)
+		return (
+			<div key={v} className="flex flex-col gap-1 text-sm">
+				{categoryNameRow(
+					v,
+					override !== undefined || hasInk,
+					() => {
+						if (override !== undefined) resetPolygonOverride(v)
+						if (hasInk) resetPolygonInk(v)
+					},
+					display
+				)}
+				{renderSwatchRow(v, {
+					palette: PATTERN_PALETTE,
+					Glyph: PatternGlyph,
+					isNone,
+					activeIdx,
+					ink,
+					setIdx: (idx) => setPolygonOverride(v, idx),
+					setNone: () => setPolygonOverride(v, PATTERN_NONE),
+					ariaKind: "polygon pattern",
+				})}
+				{renderColorPicker(v, ink, hasInk, {
+					set: setPolygonInk,
+					reset: resetPolygonInk,
+					ariaKind: "Polygon pattern",
+				})}
+			</div>
+		)
+	}
+	const polygonCategorySubsection = radarPolygonFilled && fieldValues && (
+		<CollapsibleSubsection
+			title="Polygon fill"
+			defaultOpen
+			changed={polygonSubsectionChanged}
+		>
+			<div className="flex flex-col gap-4">
+				{orderedLevels(
+					fieldValues.values,
+					fieldValues.type,
+					fieldValues.order
+				).map(({ value: v, index: i }) =>
+					renderPolygonCategory(v, i, fieldValues.labels?.[i])
+				)}
+			</div>
+		</CollapsibleSubsection>
+	)
+
 	return (
 		<div className="vc-option-panel">
 			<StackModeRow channel="pattern" className="px-2" />
@@ -1104,6 +1286,7 @@ export const PatternOptionsPanel = () => {
 								{gapFillRow}
 							</div>
 						</CollapsibleSubsection>
+						{polygonCategorySubsection}
 						<CollapsibleSubsection
 							title="Point fill"
 							defaultOpen
@@ -1140,6 +1323,7 @@ export const PatternOptionsPanel = () => {
 							 *  see the compound branch above. */}
 							{patternMode === "dashOnly" && gapFillRow}
 						</div>
+						{patternMode === "dashOnly" && polygonCategorySubsection}
 					</>
 				))}
 			{modeDef.id === "scatter" && regressionOn(configs) && (

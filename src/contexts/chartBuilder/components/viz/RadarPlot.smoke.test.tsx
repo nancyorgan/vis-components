@@ -4,9 +4,13 @@ import { installInMemoryLocalStorage } from "../../../../testSupport/localStorag
 import { describe, expect, it } from "vitest"
 
 import {
+	DEFAULT_ANGLE_CONFIG,
+	DEFAULT_AXIS_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_DATA_LABELS_CONFIG,
+	DEFAULT_PATTERN_CONFIG,
 	EMPTY_CHANNEL_CONFIGS,
+	type ChannelConfigs,
 	type ConnectionConfig,
 } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
@@ -14,6 +18,7 @@ import {
 	emptyDataLabelsEncodings,
 	emptyEncodings,
 	type Dataset,
+	type Encodings,
 } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -69,6 +74,10 @@ type Opts = {
 	withConnection?: boolean
 	connectionCfg?: Partial<ConnectionConfig>
 	drawOrder?: { field: string; dir: "asc" | "desc" } | null
+	/** Extra encodings (e.g. a pattern variable) merged over the base. */
+	extraEncodings?: Partial<Encodings>
+	/** Extra channel configs (e.g. pattern picks) merged over the base. */
+	extraConfigs?: Partial<ChannelConfigs>
 }
 
 const seedStorage = (opts: Opts) => {
@@ -87,6 +96,7 @@ const seedStorage = (opts: Opts) => {
 			r: { field: "score" },
 			angle: { field: "metric" },
 			...(opts.withConnection ? { connection: { field: "team" } } : {}),
+			...(opts.extraEncodings ?? {}),
 		}),
 	)
 	store.set(
@@ -97,6 +107,7 @@ const seedStorage = (opts: Opts) => {
 				...(opts.connectionCfg ?? {}),
 			},
 			...(opts.drawOrder !== undefined ? { drawOrder: opts.drawOrder } : {}),
+			...(opts.extraConfigs ?? {}),
 		}),
 	)
 	/* eslint-enable @th/use-wrapped-json-functions */
@@ -113,6 +124,7 @@ const initState =
 			r: { field: "score" },
 			angle: { field: "metric" },
 			...(opts.withConnection ? { connection: { field: "team" } } : {}),
+			...(opts.extraEncodings ?? {}),
 		})
 		snap.set(currentChannelConfigsAtom, {
 			...EMPTY_CHANNEL_CONFIGS,
@@ -121,6 +133,7 @@ const initState =
 				...(opts.connectionCfg ?? {}),
 			},
 			...(opts.drawOrder !== undefined ? { drawOrder: opts.drawOrder } : {}),
+			...(opts.extraConfigs ?? {}),
 		})
 		snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
 		snap.set(currentDataLabelsConfigAtom, DEFAULT_DATA_LABELS_CONFIG)
@@ -311,4 +324,130 @@ describe("RadarPlot — basics", () => {
 		)
 		expect(rings.length).toBeGreaterThan(0)
 	})
+describe("RadarPlot — pattern fills", () => {
+	const isPatternUrl = (fill: string | null) =>
+		!!fill && fill.startsWith("url(#vc-pat-")
+
+	it("pattern.defaultPolygonPattern tiles the filled polygon and registers its <pattern> def; points stay plain", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+			extraConfigs: {
+				pattern: { ...DEFAULT_PATTERN_CONFIG, defaultPolygonPattern: 2 },
+			},
+		})
+		const polygons = [...c.querySelectorAll("polygon")]
+		expect(polygons.length).toBe(2)
+		for (const p of polygons) {
+			const fill = p.getAttribute("fill")
+			expect(isPatternUrl(fill)).toBe(true)
+			const id = fill!.slice("url(#".length, -1)
+			expect(id.startsWith("vc-pat-2-")).toBe(true)
+			expect(c.querySelector(`pattern#${id}`)).not.toBeNull()
+		}
+		for (const dot of c.querySelectorAll("path")) {
+			expect(isPatternUrl(dot.getAttribute("fill"))).toBe(false)
+		}
+	})
+
+	it("the polygon pick does nothing while fillPolygon is off (no body to pattern)", () => {
+		const c = mount({
+			withConnection: true,
+			extraConfigs: {
+				pattern: { ...DEFAULT_PATTERN_CONFIG, defaultPolygonPattern: 2 },
+			},
+		})
+		for (const p of c.querySelectorAll("polygon")) {
+			expect(p.getAttribute("fill")).toBe("none")
+		}
+		expect(c.querySelectorAll("pattern").length).toBe(0)
+	})
+
+	it("the POINT default pattern fills the dots but leaves the polygon body plain", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+			extraConfigs: { defaultPattern: 1 },
+		})
+		for (const p of c.querySelectorAll("polygon")) {
+			expect(isPatternUrl(p.getAttribute("fill"))).toBe(false)
+		}
+		// Axis paths share the <path> tag with the dots — count the patterned
+		// ones: every one of the 8 data points.
+		const dots = [...c.querySelectorAll("path")].filter((el) =>
+			isPatternUrl(el.getAttribute("fill"))
+		)
+		expect(dots.length).toBe(8)
+		for (const dot of dots) {
+			const fill = dot.getAttribute("fill")!
+			expect(c.querySelector(`pattern#${fill.slice("url(#".length, -1)}`)).not.toBeNull()
+		}
+	})
+
+	it("with a pattern variable mapped, only categories with a polygon pick get a patterned body", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+			extraEncodings: { pattern: { field: "team" } },
+			extraConfigs: {
+				pattern: {
+					...DEFAULT_PATTERN_CONFIG,
+					polygonOverrides: { north: 3 },
+					// A point-fill pick for south must not leak onto its polygon.
+					overrides: { south: 0 },
+				},
+			},
+		})
+		const fills = [...c.querySelectorAll("polygon")].map((p) =>
+			p.getAttribute("fill")
+		)
+		expect(fills.filter((f) => isPatternUrl(f)).length).toBe(1)
+		expect(fills.some((f) => f!.startsWith("url(#vc-pat-3-"))).toBe(true)
+	})
+})
+
+describe("RadarPlot — series paint order", () => {
+	it("paints each series as one unit: polygon, then ITS dots, before the next series", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+		})
+		const groups = [...c.querySelectorAll("[data-radar-series]")]
+		expect(groups.length).toBe(2)
+		for (const g of groups) {
+			const kids = [...g.children]
+			// Polygon first, then that series' 4 dots — nothing else.
+			expect(kids[0]?.tagName.toLowerCase()).toBe("polygon")
+			expect(kids.slice(1).map((k) => k.tagName.toLowerCase())).toEqual([
+				"path",
+				"path",
+				"path",
+				"path",
+			])
+		}
+		// The two series are consecutive siblings: the second polygon comes
+		// AFTER the first series' dots, so the lower series' points can't
+		// poke through the upper series' fill.
+		expect(groups[0]!.nextElementSibling).toBe(groups[1]!)
+	})
+
+	it("draw order reorders whole series (dots travel with their polygon)", () => {
+		const asc = mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+			drawOrder: { field: "team", dir: "asc" },
+		})
+		const desc = mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+			drawOrder: { field: "team", dir: "desc" },
+		})
+		const keys = (c: HTMLElement) =>
+			[...c.querySelectorAll("[data-radar-series]")].map((g) =>
+				g.getAttribute("data-radar-series")
+			)
+		expect(keys(asc)).toEqual([...keys(desc)].reverse())
+	})
+})
+
 })

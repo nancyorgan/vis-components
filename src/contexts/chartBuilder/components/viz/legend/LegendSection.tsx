@@ -49,6 +49,12 @@ export type LegendSectionProps = {
 	legendFillColor?: string | null
 	legendStrokeColor?: string | null
 	connectionMapped?: boolean
+	/** Filled radar: the swatch stands for the series POLYGON, so pattern
+	 *  tiles resolve from the Pattern menu's separate "Polygon fill" state
+	 *  (`pattern.polygonOverrides` / `defaultPolygonPattern`, opt-in per
+	 *  category) and the line-dash overlay is dropped. Computed by the
+	 *  parent, where the chart mode is resolved. */
+	polygonPatternFill?: boolean
 	/** Per-quantitative-channel break + format overrides. Sparse: only
 	 * channels the user has touched appear here; missing channels resolve
 	 * to defaults via `resolveLegendChannelConfig`. */
@@ -136,6 +142,7 @@ export const LegendSection = ({
 	legendFillColor,
 	legendStrokeColor,
 	connectionMapped = false,
+	polygonPatternFill = false,
 	channelLegendCfgs,
 	auxSwatchColor,
 	auxSwatchStroke,
@@ -295,6 +302,7 @@ export const LegendSection = ({
 						entryColumns={entryColumns}
 						highlightField={highlightField}
 						connectionMapped={connectionMapped}
+						polygonPatternFill={polygonPatternFill}
 						defaultSwatchOpacity={defaultSwatchOpacity}
 						auxSwatchColor={auxSwatchColor}
 						auxSwatchStroke={auxSwatchStroke}

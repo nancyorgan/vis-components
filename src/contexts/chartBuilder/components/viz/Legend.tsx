@@ -295,6 +295,14 @@ export const Legend = ({
 								connectionMapped={
 									!hideConnection && !!encodings.connection?.field
 								}
+								// Filled radar: swatches show the series POLYGON — its
+								// separate "Polygon fill" pattern over the hue color, no
+								// line-dash overlay (radar polygons don't dash).
+								polygonPatternFill={
+									modeDef.id === "radar" &&
+									!!encodings.connection?.field &&
+									configs.connection?.fillPolygon === true
+								}
 								channelLegendCfgs={legendCfg.channels}
 								auxSwatchColor={resolvedAuxSwatchColor}
 								auxSwatchStroke={resolvedAuxSwatchStroke}

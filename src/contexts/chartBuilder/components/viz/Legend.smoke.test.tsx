@@ -2268,3 +2268,107 @@ describe("Legend — fixed legend width", () => {
 		expect(labels.length).toBe(4)
 	})
 })
+describe("Legend — filled-radar polygon pattern swatches", () => {
+	const patternIds = (container: HTMLElement) =>
+		[...container.querySelectorAll("pattern")].map((p) => p.getAttribute("id") ?? "")
+
+	it("CombinedGroupLegend (hue + pattern): tiles follow polygonOverrides, opt-in per category, no dash line", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue", "pattern"]}
+				type="categorical"
+				values={["north", "south"]}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					pattern: {
+						...DEFAULT_PATTERN_CONFIG,
+						// Point-fill pick for south must NOT show on the polygon swatch.
+						overrides: { south: 0 },
+						polygonOverrides: { north: 3 },
+					},
+				}}
+				reverseCategorical={false}
+				connectionMapped
+				polygonPatternFill
+			/>
+		)
+		const ids = patternIds(container)
+		expect(ids.length).toBe(1)
+		expect(ids[0]).toContain("vc-pat-3-")
+		expect(container.querySelectorAll("line").length).toBe(0)
+	})
+
+	it("CombinedGroupLegend (hue + pattern) without the flag keeps the line-chart dash overlay", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue", "pattern"]}
+				type="categorical"
+				values={["north", "south"]}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				connectionMapped
+			/>
+		)
+		expect(container.querySelectorAll("line").length).toBe(2)
+	})
+
+	it("CombinedGroupLegend (hue only): the default polygon pattern tiles every hue swatch", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="categorical"
+				values={["north", "south"]}
+				configs={{
+					...EMPTY_CHANNEL_CONFIGS,
+					// The POINT default pattern is irrelevant to the polygon swatch.
+					defaultPattern: 0,
+					pattern: { ...DEFAULT_PATTERN_CONFIG, defaultPolygonPattern: 2 },
+				}}
+				reverseCategorical={false}
+				connectionMapped
+				polygonPatternFill
+			/>
+		)
+		const ids = patternIds(container)
+		expect(ids.length).toBe(2)
+		for (const id of ids) expect(id).toContain("vc-pat-2-")
+	})
+
+	it("CombinedGroupLegend (hue only) without a polygon pick stays plain", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["hue"]}
+				type="categorical"
+				values={["north", "south"]}
+				configs={{ ...EMPTY_CHANNEL_CONFIGS, defaultPattern: 0 }}
+				reverseCategorical={false}
+				connectionMapped
+				polygonPatternFill
+			/>
+		)
+		expect(patternIds(container).length).toBe(0)
+	})
+
+	it("PatternLegend: tiles follow polygonOverrides (opt-in) under the flag", () => {
+		const configs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			pattern: {
+				...DEFAULT_PATTERN_CONFIG,
+				overrides: { south: 0 },
+				polygonOverrides: { north: 4 },
+			},
+		}
+		const { container } = render(
+			<PatternLegend
+				type="categorical"
+				values={["north", "south"]}
+				configs={configs}
+				reverseCategorical={false}
+				polygonPatternFill
+			/>
+		)
+		const ids = patternIds(container)
+		expect(ids.length).toBe(1)
+		expect(ids[0]).toContain("vc-pat-4-")
+	})
+})

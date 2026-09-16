@@ -2,8 +2,9 @@ import { orderCategories } from "../../../lib/legendSections"
 import {
 	PATTERN_PALETTE,
 	patternCategoriesFor,
-	resolvePatternForCategory,
+	resolvePatternForMark,
 } from "../../../lib/patterns"
+import { polygonPatternView } from "../../../lib/resolveLayerColor"
 import { LEGEND_SWATCH_OUTLINE } from "../../../lib/previewInk"
 import { EntryHoverWrap, renderEntryList, SwatchCell } from "./swatches"
 import type { ReversibleLegendProps } from "./types"
@@ -18,8 +19,18 @@ export const PatternLegend = ({
 	defaultSwatchOpacity = 1,
 	entryColumns,
 	highlightField,
-}: ReversibleLegendProps & { defaultSwatchOpacity?: number }) => {
+	polygonPatternFill = false,
+}: ReversibleLegendProps & {
+	defaultSwatchOpacity?: number
+	/** Filled radar: tiles mirror the separate "Polygon fill" picks
+	 *  (`pattern.polygonOverrides`, opt-in per category) instead of the
+	 *  point-fill overrides. */
+	polygonPatternFill?: boolean
+}) => {
 	const rawCategories = patternCategoriesFor(values, type)
+	const patternCfg = polygonPatternFill
+		? polygonPatternView(configs).pattern
+		: configs.pattern
 	// Preserve the original palette index so colors/patterns stay stable even
 	// when we reorder (pinned field order) or reverse the display order.
 	const entries = orderCategories(rawCategories, type, pinnedOrder).map((v) => ({
@@ -38,11 +49,13 @@ export const PatternLegend = ({
 		? "vc-legend-label whitespace-nowrap"
 		: "min-w-0 truncate"
 	const rows = display.map(({ v, i }) => {
-				const resolved = resolvePatternForCategory(
+				const resolved = resolvePatternForMark(
 					v,
 					i,
-					configs.pattern,
-					bgColor
+					bgColor,
+					patternCfg,
+					null,
+					polygonPatternFill
 				)
 				// When the category is opted out via PATTERN_NONE, render a plain
 				// background-colored swatch (no pattern overlay) so the legend

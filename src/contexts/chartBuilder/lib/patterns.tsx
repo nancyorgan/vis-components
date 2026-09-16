@@ -240,26 +240,3 @@ export const resolvePatternForMark = (
 	const svgId = `vc-pat-${paletteIdx}-${colorSlug(bgColor)}-${colorSlug(inkColor)}`
 	return { paletteIdx, bgColor, inkColor, svgId }
 }
-
-/** Convenience wrapper for contexts that don't have per-mark hue colors
- * (Legend, sidebar). Uses a representative background color. Returns null
- * when the category is opted out via `PATTERN_NONE`. */
-export const resolvePatternForCategory = (
-	category: string,
-	categoryIndex: number,
-	config?: PatternConfig,
-	representativeBg = "#4f8eda"
-): { paletteIdx: number; inkColor: string; svgId: string } | null => {
-	const result = resolvePatternForMark(
-		category,
-		categoryIndex,
-		representativeBg,
-		config
-	)
-	if (result === null) return null
-	return {
-		paletteIdx: result.paletteIdx,
-		inkColor: result.inkColor,
-		svgId: result.svgId,
-	}
-}

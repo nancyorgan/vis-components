@@ -1016,6 +1016,23 @@ Behavior depends on chart context:
   BOTH a "Line dash" row and a "Point fill" row appear. Each row
   writes to independent overrides so picking a dash style doesn't
   apply a point fill. Points default to "None" until explicitly chosen.
+- **Filled radar** (radar mode with the Connection panel's "Fill
+  polygon" on): a **Polygon fill** subsection joins Line dash and Point
+  fill, with its OWN pattern pick — the series polygon body and its
+  points are separate targets, so a hatched polygon can sit under
+  plain dots. Same shape as Point fill: no variable → a default
+  pattern swatch row + ink (`pattern.defaultPolygonPattern` /
+  `defaultPolygonPatternInk`); variable mapped → per-category swatches
+  + ink (`pattern.polygonOverrides` / `polygonInkColors`), defaulting
+  to "None" until picked. The pattern tile's background is the
+  polygon's hue fill (or the shared Background when hue is unmapped).
+  Stays available with "No points" (the polygons remain); hidden while
+  the polygon is unfilled (nothing to pattern). Radar points read the
+  ordinary Point-fill state, defaulting to none like any line chart.
+  The LEGEND mirrors the polygon: on a filled radar, hue / pattern
+  swatches tile with the polygon pattern (default or per-category
+  pick) over the hue color and drop the line-dash overlay, since
+  radar polygons don't dash.
 - **Geo and STRUCTURE modes** (choropleth / bubble map, hierarchy
   trees, chord / sankey): always the FILL form, even though
   `connection` is mapped — there it's a KEY (region join / parent
@@ -1611,6 +1628,12 @@ padding so the inner rects stay aligned.
   aspect ratio but still tile). See §3.3 for the mode trigger.
 - **RadarPlot** — polar chart: `r` (radial distance) + `angle`
   (spokes), points joined into closed polygons per connection series.
+  Filled polygons take the Pattern menu's separate "Polygon fill" pick
+  (`resolvePolygonPatternDef`); points take the ordinary point-fill
+  pattern (§4.2). Each series paints as ONE unit — polygon body +
+  outline, then its own dots — in draw order, so a series underneath
+  never has its points poke through the series above it; points with
+  no connection value paint last.
 - **GeoChoroplethPlot / GeoSymbolPlot / GeoPointPlot** — the three
   geographic modes (region fill, centroid bubbles, lon/lat dots).
   All draw over a shared **GeoBasemap** (d3-geo projection + region

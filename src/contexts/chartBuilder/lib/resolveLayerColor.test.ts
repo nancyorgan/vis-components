@@ -2,8 +2,16 @@ import { scaleOrdinal } from "d3-scale"
 import { describe, expect, it } from "vitest"
 import type { AestheticScales } from "../store/useAestheticScales"
 
-import { DEFAULT_SHAPE_CONFIG, EMPTY_CHANNEL_CONFIGS } from "./channelConfig"
-import { layerFillProp, resolveLayerColor } from "./resolveLayerColor"
+import {
+	DEFAULT_PATTERN_CONFIG,
+	DEFAULT_SHAPE_CONFIG,
+	EMPTY_CHANNEL_CONFIGS,
+} from "./channelConfig"
+import {
+	layerFillProp,
+	resolveLayerColor,
+	resolvePolygonPatternDef,
+} from "./resolveLayerColor"
 
 /** AestheticScales with every channel un-mapped (the "no encoding"
  *  baseline). Each test below populates only the channel(s) it exercises. */
@@ -400,5 +408,69 @@ describe("layerFillProp", () => {
 		expect(
 			layerFillProp({ fill: "#123456", opacity: 1, patternId: "pat-7", outline: null })
 		).toBe("url(#pat-7)")
+	})
+})
+
+describe("resolvePolygonPatternDef (radar polygon fill)", () => {
+	const item = {
+		patternValue: undefined,
+		fill: "#fff",
+		preModulationHue: "#fff",
+		satUnit: null,
+		briUnit: null,
+	}
+
+	it("returns null when no polygon pattern is configured — even with a POINT default pattern set", () => {
+		// The polygon pick is separate from the points': `defaultPattern`
+		// alone must not pattern the polygon body.
+		const configs = { ...EMPTY_CHANNEL_CONFIGS, defaultPattern: 2 }
+		expect(resolvePolygonPatternDef(item, emptyScales, configs, "#fff")).toBeNull()
+	})
+
+	it("honors pattern.defaultPolygonPattern (+ its ink) with no pattern variable mapped", () => {
+		const configs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			pattern: {
+				...DEFAULT_PATTERN_CONFIG,
+				defaultPolygonPattern: 4,
+				defaultPolygonPatternInk: "#123456",
+			},
+		}
+		const d = resolvePolygonPatternDef(item, emptyScales, configs, "#fff")
+		expect(d?.paletteIdx).toBe(4)
+		expect(d?.inkColor).toBe("#123456")
+	})
+
+	it("with a pattern variable mapped, only categories with a polygon pick get a def (opt-in, like point fills under a connection)", () => {
+		const scales: AestheticScales = {
+			...emptyScales,
+			pattern: {
+				field: { name: "p", type: "categorical" },
+				categories: ["A", "B"],
+			},
+		}
+		const configs = {
+			...EMPTY_CHANNEL_CONFIGS,
+			pattern: {
+				...DEFAULT_PATTERN_CONFIG,
+				// A POINT-fill pick for B must not leak onto the polygon.
+				overrides: { B: 1 },
+				polygonOverrides: { A: 3 },
+			},
+		}
+		const a = resolvePolygonPatternDef(
+			{ ...item, patternValue: "A" },
+			scales,
+			configs,
+			"#fff"
+		)
+		const b = resolvePolygonPatternDef(
+			{ ...item, patternValue: "B" },
+			scales,
+			configs,
+			"#fff"
+		)
+		expect(a?.paletteIdx).toBe(3)
+		expect(b).toBeNull()
 	})
 })

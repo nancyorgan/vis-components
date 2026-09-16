@@ -1,5 +1,6 @@
 import {
 	DEFAULT_FILL,
+	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_SHAPE_CONFIG,
 	type LineDashPattern,
 } from "../../../lib/channelConfig"
@@ -42,6 +43,7 @@ import {
 	modulateColor,
 	outlinePaletteForHueType,
 } from "../../../lib/scales"
+import { polygonPatternView } from "../../../lib/resolveLayerColor"
 import { resolveRuleColor } from "../../../lib/textColorRules"
 import {
 	ComposedSwatch,
@@ -75,6 +77,11 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	 *  Triggers a dash-line overlay on combined swatches so the legend
 	 *  reflects both the shape pattern fill and the line dash style. */
 	connectionMapped?: boolean
+	/** Filled radar: the swatch is the series POLYGON. Pattern tiles come
+	 *  from the separate "Polygon fill" state (opt-in per category, or the
+	 *  default polygon pattern over every hue swatch) and the line-dash
+	 *  overlay is dropped — radar polygons don't dash. */
+	polygonPatternFill?: boolean
 	/** Hue-legend swatch shape (`SHAPE_PALETTE` index). Reshapes the color
 	 *  swatches when no per-mark shape encoding is present. `null` /
 	 *  undefined keeps the default rectangle. */
@@ -152,6 +159,7 @@ export const CombinedGroupLegend = ({
 	gradientBarStyle = DEFAULT_GRADIENT_BAR_STYLE,
 	orientation = "vertical",
 	connectionMapped = false,
+	polygonPatternFill = false,
 	channelCfg,
 	swatchShape,
 	swatchSize,
@@ -241,7 +249,13 @@ export const CombinedGroupLegend = ({
 	// DASH_CYCLE by category position; per-category overrides win.
 	// Mirrors `dashFromPatternField` in ScatterPlot.renderConnectionLines.
 	const dashOverrides = configs.pattern?.dashOverrides ?? {}
-	const showDash = connectionMapped && hasPat && patCategories !== null
+	const showDash =
+		connectionMapped && hasPat && patCategories !== null && !polygonPatternFill
+	// Which pattern state the tiles mirror: the polygon's (filled radar) or
+	// the marks' point fill. Polygon picks are opt-in per category
+	// (`defaultToNone`), exactly as the renderer resolves them.
+	const patView = polygonPatternFill ? polygonPatternView(configs) : null
+	const patternCfg = patView ? patView.pattern : configs.pattern
 	const dashFor = (v: string, idx: number): LineDashPattern => {
 		const override = dashOverrides[v]
 		if (override === "none") return "solid"
@@ -343,8 +357,9 @@ export const CombinedGroupLegend = ({
 					v,
 					catIdx,
 					bg,
-					configs.pattern,
-					preferredInk
+					patternCfg,
+					preferredInk,
+					polygonPatternFill
 				)
 				if (resolved !== null) {
 					pattern = {
@@ -361,6 +376,31 @@ export const CombinedGroupLegend = ({
 					// color. Hue-mapped sections keep the hue color; the dash
 					// overlay keeps the base color for its line + point glyph.
 					color = bg
+				}
+			}
+		}
+		// Filled radar with NO pattern variable: the default polygon pattern
+		// tiles every polygon over its hue color (ink = the polygon default
+		// ink), so every hue swatch carries it — mirrors the renderer's
+		// `__default__` def in `resolvePatternDefForItem`.
+		if (
+			pattern === null &&
+			patView &&
+			!hasPat &&
+			hasHue &&
+			patView.defaultPattern !== null
+		) {
+			const resolved = resolvePatternForMark("__default__", 0, color, {
+				...DEFAULT_PATTERN_CONFIG,
+				overrides: { __default__: patView.defaultPattern },
+				inkColors: { __default__: patView.defaultPatternInk },
+			})
+			if (resolved !== null) {
+				pattern = {
+					bg: resolved.bgColor,
+					ink: resolved.inkColor,
+					paletteIdx: resolved.paletteIdx,
+					svgId: resolved.svgId,
 				}
 			}
 		}

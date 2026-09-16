@@ -2,6 +2,7 @@ import type { AestheticScales } from "../store/useAestheticScales"
 
 import {
 	DEFAULT_PATTERN_CONFIG,
+	type PatternConfig,
 	type ChannelConfigs,
 	type ColorSlotConfig,
 	type ColorSlotKey,
@@ -256,6 +257,60 @@ export const resolvePatternDefForItem = (
 
 	return null
 }
+
+/** Channel configs re-pointed at the RADAR POLYGON FILL pattern state
+ *  (`PatternConfig.polygonOverrides` / `polygonInkColors` /
+ *  `defaultPolygonPattern` / `defaultPolygonPatternInk`) so the ordinary
+ *  per-mark resolver reads the polygon's separate picks in place of the
+ *  point-fill ones. Palettes, background, and sat/bri stay shared. */
+export const polygonPatternView = (
+	configs: Partial<Pick<ChannelConfigs, "pattern" | "defaultPatternInk">>
+): { pattern: PatternConfig; defaultPattern: number | null; defaultPatternInk: string } => {
+	const pat = configs.pattern
+	return {
+		pattern: {
+			...DEFAULT_PATTERN_CONFIG,
+			...pat,
+			overrides: pat?.polygonOverrides ?? {},
+			inkColors: pat?.polygonInkColors ?? {},
+		},
+		defaultPattern: pat?.defaultPolygonPattern ?? null,
+		defaultPatternInk:
+			pat?.defaultPolygonPatternInk ??
+			configs.defaultPatternInk ??
+			DEFAULT_PATTERN_INK,
+	}
+}
+/** The same re-pointing over a full `ChannelConfigs` (the renderer's
+ *  input). The legend uses `polygonPatternView` directly, since its
+ *  swatch renderers hold only a partial configs object. */
+const polygonPatternConfigs = (channelConfigs: ChannelConfigs): ChannelConfigs => ({
+	...channelConfigs,
+	...polygonPatternView(channelConfigs),
+})
+
+/** Resolve the `<pattern>` def (or null) for a radar series POLYGON body.
+ *  The polygon fill has its own pattern pick, separate from the points'
+ *  (the Pattern menu's "Polygon fill" vs "Point fill" subsections), so the
+ *  same series can carry, say, a hatched body under plain dots. Semantics
+ *  mirror point fills in line-chart context: with a pattern variable
+ *  mapped, a category renders NO pattern until the user picks a swatch for
+ *  it; with none mapped, `defaultPolygonPattern` fills every polygon.
+ *  Callers gate on `connection.fillPolygon` — an unfilled polygon has no
+ *  body to pattern. */
+export const resolvePolygonPatternDef = (
+	item: PatternDefItem,
+	aestheticScales: AestheticScales,
+	channelConfigs: ChannelConfigs,
+	patternBgFallback: string
+): PatternDefSpec | null =>
+	resolvePatternDefForItem(
+		item,
+		aestheticScales,
+		polygonPatternConfigs(channelConfigs),
+		patternBgFallback,
+		{ defaultToNone: true, includeDefaultPattern: true }
+	)
 
 /** Single source of truth for "what color does this slice/layer/row draw
  *  with?" Every aggregating chart renderer (BarPlot, AreaPlot, PiePlot,

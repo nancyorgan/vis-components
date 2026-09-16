@@ -17,7 +17,13 @@ import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
 import { radial } from "./coords"
 import { sortByDrawOrder } from "../../lib/drawOrder"
-import { slotOpacityResolver } from "../../lib/resolveLayerColor"
+import type { PatternDefSpec } from "../../lib/patternDefs"
+import {
+	resolvePatternDefForItem,
+	resolvePolygonPatternDef,
+	slotOpacityResolver,
+	type PatternDefItem,
+} from "../../lib/resolveLayerColor"
 import { resolveMarkAesthetics } from "../../lib/resolveMarkAesthetics"
 import { dashArrayFor, sanitizeCustomDasharray } from "../../lib/dashPatterns"
 import { effectiveType } from "../../lib/fieldType"
@@ -118,6 +124,70 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 		() => props.rowsOverride ?? dataset?.rows ?? [],
 		[props.rowsOverride, dataset?.rows],
 	)
+
+	// Pattern `<defs>` for BOTH radar fill targets, registered upfront so no
+	// mark references a def that was never emitted (ScatterPlot's contract):
+	//  - point fills read the ordinary Pattern state (`overrides` /
+	//    `defaultPattern`), defaulting to none in line-chart context exactly
+	//    like scatter points under a connection;
+	//  - polygon bodies read the SEPARATE "Polygon fill" state via
+	//    `resolvePolygonPatternDef`, only while `fillPolygon` is on.
+	// Every row contributes a polygon item — the polygon paints with its
+	// first-by-angle row's colors, which is among them; `<PatternDefs>`
+	// dedups by svgId.
+	const patternBgFallback =
+		channelConfigs.pattern?.backgroundColor ?? "#e2e8f0"
+	const polygonFilled =
+		!!connectionField && channelConfigs.connection?.fillPolygon === true
+	const patternDefs = useMemo<PatternDefSpec[]>(() => {
+		const patternField = aestheticScales.pattern?.field.name ?? null
+		const wantsPointPattern =
+			!!patternField || channelConfigs.defaultPattern != null
+		const wantsPolygonPattern =
+			polygonFilled &&
+			(!!patternField ||
+				(channelConfigs.pattern?.defaultPolygonPattern ?? null) !== null)
+		if (!wantsPointPattern && !wantsPolygonPattern) return []
+		const defs = new Map<string, PatternDefSpec>()
+		for (const row of rowsForChart) {
+			const { fill, preModulationHue, satUnit, briUnit } =
+				resolveMarkAesthetics(row, aestheticScales, channelConfigs)
+			const item: PatternDefItem = {
+				patternValue: patternField ? row[patternField] : undefined,
+				fill,
+				preModulationHue,
+				satUnit,
+				briUnit,
+			}
+			if (wantsPointPattern) {
+				const d = resolvePatternDefForItem(
+					item,
+					aestheticScales,
+					channelConfigs,
+					patternBgFallback,
+					{ defaultToNone: !!connectionField, includeDefaultPattern: true }
+				)
+				if (d && !defs.has(d.svgId)) defs.set(d.svgId, d)
+			}
+			if (wantsPolygonPattern) {
+				const d = resolvePolygonPatternDef(
+					item,
+					aestheticScales,
+					channelConfigs,
+					patternBgFallback
+				)
+				if (d && !defs.has(d.svgId)) defs.set(d.svgId, d)
+			}
+		}
+		return [...defs.values()]
+	}, [
+		rowsForChart,
+		aestheticScales,
+		channelConfigs,
+		connectionField,
+		polygonFilled,
+		patternBgFallback,
+	])
 	// Per-axis scale sources. PlotCanvas can hand different rows to
 	// the angle vs. R scale (e.g. shareAngle="all" + shareR="perRow"
 	// in a faceted radar grid). The combined `scalesRowsOverride` is
@@ -328,24 +398,46 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			angle: number
 			row: Record<string, unknown>
 			fill: string
+			preModulationHue: string
+			satUnit: number | null
+			briUnit: number | null
 			opacity: number
 			radius: number
 			shapeIdx: number
 			shapeFill: string
 			shapeStroke: string
+			/** Point-fill `<pattern>` id (null = plain fill). */
+			patternId: string | null
 		}
 		const points: RadarPoint[] = []
+		const patternField = aestheticScales.pattern?.field.name ?? null
+		const wantsPointPattern =
+			!!patternField || channelConfigs.defaultPattern != null
 		rowsForChart.forEach((row, i) => {
 			const a = angleScale(row[angleField])
 			const r = rScale(row[rField])
 			if (a === null || r === null) return
 			const px = center.cx + Math.sin(a) * r
 			const py = center.cy - Math.cos(a) * r
-			const { fill, opacity, radius } = resolveMarkAesthetics(
-				row,
-				aestheticScales,
-				channelConfigs,
-			)
+			const { fill, preModulationHue, satUnit, briUnit, opacity, radius } =
+				resolveMarkAesthetics(row, aestheticScales, channelConfigs)
+			// Same per-item resolver (and options) the upfront defs memo used,
+			// so the point's svgId always references an emitted def.
+			const pointPattern = wantsPointPattern
+				? resolvePatternDefForItem(
+						{
+							patternValue: patternField ? row[patternField] : undefined,
+							fill,
+							preModulationHue,
+							satUnit,
+							briUnit,
+						},
+						aestheticScales,
+						channelConfigs,
+						patternBgFallback,
+						{ defaultToNone: !!connectionField, includeDefaultPattern: true }
+					)
+				: null
 			// Shape index — per-row palette index when shape is mapped,
 			// else the user's `defaultShape`. Matches ScatterPlot's path.
 			const shapeIdx = shapeAes
@@ -369,15 +461,24 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 				angle: a,
 				row,
 				fill,
+				preModulationHue,
+				satUnit,
+				briUnit,
 				opacity,
 				radius,
 				shapeIdx,
 				shapeFill,
 				shapeStroke,
+				patternId: pointPattern?.svgId ?? null,
 			})
 		})
 
-		const polygons = connectionField
+		// Series in paint order (Draw order setting → encounter order). Each
+		// series paints as ONE unit — polygon, then its own dots — so a
+		// series drawn underneath never has its points poke through the
+		// series above it. Points with no connection value belong to no
+		// series and paint last, as before.
+		const series = connectionField
 			? buildPolygons(
 					points,
 					rowsForChart,
@@ -389,7 +490,8 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 					dataset,
 					channelConfigs.drawOrder?.field
 						? levelOrders[channelConfigs.drawOrder.field]
-						: undefined
+						: undefined,
+					patternBgFallback,
 				)
 			: null
 
@@ -459,22 +561,19 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 					)
 				})
 
-		return (
-			<g
-				onMouseLeave={() => {
-					setHovered(null)
-					markHover.leave()
-				}}
-			>
-				{renderValueCircles("behind")}
-				{polygons}
-				{points.map((p) => {
+		const renderPoint = (p: RadarPoint) => {
 					if (markedIndices !== null && !markedIndices.has(p.i)) return null
 					// Render every dot as a path so the shape encoding applies.
 					// `shapeFill === "none"` keeps the glyph outlined (matches
 					// the Shape panel's per-category "hollow" override).
+					// A resolved point-fill pattern replaces the plain fill (a
+					// hollow shape stays hollow); a highlight recolor wins over both.
 					const baseFillForShape =
-						p.shapeFill === "none" ? "none" : p.shapeFill
+						p.shapeFill === "none"
+							? "none"
+							: p.patternId
+								? `url(#${p.patternId})`
+								: p.shapeFill
 					const mh = rowHighlight(legendHighlight, p.row)
 					const fillForShape = mh.fill ?? baseFillForShape
 					return (
@@ -511,14 +610,39 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 							}}
 						/>
 					)
-				})}
+		}
+		const groupedIdx = new Set(
+			(series ?? []).flatMap((s) => s.points.map((p) => p.i))
+		)
+		const ungrouped = points.filter((p) => !groupedIdx.has(p.i))
+
+		return (
+			<g
+				onMouseLeave={() => {
+					setHovered(null)
+					markHover.leave()
+				}}
+			>
+				{renderValueCircles("behind")}
+				{series?.map((s) => (
+					<g key={`radar-series-${s.key}`} data-radar-series={s.key}>
+						{s.polygon}
+						{s.points.map(renderPoint)}
+					</g>
+				))}
+				{ungrouped.map(renderPoint)}
 				{renderValueCircles("front")}
 			</g>
 		)
 	}
 
 	return (
-		<Plot inner={props.inner} coord={coord} tooltip={tooltip}>
+		<Plot
+			inner={props.inner}
+			coord={coord}
+			tooltip={tooltip}
+			patternDefs={patternDefs}
+		>
 			{marksBody}
 		</Plot>
 	)
@@ -531,6 +655,11 @@ type LocalPoint = {
 	angle: number
 	row: Record<string, unknown>
 	fill: string
+	/** Pre-modulation hue + sat/bri units, for the polygon pattern-ink
+	 *  lookup (see `PatternDefItem`). */
+	preModulationHue: string
+	satUnit: number | null
+	briUnit: number | null
 	opacity: number
 	radius: number
 }
@@ -542,14 +671,27 @@ type LocalPoint = {
  *  Fill is gated on `channelConfigs.connection.fillPolygon` — the toggle
  *  the Connection panel exposes only in radar mode. When fill is on, the
  *  polygon body uses each group's hue-resolved color (so the per-category
- *  fill palette in the Hue panel drives it), and the OUTLINE color
- *  resolves via the same chain area mode uses:
+ *  fill palette in the Hue panel drives it) — or the group's POLYGON FILL
+ *  pattern (`resolvePolygonPatternDef`, the Pattern menu's "Polygon fill"
+ *  pick, separate from the points' fill pattern) tiled over that color —
+ *  and the OUTLINE color resolves via the same chain area mode uses:
  *    1. `connection.lineColors[groupValue]` — per-value override
  *    2. `connection.linePalette[idx]` — separate outline palette
  *    3. `connection.strokeColor` — global override
  *    4. The fill color — outline matches fill by default. */
-const buildPolygons = (
-	points: LocalPoint[],
+type RadarSeries<P extends LocalPoint> = {
+	key: string
+	/** The closed polygon (null for a group with fewer than 2 points —
+	 *  nothing to close, but its dots still render with the group). */
+	polygon: React.ReactNode
+	/** The group's points, so the caller can paint them right after the
+	 *  polygon — the whole series (fill, outline, dots) stacks as ONE unit
+	 *  against the other series. */
+	points: P[]
+}
+
+const buildPolygons = <P extends LocalPoint>(
+	points: P[],
 	_rowsForChart: ReadonlyArray<Record<string, unknown>>,
 	connectionField: string,
 	channelConfigs: ChannelConfigs,
@@ -562,12 +704,14 @@ const buildPolygons = (
 	/** User-defined category order for the draw-order field (if any), so
 	 *  polygons rank by legend order rather than alphabetically. */
 	drawOrderLevels: readonly string[] | undefined,
-): React.ReactNode => {
+	/** Pattern tile background when hue isn't driving the fill. */
+	patternBgFallback: string,
+): RadarSeries<P>[] => {
 	const cfg: ConnectionConfig = {
 		...DEFAULT_CONNECTION_CONFIG,
 		...channelConfigs.connection,
 	}
-	const groups = new Map<string, LocalPoint[]>()
+	const groups = new Map<string, P[]>()
 	for (const p of points) {
 		const raw = p.row[connectionField]
 		if (raw === undefined || raw === null) continue
@@ -591,6 +735,7 @@ const buildPolygons = (
 		drawOrderLevels,
 	)
 	const fillEnabled = cfg.fillPolygon === true
+	const patternField = aestheticScales.pattern?.field.name ?? null
 	// Border (polygon outline) opacity = the Border slot. Polygons are
 	// aggregated per group, so a field-mapped border resolves to the slot's
 	// level. The fill uses each group's overall opacity (absolute) below.
@@ -599,15 +744,40 @@ const buildPolygons = (
 		channelConfigs,
 		aestheticScales
 	)({})
-	const elements: React.ReactNode[] = []
+	const series: RadarSeries<P>[] = []
 	for (const [key, groupPoints] of orderedGroups) {
-		if (groupPoints.length < 2) continue
+		if (groupPoints.length < 2) {
+			series.push({ key, polygon: null, points: groupPoints })
+			continue
+		}
 		const groupIdx = paletteIdxByKey.get(key) ?? 0
 		const sorted = [...groupPoints].sort((a, b) => a.angle - b.angle)
 		const pts = sorted.map((p) => `${p.cx},${p.cy}`).join(" ")
 		// Fill color = the group's hue-resolved color (driven by Hue
 		// panel's per-category overrides via `aestheticScales.hue`).
 		const fillColor = sorted[0]?.fill ?? "#888"
+		// Polygon-fill pattern (separate from the points' pattern). Resolved
+		// from the same representative row the fill color comes from, with
+		// the same item the upfront defs memo emitted for it.
+		const rep = sorted[0]
+		const polygonPattern =
+			fillEnabled && rep
+				? resolvePolygonPatternDef(
+						{
+							patternValue: patternField ? rep.row[patternField] : undefined,
+							fill: fillColor,
+							preModulationHue: rep.preModulationHue,
+							satUnit: rep.satUnit,
+							briUnit: rep.briUnit,
+						},
+						aestheticScales,
+						channelConfigs,
+						patternBgFallback
+					)
+				: null
+		const bodyFill = polygonPattern
+			? `url(#${polygonPattern.svgId})`
+			: fillColor
 		// Stroke: the shared connection-stroke chain (same one AreaPlot's
 		// layer strokes use). The group's representative row exposes every
 		// field, so the line color slot can map to any field (commonly the
@@ -634,11 +804,14 @@ const buildPolygons = (
 			thickness: cfg.thickness,
 			byValue: cfg.thicknessByValue,
 		})
-		elements.push(
+		series.push({
+			key,
+			points: groupPoints,
+			polygon: (
 			<polygon
 				key={`radar-poly-${key}`}
 				points={pts}
-				fill={fillEnabled ? (mh.fill ?? fillColor) : "none"}
+				fill={fillEnabled ? (mh.fill ?? bodyFill) : "none"}
 				fillOpacity={(fillEnabled ? (sorted[0]?.opacity ?? 1) : 0) * mh.opacityMul}
 				stroke={mh.outline ?? mh.fill ?? stroke}
 				strokeOpacity={mh.outline ? 1 : borderOpacity * mh.opacityMul}
@@ -648,10 +821,11 @@ const buildPolygons = (
 						: lineThickness
 				}
 				strokeLinejoin="round"
-			/>,
-		)
+			/>
+			),
+		})
 	}
-	return <g>{elements}</g>
+	return series
 }
 
 const tooltipFieldsFor = (

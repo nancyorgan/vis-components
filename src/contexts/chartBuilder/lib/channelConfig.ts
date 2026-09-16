@@ -857,6 +857,25 @@ export type PatternConfig = {
 	 * the toggle only when it owns layout. Stored here (not only on hue)
 	 * so the setting persists when the user maps pattern without hue. */
 	stackMode: StackMode
+	/** RADAR POLYGON FILL — a pattern pick SEPARATE from the point fill,
+	 * read only while `connection.fillPolygon` is on. The Pattern menu's
+	 * "Polygon fill" subsection writes these four fields; the mark points
+	 * keep reading `overrides` / `inkColors` / `defaultPattern`. All sparse:
+	 * absent = no polygon pattern (the polygon draws its plain hue fill).
+	 *
+	 * Per pattern-category palette index (or "none") with a pattern
+	 * variable mapped. Like point fills in line-chart context, a category
+	 * with no entry renders NO pattern — the user opts in per swatch. */
+	polygonOverrides?: Record<string, PatternOverride>
+	/** Per pattern-category ink for the polygon pattern (hex). Missing
+	 * categories fall back to the hue-paired ink, then DEFAULT_PATTERN_INK. */
+	polygonInkColors?: Record<string, string>
+	/** No-variable default polygon pattern (palette index); null/absent =
+	 * none. The analogue of `ChannelConfigs.defaultPattern` for polygons. */
+	defaultPolygonPattern?: number | null
+	/** Ink for `defaultPolygonPattern`; null/absent = the theme's pattern
+	 * ink (`ChannelConfigs.defaultPatternInk`). */
+	defaultPolygonPatternInk?: string | null
 }
 export const DEFAULT_PATTERN_CONFIG: PatternConfig = {
 	overrides: {},
