@@ -1,6 +1,7 @@
 import { rgb as d3Rgb } from "d3-color"
 import {
 	buildLegendFormatter,
+	defaultLegendFormatter,
 	decorateOpenEndLabel,
 	legendDataExtent,
 	resolveLegendBreaks,
@@ -64,9 +65,7 @@ export const OpacityLegend = ({
 	if (lo === undefined || hi === undefined) return null
 	const dataExt = legendDataExtent(values, type)
 	const customFmt = buildLegendFormatter(merged.format)
-	const fallbackFmt = (n: number) =>
-		type === "temporal" ? new Date(n).toLocaleDateString() : n.toFixed(2)
-	const fmt = customFmt ?? fallbackFmt
+	const fmt = customFmt ?? defaultLegendFormatter(breaks, type)
 	const gradientStops = breaks.map((v, i) => {
 		const t = (v - lo) / (hi - lo || 1)
 		return {

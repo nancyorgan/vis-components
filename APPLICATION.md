@@ -2130,6 +2130,14 @@ controls:
   thickness** (default 1px) and **Tick color** (default a neutral
   stone gray) appear only once ticks are on.
 
+Quantitative legend break labels take the shared **Label format**
+preset dropdown + custom d3-format spec (Literal prints each break
+as-is). **Auto** (empty spec) follows the break set: when every break
+is a whole number (0 / 50 / 100, or a user-typed 1, 2, 3) labels print
+as whole numbers with no trailing ".00"; once any break carries a
+fraction every label prints two decimals so the column stays aligned
+(0.00 / 0.50 / 1.00). Temporal breaks print as locale dates.
+
 The Label formatting subsection additionally offers **Label
 alignment** (left / center / right, via the shared AlignmentControl)
 whenever a gradient bar is active: under a horizontal bar each break

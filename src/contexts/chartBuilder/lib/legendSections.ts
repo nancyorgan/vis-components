@@ -25,6 +25,7 @@ import { DEFAULT_HEXBIN_BIN_COUNT, resolveHexbinCells } from "./hexbins"
 import { HEXBIN_COUNT_LABEL, hexbinEligible } from "./hexbinMeasure"
 import {
 	buildLegendFormatter,
+	defaultLegendFormatter,
 	decorateOpenEndLabel,
 	legendDataExtent,
 	resolveLegendBreaks,
@@ -717,13 +718,7 @@ export const planLegendSections = ({
 			const breaks = resolveLegendBreaks(s.values, s.type, cfg, 5, 2)
 			const merged = resolveLegendChannelConfig(cfg)
 			const customFmt = buildLegendFormatter(merged.format)
-			const fallbackFmt = (n: number) =>
-				s.type === "temporal"
-					? new Date(n).toLocaleDateString()
-					: Number.isFinite(n)
-						? n.toFixed(2)
-						: String(n)
-			const fmt = customFmt ?? fallbackFmt
+			const fmt = customFmt ?? defaultLegendFormatter(breaks, s.type)
 			const dataExt = legendDataExtent(s.values, s.type)
 			breaks.forEach((b, i) => {
 				uniques.add(decorateOpenEndLabel(fmt(b), i, breaks, dataExt))

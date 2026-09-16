@@ -1,6 +1,7 @@
 import type { GradientBarStyle, LegendSwatchShape } from "../../../lib/labelsConfig"
 import {
 	buildLegendFormatter,
+	defaultLegendFormatter,
 	decorateOpenEndLabel,
 	legendDataExtent,
 	resolveLegendBreaks,
@@ -166,13 +167,7 @@ export const ColorLegend = ({
 	if (lo === undefined || hi === undefined) return null
 	const dataExt = legendDataExtent(values, type)
 	const customFmt = buildLegendFormatter(merged.format)
-	const fallbackFmt = (n: number) =>
-		type === "temporal"
-			? new Date(n).toLocaleDateString()
-			: Number.isFinite(n)
-				? n.toFixed(2)
-				: String(n)
-	const fmt = customFmt ?? fallbackFmt
+	const fmt = customFmt ?? defaultLegendFormatter(breaks, type)
 	// When the user's chosen top break sits below the data max, append a
 	// "+" to that label — signals "this value or higher, all the same
 	// color" (matches the clamp-out-of-range behavior).

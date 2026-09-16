@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
 	buildLegendFormatter,
 	decorateOpenEndLabel,
+	defaultLegendFormatter,
 	formatBreaksInput,
 	legendDataExtent,
 	parseBreaksInput,
@@ -146,6 +147,29 @@ describe("buildLegendFormatter", () => {
 	it("falls back to String() on invalid spec without throwing", () => {
 		const f = buildLegendFormatter("INVALID")!
 		expect(typeof f(42)).toBe("string")
+	})
+})
+
+describe("defaultLegendFormatter", () => {
+	it("prints whole numbers when every break is an integer", () => {
+		const fmt = defaultLegendFormatter([0, 50, 100, 150, 200], "quantitative")
+		expect([0, 50, 200].map(fmt)).toEqual(["0", "50", "200"])
+	})
+
+	it("prints two decimals for every label once any break has a fraction", () => {
+		const fmt = defaultLegendFormatter([0, 0.5, 1], "quantitative")
+		expect([0, 0.5, 1].map(fmt)).toEqual(["0.00", "0.50", "1.00"])
+	})
+
+	it("prints an empty label for non-finite values", () => {
+		expect(defaultLegendFormatter([0, 10], "quantitative")(Number.NaN)).toBe("")
+	})
+
+	it("prints locale dates for temporal breaks", () => {
+		const ms = Date.UTC(2026, 4, 20, 12)
+		expect(defaultLegendFormatter([ms], "temporal")(ms)).toBe(
+			new Date(ms).toLocaleDateString(),
+		)
 	})
 })
 

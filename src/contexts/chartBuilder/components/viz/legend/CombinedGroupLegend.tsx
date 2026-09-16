@@ -8,6 +8,7 @@ import { DASH_CYCLE, dashArrayFor } from "../../../lib/dashPatterns"
 import type { GradientBarStyle, LegendSwatchShape } from "../../../lib/labelsConfig"
 import {
 	buildLegendFormatter,
+	defaultLegendFormatter,
 	decorateOpenEndLabel,
 	legendDataExtent,
 	resolveLegendBreaks,
@@ -492,8 +493,7 @@ export const CombinedGroupLegend = ({
 		if (stops.length === 0) return null
 		const dataExt = legendDataExtent(values, type)
 		const customFmt = buildLegendFormatter(merged.format)
-		const fallbackFmt = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "")
-		const rawFmt = customFmt ?? fallbackFmt
+		const rawFmt = customFmt ?? defaultLegendFormatter(stops, type)
 		const fmt = (v: number, i: number) =>
 			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		const domainOverride =
@@ -617,8 +617,7 @@ export const CombinedGroupLegend = ({
 		if (stops.length === 0) return null
 		const dataExt = legendDataExtent(values, type)
 		const customFmt = buildLegendFormatter(merged.format)
-		const fallbackFmt = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "")
-		const rawFmt = customFmt ?? fallbackFmt
+		const rawFmt = customFmt ?? defaultLegendFormatter(stops, type)
 		const fmt = (v: number, i: number) =>
 			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		const domainOverride =
@@ -704,13 +703,7 @@ export const CombinedGroupLegend = ({
 		if (lo === undefined || hi === undefined) return null
 		const dataExt = legendDataExtent(values, type)
 		const customFmt = buildLegendFormatter(merged.format)
-		const fallbackFmt = (n: number) =>
-			type === "temporal"
-				? new Date(n).toLocaleDateString()
-				: Number.isFinite(n)
-					? n.toFixed(2)
-					: String(n)
-		const rawFmt = customFmt ?? fallbackFmt
+		const rawFmt = customFmt ?? defaultLegendFormatter(stops, type)
 		const fmt = (v: number, i: number) =>
 			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		// Gradient bar mode is only meaningful when hue is the ONLY mapped

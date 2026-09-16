@@ -3,6 +3,7 @@ import { format as d3Format } from "d3-format"
 import { scaleLinear } from "d3-scale"
 import { timeFormat } from "d3-time-format"
 
+import { LITERAL_FORMAT } from "./formatTick"
 import {
 	DEFAULT_LEGEND_CHANNEL_CONFIG,
 	type LegendChannelConfig,
@@ -60,12 +61,14 @@ export const legendDataExtent = (
 /** Build the formatter for legend break labels. Spec-aware just like the
  * axis tick formatter: a `%<letter>` directive selects d3-time-format,
  * everything else selects d3-format. Returns null when the spec is empty
- * (caller falls back to the legacy default formatter). */
+ * (caller falls back to `defaultLegendFormatter`). */
 export const buildLegendFormatter = (
 	spec: string,
 ): ((v: number) => string) | null => {
 	const trimmed = spec.trim()
 	if (trimmed === "") return null
+	// Literal preset (shared format dropdown): print the break verbatim.
+	if (trimmed.toLowerCase() === LITERAL_FORMAT) return (v) => String(v)
 	const isTime = /%[a-zA-Z]/.test(trimmed)
 	if (isTime) {
 		try {
@@ -84,6 +87,25 @@ export const buildLegendFormatter = (
 		return (v) => f(v)
 	} catch {
 		return (v) => String(v)
+	}
+}
+
+/** Default ("Auto") formatter for legend break labels when no custom
+ * format spec is set. Decimal places follow the BREAK SET, not each value:
+ * when every break is a whole number (0 / 50 / 100, or a user-typed
+ * 1, 2, 3) labels print as whole numbers; as soon as any break carries a
+ * fraction every label prints two decimals so the column stays aligned
+ * (0.00 / 0.50 / 1.00). Temporal breaks (ms since epoch) print as locale
+ * dates. Non-finite values print empty. */
+export const defaultLegendFormatter = (
+	breaks: readonly number[],
+	type: FieldType,
+): ((v: number) => string) => {
+	if (type === "temporal") return (v) => new Date(v).toLocaleDateString()
+	const wholeNumbers = breaks.every((b) => !Number.isFinite(b) || Number.isInteger(b))
+	return (v) => {
+		if (!Number.isFinite(v)) return ""
+		return wholeNumbers ? String(v) : v.toFixed(2)
 	}
 }
 

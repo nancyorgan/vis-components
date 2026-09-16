@@ -73,10 +73,14 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		// so labels for both endpoints AND the intermediate breaks render.
 		// Labels are pretty round numbers from d3's nice+ticks, so data
 		// extent 1..100 expands to 0..100 with step 20: 0, 20, 40, 60,
-		// 80, 100.
-		const allText = container.textContent ?? ""
-		expect(allText).toContain("0.00") // round low endpoint
-		expect(allText).toContain("100.00") // round high endpoint
+		// 80, 100. Integer breaks print as whole numbers under the Auto
+		// format (no trailing ".00").
+		const labelTexts = [...container.querySelectorAll("span")].map(
+			(s) => s.textContent
+		)
+		expect(labelTexts).toContain("0") // round low endpoint
+		expect(labelTexts).toContain("100") // round high endpoint
+		expect(labelTexts).not.toContain("0.00")
 		// Guarding against fall-through to the swatch list: the bar branch
 		// uses absolutely-positioned labels along the bar, NOT the
 		// `flex items-center gap-2` swatch rows the categorical/swatch
@@ -108,14 +112,15 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		expect(gradientStrip).toBeNull()
 		// Stops use pretty round numbers from d3's nice+ticks — data
 		// extent 1..100 → endpoints 0..100, step 20 → [0, 20, 40, 60,
-		// 80, 100]. Six rows, all multiples of 20.
-		const allText = container.textContent ?? ""
-		expect(allText).toContain("0.00")
-		expect(allText).toContain("20.00")
-		expect(allText).toContain("40.00")
-		expect(allText).toContain("60.00")
-		expect(allText).toContain("80.00")
-		expect(allText).toContain("100.00")
+		// 80, 100]. Six rows, all multiples of 20 — printed as whole
+		// numbers because every break is an integer.
+		const labelTexts = [...container.querySelectorAll("span")].map(
+			(s) => s.textContent
+		)
+		for (const expected of ["0", "20", "40", "60", "80", "100"]) {
+			expect(labelTexts).toContain(expected)
+		}
+		expect(labelTexts).not.toContain("0.00")
 	})
 
 	it("swatch outline: quant swatches draw the user's border; absent by default", () => {
@@ -386,8 +391,8 @@ describe("CombinedGroupLegend — quantitative hue", () => {
 		// invariant we used to assert via DOM order before the breaks
 		// refactor.
 		const labels = [...container.querySelectorAll("span")] as HTMLSpanElement[]
-		const hiSpan = labels.find((s) => s.textContent === "100.00")
-		const loSpan = labels.find((s) => s.textContent === "0.00")
+		const hiSpan = labels.find((s) => s.textContent === "100")
+		const loSpan = labels.find((s) => s.textContent === "0")
 		expect(hiSpan).toBeDefined()
 		expect(loSpan).toBeDefined()
 		const pctOf = (el: HTMLSpanElement | undefined): number => {

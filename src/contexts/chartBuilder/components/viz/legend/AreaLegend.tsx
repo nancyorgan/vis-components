@@ -2,6 +2,7 @@ import { scalePow } from "d3-scale"
 import { DEFAULT_AREA_CONFIG } from "../../../lib/channelConfig"
 import {
 	buildLegendFormatter,
+	defaultLegendFormatter,
 	decorateOpenEndLabel,
 	legendDataExtent,
 	resolveLegendBreaks,
@@ -77,8 +78,7 @@ export const AreaLegend = ({
 		const breaks = resolveLegendBreaks(values, type, channelCfg, 3, 3)
 		if (breaks.length === 0) return null
 		const customFmt = buildLegendFormatter(merged.format)
-		const fmt =
-			customFmt ?? ((n: number) => (Number.isFinite(n) ? n.toFixed(2) : ""))
+		const fmt = customFmt ?? defaultLegendFormatter(breaks, type)
 		entries = breaks.map((s, i) => ({
 			key: String(s),
 			label: decorateOpenEndLabel(fmt(s), i, breaks, dataExt),

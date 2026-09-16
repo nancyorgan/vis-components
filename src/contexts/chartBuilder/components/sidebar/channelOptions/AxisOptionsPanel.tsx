@@ -15,7 +15,6 @@ import {
 	type SpineConfig,
 	type TickmarkConfig,
 } from "../../../lib/channelConfig"
-import { COUNTRY_NAME_FORMAT } from "../../../lib/geo/countryNames"
 import { formatBreaksInput, parseBreaksInput } from "../../../lib/legendBreaks"
 import { naturalWrapAlignFor } from "../../../lib/tickLabelWrap"
 import { axisConfigFromTheme, spineThemeFor, valueChanged } from "../../../lib/themeConfig"
@@ -32,6 +31,8 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
+import { formatPresetSelection } from "../../../lib/formatPresets"
+import { FormatPresetOptions } from "../FormatPresetOptions"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
@@ -626,15 +627,14 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	)
 }
 
-/** The tick "Format" control: a preset dropdown (numeric + temporal d3
- *  specs) over a free-typed custom format box. Shared with the chord ring
- *  axis's Ticks section AND the per-field data-label formatting, so the
- *  format mental model matches x / y exactly. `label` overrides the row
- *  label (defaults to "Format") — data labels pass the field name.
- *  `countryNames` adds the Geography preset group ("Full country name" —
- *  the COUNTRY_NAME_FORMAT label spec); the data-label panels pass it on
- *  countries-level geo charts only, so the option never pollutes other
- *  chart types or the axis tick dropdowns. */
+/** The tick "Format" control: the shared preset dropdown
+ *  (`FormatPresetOptions`) over a free-typed custom format box. Shared with
+ *  the chord ring axis's Tick Labels section AND the per-field data-label
+ *  formatting, so the format mental model matches x / y exactly. `label`
+ *  overrides the row label (defaults to "Format") — data labels pass the
+ *  field name. `countryNames` adds the Geography preset group; the
+ *  data-label panels pass it on countries-level geo charts only, so the
+ *  option never pollutes other chart types or the axis tick dropdowns. */
 export const TickFormatControl = ({
 	value,
 	changed,
@@ -662,39 +662,12 @@ export const TickFormatControl = ({
 			<select
 				value=""
 				onChange={(e) => {
-					const v = e.target.value
-					if (v === "__auto__") onChange("")
-					else if (v) onChange(v)
+					const spec = formatPresetSelection(e.target.value)
+					if (spec !== null) onChange(spec)
 				}}
 				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			>
-				<option value="">— Pick a preset —</option>
-				<option value="__auto__">Auto (scale default)</option>
-					<option value="literal">Literal (show value as-is)</option>
-				{countryNames && (
-					<optgroup label="Geography">
-						<option value={COUNTRY_NAME_FORMAT}>
-							Full country name (Democratic Republic of the Congo)
-						</option>
-					</optgroup>
-				)}
-				<optgroup label="Numeric">
-					<option value=",">Thousands separator (1,234)</option>
-					<option value=".2f">Two decimals (12.34)</option>
-					<option value=".0%">Percent (12%)</option>
-					<option value=".1%">Percent · 1 decimal (12.3%)</option>
-					<option value=".2e">Scientific (1.23e+4)</option>
-					<option value="$,.0f">Currency · whole ($1,234)</option>
-					<option value="$,.2f">Currency · 2dp ($1,234.56)</option>
-					<option value=".3s">SI prefix (1.23k)</option>
-				</optgroup>
-				<optgroup label="Temporal">
-					<option value="%Y-%m-%d">ISO date (2026-05-20)</option>
-					<option value="%b %Y">Month + year (May 2026)</option>
-					<option value="%Y">Year (2026)</option>
-					<option value="%b %d">Day + month (May 20)</option>
-					<option value="%H:%M">Time (14:35)</option>
-				</optgroup>
+				<FormatPresetOptions countryNames={countryNames} />
 			</select>
 		</label>
 		<div className="flex items-center gap-2">

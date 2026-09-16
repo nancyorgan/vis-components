@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import { useChartModeDef } from "../../store/useChartModeDef"
+import { formatPresetSelection } from "../../lib/formatPresets"
+import { FormatPresetOptions } from "./FormatPresetOptions"
 import {
 	densityCurveGroupField,
 	densityCurveOn,
@@ -191,30 +193,12 @@ const QuantLegendChannelControls = ({
 					<select
 						value=""
 						onChange={(e) => {
-							const v = e.target.value
-							if (v === "__auto__") onChange({ ...cfg, format: "" })
-							else if (v) onChange({ ...cfg, format: v })
+							const spec = formatPresetSelection(e.target.value)
+							if (spec !== null) onChange({ ...cfg, format: spec })
 						}}
 						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 					>
-						<option value="">— Pick a preset —</option>
-						<option value="__auto__">Auto (default)</option>
-						<optgroup label="Numeric">
-							<option value=",">Thousands separator (1,234)</option>
-							<option value=",.0f">Whole numbers (1,234)</option>
-							<option value=".2f">Two decimals (12.34)</option>
-							<option value=".0%">Percent (12%)</option>
-							<option value=".1%">Percent · 1 decimal (12.3%)</option>
-							<option value=".2e">Scientific (1.23e+4)</option>
-							<option value="$,.0f">Currency · whole ($1,234)</option>
-							<option value="$,.2f">Currency · 2dp ($1,234.56)</option>
-							<option value=".3s">SI prefix (1.23k)</option>
-						</optgroup>
-						<optgroup label="Temporal">
-							<option value="%Y-%m-%d">ISO date (2026-05-20)</option>
-							<option value="%b %Y">Month + year (May 2026)</option>
-							<option value="%Y">Year (2026)</option>
-						</optgroup>
+						<FormatPresetOptions />
 					</select>
 				</label>
 				<div className="flex items-center gap-2">
