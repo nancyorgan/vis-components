@@ -187,7 +187,7 @@ const FAMILY_WEIGHTS: Record<string, number[]> = {
 	"'DM Mono', ui-monospace, monospace": [300, 400, 500],
 	"Inter, system-ui, sans-serif": ALL_WEIGHTS,
 	// Both loaded as variable fonts at wght 300–700 (index.html); the system
-	// themes use Quicksand 300/500 and Fraunces 300/700.
+	// themes use Quicksand 300–700 and Fraunces 700.
 	"'Quicksand', system-ui, sans-serif": [300, 400, 500, 600, 700],
 	"'Fraunces', system-ui, sans-serif": [300, 400, 500, 600, 700],
 }
