@@ -11,6 +11,7 @@ import { format as d3Format } from "d3-format"
 
 import { evenlySpacedTicks } from "../../lib/evenTicks"
 import { buildTickFormatter } from "../../lib/formatTick"
+import { mirrorTickBreaks } from "../../lib/mirrorAxis"
 import {
 	textAnchorFromAlignment,
 	type FontConfig,
@@ -98,6 +99,15 @@ type Props = {
 	 * (and explicit gridline counts) follow the same rule. Ignored on
 	 * categorical axes. */
 	domainPinned?: boolean
+	/** True when this is a bar chart's measure axis under "Use a mirrored
+	 * axis": the domain runs through 0 with one direction level's bars on
+	 * each side, but the values are magnitudes — so every tick label shows
+	 * |value| (the user's format spec still applies, to the magnitude), and
+	 * the Ticks section's mirrored custom breaks (`config.mirror.breaks`,
+	 * each magnitude pinning a tick at -b AND +b) replace the plain `breaks`
+	 * list. Set by the coord system from the bar renderer only — the flag on
+	 * a config is inert for every other renderer. */
+	mirrored?: boolean
 }
 
 const DEFAULT_TICK_COUNT = 5
@@ -120,6 +130,7 @@ export const Axis = ({
 	opposingAxis,
 	spinePosition,
 	domainPinned = false,
+	mirrored = false,
 }: Props) => {
 	const drawBack = layer !== "front"
 	const drawFront = layer !== "back" && showTicksAndLabels
@@ -182,7 +193,15 @@ export const Axis = ({
 	// labels on a quantitative axis when the spine alone is sufficient (or
 	// when data labels cover the axis labeling).
 	const tickCount = Math.max(0, Math.min(requestedCount, maxMeaningfulTicks))
-	const customFmt = config ? buildTickFormatter(config, fieldType) : null
+	const baseCustomFmt = config ? buildTickFormatter(config, fieldType) : null
+	// Mirrored measure axis: labels show magnitudes on both sides of zero.
+	// Wraps whichever formatter ends up applying (custom spec or the scale's
+	// default) so the two paths stay in step.
+	const toMagnitude = (v: unknown): unknown =>
+		mirrored && typeof v === "number" ? Math.abs(v) : v
+	const customFmt = baseCustomFmt
+		? (v: unknown) => baseCustomFmt(toMagnitude(v))
+		: null
 
 	// A continuous (quantitative / temporal) scale exposes `.ticks()`;
 	// categorical scalePoint / scaleBand don't.
@@ -211,7 +230,9 @@ export const Axis = ({
 	// Tick positions from the Ticks section's "Custom breaks" box — extra
 	// pinned ticks ADDED to the auto `tickCount` layout (Count 0 + breaks =
 	// fully custom ticks). Labels simply follow the ticks.
-	const customBreaks = resolveBreaks(config?.breaks)
+	const customBreaks = resolveBreaks(
+		mirrored ? mirrorTickBreaks(config?.mirror?.breaks) : config?.breaks
+	)
 
 	// The AUTOMATIC tick layout for a continuous axis, shared by the tick
 	// list and the gridlines' "match tick count" / explicit-count modes.
@@ -259,7 +280,8 @@ export const Axis = ({
 					: s.tickFormat?.(
 							tickCount > 0 ? tickCount : Math.max(2, DEFAULT_TICK_COUNT)
 						)
-			const fmt = customFmt ?? fallback
+			const fmt =
+				customFmt ?? (fallback ? (v: unknown) => fallback(toMagnitude(v)) : undefined)
 			// Sort by axis value (breaks land between the auto ticks) and de-dup
 			// on pixel position so a break that coincides with an auto tick
 			// draws one tick + label, not two.
@@ -270,7 +292,7 @@ export const Axis = ({
 				.sort((a, b) => toNum(a) - toNum(b))
 				.map((v) => ({
 					pos: (scale as unknown as (x: unknown) => number)(v),
-					label: fmt ? fmt(v) : String(v),
+					label: fmt ? fmt(v) : String(toMagnitude(v)),
 				}))
 				.filter((t) => {
 					const key = t.pos.toFixed(2)

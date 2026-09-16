@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import {
 	DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
@@ -11,6 +11,7 @@ import {
 	type DistributionOverlayConfig,
 	type GridlineConfig,
 	type HistogramConfig,
+	type MirrorAxisConfig,
 	type RegressionConfig,
 	type SpineConfig,
 	type TickmarkConfig,
@@ -20,13 +21,17 @@ import { naturalWrapAlignFor } from "../../../lib/tickLabelWrap"
 import { axisConfigFromTheme, spineThemeFor, valueChanged } from "../../../lib/themeConfig"
 import type { FontConfig, LabelAlignment } from "../../../lib/labelsConfig"
 import { maxMeaningfulTicks } from "../../../lib/scales"
+import { effectiveType as fieldTypeOf } from "../../../lib/fieldType"
+import { twoLevelFieldNames, twoLevelsOf } from "../../../lib/mirrorAxis"
 import type { FieldType, Theme } from "../../../lib/types"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 } from "../../../store/atoms"
+import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 
@@ -37,6 +42,7 @@ import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { Select } from "../../../../../components/ui/Select"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../../components/ui/Toggle"
 import { AlignmentControl, FontEditor } from "../LabelsPanel"
@@ -87,6 +93,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		min: valueChanged(configs[channel]?.min, undefined),
 		max: valueChanged(configs[channel]?.max, undefined),
 		breaks: valueChanged(configs[channel]?.breaks, undefined),
+		mirror: valueChanged(configs[channel]?.mirror, undefined),
 		tickmarks: valueChanged(configs[channel]?.tickmarks, themeAxis.tickmarks),
 		tickLabelAngle: valueChanged(
 			configs[channel]?.tickLabelAngle,
@@ -124,7 +131,12 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		Ticks:
 			ch.tickmarks ||
 			(channel !== "r" &&
-				(ch.tickCount || ch.stride || ch.breaks || ch.min || ch.max)),
+				(ch.tickCount ||
+					ch.stride ||
+					ch.breaks ||
+					ch.min ||
+					ch.max ||
+					ch.mirror)),
 		"Tick Labels":
 			(channel === "r" && (ch.tickCount || ch.stride)) ||
 			ch.format ||
@@ -149,6 +161,8 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const dataset = useCurrentDatasetView()
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
+	const modeDef = useChartModeDef()
 	const directFieldName = encodings[channel]?.field ?? null
 	// Bars/areas don't map a field directly to the measure axis — the
 	// `length` channel feeds whichever position axis the orientation puts
@@ -248,7 +262,16 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			const n = typeof v === "number" ? v : Number(v)
 			return Number.isFinite(n) && n < 0
 		})
-	const showSpineAtZero = perpHasNegatives || config.spineAtZero === true
+	// A mirrored measure axis on the perpendicular panel puts bars on both
+	// sides of 0 even though the data is all-positive — the category spine
+	// then has a zero crossing to sit at.
+	const perpMirrored =
+		otherChannel !== null &&
+		!!directFieldName &&
+		!!lengthFieldName &&
+		configs[otherChannel]?.mirror?.enabled === true
+	const showSpineAtZero =
+		perpHasNegatives || perpMirrored || config.spineAtZero === true
 
 	const isViolinCandidate =
 		channel !== "r" &&
@@ -295,6 +318,44 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	// breaks) don't apply; the bin count drives the ticks instead. The tick
 	// FORMAT still applies (bin-edge labels honor it).
 	const isBinnedAxis = isHistogramCandidate && histogram.enabled
+
+	// "Use a mirrored axis": offered on a bar chart's IMPLIED measure axis
+	// (this field-less axis carries the `length` measure) — the only place
+	// bars can split to either side of zero by a direction variable. Stays
+	// visible while checked so it can always be turned off after the chart
+	// changes shape. The render path gates on the same mode trait.
+	const mirror: MirrorAxisConfig = config.mirror ?? {
+		enabled: false,
+		directionField: null,
+	}
+	const mirrorOn = mirror.enabled
+	const isMirrorCandidate =
+		channel !== "r" &&
+		isImpliedMeasureAxis &&
+		!isHistogramMeasureAxis &&
+		modeDef.canvas.supportsNegativeMeasure === true &&
+		modeDef.canvas.measureAxis === channel
+	const showMirror = channel !== "r" && (isMirrorCandidate || mirrorOn)
+	// The mirror only DRIVES the render on a candidate axis; a stale flag on
+	// an axis that stopped qualifying (the chart changed shape) keeps its
+	// checkbox visible but hands Scale range / Custom breaks back.
+	const mirrorApplies = isMirrorCandidate && mirrorOn
+	// Fields with exactly two distinct values — the only valid directions.
+	const directionOptions = useMemo<string[]>(() => {
+		if (!showMirror || !dataset) return []
+		return twoLevelFieldNames(dataset.rows, dataset.fields, (name) =>
+			fieldTypeOf(dataset, name, overrides)
+		)
+	}, [showMirror, dataset, overrides])
+	const directionLevels =
+		showMirror && dataset && mirror.directionField
+			? twoLevelsOf(
+					dataset.rows,
+					mirror.directionField,
+					fieldTypeOf(dataset, mirror.directionField, overrides),
+					levelOrders[mirror.directionField]
+				)
+			: null
 
 	const update = (next: Partial<AxisConfig>) => {
 		// Seed untouched fields from the THEME's axis config, not the built-in
@@ -456,7 +517,10 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			{channel !== "r" && (
 				<Section title="Ticks" changed={sectionChanged.Ticks}>
 					{tickDensityControls}
-					{isContinuous && (
+					{/* Scale range + plain custom breaks step aside while the axis
+					 *  is mirrored — the mirror's side maxes and mirrored breaks
+					 *  replace them. */}
+					{isContinuous && !mirrorApplies && (
 						<ScaleRangeControls
 							isTemporal={effectiveType === "temporal"}
 							min={config.min ?? null}
@@ -475,7 +539,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 					 *  (Count 0 + breaks = fully custom ticks). Tick labels simply
 					 *  follow the ticks. Continuous axes only — a binned histogram
 					 *  axis is categorical bands. */}
-					{isContinuous && !isBinnedAxis && (
+					{isContinuous && !isBinnedAxis && !mirrorApplies && (
 						<BreaksField
 							isTemporal={effectiveType === "temporal"}
 							breaks={config.breaks ?? []}
@@ -484,6 +548,16 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 							}
 							changed={ch.breaks}
 							hint="Extra tick positions in addition to the automatic ones above. Set Count to 0 for fully custom ticks. Breaks outside the axis range aren't shown."
+						/>
+					)}
+					{showMirror && (
+						<MirroredAxisControls
+							mirror={mirror}
+							orientation={channel === "x" ? "x" : "y"}
+							directionOptions={directionOptions}
+							directionLevels={directionLevels}
+							changed={ch.mirror}
+							onChange={(next) => update({ mirror: next })}
 						/>
 					)}
 					<TickmarkControls
@@ -860,6 +934,15 @@ const NumericBoundField = ({
 	)
 }
 
+/** Bound / max text inputs shared by Scale range and the mirror's side maxes. */
+const BOUND_INPUT_CLASS =
+	"w-24 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+/** Field label: bold purple when the value differs from the theme default. */
+const boundLabelClass = (on: boolean | undefined) =>
+	on
+		? "font-semibold !text-vc-section-header"
+		: "text-stone-600 dark:text-stone-400"
+
 /** Custom domain bounds for a continuous (quantitative or temporal) axis.
  * The min/max here pin the scale's domain (the base default applied to every
  * panel — facet-level range overrides still win where set). Bounds are stored
@@ -883,10 +966,7 @@ const ScaleRangeControls = ({
 	/** Per-field "changed vs default" → bold-purple that field's label. */
 	changed?: { min?: boolean; max?: boolean }
 }) => {
-	const lbl = (on: boolean | undefined) =>
-		on
-			? "font-semibold !text-vc-section-header"
-			: "text-stone-600 dark:text-stone-400"
+	const lbl = boundLabelClass
 	const toDateInput = (ms: number | null): string =>
 		ms === null ? "" : new Date(ms).toISOString().slice(0, 10)
 	const parseBound = (raw: string): number | null | undefined => {
@@ -901,8 +981,7 @@ const ScaleRangeControls = ({
 		onChange({ [bound]: parsed })
 	}
 
-	const inputClass =
-		"w-24 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+	const inputClass = BOUND_INPUT_CLASS
 
 	return (
 		<div className="mt-3 flex flex-col gap-1.5 border-t border-stone-200 pt-3 dark:border-stone-700">
@@ -1036,6 +1115,148 @@ const BreaksField = ({
 				</span>
 			</div>
 		</>
+	)
+}
+
+/** "Use a mirrored axis" mini-section at the bottom of the Ticks section
+ * (its own rule above; the Tick marks block's rule closes it). Bar measure
+ * axis only: a two-level Direction variable sends each row's bar to one
+ * side of zero while the values stay positive — expenses left / profit
+ * right, males left / females right. While on, the side maxes and the
+ * mirrored custom breaks here replace the Scale range and plain Custom
+ * breaks controls above. Unchecking clears the whole config (sparse). */
+const MirroredAxisControls = ({
+	mirror,
+	orientation,
+	directionOptions,
+	directionLevels,
+	changed,
+	onChange,
+}: {
+	mirror: MirrorAxisConfig
+	/** The measure axis's screen axis: "x" → sides are Left / Right;
+	 *  "y" → Lower / Upper. */
+	orientation: "x" | "y"
+	/** Fields with exactly two distinct values (the only valid directions). */
+	directionOptions: string[]
+	/** The chosen direction's two levels in display order (first = negative
+	 *  side), or null when none is chosen / it no longer has two levels. */
+	directionLevels: [string, string] | null
+	changed: boolean
+	onChange: (next: MirrorAxisConfig | undefined) => void
+}) => {
+	const set = (next: Partial<MirrorAxisConfig>) =>
+		onChange({ ...mirror, ...next })
+	const negLabel = orientation === "x" ? "Left max" : "Lower max"
+	const posLabel = orientation === "x" ? "Right max" : "Upper max"
+	const inputClass = BOUND_INPUT_CLASS
+	const lbl = boundLabelClass
+	const chosen = mirror.directionField ?? ""
+	// Keep a stale choice visible (disabled) so the select never shows a
+	// blank while the stored field no longer qualifies.
+	const staleChoice = chosen !== "" && !directionOptions.includes(chosen)
+	const sidesHint = directionLevels
+		? orientation === "x"
+			? `“${directionLevels[0]}” draws to the left of 0, “${directionLevels[1]}” to the right. Reorder the variable's levels under Fields to swap them.`
+			: `“${directionLevels[0]}” draws below 0, “${directionLevels[1]}” above. Reorder the variable's levels under Fields to swap them.`
+		: directionOptions.length === 0
+			? "No variable has exactly two options, so nothing can be mirrored yet."
+			: staleChoice
+				? "This variable no longer has exactly two options — pick another."
+				: "Only variables with exactly two options are listed."
+	return (
+		<div className="mt-3 flex flex-col gap-2 border-t border-stone-200 pt-3 dark:border-stone-700">
+			<Toggle
+				label="Use a mirrored axis"
+				checked={mirror.enabled}
+				onChange={(on) =>
+					onChange(on ? { ...mirror, enabled: true } : undefined)
+				}
+				changed={changed}
+			/>
+			<span className="vc-help">
+				Splits each bar to either side of 0 by a two-option variable —
+				expenses vs. profit, or a population pyramid — while the values
+				stay positive.
+			</span>
+			{mirror.enabled && (
+				<>
+					<label className="flex items-center gap-2 text-sm">
+						<span className={`${LABEL_COL} shrink-0 ${lbl(chosen !== "")}`}>
+							Direction
+						</span>
+						<Select
+							value={chosen}
+							onChange={(e) =>
+								set({ directionField: e.target.value || null })
+							}
+							className="min-w-0 flex-1"
+							aria-label="Mirror direction variable"
+						>
+							<option value="">Choose a variable…</option>
+							{staleChoice && (
+								<option value={chosen} disabled>
+									{chosen}
+								</option>
+							)}
+							{directionOptions.map((name) => (
+								<option key={name} value={name}>
+									{name}
+								</option>
+							))}
+						</Select>
+					</label>
+					<div className="flex gap-2">
+						<LabelSpacer />
+						<span className="min-w-0 flex-1 vc-help">{sidesHint}</span>
+					</div>
+					<label className="flex items-center gap-2 text-sm">
+						<span
+							className={`${LABEL_COL} shrink-0 ${lbl(mirror.negativeMax != null)}`}
+						>
+							{negLabel}
+						</span>
+						<NumericBoundField
+							value={mirror.negativeMax ?? null}
+							onCommit={(v) =>
+								set({ negativeMax: v === null ? null : Math.abs(v) })
+							}
+							className={inputClass}
+						/>
+					</label>
+					<label className="flex items-center gap-2 text-sm">
+						<span
+							className={`${LABEL_COL} shrink-0 ${lbl(mirror.positiveMax != null)}`}
+						>
+							{posLabel}
+						</span>
+						<NumericBoundField
+							value={mirror.positiveMax ?? null}
+							onCommit={(v) =>
+								set({ positiveMax: v === null ? null : Math.abs(v) })
+							}
+							className={inputClass}
+						/>
+					</label>
+					<div className="flex gap-2">
+						<LabelSpacer />
+						<span className="min-w-0 flex-1 vc-help">
+							How far each side of 0 extends. Blank = auto-fit from the
+							data on that side.
+						</span>
+					</div>
+					<BreaksField
+						isTemporal={false}
+						breaks={mirror.breaks ?? []}
+						onCommit={(breaks) =>
+							set({ breaks: breaks.length > 0 ? breaks : undefined })
+						}
+						changed={(mirror.breaks?.length ?? 0) > 0}
+						hint="Mirrored around 0: “50, 100” pins ticks at 50 and 100 on both sides, in addition to the automatic ones above. Set Count to 0 for fully custom ticks."
+					/>
+				</>
+			)}
+		</div>
 	)
 }
 

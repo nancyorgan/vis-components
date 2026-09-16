@@ -1406,6 +1406,38 @@ The X-axis and Y-axis panels (under Encodings) configure:
   layout. Pinned bounds are also respected exactly on bar / area
   measure axes (the auto-fit rounding-outward applies only to blank
   ends).
+- **Use a mirrored axis** (Ticks section, its own ruled mini-section
+  below Custom breaks; bar charts' IMPLIED measure axis only — the
+  field-less position axis the `length` measure feeds, so the X panel
+  on horizontal bars and the Y panel on vertical ones). For opposed
+  counts that are NOT negative — expenses vs. profit, covered vs.
+  out-of-pocket, a population pyramid — the axis runs through 0 and a
+  two-option **Direction** variable sends each row's bar to one side:
+  the variable's FIRST level (pinned Fields order, else first-seen)
+  draws on the negative side (left / down), the second on the positive
+  side; the helper text names which is which, and reordering the
+  levels under Fields swaps them. Only variables with exactly two
+  distinct values are listed (a chosen variable that stops qualifying
+  stays listed, disabled, so the picker never goes blank). The sign is
+  applied at render time
+  (`applyMirrorSign` negates the negative level's measures before
+  aggregation, and the diverging-stack ledgers do the rest), so the
+  data stays positive and every displayed value — tick labels (the
+  format spec applies to the magnitude), data labels, tooltips — shows
+  the magnitude. While on, **Left max / Right max** (Lower / Upper on
+  a vertical measure axis) replace Scale range: each pins how far its
+  side extends (blank = auto-fit from that side's data), and a
+  mirrored **Custom breaks** box replaces the plain one — each
+  magnitude pins a tick on BOTH sides (`50, 100` → ±50, ±100), still
+  additive to Count. Faceted panels sharing the measure axis share the
+  mirrored floor / ceiling (`mirrorRows` in `shareScales.ts`). The
+  category axis's Spine section offers "Set spine at 0" while the
+  perpendicular axis is mirrored. Stored as sparse
+  `AxisConfig.mirror` (`MirrorAxisConfig`); unchecking clears it. With
+  the box checked but no valid direction, bars render unmirrored and
+  only the side maxes apply. Gated on the `canvas.supportsNegativeMeasure`
+  mode trait — the flag is inert on every other renderer, and the
+  section stays visible while checked so it can always be turned off.
 - **Gridlines** — enabled toggle, color, thickness, custom count
   (default: match tick count). "Match tick count" follows the
   AUTOMATIC tick layout only — the Ticks section's custom breaks get
@@ -1550,7 +1582,11 @@ padding so the inner rects stay aligned.
   floor too, so a panel with no negative values still sits on the
   group's baseline. Areas keep the zero floor for now — the behavior is
   gated on the `canvas.supportsNegativeMeasure` mode trait, which only
-  the bar modes declare.
+  the bar modes declare. **Use a mirrored axis** (§5.1) rides on this
+  same geometry: it sign-flips one direction level's positive measures
+  before aggregation, so the bars split around 0 with nothing negative
+  in the data; the `Aggregation.mirrored` flag turns every displayed
+  value back into a magnitude.
 - **ScatterPlot** — points at (x, y), sized by area, colored by hue,
   shaped by shape. When `connection` is mapped, renders polyline
   overlays (line chart). The Connection panel's "Show points" control

@@ -1210,3 +1210,76 @@ describe("Axis domainPinned (Scale range min + max both set)", () => {
 		expect(tickLabels(mount(cfg({ tickCount: 0 }), true))).toEqual([])
 	})
 })
+
+describe("Axis mirrored measure axis (Use a mirrored axis)", () => {
+	// A bar chart's measure axis under "Use a mirrored axis": the domain runs
+	// through 0 but the values are magnitudes — labels show |value| and the
+	// mirror's custom breaks pin ticks on BOTH sides.
+	const xScale = scaleLinear().domain([-100, 100]).range([80, 380])
+	const cfg = (mirror: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+		tickCount: 5,
+		customFormat: "",
+		tickLabelAngle: 0,
+		jitterAmount: 0,
+		gridlines: { enabled: false, color: "#abcdef", thickness: 1, count: null },
+		tickmarks: { color: "#000", thickness: 1, length: 5 },
+		spine: { color: "#000", thickness: 1 },
+		distributionOverlay: {
+			showDensityViolin: false,
+			showBoxPlot: false,
+			showPoints: true,
+			color: "#000",
+			fillColor: "#000",
+			colorOverrides: {},
+			fillColorOverrides: {},
+		},
+		categoricalTickStride: 1,
+		mirror: { enabled: true, directionField: "sex", ...mirror },
+		...extra,
+	})
+	const tickLabels = (config: ReturnType<typeof cfg>, mirrored: boolean): string[] => {
+		const { container } = render(
+			wrapInSvg(
+				<Axis
+					scale={xScale}
+					orientation="x"
+					inner={inner}
+					label="X"
+					fieldType="quantitative"
+					config={config}
+					mirrored={mirrored}
+				/>
+			)
+		)
+		return [...container.querySelectorAll("text")]
+			.map((t) => t.textContent ?? "")
+			.filter((s) => s !== "X")
+	}
+
+	// d3 formats negatives with a true minus sign (U+2212), not a hyphen.
+	const isNegative = (label: string) => /^[-\u2212]/.test(label)
+
+	it("shows magnitudes on both sides of zero", () => {
+		const labels = tickLabels(cfg({}), true)
+		expect(labels.length).toBeGreaterThan(0)
+		for (const l of labels) expect(isNegative(l)).toBe(false)
+		expect(labels.filter((l) => l === "50")).toHaveLength(2)
+	})
+
+	it("applies the custom format spec to the magnitude", () => {
+		const labels = tickLabels(cfg({}, { customFormat: "$,.0f" }), true)
+		expect(labels).toContain("$50")
+		expect(labels.some(isNegative)).toBe(false)
+	})
+
+	it("mirrors the mirror's custom breaks to both sides (Count 0 → only those)", () => {
+		const labels = tickLabels(cfg({ breaks: [25, 75] }, { tickCount: 0 }), true)
+		expect(labels.sort()).toEqual(["25", "25", "75", "75"])
+	})
+
+	it("is inert without the mirrored prop — other renderers keep signed labels", () => {
+		const labels = tickLabels(cfg({ breaks: [25] }), false)
+		expect(labels.some(isNegative)).toBe(true)
+		expect(labels).not.toContain("25")
+	})
+})

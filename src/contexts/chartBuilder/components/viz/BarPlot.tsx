@@ -28,6 +28,7 @@ import { buildTickFormatter } from "../../lib/formatTick"
 import { densityCurveGroupField } from "../../lib/colorSlots"
 import { densityCurveMeasures } from "../../lib/densityCurve"
 import { computeHistogramBins } from "../../lib/histogramBins"
+import { applyMirrorSign, resolveMirrorDirection } from "../../lib/mirrorAxis"
 import { cartesian } from "./coords"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
@@ -125,6 +126,12 @@ type Aggregation =
 			 * null. Equal-width bins tile this range, so a linear scale over it
 			 * lines up with the band scale — used to place rug ticks. */
 			binDomain: [number, number] | null
+			/** "Use a mirrored axis" is on with a valid two-level direction:
+			 * the negative direction level's measures were sign-flipped before
+			 * aggregation, so its bars hang on the negative side of zero. The
+			 * data is still positive counts, so every displayed value (tooltip,
+			 * data labels, tick labels) shows the magnitude. */
+			mirrored: boolean
 	  }
 	| {
 			kind: "error"
@@ -206,6 +213,19 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			histogramCfg?.enabled === true && categoryType === "quantitative"
 		const lengthField = encodings.length?.field ?? ""
 		if (!isHistogram && !lengthField) return null
+		// "Use a mirrored axis" lives on the MEASURE axis's config (the
+		// field-less position axis the length feeds). Levels are discovered
+		// over the whole dataset so faceted panels agree on sides.
+		const measureChannel = mode === "bars-x" ? "y" : "x"
+		const mirrorDirection =
+			!isHistogram && lengthField
+				? resolveMirrorDirection(
+						channelConfigs[measureChannel]?.mirror,
+						dataset.rows,
+						getType,
+						levelOrders
+					)
+				: null
 
 		// Build the groups list from the aesthetic scales so the plot and the
 		// hook agree exactly on which channels are mapped. Order matches the
@@ -305,6 +325,11 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			  )
 			: null
 		const prep = (rows: typeof rowsForChart): typeof rowsForChart => {
+			// Mirror first: rows of the negative direction level get their
+			// measure negated, and the existing diverging-stack geometry
+			// (separate ledgers per sign) puts them on the other side of zero.
+			if (mirrorDirection)
+				rows = applyMirrorSign(rows, lengthField, mirrorDirection)
 			if (!binning) return rows
 			const out: Array<Record<string, unknown>> = []
 			for (const row of rows) {
@@ -410,6 +435,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			isHistogram,
 			isDensity,
 			binDomain: binning ? binning.domain : null,
+			mirrored: mirrorDirection !== null,
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately fine-grained channelConfigs sub-keys: only the listed keys affect stack aggregation; depending on the whole object would recompute on every cosmetic config change
 	}, [
@@ -429,6 +455,8 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 		channelConfigs.x?.max,
 		channelConfigs.y?.min,
 		channelConfigs.y?.max,
+		channelConfigs.x?.mirror,
+		channelConfigs.y?.mirror,
 		levelOrders,
 		props.measureMaxOverride,
 		props.measureMinOverride,
@@ -547,6 +575,8 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 			yScale,
 			xDomainPinned: !isVertical && measurePinned,
 			yDomainPinned: isVertical && measurePinned,
+			xMirrored: !isVertical && aggregation.mirrored,
+			yMirrored: isVertical && aggregation.mirrored,
 			xAxisConfig: channelConfigs.x,
 			yAxisConfig: channelConfigs.y,
 			xLabel: isVertical
@@ -610,7 +640,11 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 				: aggregation.lengthField
 			const fields: TooltipState["fields"] = [
 				{ name: aggregation.categoryField, value: stack.category },
-				{ name: measureName, value: slice.value },
+				// Mirrored bars carry a render-time sign; the data is positive.
+				{
+					name: measureName,
+					value: aggregation.mirrored ? Math.abs(slice.value) : slice.value,
+				},
 			]
 			const namesPushed = new Set([aggregation.categoryField, measureName])
 			for (const [channel, value] of Object.entries(slice.groupValues)) {
@@ -1340,9 +1374,13 @@ const buildSliceLabels = ({
 			// first non-empty) and that field is authoritative — a blank slice
 			// gets no label. The `slice.value` fallback only applies when text
 			// is unset / same as length (label shows the bar's measure).
+			// A mirrored bar's sign is render-time only — label the magnitude.
+			const measureValue = aggregation.mirrored
+				? Math.abs(slice.value)
+				: slice.value
 			const labelValue = valueFieldMapped
 				? slice.textValue
-				: (slice.textValue ?? slice.value)
+				: (slice.textValue ?? measureValue)
 			const formatted = formatTextValue(labelValue, cfg.decimals)
 			if (formatted === null) return
 
@@ -1492,9 +1530,13 @@ export const buildBarAnchors = ({
 				return endPx + direction * pad
 			})()
 
+			// A mirrored bar's sign is render-time only — label the magnitude.
+			const measureValue = aggregation.mirrored
+				? Math.abs(slice.value)
+				: slice.value
 			const labelValue = valueFieldMapped
 				? slice.textValue
-				: (slice.textValue ?? slice.value)
+				: (slice.textValue ?? measureValue)
 			const formatted = formatSingleLabel(labelValue, formatSpec, decimals)
 			// `groupValues` carries the slice's hue (when hue is mapped) so
 			// stacked / grouped bars colored by hue get matching label fills.

@@ -34,6 +34,12 @@ export type CartesianInput = {
 	 * to max (see `Axis.domainPinned`). */
 	xDomainPinned?: boolean
 	yDomainPinned?: boolean
+	/** True when this axis is a bar chart's measure axis rendered under "Use
+	 * a mirrored axis": tick labels show magnitudes and the mirror's custom
+	 * breaks (mirrored around 0) replace the plain ones (see
+	 * `Axis.mirrored`). */
+	xMirrored?: boolean
+	yMirrored?: boolean
 	/** Toggles whether ticks, labels, spine, and title render. Gridlines still
 	 * render in the back layer even when this is false — used by faceted
 	 * panels to suppress interior axis decorations while keeping gridline
@@ -139,6 +145,7 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 							fieldType={input.xFieldType}
 							maxMeaningfulTicks={input.xMaxTicks}
 							domainPinned={input.xDomainPinned}
+							mirrored={input.xMirrored}
 							tickFont={input.tickFont}
 							titleFont={input.xAxisTitleFont}
 							showTicksAndLabels={input.showXAxis}
@@ -163,6 +170,7 @@ export const cartesian = (input: CartesianInput): CoordSystem => {
 							fieldType={input.yFieldType}
 							maxMeaningfulTicks={input.yMaxTicks}
 							domainPinned={input.yDomainPinned}
+							mirrored={input.yMirrored}
 							tickFont={input.tickFont}
 							titleFont={input.yAxisTitleFont}
 							showTicksAndLabels={input.showYAxis}

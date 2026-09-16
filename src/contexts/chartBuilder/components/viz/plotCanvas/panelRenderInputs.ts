@@ -1,3 +1,4 @@
+import { pinnedAxisBounds } from "../../../lib/mirrorAxis"
 import {
 	migratePolarShareValue,
 	type ChannelConfigs,
@@ -37,6 +38,7 @@ export const resolvePanelRenderInputs = ({
 	groupMeasureMaxByKey,
 	groupMeasureMinByKey,
 	panelRadiusScale,
+	mirrorActive = false,
 }: {
 	p: SolverPanelOutput
 	panelData: FacetPanels
@@ -56,6 +58,11 @@ export const resolvePanelRenderInputs = ({
 	channelConfigs: ChannelConfigs
 	facetCfg: FacetConfig
 	groupMeasureMaxByKey: Map<string, number>
+	/** True when the measure axis renders under "Use a mirrored axis" — its
+	 *  pinned bounds then come from the mirror's side maxes (Left/Right or
+	 *  Lower/Upper max) instead of the plain Scale range min/max, which the
+	 *  panel hides while the mirror is on. */
+	mirrorActive?: boolean
 	/** Shared measure-axis FLOOR per panel (see `computeGroupMeasureMin`).
 	 *  Empty for modes that floor the measure axis at zero. */
 	groupMeasureMinByKey: Map<string, number>
@@ -225,18 +232,21 @@ export const resolvePanelRenderInputs = ({
 	// on continuous axes; `null`/absent coerces to undefined so the
 	// renderer falls through to auto-fit. (`?? undefined` turns a
 	// stored `null` into `undefined`.)
-	const xCfgMin = xIsContinuous
-		? channelConfigs.x?.min ?? undefined
-		: undefined
-	const xCfgMax = xIsContinuous
-		? channelConfigs.x?.max ?? undefined
-		: undefined
-	const yCfgMin = yIsContinuous
-		? channelConfigs.y?.min ?? undefined
-		: undefined
-	const yCfgMax = yIsContinuous
-		? channelConfigs.y?.max ?? undefined
-		: undefined
+	// "Use a mirrored axis" swaps the measure axis's source: its Left/Right
+	// (or Lower/Upper) max fields stand in for min/max — the negative-side
+	// max becomes the domain MIN, negated (see `pinnedAxisBounds`).
+	const xCfgBounds = pinnedAxisBounds(
+		channelConfigs.x,
+		mirrorActive && measureAxis === "x"
+	)
+	const yCfgBounds = pinnedAxisBounds(
+		channelConfigs.y,
+		mirrorActive && measureAxis === "y"
+	)
+	const xCfgMin = xIsContinuous ? xCfgBounds.min : undefined
+	const xCfgMax = xIsContinuous ? xCfgBounds.max : undefined
+	const yCfgMin = yIsContinuous ? yCfgBounds.min : undefined
+	const yCfgMax = yIsContinuous ? yCfgBounds.max : undefined
 	const xMinOverride =
 		xGroupOverride?.min ??
 		xOverallOverride?.min ??

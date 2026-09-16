@@ -25,6 +25,13 @@ import {
  *  Returns an empty map for non-bar/area modes or share mode "none".
  *  Pure and cheap enough that PlotCanvas calls it unmemoized once per
  *  render, exactly like the inline block it replaces. */
+/** Row mapper applied to a panel's rows before the measure bounds walk —
+ *  see the `mirrorRows` parameter below. */
+export type MirrorRows = (
+	rows: ReadonlyArray<Record<string, unknown>>
+) => ReadonlyArray<Record<string, unknown>>
+export const identityRows: MirrorRows = (rows) => rows
+
 export const computeGroupMeasureMax = ({
 	mode,
 	measureAxis,
@@ -34,6 +41,7 @@ export const computeGroupMeasureMax = ({
 	channelConfigs,
 	panelData,
 	getType,
+	mirrorRows = identityRows,
 }: {
 	mode: ChartModeDef
 	measureAxis: ChartModeDef["canvas"]["measureAxis"]
@@ -43,6 +51,11 @@ export const computeGroupMeasureMax = ({
 	channelConfigs: ChannelConfigs
 	panelData: FacetPanels
 	getType: (fieldName: string) => FieldType | undefined
+	/** "Use a mirrored axis": maps a panel's rows to the sign-applied rows
+	 *  the bar renderer aggregates (the negative direction level's measures
+	 *  negated), so the shared floor / ceiling see the same bars the panels
+	 *  draw. Identity when the mirror is off. */
+	mirrorRows?: MirrorRows
 }): Map<string, number> => {
 const isBarOrArea = measureAxis !== null
 const isVerticalBarOrArea = measureAxis === "y"
@@ -110,7 +123,7 @@ if (isBarOrArea) {
 				.map((m) => encodings[m.channel]?.field)
 				.filter((f): f is string => !!f)
 			panelData.values.forEach((key) => {
-				const panelRows = panelData.rowsByValue.get(key) ?? []
+				const panelRows = mirrorRows(panelData.rowsByValue.get(key) ?? [])
 				panelMeasureMax.set(
 					key,
 					computePanelMeasureMax(
@@ -178,6 +191,7 @@ export const computeGroupMeasureMin = ({
 	channelConfigs,
 	panelData,
 	getType,
+	mirrorRows = identityRows,
 }: {
 	mode: ChartModeDef
 	measureAxis: ChartModeDef["canvas"]["measureAxis"]
@@ -187,6 +201,11 @@ export const computeGroupMeasureMin = ({
 	channelConfigs: ChannelConfigs
 	panelData: FacetPanels
 	getType: (fieldName: string) => FieldType | undefined
+	/** "Use a mirrored axis": maps a panel's rows to the sign-applied rows
+	 *  the bar renderer aggregates (the negative direction level's measures
+	 *  negated), so the shared floor / ceiling see the same bars the panels
+	 *  draw. Identity when the mirror is off. */
+	mirrorRows?: MirrorRows
 }): Map<string, number> => {
 	const groupMeasureMinByKey = new Map<string, number>()
 	if (measureAxis === null || !mode.canvas.supportsNegativeMeasure)
@@ -217,7 +236,7 @@ export const computeGroupMeasureMin = ({
 		.filter((f): f is string => !!f)
 	const panelMeasureMin = new Map<string, number>()
 	panelData.values.forEach((key) => {
-		const panelRows = panelData.rowsByValue.get(key) ?? []
+		const panelRows = mirrorRows(panelData.rowsByValue.get(key) ?? [])
 		panelMeasureMin.set(
 			key,
 			computePanelMeasureMin(

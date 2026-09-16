@@ -320,6 +320,36 @@ export const DEFAULT_HISTOGRAM_CONFIG: HistogramConfig = {
 	rugTickThickness: 1,
 }
 
+/** "Use a mirrored axis" on a bar chart's measure axis. The axis is
+ * mirrored around 0: rows whose `directionField` value is the field's FIRST
+ * level (pinned order from the Fields panel, else first-seen) draw on the
+ * NEGATIVE side (left on a horizontal measure axis, down on a vertical
+ * one) and the second level on the positive side — their measures stay
+ * positive in the data, the sign is applied at render time. Tick labels,
+ * data labels, and tooltips all show magnitudes. Only fields with exactly
+ * two distinct values are valid directions; with no valid direction the
+ * bars render unmirrored (all positive) but the bounds below still apply.
+ *
+ * While on, the Scale range (min/max) and the plain Custom breaks are
+ * superseded by the fields here. */
+export type MirrorAxisConfig = {
+	enabled: boolean
+	/** Two-level field deciding which side each row's bar goes to. `null` =
+	 * not chosen yet. */
+	directionField: string | null
+	/** Magnitude the NEGATIVE side extends to ("Left max" / "Lower max").
+	 * Stored positive; the domain min becomes `-negativeMax`. Blank / absent
+	 * = auto-fit from the data on that side. */
+	negativeMax?: number | null
+	/** Magnitude the POSITIVE side extends to ("Right max" / "Upper max").
+	 * Blank / absent = auto-fit. */
+	positiveMax?: number | null
+	/** Custom tick breaks as MAGNITUDES, mirrored to both sides: `[50, 100]`
+	 * pins ticks at -100, -50, 50, 100 (0 pins once). Replaces the plain
+	 * `breaks` list while the mirror is on; same additive-to-auto semantics. */
+	breaks?: number[]
+}
+
 export type AxisConfig = {
 	tickCount: number // 3–12
 	/** d3-format (quantitative) or d3-time-format (temporal) string. Empty
@@ -397,6 +427,15 @@ export type AxisConfig = {
 	 * the domain extent independently. Ignored on categorical / ordinal-string
 	 * axes. */
 	breaks?: number[]
+	/** "Use a mirrored axis" (Ticks section, bar measure axis only): the
+	 * measure axis runs through 0 with a category's bars split to either
+	 * side by a two-level direction field — expenses left / profit right,
+	 * males left / females right — while the underlying counts stay
+	 * positive. See `MirrorAxisConfig`. Only meaningful on the IMPLIED
+	 * measure axis of a bar chart (`length` mapped, this axis field-less);
+	 * the render path ignores it everywhere else. Optional so saved visuals
+	 * load unchanged — absent reads as off. */
+	mirror?: MirrorAxisConfig
 	/** Histogram binning for a quantitative category axis in bar charts.
 	 * Absent / `enabled: false` means "no binning" (the default). Optional so
 	 * existing saved configs load unchanged — a missing value reads as

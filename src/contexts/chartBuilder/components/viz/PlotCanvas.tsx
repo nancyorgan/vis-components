@@ -1,3 +1,4 @@
+import { applyMirrorSign, resolveMirrorDirection } from "../../lib/mirrorAxis"
 import { useEffect, useMemo } from "react"
 import useMeasure from "react-use-measure"
 import { useAtomValue, useSetAtom } from "jotai"
@@ -57,6 +58,8 @@ import { buildSolverInput } from "./plotCanvas/solverSpec"
 import {
 	computeGroupMeasureMax,
 	computeGroupMeasureMin,
+	type MirrorRows,
+	identityRows,
 	computePanelRadiusScale,
 } from "./plotCanvas/shareScales"
 import {
@@ -540,6 +543,42 @@ export const PlotCanvas = () => {
 	// Shared measure-axis max per panel for bar / area charts — see
 	// computeGroupMeasureMax (empty when not bar/area or share mode "none").
 	const measureAxis = mode.canvas.measureAxis
+	// "Use a mirrored axis" (bar measure axis): the flag lives on the measure
+	// axis's config. `mirrorActive` swaps that axis's pinned bounds to the
+	// mirror's side maxes; `mirrorRows` applies the direction sign to a
+	// panel's rows so the shared floor / ceiling match the bars the renderer
+	// draws (BarPlot runs the same `applyMirrorSign` before aggregating).
+	// Gated on the mode trait — the flag is inert on every other renderer.
+	const measureAxisConfig = measureAxis ? channelConfigs[measureAxis] : undefined
+	// A histogram's count axis is never mirrored (BarPlot ignores the flag
+	// there), so its pinned bounds must not swap to the side maxes either.
+	const categoryAxis =
+		measureAxis === "x" ? "y" : measureAxis === "y" ? "x" : null
+	const categoryField = categoryAxis ? encodings[categoryAxis]?.field : undefined
+	const histogramBars =
+		categoryAxis !== null &&
+		!!categoryField &&
+		channelConfigs[categoryAxis]?.histogram?.enabled === true &&
+		getType(categoryField) === "quantitative"
+	const mirrorActive =
+		measureAxis !== null &&
+		mode.canvas.supportsNegativeMeasure === true &&
+		!histogramBars &&
+		measureAxisConfig?.mirror?.enabled === true &&
+		!!encodings.length?.field
+	const mirrorDirection = mirrorActive
+		? resolveMirrorDirection(
+				measureAxisConfig?.mirror,
+				dataset.rows,
+				(name) => getType(name) ?? "categorical",
+				levelOrders
+			)
+		: null
+	const mirrorMeasureField = mode.canvas.resolveMeasureField?.(encodings) ?? null
+	const mirrorRows: MirrorRows =
+		mirrorDirection && mirrorMeasureField
+			? (rows) => applyMirrorSign(rows, mirrorMeasureField, mirrorDirection)
+			: identityRows
 	const groupMeasureMaxByKey = computeGroupMeasureMax({
 		mode,
 		measureAxis,
@@ -549,6 +588,7 @@ export const PlotCanvas = () => {
 		channelConfigs,
 		panelData,
 		getType,
+		mirrorRows,
 	})
 	// Its mirror for the axis floor — non-empty only for modes whose marks
 	// can point below zero (bars). See computeGroupMeasureMin.
@@ -561,6 +601,7 @@ export const PlotCanvas = () => {
 		channelConfigs,
 		panelData,
 		getType,
+		mirrorRows,
 	})
 
 	// Histogram measure-color (Fill color / opacity varying by Count /
@@ -772,6 +813,7 @@ export const PlotCanvas = () => {
 					groupMeasureMaxByKey,
 					groupMeasureMinByKey,
 					panelRadiusScale,
+					mirrorActive,
 				})
 
 				const rendererProps: UniversalRendererProps = {
