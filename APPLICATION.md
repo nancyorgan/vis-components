@@ -79,6 +79,19 @@ navigates, and a note owned by the sidebar was unmounted before it
 could be read. A rejection (over 100 MB) is different: it blocks the
 import, so it stays inline next to the control that triggered it.
 
+**Download data.** The dataset summary under the upload button (name,
+then "N rows · N fields · vX of Y") ends with a purple, underlined
+"download data" link that hands the bound dataset back as a CSV
+(`lib/downloadDataset.ts`), so a dataset that only survives inside a
+visual can be edited and re-uploaded. It exports the RAW rows of the
+version currently shown (the preview version when one is pinned):
+cells exactly as imported — "$1,234.56" stays "$1,234.56", a wide
+table stays wide — with no reshape, cell conversion or derived
+columns, since those are per-visual and wouldn't survive a re-upload.
+Headers are the fields' CURRENT names; a renamed variable re-imports
+through its `sourceNames` alias. The file is named after the dataset
+(slugified, `.csv`).
+
 ### 2.1b Reshape (wide → long)
 The tool wants long data (one observation per row), but users often
 arrive with wide tables (one column per category — Monday, Tuesday,
