@@ -1302,7 +1302,7 @@ export const SpineControls = ({
 	return (
 		<div className="flex flex-col gap-2">
 			{!hideColorRow && (
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<ColorInput
 						label="Color"
 						labelClassName={LABEL_COL}
@@ -1386,7 +1386,7 @@ const GridlineControls = ({
 			/>
 			{grid.enabled && (
 				<>
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
 							label="Color"
 							labelClassName={LABEL_COL}
@@ -1497,7 +1497,7 @@ export const TickmarkControls = ({
 					Tick marks
 				</span>
 			)}
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<ColorInput
 					label="Color"
 					labelClassName={LABEL_COL}

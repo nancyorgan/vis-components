@@ -178,6 +178,8 @@ const KEY_DRAWER_HEIGHT = "vis-components:drawerHeight"
 const KEY_SIDEBAR_WIDTH = "vis-components:sidebarWidth"
 const KEY_LIBRARY_SIDEBAR_WIDTH = "vis-components:librarySidebarWidth"
 const KEY_LIBRARY_COLLAPSED_FOLDERS = "vis-components:libraryCollapsedFolders"
+const KEY_LIBRARY_RAIL_COLLAPSED = "vis-components:libraryRailCollapsed"
+const KEY_EDITOR_SIDEBAR_HIDDEN = "vis-components:editorSidebarHidden"
 const KEY_LIBRARY_SELECTED_FOLDER = "vis-components:librarySelectedFolderId"
 const KEY_SIDEBAR_COLLAPSED = "vis-components:sidebarCollapsed"
 const KEY_EXPORT_SIZES = "vis-components:exportSizes"
@@ -1036,6 +1038,22 @@ export const loadLibraryCollapsedFolders = (): ReadonlySet<string> =>
 	new Set(safeGet<string[]>(KEY_LIBRARY_COLLAPSED_FOLDERS, []))
 export const saveLibraryCollapsedFolders = (v: ReadonlySet<string>): void =>
 	safeSet(KEY_LIBRARY_COLLAPSED_FOLDERS, [...v])
+
+/** Whether the library's folder rail is collapsed fully away (the grid then
+ * takes the whole width). Device-local UI state; the rail's width survives
+ * a collapse so re-opening restores the size the user had dragged it to. */
+export const loadLibraryRailCollapsed = (): boolean =>
+	safeGet<boolean>(KEY_LIBRARY_RAIL_COLLAPSED, false)
+export const saveLibraryRailCollapsed = (v: boolean): void =>
+	safeSet(KEY_LIBRARY_RAIL_COLLAPSED, v)
+
+/** Whether the editor's left menu is collapsed away (wide layout only; the
+ * narrow-layout sheet is transient and never persisted). Width is stored
+ * separately so re-opening restores the dragged size. */
+export const loadEditorSidebarHidden = (): boolean =>
+	safeGet<boolean>(KEY_EDITOR_SIDEBAR_HIDDEN, false)
+export const saveEditorSidebarHidden = (v: boolean): void =>
+	safeSet(KEY_EDITOR_SIDEBAR_HIDDEN, v)
 
 /** Folder the library grid was last filtered to (null = all visuals; may
  * also hold the library's "unfiled" sentinel). */

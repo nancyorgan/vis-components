@@ -15,7 +15,9 @@ export const LABEL_COL_NESTED = "w-18 text-stone-600 dark:text-stone-400"
 /** Empty stand-in for the label column: indents a secondary control (one
  *  with no label of its own) so it aligns under the value column of
  *  LABEL_COL rows. */
-export const LabelSpacer = () => <span className="w-24 shrink-0" aria-hidden />
+export const LabelSpacer = ({ className }: { className?: string }) => (
+	<span className={c("w-24 shrink-0", className)} aria-hidden />
+)
 
 /** LabelSpacer's counterpart for rows inside an `ml-6` sub-block — matches
  *  LABEL_COL_NESTED's width so the spaced control lands on the shared column. */

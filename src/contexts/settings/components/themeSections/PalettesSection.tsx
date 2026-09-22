@@ -12,6 +12,9 @@ import {
 import type { ThemeSectionProps } from "./types"
 import { Button } from "../../../../components/ui/Button"
 
+const paletteMoveButton =
+	"flex h-8 w-8 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:bg-stone-700"
+
 type PaletteCardProps = {
 	palette: SavedCategoricalPalette
 	isDefault: boolean
@@ -28,6 +31,11 @@ type PaletteCardProps = {
 	/** Fires when a drag starts on the card's grip. The owning list records
 	 *  which card is moving; the card itself only dims. */
 	onGripDragStart: (e: React.DragEvent) => void
+	/** Touch fallback for the grip drag (null = already at that end). A
+	 *  finger can't start a drag in every mobile browser, so on coarse
+	 *  pointers the card shows up/down buttons beside the grip. */
+	onMoveUp: (() => void) | null
+	onMoveDown: (() => void) | null
 	onMakeDefault: () => void
 	onUpdate: (patch: Partial<SavedCategoricalPalette>) => void
 	onDelete: () => void
@@ -46,6 +54,8 @@ const PaletteCard = ({
 	isReadOnly,
 	isDragging,
 	onGripDragStart,
+	onMoveUp,
+	onMoveDown,
 	onMakeDefault,
 	onUpdate,
 	onDelete,
@@ -96,6 +106,28 @@ const PaletteCard = ({
 			>
 				⠿
 			</span>
+			{!isReadOnly && (
+				<span className="hidden items-center pointer-coarse:flex">
+					<button
+						type="button"
+						onClick={onMoveUp ?? undefined}
+						disabled={onMoveUp === null}
+						title="Move palette up"
+						className={paletteMoveButton}
+					>
+						↑
+					</button>
+					<button
+						type="button"
+						onClick={onMoveDown ?? undefined}
+						disabled={onMoveDown === null}
+						title="Move palette down"
+						className={paletteMoveButton}
+					>
+						↓
+					</button>
+				</span>
+			)}
 			<button
 				type="button"
 				title={isDefault ? "Default palette" : "Set as default"}
@@ -111,7 +143,9 @@ const PaletteCard = ({
 				value={palette.name}
 				aria-label="Palette name"
 				onChange={(e) => onUpdate({ name: e.target.value })}
-				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				// min-w-0 + flex-1: an input's intrinsic width would otherwise push
+				// the Delete button off a phone screen.
+				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			/>
 			<button
 				type="button"
@@ -333,6 +367,24 @@ const PaletteList = ({
 						palette={palette}
 						isReadOnly={isReadOnly}
 						isDragging={dragIndex === i}
+						// Slot i-1 lands above the previous card; slot i+2 lands
+						// below the next one (reorderPalettes slots are gaps).
+						onMoveUp={
+							i === 0
+								? null
+								: () => {
+										const next = reorderPalettes(palettes, i, i - 1)
+										if (next) onReorder(next)
+									}
+						}
+						onMoveDown={
+							i === lastIndex
+								? null
+								: () => {
+										const next = reorderPalettes(palettes, i, i + 2)
+										if (next) onReorder(next)
+									}
+						}
 						onGripDragStart={(e) => {
 							setDragIndex(i)
 							setDropSlot(null)

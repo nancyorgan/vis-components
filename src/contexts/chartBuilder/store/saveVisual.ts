@@ -26,6 +26,8 @@ import {
 	emptyEncodings,
 	type Visual,
 } from "../lib/types"
+import { isTrashed } from "../lib/visualTrash"
+import { editorHistoryEpochAtom } from "./editorHistory"
 
 import {
 	currentAnnotationsAtom,
@@ -175,7 +177,16 @@ export const useLoadVisual = () => {
 		useCallback(async (get, set, visualId: string) => {
 			const visuals = get(visualsAtom)
 			const visual = visuals.find((v) => v.id === visualId)
-			if (!visual) return false
+			// A trashed visual reads as "not found": the editor bounces to the
+			// library and the in-app embed shows its missing state. Restore it
+			// from the Trash to open it again.
+			if (!visual || isTrashed(visual)) return false
+			// Opening a DIFFERENT visual restarts the undo stack. Re-loading the
+			// same id (the route remount after autosave created a new visual)
+			// keeps it, so the first edits of a new visual stay undoable.
+			if (get(currentVisualIdAtom) !== visual.id) {
+				set(editorHistoryEpochAtom, (n) => n + 1)
+			}
 			set(currentVisualIdAtom, visual.id)
 			set(currentVisualNameAtom, visual.name)
 			set(currentDatasetIdAtom, visual.datasetId)
@@ -293,6 +304,8 @@ export const useResetVisual = () => {
 			const legacyTheme = get(themeAtom)
 			const defaultTheme =
 			themes.find((t) => t.id === userDefaultThemeId) ?? legacyTheme
+			// A fresh visual starts with a fresh undo stack.
+			set(editorHistoryEpochAtom, (n) => n + 1)
 			set(currentVisualIdAtom, null)
 			set(currentVisualNameAtom, "Untitled")
 			set(currentEncodingsAtom, emptyEncodings())

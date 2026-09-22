@@ -283,6 +283,27 @@ persist to localStorage with versioned migrations so older saves
 remain backward-compatible. (Dataset ROWS are the exception — they
 live in IndexedDB, not localStorage; see §14.)
 
+**Undo / redo.** Every edit autosaves into the visual 800 ms after it
+lands, so there is no "unsaved" state to discard; instead the editor
+keeps an in-memory history of whole-draft snapshots. `⌘Z` / `Ctrl+Z`
+steps back, `⇧⌘Z` / `Ctrl+Shift+Z` / `Ctrl+Y` forward, and the top
+bar's Undo / Redo buttons (left of Export) do the same and show
+whether there is anything to step to. The history covers everything
+the visual saves — name, encodings, type overrides, every channel
+config, labels, legend, tooltip, data labels, level orders, annotations,
+caption, map, reshape, derived variables, the chosen theme — but NOT
+the dataset binding (changing the data set resets the stack), field
+renames or dataset edits (those mutate the data set and sibling
+visuals, not this draft), or the preview version. Changes landing
+within 500 ms of each other merge into one step, so a slider drag or a
+typed title undoes as a unit; the stack holds 100 steps, restarts when
+a visual is opened or New is pressed, and does not survive a reload.
+While a text field has focus `⌘Z` is left to the browser (it undoes the
+typing in that field); click the chart, or use the buttons, to undo the
+visual. An undo is an ordinary change to autosave, so the saved visual
+always matches the screen. (`store/editorHistory.ts`; the draft
+snapshot is the same 17 atoms `useSaveVisual` reads.)
+
 ### 2.4 Dataset versions & cleanup
 The editor header carries a **version badge** — the dataset name plus
 `v2 of 3 · latest` — styled amber while a non-latest version is being
@@ -324,8 +345,9 @@ rather than risk dropping a live field.
 
 Datasets have no library UI of their own, so unreferenced ones are
 swept rather than managed: `sweepOrphanDatasets` (`lib/datasetSweep.ts`)
-runs whenever visuals are deleted, dropping every dataset no remaining
-visual references and no protected id names (the editor's current
+runs whenever visuals are purged from the Trash (moving a visual TO the
+Trash sweeps nothing — it still owns its data set), dropping every
+dataset no remaining visual references and no protected id names (the editor's current
 dataset is protected — an upload not yet saved as a visual is live
 work). Seed datasets from the ephemeral example overlay (§14) are safe
 from it: the sweep judges them against the seed visuals that reference
@@ -2457,7 +2479,42 @@ Annotations are per-chart and persist with the visual.
 ## 12. Theme
 
 The Theme panel switches between system themes (Light, Dark) and
-user-created custom themes. The Settings page hosts the theme editor.
+user-created custom themes. Settings → Themes hosts them the way the
+library hosts visualizations: the landing page is a **gallery** of
+theme cards grouped into the three folders the settings rail shows —
+**System Themes** (the bundled themes; read-only in the UI, opened
+straight into the read-only editor to inspect or copy), **Managed
+Themes** (shared team-wide; opening or moving one passes the
+administrator dialog, exactly like its rail entry) and **Custom Themes**
+(editable by anyone — there are no user accounts yet) — and clicking a
+card opens that theme's editor at `/settings/themes/<id>`. The two
+locked tiers sit in tinted boxes (stone for System, purple for Managed);
+nothing can be dragged into System Themes. As in the library's folder
+tree, clicking a folder's header in the rail narrows the gallery to that
+folder (`?folder=system|managed|custom`, the page heading becomes the
+folder's name, with a "Show all themes" link); the header's chevron
+folds the list without changing the page; and "Themes" or a click on the
+rail's empty space shows every folder again. Each card's
+picture is a **preview template**, not a stored thumbnail: one fixed
+bar chart — the theme's name set as the title in its own title font, a
+subtitle, one bar per color for the first six colors of the default
+categorical palette (fewer when the palette is shorter), gridlines /
+spines / tick labels in the text font, an axis title and a legend keyed
+to the bars — drawn live as inline SVG from the theme's own fields,
+using the same per-slot font fallbacks and per-axis gridline / spine
+fallbacks a real chart resolves. A new or edited theme previews itself
+immediately with nothing to generate. Cards carry a "Default" pill on
+the default theme and a locked "Managed" / "Read-only" pill on managed /
+bundled themes. The editor shows the same bar chart at the top, beside a
+**sampler** of what it leaves out, with no caption under either panel:
+every categorical and ordinal palette as rows of chips (default first),
+every gradient as a ramp (the default first, a sampled preset when the
+default names one), the pattern set on its background and on the
+default palette's own colors with their paired pattern inks, the default
+mark beside the connection / regression / distribution strokes, the
+three annotation kinds (rectangle with inner label, text annotation
+with its box, line), and the data-label, legend-swatch and map
+leader-line styles. Both redraw live as fields are edited.
 Theme settings:
 
 - **Categorical palettes** — list of named palettes, each with colors
@@ -2700,11 +2757,38 @@ is one click away. That
 selection is a URL state (`?folder=unfiled`) like any folder and is
 remembered across visits the same way. Checking one or more visuals (the card checkbox in grid view,
 the row checkbox in table view) raises a bulk-action bar above the
-listing with **Move…**, **Duplicate**, **Download**, **Delete…** and
+listing with **Move…**, **Duplicate**, **Download**, **Delete** and
 **Clear**. The first three are ordinary (brand-colored) buttons,
-**Delete…** is red throughout — including the edges the filled button
+**Delete** is red throughout — including the edges the filled button
 would otherwise inherit from the brand style — and **Clear**, which
-only undoes a selection, is a plain text link. **Download** writes the
+only undoes a selection, is a plain text link.
+
+**Trash.** Deleting a visual — the card's trash icon or the bulk bar's
+**Delete** — moves it to the Trash immediately, with no confirm step:
+the Trash is a round floating can fixed to the bottom-right of the
+library page, badged with how many visuals it holds, and restoring one
+is a single click there. A trashed visual carries a `deletedAt` stamp
+(sparse; no storage version bump) and keeps its row, thumbnail, embed
+instances, published files and data set: nothing cascades until it is
+purged. While trashed it is hidden from the grid, table, folder tree,
+data-set filter, name-collision check, "Regenerate previews" count and
+library-bundle export (`liveVisualsAtom` is what every listing reads;
+`visualsAtom` still holds it for id lookups, reference sweeps and
+writes), `/editor/<id>` bounces to the library like an unknown id, and
+`/embed/<id>` shows its not-found state (published static embed files
+are untouched). The Trash panel lists trashed visuals newest-first
+with **Restore** and **Delete forever** per row and **Empty trash**
+(red) in the footer, which asks once inline before purging. Restore
+puts a visual back at the root if its folder has since been deleted
+and as "Name (restored)" if a live visual has since taken its name.
+Purge — Delete forever / Empty trash — is where the old delete cascade
+runs: unpublish embeds, drop embed instances, hard-delete the row,
+sweep data sets no remaining visual (trashed ones included)
+references. Nothing expires on its own; the user empties the Trash.
+(`lib/visualTrash.ts`, `store/useDeleteVisuals.ts` — `useTrashVisuals`
+/ `useRestoreVisuals` / `usePurgeVisuals`, `library/TrashButton.tsx`.)
+
+**Download** writes the
 checked visuals — with their data
 sets, folder chains and custom themes — as a library bundle, the same
 JSON Settings → Sharing imports (see "Single-file distribution &

@@ -101,7 +101,10 @@ const measureElementSize = (
 	if (typeof document === "undefined") return null
 	const el = document.querySelector<HTMLElement>(selector)
 	if (!el) return null
-	const rect = el.getBoundingClientRect()
+	// Layout size, not the bounding rect: on a phone the fixed canvas is
+	// shrunk with a CSS transform (EditorLayout), and the export must
+	// default to the size the chart actually laid out at.
+	const rect = { width: el.offsetWidth, height: el.offsetHeight }
 	if (rect.width < MIN_EXPORT_DIM || rect.height < MIN_EXPORT_DIM) return null
 	const clamp = (n: number) =>
 		Math.min(MAX_EXPORT_DIM, Math.max(MIN_EXPORT_DIM, Math.round(n)))
@@ -209,7 +212,12 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	// figure is) while the controls above it never move. The image only scales
 	// down (never the popup's position) when it physically can't fit between
 	// its pinned top-left anchor and the screen's bottom/right edges.
-	const slotWidth = Math.max(MIN_PANEL_WIDTH, viewport.w - VIEWPORT_MARGIN)
+	// On a phone the floor would exceed the screen; there the slot is the
+	// viewport less a hair, so the preview scales to what actually fits.
+	const slotWidth = Math.max(
+		Math.min(MIN_PANEL_WIDTH, viewport.w - 16),
+		viewport.w - VIEWPORT_MARGIN
+	)
 	const anchorOffset = Math.max(0, (slotWidth - ANCHOR_WIDTH) / 2)
 	const availW = Math.max(240, slotWidth - anchorOffset - PREVIEW_CHROME_X)
 	const availH = Math.max(160, viewport.h - PREVIEW_CHROME_Y)

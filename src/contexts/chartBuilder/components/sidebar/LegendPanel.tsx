@@ -913,7 +913,7 @@ export const LegendPanel = () => {
 						/>
 						{merged.showBorder && (
 							<>
-								<div className="flex items-center gap-2">
+								<div className="flex flex-wrap items-center gap-2">
 									<ColorInput
 										label="Color"
 										labelClassName={LABEL_COL}
@@ -1223,7 +1223,7 @@ export const LegendPanel = () => {
 								suffix="px"
 							/>
 							{(merged.gradientBarBorderWidth ?? 0) > 0 && (
-								<div className="flex items-center gap-2">
+								<div className="flex flex-wrap items-center gap-2">
 									<ColorInput
 										label="Border color"
 										labelClassName={LABEL_COL}
@@ -1269,7 +1269,7 @@ export const LegendPanel = () => {
 										inputClassName="w-16"
 										suffix="px"
 									/>
-									<div className="flex items-center gap-2">
+									<div className="flex flex-wrap items-center gap-2">
 										<ColorInput
 											label="Tick color"
 											labelClassName={LABEL_COL}
@@ -1305,7 +1305,7 @@ export const LegendPanel = () => {
 						title={`${auxSwatchHeader} swatch`}
 						changed={groupChanged("auxSwatch")}
 					>
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
 							label="Swatch color"
 							labelClassName={LABEL_COL}
@@ -1321,7 +1321,7 @@ export const LegendPanel = () => {
 							)}
 					</div>
 					{showAuxSwatchStroke && (
-						<div className="flex items-center gap-2">
+						<div className="flex flex-wrap items-center gap-2">
 							<ColorInput
 								label="Swatch border"
 								labelClassName={LABEL_COL}
@@ -1444,7 +1444,7 @@ export const LegendPanel = () => {
 									ch === "saturation" ||
 									ch === "brightness") &&
 									(!patternInSection || connectionMapped) && (
-									<div className="flex items-center gap-2">
+									<div className="flex flex-wrap items-center gap-2">
 										<ColorInput
 											label="Swatch color"
 											labelClassName={LABEL_COL}
@@ -1473,7 +1473,7 @@ export const LegendPanel = () => {
 								 *  the tile background). */}
 								{ch !== "hue" && ch !== "outlineHue" && patternInSection && (
 									<>
-										<div className="flex items-center gap-2">
+										<div className="flex flex-wrap items-center gap-2">
 											<ColorInput
 												label="Background"
 												labelClassName={LABEL_COL}
@@ -1495,7 +1495,7 @@ export const LegendPanel = () => {
 												/>
 											)}
 										</div>
-										<div className="flex items-center gap-2">
+										<div className="flex flex-wrap items-center gap-2">
 											<ColorInput
 												label="Pattern color"
 												labelClassName={LABEL_COL}
@@ -1532,7 +1532,7 @@ export const LegendPanel = () => {
 								 *  renderer. */}
 								{!outlineHueField && (
 									<>
-										<div className="flex items-center gap-2">
+										<div className="flex flex-wrap items-center gap-2">
 											<ColorInput
 												label="Outline color"
 												labelClassName={LABEL_COL}
@@ -1582,7 +1582,7 @@ export const LegendPanel = () => {
 						}
 					>
 					<div className="flex flex-col gap-2">
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
 							label="Fill"
 							labelClassName={LABEL_COL}
@@ -1601,7 +1601,7 @@ export const LegendPanel = () => {
 								<ResetLink onClick={() => update({ shapeLegendFillColor: null })} />
 							)}
 					</div>
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
 							label="Stroke"
 							labelClassName={LABEL_COL}

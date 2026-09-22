@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 import { TestProvider, type TestStore } from "../../../testSupport/TestProvider"
 import {
@@ -8,7 +8,6 @@ import {
 } from "../../chartBuilder/lib/systemThemes"
 import type { SavedTheme } from "../../chartBuilder/lib/types"
 import {
-	editingThemeIdAtom,
 	themesAtom,
 	unlockedThemeIdAtom,
 	userDefaultThemeIdAtom,
@@ -48,6 +47,7 @@ const mount = (
 ) => {
 	installInMemoryLocalStorage()
 	let store: TestStore | null = null
+	const onDeleted = vi.fn()
 	const view = render(
 		<TestProvider
 			initializeState={(s) => {
@@ -57,16 +57,15 @@ const mount = (
 					SHARED,
 					MINE,
 				])
-				s.set(editingThemeIdAtom, editingId)
 				s.set(unlockedThemeIdAtom, unlockedId)
 				s.set(userDefaultThemeIdAtom, defaultThemeId)
 				store = s
 			}}
 		>
-			<ThemesPage />
+			<ThemesPage themeId={editingId} onDeleted={onDeleted} />
 		</TestProvider>
 	)
-	return { ...view, store: store as unknown as TestStore }
+	return { ...view, store: store as unknown as TestStore, onDeleted }
 }
 
 const nameInput = () =>
@@ -126,6 +125,71 @@ describe("ThemesPage managed themes", () => {
 		expect(nameInput().disabled).toBe(false)
 		expect(screen.queryByText("Managed")).toBeNull()
 		expect(screen.getByText("Delete this theme")).toBeTruthy()
+	})
+
+	it("deletes a custom theme and hands the route back to the gallery", () => {
+		const { store, onDeleted } = mount("th-mine")
+		fireEvent.click(screen.getByText("Delete this theme"))
+		fireEvent.click(screen.getByText("Delete theme"))
+		expect(store.get(themesAtom).some((t) => t.id === "th-mine")).toBe(false)
+		expect(onDeleted).toHaveBeenCalledTimes(1)
+	})
+
+	it("offers Done on every theme, locked or not, and it returns to the gallery", () => {
+		const onDone = vi.fn()
+		installInMemoryLocalStorage()
+		render(
+			<TestProvider
+				initializeState={(s) => {
+					s.set(themesAtom, [SYSTEM_LIGHT_THEME, MINE])
+				}}
+			>
+				<ThemesPage themeId="system-light" onDone={onDone} />
+			</TestProvider>
+		)
+		// A read-only theme has no Delete, but the way out is still there.
+		expect(screen.queryByText("Delete this theme")).toBeNull()
+		fireEvent.click(screen.getByText("Done"))
+		expect(onDone).toHaveBeenCalledTimes(1)
+	})
+
+	it("shows both live previews, drawn from the theme being edited", () => {
+		mount("th-mine")
+		expect(screen.getByRole("img", { name: "Preview of the My theme theme" })).toBeTruthy()
+		expect(
+			screen.getByRole("img", {
+				name: "Sampler of the My theme theme",
+			})
+		).toBeTruthy()
+	})
+
+	it("redraws the previews as the theme is edited", () => {
+		const { store } = mount("th-mine")
+		act(() => {
+			store.set(
+				themesAtom,
+				store
+					.get(themesAtom)
+					.map((t) =>
+						t.id === "th-mine"
+							? { ...t, defaultFill: "#123456", name: "Renamed" }
+							: t
+					)
+			)
+		})
+		const detail = screen.getByRole("img", {
+			name: "Sampler of the Renamed theme",
+		})
+		const dots = Array.from(detail.querySelectorAll("circle")).filter(
+			(c) => c.getAttribute("fill") === "#123456"
+		)
+		expect(dots.length).toBeGreaterThan(0)
+	})
+
+	it("shows a not-found notice for an id that isn't in the library", () => {
+		mount("th-gone")
+		expect(screen.getByText("Theme not found")).toBeTruthy()
+		expect(screen.queryByLabelText("Theme name")).toBeNull()
 	})
 })
 

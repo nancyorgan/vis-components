@@ -840,7 +840,7 @@ const LevelReorderPanel = ({
 								onClick={() => move(i, -1)}
 								disabled={i === 0}
 								title="Move up"
-								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:bg-stone-700"
+								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:text-stone-400 dark:hover:bg-stone-700"
 							>
 								↑
 							</button>
@@ -849,7 +849,7 @@ const LevelReorderPanel = ({
 								onClick={() => move(i, 1)}
 								disabled={i === ordered.length - 1}
 								title="Move down"
-								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:bg-stone-700"
+								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:text-stone-400 dark:hover:bg-stone-700"
 							>
 								↓
 							</button>

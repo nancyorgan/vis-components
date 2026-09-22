@@ -45,7 +45,10 @@ export const SectionGroup = ({
 	>
 		<fieldset
 			disabled={isReadOnly}
-			className="flex flex-col gap-6 pl-3.5 disabled:opacity-70"
+			// min-w-0: a <fieldset> defaults to `min-inline-size: min-content`, so
+			// one wide control (a <select> sized by its longest option, say) would
+			// hold the whole section wider than a phone screen.
+			className="min-w-0 flex flex-col gap-6 pl-3.5 disabled:opacity-70"
 		>
 			{children}
 		</fieldset>

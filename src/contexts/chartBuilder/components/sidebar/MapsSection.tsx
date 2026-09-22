@@ -497,7 +497,7 @@ export const MapsSection = () => {
 							</div>
 						)}
 						{showNoDataFillColor && (
-							<div className="flex items-center gap-2">
+							<div className="flex flex-wrap items-center gap-2">
 								<ColorInput
 									label="No-data fill"
 									labelClassName={LABEL_COL}
@@ -564,7 +564,7 @@ export const MapsSection = () => {
 							</div>
 						)}
 						{showNoDataFillColor && mapConfig.noDataPattern !== null && (
-							<div className="flex items-center gap-2">
+							<div className="flex flex-wrap items-center gap-2">
 								<ColorInput
 									label="Pattern ink"
 									labelClassName={LABEL_COL}

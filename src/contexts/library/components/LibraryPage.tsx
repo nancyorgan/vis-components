@@ -5,7 +5,9 @@ import {
 	datasetIndexAtom,
 	embedInstancesAtom,
 	foldersAtom,
+	libraryRailCollapsedAtom,
 	librarySidebarWidthAtom,
+	liveVisualsAtom,
 	visualsAtom,
 } from "../../chartBuilder/store/atoms"
 import { duplicateVisual } from "../../chartBuilder/lib/duplicateVisual"
@@ -13,11 +15,12 @@ import {
 	loadLibrarySelectedFolderId,
 	saveLibrarySelectedFolderId,
 } from "../../chartBuilder/lib/storage"
-import { useDeleteVisuals } from "../../chartBuilder/store/useDeleteVisuals"
+import { useTrashVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 import { Button } from "../../../components/ui/Button"
+import { RailTab } from "../../../components/ui/RailTab"
+import { useNarrowLayout } from "../../../lib/useMediaQuery"
 import { Input } from "../../../components/ui/Input"
-import { Modal } from "../../../components/ui/Modal"
 import { ResetLink } from "../../../components/ui/ResetLink"
 import { Select } from "../../../components/ui/Select"
 import {
@@ -44,6 +47,7 @@ import { UNFILED_FOLDER_ID } from "../lib/folderSubtree"
 import { FolderTree } from "./FolderTree"
 import { MoveToFolderButton } from "./MoveToFolderButton"
 import { RegeneratePreviewButton } from "./RegeneratePreviewButton"
+import { TrashButton } from "./TrashButton"
 import { VisualsTable } from "./VisualsTable"
 
 const MIN_SIDEBAR_WIDTH = 208
@@ -59,12 +63,15 @@ const formatTimestamp = (ts: number): string => {
 }
 
 export const LibraryPage = () => {
-	const visuals = useAtomValue(visualsAtom)
+	// Listed: live visuals only; trashed ones live behind the TrashButton.
+	// Writes go through the FULL collection so a move / duplicate / preview
+	// fill never drops a trashed visual.
+	const visuals = useAtomValue(liveVisualsAtom)
 	const datasets = useAtomValue(datasetIndexAtom)
 	const embedInstances = useAtomValue(embedInstancesAtom)
 	const folders = useAtomValue(foldersAtom)
 	const [, setVisuals] = useAtom(visualsAtom)
-	const deleteVisuals = useDeleteVisuals()
+	const trashVisuals = useTrashVisuals()
 	const search = useSearch({ from: "/" })
 	const navigate = useNavigate({ from: "/" })
 
@@ -73,6 +80,17 @@ export const LibraryPage = () => {
 	const [sidebarWidth, setSidebarWidth] = useAtom(
 		librarySidebarWidthAtom
 	)
+	// Fully collapsed rail: neither the tree nor its resize handle render,
+	// and the grid takes the whole width. The dragged width is kept so
+	// re-opening restores it.
+	const [railCollapsed, setRailCollapsed] = useAtom(libraryRailCollapsedAtom)
+	// NARROW (phones, tablets in portrait): the rail is an overlay sheet over
+	// the gallery instead of a column beside it — a 200px rail would leave
+	// the grid ~180px. Transient and closed on every visit, like the editor's
+	// sheet; picking a folder closes it, since the grid it filters is
+	// underneath.
+	const narrow = useNarrowLayout()
+	const [railSheetOpen, setRailSheetOpen] = useState(false)
 	const resizingRef = useRef(false)
 	const resizeStartXRef = useRef(0)
 	const resizeStartWidthRef = useRef(0)
@@ -112,7 +130,6 @@ export const LibraryPage = () => {
 		new Set()
 	)
 	const [bulkMoveOpen, setBulkMoveOpen] = useState(false)
-	const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
 	const toggleVisualSelected = (visualId: string) => {
 		setSelectedVisualIds((prev) => {
@@ -284,9 +301,9 @@ export const LibraryPage = () => {
 	}
 
 	const onBulkDelete = () => {
-		// Cascades embeds and now-orphaned datasets (see useDeleteVisuals).
-		deleteVisuals(selectedVisualIds)
-		setBulkDeleteOpen(false)
+		// Straight to the Trash, no confirm: restoring is one click there, and
+		// nothing cascades until the user empties it (see useDeleteVisuals).
+		trashVisuals(selectedVisualIds)
 		clearSelection()
 	}
 
@@ -349,23 +366,87 @@ export const LibraryPage = () => {
 		<div className="flex">
 			{/* Folder rail stays put beneath the sticky header while the page
 			 *  (grid + footer) scrolls as one document. */}
-			<div className="vc-sticky-rail flex-shrink-0" style={{ width: sidebarWidth }}>
-				<FolderTree
-					selectedFolderId={selectedFolderId}
-					onSelect={setSelectedFolderId}
-				/>
-			</div>
-			{/* Resize handle */}
-			<div
-				role="separator"
-				aria-orientation="vertical"
-				onPointerDown={onSidebarResizeStart}
-				className="group flex w-1.5 flex-shrink-0 cursor-ew-resize items-center justify-center border-r border-stone-200 bg-stone-50 hover:bg-stone-200 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-700"
-			>
-				<div className="h-8 w-0.5 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-stone-500" />
-			</div>
+			{narrow ? (
+				<>
+					{/* Zero-width sticky stand-in so the tab hangs off the page's
+					 *  left edge at the same height it has on the open rail. */}
+					<div className="vc-sticky-rail relative w-0 flex-shrink-0">
+						{!railSheetOpen && (
+							<RailTab
+								collapsed
+								label="folders"
+								onClick={() => setRailSheetOpen(true)}
+							/>
+						)}
+					</div>
+					{railSheetOpen && (
+						<>
+							{/* Scrim below the header: tapping the gallery closes. */}
+							<button
+								type="button"
+								aria-label="Close folders"
+								onClick={() => setRailSheetOpen(false)}
+								className="fixed inset-x-0 top-(--vc-header-h) bottom-0 z-20 bg-stone-900/30"
+							/>
+							<div className="fixed top-(--vc-header-h) bottom-0 left-0 z-30 w-[calc(100%-1.5rem)] border-r border-stone-200 shadow-xl sm:w-[360px] dark:border-stone-700">
+								<FolderTree
+									selectedFolderId={selectedFolderId}
+									onSelect={(id) => {
+										setSelectedFolderId(id)
+										setRailSheetOpen(false)
+									}}
+								/>
+								<RailTab
+									collapsed={false}
+									label="folders"
+									onClick={() => setRailSheetOpen(false)}
+								/>
+							</div>
+						</>
+					)}
+				</>
+			) : railCollapsed ? (
+				// Zero-width sticky stand-in so the tab hangs off the page's
+				// left edge at the same height it had on the open rail.
+				<div className="vc-sticky-rail relative w-0 flex-shrink-0">
+					<RailTab
+						collapsed
+						label="folders"
+						onClick={() => setRailCollapsed(false)}
+					/>
+				</div>
+			) : (
+				<>
+					<div
+						className="vc-sticky-rail flex-shrink-0"
+						style={{ width: sidebarWidth }}
+					>
+						<FolderTree
+							selectedFolderId={selectedFolderId}
+							onSelect={setSelectedFolderId}
+						/>
+					</div>
+					{/* Resize handle; the pull tab hangs off its border line. */}
+					<div
+						role="separator"
+						aria-orientation="vertical"
+						onPointerDown={onSidebarResizeStart}
+						className="group relative flex w-1.5 flex-shrink-0 cursor-ew-resize touch-none items-center justify-center border-r border-stone-200 bg-stone-50 hover:bg-stone-200 pointer-coarse:w-3 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-700"
+					>
+						<div className="h-8 w-0.5 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-stone-500" />
+						<RailTab
+							collapsed={false}
+							label="folders"
+							onClick={() => setRailCollapsed(true)}
+						/>
+					</div>
+				</>
+			)}
 			<div className="min-w-0 flex-1">
-				<div className="mx-auto max-w-6xl px-6 py-10">
+				{/* The rail's pull tab always hangs over this pane's left edge
+				 *  (the divider when open, the page edge when collapsed), so the
+				 *  title keeps clear of it. */}
+				<div className="mx-auto max-w-6xl px-4 py-6 pl-10 sm:px-6 sm:py-10 sm:pl-10">
 					<div className="mb-6 flex flex-wrap items-center gap-3">
 						<h1 className="mr-auto text-xl font-semibold text-stone-900 dark:text-white">
 							{selectedFolderName}
@@ -374,7 +455,7 @@ export const LibraryPage = () => {
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Search visualizations…"
-							className="w-64"
+							className="w-full sm:w-64"
 						/>
 						<Select
 							value={selectedDatasetName ?? ""}
@@ -418,7 +499,7 @@ export const LibraryPage = () => {
 							<span className="text-sm font-medium text-brand-900 dark:text-brand-200">
 								{selectedCount} selected
 							</span>
-							<div className="ml-auto flex items-center gap-2">
+							<div className="ml-auto flex flex-wrap items-center gap-2">
 								<Button compact onClick={() => setBulkMoveOpen(true)}>
 									Move…
 								</Button>
@@ -426,8 +507,13 @@ export const LibraryPage = () => {
 									Duplicate
 								</Button>
 								<DownloadVisualsButton selected={selectedVisuals} />
-								<Button compact danger onClick={() => setBulkDeleteOpen(true)}>
-									Delete…
+								<Button
+									compact
+									danger
+									onClick={onBulkDelete}
+									title="Move the selected visualizations to the trash"
+								>
+									Delete
 								</Button>
 								<ResetLink label="Clear" onClick={clearSelection} />
 							</div>
@@ -536,7 +622,7 @@ export const LibraryPage = () => {
 										className={`absolute top-2 left-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded bg-white/90 shadow-sm ring-1 ring-stone-200 transition-opacity dark:bg-stone-800/90 dark:ring-stone-700 ${
 											isSelected
 												? "opacity-100"
-												: "opacity-0 group-hover/card:opacity-100"
+												: "opacity-0 group-hover/card:opacity-100 pointer-coarse:opacity-100"
 										}`}
 										onClick={(e) => e.stopPropagation()}
 										title={
@@ -554,7 +640,7 @@ export const LibraryPage = () => {
 											className="h-4 w-4 cursor-pointer"
 										/>
 									</label>
-									<div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover/card:opacity-100">
+									<div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover/card:opacity-100 pointer-coarse:opacity-100">
 										{d.visual.datasetId !== null &&
 											datasets[d.visual.datasetId] && (
 												<RegeneratePreviewButton
@@ -589,27 +675,8 @@ export const LibraryPage = () => {
 				onCancel={() => setBulkMoveOpen(false)}
 				onConfirm={onBulkMove}
 			/>
-			<Modal
-				open={bulkDeleteOpen}
-				onClose={() => setBulkDeleteOpen(false)}
-				title={`Delete ${selectedCount} visualization${selectedCount === 1 ? "" : "s"}?`}
-				widthClass="max-w-md"
-			>
-				<div className="flex flex-col gap-4">
-					<p className="text-sm text-stone-700 dark:text-stone-300">
-						This can&rsquo;t be undone. Published embeds of these visualizations
-						will be unpublished — their public embed URLs will stop working.
-					</p>
-					<div className="flex justify-end gap-2">
-						<Button compact onClick={() => setBulkDeleteOpen(false)}>
-							Cancel
-						</Button>
-						<Button compact danger onClick={onBulkDelete}>
-							Yes, delete {selectedCount === 1 ? "it" : "them"}
-						</Button>
-					</div>
-				</div>
-			</Modal>
+			{/* Floating trash can, bottom-right: what Delete moves visuals into. */}
+			<TrashButton />
 		</div>
 	)
 }

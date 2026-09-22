@@ -10,8 +10,13 @@ import {
 import { Button } from "./ui/Button"
 
 export const Header = () => {
+	// Settings is about configuring the tool, not making charts — the
+	// "New visualization" call to action stays on the library and editor.
+	const inSettings = useRouterState({
+		select: (st) => st.location.pathname.startsWith("/settings"),
+	})
 	return (
-		<header className="sticky top-0 z-10 flex items-center justify-between bg-white px-4 py-2.5 shadow-md shadow-stone-200/60 dark:bg-stone-900 dark:shadow-stone-950/40">
+		<header className="sticky top-0 z-10 flex h-(--vc-header-h) items-center justify-between bg-white px-4 shadow-md shadow-stone-200/60 dark:bg-stone-900 dark:shadow-stone-950/40">
 			<div className="flex items-center gap-6">
 				<Link
 					to="/"
@@ -43,8 +48,11 @@ export const Header = () => {
 					</svg>
 					Zafiro
 				</Link>
+				{/* Hidden on phones: the header must stay one line tall (the
+				 *  editor's page-fill height assumes `--vc-header-h`), and the
+				 *  badge is the first thing to give. */}
 				<span
-					className="-ml-4 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+					className="-ml-4 hidden rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-stone-500 sm:inline dark:bg-stone-800 dark:text-stone-400"
 					title={`Built ${new Date(__BUILD_DATE__).toLocaleString(undefined, {
 						dateStyle: "medium",
 						timeStyle: "short",
@@ -54,11 +62,11 @@ export const Header = () => {
 				</span>
 			</div>
 			<div className="flex items-center gap-3">
-				<NewVisualizationButton />
+				{!inSettings && <NewVisualizationButton />}
 				<EditorOnlyBlackAndWhiteToggle />
 				<Link
 					to="/settings"
-					className="flex h-8 w-8 items-center justify-center rounded-full text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
+					className="flex h-8 w-8 items-center justify-center rounded-full text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
 					title="Settings"
 				>
 					<svg
@@ -79,6 +87,14 @@ export const Header = () => {
 		</header>
 	)
 }
+
+/** "New" on phones, the full label from `sm` up — the header has to fit
+ *  brand + this button + two icon links on a 360px screen in one line. */
+const NewVisualizationLabel = () => (
+	<>
+		New<span className="hidden sm:inline"> visualization</span>
+	</>
+)
 
 /**
  * Outside the editor, or in the editor with no dataset loaded yet, this is a
@@ -127,7 +143,9 @@ const NewVisualizationButton = () => {
 	if (!inEditor || !currentDataset) {
 		return (
 			<Link to="/editor/new">
-				<Button compact>New visualization</Button>
+				<Button compact className="whitespace-nowrap">
+					<NewVisualizationLabel />
+				</Button>
 			</Link>
 		)
 	}
@@ -149,8 +167,12 @@ const NewVisualizationButton = () => {
 
 	return (
 		<div className="relative" ref={wrapperRef}>
-			<Button compact onClick={() => setOpen((v) => !v)}>
-				New visualization ▾
+			<Button
+				compact
+				className="whitespace-nowrap"
+				onClick={() => setOpen((v) => !v)}
+			>
+				<NewVisualizationLabel /> ▾
 			</Button>
 			{open && (
 				<div

@@ -70,7 +70,7 @@ export const LineSegmentEditor = ({
 
 			<CollapsibleSubsection title="Line">
 				<div className="flex flex-col gap-2">
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
 							label="Line"
 							labelClassName={LABEL_COL}

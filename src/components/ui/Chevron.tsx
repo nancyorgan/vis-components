@@ -7,6 +7,8 @@ import { combine as c } from "../../lib/cls"
  *    section / subsection headers (AsideSection, CollapsibleSubsection).
  *  - DisclosureChevron: points down, flips up when open. Used by inline row
  *    expanders (encoding rows, field rows, per-level detail rows).
+ *  - RailChevron: a double chevron pointing left or right, for the buttons
+ *    that collapse a side rail fully away and bring it back.
  */
 const ChevronSvg = ({ d, className }: { d: string; className: string }) => (
 	<svg
@@ -41,5 +43,16 @@ export const DisclosureChevron = ({ open }: { open: boolean }) => (
 			"flex-shrink-0 transition-transform",
 			open ? "rotate-180" : ""
 		)}
+	/>
+)
+
+export const RailChevron = ({ direction }: { direction: "left" | "right" }) => (
+	<ChevronSvg
+		d={
+			direction === "left"
+				? "M6.5 2.5L3 6l3.5 3.5M10 2.5L6.5 6 10 9.5"
+				: "M5.5 2.5L9 6l-3.5 3.5M2 2.5L5.5 6 2 9.5"
+		}
+		className="flex-shrink-0"
 	/>
 )

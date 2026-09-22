@@ -82,7 +82,7 @@ export const FontsPage = () => {
 	}
 
 	return (
-		<div className="mx-auto max-w-5xl px-8 py-8">
+		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 			<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
 				Fonts
 			</h1>
@@ -120,7 +120,12 @@ export const FontsPage = () => {
 						aria-label="Google Font name"
 						className="w-64 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 					/>
-					<Button compact type="submit" disabled={busy || !name.trim()}>
+					<Button
+						compact
+						type="submit"
+						disabled={busy || !name.trim()}
+						className="whitespace-nowrap"
+					>
 						{busy ? "Looking up…" : "Add font"}
 					</Button>
 				</form>

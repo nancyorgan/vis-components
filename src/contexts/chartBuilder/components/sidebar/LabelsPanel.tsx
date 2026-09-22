@@ -1381,14 +1381,16 @@ export const FontEditor = ({
 							})
 						}
 						placeholder={showResetFields ? (baseColor ?? "(inherit)") : "#111827"}
-						className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						// Shrinks to min-w-18 when the row is tight and hides below 360px
+						// viewports — same rule as ColorInput's hex box.
+						className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 					/>
 					<input
 						type="color"
 						value={value.color ?? baseColor ?? "#111827"}
 						onChange={(e) => onChange({ ...value, color: e.target.value })}
 						aria-label="Color swatch"
-						className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 					/>
 					{/* This row colors TEXT, so the picker leads with the theme's
 					 *  TEXT palette (the other palettes stay one chevron away).

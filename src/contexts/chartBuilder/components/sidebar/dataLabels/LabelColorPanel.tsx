@@ -321,7 +321,9 @@ const TextColorRulesRow = ({
 				>
 					{/* Empty leading column so the condition box lines up under the
 					 *  w-24-labeled text boxes above (Palette / Gradient, Color). */}
-					<LabelSpacer />
+					{/* Dropped below 360px: on the 2016 iPhone SE the menu sheet's
+					 *  rows are ~223px, and spacer + condition box + swatch don't fit. */}
+					<LabelSpacer className="hidden min-[360px]:inline" />
 					<input
 						type="text"
 						value={rule.condition}

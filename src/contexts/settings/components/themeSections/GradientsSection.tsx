@@ -65,7 +65,9 @@ const GradientCard = ({
 				value={name}
 				aria-label="Gradient name"
 				onChange={(e) => onRename(e.target.value)}
-				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				// min-w-0 + flex-1: an input's intrinsic width would otherwise hold
+				// the card wider than a phone screen.
+				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			/>
 			<button
 				type="button"
@@ -91,7 +93,7 @@ const GradientCard = ({
 						type="color"
 						value={stop.value}
 						onChange={(e) => stop.onChange(e.target.value)}
-						className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 					/>
 					<span className="text-sm text-stone-600 dark:text-stone-400">
 						{stop.label}

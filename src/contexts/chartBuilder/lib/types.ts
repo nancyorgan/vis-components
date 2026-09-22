@@ -373,6 +373,12 @@ export type Visual = {
 	thumbnail: string | null
 	createdAt: number
 	updatedAt: number
+	/** When the visual was moved to the Trash (epoch ms). Absent = live.
+	 * A trashed visual keeps its row, thumbnail, embeds and data set until
+	 * the user purges it from the Trash; the library lists only live visuals
+	 * (`liveVisualsAtom`) while id lookups and reference sweeps see all of
+	 * them. Sparse, so no storage version bump. */
+	deletedAt?: number
 }
 
 export type Folder = {

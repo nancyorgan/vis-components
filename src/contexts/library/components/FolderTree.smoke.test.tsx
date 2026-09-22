@@ -406,3 +406,73 @@ describe("FolderTree selection", () => {
 		expect(onSelect).toHaveBeenCalledWith(null)
 	})
 })
+
+describe("FolderTree row menu (touch/keyboard fallback for drag)", () => {
+	const openMenu = (getByLabelText: (t: string) => HTMLElement, name: string) => {
+		fireEvent.click(getByLabelText(`Actions for ${name}`))
+	}
+
+	it("Move down steps a folder past its next sibling", () => {
+		seedStorage(
+			[
+				mkFolder("fl-a", null, "Alpha"),
+				mkFolder("fl-b", null, "Beta"),
+				mkFolder("fl-c", null, "Gamma"),
+			],
+			[]
+		)
+		const { getByLabelText, getByText, container } = renderTree()
+		openMenu(getByLabelText, "Alpha")
+		fireEvent.click(getByText("Move down"))
+		const names = [...container.querySelectorAll('[role="button"]')]
+			.map((r) => r.textContent?.trim())
+			.filter((t) => t === "Alpha" || t === "Beta" || t === "Gamma")
+		expect(names).toEqual(["Beta", "Alpha", "Gamma"])
+		// Persisted as a hand-placed order, like an edge-zone drop.
+		const stored = readStoredFolders()
+		expect(stored.every((f) => typeof f.sortIndex === "number")).toBe(true)
+	})
+
+	it("Move up is disabled for the first sibling", () => {
+		seedStorage(
+			[mkFolder("fl-a", null, "Alpha"), mkFolder("fl-b", null, "Beta")],
+			[]
+		)
+		const { getByLabelText, getByText } = renderTree()
+		openMenu(getByLabelText, "Alpha")
+		expect((getByText("Move up") as HTMLButtonElement).disabled).toBe(true)
+		expect((getByText("Move down") as HTMLButtonElement).disabled).toBe(false)
+	})
+
+	it("Move to… lists only legal destinations and re-parents", () => {
+		seedStorage(
+			[
+				mkFolder("fl-a", null, "Alpha"),
+				mkFolder("fl-a1", "fl-a", "Alpha child"),
+				mkFolder("fl-b", null, "Beta"),
+			],
+			[]
+		)
+		const { getByLabelText, getByText, queryByText, getByRole } = renderTree()
+		openMenu(getByLabelText, "Alpha")
+		fireEvent.click(getByText("Move to…"))
+		const menu = getByRole("menu")
+		// Not itself, not its own descendant, not "Top level" (already there).
+		expect(queryByText("Top level")).toBeNull()
+		expect(menu.textContent).not.toContain("Alpha child")
+		fireEvent.click(getByText("Beta", { selector: '[role="menuitem"]' }))
+		expect(readStoredFolders().find((f) => f.id === "fl-a")?.parentId).toBe(
+			"fl-b"
+		)
+	})
+
+	it("Rename opens the inline editor", () => {
+		seedStorage([mkFolder("fl-a", null, "Alpha")], [])
+		const { getByLabelText, getByText, container } = renderTree()
+		openMenu(getByLabelText, "Alpha")
+		fireEvent.click(getByText("Rename"))
+		const input = container.querySelector('input[type="text"]') as HTMLInputElement
+		expect(input).not.toBeNull()
+		expect(input.value).toBe("Alpha")
+	})
+})

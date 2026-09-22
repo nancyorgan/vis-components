@@ -603,7 +603,7 @@ export const DataLabelsPanel = () => {
 								<div className="ml-6 flex flex-col gap-2 text-sm">
 									{/* Reset links restore the THEME's Maps-section stroke
 									 *  (the same baseline new charts seed from). */}
-									<div className="flex items-center gap-2">
+									<div className="flex flex-wrap items-center gap-2">
 										<ColorInput
 											label="Line color"
 											labelClassName={LABEL_COL_NESTED}

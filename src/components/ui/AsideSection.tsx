@@ -40,13 +40,15 @@ export const AsideSection = ({
 	)
 
 	return (
-		<div className={c("flex flex-col pb-3", className)}>
-			<div className="mx-3 flex items-center justify-between pb-2">
+		// Tighter rhythm below `lg` (phones, tablets in portrait): a column of
+		// collapsed sections otherwise spends most of a small screen on gaps.
+		<div className={c("flex flex-col pb-1.5 lg:pb-3", className)}>
+			<div className="mx-3 flex items-center justify-between pb-1 lg:pb-2">
 				{collapsible ? (
 					<button
 						type="button"
 						onClick={toggle}
-						className="flex flex-1 items-center gap-1.5 text-left hover:opacity-80"
+						className="flex flex-1 items-center gap-1.5 text-left hover:opacity-80 pointer-coarse:py-1.5"
 						aria-expanded={!collapsed}
 						aria-controls={`aside-section-${title}`}
 					>

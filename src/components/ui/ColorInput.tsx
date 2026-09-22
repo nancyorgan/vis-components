@@ -103,7 +103,9 @@ export const ColorInput = ({
 			inline={inline}
 			changed={changed}
 		>
-			<div className="flex items-center gap-2">
+			{/* min-w-0 here AND on the hex box: a flex item won't shrink below its
+			 *  content's min width, and the box's fixed w-24 counts as content. */}
+			<div className="flex min-w-0 items-center gap-2">
 				{showHexInput && (
 					<input
 						type="text"
@@ -112,8 +114,14 @@ export const ColorInput = ({
 						onBlur={handleTextBlur}
 						disabled={disabled}
 						spellCheck={false}
+						// Shrinkable down to min-w-18 (72px; seven mono characters need
+						// ~65) when a row is squeezed — a phone-width menu sheet or a
+						// narrowed sidebar. Below 360px viewports (the 2016 iPhone SE)
+						// even that doesn't fit beside the label column, swatch and
+						// palette picker, so the row goes swatch-only there: tapping the
+						// swatch still opens the native picker.
 						className={c(
-							"w-24 rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
+							"hidden w-24 min-w-18 rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500 min-[360px]:block",
 							!HEX_PATTERN.test(textValue) &&
 								"border-amber-400 focus:border-amber-500"
 						)}
@@ -125,7 +133,7 @@ export const ColorInput = ({
 					value={value}
 					onChange={handleSwatchChange}
 					disabled={disabled}
-					className="h-6 w-10 cursor-pointer rounded border border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700"
+					className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700"
 				/>
 				{/* Every swatch in the app carries the on-palette shortcut — the
 				 *  native picker is open-ended, so without this each row is one

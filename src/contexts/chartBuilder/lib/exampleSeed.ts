@@ -87,9 +87,14 @@ export const buildSeedBundle = async (): Promise<SeedBundle> => {
 		loadThumbnailsAsync(),
 		loadDatasetsAsync(),
 	])
+	// Trashed visuals stay behind too: a backup carries what the library
+	// shows, and their data sets go only if nothing live references them.
+	const liveVisuals = stripSeedVisuals(loadVisuals()).filter(
+		(v) => v.deletedAt === undefined
+	)
 	const deduped = dedupeDatasetStores({
 		datasets: stripSeedDatasets(allDatasets),
-		visuals: mergeThumbnails(stripSeedVisuals(loadVisuals()), thumbnails),
+		visuals: mergeThumbnails(liveVisuals, thumbnails),
 		embeds: {}, // embeds aren't exported; recipients get no embed history
 	})
 	const referenced = new Set(deduped.visuals.map((v) => v.datasetId))

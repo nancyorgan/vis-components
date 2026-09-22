@@ -3,6 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import {
 	drawerHeightAtom,
 	drawerOpenAtom,
+	editorSheetOpenAtom,
 	reshapePanelOpenAtom,
 	sidebarCollapsedAtom,
 	uploadNoticeAtom,
@@ -30,6 +31,7 @@ export const DataDrawer = () => {
 	const [reshapeOpen, setReshapeOpen] = useAtom(reshapePanelOpenAtom)
 	const reshapeApplied = useAtomValue(reshapeAppliedAtom)
 	const setSidebarCollapsed = useSetAtom(sidebarCollapsedAtom)
+	const setSheetOpen = useSetAtom(editorSheetOpenAtom)
 	const [dragOver, setDragOver] = useState(false)
 	const [dropError, setDropError] = useState<string | null>(null)
 	// Cost notes go to the root-level modal (see `uploadNoticeAtom`) — the
@@ -105,20 +107,25 @@ export const DataDrawer = () => {
 		else if (result.warning) setUploadNotice(result.warning)
 	}
 
-	const effectiveHeight = open ? height : 36
-
 	return (
 		<div
-			className="relative flex flex-col border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900"
-			style={{ height: effectiveHeight }}
+			className="relative flex flex-shrink-0 flex-col border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900"
+			// Collapsed, the tray is exactly its handle + header strip (no
+			// fixed height: a pinned 36px used to be 5px short of that and
+			// spilled past the page bottom). Open, it's the dragged height.
+			style={open ? { height } : undefined}
 			onDragEnter={onDragEnter}
 			onDragOver={onDragOver}
 			onDragLeave={onDragLeave}
 			onDrop={onDrop}
 		>
+			{/* `touch-none`: the drag is pointer-event driven, and without it a
+			 *  finger's move is claimed by the browser for scrolling (the pointer
+			 *  sequence gets cancelled) — so the tray could only be toggled, not
+			 *  dragged, on touch. Same on the sidebar / rail resize handles. */}
 			<div
 				onPointerDown={onPointerDown}
-				className="group flex h-2 flex-shrink-0 cursor-ns-resize items-center justify-center bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700"
+				className="group flex h-2 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center bg-stone-100 hover:bg-stone-200 pointer-coarse:h-4 dark:bg-stone-800 dark:hover:bg-stone-700"
 				role="separator"
 				aria-orientation="horizontal"
 				aria-label="Resize data table drawer"
@@ -149,14 +156,18 @@ export const DataDrawer = () => {
 								const opening = !reshapeOpen
 								setReshapeOpen(opening)
 								// Surface the options: the panel lives in the Data
-								// section of the left menu, which may be collapsed.
-								if (opening)
+								// section of the left menu, which may be collapsed —
+								// and on a narrow screen the menu itself is a sheet
+								// that is closed by default.
+								if (opening) {
 									setSidebarCollapsed((prev) => ({ ...prev, Data: false }))
+									setSheetOpen(true)
+								}
 							}}
 							className={
 								reshapeApplied
-									? "text-sm font-medium text-vc-brand-text hover:opacity-80 dark:text-th-electric-indigo-300"
-									: "text-sm text-stone-600 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+									? "text-sm font-medium text-vc-brand-text hover:opacity-80 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-th-electric-indigo-300"
+									: "text-sm text-stone-600 transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-stone-400 dark:hover:text-white"
 							}
 						>
 							{reshapeApplied ? "Reshape ✓" : "Reshape"}
@@ -165,7 +176,7 @@ export const DataDrawer = () => {
 					<button
 						type="button"
 						onClick={() => setOpen((v) => !v)}
-						className="text-sm text-stone-600 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+						className="text-sm text-stone-600 transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-stone-400 dark:hover:text-white"
 					>
 						{open ? "Collapse" : "Expand"}
 					</button>

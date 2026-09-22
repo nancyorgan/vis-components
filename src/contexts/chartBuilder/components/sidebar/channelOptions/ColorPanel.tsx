@@ -313,7 +313,7 @@ export const ColorSlotControls = ({
 					)}
 				</p>
 			) : field === null || !acceptsFieldMapping ? (
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<ColorInput
 						label="Color"
 						labelClassName={LABEL_COL}

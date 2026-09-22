@@ -230,8 +230,13 @@ const InsideLegendLayout = ({
 	legendCfg: LegendConfig
 	bgStyle: React.CSSProperties | undefined
 }) => {
-	const [canvasRef, canvasBounds] = useMeasure()
-	const [legendRef, legendBounds] = useMeasure()
+	// `offsetSize`: measure LAYOUT size (offsetWidth/Height), not the
+	// bounding rect. On narrow screens the editor shrinks a fixed-size
+	// canvas with a display-only CSS transform (EditorLayout); the rect
+	// would report the shrunken size and the chart would solve for it,
+	// then be scaled down again. Same in PlotCanvas.
+	const [canvasRef, canvasBounds] = useMeasure({ offsetSize: true })
+	const [legendRef, legendBounds] = useMeasure({ offsetSize: true })
 	const labels = useAtomValue(currentLabelsAtom)
 	const hasTitle = !!(labels.title ?? DEFAULT_LABELS_CONFIG.title)
 	const hasSubtitle = !!(labels.subtitle ?? DEFAULT_LABELS_CONFIG.subtitle)

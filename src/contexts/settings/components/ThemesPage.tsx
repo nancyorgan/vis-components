@@ -8,7 +8,6 @@ import {
 } from "../../chartBuilder/lib/systemThemes"
 import type { SavedTheme, Theme } from "../../chartBuilder/lib/types"
 import {
-	editingThemeIdAtom,
 	themesAtom,
 	unlockedThemeIdAtom,
 	userDefaultThemeIdAtom,
@@ -32,10 +31,46 @@ import { PalettesSection } from "./themeSections/PalettesSection"
 import { PatternsSection } from "./themeSections/PatternsSection"
 import { TextSection } from "./themeSections/TextSection"
 import { Button } from "../../../components/ui/Button"
+import { ThemePreview } from "./ThemePreview"
+import { ThemeSamplerPreview } from "./ThemeSamplerPreview"
 
-export const ThemesPage = () => {
+/** The editor's live previews: the gallery card's bar chart plus a sampler
+ *  of what it leaves out. Both read the theme straight from the atom, so
+ *  every edit below redraws them at once. */
+const EditorPreviews = ({ theme, name }: { theme: Theme; name: string }) => (
+	<div className="mb-6 grid gap-4 sm:grid-cols-2">
+		<div className="min-w-0 overflow-hidden rounded-card border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+			<ThemePreview theme={theme} name={name} className="block aspect-[4/3] w-full" />
+		</div>
+		<div className="min-w-0 overflow-hidden rounded-card border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+			<ThemeSamplerPreview
+				theme={theme}
+				name={name}
+				className="block aspect-[4/3] w-full"
+			/>
+		</div>
+	</div>
+)
+
+/** The editor for one theme. Router-free on purpose: `ThemeEditorPage`
+ *  reads the `$themeId` route param and passes it in, along with the way
+ *  back to the gallery and what to do once this theme is deleted. */
+export const ThemesPage = ({
+	themeId,
+	onDeleted,
+	onDone,
+	backLink,
+}: {
+	themeId: string
+	/** Fires after this theme has been deleted — the route leaves the editor. */
+	onDeleted?: () => void
+	/** The footer's "Done" — back to the gallery. Edits save as they're
+	 *  made, so this is navigation, not a commit. */
+	onDone?: () => void
+	/** The "← All themes" link, rendered above the editor's header. */
+	backLink?: React.ReactNode
+}) => {
 	const [themes, setThemes] = useAtom(themesAtom)
-	const [editingThemeId, setEditingThemeId] = useAtom(editingThemeIdAtom)
 	const [userDefaultId, setUserDefaultId] = useAtom(
 		userDefaultThemeIdAtom
 	)
@@ -45,20 +80,14 @@ export const ThemesPage = () => {
 	// was never unlocked (the very first render, or after "No, exit").
 	const [gateOpen, setGateOpen] = useState(false)
 
-	// Resolve the theme being edited. When no explicit selection exists
-	// yet, prefer the first custom theme — a managed theme is locked until
-	// the administrator dialog is answered, so landing on one isn't
-	// useful. Falls back to a managed theme only when the user has no
-	// custom themes (and to system-light if the id is stale, e.g. deleted
-	// externally).
-	const editingTheme: SavedTheme = useMemo(
-		() =>
-			themes.find((t) => t.id === editingThemeId) ??
-			themes.find((t) => !isManagedTheme(t)) ??
-			themes[0] ??
-			SYSTEM_LIGHT_THEME,
-		[themes, editingThemeId]
+	// The routed theme. A stale id (deleted in another tab, or a link
+	// into a library that never had it) renders the not-found notice
+	// below; the fallback here only keeps the hooks under it unconditional.
+	const found = useMemo(
+		() => themes.find((t) => t.id === themeId),
+		[themes, themeId]
 	)
+	const editingTheme: SavedTheme = found ?? SYSTEM_LIGHT_THEME
 	// Two separate locks. `isSystem` is absolute — the two bundled themes
 	// ship with the app and are never editable, only copied. Every OTHER
 	// managed theme is shared rather than read-only: it unlocks for editing
@@ -106,10 +135,10 @@ export const ThemesPage = () => {
 		const remaining = themes.filter((t) => t.id !== editingTheme.id)
 		if (remaining.length === 0) return
 		setThemes(remaining)
-		setEditingThemeId(remaining[0]?.id ?? null)
 		if (userDefaultId === editingTheme.id) {
 			setUserDefaultId(SYSTEM_LIGHT_THEME.id)
 		}
+		onDeleted?.()
 	}
 
 	// --- "Make this the default theme" toggle ---
@@ -229,17 +258,39 @@ export const ThemesPage = () => {
 	// single-key setter, and the read-only flag that disables its fieldset.
 	const sectionProps = { theme, set, isReadOnly }
 
+	if (!found) {
+		return (
+			<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
+				{backLink && <div className="mb-4">{backLink}</div>}
+				<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+					Theme not found
+				</h1>
+				<p className="text-sm text-stone-600 dark:text-stone-400">
+					There is no theme with this id in your library. It may have been
+					deleted.
+				</p>
+			</div>
+		)
+	}
+
 	return (
-		<div className="mx-auto max-w-5xl px-8 py-8">
+		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
+			{backLink && <div className="mb-4">{backLink}</div>}
 			{/* Theme editor */}
 			<div className="min-w-0">
-				<div className="mb-6 flex items-start justify-between gap-4">
+				{/* Stacked on phones: the name gets the full width and the two
+				 *  buttons sit in a row beneath it. */}
+				<div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 					<div className="min-w-0 flex-1">
-						{isManaged && (
+						{isSystem ? (
+							<span className="mb-1 inline-block rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+								System
+							</span>
+						) : isManaged ? (
 							<span className="mb-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
 								Managed
 							</span>
-						)}
+						) : null}
 						<input
 							type="text"
 							value={editingTheme.name}
@@ -272,7 +323,7 @@ export const ThemesPage = () => {
 							)}
 						</p>
 					</div>
-					<div className="flex flex-col gap-1.5">
+					<div className="flex flex-wrap gap-1.5 sm:flex-col">
 						<Button compact
 							onClick={exportTheme}
 							title={`Download "${editingTheme.name}" as a JSON file`}
@@ -326,11 +377,13 @@ export const ThemesPage = () => {
 				{!isManaged && isDefault && (
 					<p className="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
 						This is currently the default theme for new visualizations. Only
-						managed themes can be set as the default — drag this into{" "}
+						managed themes can be set as the default — move this into{" "}
 						<strong>Managed Themes</strong> to keep it, or pick a managed
 						theme and make that the default instead.
 					</p>
 				)}
+
+				<EditorPreviews theme={theme} name={editingTheme.name} />
 
 				<div className="flex flex-col gap-4">
 					<GlobalAestheticsSection {...sectionProps} />
@@ -347,17 +400,27 @@ export const ThemesPage = () => {
 					<AestheticRangesSection {...sectionProps} />
 				</div>
 
-				{/* Delete sits at the bottom — destructive actions live below the
-				 *  thing they destroy, not in the header where they're easy to
-				 *  hit by accident. Suppressed for a locked managed theme, and
-				 *  for the two bundled themes, which the bootstrap re-adds. */}
-				{canDelete && (
-					<div className="mt-10 flex justify-end border-t border-stone-200 pt-4 dark:border-stone-700">
-						<Button compact danger onClick={requestDelete}>
-							Delete this theme
-						</Button>
+				{/* Footer: Delete on the left, Done on the right. Delete sits at
+				 *  the bottom — destructive actions live below the thing they
+				 *  destroy, not in the header where they're easy to hit by
+				 *  accident — and is kept apart from Done so a reach for the
+				 *  way out never lands on it. Suppressed for a locked managed
+				 *  theme, and for the two bundled themes, which the bootstrap
+				 *  re-adds. */}
+				<div className="mt-10 flex items-center justify-between gap-3 border-t border-stone-200 pt-4 dark:border-stone-700">
+					<div>
+						{canDelete && (
+							<Button compact danger onClick={requestDelete}>
+								Delete this theme
+							</Button>
+						)}
 					</div>
-				)}
+					{onDone && (
+						<Button compact onClick={onDone}>
+							Done
+						</Button>
+					)}
+				</div>
 			</div>
 			<ManagedThemeGate
 				open={gateOpen}

@@ -1,3 +1,7 @@
+import {
+	NARROW_LAYOUT_QUERY,
+	mediaQueryMatches,
+} from "../../../lib/useMediaQuery"
 import { atom, type Atom, type Getter, type Setter } from "jotai"
 import {
 	type AnnotationsConfig,
@@ -41,6 +45,8 @@ import {
 	loadExportUnit,
 	loadFolders,
 	loadLibraryCollapsedFolders,
+	loadEditorSidebarHidden,
+	loadLibraryRailCollapsed,
 	loadLibrarySidebarWidth,
 	loadPreviewVersionId,
 	loadSidebarCollapsed,
@@ -73,6 +79,8 @@ import {
 	saveExportSizes,
 	saveExportUnit,
 	saveLibraryCollapsedFolders,
+	saveEditorSidebarHidden,
+	saveLibraryRailCollapsed,
 	saveLibrarySidebarWidth,
 	savePreviewVersionId,
 	saveSidebarCollapsed,
@@ -272,6 +280,22 @@ export const visualsHydratedAtom = atom((get) => {
 	const v = get(visualsBaseAtom)
 	return v !== UNSET || !getStorageAdapter().capabilities.remoteLoad
 })
+
+/** The visuals the user sees: everything not in the Trash. Every listing
+ * (library grid/table, folder tree, filters, name-collision checks, bundle
+ * export) reads this. Id lookups, reference sweeps and writes stay on
+ * `visualsAtom`, which holds trashed visuals too — a trashed visual still
+ * owns its data set and embeds until it is purged. */
+export const liveVisualsAtom = atom((get) =>
+	get(visualsAtom).filter((v) => v.deletedAt === undefined)
+)
+
+/** What the Trash panel lists, newest deletion first. */
+export const trashedVisualsAtom = atom((get) =>
+	get(visualsAtom)
+		.filter((v) => v.deletedAt !== undefined)
+		.sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))
+)
 
 export const foldersAtom = contentAtom<Folder[]>(
 	loadFolders,
@@ -830,11 +854,25 @@ export const sidebarWidthAtom = persistedAtom<number>(
 	saveSidebarWidth
 )
 
+/** Whether the editor's left menu is collapsed away entirely (wide layout;
+ * the chart then takes the full width). Kept apart from its width. */
+export const editorSidebarHiddenAtom = persistedAtom<boolean>(
+	loadEditorSidebarHidden,
+	saveEditorSidebarHidden
+)
+
 /** Width of the landing page's folder sidebar (px). Separate from the
  * editor's sidebarWidthAtom — the two panels are resized independently. */
 export const librarySidebarWidthAtom = persistedAtom<number>(
 	loadLibrarySidebarWidth,
 	saveLibrarySidebarWidth
+)
+
+/** Whether the library's folder rail is collapsed away entirely. Kept apart
+ * from its width so re-opening restores the dragged size. */
+export const libraryRailCollapsedAtom = persistedAtom<boolean>(
+	loadLibraryRailCollapsed,
+	saveLibraryRailCollapsed
 )
 
 /** Collapsed state for named sidebar sections, keyed by the section's title
@@ -1005,13 +1043,6 @@ export const userDefaultThemeIdAtom = contentAtom<string | null>(
 	(adapter, id) => adapter.saveUserDefaultThemeId(id)
 )
 
-/** Which theme is currently being edited in the Settings → Themes page.
- * Not persisted. Defaults to `null` so callers resolve the active theme
- * dynamically — system themes are read-only, so the resolver prefers the
- * first custom theme and only falls back to a system theme when no
- * custom theme exists yet. */
-export const editingThemeIdAtom = atom<string | null>(null)
-
 /** Which single managed theme the user has been granted edit access to,
  * after answering the administrator dialog for it.
  *
@@ -1029,7 +1060,11 @@ export const unlockedThemeIdAtom = atom<string | null>(null)
  * through the visuals atom. */
 export const currentThemeIdAtom = atom<string | null>(null)
 
-export const drawerOpenAtom = atom<boolean>(true)
+/** Data tray open/collapsed. Starts collapsed on a narrow (phone/tablet)
+ * screen so opening a visual lands on the chart; see EditorLayout. */
+export const drawerOpenAtom = atom<boolean>(
+	!mediaQueryMatches(NARROW_LAYOUT_QUERY)
+)
 
 /** Whether the Reshape (wide→long) options panel is showing under Data.
  * Toggled by the data tray's "Reshape" button and the panel's own "Save and
@@ -1037,6 +1072,13 @@ export const drawerOpenAtom = atom<boolean>(true)
  * visibility — the reshape itself lives in `currentReshapeConfigAtom` and
  * applies whenever columns are combined, menu open or not. */
 export const reshapePanelOpenAtom = atom<boolean>(false)
+
+/** NARROW layouts only: whether the editor's left menu sheet is showing
+ * over the chart (EditorLayout). Lives in an atom rather than layout state
+ * so the data tray's Reshape button can open it — its options panel is
+ * inside the sheet. Transient, like `reshapePanelOpenAtom`: every visit
+ * starts with the sheet closed. Unused (never rendered) on wide layouts. */
+export const editorSheetOpenAtom = atom<boolean>(false)
 
 /** Black-and-white preview toggle. Wraps the chart canvas in `filter:
  * grayscale(1)` so the user can spot color-only encodings during an

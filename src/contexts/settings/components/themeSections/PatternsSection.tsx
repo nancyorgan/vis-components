@@ -68,7 +68,7 @@ export const PatternsSection = ({
 												value={ink || theme.patternInkColor}
 												onChange={(e) => setInk(e.target.value)}
 												aria-label={`Pattern ink for hue ${i + 1}`}
-												className={`h-6 w-10 cursor-pointer rounded border ${
+												className={`h-6 w-10 shrink-0 cursor-pointer rounded border ${
 													ink
 														? "border-stone-400 dark:border-stone-500"
 														: "border-dashed border-stone-300 dark:border-stone-700"

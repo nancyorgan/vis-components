@@ -407,7 +407,7 @@ export const ColorOptionsPanel = ({
 		return (
 			<div className="flex flex-col gap-2">
 				{!hideVaryBy && varyBy}
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<ColorInput
 						label="Color"
 						labelClassName={LABEL_COL}
@@ -783,7 +783,7 @@ export const AreaRadarOutlinePanel = () => {
 		const defaultFill = configs.defaultFill ?? theme.defaultFill
 		const strokeColor = configs.connection?.strokeColor ?? null
 		return (
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<ColorInput
 					label="Color"
 					labelClassName={LABEL_COL}

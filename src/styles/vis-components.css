@@ -84,15 +84,23 @@
  * Base layer — global element defaults
  * -------------------------------------------------------------------------- */
 @layer base {
-	/* App chrome heights. The header renders 55px tall (py-2.5 + h-8
-	 * controls + 1px border) and is sticky, so `.vc-sticky-rail` offsets by
-	 * it; the footer is an ordinary block after the page content on the
-	 * library and settings pages only (RootLayout omits it on the editor).
-	 * The editor shell (`.vc-page-fill`) subtracts just the header so it
-	 * fits the viewport and the window never scrolls there. */
+	/* App chrome heights. The header is sticky and sized to EXACTLY this
+	 * variable (Header.tsx sets `h-(--vc-header-h)`), so `.vc-sticky-rail`
+	 * can offset by it and the editor shell (`.vc-page-fill`) can subtract
+	 * it and fit the viewport with the window never scrolling there. Any
+	 * disagreement between the two shows up as a few px of blank page to
+	 * scroll into. On touch devices the header's icon links grow to 40px
+	 * tap targets (`pointer-coarse:h-10`), so the variable grows with them.
+	 * The footer is an ordinary block after the page content on the library
+	 * and settings pages only (RootLayout omits it on the editor). */
 	:root {
 		--vc-header-h: 55px;
 		--vc-footer-h: 40px;
+	}
+	@media (pointer: coarse) {
+		:root {
+			--vc-header-h: 60px;
+		}
 	}
 
 	/* Headings render in the --font-heading face (currently Quicksand). Covers
@@ -273,6 +281,10 @@
 	 * `.vc-sticky-rail` side nav. */
 	.vc-page-fill {
 		height: calc(100vh - var(--vc-header-h));
+		/* Dynamic viewport height: on mobile browsers 100vh includes the
+		 * space behind the retractable address bar, which would hide the
+		 * data tray beneath it. Declared second so it wins where supported. */
+		height: calc(100dvh - var(--vc-header-h));
 	}
 
 	/* Side rail (folder tree, settings nav) that stays in view beneath the
@@ -282,6 +294,7 @@
 		position: sticky;
 		top: var(--vc-header-h);
 		height: calc(100vh - var(--vc-header-h));
+		height: calc(100dvh - var(--vc-header-h));
 		align-self: flex-start;
 	}
 

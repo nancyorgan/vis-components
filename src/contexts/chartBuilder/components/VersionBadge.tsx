@@ -24,7 +24,9 @@ const formatTime = (ts: number): string => {
 	})
 }
 
-export const VersionBadge = () => {
+/** `compact` (narrow layouts): drop the data set name so the chip fits on
+ *  a phone row beside the action buttons; the version label stays. */
+export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 	const view = useCurrentDatasetView()
 	const [previewVersionId, setPreviewVersionId] =
 		useAtom(previewVersionIdAtom)
@@ -120,9 +122,12 @@ export const VersionBadge = () => {
 		}))
 	}
 
-	const badgeLabel = view.isLatest
-		? `v${view.versionIndex} of ${view.totalVersions} · latest`
-		: `v${view.versionIndex} of ${view.totalVersions}`
+	// Compact drops "· latest" too (the amber styling already flags a
+	// non-latest version) so the chip plus the action group fit a 320px row.
+	const badgeLabel =
+		view.isLatest && !compact
+			? `v${view.versionIndex} of ${view.totalVersions} · latest`
+			: `v${view.versionIndex} of ${view.totalVersions}`
 
 	return (
 		<div className="relative" ref={popoverRef}>
@@ -136,8 +141,10 @@ export const VersionBadge = () => {
 				}`}
 				title="Data set versions"
 			>
-				<span className="truncate font-medium">{view.name}</span>
-				<span className="text-sm">{badgeLabel}</span>
+				{!compact && (
+					<span className="truncate font-medium">{view.name}</span>
+				)}
+				<span className="text-sm whitespace-nowrap">{badgeLabel}</span>
 			</button>
 			{open && (
 				<div className="absolute top-full right-0 z-20 mt-1 w-80 rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800">

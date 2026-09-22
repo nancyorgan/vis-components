@@ -299,7 +299,7 @@ export const CaptionPanel = () => {
 									onChange={(align) => update({ align })}
 								/>
 							</div>
-							<div className="flex items-center gap-2">
+							<div className="flex flex-wrap items-center gap-2">
 								<ColorInput
 									label="Text color"
 									labelClassName={LABEL_COL}
@@ -338,7 +338,7 @@ export const CaptionPanel = () => {
 
 					<CollapsibleSubsection title="Box" changed={boxChanged}>
 						<div className="flex flex-col gap-2">
-							<div className="flex items-center gap-2">
+							<div className="flex flex-wrap items-center gap-2">
 								<ColorInput
 									label="Background"
 									labelClassName={LABEL_COL}
@@ -411,7 +411,7 @@ export const CaptionPanel = () => {
 							</div>
 							{merged.borderEnabled && (
 								<>
-									<div className="flex items-center gap-2">
+									<div className="flex flex-wrap items-center gap-2">
 										<ColorInput
 											label="Border color"
 											labelClassName={LABEL_COL}

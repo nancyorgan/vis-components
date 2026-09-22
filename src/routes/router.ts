@@ -15,6 +15,7 @@ import {
 	settingsIndexRoute,
 	settingsRoute,
 	settingsSharingRoute,
+	settingsThemeEditorRoute,
 	settingsThemesRoute,
 } from "../contexts/settings/routes"
 import { RootLayout } from "./RootLayout"
@@ -34,6 +35,7 @@ const routeTree = rootRoute.addChildren([
 	settingsRoute.addChildren([
 		settingsIndexRoute,
 		settingsThemesRoute,
+		settingsThemeEditorRoute,
 		settingsFontsRoute,
 		settingsSharingRoute,
 	]),

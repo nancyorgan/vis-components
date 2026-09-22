@@ -1,10 +1,11 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
-import { useAtom } from "jotai"
+import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import type { Folder, Visual } from "../../chartBuilder/lib/types"
 import {
 	foldersAtom,
 	libraryCollapsedFoldersAtom,
+	liveVisualsAtom,
 	visualsAtom,
 } from "../../chartBuilder/store/atoms"
 import {
@@ -25,6 +26,7 @@ import {
 import {
 	canReorderFolderInto,
 	clearSortIndex,
+	folderTreeOrder,
 	insertionPointFor,
 	nextSortIndex,
 	orderedSiblings,
@@ -170,7 +172,7 @@ const VisualTreeItem = ({
 	<Link
 		to="/editor/$visualId"
 		params={{ visualId: visual.id }}
-		className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
+		className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
 			isSelected
 				? "vc-nav-active"
 				: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -195,6 +197,186 @@ const VisualTreeItem = ({
 	</Link>
 )
 
+const menuItem =
+	"block w-full px-3 py-1.5 text-left text-sm text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:py-2 dark:text-stone-300 dark:hover:bg-stone-700"
+
+/** The folder row's "⋯" menu: rename, step up/down among siblings, and move
+ *  into another folder — every drag-and-drop outcome (plus the double-click
+ *  rename) reachable by tap and keyboard. The "Move to…" item swaps the
+ *  list for the legal destinations, same rule as the drop. */
+const FolderRowMenu = ({
+	folder,
+	folders,
+	open,
+	onOpenChange,
+	canMoveUp,
+	canMoveDown,
+	onRename,
+	onMoveSibling,
+	onMoveInto,
+}: {
+	folder: Folder
+	folders: Folder[]
+	open: boolean
+	onOpenChange: (open: boolean) => void
+	canMoveUp: boolean
+	canMoveDown: boolean
+	onRename: () => void
+	onMoveSibling: (dir: -1 | 1) => void
+	onMoveInto: (parentId: string | null) => void
+}) => {
+	const [picking, setPicking] = useState(false)
+	const ref = useRef<HTMLDivElement>(null)
+	const close = () => {
+		onOpenChange(false)
+		setPicking(false)
+	}
+
+	useEffect(() => {
+		if (!open) return
+		const onDown = (e: MouseEvent) => {
+			if (!ref.current?.contains(e.target as Node)) close()
+		}
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") close()
+		}
+		document.addEventListener("mousedown", onDown)
+		document.addEventListener("keydown", onKey)
+		return () => {
+			document.removeEventListener("mousedown", onDown)
+			document.removeEventListener("keydown", onKey)
+		}
+		// `close` is recreated per render; the listeners only need the
+		// latest one while open.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open])
+
+	const targets = folderTreeOrder(folders).filter(({ folder: f }) =>
+		canDropFolderOn(folders, folder.id, f.id)
+	)
+
+	return (
+		// Click here only stops the row underneath from selecting; the
+		// buttons inside are the real interactions.
+		// eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+		<div
+			ref={ref}
+			className="relative"
+			onClick={(e) => e.stopPropagation()}
+			onDoubleClick={(e) => e.stopPropagation()}
+		>
+			<button
+				type="button"
+				onClick={() => (open ? close() : onOpenChange(true))}
+				className="rounded p-0.5 text-stone-400 hover:text-stone-700 pointer-coarse:p-1.5 dark:hover:text-white"
+				title="More actions"
+				aria-label={`Actions for ${folder.name}`}
+				aria-haspopup="menu"
+				aria-expanded={open}
+			>
+				<svg viewBox="0 0 12 12" width={10} height={10} aria-hidden="true">
+					<circle cx="2" cy="6" r="1.1" fill="currentColor" />
+					<circle cx="6" cy="6" r="1.1" fill="currentColor" />
+					<circle cx="10" cy="6" r="1.1" fill="currentColor" />
+				</svg>
+			</button>
+			{open && (
+				<div
+					role="menu"
+					className="absolute top-full right-0 z-20 mt-1 max-h-64 w-48 overflow-y-auto rounded border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800"
+				>
+					{picking ? (
+						<>
+							<div className="px-3 py-1 text-xs font-medium tracking-wider text-stone-500 uppercase dark:text-stone-400">
+								Move to
+							</div>
+							{folder.parentId !== null && (
+								<button
+									type="button"
+									role="menuitem"
+									className={menuItem}
+									onClick={() => {
+										onMoveInto(null)
+										close()
+									}}
+								>
+									Top level
+								</button>
+							)}
+							{targets.map(({ folder: f, depth }) => (
+								<button
+									key={f.id}
+									type="button"
+									role="menuitem"
+									className={menuItem}
+									style={{ paddingLeft: `${12 + depth * 12}px` }}
+									onClick={() => {
+										onMoveInto(f.id)
+										close()
+									}}
+								>
+									{f.name}
+								</button>
+							))}
+							{targets.length === 0 && folder.parentId === null && (
+								<div className="px-3 py-1.5 text-sm text-stone-500 italic dark:text-stone-400">
+									No other folder to move into
+								</div>
+							)}
+						</>
+					) : (
+						<>
+							<button
+								type="button"
+								role="menuitem"
+								className={menuItem}
+								onClick={() => {
+									onRename()
+									close()
+								}}
+							>
+								Rename
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								className={menuItem}
+								disabled={!canMoveUp}
+								onClick={() => {
+									onMoveSibling(-1)
+									close()
+								}}
+							>
+								Move up
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								className={menuItem}
+								disabled={!canMoveDown}
+								onClick={() => {
+									onMoveSibling(1)
+									close()
+								}}
+							>
+								Move down
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								className={menuItem}
+								onClick={() => setPicking(true)}
+							>
+								Move to…
+							</button>
+						</>
+					)}
+				</div>
+			)}
+		</div>
+	)
+}
+
 type FolderTreeItemProps = {
 	folder: Folder
 	folders: Folder[]
@@ -204,6 +386,11 @@ type FolderTreeItemProps = {
 	onRename: (id: string, name: string) => void
 	onDelete: (id: string) => void
 	onCreateChild: (parentId: string) => void
+	/** Non-drag paths for what the drag-and-drop does — the row's "⋯" menu.
+	 *  A finger can't start an HTML5 drag in every mobile browser, and a
+	 *  double-click (rename) has no touch equivalent at all. */
+	onMoveSibling: (id: string, dir: -1 | 1) => void
+	onMoveInto: (id: string, parentId: string | null) => void
 	collapsedFolderIds: ReadonlySet<string>
 	onToggleExpanded: (id: string) => void
 	selectedVisualIds: ReadonlySet<string>
@@ -226,6 +413,8 @@ const FolderTreeItem = ({
 	onRename,
 	onDelete,
 	onCreateChild,
+	onMoveSibling,
+	onMoveInto,
 	collapsedFolderIds,
 	onToggleExpanded,
 	selectedVisualIds,
@@ -238,6 +427,9 @@ const FolderTreeItem = ({
 }: FolderTreeItemProps) => {
 	const expanded = !collapsedFolderIds.has(folder.id)
 	const [editing, setEditing] = useState(false)
+	const [menuOpen, setMenuOpen] = useState(false)
+	const siblings = orderedSiblings(folders, folder.parentId)
+	const siblingIndex = siblings.findIndex((f) => f.id === folder.id)
 	const [editName, setEditName] = useState(folder.name)
 	const { dropZone, dropHandlers } = useFolderDropTarget({
 		resolve: resolveDropOn(folder),
@@ -271,7 +463,7 @@ const FolderTreeItem = ({
 	return (
 		<div>
 			<div
-				className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
+				className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
 					isSelected
 						? "vc-nav-active"
 						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -310,7 +502,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onToggleExpanded(folder.id)
 						}}
-						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-vc-brand-text dark:text-th-electric-indigo-300"
+						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-vc-brand-text pointer-coarse:h-7 dark:text-th-electric-indigo-300"
 					>
 						<svg
 							viewBox="0 0 8 8"
@@ -354,14 +546,20 @@ const FolderTreeItem = ({
 						{folder.name}
 					</span>
 				)}
-				<div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
+				{/* Always visible on touch (no hover there) and while the row's
+				 *  menu is open, so it doesn't vanish under a moving pointer. */}
+				<div
+					className={`flex gap-0.5 group-hover:opacity-100 pointer-coarse:opacity-100 ${
+						menuOpen ? "opacity-100" : "opacity-0"
+					}`}
+				>
 					<button
 						type="button"
 						onClick={(e) => {
 							e.stopPropagation()
 							onCreateChild(folder.id)
 						}}
-						className="rounded p-0.5 text-stone-400 hover:text-stone-700 dark:hover:text-white"
+						className="rounded p-0.5 text-stone-400 hover:text-stone-700 pointer-coarse:p-1.5 dark:hover:text-white"
 						title="New subfolder"
 					>
 						<svg viewBox="0 0 12 12" width={10} height={10}>
@@ -380,7 +578,7 @@ const FolderTreeItem = ({
 								e.stopPropagation()
 								onDelete(folder.id)
 							}}
-							className="rounded p-0.5 text-stone-400 hover:text-red-600 dark:hover:text-red-400"
+							className="rounded p-0.5 text-stone-400 hover:text-red-600 pointer-coarse:p-1.5 dark:hover:text-red-400"
 							title="Delete folder"
 						>
 							<svg viewBox="0 0 12 12" width={10} height={10}>
@@ -393,6 +591,22 @@ const FolderTreeItem = ({
 							</svg>
 						</button>
 					)}
+					<FolderRowMenu
+						folder={folder}
+						folders={folders}
+						open={menuOpen}
+						onOpenChange={setMenuOpen}
+						canMoveUp={siblingIndex > 0}
+						canMoveDown={
+							siblingIndex >= 0 && siblingIndex < siblings.length - 1
+						}
+						onRename={() => {
+							setEditName(folder.name)
+							setEditing(true)
+						}}
+						onMoveSibling={(dir) => onMoveSibling(folder.id, dir)}
+						onMoveInto={(parentId) => onMoveInto(folder.id, parentId)}
+					/>
 				</div>
 			</div>
 			{expanded && (
@@ -408,6 +622,8 @@ const FolderTreeItem = ({
 							onRename={onRename}
 							onDelete={onDelete}
 							onCreateChild={onCreateChild}
+							onMoveSibling={onMoveSibling}
+							onMoveInto={onMoveInto}
 							collapsedFolderIds={collapsedFolderIds}
 							onToggleExpanded={onToggleExpanded}
 							selectedVisualIds={selectedVisualIds}
@@ -446,7 +662,10 @@ export const FolderTree = ({
 	onSelect: (id: string | null) => void
 }) => {
 	const [folders, setFolders] = useAtom(foldersAtom)
-	const [visuals, setVisuals] = useAtom(visualsAtom)
+	// Listed: live visuals only. Written: the whole collection, so a move
+	// or folder delete never drops the trashed ones.
+	const visuals = useAtomValue(liveVisualsAtom)
+	const setVisuals = useSetAtom(visualsAtom)
 
 	// Expansion is lifted (rather than per-item useState) because shift-click
 	// range selection needs the flat visible row order, which depends on
@@ -524,6 +743,29 @@ export const FolderTree = ({
 				f.id === folderId ? clearSortIndex({ ...f, parentId }) : f
 			)
 		)
+	}
+
+	/** Menu fallback for the edge-zone drop: step a folder one place up or
+	 *  down among its siblings. `reorderFolder` slots are "before X", so
+	 *  down = before the sibling two ahead (or last when there is none). */
+	const moveFolderBy = (folderId: string, dir: -1 | 1) => {
+		setFolders((prev) => {
+			const folder = prev.find((f) => f.id === folderId)
+			if (!folder) return prev
+			const group = orderedSiblings(prev, folder.parentId)
+			const i = group.findIndex((f) => f.id === folderId)
+			const j = i + dir
+			if (i === -1 || j < 0 || j >= group.length) return prev
+			const beforeId =
+				dir === -1 ? (group[i - 1]?.id ?? null) : (group[i + 2]?.id ?? null)
+			return reorderFolder(prev, folderId, folder.parentId, beforeId)
+		})
+	}
+
+	/** Menu fallback for the nest-inside drop, with the same legality check. */
+	const moveFolderInto = (folderId: string, parentId: string | null) => {
+		if (!canDropFolderOn(folders, folderId, parentId)) return
+		reparentFolder(folderId, parentId)
 	}
 
 	/** Place a folder in a sibling group at an explicit position — the
@@ -698,7 +940,7 @@ export const FolderTree = ({
 				<button
 					type="button"
 					onClick={() => createFolder(null)}
-					className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-white"
+					className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700 pointer-coarse:p-2 dark:hover:bg-stone-800 dark:hover:text-white"
 					title="New folder"
 				>
 					<svg viewBox="0 0 12 12" width={12} height={12}>
@@ -729,7 +971,7 @@ export const FolderTree = ({
 			>
 				{/* "All visualizations" root item */}
 				<div
-					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none ${
+					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
 						selectedFolderId === null
 							? "vc-nav-active"
 							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -759,6 +1001,8 @@ export const FolderTree = ({
 						onRename={renameFolder}
 						onDelete={deleteFolder}
 						onCreateChild={createFolder}
+						onMoveSibling={moveFolderBy}
+						onMoveInto={moveFolderInto}
 						collapsedFolderIds={collapsedFolderIds}
 						onToggleExpanded={toggleFolderExpanded}
 						selectedVisualIds={selectedVisualIds}

@@ -1,10 +1,4 @@
-import { useState } from "react"
-import { useAtomValue } from "jotai"
-import { embedInstancesAtom } from "../../chartBuilder/store/atoms"
-import { useDeleteVisuals } from "../../chartBuilder/store/useDeleteVisuals"
-
-import { Button } from "../../../components/ui/Button"
-import { Modal } from "../../../components/ui/Modal"
+import { useTrashVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 type Props = {
 	visualId: string
@@ -13,11 +7,11 @@ type Props = {
 	variant?: "icon" | "text"
 }
 
-const TrashIcon = () => (
+export const TrashIcon = ({ size = 12 }: { size?: number }) => (
 	<svg
 		viewBox="0 0 16 16"
-		width={12}
-		height={12}
+		width={size}
+		height={size}
 		aria-hidden="true"
 		fill="currentColor"
 	>
@@ -25,80 +19,41 @@ const TrashIcon = () => (
 	</svg>
 )
 
+/** Moves one visual to the Trash. No confirm step: the Trash (the floating
+ * can on the library page) restores it in one click, and nothing cascades
+ * until it is purged from there. */
 export const DeleteVisualButton = ({
 	visualId,
 	visualName,
 	variant = "icon",
 }: Props) => {
-	const [open, setOpen] = useState(false)
-	// Cascades: published embed files, embed instances for this visual, and
-	// its dataset when no other visual references it (see useDeleteVisuals).
-	const deleteVisuals = useDeleteVisuals()
-	const instances = useAtomValue(embedInstancesAtom)
-	const hasPublishedEmbeds = Object.values(instances).some(
-		(i) => i.visualId === visualId && i.publishId !== undefined
-	)
+	const trashVisuals = useTrashVisuals()
 
-	const onConfirm = () => {
-		deleteVisuals([visualId])
-		setOpen(false)
-	}
-
-	const trigger =
-		variant === "icon" ? (
+	if (variant === "icon") {
+		return (
 			<button
 				type="button"
 				onClick={(e) => {
 					e.preventDefault()
 					e.stopPropagation()
-					setOpen(true)
+					trashVisuals([visualId])
 				}}
-				title="Delete visualization"
-				aria-label={`Delete ${visualName}`}
+				title="Move to trash"
+				aria-label={`Move ${visualName} to trash`}
 				className="flex h-6 w-6 items-center justify-center rounded bg-white/90 text-stone-500 shadow-sm ring-1 ring-stone-200 hover:bg-red-50 hover:text-red-700 dark:bg-stone-800/90 dark:text-stone-400 dark:ring-stone-700 dark:hover:bg-red-900/30 dark:hover:text-red-300"
 			>
 				<TrashIcon />
 			</button>
-		) : (
-			<button
-				type="button"
-				onClick={() => setOpen(true)}
-				className="text-sm text-stone-500 hover:text-red-700 dark:text-stone-400 dark:hover:text-red-300"
-			>
-				Delete
-			</button>
 		)
-
+	}
 	return (
-		<>
-			{trigger}
-			<Modal
-				open={open}
-				onClose={() => setOpen(false)}
-				title="Delete visualization?"
-				widthClass="max-w-md"
-			>
-				<div className="flex flex-col gap-4">
-					<p className="text-sm text-stone-700 dark:text-stone-300">
-						Are you sure you want to delete{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
-							{visualName}
-						</span>
-						? This can&rsquo;t be undone.
-						{hasPublishedEmbeds
-							? " Its published embeds will be unpublished — every public embed URL for this visualization will stop working."
-							: ""}
-					</p>
-					<div className="flex justify-end gap-2">
-						<Button compact onClick={() => setOpen(false)}>
-							Cancel
-						</Button>
-						<Button compact danger onClick={onConfirm}>
-							Yes, delete this visualization
-						</Button>
-					</div>
-				</div>
-			</Modal>
-		</>
+		<button
+			type="button"
+			onClick={() => trashVisuals([visualId])}
+			title="Move to trash"
+			className="text-sm text-stone-500 hover:text-red-700 dark:text-stone-400 dark:hover:text-red-300"
+		>
+			Delete
+		</button>
 	)
 }

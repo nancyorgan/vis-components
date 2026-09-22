@@ -141,7 +141,7 @@ export const OutlineColorRow = () => {
 				selectClassName="flex-1"
 			/>
 			{value === null ? (
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<ColorInput
 						label="Color"
 						labelClassName={LABEL_COL}
@@ -216,7 +216,9 @@ const OutlineColorRulesRow = ({
 						{/* Empty label-column spacer so the condition box + swatch
 						 *  line up with the Fill controls (which sit after a w-24
 						 *  label), matching the gradient/swatch rows above. */}
-						<LabelSpacer />
+						{/* Dropped below 360px: on the 2016 iPhone SE the menu sheet's
+						 *  rows are ~223px, and spacer + condition box + swatch don't fit. */}
+						<LabelSpacer className="hidden min-[360px]:inline" />
 						<input
 							type="text"
 							value={rule.condition}

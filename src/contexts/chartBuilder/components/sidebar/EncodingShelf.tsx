@@ -431,7 +431,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 					<div className="flex items-center gap-1">
 						<div className="min-w-0 flex-1">{row}</div>
 						<Disclosure.Button
-							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 pointer-coarse:h-9 pointer-coarse:w-9 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
 							aria-label={`Toggle options for ${ENCODING_CHANNEL_LABELS[channel]}`}
 						>
 							<DisclosureChevron open={open} />

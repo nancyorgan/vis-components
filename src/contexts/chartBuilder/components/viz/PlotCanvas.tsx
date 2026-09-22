@@ -94,7 +94,8 @@ import { AnnotationRects, annotationOnPanel } from "./plotCanvas/annotations"
  *  single typed FacetLayoutSpec. */
 
 export const PlotCanvas = () => {
-	const [ref, bounds] = useMeasure()
+	// Layout size, not the transformed rect — see ChartCanvas.
+	const [ref, bounds] = useMeasure({ offsetSize: true })
 	const dataset = useCurrentDatasetView()
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)

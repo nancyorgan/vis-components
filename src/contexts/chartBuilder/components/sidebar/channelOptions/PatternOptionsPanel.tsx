@@ -283,14 +283,16 @@ export const PatternOptionsPanel = () => {
 						args.onChange(e.target.value === "" ? null : e.target.value)
 					}
 					aria-label={aria}
-					className="w-24 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm placeholder:text-stone-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
+					// Shrinks to min-w-18 when the row is tight and hides below 360px
+					// viewports — same rule as ColorInput's hex box.
+					className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm placeholder:text-stone-300 min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
 				/>
 				<input
 					type="color"
 					value={args.override ?? args.fallback}
 					onChange={(e) => args.onChange(e.target.value)}
 					aria-label={`${aria} swatch`}
-					className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+					className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 				/>
 				{/* Hand-rolled rather than a `ColorInput` because this row's
 				 *  empty text box means "use the paired/default ink", which
@@ -1036,7 +1038,7 @@ export const PatternOptionsPanel = () => {
 		} = { set: setCategoryInk, reset: resetCategoryInk, ariaKind: "Pattern" }
 	) => (
 		<div className="flex items-center gap-2">
-			<label className="flex items-center gap-2">
+			<label className="flex min-w-0 items-center gap-2">
 				<span className="text-sm text-stone-600 dark:text-stone-400">Color</span>
 				<input
 					type="text"
@@ -1046,14 +1048,14 @@ export const PatternOptionsPanel = () => {
 						else target.set(v, e.target.value)
 					}}
 					placeholder={ink}
-					className="w-24 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 				/>
 			</label>
 			<input
 				type="color"
 				value={ink}
 				onChange={(e) => target.set(v, e.target.value)}
-				className="h-6 w-10 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+				className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 				aria-label={`${target.ariaKind} color for ${v}`}
 			/>
 			{/* Hand-rolled rather than a `ColorInput` because this row's empty

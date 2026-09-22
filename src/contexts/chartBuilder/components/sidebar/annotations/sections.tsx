@@ -290,7 +290,7 @@ export const FillSection = ({
 }) => (
 	<CollapsibleSubsection title="Fill">
 		<div className="flex flex-col gap-2">
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<ColorInput
 					label="Fill"
 					labelClassName={LABEL_COL}
@@ -364,7 +364,7 @@ export const BorderSection = ({
 }) => (
 	<CollapsibleSubsection title="Border">
 		<div className="flex flex-col gap-2">
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<ColorInput
 					label="Color"
 					labelClassName={LABEL_COL}
@@ -507,7 +507,7 @@ export const TextStyleSection = ({
 					/>
 				)}
 			</div>
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<ColorInput
 					label="Color"
 					labelClassName={LABEL_COL}

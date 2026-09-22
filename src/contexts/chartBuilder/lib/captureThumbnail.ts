@@ -563,10 +563,25 @@ export const thumbnailFromChartSvgText = async (
  *  rasterization fails. Accepts a same-origin embed iframe's document so the
  *  thumbnail backfill can capture visuals rendered offscreen; rasterization
  *  always happens in this realm's canvas. */
+/** On narrow screens the editor shrinks a fixed-size canvas with a
+ *  display-only CSS transform (EditorLayout). Every rect this module reads
+ *  is in screen space, so lift the transform for the synchronous DOM walk
+ *  and put it straight back — no paint happens in between. */
+const withoutDisplayScale = <T>(doc: Document, fn: () => T): T => {
+	const el = doc.querySelector<HTMLElement>("[data-editor-chart-viewport]")
+	const prev = el?.style.transform ?? ""
+	if (el && prev) el.style.transform = "none"
+	try {
+		return fn()
+	} finally {
+		if (el && prev) el.style.transform = prev
+	}
+}
+
 export const captureThumbnailFromDocument = async (
 	doc: Document
 ): Promise<string | null> => {
-	const svgText = serializeChartSvg(doc)
+	const svgText = withoutDisplayScale(doc, () => serializeChartSvg(doc))
 	if (!svgText) return null
 	return thumbnailFromChartSvgText(svgText)
 }

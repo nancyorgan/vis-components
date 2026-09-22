@@ -1,20 +1,10 @@
-import { useRef, useState } from "react"
-import { useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { useAtom, useSetAtom } from "jotai"
-import {
-	isManagedTheme,
-	normalizeSavedTheme,
-	SYSTEM_LIGHT_THEME,
-	themeOf,
-} from "../../chartBuilder/lib/systemThemes"
-import type { SavedTheme } from "../../chartBuilder/lib/types"
-import {
-	editingThemeIdAtom,
-	themesAtom,
-	unlockedThemeIdAtom,
-} from "../../chartBuilder/store/atoms"
+import { themesAtom, unlockedThemeIdAtom } from "../../chartBuilder/store/atoms"
 import { combine as c } from "../../../lib/cls"
 import {
+	canDropIntoFolder,
 	decodeThemeDrag,
 	encodeThemeDrag,
 	groupThemesByFolder,
@@ -22,17 +12,16 @@ import {
 	moveThemeToFolder,
 	THEME_DRAG_TYPE,
 	THEME_FOLDER_LABEL,
+	THEME_FOLDERS,
 	type ThemeFolder,
 } from "../lib/themeFolders"
 
-import { Button } from "../../../components/ui/Button"
 import { SectionChevron } from "../../../components/ui/Chevron"
-import { Modal } from "../../../components/ui/Modal"
 
 import { ManagedThemeGate } from "../../chartBuilder/components/ManagedThemeGate"
 
-const newThemeId = (): string =>
-	`th-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+import { AddThemeButton } from "./AddThemeButton"
+import { LockIcon } from "./LockIcon"
 
 /** What the user was trying to do when the administrator gate stopped
  *  them. Kept as data rather than a stashed callback so the dialog's
@@ -40,59 +29,53 @@ const newThemeId = (): string =>
  *  from the render that opened it. */
 type GatedAction =
 	| { kind: "select"; themeId: string }
-	| { kind: "toggle-folder" }
 	| { kind: "move"; themeId: string; target: ThemeFolder }
 
-const LockIcon = () => (
-	<svg
-		viewBox="0 0 12 12"
-		width={10}
-		height={10}
-		aria-hidden="true"
-		className="flex-shrink-0"
-	>
-		<path
-			d="M3.25 5.25V3.75a2.75 2.75 0 015.5 0v1.5"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.2}
-			strokeLinecap="round"
-		/>
-		<rect
-			x="2.25"
-			y="5.25"
-			width="7.5"
-			height="5"
-			rx="1"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.2}
-		/>
-	</svg>
-)
-
-export const ThemesSubNav = () => {
+export const ThemesSubNav = ({
+	onThemeOpened,
+}: {
+	/** Fires after a theme is opened in the editor — the narrow layout's
+	 *  disclosure closes itself so the editor isn't pushed below the fold. */
+	onThemeOpened?: () => void
+} = {}) => {
 	const [themes, setThemes] = useAtom(themesAtom)
-	const [editingThemeId, setEditingThemeId] = useAtom(editingThemeIdAtom)
 	const setUnlockedThemeId = useSetAtom(unlockedThemeIdAtom)
-	const [addOpen, setAddOpen] = useState(false)
 	const navigate = useNavigate()
+	// The theme open in the editor, if any — the route is the source of
+	// truth, so the rail highlights nothing while the gallery is showing.
+	const params = useParams({ strict: false }) as { themeId?: string }
+	const openThemeId = params.themeId ?? null
+	// Which folder the gallery is narrowed to, if any — highlighted on its
+	// header the way the open theme is highlighted on its row. Only
+	// meaningful on the gallery itself; the editor and the other settings
+	// pages carry no filter.
+	const search = useSearch({ strict: false }) as { folder?: ThemeFolder }
+	const selectedFolder = openThemeId === null ? (search.folder ?? null) : null
 
 	/** Every way of picking a theme lands the editor on it. The sub-nav is
-	 *  mounted on EVERY settings page (Fonts, Sharing, …), so setting the
-	 *  atom alone would silently change the selection while the user stays
-	 *  parked on the page they came from. */
+	 *  mounted on EVERY settings page (Fonts, Sharing, …), so it routes
+	 *  rather than only recording a selection. */
 	const openTheme = (themeId: string) => {
-		setEditingThemeId(themeId)
-		void navigate({ to: "/settings/themes" })
+		void navigate({ to: "/settings/themes/$themeId", params: { themeId } })
+		onThemeOpened?.()
 	}
 
-	// Both folders start open: seeing WHICH themes are managed is not
-	// editing them, and hiding the list would only make the two system
-	// themes look missing. The gate is on touching them — every time, so
-	// one "Yes, proceed" can't quietly disarm the warning for the rest of
-	// the session.
+	/** A folder header narrows the gallery to that folder, like clicking a
+	 *  folder in the library's tree. Folding is the chevron's job. */
+	const showFolder = (folder: ThemeFolder) => {
+		void navigate({ to: "/settings/themes", search: { folder } })
+		onThemeOpened?.()
+	}
+
+	// Every folder starts open, and folding / unfolding one is never gated:
+	// seeing WHICH themes are managed is not editing them, and hiding the
+	// list would only make themes look missing. The gate is on touching a
+	// managed theme — every time, so one "Yes, proceed" can't quietly
+	// disarm the warning for the rest of the session. System themes open
+	// ungated: there is nothing to edit there, the editor shows them
+	// read-only.
 	const [expanded, setExpanded] = useState<Record<ThemeFolder, boolean>>({
+		system: true,
 		managed: true,
 		custom: true,
 	})
@@ -103,15 +86,6 @@ export const ThemesSubNav = () => {
 	const [draggingId, setDraggingId] = useState<string | null>(null)
 	const [dragOver, setDragOver] = useState<ThemeFolder | null>(null)
 
-	// Prefer the first custom theme when no explicit selection has been
-	// made — landing on a managed theme would spend the user's first click
-	// on the administrator dialog.
-	const editingTheme: SavedTheme =
-		themes.find((t) => t.id === editingThemeId) ??
-		themes.find((t) => !isManagedTheme(t)) ??
-		themes[0] ??
-		SYSTEM_LIGHT_THEME
-
 	const groups = groupThemesByFolder(themes)
 
 	const perform = (action: GatedAction) => {
@@ -120,9 +94,7 @@ export const ThemesSubNav = () => {
 			// editor re-locks as soon as a different managed theme is picked.
 			setUnlockedThemeId(action.themeId)
 			openTheme(action.themeId)
-		} else if (action.kind === "toggle-folder")
-			setExpanded((prev) => ({ ...prev, managed: !prev.managed }))
-		else
+		} else
 			setThemes((prev) =>
 				moveThemeToFolder(prev, action.themeId, action.target)
 			)
@@ -147,6 +119,14 @@ export const ThemesSubNav = () => {
 		setExpanded((prev) => ({ ...prev, managed: false }))
 	}
 
+	/** Move a theme between the two folders — the drop's outcome, shared
+	 *  with the tap fallback on each row. */
+	const moveByTap = (themeId: string, target: ThemeFolder) => {
+		const action: GatedAction = { kind: "move", themeId, target }
+		if (moveNeedsAdminGate(themes, themeId, target)) gate(action)
+		else perform(action)
+	}
+
 	const dropOnFolder = (target: ThemeFolder) => (e: React.DragEvent) => {
 		e.preventDefault()
 		setDragOver(null)
@@ -154,93 +134,25 @@ export const ThemesSubNav = () => {
 		const themeId = decodeThemeDrag(raw)?.themeId ?? draggingId
 		setDraggingId(null)
 		if (!themeId) return
-		const action: GatedAction = { kind: "move", themeId, target }
-		if (moveNeedsAdminGate(themes, themeId, target)) gate(action)
-		else perform(action)
-	}
-
-	const cloneTheme = (sourceId: string) => {
-		const source = themes.find((t) => t.id === sourceId)
-		if (!source) return
-		const id = newThemeId()
-		const seed = themeOf(source)
-		// A copy is always a CUSTOM theme, even when copied from a managed
-		// one — that's the sanctioned way to build on a shared theme without
-		// changing it for everyone. Promote it by dragging it back up.
-		setThemes((prev) => [
-			...prev,
-			{
-				id,
-				name: `${source.name} (copy)`,
-				isSystem: false,
-				managed: false,
-				...seed,
-			},
-		])
-		openTheme(id)
-		setAddOpen(false)
-	}
-
-	const importInputRef = useRef<HTMLInputElement>(null)
-
-	const importThemeFile = async (file: File) => {
-		try {
-			const text = await file.text()
-			const parsed = JSON.parse(text)
-			// Tolerate both shapes — the new single-theme export AND the older
-			// `{themes: [...]}` multi-theme bundles.
-			const candidates: SavedTheme[] = Array.isArray(parsed?.themes)
-				? parsed.themes
-				: parsed?.theme
-					? [parsed.theme]
-					: parsed?.id
-						? [parsed]
-						: []
-			if (candidates.length === 0) {
-				window.alert("That doesn't look like a theme export file.")
-				return
-			}
-			// `normalizeSavedTheme` backfills fields the export file predates —
-			// `themesAtom` readers take entries as-is, so a sparse import must
-			// be completed before it lands in the list. `managed: false` is
-			// forced for the same reason `isSystem` is: a file can't promote
-			// itself into the shared folder just by carrying the flag.
-			const reKeyed = candidates.map((t) =>
-				normalizeSavedTheme({
-					...t,
-					id: newThemeId(),
-					isSystem: false,
-					managed: false,
-					name: t.name ? `${t.name} (imported)` : "Imported theme",
-				})
-			)
-			setThemes((prev) => [...prev, ...reKeyed])
-			// Jump to the first imported theme so the user can see what they got.
-			const first = reKeyed[0]
-			if (first) openTheme(first.id)
-			setAddOpen(false)
-		} catch (error) {
-			window.alert(
-				`Couldn't import theme: ${error instanceof Error ? error.message : String(error)}`
-			)
-		}
+		moveByTap(themeId, target)
 	}
 
 	const renderFolder = (folder: ThemeFolder) => {
 		const managed = folder === "managed"
+		const system = folder === "system"
 		const open = expanded[folder]
 		const entries = groups[folder]
 		return (
 			<div
 				key={folder}
 				onDragOver={(e) => {
-					if (!draggingId) return
+					if (!draggingId || !canDropIntoFolder(folder)) return
 					e.preventDefault()
 					e.dataTransfer.dropEffect = "move"
 					setDragOver(folder)
 				}}
 				onDragLeave={() => setDragOver((prev) => (prev === folder ? null : prev))}
-				onDrop={dropOnFolder(folder)}
+				onDrop={canDropIntoFolder(folder) ? dropOnFolder(folder) : undefined}
 				className={c(
 					"rounded",
 					dragOver === folder && "vc-nav-active"
@@ -248,18 +160,42 @@ export const ThemesSubNav = () => {
 			>
 				<button
 					type="button"
-					onClick={() =>
-						managed
-							? gate({ kind: "toggle-folder" })
-							: setExpanded((prev) => ({ ...prev, [folder]: !prev[folder] }))
-					}
-					className="flex w-full items-center gap-1 rounded px-1 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-stone-900 hover:bg-stone-100 dark:text-white dark:hover:bg-stone-800"
+					onClick={() => showFolder(folder)}
+					aria-current={selectedFolder === folder ? "page" : undefined}
+					className={c(
+						"flex w-full items-center gap-1 rounded px-1 py-1 text-left text-[11px] font-semibold uppercase tracking-wide",
+						selectedFolder === folder
+							? "vc-nav-active"
+							: "text-stone-900 hover:bg-stone-100 dark:text-white dark:hover:bg-stone-800"
+					)}
 				>
-					<SectionChevron open={open} />
+					{/* The chevron folds the list without changing the page.
+					 *  Nested interactive content is why it's a span with a
+					 *  button role, like the rows' move affordance. */}
+					<span
+						role="button"
+						tabIndex={0}
+						aria-label={`${open ? "Collapse" : "Expand"} ${THEME_FOLDER_LABEL[folder]}`}
+						aria-expanded={open}
+						onClick={(e) => {
+							e.stopPropagation()
+							setExpanded((prev) => ({ ...prev, [folder]: !prev[folder] }))
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault()
+								e.stopPropagation()
+								setExpanded((prev) => ({ ...prev, [folder]: !prev[folder] }))
+							}
+						}}
+						className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 pointer-coarse:h-7 pointer-coarse:w-7 dark:hover:bg-stone-700"
+					>
+						<SectionChevron open={open} />
+					</span>
 					<span className="min-w-0 flex-1 truncate">
 						{THEME_FOLDER_LABEL[folder]}
 					</span>
-					{managed && <LockIcon />}
+					{(managed || system) && <LockIcon />}
 				</button>
 				{open && (
 					<div className="flex flex-col gap-0.5 pl-3">
@@ -267,11 +203,13 @@ export const ThemesSubNav = () => {
 							<p className="px-2 py-1 text-[11px] italic text-stone-400 dark:text-stone-500">
 								{managed
 									? "Drag a theme here to manage it"
-									: "No custom themes yet"}
+									: system
+										? "No system themes"
+										: "No custom themes yet"}
 							</p>
 						)}
 						{entries.map((t) => {
-							const isActive = t.id === editingTheme.id
+							const isActive = t.id === openThemeId
 							return (
 								<button
 									key={t.id}
@@ -303,9 +241,46 @@ export const ThemesSubNav = () => {
 									)}
 								>
 									<span className="min-w-0 flex-1 truncate">{t.name}</span>
-									{managed && (
+									{(managed || system) && (
 										<span className="text-stone-400 dark:text-stone-500">
 											<LockIcon />
+										</span>
+									)}
+									{/* Touch fallback for the drag between folders: a
+									 *  drag can't start from a finger in every mobile
+									 *  browser, so on coarse pointers each theme carries
+									 *  a one-tap move to the other folder, through the
+									 *  same administrator gate as the drop. Nested
+									 *  interactive content is why this is a span with a
+									 *  button role rather than a <button>. */}
+									{!t.isSystem && (
+										<span
+											role="button"
+											tabIndex={0}
+											title={
+												managed
+													? "Move to Custom Themes"
+													: "Move to Managed Themes"
+											}
+											aria-label={
+												managed
+													? `Move ${t.name} to Custom Themes`
+													: `Move ${t.name} to Managed Themes`
+											}
+											onClick={(e) => {
+												e.stopPropagation()
+												moveByTap(t.id, managed ? "custom" : "managed")
+											}}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault()
+													e.stopPropagation()
+													moveByTap(t.id, managed ? "custom" : "managed")
+												}
+											}}
+											className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-200 pointer-coarse:flex dark:text-stone-400 dark:hover:bg-stone-700"
+										>
+											{managed ? "↓" : "↑"}
 										</span>
 									)}
 								</button>
@@ -319,113 +294,16 @@ export const ThemesSubNav = () => {
 
 	return (
 		<div className="ml-4 flex flex-col gap-1 border-l border-stone-200 pl-2 dark:border-stone-700">
-			{renderFolder("managed")}
-			{renderFolder("custom")}
-			<Button compact onClick={() => setAddOpen(true)} className="mt-1 self-start">
-				+ Add a new theme
-			</Button>
-			<AddThemeDialog
-				open={addOpen}
-				themes={themes}
-				onCancel={() => setAddOpen(false)}
-				onPickBase={cloneTheme}
-				onPickImport={() => importInputRef.current?.click()}
+			{THEME_FOLDERS.map(renderFolder)}
+			<AddThemeButton
+				className="mt-1 self-start"
+				onThemeAdded={onThemeOpened}
 			/>
 			<ManagedThemeGate
 				open={gated !== null}
 				onCancel={cancelGate}
 				onConfirm={confirmGate}
 			/>
-			<input
-				ref={importInputRef}
-				type="file"
-				accept="application/json,.json"
-				className="hidden"
-				onChange={(e) => {
-					const file = e.target.files?.[0]
-					e.target.value = ""
-					if (file) importThemeFile(file)
-				}}
-			/>
 		</div>
-	)
-}
-
-/** "Add a new theme" picker. The user either bases the new theme on an
- * existing one (managed or custom) — the copy lands in Custom Themes, so
- * modifications stay local to it — or imports a previously-exported theme
- * JSON file. We don't offer a "blank theme" option because every field has
- * a meaningful default and an empty template would just be system-light by
- * another name. */
-const AddThemeDialog = ({
-	open,
-	themes,
-	onCancel,
-	onPickBase,
-	onPickImport,
-}: {
-	open: boolean
-	themes: SavedTheme[]
-	onCancel: () => void
-	onPickBase: (sourceId: string) => void
-	onPickImport: () => void
-}) => {
-	const [selectedId, setSelectedId] = useState<string>("")
-	return (
-		<Modal open={open} onClose={onCancel} title="Add a new theme">
-			<div className="flex flex-col gap-4">
-				<div className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
-						Base on an existing theme
-					</span>
-					<select
-						value={selectedId}
-						onChange={(e) => setSelectedId(e.target.value)}
-						className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
-					>
-						<option value="">Pick a theme to copy…</option>
-						{themes.map((t) => (
-							<option key={t.id} value={t.id}>
-								{t.name}
-								{isManagedTheme(t) ? " (managed)" : ""}
-							</option>
-						))}
-					</select>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
-						The copy is added to <strong>Custom Themes</strong> — copying a
-						managed theme never changes the original.
-					</p>
-					<div className="flex justify-end">
-						<Button
-							compact
-							onClick={() => selectedId && onPickBase(selectedId)}
-							disabled={!selectedId}
-						>
-							Create from copy
-						</Button>
-					</div>
-				</div>
-				<hr className="border-stone-200 dark:border-stone-700" />
-				<div className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
-						Import a JSON theme
-					</span>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
-						Loads a previously-exported theme file. The imported theme is added
-						as a new entry — your other themes are untouched.
-					</p>
-					<div className="flex justify-end">
-						<Button compact onClick={onPickImport}>
-							Choose JSON file…
-						</Button>
-					</div>
-				</div>
-				<div className="flex justify-end border-t border-stone-200 pt-3 dark:border-stone-700">
-					<Button compact onClick={onCancel}>
-						Cancel
-					</Button>
-				</div>
-			</div>
-		</Modal>
 	)
 }

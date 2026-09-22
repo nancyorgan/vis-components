@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	canDropIntoFolder,
 	canMoveTheme,
 	decodeThemeDrag,
 	encodeThemeDrag,
@@ -28,14 +29,17 @@ const LIST: SavedTheme[] = [
 ]
 
 describe("groupThemesByFolder", () => {
-	it("splits on the managed flag and keeps list order in each folder", () => {
+	it("files bundled, promoted and plain themes into their own folders, in list order", () => {
 		const groups = groupThemesByFolder(LIST)
-		expect(groups.managed.map((t) => t.id)).toEqual([
-			"system-light",
-			"system-dark",
-			"th-promoted",
-		])
+		expect(groups.system.map((t) => t.id)).toEqual(["system-light", "system-dark"])
+		// The bundled themes are managed too (the flag inherits from
+		// `isSystem`), but System Themes claims them first.
+		expect(groups.managed.map((t) => t.id)).toEqual(["th-promoted"])
 		expect(groups.custom.map((t) => t.id)).toEqual(["th-legacy"])
+	})
+
+	it("files a bundled theme under System even without the managed flag", () => {
+		expect(folderOfTheme(theme("sys", { isSystem: true }))).toBe("system")
 	})
 
 	it("puts a theme saved before the folders existed in Custom", () => {
@@ -60,11 +64,18 @@ describe("moveThemeToFolder", () => {
 		expect(isManagedTheme(moved)).toBe(false)
 	})
 
-	it("refuses to move a system theme out of Managed", () => {
+	it("refuses to move a system theme out of System Themes", () => {
 		// The bundled two are read-only, so filing one under Custom Themes
 		// would promise an edit that never works.
 		expect(moveThemeToFolder(LIST, "system-light", "custom")).toEqual(LIST)
+		expect(moveThemeToFolder(LIST, "system-light", "managed")).toEqual(LIST)
 		expect(canMoveTheme(theme("system-light", { isSystem: true }))).toBe(false)
+	})
+
+	it("refuses to file anything INTO System Themes", () => {
+		expect(canDropIntoFolder("system")).toBe(false)
+		expect(moveThemeToFolder(LIST, "th-legacy", "system")).toEqual(LIST)
+		expect(moveNeedsAdminGate(LIST, "th-legacy", "system")).toBe(false)
 	})
 
 	it("is a no-op for an unknown id or a theme already in the target", () => {

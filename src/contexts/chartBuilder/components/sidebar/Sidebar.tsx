@@ -29,8 +29,13 @@ export const Sidebar = () => {
 		// reach. The default sidebar width (lib/storage.ts) sits just above
 		// 320 + this aside's `px-2`, so the default view opens with no
 		// horizontal scrollbar.
-		<aside className="bg-vc-sidebar h-full overflow-auto px-2 py-5">
-			<div className="flex min-w-80 flex-col gap-3">
+		//
+		// Below `sm` the floor is dropped: the narrow-layout sheet is
+		// `100% - 1.5rem` wide, so on a 320px phone it is 296px and the floor
+		// would make the whole menu scroll sideways. The rows give up at most
+		// ~24px there, which the color row's hex box absorbs (ColorInput).
+		<aside className="bg-vc-sidebar h-full overflow-auto px-2 py-3 lg:py-5">
+			<div className="flex min-w-0 flex-col gap-1 sm:min-w-80 lg:gap-3">
 				<AsideSection title="Data">
 					<DataUpload />
 					<ReshapePanel />

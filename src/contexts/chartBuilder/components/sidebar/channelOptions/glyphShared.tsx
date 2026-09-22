@@ -186,8 +186,11 @@ export const ColorRow = ({
 	placeholder?: string
 	className?: string
 }) => (
+	// flex-wrap: only bites when the row is squeezed (a phone-width menu
+	// sheet) — the reset link then drops under the swatch instead of pushing
+	// the row past the sheet edge.
 	<div
-		className={`flex items-center gap-2 text-sm${className ? ` ${className}` : ""}`}
+		className={`flex flex-wrap items-center gap-2 text-sm${className ? ` ${className}` : ""}`}
 	>
 		<ColorInput
 			label={label}
