@@ -80,25 +80,6 @@ export const collectEmbedFonts = async (
 
 const EMBED_JSON_HEADERS = { "content-type": "application/json" }
 
-/** Serialize + gzip the publish body when the platform can (every current
- *  browser); the server tolerates identity bodies. Mirrors the dataset PUT
- *  path in storage/httpAdapter.ts. */
-const publishBody = async (
-	serialized: string
-): Promise<{ body: BodyInit; headers: Record<string, string> }> => {
-	if (typeof CompressionStream === "undefined") {
-		return { body: serialized, headers: EMBED_JSON_HEADERS }
-	}
-	const compressed = new Blob([serialized])
-		.stream()
-		.pipeThrough(new CompressionStream("gzip"))
-	const blob = await new Response(compressed).blob()
-	return {
-		body: blob,
-		headers: { ...EMBED_JSON_HEADERS, "content-encoding": "gzip" },
-	}
-}
-
 /** PUT the publish request. Resolves to the public URLs the server verified;
  *  throws on any failure — the caller shows a retryable error and no URL. */
 export const publishEmbedRequest = async (
@@ -111,11 +92,10 @@ export const publishEmbedRequest = async (
 		parts: [...parts],
 		payload,
 	} as never)
-	const { body, headers } = await publishBody(serialized)
 	const response = await fetch(`/api/embeds/${encodeURIComponent(publishId)}`, {
 		method: "PUT",
-		headers,
-		body,
+		headers: EMBED_JSON_HEADERS,
+		body: serialized,
 	})
 	if (!response.ok) {
 		throw new Error(`Publishing failed (HTTP ${response.status}). Try again.`)

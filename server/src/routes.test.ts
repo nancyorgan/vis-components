@@ -227,7 +227,7 @@ describe("content versions over HTTP", () => {
 })
 
 describe("datasets over HTTP", () => {
-	it("stores a client-gzipped body and streams the record back", async () => {
+	it("still accepts a gzipped body from a pre-release tab", async () => {
 		const dataset = { id: "ds-1", name: "Numbers", rows: [{ a: 1 }, { a: 2 }] }
 		const put = await fetch(`${base}/api/datasets/ds-1`, {
 			method: "PUT",
@@ -239,7 +239,7 @@ describe("datasets over HTTP", () => {
 		expect(record).toEqual({ "ds-1": dataset })
 	})
 
-	it("tolerates an uncompressed body by compressing it server-side", async () => {
+	it("stores an uncompressed body by compressing it server-side", async () => {
 		const dataset = { id: "ds-2", name: "Plain" }
 		await fetch(`${base}/api/datasets/ds-2`, {
 			method: "PUT",
@@ -719,7 +719,7 @@ describe("published embeds over HTTP", () => {
 		expect(html).toContain('"visual":{"id":"v1"}')
 	})
 
-	it("accepts a gzipped publish body", async () => {
+	it("still accepts a gzipped publish body from a pre-release tab", async () => {
 		const id = uuid("0bbbb")
 		const body = gzipSync(
 			JSON.stringify({ v: 1, parts: ["full"], payload: { a: 1 } })

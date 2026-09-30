@@ -118,7 +118,7 @@ describe("diffing saves", () => {
 })
 
 describe("datasets", () => {
-	it("diffs the record and sends bodies (identity when CompressionStream is absent)", async () => {
+	it("diffs the record and sends uncompressed bodies", async () => {
 		const ds1 = { id: "ds-1", name: "One" }
 		const mock = stubFetch((path) =>
 			path === "/api/datasets" ? okJson({ "ds-1": ds1 }) : okEmpty()
@@ -137,6 +137,42 @@ describe("datasets", () => {
 			"PUT /api/datasets/ds-2",
 			"PUT /api/datasets/ds-2/meta",
 		])
+	})
+
+	it("sends dataset and version bodies uncompressed, as plain JSON", async () => {
+		const ds = {
+			id: "ds-1",
+			name: "One",
+			fields: [],
+			versions: [
+				{ id: "dv-1", filename: "a.csv", createdAt: 0, rows: [{ a: "1" }] },
+			],
+		}
+		const mock = stubFetch((path) =>
+			path === "/api/datasets" ? okJson({}) : okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		await adapter.loadDatasets()
+		mock.mockClear()
+		await adapter.saveDatasets({ "ds-1": ds } as never)
+
+		const writes = mock.mock.calls.filter(
+			([, init]) => (init as RequestInit | undefined)?.method === "PUT"
+		)
+		expect(writes.length).toBeGreaterThan(0)
+		for (const [, init] of writes) {
+			const { headers, body } = init as RequestInit
+			const names = Object.keys(headers as Record<string, string>).map((h) =>
+				h.toLowerCase()
+			)
+			expect(names).not.toContain("content-encoding")
+			expect((headers as Record<string, string>)["content-type"]).toBe(
+				"application/json"
+			)
+			// A string body, not a Blob: nothing re-encoded the JSON.
+			expect(typeof body).toBe("string")
+			expect(() => JSON.parse(body as string)).not.toThrow()
+		}
 	})
 
 	it("boots on the metadata index without fetching a single body", async () => {

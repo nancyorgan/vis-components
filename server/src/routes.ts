@@ -267,7 +267,8 @@ const handleApi = async (
 }
 
 /** PUT /api/embeds/<publishId> — write the embed's public files and answer
- *  with their final URLs. The body (plain or Content-Encoding: gzip) is:
+ *  with their final URLs. The body — uncompressed, though a Content-Encoding:
+ *  gzip body from a pre-release tab is still accepted — is:
  *
  *    { v: 1, parts: ["full" | "chart" | "legend", ...], payload: {...} }
  *
@@ -404,9 +405,10 @@ const handleDatasetVersion = async (
 	throw new HttpError(405, "Method not allowed")
 }
 
-/** Read and normalize a dataset (or dataset-version) body: clients gzip the
- *  bodies themselves (Content-Encoding: gzip) and the server stores that
- *  stream untouched; an uncompressed body is tolerated and compressed here.
+/** Read and normalize a dataset (or dataset-version) body: clients send the
+ *  body uncompressed and it is gzipped here before storage. A body that
+ *  still arrives with Content-Encoding: gzip (a tab opened before the
+ *  release that dropped client-side compression) is stored untouched.
  *  Either way the stored file must be valid gzip — one corrupt file would
  *  poison the collection GET that every session boots from. One helper for
  *  both PUT arms so a hardening change can't apply to one and not the other. */

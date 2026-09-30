@@ -201,25 +201,6 @@ const fetchContentVersions = async (): Promise<Record<string, number>> => {
 	return (await response.json()) as Record<string, number>
 }
 
-/** Gzip a dataset body client-side when the platform can (every current
- *  browser); the server tolerates identity bodies and compresses them
- *  itself, so environments without CompressionStream still work. */
-const datasetBody = async (
-	serialized: string
-): Promise<{ body: BodyInit; headers: Record<string, string> }> => {
-	if (typeof CompressionStream === "undefined") {
-		return { body: serialized, headers: JSON_HEADERS }
-	}
-	const compressed = new Blob([serialized])
-		.stream()
-		.pipeThrough(new CompressionStream("gzip"))
-	const blob = await new Response(compressed).blob()
-	return {
-		body: blob,
-		headers: { ...JSON_HEADERS, "content-encoding": "gzip" },
-	}
-}
-
 /** Store one dataset's derived metadata. Sub-resource routes go through
  *  `request()` like everything else (the path prefix carries the parent id),
  *  so any future hardening of the shared helper covers these writes too. */
@@ -236,13 +217,12 @@ const putDatasetVersion = async (
 	datasetId: string,
 	version: { id: string; rows: Array<Record<string, string>> }
 ): Promise<void> => {
-	const { body, headers } = await datasetBody(serialize(version))
 	await request(
 		"PUT",
 		`datasets/${encodeURIComponent(datasetId)}/versions`,
 		version.id,
-		body,
-		headers
+		serialize(version),
+		JSON_HEADERS
 	)
 }
 
@@ -301,15 +281,14 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 	const deleteFrom = (collection: string) => (id: string) =>
 		request("DELETE", collection, id)
 	const putDataset = async (id: string, serialized: string): Promise<void> => {
-		const { body, headers } = await datasetBody(serialized)
 		// The header tells the server this client manages the per-version
 		// bodies itself (the PUTs/DELETEs that follow this write). Without it —
 		// a body PUT from the previous bundle during a rolling deploy — the
 		// server purges the stored per-version rows, because they describe the
 		// PREVIOUS body and would otherwise keep serving versions the write
 		// may have removed.
-		await request("PUT", "datasets", id, body, {
-			...headers,
+		await request("PUT", "datasets", id, serialized, {
+			...JSON_HEADERS,
 			"x-vis-versions-managed": "1",
 		})
 	}
