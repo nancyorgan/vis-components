@@ -7,7 +7,12 @@ import {
 	currentDatasetIdAtom,
 	datasetIndexAtom,
 } from "../contexts/chartBuilder/store/atoms"
+import {
+	useImportLibraryBundle,
+	type ImportBundleOutcome,
+} from "../contexts/chartBuilder/store/importBundle"
 import { Button } from "./ui/Button"
+import { Modal } from "./ui/Modal"
 
 export const Header = () => {
 	// Settings is about configuring the tool, not making charts — the
@@ -96,18 +101,30 @@ const NewVisualizationLabel = () => (
 	</>
 )
 
+const MENU_ITEM =
+	"block w-full px-3 py-2 text-left text-sm hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-stone-700"
+const MENU_ITEM_DIVIDED = `${MENU_ITEM} border-t border-stone-200 dark:border-stone-700`
+const MENU_TITLE = "font-medium text-stone-900 dark:text-white"
+const MENU_HINT = "text-sm text-stone-600 dark:text-stone-400"
+
 /**
- * Outside the editor, or in the editor with no dataset loaded yet, this is a
- * simple link to /editor/new. In the editor with a dataset bound, it becomes
- * a dropdown so the user can choose to carry that dataset forward or start
- * from zero.
+ * Always a dropdown. Its first entries start a new visualization — in the
+ * editor with a dataset bound, the user chooses between carrying that
+ * dataset forward and starting from zero; elsewhere there is one plain
+ * "start" entry — and the last entry imports a JSON file: one visual's
+ * "Download JSON" or a whole library bundle (the same format), merged
+ * additively exactly as Settings → Sharing does.
  */
 const NewVisualizationButton = () => {
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
 	const inEditor = pathname.startsWith("/editor")
+	const inLibrary = pathname === "/"
 	const datasetId = useAtomValue(currentDatasetIdAtom)
 	const datasets = useAtomValue(datasetIndexAtom)
-	const currentDataset = datasetId ? datasets[datasetId] : undefined
+	// Only the editor can "keep" a dataset: the atom may still hold the last
+	// opened one on the library page, where there is nothing to carry forward.
+	const currentDataset =
+		inEditor && datasetId ? datasets[datasetId] : undefined
 
 	const navigate = useNavigate()
 	const clearDataset = useAtomCallback(
@@ -115,6 +132,10 @@ const NewVisualizationButton = () => {
 			set(currentDatasetIdAtom, null)
 		}, [])
 	)
+	const { importing, importBundle } = useImportLibraryBundle()
+	const [importOutcome, setImportOutcome] =
+		useState<ImportBundleOutcome | null>(null)
+	const importInputRef = useRef<HTMLInputElement>(null)
 
 	const [open, setOpen] = useState(false)
 	const wrapperRef = useRef<HTMLDivElement>(null)
@@ -139,18 +160,12 @@ const NewVisualizationButton = () => {
 		}
 	}, [open])
 
-	// Plain-button branch: library page, or editor without a dataset yet.
-	if (!inEditor || !currentDataset) {
-		return (
-			<Link to="/editor/new">
-				<Button compact className="whitespace-nowrap">
-					<NewVisualizationLabel />
-				</Button>
-			</Link>
-		)
+	const onStartFresh = async () => {
+		setOpen(false)
+		await navigate({ to: "/editor/new" })
 	}
-
 	const onKeepDataset = async () => {
+		if (!currentDataset) return
 		setOpen(false)
 		// Carry the dataset id across the route change so VisualLoaderForNew
 		// can re-bind it after the reset.
@@ -164,6 +179,14 @@ const NewVisualizationButton = () => {
 		clearDataset()
 		await navigate({ to: "/editor/new" })
 	}
+	const onPickImport = () => {
+		setOpen(false)
+		importInputRef.current?.click()
+	}
+	const onImportFile = async (file: File) => {
+		if (importing) return
+		setImportOutcome(await importBundle(file))
+	}
 
 	return (
 		<div className="relative" ref={wrapperRef}>
@@ -171,6 +194,8 @@ const NewVisualizationButton = () => {
 				compact
 				className="whitespace-nowrap"
 				onClick={() => setOpen((v) => !v)}
+				aria-haspopup="menu"
+				aria-expanded={open}
 			>
 				<NewVisualizationLabel /> ▾
 			</Button>
@@ -179,37 +204,121 @@ const NewVisualizationButton = () => {
 					className="absolute top-full right-0 z-20 mt-1 w-64 overflow-hidden rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800"
 					role="menu"
 				>
+					{currentDataset ? (
+						<>
+							<button
+								type="button"
+								role="menuitem"
+								onClick={onKeepDataset}
+								className={MENU_ITEM}
+							>
+								<div className={MENU_TITLE}>With this data set</div>
+								<div className={MENU_HINT}>
+									Keep {currentDataset.name}; clear encodings and styling.
+								</div>
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								onClick={onFreshDataset}
+								className={MENU_ITEM_DIVIDED}
+							>
+								<div className={MENU_TITLE}>With a new data set</div>
+								<div className={MENU_HINT}>
+									Totally clean slate — upload a CSV to start.
+								</div>
+							</button>
+						</>
+					) : (
+						<button
+							type="button"
+							role="menuitem"
+							onClick={onStartFresh}
+							className={MENU_ITEM}
+						>
+							<div className={MENU_TITLE}>Start from scratch</div>
+							<div className={MENU_HINT}>Upload a CSV to start.</div>
+						</button>
+					)}
 					<button
 						type="button"
 						role="menuitem"
-						onClick={onKeepDataset}
-						className="block w-full px-3 py-2 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700"
+						onClick={onPickImport}
+						disabled={importing}
+						className={MENU_ITEM_DIVIDED}
 					>
-						<div className="font-medium text-stone-900 dark:text-white">
-							With this data set
+						<div className={MENU_TITLE}>
+							{importing ? "Importing…" : "Import from JSON…"}
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
-							Keep {currentDataset.name}; clear encodings and styling.
-						</div>
-					</button>
-					<button
-						type="button"
-						role="menuitem"
-						onClick={onFreshDataset}
-						className="block w-full border-t border-stone-200 px-3 py-2 text-left text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-700"
-					>
-						<div className="font-medium text-stone-900 dark:text-white">
-							With a new data set
-						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
-							Totally clean slate — upload a CSV to start.
+						<div className={MENU_HINT}>
+							Add a downloaded visualization or library bundle to your
+							library.
 						</div>
 					</button>
 				</div>
 			)}
+			<input
+				ref={importInputRef}
+				type="file"
+				accept="application/json,.json"
+				className="hidden"
+				aria-label="Import visualization JSON"
+				onChange={(e) => {
+					const file = e.target.files?.[0]
+					e.target.value = ""
+					if (file) void onImportFile(file)
+				}}
+			/>
+			<ImportOutcomeModal
+				outcome={importOutcome}
+				showOpenLibrary={!inLibrary}
+				onClose={() => setImportOutcome(null)}
+				onOpenLibrary={async () => {
+					setImportOutcome(null)
+					await navigate({ to: "/" })
+				}}
+			/>
 		</div>
 	)
 }
+
+/** The header has no status line to report into (unlike Settings →
+ *  Sharing), so an import's result is acknowledged in a dialog. Away from
+ *  the library the imported work isn't on screen, so a success there also
+ *  offers to go look at it. */
+const ImportOutcomeModal = ({
+	outcome,
+	showOpenLibrary,
+	onClose,
+	onOpenLibrary,
+}: {
+	outcome: ImportBundleOutcome | null
+	showOpenLibrary: boolean
+	onClose: () => void
+	onOpenLibrary: () => void
+}) => (
+	<Modal
+		open={outcome !== null}
+		onClose={onClose}
+		title={outcome?.ok ? "Import complete" : "Import failed"}
+	>
+		<div className="flex flex-col gap-4">
+			<div className="text-sm text-stone-700 dark:text-stone-300">
+				{outcome?.message}
+			</div>
+			<div className="flex justify-end gap-2">
+				{outcome?.ok && showOpenLibrary && (
+					<Button compact onClick={onOpenLibrary}>
+						Open library
+					</Button>
+				)}
+				<Button compact onClick={onClose}>
+					Got it
+				</Button>
+			</div>
+		</div>
+	</Modal>
+)
 
 /** Wrapper that only mounts the B&W toggle on editor routes — the landing
  * and settings pages have nothing for the filter to apply to. */

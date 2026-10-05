@@ -1220,6 +1220,16 @@ export const currentRenderedGradientBarLengthAtom = atom<number | null>(null)
  *  instead of jumping to 0. Null until a legend has rendered. */
 export const currentRenderedLegendWidthAtom = atom<number | null>(null)
 
+/** The angle (degrees) the x-axis RESOLVED for its tick labels while the
+ *  stored `tickLabelAngle` is null (auto): -45 when the categorical
+ *  auto-rotate kicked in, else 0. Published by `Axis` after each render so
+ *  the X panel's Angle input can show it as its blank-field placeholder,
+ *  step from it, and offer "set to 0" to pin the labels level. Only the
+ *  front-pass x-axis of the current chart publishes; with several facet
+ *  panels the last one rendered wins (they share a band estimate, so they
+ *  agree in practice). Null until an x-axis has rendered. */
+export const currentResolvedXTickLabelAngleAtom = atom<number | null>(null)
+
 /** Effective top-left-anchored X of an AUTO (insideX = null) inside legend,
  *  published by ChartCanvas's InsideLegendLayout after each measure. The
  *  Legend panel's X input shows it as the placeholder so typing/stepping

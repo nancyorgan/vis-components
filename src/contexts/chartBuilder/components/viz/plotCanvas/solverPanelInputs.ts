@@ -24,7 +24,7 @@ import type {
 	Encodings,
 	FieldType,
 } from "../../../lib/types"
-import { measureMaxLabelWidth } from "./measureText"
+import { measureLabelWidths, measureMaxLabelWidth } from "./measureText"
 import { groupRowsByShareGroup, panelGroupKeys } from "./panelGrouping"
 
 /** Per-panel label sample for solver margin estimation: one SolverPanelInput
@@ -398,8 +398,18 @@ export const buildSolverPanelInputs = ({
 			channelConfigs.y?.tickLabelFont?.italic ?? tickFont.italic
 		const wrapX = channelConfigs.x?.wrapTickLabels === true
 		const wrapY = channelConfigs.y?.wrapTickLabels === true
+		// Same neighbor-collision check Axes.tsx runs at render, with the
+		// same measured widths — so the angle the solver reserves bottom
+		// chrome for is the angle that draws.
 		const xLabelAngleDeg = autoLabelAngleFor({
 			labels: xLabels,
+			labelWidthsPx: measureLabelWidths(
+				xLabels,
+				xTickFamily,
+				xTickSize,
+				xTickWeight,
+				xTickItalic,
+			),
 			bandWidthPx,
 			fontSize: xTickSize,
 			userAngle: channelConfigs.x?.tickLabelAngle,

@@ -525,7 +525,7 @@ describe("applyVariation", () => {
 				gridlines: { enabled: true, color: "#000", thickness: 1, count: null },
 				tickmarks: { color: "#000", thickness: 1, length: 4 },
 				spine: { color: "#000", thickness: 1 },
-				tickLabelAngle: 0,
+				tickLabelAngle: null,
 				jitterAmount: 0,
 				distributionOverlay: {
 					showDensityViolin: false,

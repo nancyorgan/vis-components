@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 
 import {
+	channelConfigsMigrations,
+	clearLegacyAutoTickLabelAngle,
 	CONTENT_MIGRATIONS,
 	datasetBodyMigrations,
 	datasetsMigrations,
@@ -444,6 +446,59 @@ describe("visualsMigrations v4 -> v5 (retired cartesian coordSystem folds into n
 	it("tolerates non-array input and non-object entries", () => {
 		expect(upgrade("junk")).toBe("junk")
 		expect(upgrade([null, "x"])).toEqual([null, "x"])
+	})
+})
+
+describe("visualsMigrations v5 -> v6 (tickLabelAngle 0 → auto)", () => {
+	const v5ToV6 = visualsMigrations[5]
+
+	it("clears a stored 0 on x / y / r (the old auto) to absent, keeping the rest", () => {
+		const out = v5ToV6([
+			{
+				id: "v1",
+				channelConfigs: {
+					x: { tickCount: 5, tickLabelAngle: 0 },
+					y: { tickCount: 3, tickLabelAngle: 0, customFormat: ".1f" },
+					r: { tickLabelAngle: 0 },
+					hue: { kind: "categorical" },
+				},
+			},
+		]) as Array<{ channelConfigs: Record<string, Record<string, unknown>> }>
+		expect(out[0].channelConfigs.x).toEqual({ tickCount: 5 })
+		expect(out[0].channelConfigs.y).toEqual({ tickCount: 3, customFormat: ".1f" })
+		expect(out[0].channelConfigs.r).toEqual({})
+		expect(out[0].channelConfigs.hue).toEqual({ kind: "categorical" })
+	})
+
+	it("keeps explicit non-zero angles and leaves the radar angle config alone", () => {
+		const visual = {
+			id: "v1",
+			channelConfigs: {
+				x: { tickLabelAngle: -30 },
+				angle: { tickLabelAngle: 0, tickCount: 6 },
+			},
+		}
+		const out = v5ToV6([visual]) as Array<typeof visual>
+		expect(out[0].channelConfigs.x).toEqual({ tickLabelAngle: -30 })
+		expect(out[0].channelConfigs.angle).toEqual({ tickLabelAngle: 0, tickCount: 6 })
+		// Nothing to change → same reference (the helper is a no-op).
+		expect(out[0]).toBe(visual)
+	})
+
+	it("is idempotent and tolerates sparse visuals / non-array input", () => {
+		const once = v5ToV6([{ id: "a" }, { id: "b", channelConfigs: { x: { tickLabelAngle: 0 } } }])
+		expect(v5ToV6(once)).toEqual(once)
+		expect(v5ToV6("nope")).toBe("nope")
+		expect(clearLegacyAutoTickLabelAngle(null)).toBe(null)
+	})
+
+	it("channelConfigs v1 -> v2 runs the same clear over the draft slice", () => {
+		const v1ToV2 = channelConfigsMigrations[1]
+		expect(v1ToV2({ x: { tickLabelAngle: 0 }, y: { tickLabelAngle: 15 } })).toEqual({
+			x: {},
+			y: { tickLabelAngle: 15 },
+		})
+		expect(v1ToV2(null)).toBe(null)
 	})
 })
 

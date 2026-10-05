@@ -1554,7 +1554,22 @@ The X-axis and Y-axis panels (under Encodings) configure:
   new `offsetX`/`offsetY` are unset and cleared on their first write.
   The radar **R** panel has the same control: it moves the r-tick
   labels along the 12 o'clock spoke, and the rings and spokes stay put.
-- **Tick label angle**, **label stride** (every Nth).
+- **Angle** (Tick Labels) — tick label rotation in degrees. Blank =
+  auto: a categorical / ordinal x-axis rotates its labels to -45° when
+  two NEIGHBORING labels would collide (half of each label's measured
+  width plus a quarter-em gap exceeds the spacing between their ticks;
+  `lib/autoLabelAngle.ts`), every other axis stays level. One wide label
+  beside short ones therefore fits where it wouldn't beside another
+  wide one — the test is per neighbor pair, not widest-label-vs-band.
+  The renderer publishes the angle it resolved and the blank field
+  shows it as its placeholder (so the spinner steps from -45, not 0).
+  Any typed number is explicit and wins outright, INCLUDING 0: a
+  **set to 0** link appears beside the field while auto has rotated
+  the labels, and pins them level; **reset** on an explicit value
+  returns the field to auto. Stored 0 meant auto before visuals v6 —
+  that migration (and the seed / bundle-import paths, which carry no
+  storage version) clears it to blank. Also here: **label stride**
+  (every Nth).
 - **Wrap text** (Tick Labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis
   labels wrap to a fixed font-relative max width (~8em). Wrapping
@@ -2988,6 +3003,20 @@ in the library:
   nothing. The merge is pure; the caller lands the result through the
   Jotai atoms, so the library updates without a reload and, in server
   mode, the diffing HTTP adapter transmits only the imported items.
+
+The same import is also one click from anywhere: the header's **New
+visualization** button is always a dropdown, and its last entry,
+**Import from JSON…**, opens the file picker for a bundle or a single
+visual's Download JSON (the same format) and runs exactly the merge
+above (`store/importBundle.ts`, shared with the Sharing page). The
+entries ahead of it start a new visualization — in the editor with a
+data set bound, *With this data set* / *With a new data set*;
+elsewhere a single *Start from scratch*. Because the header has no
+status line, the result is acknowledged in a modal ("Import complete"
+/ "Import failed"), which away from the library also offers **Open
+library** to go look at what landed. The Settings pages hide the
+button (configuring the tool, not making charts), so there the
+Sharing page's own control remains the way in.
 
 The same file also ships **bundled examples**: renamed to
 `src/seed/examples.json` (the public seed) or the gitignored

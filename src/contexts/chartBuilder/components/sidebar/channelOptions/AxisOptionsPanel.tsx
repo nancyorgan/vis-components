@@ -30,6 +30,7 @@ import {
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
+	currentResolvedXTickLabelAngleAtom,
 } from "../../../store/atoms"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
@@ -79,6 +80,11 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	const theme = useCurrentTheme()
 	const labels = useAtomValue(currentLabelsAtom)
 	const config: AxisConfig = configs[channel] ?? axisConfigFromTheme(theme, channel)
+	// What the renderer resolved for a blank (auto) Angle: the x-axis
+	// publishes -45 when its categorical labels auto-rotated, else 0. Only
+	// x auto-rotates, so y / r read 0 outright.
+	const publishedXAngle = useAtomValue(currentResolvedXTickLabelAngleAtom)
+	const resolvedAutoAngle = channel === "x" ? publishedXAngle ?? 0 : 0
 	// The theme's axis defaults — the reference for the subsection / per-line
 	// "changed" dots, compared with `valueChanged` exactly as the top-level dot
 	// does (so the dots down the tree always agree).
@@ -577,25 +583,42 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				{/* The r axis has no Ticks section, so its density control (count /
 				 *  stride) stays here; on x/y it lives in the Ticks section. */}
 				{channel === "r" && tickDensityControls}
+				{/* Blank = auto. A categorical x-axis auto-rotates to -45° when
+				 *  neighboring labels would collide; the renderer publishes what it
+				 *  resolved and the blank field shows it as the placeholder. Any
+				 *  typed number — 0 included — is explicit and wins, so "set to 0"
+				 *  (shown while auto rotated the labels) pins them level; "reset"
+				 *  on an explicit value returns the field to auto. */}
 				<div className="mb-1.5 mt-1.5 flex items-center gap-2">
 					<NumberInput
 						label="Angle"
 						labelClassName={LABEL_COL}
-						value={config.tickLabelAngle ?? 0}
+						value={config.tickLabelAngle ?? null}
+						placeholder={String(resolvedAutoAngle)}
 						min={-90}
 						max={90}
 						step={1}
 						clamp
 						onChange={(tickLabelAngle) => update({ tickLabelAngle })}
+						onClear={() => update({ tickLabelAngle: null })}
 						inputClassName="w-20"
 						suffix="°"
 						changed={ch.tickLabelAngle}
 					/>
-					{(config.tickLabelAngle ?? 0) !== 0 && (
+					{config.tickLabelAngle != null ? (
 						<ResetLink
-							onClick={() => update({ tickLabelAngle: 0 })}
+							onClick={() => update({ tickLabelAngle: null })}
 							underline
 						/>
+					) : (
+						resolvedAutoAngle !== 0 && (
+							<ResetLink
+								label="set to 0"
+								ariaLabel="Set tick label angle to 0"
+								onClick={() => update({ tickLabelAngle: 0 })}
+								underline
+							/>
+						)
 					)}
 				</div>
 				<div className="mb-1.5 flex flex-col gap-1">

@@ -22,9 +22,9 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 5
+export const VISUALS_VERSION = 6
 export const DATASETS_VERSION = 1
-export const CHANNEL_CONFIGS_VERSION = 1
+export const CHANNEL_CONFIGS_VERSION = 2
 export const LABELS_VERSION = 1
 export const LEGEND_VERSION = 2
 export const TOOLTIP_VERSION = 1
@@ -360,7 +360,51 @@ export const visualsMigrations: Migration[] = [
 			return { ...vis, mapConfig: { ...mc, coordSystem: "noMap" } }
 		})
 	},
+	// v5 -> v6: `tickLabelAngle: 0` on the x / y / r axis configs clears to
+	// absent. Until now 0 was the only "auto" value (a categorical x-axis
+	// still auto-rotated at 0), so every stored 0 meant "let the renderer
+	// decide". Now `null` / absent means auto and 0 is an explicit "keep the
+	// labels level" — leaving the stored zeros alone would switch auto-rotate
+	// off for every existing visual.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		return raw.map(clearLegacyAutoTickLabelAngle)
+	},
 ]
+
+/** The v5→v6 step for one visual-shaped record: drop `tickLabelAngle: 0`
+ *  from each axis config under `channelConfigs`. Exported for the paths
+ *  that take in visuals WITHOUT a storage version — seed bundles and
+ *  library-bundle imports — which would otherwise carry a pre-v6 zero
+ *  straight into a v6 library as "forced level". Idempotent: a record
+ *  with no zeros comes back as-is (same reference). The radar `angle`
+ *  config has its own `tickLabelAngle`, where 0 was and still is a real
+ *  angle; it is deliberately untouched. */
+export const clearLegacyAutoTickLabelAngle = <T>(visual: T): T => {
+	if (typeof visual !== "object" || !visual) return visual
+	const vis = visual as Record<string, unknown>
+	const cc = vis.channelConfigs
+	if (typeof cc !== "object" || !cc) return visual
+	const next = clearLegacyAutoTickLabelAngleInConfigs(cc as Record<string, unknown>)
+	return next === cc ? visual : ({ ...vis, channelConfigs: next } as T)
+}
+
+/** Same step over a bare `ChannelConfigs` record (the editor's persisted
+ *  draft slice, channelConfigs v1→v2). Returns the input reference when
+ *  nothing changed. */
+export const clearLegacyAutoTickLabelAngleInConfigs = (
+	cc: Record<string, unknown>,
+): Record<string, unknown> => {
+	let next: Record<string, unknown> | null = null
+	for (const axis of ["x", "y", "r"] as const) {
+		const ac = cc[axis]
+		if (typeof ac !== "object" || !ac) continue
+		if ((ac as Record<string, unknown>).tickLabelAngle !== 0) continue
+		const { tickLabelAngle: _zero, ...rest } = ac as Record<string, unknown>
+		next = { ...(next ?? cc), [axis]: rest }
+	}
+	return next ?? cc
+}
 
 // ──────────────────────────────────────────────────────────────────────
 // Datasets
@@ -439,7 +483,15 @@ export const identityMigrations: Migration[] = [(raw) => raw]
 // the future. Each entity's migrations array is INDEPENDENT — sharing
 // the same reference here is fine because the array itself is never
 // mutated (always replaced with a new array if a migration is added).
-export const channelConfigsMigrations = identityMigrations
+export const channelConfigsMigrations: Migration[] = [
+	...identityMigrations,
+	// v1 -> v2: stored `tickLabelAngle: 0` → absent (auto). Mirrors the
+	// visuals v5→v6 step for the editor's persisted draft slice.
+	(raw) => {
+		if (typeof raw !== "object" || !raw) return raw
+		return clearLegacyAutoTickLabelAngleInConfigs(raw as Record<string, unknown>)
+	},
+]
 /** mapConfig v0 (pre-versioning) shape matched the original `MapConfig`, so
  *  the v0→v1 promotion is the identity. v1→v2 backfills `showNoDataRegions`
  *  (default off) for configs persisted before the "fill regions not in the

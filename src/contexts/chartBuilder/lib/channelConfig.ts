@@ -360,9 +360,16 @@ export type AxisConfig = {
 	gridlines: GridlineConfig
 	tickmarks: TickmarkConfig
 	spine: SpineConfig
-	/** Tick label rotation in degrees. Clockwise, around each tick's anchor.
-	 * Handy for long categorical labels on the x-axis (e.g. -45). 0 = horizontal. */
-	tickLabelAngle: number
+	/** Tick label rotation in degrees, clockwise around each tick's anchor.
+	 * `null` (the default) = AUTO: a categorical / ordinal x-axis rotates to
+	 * -45° when neighboring labels would collide (`lib/autoLabelAngle.ts`),
+	 * every other axis stays level. Any number is an explicit choice that
+	 * wins outright — including 0, which is how the user forces auto-rotated
+	 * labels back to horizontal ("set to 0" beside the Angle input). The
+	 * panel shows the resolved auto angle as the blank input's placeholder
+	 * (`currentResolvedXTickLabelAngleAtom`). Stored `0` meant auto before
+	 * visuals v6; that migration clears it to absent. */
+	tickLabelAngle: number | null
 	/** Random horizontal/vertical offset applied to scatter points along *this*
 	 * axis when it's the categorical side of a strip plot. Expressed as a
 	 * fraction of the per-category band width: 0 = no jitter (default), 1 =
@@ -482,7 +489,7 @@ export const DEFAULT_AXIS_CONFIG: AxisConfig = {
 	gridlines: DEFAULT_GRIDLINE_CONFIG,
 	tickmarks: DEFAULT_TICKMARK_CONFIG,
 	spine: DEFAULT_SPINE_CONFIG,
-	tickLabelAngle: 0,
+	tickLabelAngle: null,
 	jitterAmount: 0,
 	distributionOverlay: DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
 	categoricalTickStride: 1,

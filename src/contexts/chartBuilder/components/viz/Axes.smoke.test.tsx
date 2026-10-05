@@ -177,7 +177,7 @@ describe("Axis gridlines respect grid.count", () => {
 	const baseAxisConfig = {
 		tickCount: 5,
 		customFormat: "",
-		tickLabelAngle: 0,
+		tickLabelAngle: null,
 		jitterAmount: 0,
 		tickmarks: { color: "#000", thickness: 1, length: 5 },
 		spine: { color: "#000", thickness: 1 },
@@ -340,7 +340,7 @@ describe("Axis categorical gridlines respect tick stride and grid.count", () => 
 					config={{
 						tickCount: 5,
 						customFormat: "",
-						tickLabelAngle: 0,
+						tickLabelAngle: null,
 						jitterAmount: 0,
 						gridlines: {
 							enabled: true,
@@ -414,7 +414,7 @@ describe("Axis drops gridlines under the opposing spine", () => {
 					config={{
 						tickCount: 5,
 						customFormat: "",
-						tickLabelAngle: 0,
+						tickLabelAngle: null,
 						jitterAmount: 0,
 						gridlines: {
 							enabled: true,
@@ -501,7 +501,7 @@ describe("Axis spine at a zero crossing (spinePosition)", () => {
 					config={{
 						tickCount: 5,
 						customFormat: "",
-						tickLabelAngle: 0,
+						tickLabelAngle: null,
 						jitterAmount: 0,
 						gridlines: {
 							enabled: false,
@@ -573,7 +573,7 @@ describe("Axis categorical tick stride", () => {
 					config={{
 						tickCount: 5,
 						customFormat: "",
-						tickLabelAngle: 0,
+						tickLabelAngle: null,
 						jitterAmount: 0,
 						gridlines: {
 							enabled: true,
@@ -638,7 +638,7 @@ describe("Axis wrapTickLabels (Wrap text toggle)", () => {
 	const axisConfig = (extra: Record<string, unknown> = {}) => ({
 		tickCount: 5,
 		customFormat: "",
-		tickLabelAngle: 0,
+		tickLabelAngle: null,
 		jitterAmount: 0,
 		// Pin the tick font to 10px (config sizes are pt; 7.5pt → 10px) so the
 		// wrap-budget geometry the assertions below encode stays put.
@@ -811,7 +811,7 @@ describe("Axis custom breaks (pinned tick positions)", () => {
 	const cfg = (breaks: number[], extra: Record<string, unknown> = {}) => ({
 		tickCount: 5,
 		customFormat: "",
-		tickLabelAngle: 0,
+		tickLabelAngle: null,
 		jitterAmount: 0,
 		gridlines: { enabled: true, color: "#abcdef", thickness: 1, count: null },
 		tickmarks: { color: "#000", thickness: 1, length: 5 },
@@ -1043,7 +1043,7 @@ describe("Axis 'Adjust position' nudge (tick labels only)", () => {
 					config={{
 						tickCount: 5,
 						customFormat: "",
-						tickLabelAngle: 0,
+						tickLabelAngle: null,
 						jitterAmount: 0,
 						gridlines: {
 							enabled: true,
@@ -1124,7 +1124,7 @@ describe("Axis domainPinned (Scale range min + max both set)", () => {
 	const cfg = (extra: Record<string, unknown> = {}) => ({
 		tickCount: 6,
 		customFormat: "",
-		tickLabelAngle: 0,
+		tickLabelAngle: null,
 		jitterAmount: 0,
 		gridlines: { enabled: true, color: "#abcdef", thickness: 1, count: null },
 		tickmarks: { color: "#000", thickness: 1, length: 5 },
@@ -1219,7 +1219,7 @@ describe("Axis mirrored measure axis (Use a mirrored axis)", () => {
 	const cfg = (mirror: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
 		tickCount: 5,
 		customFormat: "",
-		tickLabelAngle: 0,
+		tickLabelAngle: null,
 		jitterAmount: 0,
 		gridlines: { enabled: false, color: "#abcdef", thickness: 1, count: null },
 		tickmarks: { color: "#000", thickness: 1, length: 5 },

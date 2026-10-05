@@ -47,3 +47,31 @@ export const measureMaxLabelWidth = (
 	}
 	return max
 }
+
+/** Per-label widths (same order as `labels`), for the categorical
+ *  x-axis auto-rotate check, which compares NEIGHBORS rather than the
+ *  widest label. Multi-line labels report their widest line. Returns an
+ *  empty array when the canvas API isn't available, so callers fall back
+ *  to the char-count estimate. Same font-shorthand rules as
+ *  `measureMaxLabelWidth`. */
+export const measureLabelWidths = (
+	labels: readonly string[],
+	fontFamily: string | null | undefined,
+	fontSize: number,
+	fontWeight?: number,
+	italic?: boolean,
+): number[] => {
+	const ctx = getMeasureContext()
+	if (!ctx || labels.length === 0) return []
+	const stylePrefix = italic ? "italic " : ""
+	const weightPrefix = fontWeight ? `${fontWeight} ` : ""
+	ctx.font = `${stylePrefix}${weightPrefix}${fontSize}px ${fontFamily ?? "sans-serif"}`
+	return labels.map((label) => {
+		let max = 0
+		for (const line of label.split("\n")) {
+			const w = ctx.measureText(line).width
+			if (w > max) max = w
+		}
+		return max
+	})
+}

@@ -22,6 +22,7 @@
 import { datasetContentHash, datasetsEqual } from "./datasetDedupe"
 import type { SeedBundle } from "./exampleSeed"
 import { loadUserDefaultThemeId, loadVisuals, mergeThumbnails } from "./storage"
+import { clearLegacyAutoTickLabelAngle } from "./storage/migrations"
 import { getStorageAdapter } from "./storage/registry"
 import { normalizeSavedTheme } from "./systemThemes"
 import type { Dataset, Folder, SavedTheme, Visual } from "./types"
@@ -437,8 +438,11 @@ export const mergeBundleIntoLibrary = (
 		// the applied values are already snapshotted into the visual — so
 		// repointing a name-matched theme changes nothing about how it draws.
 		const themeId = v.themeId != null ? themeIdMap.get(v.themeId) ?? v.themeId : v.themeId
+		// Bundles carry no storage version, so pre-v6 `tickLabelAngle: 0`
+		// (then "auto") would land as today's explicit "keep level". The
+		// visuals v5→v6 step is idempotent; apply it to every import.
 		imported.push({
-			...v,
+			...clearLegacyAutoTickLabelAngle(v),
 			id,
 			datasetId,
 			createdAtVersionId,

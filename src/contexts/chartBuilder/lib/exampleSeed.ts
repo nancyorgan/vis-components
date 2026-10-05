@@ -33,6 +33,7 @@ import {
 	idbAvailable,
 } from "./storage/idb"
 import {
+	clearLegacyAutoTickLabelAngle,
 	resetVisualFontSizesV1ToV2,
 	themeFontSizesFromListV2,
 } from "./storage/migrations"
@@ -121,11 +122,14 @@ export const buildSeedBundle = async (): Promise<SeedBundle> => {
 const FONT_PT_CUTOVER = "2026-08-12T00:00:00.000Z"
 
 const seedVisualsAtCurrentFontUnit = (seed: SeedBundle): Visual[] => {
+	// Visuals v5→v6 (tickLabelAngle 0 → auto) applies to EVERY seed: it is
+	// idempotent and there is no cutover stamp to gate on.
+	const visuals = seed.visuals.map(clearLegacyAutoTickLabelAngle)
 	if (seed.exportedAt === null || seed.exportedAt >= FONT_PT_CUTOVER) {
-		return seed.visuals
+		return visuals
 	}
 	const themes = themeFontSizesFromListV2(seed.themes)
-	return seed.visuals.map(
+	return visuals.map(
 		(v) => resetVisualFontSizesV1ToV2(v, themes) as Visual
 	)
 }

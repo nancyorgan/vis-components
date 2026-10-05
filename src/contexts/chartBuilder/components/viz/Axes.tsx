@@ -1,4 +1,8 @@
+import { useEffect } from "react"
+import { useSetAtom } from "jotai"
 import { autoLabelAngleFor } from "../../lib/autoLabelAngle"
+import { currentResolvedXTickLabelAngleAtom } from "../../store/atoms"
+import { measureLabelWidths } from "./plotCanvas/measureText"
 import {
 	DEFAULT_GRIDLINE_CONFIG,
 	DEFAULT_SPINE_CONFIG,
@@ -368,25 +372,43 @@ export const Axis = ({
 			label: wrapTickLabel(t.label, slotPx, tickFontSize),
 		}))
 	})()
-	// Auto-rotate categorical x-axis labels when their natural width
-	// exceeds the band width — keeps long category names from overlapping
-	// their neighbors without the user having to set tickLabelAngle. The
-	// PlotCanvas solver input feeds the same heuristic so the bottom
-	// chrome reserves matching vertical room. User's explicit non-zero
-	// angle (config.tickLabelAngle) wins inside `autoLabelAngleFor`.
-	const effectiveLabelAngle =
+	// Auto-rotate categorical x-axis labels when neighboring labels would
+	// collide — keeps long category names from overlapping without the
+	// user having to set tickLabelAngle. Widths are canvas-measured in the
+	// rendered font (char-count fallback without a DOM). The PlotCanvas
+	// solver input feeds the same heuristic so the bottom chrome reserves
+	// matching vertical room. An explicit angle (any stored number,
+	// including 0) wins inside `autoLabelAngleFor`.
+	const autoAngleApplies =
 		isX && (fieldType === "categorical" || fieldType === "ordinal")
-			? autoLabelAngleFor({
-					labels: ticks.map((t) => t.label),
-					bandWidthPx:
-						ticks.length > 0
-							? (inner.x1 - inner.x0) / ticks.length
-							: 0,
-					fontSize: tickFontSize,
-					userAngle: config?.tickLabelAngle,
-					wrapEnabled,
-				})
-			: (config?.tickLabelAngle ?? 0)
+	const effectiveLabelAngle = autoAngleApplies
+		? autoLabelAngleFor({
+				labels: ticks.map((t) => t.label),
+				labelWidthsPx: measureLabelWidths(
+					ticks.map((t) => t.label),
+					tickFamily,
+					tickFontSize,
+					tickFontWeight,
+					tickItalic
+				),
+				positionsPx: ticks.map((t) => t.pos),
+				bandWidthPx:
+					ticks.length > 0 ? (inner.x1 - inner.x0) / ticks.length : 0,
+				fontSize: tickFontSize,
+				userAngle: config?.tickLabelAngle,
+				wrapEnabled,
+			})
+		: (config?.tickLabelAngle ?? 0)
+	// Tell the X panel what auto resolved to, so its blank Angle input can
+	// show the value and offer "set to 0". Only the front pass of a
+	// categorical x-axis under auto publishes; an explicit angle leaves the
+	// last auto value in place (the panel ignores it while a value is set).
+	const setResolvedAngle = useSetAtom(currentResolvedXTickLabelAngleAtom)
+	const publishResolved =
+		drawFront && autoAngleApplies && config?.tickLabelAngle == null
+	useEffect(() => {
+		if (publishResolved) setResolvedAngle(effectiveLabelAngle)
+	}, [publishResolved, effectiveLabelAngle, setResolvedAngle])
 	// Every label on an axis aligns within the SAME frame, wrapped or not —
 	// otherwise mixed label lengths render with mixed-looking alignment
 	// (single-line labels hugging their tick while wrapped neighbors straddle

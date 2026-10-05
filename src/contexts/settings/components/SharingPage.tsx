@@ -1,23 +1,11 @@
 import { useRef, useState } from "react"
-import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { useAtomValue } from "jotai"
 import { isEphemeralSeedId } from "../../chartBuilder/lib/exampleOverlay"
 import { buildSeedBundle } from "../../chartBuilder/lib/exampleSeed"
-import {
-	LIBRARY_BUNDLE_FILENAME,
-	mergeBundleIntoLibrary,
-	parseLibraryBundle,
-} from "../../chartBuilder/lib/libraryBundle"
-import { loadUserDefaultThemeId } from "../../chartBuilder/lib/storage"
-import { getStorageAdapter } from "../../chartBuilder/lib/storage/registry"
+import { LIBRARY_BUNDLE_FILENAME } from "../../chartBuilder/lib/libraryBundle"
 import { stringifyJsonDangerous } from "../../../lib/json"
-import {
-	datasetIndexAtom,
-	loadedDatasetsAtom,
-	foldersAtom,
-	themesAtom,
-	userDefaultThemeIdAtom,
-	visualsAtom,
-} from "../../chartBuilder/store/atoms"
+import { datasetIndexAtom, visualsAtom } from "../../chartBuilder/store/atoms"
+import { useImportLibraryBundle } from "../../chartBuilder/store/importBundle"
 
 import { Button } from "../../../components/ui/Button"
 
@@ -33,22 +21,15 @@ const plural = (n: number, one: string, many = `${one}s`): string =>
  *  the file a colleague imports, AND the file that seeds a build's starter
  *  examples), and import someone else's bundle additively.
  *
- *  Import writes through the Jotai atoms rather than the storage functions:
- *  the library UI updates without a reload, and in server mode the diffing
- *  HTTP adapter turns each whole-collection save into per-item PUTs, so the
- *  imported work is backed up server-side too. */
+ *  The import itself is `useImportLibraryBundle` (store/importBundle.ts),
+ *  shared with the header's "New visualization → Import" item. */
 export const SharingPage = () => {
-	const [visuals, setVisuals] = useAtom(visualsAtom)
-	const [, setDatasets] = useAtom(loadedDatasetsAtom)
+	const visuals = useAtomValue(visualsAtom)
 	const datasetIndex = useAtomValue(datasetIndexAtom)
-	const [folders, setFolders] = useAtom(foldersAtom)
-	const [themes, setThemes] = useAtom(themesAtom)
-	const setUserDefaultThemeId = useSetAtom(userDefaultThemeIdAtom)
-	const currentUserDefaultThemeId = useAtomValue(userDefaultThemeIdAtom)
 	const [status, setStatus] = useState<string | null>(null)
 	const [exporting, setExporting] = useState(false)
 	const [importStatus, setImportStatus] = useState<string | null>(null)
-	const [importing, setImporting] = useState(false)
+	const { importing, importBundle } = useImportLibraryBundle()
 	const importInputRef = useRef<HTMLInputElement>(null)
 
 	const onExport = async () => {
@@ -82,71 +63,8 @@ export const SharingPage = () => {
 
 	const onImport = async (file: File) => {
 		if (importing) return
-		setImporting(true)
 		setImportStatus(null)
-		try {
-			const parsed = parseLibraryBundle(await file.text())
-			if (!parsed.ok) {
-				setImportStatus(`Import failed — ${parsed.error}. Nothing was changed.`)
-				return
-			}
-			// The default-theme pointer is device-local in every mode, and is
-			// adopted only when the user has never made a pick (mirroring the
-			// example seed) — so the merge reads the RAW stored value, not the
-			// atom, whose bootstrap substitutes system-light for "unset".
-			// Import needs the WHOLE dataset store: its id-collision and
-			// content-dedupe guards must see datasets this session never opened,
-			// or an imported bundle can silently overwrite a stored dataset's
-			// rows. `loadDatasets` is the deliberate full-corpus read — import
-			// is the second of the two callers (export is the other) allowed to
-			// pay for it.
-			const existingDatasets = await getStorageAdapter().loadDatasets()
-			const merged = mergeBundleIntoLibrary(parsed.bundle, {
-				visuals,
-				folders,
-				datasets: existingDatasets,
-				themes,
-				userDefaultThemeId: loadUserDefaultThemeId(),
-			})
-			// Folders and data sets first: the visuals write is what the library
-			// renders from, so its targets should already exist.
-			if (merged.added.folders > 0) setFolders(merged.folders)
-			if (merged.added.datasets > 0) setDatasets(merged.datasets)
-			if (merged.added.themes > 0) setThemes(merged.themes)
-			if (merged.added.visuals > 0) setVisuals(merged.visuals)
-			if (
-				merged.userDefaultThemeId !== null &&
-				merged.userDefaultThemeId !== currentUserDefaultThemeId
-			) {
-				setUserDefaultThemeId(merged.userDefaultThemeId)
-			}
-			const { added } = merged
-			// Themes the library already had are matched, not re-added — say so,
-			// otherwise a bundle whose themes all matched reads as if they were
-			// silently dropped.
-			setImportStatus(
-				`Imported ${plural(added.visuals, "visualization")} and ${plural(
-					added.datasets,
-					"data set"
-				)}; created ${plural(added.folders, "folder")}${
-					added.themes > 0 ? ` and ${plural(added.themes, "theme")}` : ""
-				}.${
-					merged.reusedThemes > 0
-						? ` ${plural(merged.reusedThemes, "theme")} already in your library ${
-								merged.reusedThemes === 1 ? "was" : "were"
-							} reused.`
-						: ""
-				}`
-			)
-		} catch (error) {
-			setImportStatus(
-				`Import failed: ${
-					error instanceof Error ? error.message : String(error)
-				}. Nothing was changed.`
-			)
-		} finally {
-			setImporting(false)
-		}
+		setImportStatus((await importBundle(file)).message)
 	}
 
 	// Count what the export will actually contain: the user's own visuals
