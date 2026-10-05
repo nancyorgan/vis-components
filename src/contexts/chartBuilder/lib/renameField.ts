@@ -352,6 +352,7 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 		? patched(dlc, {
 				labelTemplate: renameLabelTokens(dlc.labelTemplate, oldName, newName),
 				fieldFormats: renameKey(dlc.fieldFormats, oldName, newName),
+				fieldLabelPoints: renameKey(dlc.fieldLabelPoints, oldName, newName),
 				fieldColors: mapRecordValues(
 					renameKey(dlc.fieldColors, oldName, newName),
 					(s) => renameSlotField(s, oldName, newName)

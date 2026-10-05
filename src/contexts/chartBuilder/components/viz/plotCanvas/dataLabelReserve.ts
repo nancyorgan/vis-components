@@ -1,10 +1,11 @@
-import {
-	effectiveLabelPoints,
-	type ChannelConfigs,
-	type DataLabelsConfig,
-	type EndpointLabelOverrides,
-} from "../../../lib/channelConfig"
+import type { ChannelConfigs, DataLabelsConfig } from "../../../lib/channelConfig"
 import { getChartModeDef } from "../../../lib/chartMode"
+import {
+	populationOverrides,
+	populationTemplate,
+	presentPopulations,
+	resolveLabelSelection,
+} from "../../../lib/dataLabelsSelection"
 import { buildLabelText } from "../../../lib/dataLabelsStyle"
 import { effectiveType } from "../../../lib/fieldType"
 import { ptToPx } from "../../../lib/fontUnit"
@@ -92,17 +93,21 @@ export const computeDataLabelOverflow = ({
 	const isMulti =
 		value.multiField === true && (value.fields?.length ?? 0) > 0
 	if (!isMulti && !(value.field ?? fallbackField)) return empty
-	// Endpoint labels (`labelPoints: "first-last"`) can carry their own
-	// template / offset / alignment — that's the only mode where the
-	// override blocks apply (single first / last modes use the base
-	// profile directly, mirroring the renderer). The reserve must cover
-	// whichever labels actually render: the last label is exactly the
-	// one that clips off the right edge, so its (often wider) template
-	// drives the right-side reserve.
-	const labelPointsMode = effectiveLabelPoints({
-		labelPoints: dataLabels.labelPoints,
-		onlyLastLabel: dataLabels.onlyLastLabel,
-	})
+	// One profile per label POPULATION the selection renders (all / first /
+	// last — see lib/dataLabelsSelection). In a split selection the series-end
+	// populations carry their own template / offset / alignment; a lone
+	// population uses the base profile directly, mirroring the renderer. The
+	// reserve must cover whichever labels actually render: a last label is
+	// exactly the one that clips off the right edge, so its (often wider)
+	// template drives the right-side reserve.
+	const selection = resolveLabelSelection(
+		{
+			labelPoints: dataLabels.labelPoints,
+			onlyLastLabel: dataLabels.onlyLastLabel,
+			fieldLabelPoints: dataLabels.fieldLabelPoints,
+		},
+		value
+	)
 	type ReserveProfile = {
 		template: string | undefined
 		xOffset: number
@@ -113,21 +118,25 @@ export const computeDataLabelOverflow = ({
 		xOffset: dataLabels.xOffset ?? 0,
 		alignment: dataLabels.alignment ?? "center",
 	}
-	const withOverrides = (ov?: EndpointLabelOverrides): ReserveProfile => ({
-		// Endpoint templates only apply in multi-field mode (row path);
-		// empty string means "inherit".
-		template:
-			isMulti && ov?.labelTemplate ? ov.labelTemplate : baseProfile.template,
-		xOffset: ov?.xOffset ?? baseProfile.xOffset,
-		alignment: ov?.alignment ?? baseProfile.alignment,
-	})
-	const profiles: ReserveProfile[] =
-		labelPointsMode === "first-last"
-			? [
-					withOverrides(dataLabels.firstLabel),
-					withOverrides(dataLabels.lastLabel),
-				]
-			: [baseProfile]
+	const templateCfg = {
+		labelTemplate: dataLabels.labelTemplate,
+		firstLabel: dataLabels.firstLabel,
+		lastLabel: dataLabels.lastLabel,
+	}
+	const profiles: ReserveProfile[] = presentPopulations(selection).map(
+		(pop) => {
+			const ov = populationOverrides(templateCfg, selection, pop)
+			return {
+				// Templates only matter in multi-field mode (one field needs no
+				// arrangement); each population composes with its own.
+				template: isMulti
+					? populationTemplate(templateCfg, selection, pop)
+					: baseProfile.template,
+				xOffset: ov.xOffset ?? baseProfile.xOffset,
+				alignment: ov.alignment ?? baseProfile.alignment,
+			}
+		}
+	)
 	// Position rules can push a matching subset of labels past either edge
 	// with their own X offset — reserve for each rule's offset too. Assuming
 	// the longest label could take any rule's offset over-reserves slightly,

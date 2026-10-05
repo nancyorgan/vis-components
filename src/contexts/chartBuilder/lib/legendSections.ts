@@ -621,7 +621,7 @@ export const planLegendSections = ({
 
 	if (sections.length === 0) return null
 
-	const textFont = resolveLegendTextFont(labels.baseFont)
+	const textFont = resolveLegendTextFont(labels.baseFont, legendCfg.textFont)
 	const bodyStyle: CSSProperties = {
 		fontFamily: textFont.family,
 		color: textFont.color,

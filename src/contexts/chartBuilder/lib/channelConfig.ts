@@ -1797,12 +1797,22 @@ export type DataLabelsConfig = {
 	 *  - `"first-last"`: both ends. A single-point series renders ONE label,
 	 *    styled by the `lastLabel` overrides (direct-labeling intent). */
 	labelPoints?: LabelPointsMode
-	/** Per-endpoint overrides, consulted ONLY in `"first-last"` mode — that's
-	 * the only mode where two label populations coexist and need to differ.
-	 * The single `"first"` / `"last"` modes use the layer-wide template /
-	 * offset / alignment directly, matching the panel (which only splits the
-	 * controls into First/Last pairs when both ends are shown). Every unset
-	 * field inherits the layer-wide value. */
+	/** Multi-field mode only: per-variable "Which labels" selection, keyed by
+	 * field name. A field with no entry falls back to `labelPoints` (via
+	 * `fieldLabelPointsMode`). Each selected field joins the label
+	 * POPULATIONS its mode names — "all" (every anchor), "first", "last" —
+	 * and every population renders its own label (template / offset /
+	 * alignment), so an anchor at a series end can carry both the all-labels
+	 * text and a last-label text. Resolution lives in
+	 * `lib/dataLabelsSelection.ts`. */
+	fieldLabelPoints?: Record<string, LabelPointsMode>
+	/** Per-endpoint overrides, consulted ONLY when two or more label
+	 * populations coexist (`LabelSelection.split`): single-field
+	 * `"first-last"`, or multi-field selections whose per-field modes name
+	 * more than one of all / first / last. With a single population the
+	 * layer-wide template / offset / alignment drive it directly, matching
+	 * the panel (which only splits the controls when several populations
+	 * show). Every unset field inherits the layer-wide value. */
 	firstLabel?: EndpointLabelOverrides
 	lastLabel?: EndpointLabelOverrides
 	/** When true, the renderer detects label boxes that overlap and nudges
@@ -1810,6 +1820,14 @@ export type DataLabelsConfig = {
 	 * with many labels in a small space some collisions remain — but
 	 * cheap to enable when it helps. */
 	avoidOverlaps?: boolean
+	/** Faceted charts only: which panels draw labels. `null` / unset =
+	 * every panel ("Label all facets", the default). An array lists the
+	 * panel keys that keep their labels — the same keys `resolveFacetPanels`
+	 * hands PlotCanvas (facet value in wrap mode, `row|col` in grid mode) —
+	 * so panels not listed render no labels. Mirrors the annotations'
+	 * per-annotation `facetKeys`; resolve via `dataLabelsOnPanel`. Ignored
+	 * (every label draws) when the chart isn't faceted. */
+	facetKeys?: string[] | null
 	/** Conditional overrides for the label's text color, evaluated against
 	 * the label's numeric value when it can be parsed as a number. The
 	 * first matching rule's color wins; non-matching rules fall through
@@ -1915,11 +1933,15 @@ export type LabelPointsMode = "all" | "first" | "last" | "first-last"
  *  (that shape of need is multi-layer composition, not more knobs here). */
 export type EndpointLabelOverrides = {
 	/** Multi-field mode only: alternate `{Field}` template for this
-	 *  endpoint's labels. Empty/unset = inherit `labelTemplate` (an empty
-	 *  string means "inherit", not "blank label" — hide an endpoint via
-	 *  `labelPoints` instead). Anchor-based renderers (bars/areas) pre-format
-	 *  their label text without templates, so this only affects the
-	 *  row-based path (scatter / line charts). */
+	 *  endpoint's labels. Empty/unset = inherit (see
+	 *  `populationTemplateFallback` in `lib/dataLabelsSelection.ts`: the
+	 *  shared `labelTemplate` when no all-labels population is using it,
+	 *  else this population's own fields joined with ", "). An empty string
+	 *  means "inherit", not "blank label" — hide an endpoint via the label
+	 *  selection instead. Applies wherever multi-field labels compose: the
+	 *  row-based path (scatter / lines) and bar anchors (which carry a
+	 *  per-slice `row`); area / pie / tile anchors are still pre-formatted
+	 *  single values. */
 	labelTemplate?: string
 	/** REPLACE (not add to) the layer-wide xOffset/yOffset for this
 	 *  endpoint's labels. null/unset = inherit. */
@@ -1990,6 +2012,7 @@ export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	// `{...DEFAULT, ...saved}`, and a concrete "all" here would override the
 	// legacy `onlyLastLabel: true` on saves from before the selector.
 	// `effectiveLabelPoints` owns the fallback chain instead.
+	fieldLabelPoints: {},
 	firstLabel: {},
 	lastLabel: {},
 	avoidOverlaps: false,

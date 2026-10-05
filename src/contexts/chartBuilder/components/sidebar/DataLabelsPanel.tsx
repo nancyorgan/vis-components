@@ -1,14 +1,28 @@
 import { useAtom, useAtomValue } from "jotai"
+import { useMemo } from "react"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
+	DEFAULT_FACET_CONFIG,
 	effectiveLabelPoints,
 	type DataLabelsConfig,
 	type EndpointLabelOverrides,
+	type FacetConfig,
 	type LabelPointsMode,
 } from "../../lib/channelConfig"
 import { resolveHierarchyIdField } from "../../lib/buildHierarchy"
+import {
+	POPULATION_LABEL,
+	defaultSharedTemplate,
+	fieldLabelPointsMode,
+	presentPopulations,
+	resolveLabelSelection,
+} from "../../lib/dataLabelsSelection"
 import { dataLabelsConfigFromTheme } from "../../lib/themeConfig"
 import { effectiveType } from "../../lib/fieldType"
+import {
+	facetPanelOptions,
+	resolveFacetPanels,
+} from "../../lib/resolveFacetPanels"
 import {
 	PACKED_DERIVED_LABELS,
 	PACKED_MEASURE_OPTION_VALUE,
@@ -27,6 +41,7 @@ import {
 	currentDataLabelsConfigAtom,
 	currentDataLabelsEncodingsAtom,
 	currentEncodingsAtom,
+	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
@@ -45,6 +60,7 @@ import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
 import { AlignmentControl } from "./LabelsPanel"
+import { FacetScopeControl } from "./FacetScopeControl"
 import { DataLabelChannelRow } from "./dataLabels/DataLabelChannelRow"
 import { LabelColorPanel } from "./dataLabels/LabelColorPanel"
 import { PositionRulesEditor } from "./dataLabels/PositionRulesEditor"
@@ -53,13 +69,25 @@ import { TextBackgroundPanel } from "./dataLabels/TextBackgroundPanel"
 import { TextPositionPanel } from "./dataLabels/TextPositionPanel"
 import { TextPropertiesPanel } from "./dataLabels/TextPropertiesPanel"
 import { SingleValuePanel, ValuePanel } from "./dataLabels/ValuePanel"
-import { defaultLabelTemplate, type DataLabelsChannel } from "./dataLabels/shared"
+import type { DataLabelsChannel } from "./dataLabels/shared"
 
 /** Sentinel option value for the Value dropdown's "Multiple variables…"
  *  choice. Distinct from any field name and from "" (— none —) so the
  *  onChange handler can switch the `value` encoding into multi-field mode
  *  (which leaves `value.field` null and drives text off `value.fields`). */
 const DATA_LABELS_MULTI_VALUE = "__multiple__"
+
+/** "Which labels" choices — shared by the single-field select and the
+ *  per-variable selects of multi-field mode. */
+const LABEL_POINTS_OPTIONS: ReadonlyArray<{
+	value: LabelPointsMode
+	label: string
+}> = [
+	{ value: "all", label: "All labels" },
+	{ value: "first", label: "First per series" },
+	{ value: "last", label: "Last per series" },
+	{ value: "first-last", label: "First and last per series" },
+]
 
 const CHANNEL_LABEL: Record<DataLabelsChannel, string> = {
 	x: "X position",
@@ -96,6 +124,7 @@ export const DataLabelsPanel = () => {
 	const theme = useCurrentTheme()
 	const themeDefaults = dataLabelsConfigFromTheme(theme)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
+	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const chartEncodings = useAtomValue(currentEncodingsAtom)
 	const chartConfigs = useAtomValue(currentChannelConfigsAtom)
 	// The visualization's own background (null = transparent canvas → white)
@@ -180,19 +209,80 @@ export const DataLabelsPanel = () => {
 	const updateCfg = (next: Partial<DataLabelsConfig>) =>
 		setCfg({ ...merged, ...next })
 
-	// "First and last per series" splits the label-text, alignment, and
-	// position controls into First/Last pairs (the only mode where two label
-	// populations coexist). The pairs read effective values (override ?? base)
-	// and write into the endpoint override blocks. Geo modes never split:
-	// the labelPoints selection is hidden AND skipped there (no series on a
-	// map — nor in a sunburst), so a stored "first-last" from a previous
-	// chart must not split the controls.
-	const splitEndpoints =
-		!noSeriesEndpoints && effectiveLabelPoints(merged) === "first-last"
+	// Facet panels for the current chart — the same resolver PlotCanvas
+	// renders against (and the annotations panel lists), so the keys the
+	// "Label all facets" picker stores match the rendered panels. Unfaceted
+	// charts (`mode === "single"`) hide the control.
+	const facetCfg = useMemo<FacetConfig>(
+		() => ({ ...DEFAULT_FACET_CONFIG, ...chartConfigs.facet }),
+		[chartConfigs.facet]
+	)
+	const facetPanels = useMemo(
+		() =>
+			resolveFacetPanels(
+				dataset,
+				chartEncodings,
+				levelOrders,
+				overrides,
+				facetCfg
+			),
+		[dataset, chartEncodings, levelOrders, overrides, facetCfg]
+	)
+	const isFaceted = facetPanels.mode !== "single"
+	const facetOptions = useMemo(
+		() => facetPanelOptions(facetPanels),
+		[facetPanels]
+	)
+
+	// The label POPULATIONS the current selection renders (all / first /
+	// last — lib/dataLabelsSelection): single-field reads them off "Which
+	// labels"; multi-field off the per-field selects. Two or more populations
+	// split the label-text, alignment, and position controls into one block
+	// per population — the only case where several label sets coexist. The
+	// series-end blocks read effective values (override ?? base) and write
+	// into the endpoint override blocks. Geo modes (and sunbursts) never
+	// split: the selection is hidden AND skipped there (no series), so a
+	// stored endpoint mode from a previous chart must not split the controls.
+	const selection = resolveLabelSelection(merged, encodings.value, {
+		seriesless: noSeriesEndpoints,
+	})
+	const splitEndpoints = selection.split
+	const splitPopulations = presentPopulations(selection)
 	const patchEndpoint = (
 		key: "firstLabel" | "lastLabel",
 		p: Partial<EndpointLabelOverrides>
 	) => updateCfg({ [key]: { ...(merged[key] ?? {}), ...p } })
+	// The shared "Label text" box pre-fills with the checked fields and
+	// follows the checklist / per-field selection WHILE it's still that auto
+	// default (or empty) — never once the user has hand-edited it. Returns
+	// the patch to apply alongside a selection change.
+	const syncedTemplate = (
+		nextCfg: DataLabelsConfig,
+		nextFields: string[]
+	): Partial<DataLabelsConfig> => {
+		const prevFields = encodings.value.fields ?? []
+		const current = merged.labelTemplate ?? ""
+		const prevAuto = defaultSharedTemplate(selection, prevFields)
+		if (current !== "" && current !== prevAuto) return {}
+		const nextSelection = resolveLabelSelection(
+			nextCfg,
+			{ multiField: true, fields: nextFields },
+			{ seriesless: noSeriesEndpoints }
+		)
+		return { labelTemplate: defaultSharedTemplate(nextSelection, nextFields) }
+	}
+	// Per-field "Which labels" (multi-field mode). Writes the field's mode
+	// and re-syncs the shared label text with the populations that result.
+	const setFieldLabelPoints = (field: string, mode: LabelPointsMode) => {
+		const nextCfg: DataLabelsConfig = {
+			...merged,
+			fieldLabelPoints: { ...(merged.fieldLabelPoints ?? {}), [field]: mode },
+		}
+		updateCfg({
+			fieldLabelPoints: nextCfg.fieldLabelPoints,
+			...syncedTemplate(nextCfg, encodings.value.fields ?? []),
+		})
+	}
 
 	// "Changed" dot for the Position Adjustment and Alignment subsection —
 	// lights when ANY control inside deviates from its default. Mode-gated
@@ -216,8 +306,8 @@ export const DataLabelsPanel = () => {
 			((merged.polarLabelAngle ?? 0) !== 0 ||
 				(merged.ringLabelRadius ?? 50) !== 50)) ||
 		(splitEndpoints &&
-			(endpointPositionEdited(merged.firstLabel) ||
-				endpointPositionEdited(merged.lastLabel)))
+			((selection.present.first && endpointPositionEdited(merged.firstLabel)) ||
+				(selection.present.last && endpointPositionEdited(merged.lastLabel))))
 
 	// Sibling subsection dots, same model: any visible control non-default.
 	// (The labelPoints select is hidden — and inert — in geo modes, so a
@@ -225,8 +315,10 @@ export const DataLabelsPanel = () => {
 	// geo-only: the color/thickness inputs are gated behind the toggle, so
 	// the toggle alone decides their contribution — like Text Background.)
 	const selectionChanged =
-		(!noSeriesEndpoints && effectiveLabelPoints(merged) !== "all") ||
+		selection.present.first ||
+		selection.present.last ||
 		merged.avoidOverlaps === true ||
+		(isFaceted && merged.facetKeys != null) ||
 		(isGeoMode && merged.leaderLines === true)
 	const textPositionChanged = (merged.arcWrapLevels ?? []).length > 0
 	// Text Properties compares against the THEME's data-label defaults — the
@@ -279,7 +371,7 @@ export const DataLabelsPanel = () => {
 			}))
 			// Pre-fill the template so the box opens on a working arrangement.
 			if (current === "" && fields.length > 0) {
-				updateCfg({ labelTemplate: defaultLabelTemplate(fields) })
+				updateCfg(syncedTemplate(merged, fields))
 			}
 			return
 		}
@@ -296,15 +388,12 @@ export const DataLabelsPanel = () => {
 		// Keep the template in sync with the checklist WHILE it's still the
 		// auto default (or empty) — so checking/unchecking updates the
 		// pre-filled arrangement — but never once the user has hand-edited it.
-		const prevFields = encodings.value.fields ?? []
-		const current = merged.labelTemplate ?? ""
-		const stillAuto =
-			current === "" || current === defaultLabelTemplate(prevFields)
 		setEncodings((prev) => ({
 			...prev,
 			value: { field: null, multiField: true, fields },
 		}))
-		if (stillAuto) updateCfg({ labelTemplate: defaultLabelTemplate(fields) })
+		const patch = syncedTemplate(merged, fields)
+		if (Object.keys(patch).length > 0) updateCfg(patch)
 	}
 
 	const allEligible = dataset?.fields ?? []
@@ -486,6 +575,7 @@ export const DataLabelsPanel = () => {
 						fields={encodings.value.fields ?? []}
 						allFields={allEligible.map((f) => f.name)}
 						onFieldsChange={setValueFields}
+						selection={selection}
 						countryNames={countryNameFormats}
 					/>
 				) : encodings.value.field ? (
@@ -565,29 +655,64 @@ export const DataLabelsPanel = () => {
 				<div className="flex flex-col gap-2">
 				{/* Per-series endpoint selection is meaningless on a map or a
 				 *  sunburst (no series) — the renderer skips it there, so the
-				 *  control hides. */}
-				{!noSeriesEndpoints && (
-				<SelectInput
-					label="Which labels"
-					labelClassName={LABEL_COL}
-					value={effectiveLabelPoints(merged)}
-					options={[
-						{ value: "all", label: "All labels" },
-						{ value: "first", label: "First per series" },
-						{ value: "last", label: "Last per series" },
-						{ value: "first-last", label: "First and last per series" },
-					]}
-					onChange={(labelPoints: LabelPointsMode) =>
-						updateCfg({ labelPoints })
-					}
-				/>
-				)}
+				 *  control hides. Multi-field labels get one select PER
+				 *  selected variable: each variable joins the label populations
+				 *  its choice names (a value on every label, the series name on
+				 *  the last, …), and the Value / position controls split per
+				 *  population when more than one results. */}
+				{!noSeriesEndpoints &&
+					(encodings.value.multiField ? (
+						(encodings.value.fields ?? []).length === 0 ? (
+							<p className="vc-help">
+								Check fields under Value to choose which labels each one
+								appears on.
+							</p>
+						) : (
+							<>
+								<span className="vc-group-header">Which labels</span>
+								{(encodings.value.fields ?? []).map((field) => (
+									<SelectInput
+										key={field}
+										label={field}
+										labelClassName={LABEL_COL}
+										value={fieldLabelPointsMode(merged, field)}
+										options={LABEL_POINTS_OPTIONS}
+										onChange={(mode: LabelPointsMode) =>
+											setFieldLabelPoints(field, mode)
+										}
+									/>
+								))}
+							</>
+						)
+					) : (
+						<SelectInput
+							label="Which labels"
+							labelClassName={LABEL_COL}
+							value={effectiveLabelPoints(merged)}
+							options={LABEL_POINTS_OPTIONS}
+							onChange={(labelPoints: LabelPointsMode) =>
+								updateCfg({ labelPoints })
+							}
+						/>
+					))}
 				<Toggle
 					label="Avoid overlapping labels"
 					className="mt-1"
 					checked={merged.avoidOverlaps === true}
 					onChange={(avoidOverlaps) => updateCfg({ avoidOverlaps })}
 				/>
+				{/* Faceted charts only: which panels draw labels. Checked (the
+				 *  default, stored as null) = every panel; unchecking lists the
+				 *  facets so the user ticks the ones that keep their labels.
+				 *  Hidden — and ignored by the renderer — when not faceted. */}
+				{isFaceted && (
+					<FacetScopeControl
+						label="Label all facets"
+						facetKeys={merged.facetKeys}
+						facetOptions={facetOptions}
+						onChange={(facetKeys) => updateCfg({ facetKeys })}
+					/>
+				)}
 				{/* Maps only: leader lines connect a displaced label (offset or
 				 *  overlap-nudged) back to its region's centroid. Defaults come
 				 *  from the theme's Maps section. */}
@@ -670,34 +795,27 @@ export const DataLabelsPanel = () => {
 				<div className="flex flex-col gap-2">
 				{splitEndpoints ? (
 					<div className="flex flex-col gap-2">
-						{/* First/Last alignment pair — effective value shown, writes
-						 *  land in the endpoint override blocks. */}
-						<div className="flex items-center gap-2 text-sm">
-							<span className={LABEL_COL}>
-								First label
-							</span>
-							<AlignmentControl
-								value={
-									merged.firstLabel?.alignment ?? merged.alignment ?? "center"
-								}
-								onChange={(alignment) =>
-									patchEndpoint("firstLabel", { alignment })
-								}
-							/>
-						</div>
-						<div className="flex items-center gap-2 text-sm">
-							<span className={LABEL_COL}>
-								Last label
-							</span>
-							<AlignmentControl
-								value={
-									merged.lastLabel?.alignment ?? merged.alignment ?? "center"
-								}
-								onChange={(alignment) =>
-									patchEndpoint("lastLabel", { alignment })
-								}
-							/>
-						</div>
+						{/* One alignment per population — effective value shown; the
+						 *  all-labels row writes the base, the series ends write their
+						 *  endpoint override blocks. */}
+						{splitPopulations.map((pop) => (
+							<div key={pop} className="flex items-center gap-2 text-sm">
+								<span className={LABEL_COL}>{POPULATION_LABEL[pop]}</span>
+								<AlignmentControl
+									value={
+										(pop === "all"
+											? merged.alignment
+											: (merged[`${pop}Label`]?.alignment ??
+												merged.alignment)) ?? "center"
+									}
+									onChange={(alignment) =>
+										pop === "all"
+											? updateCfg({ alignment })
+											: patchEndpoint(`${pop}Label`, { alignment })
+									}
+								/>
+							</div>
+						))}
 					</div>
 				) : (
 					<div className="flex items-center gap-2 text-sm">
@@ -845,54 +963,50 @@ export const DataLabelsPanel = () => {
 				)}
 				{splitEndpoints ? (
 					<>
-						{/* First/Last offset pairs — effective values shown, writes
-						 *  land in the endpoint override blocks. */}
-						<span className="text-sm text-stone-600 dark:text-stone-400">
-							First label
-						</span>
-						<div className="ml-6 flex flex-col gap-2 text-sm">
-							<NumberInput
-								label="X"
-								labelClassName={LABEL_COL_NESTED}
-								value={merged.firstLabel?.xOffset ?? merged.xOffset}
-								step={1}
-								onChange={(xOffset) => patchEndpoint("firstLabel", { xOffset })}
-								inputClassName="w-16"
-								suffix="px"
-							/>
-							<NumberInput
-								label="Y"
-								labelClassName={LABEL_COL_NESTED}
-								value={-(merged.firstLabel?.yOffset ?? merged.yOffset)}
-								step={1}
-								onChange={(n) => patchEndpoint("firstLabel", { yOffset: -n })}
-								inputClassName="w-16"
-								suffix="px"
-							/>
-						</div>
-						<span className="text-sm text-stone-600 dark:text-stone-400">
-							Last label
-						</span>
-						<div className="ml-6 flex flex-col gap-2 text-sm">
-							<NumberInput
-								label="X"
-								labelClassName={LABEL_COL_NESTED}
-								value={merged.lastLabel?.xOffset ?? merged.xOffset}
-								step={1}
-								onChange={(xOffset) => patchEndpoint("lastLabel", { xOffset })}
-								inputClassName="w-16"
-								suffix="px"
-							/>
-							<NumberInput
-								label="Y"
-								labelClassName={LABEL_COL_NESTED}
-								value={-(merged.lastLabel?.yOffset ?? merged.yOffset)}
-								step={1}
-								onChange={(n) => patchEndpoint("lastLabel", { yOffset: -n })}
-								inputClassName="w-16"
-								suffix="px"
-							/>
-						</div>
+						{/* One X/Y pair per population — effective values shown; the
+						 *  all-labels pair writes the base offsets, the series ends
+						 *  write their endpoint override blocks. */}
+						{splitPopulations.map((pop) => {
+							const patch = (p: { xOffset?: number; yOffset?: number }) =>
+								pop === "all"
+									? updateCfg(p)
+									: patchEndpoint(`${pop}Label`, p)
+							const xValue =
+								pop === "all"
+									? merged.xOffset
+									: (merged[`${pop}Label`]?.xOffset ?? merged.xOffset)
+							const yValue =
+								pop === "all"
+									? merged.yOffset
+									: (merged[`${pop}Label`]?.yOffset ?? merged.yOffset)
+							return (
+								<div key={pop} className="flex flex-col gap-2">
+									<span className="text-sm text-stone-600 dark:text-stone-400">
+										{POPULATION_LABEL[pop]}
+									</span>
+									<div className="ml-6 flex flex-col gap-2 text-sm">
+										<NumberInput
+											label="X"
+											labelClassName={LABEL_COL_NESTED}
+											value={xValue}
+											step={1}
+											onChange={(xOffset) => patch({ xOffset })}
+											inputClassName="w-16"
+											suffix="px"
+										/>
+										<NumberInput
+											label="Y"
+											labelClassName={LABEL_COL_NESTED}
+											value={-yValue}
+											step={1}
+											onChange={(n) => patch({ yOffset: -n })}
+											inputClassName="w-16"
+											suffix="px"
+										/>
+									</div>
+								</div>
+							)
+						})}
 					</>
 				) : (
 					<div className="flex flex-col gap-2 text-sm">

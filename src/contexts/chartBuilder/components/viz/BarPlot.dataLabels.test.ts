@@ -242,3 +242,48 @@ describe("buildBarAnchors — negative slices", () => {
 		expect(at["A|down"].cy).toBeCloseTo(244, 5) // below the -20 tip
 	})
 })
+
+describe("buildBarAnchors — multi-field label rows (labelFields)", () => {
+	const rows = [
+		{ cat: "A", val: "10", region: "north", note: "n-a" },
+		{ cat: "A", val: "30", region: "south", note: "s-a" },
+		{ cat: "B", val: "20", region: "north", note: "" },
+		{ cat: "B", val: "40", region: "south", note: "s-b" },
+	]
+	const encodings = { x: { field: "cat" }, length: { field: "val" }, hue: { field: "region" } }
+
+	it("carries a synthetic row per slice: category, group values, measure, and each label field aggregated", () => {
+		const anchors = buildBarAnchors({
+			aggregation: aggregation as any,
+			categoryScale,
+			measureScale,
+			modes: [{ channel: "hue", mode: "stack" }],
+			decimals: null,
+			labelFields: ["val", "region", "note"],
+			encodings: encodings as any,
+			rows,
+		})
+		const aSouth = anchors.find((a) => a.key === "A|south")
+		expect(aSouth?.row).toEqual({
+			cat: "A",
+			region: "south",
+			val: 30,
+			note: "s-a",
+		})
+		// A blank text cell aggregates to nothing (undefined), never "".
+		expect(anchors.find((a) => a.key === "B|north")?.row?.note).toBeUndefined()
+	})
+
+	it("omits the row when no label fields are requested (single-field anchors stay pre-formatted)", () => {
+		const anchors = buildBarAnchors({
+			aggregation: aggregation as any,
+			categoryScale,
+			measureScale,
+			modes: [{ channel: "hue", mode: "stack" }],
+			decimals: null,
+			encodings: encodings as any,
+			rows,
+		})
+		expect(anchors.every((a) => a.row === undefined)).toBe(true)
+	})
+})

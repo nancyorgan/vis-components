@@ -1957,24 +1957,52 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   series treated as one implicit group. A one-point series counts as
   "last". Legacy saves with the old "Only show last label per series"
   toggle read as "Last per series".
-  **First and last** is the only mode with two label populations, so it
-  is the only mode that splits controls — the splits live where those
-  controls normally live, not in this subsection:
-  - Under **Value** (multi-field mode), "Label text" becomes **First
-    label text** and **Last label text** (e.g. `{value}` on firsts,
-    `{value} {series}` on lasts to directly label lines). An empty box
-    inherits the shared arrangement, shown as the placeholder. There is
-    still exactly ONE "Label format" section — per-field formats are
-    shared across both ends. Endpoint templates only affect row-based
-    renderers (scatter / lines); bar and area labels are pre-formatted
-    from their slice measure and ignore them.
+  With a single mapped Value there is one select. With **Multiple
+  variables…** there is one select PER checked variable (listed by field
+  name under a "Which labels" header), stored in
+  `DataLabelsConfig.fieldLabelPoints`; a variable with no entry follows
+  the layer-wide choice, so multi-field visuals saved before per-variable
+  selection keep their look.
+  Each variable's choice places it in one or more label POPULATIONS —
+  **all labels** (every anchor), **first** and **last** (the series ends;
+  "First and last" = both) — and every population renders its own label
+  at the anchors it applies to (`lib/dataLabelsSelection.ts`). An anchor
+  can therefore carry several labels: on a stacked bar chart with the
+  value set to "All labels" and the series name to "Last per series",
+  every slice shows its value and the last bar's slices ALSO show the
+  series name as a separate label — the direct-labeling recipe. (A
+  one-point series takes the last label, plus the first label only when
+  that population shows a variable the last one doesn't.)
+  Two or more populations present = a **split** selection, and only
+  then do the controls split, one block per present population, living
+  where those controls normally live rather than in this subsection:
+  - Under **Value** (multi-field mode), "Label text" becomes one box per
+    population: **Label text** (the all-labels arrangement), **First
+    label text**, **Last label text**. The all-labels box pre-fills with
+    its own variables joined (and tracks the checklist / selects until
+    hand-edited); an empty series-end box uses the placeholder — its own
+    variables joined (e.g. `{series}` for a last-only series name), or,
+    when no all-labels population exists and the shared text covers the
+    same variables, the shared arrangement (the legacy first-and-last
+    inheritance: `{value}` on firsts, `{value} {series}` on lasts). There
+    is still exactly ONE "Label format" section — per-field formats are
+    shared across populations.
   - Under **Position Adjustment and Alignment**, the Alignment control
-    and the Adjust-position X/Y inputs each become First-label /
-    Last-label pairs. Wrap text stays a single shared toggle.
-  In the single First / Last modes nothing splits: the layer-wide
-  template / offset / alignment drive the one rendered label set, and
-  any endpoint overrides left over from a first-and-last session are
-  ignored.
+    and the Adjust-position X/Y inputs each become one row / pair per
+    population ("All labels" writes the base values; "First label" /
+    "Last label" write the endpoint overrides). Wrap text stays a single
+    shared toggle.
+  With a single population nothing splits, whichever population it is:
+  the layer-wide template / offset / alignment drive the one rendered
+  label set, and any endpoint overrides left over from a split session
+  are ignored.
+  Multi-field templates compose on the row-based renderers (scatter /
+  lines) AND on bar charts: each bar anchor carries a per-slice record
+  (category, group values, measure, and every checked variable
+  aggregated over the slice's rows — numeric sum, else first non-empty),
+  so templates, per-field formats, and per-variable colors all apply to
+  bar labels. Area / pie / tile labels are still pre-formatted single
+  values and ignore multi-field templates.
 - **Avoid overlapping labels** — colliding labels spread apart
   vertically (up or down), each staying as close to its own anchor as
   the minimum gaps allow, preserving vertical order. Stacked end-of-line
@@ -1994,6 +2022,16 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   coast or an empty neighbor drift there without ever flying far just
   to reach water. Non-colliding labels never move; a label with no
   free spot within ~12 rings stays put (best-effort, as elsewhere).
+- **Label all facets** (faceted charts only; shown right after Avoid
+  overlapping labels) — checked by default: every panel draws its
+  labels. Unchecking lists the chart's facet panels as checkboxes (all
+  ticked at first) so the user keeps labels on just the panels they
+  tick; an unticked panel renders no labels at all. The list uses the
+  same panel keys the annotations' "Apply to all facets" picker uses
+  (facet value in wrap mode, row · column in grid mode, the compact
+  panel title when empty panels are hidden). The selection is ignored
+  — every label draws — when the chart stops being faceted, so a stored
+  selection never blanks an unfaceted chart.
 - **Bar label position** — center / inside-base / inside-end /
   outside-end (only meaningful for bars).
 - **Position rules** (Adjust position → "+ Add rule") — conditional
@@ -2275,6 +2313,27 @@ above it, they truncate.
 In line-chart context (combined legend with pattern in the section),
 swatches include both the shape pattern and a dash line passing
 through the shape — same as the rendered visual.
+
+**Legend text** subsection: a per-visual font for the ENTRY labels (the
+text beside each swatch) — Family, Color, Size, Weight, and the italic /
+underline Style toggles, via the same font editor the Labels panel's
+title rows use, plus an **Align** row above it. Every field is sparse:
+blank follows the theme's "Legend text" defaults (`baseFont.text.legend*`,
+themselves falling back to the shared body-text font), and each control
+names or previews what it inherits — the family and weight dropdowns in
+their leading "(…)" entry, Size as the placeholder, Color in the swatch.
+This is the per-visual layer on top of the theme; the section TITLES above
+the entries are styled separately, in the Labels panel's "Legend titles".
+
+**Align** positions each label within the entry column, which is as wide
+as the longest entry in the section (or the fixed Legend width, when one
+is set) — so with equal-length labels there is nothing to move. Left is
+the historical layout, where the label hugs its swatch, and picking it
+clears the setting rather than storing it. Center / right make each
+label's cell grow to fill the rest of its row first
+(`.vc-legend-text-align`), so the alignment has somewhere to work; the
+gradient bar's break labels are NOT affected — they keep their own
+**Label alignment** under Label formatting.
 
 The "Gradient legend style" toggle (quantitative hue only) switches
 between a gradient bar and sampled swatches; both honor the legend's

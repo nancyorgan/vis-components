@@ -1,10 +1,13 @@
+import type { DataLabelsConfig } from "../../../lib/channelConfig"
 import {
-	effectiveLabelPoints,
-	type DataLabelsConfig,
-} from "../../../lib/channelConfig"
+	POPULATION_TEMPLATE_LABEL,
+	defaultSharedTemplate,
+	populationTemplateFallback,
+	presentPopulations,
+	type LabelSelection,
+} from "../../../lib/dataLabelsSelection"
 
 import { TickFormatControl } from "../channelOptions/AxisOptionsPanel"
-import { defaultLabelTemplate } from "./shared"
 
 // ---------------------------------------------------------------------------
 // Value panel — multi-field mode only ("Multiple variables…"): pick which
@@ -18,6 +21,7 @@ export const ValuePanel = ({
 	fields,
 	allFields,
 	onFieldsChange,
+	selection,
 	countryNames = false,
 }: {
 	cfg: DataLabelsConfig
@@ -25,6 +29,10 @@ export const ValuePanel = ({
 	fields: string[]
 	allFields: string[]
 	onFieldsChange: (fields: string[]) => void
+	/** The resolved label populations (from the per-field "Which labels"
+	 *  selects). Decides whether the single "Label text" box splits into one
+	 *  box per population. */
+	selection: LabelSelection
 	/** Offer the Geography "Full country name" preset in the per-field
 	 *  format dropdowns — countries-level geo charts only. */
 	countryNames?: boolean
@@ -33,6 +41,7 @@ export const ValuePanel = ({
 		onFieldsChange(on ? [...fields, name] : fields.filter((f) => f !== name))
 	const textInputClass =
 		"w-full rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+	const emptyHint = fields.length > 0 ? null : "Check some fields above"
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -61,46 +70,63 @@ export const ValuePanel = ({
 
 			{/* Editable label text — pre-filled with the checked fields (kept in
 			 *  sync until hand-edited). Each field name in braces is replaced by
-			 *  that row's value; edit the surrounding text freely. With "first
-			 *  and last per series" selected, the single input splits into a
-			 *  first/last pair: each writes its endpoint's template override and
-			 *  an empty box inherits the shared arrangement (the placeholder). */}
-			{effectiveLabelPoints(cfg) === "first-last" ? (
-				(["firstLabel", "lastLabel"] as const).map((key) => (
-					<label key={key} className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
-							{key === "firstLabel" ? "First label text" : "Last label text"}
-						</span>
-						<input
-							type="text"
-							value={cfg[key]?.labelTemplate ?? ""}
-							placeholder={
-								cfg.labelTemplate ||
-								(fields.length > 0
-									? defaultLabelTemplate(fields)
-									: "Check some fields above")
-							}
-							onChange={(e) => {
-								const next = { ...(cfg[key] ?? {}) }
-								if (e.target.value === "") delete next.labelTemplate
-								else next.labelTemplate = e.target.value
-								onChange({ [key]: next })
-							}}
-							className={textInputClass}
-						/>
-					</label>
-				))
+			 *  that row's value; edit the surrounding text freely. When the
+			 *  per-field "Which labels" selects name more than one population
+			 *  (e.g. a value on every label, the series name on the last), the
+			 *  single box splits into one per population: "Label text" for the
+			 *  all-labels text, "First label text" / "Last label text" for the
+			 *  series ends. The end boxes write their endpoint's template
+			 *  override; an empty one uses the placeholder's arrangement. */}
+			{selection.split ? (
+				presentPopulations(selection).map((pop) =>
+					pop === "all" ? (
+						<label key={pop} className="flex flex-col gap-1 text-sm">
+							<span className="text-stone-600 dark:text-stone-400">
+								{POPULATION_TEMPLATE_LABEL.all}
+							</span>
+							<input
+								type="text"
+								value={cfg.labelTemplate ?? ""}
+								placeholder={
+									emptyHint ?? defaultSharedTemplate(selection, fields)
+								}
+								onChange={(e) => onChange({ labelTemplate: e.target.value })}
+								className={textInputClass}
+							/>
+						</label>
+					) : (
+						<label key={pop} className="flex flex-col gap-1 text-sm">
+							<span className="text-stone-600 dark:text-stone-400">
+								{POPULATION_TEMPLATE_LABEL[pop]}
+							</span>
+							<input
+								type="text"
+								value={cfg[`${pop}Label`]?.labelTemplate ?? ""}
+								placeholder={
+									emptyHint ??
+									populationTemplateFallback(cfg, selection, pop)
+								}
+								onChange={(e) => {
+									const key = `${pop}Label` as const
+									const next = { ...(cfg[key] ?? {}) }
+									if (e.target.value === "") delete next.labelTemplate
+									else next.labelTemplate = e.target.value
+									onChange({ [key]: next })
+								}}
+								className={textInputClass}
+							/>
+						</label>
+					)
+				)
 			) : (
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">Label text</span>
+					<span className="text-stone-600 dark:text-stone-400">
+						{POPULATION_TEMPLATE_LABEL.all}
+					</span>
 					<input
 						type="text"
 						value={cfg.labelTemplate ?? ""}
-						placeholder={
-							fields.length > 0
-								? defaultLabelTemplate(fields)
-								: "Check some fields above"
-						}
+						placeholder={emptyHint ?? defaultSharedTemplate(selection, fields)}
 						onChange={(e) => onChange({ labelTemplate: e.target.value })}
 						className={textInputClass}
 					/>

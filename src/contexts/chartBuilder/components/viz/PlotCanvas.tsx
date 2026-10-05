@@ -76,6 +76,7 @@ import {
 	positionCaptionBox,
 } from "./plotCanvas/captionLayout"
 import { AnnotationRects, annotationOnPanel } from "./plotCanvas/annotations"
+import { FacetPanelContext } from "./plotCanvas/FacetPanelContext"
 
 /** Unified single-SVG renderer for both single-panel and faceted charts.
  *
@@ -155,6 +156,7 @@ export const PlotCanvas = () => {
 			// they're safe memo deps — unlike the freshly-spread `dataLabels`.
 			dataLabels.labelPoints,
 			dataLabels.onlyLastLabel,
+			dataLabels.fieldLabelPoints,
 			dataLabels.firstLabel,
 			dataLabels.lastLabel,
 			// Stored array — stable reference unless the rules are edited.
@@ -1019,8 +1021,13 @@ export const PlotCanvas = () => {
 						    inner + rowsOverride steer the per-panel render.
 						    Typed dispatch: Renderer is ComponentType<
 						    UniversalRendererProps>, so this call is checked
-						    against every registered renderer's contract. */}
-						<Renderer {...rendererProps} />
+						    against every registered renderer's contract. The
+						    panel key is provided by context so layers nested in
+						    any renderer (Data Labels' "Label all facets" scope)
+						    know which facet they draw in. */}
+						<FacetPanelContext.Provider value={p.key}>
+							<Renderer {...rendererProps} />
+						</FacetPanelContext.Provider>
 						<AnnotationRects
 							rectangles={panelRectangles}
 							circles={panelCircles}

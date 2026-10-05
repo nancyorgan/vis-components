@@ -4,6 +4,7 @@ import { DEFAULT_FACET_CONFIG } from "./channelConfig"
 import type { FacetConfig } from "./channelConfig"
 import {
 	compactNonEmptyGrid,
+	facetPanelOptions,
 	panelFacetValues,
 	resolveFacetPanels,
 } from "./resolveFacetPanels"
@@ -282,5 +283,78 @@ describe("panelFacetValues", () => {
 			rowValue: null,
 			colValue: null,
 		})
+	})
+})
+
+describe("facetPanelOptions", () => {
+	it("wrap panels are labeled by their facet value", () => {
+		const panels = resolveFacetPanels(
+			makeDataset([rec("a", "x"), rec("b", "x")]),
+			{ ...emptyEncodings(), facet: { field: "r" } },
+			{},
+			{},
+			facetCfg(),
+		)
+		expect(panels.mode).toBe("wrap")
+		expect(facetPanelOptions(panels)).toEqual([
+			{ key: "a", label: "a" },
+			{ key: "b", label: "b" },
+		])
+	})
+
+	it("full-grid panels join row and column values; keys stay raw", () => {
+		const panels = resolve([rec("a", "x"), rec("b", "y")], facetCfg())
+		expect(facetPanelOptions(panels)).toEqual([
+			{ key: "a|x", label: "a · x" },
+			{ key: "a|y", label: "a · y" },
+			{ key: "b|x", label: "b · x" },
+			{ key: "b|y", label: "b · y" },
+		])
+	})
+
+	it("row-only grids drop the internal __all__ placeholder from labels", () => {
+		const panels = resolveFacetPanels(
+			makeDataset([rec("a", "x"), rec("b", "x")]),
+			{ ...emptyEncodings(), facetRow: { field: "r" } },
+			{},
+			{},
+			facetCfg(),
+		)
+		expect(facetPanelOptions(panels)).toEqual([
+			{ key: "a|__all__", label: "a" },
+			{ key: "b|__all__", label: "b" },
+		])
+	})
+
+	it("compacted grids use the compact panel title", () => {
+		const panels = resolve(
+			[
+				rec("a", "x"),
+				rec("c", "x"),
+				rec("b", "y"),
+				rec("e", "y"),
+				rec("a", "z"),
+				rec("f", "z"),
+			],
+			facetCfg({ hideEmptyPanels: true }),
+		)
+		expect(facetPanelOptions(panels).find((o) => o.key === "c|x")).toEqual({
+			key: "c|x",
+			label: "c",
+		})
+	})
+
+	it("single-panel charts list the lone placeholder panel", () => {
+		const panels = resolveFacetPanels(
+			makeDataset([rec("a", "x")]),
+			emptyEncodings(),
+			{},
+			{},
+			facetCfg(),
+		)
+		expect(panels.mode).toBe("single")
+		expect(facetPanelOptions(panels)).toEqual([
+			{ key: "__all__", label: "__all__" },
+		])
 	})
 })

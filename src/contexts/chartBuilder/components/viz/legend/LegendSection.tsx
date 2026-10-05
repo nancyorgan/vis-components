@@ -32,6 +32,12 @@ export type LegendSectionProps = {
 	textWeight?: number
 	textItalic?: boolean
 	textUnderline?: boolean
+	/** How each entry's LABEL text aligns within its row (Legend panel →
+	 * "Legend text" → Align). `null` / undefined keeps the historical
+	 * layout, where the label cell hugs its text beside the swatch; any
+	 * value makes the cell fill the rest of the row (`.vc-legend-text-align`)
+	 * so center / right have room to move. */
+	entryTextAlign?: "left" | "center" | "right" | null
 	titleOverride?: string
 	titleFont: FontConfig
 	titleAlignment?: "left" | "center" | "right"
@@ -131,6 +137,7 @@ export const LegendSection = ({
 	textWeight,
 	textItalic,
 	textUnderline,
+	entryTextAlign = null,
 	titleOverride,
 	titleFont,
 	titleAlignment = "center",
@@ -240,8 +247,15 @@ export const LegendSection = ({
 				: "center"
 	// Each sub-legend honors `orientation` directly so its swatches lay
 	// out in the right axis (vertical = stacked rows, horizontal = single
-	// row) WITHOUT wrapping. No CSS override needed.
-	const innerClass = ""
+	// row) WITHOUT wrapping. No CSS override needed. The one add-on is the
+	// user's entry-label alignment, which needs the label cells to grow (see
+	// `.vc-legend-text-align`) before `textAlign` can move anything.
+	// `vc-legend-entries` is a marker, not styling — it names the entry block
+	// for the alignment rule below and for tests / capture code that need to
+	// find it without walking the swatch tree upward.
+	const innerClass = entryTextAlign
+		? "vc-legend-entries vc-legend-text-align"
+		: "vc-legend-entries"
 	return (
 		// `gap-2.5` (10 px) puts a comfortable air-gap between the section
 		// title and the legend content below it — `gap-1.5` (6 px) crowded
@@ -280,6 +294,7 @@ export const LegendSection = ({
 					fontWeight: textWeight ?? undefined,
 					fontStyle: textItalic ? "italic" : undefined,
 					textDecoration: textUnderline ? "underline" : undefined,
+					textAlign: entryTextAlign ?? undefined,
 					// Multiple stacked legends: the entry block pins to the
 					// legend's left edge (overriding the title-driven
 					// `alignItems`) so every section's swatch column shares one

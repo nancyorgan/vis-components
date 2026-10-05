@@ -35,6 +35,8 @@ import {
 	legendSwatchSize,
 	resolveLegendHidden,
 	type EncodingLegendChannel,
+	type FontConfig,
+	type LabelAlignment,
 	type LegendChannel,
 	type LegendChannelConfig,
 	type LegendSwatchShape,
@@ -62,6 +64,7 @@ import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
+	currentLabelsAtom,
 	currentLegendConfigAtom,
 	currentRenderedGradientBarLengthAtom,
 	currentRenderedInsideAutoXAtom,
@@ -70,7 +73,7 @@ import {
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
 
-import { AlignmentControl } from "./LabelsPanel"
+import { AlignmentControl, FontEditor } from "./LabelsPanel"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
@@ -265,6 +268,7 @@ export const LegendPanel = () => {
 	const dataset = useCurrentDatasetView()
 	const theme = useCurrentTheme()
 	const configs = useAtomValue(currentChannelConfigsAtom)
+	const labels = useAtomValue(currentLabelsAtom)
 	const merged: LegendConfig = { ...DEFAULT_LEGEND_CONFIG, ...cfg }
 	// Per-subsection "changed" dots: a group lights when a setting it owns
 	// differs from the theme baseline. Compared against the raw `cfg` (not
@@ -732,6 +736,35 @@ export const LegendPanel = () => {
 		else update({ backgroundColor: merged.backgroundColor ?? "#ffffff" })
 	}
 
+	// "Legend text" — what the entry labels inherit when the per-visual
+	// `textFont` leaves a field blank. Mirrors `resolveLegendTextFont`'s
+	// fallback chain minus the override the editor itself writes, and stays
+	// in POINTS (the font editor's unit; the resolver converts to px).
+	const baseText = labels.baseFont.text
+	const inheritedTextFont = {
+		family: baseText.legendFamily ?? baseText.family,
+		color: baseText.legendColor ?? baseText.color,
+		size: baseText.legendSize ?? baseText.size,
+		// Entry labels render with no weight attribute when nothing sets one,
+		// so the browser's 400 is what the user actually sees inherited.
+		weight: baseText.legendWeight ?? baseText.weight ?? 400,
+	}
+	// Left IS the historical layout (labels hug their swatches), so picking it
+	// clears the setting rather than storing a redundant value — keeps the
+	// config sparse and the subsection's dot honest.
+	const setTextAlign = (a: LabelAlignment) =>
+		update({ textAlign: a === "left" ? null : a })
+	// The font editor clears a field by writing it back as `undefined`, which
+	// still counts as a key — and a key is what the "changed" dot reads. Drop
+	// them so clearing every field really does read as untouched.
+	const setTextFont = (next: Partial<FontConfig>) => {
+		const clean: Partial<FontConfig> = {}
+		for (const [k, v] of Object.entries(next)) {
+			if (v !== undefined) (clean as Record<string, unknown>)[k] = v
+		}
+		update({ textFont: clean })
+	}
+
 	return (
 		<div className="vc-option-panel">
 			{/* "Legends shown" comes first — every other control on the
@@ -1045,6 +1078,46 @@ export const LegendPanel = () => {
 							</div>
 						)}
 					</div>
+				</CollapsibleSubsection>
+			)}
+
+			{/* Legend text — the labels beside each swatch. Separate from
+			 *  "Legend titles" in the Labels panel (those style the section
+			 *  headings) and from the theme's Legend text defaults, which this
+			 *  overrides per visual. */}
+			{anyLegendVisible && (
+				<CollapsibleSubsection
+						title="Legend text"
+						changed={groupChanged("text")}
+					>
+					{/* Align leads, matching the Labels panel's title rows
+					 *  (Align, then Family / Color / Size / Weight / Style). */}
+					<div className="flex items-center gap-2 text-sm">
+						<span className={LABEL_COL}>Align</span>
+						<AlignmentControl
+							value={merged.textAlign ?? "left"}
+							onChange={setTextAlign}
+						/>
+						{merged.textAlign != null && (
+							<ResetLink onClick={() => update({ textAlign: null })} />
+						)}
+					</div>
+					<FontEditor
+						value={merged.textFont ?? {}}
+						onChange={setTextFont}
+						showResetFields
+						baseFamily={inheritedTextFont.family}
+						baseColor={inheritedTextFont.color}
+						baseSize={inheritedTextFont.size}
+						baseWeight={inheritedTextFont.weight}
+					/>
+					<p className="vc-help">
+						Styles the labels beside each legend swatch; blank fields
+						follow the theme&apos;s legend text. Align positions each
+						label within the entry column — as wide as the longest
+						label, or the fixed Legend width above — so left keeps
+						them against their swatches.
+					</p>
 				</CollapsibleSubsection>
 			)}
 

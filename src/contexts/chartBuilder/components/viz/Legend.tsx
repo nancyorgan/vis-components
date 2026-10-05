@@ -271,6 +271,7 @@ export const Legend = ({
 								textWeight={textFont.weight}
 								textItalic={textFont.italic}
 								textUnderline={textFont.underline}
+								entryTextAlign={legendCfg.textAlign ?? null}
 								titleOverride={
 									labels.legendTitles?.[
 										keyChannel as keyof typeof labels.legendTitles

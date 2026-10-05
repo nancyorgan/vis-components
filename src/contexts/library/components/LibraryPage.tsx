@@ -688,15 +688,11 @@ const ViewToggle = ({
 	view: "grid" | "table"
 	onChange: (next: "grid" | "table") => void
 }) => (
-	<div className="inline-flex overflow-hidden rounded-control border border-stone-300 dark:border-stone-700">
+	<div className="inline-flex overflow-hidden rounded-control border border-vc-brand-text">
 		<button
 			type="button"
 			onClick={() => onChange("grid")}
-			className={`px-3 py-1 text-sm transition-colors ${
-				view === "grid"
-					? "bg-vc-section-header text-white"
-					: "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800"
-			}`}
+			className={`px-3 py-1 text-sm ${view === "grid" ? "vc-toggle-on" : "vc-toggle-off"}`}
 			title="Grid view"
 			aria-pressed={view === "grid"}
 		>
@@ -705,11 +701,7 @@ const ViewToggle = ({
 		<button
 			type="button"
 			onClick={() => onChange("table")}
-			className={`border-l border-stone-300 px-3 py-1 text-sm transition-colors dark:border-stone-700 ${
-				view === "table"
-					? "bg-vc-section-header text-white"
-					: "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800"
-			}`}
+			className={`px-3 py-1 text-sm ${view === "table" ? "vc-toggle-on" : "vc-toggle-off"}`}
 			title="Table view"
 			aria-pressed={view === "table"}
 		>

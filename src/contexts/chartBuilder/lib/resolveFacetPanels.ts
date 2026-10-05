@@ -187,6 +187,24 @@ export const panelFacetValues = (
 	}
 }
 
+/** The facet panels as pick-list entries for sidebar scope controls
+ *  (annotations, data labels): the panel KEY the renderer matches against
+ *  plus a display label. Wrap panels are titled by their facet value (the
+ *  key itself). Grid panels show their row / column values joined with
+ *  " · " — the internal `__all__` placeholder of a row-only / col-only
+ *  grid is dropped — or the compact-grid label when hide-empty-panels
+ *  compaction is active, so the list reads like the rendered titles. */
+export const facetPanelOptions = (
+	panelData: FacetPanels,
+): Array<{ key: string; label: string }> =>
+	panelData.values.map((key) => {
+		if (panelData.mode !== "grid") return { key, label: key }
+		const compactLabel = panelData.compact?.panels[key]?.label
+		if (compactLabel !== undefined) return { key, label: compactLabel }
+		const parts = key.split("|").filter((part) => part !== "__all__")
+		return { key, label: parts.length > 0 ? parts.join(" · ") : key }
+	})
+
 /** Partition the dataset into facet panels for the current encodings.
  *
  *  Shared by PlotCanvas (which renders each panel) and the annotations

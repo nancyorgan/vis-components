@@ -958,6 +958,7 @@ export const explainChannelCustomization = (
 export type LegendDotGroup =
 	| "shown"
 	| "properties"
+	| "text"
 	| "formatting"
 	| "gradient"
 	| "auxSwatch"
@@ -1028,6 +1029,10 @@ export const explainLegendCustomization = (
 			group: "gradient",
 			changed: differs(cfg.gradientBarTickColor, base.gradientBarTickColor),
 		},
+		// "Legend text": the per-visual entry-label font override is sparse, so
+		// any key in it is a deviation from the theme's legend-text defaults.
+		{ group: "text", changed: !isEmptyConfigValue(cfg.textFont) },
+		{ group: "text", changed: differs(cfg.textAlign, base.textAlign) },
 		{ group: "formatting", changed: !isEmptyConfigValue(cfg.channels) },
 		{
 			group: "formatting",

@@ -319,4 +319,18 @@
 		flex-shrink: 1;
 		min-width: 0;
 	}
+
+	/* Entry-label alignment ("Legend text" → Align in the Legend panel). The
+	 * container carries the `text-align`; this makes each label cell GROW to
+	 * fill what's left of its row so center / right have somewhere to move.
+	 * Rows stretch to the entry block's width — the widest entry, or the
+	 * fixed `width` — so shorter labels align against the longest one.
+	 * Applied only once the user picks an alignment, keeping the historical
+	 * content-hugging layout untouched by default. Same two label classes the
+	 * fixed-width rule targets: stacked entries use Tailwind's `.truncate`,
+	 * horizontal ones `.vc-legend-label`. */
+	.vc-legend-text-align .truncate,
+	.vc-legend-text-align .vc-legend-label {
+		flex: 1 1 auto;
+	}
 }

@@ -618,6 +618,19 @@ export type LegendConfig = {
 	 * auto-combine behavior; `false` splits each channel into its own legend
 	 * and, in the sidebar, its own swatch + title subsection. */
 	combineSameVariable?: boolean
+	/** Per-visual styling for the legend ENTRY labels (the Legend panel's
+	 * "Legend text" subsection). Sparse: every unset field falls through to
+	 * the theme's legend-text defaults (`baseFont.text.legend*`, themselves
+	 * falling back to the shared body-text font) — see
+	 * `resolveLegendTextFont`. `size` is POINTS, like every other font
+	 * control. */
+	textFont?: Partial<FontConfig>
+	/** How each entry's label text aligns within its row. `null` / absent =
+	 * the historical layout: the label cell hugs its text right beside the
+	 * swatch, so there is nothing to align within. Once set, the label cell
+	 * grows to fill the rest of the row (which stretches to the widest entry,
+	 * or to the fixed `width`), giving center / right somewhere to move. */
+	textAlign?: LabelAlignment | null
 }
 
 export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
@@ -661,6 +674,8 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	columns: 1,
 	columnGap: 24,
 	combineSameVariable: true,
+	textFont: {},
+	textAlign: null,
 }
 
 /** Default gradient-bar tick color — stone-500, legible on both the light
@@ -1139,15 +1154,19 @@ export const resolveTextFont = (base: BaseFontConfig): TextFontConfig => ({
 	underline: base.text.underline ?? false,
 })
 
-/** Build the effective legend-entry-label font: the shared text font with
- *  the theme's per-slot legend overrides applied on top. Size is px. */
-export const resolveLegendTextFont = (base: BaseFontConfig): TextFontConfig => ({
-	family: base.text.legendFamily ?? base.text.family,
-	size: ptToPx(base.text.legendSize ?? base.text.size),
-	color: base.text.legendColor ?? base.text.color,
-	weight: base.text.legendWeight ?? base.text.weight,
-	italic: base.text.italic ?? false,
-	underline: base.text.underline ?? false,
+/** Build the effective legend-entry-label font: the shared text font, then
+ *  the theme's per-slot legend overrides, then the per-visual `textFont`
+ *  from the Legend panel's "Legend text" subsection. Size is px. */
+export const resolveLegendTextFont = (
+	base: BaseFontConfig,
+	override?: Partial<FontConfig>
+): TextFontConfig => ({
+	family: override?.family ?? base.text.legendFamily ?? base.text.family,
+	size: ptToPx(override?.size ?? base.text.legendSize ?? base.text.size),
+	color: override?.color ?? base.text.legendColor ?? base.text.color,
+	weight: override?.weight ?? base.text.legendWeight ?? base.text.weight,
+	italic: override?.italic ?? base.text.italic ?? false,
+	underline: override?.underline ?? base.text.underline ?? false,
 })
 
 // ---------------------------------------------------------------------------

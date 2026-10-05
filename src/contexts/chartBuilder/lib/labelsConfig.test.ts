@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { ptToPx } from "./fontUnit"
+
 import {
 	DEFAULT_BASE_FONT_CONFIG,
 	facetTitleColorOf,
@@ -13,6 +15,7 @@ import {
 	legendSwatchSize,
 	migrateLabelsConfig,
 	resolveLegendHidden,
+	resolveLegendTextFont,
 	resolveTitleFont,
 } from "./labelsConfig"
 
@@ -618,5 +621,70 @@ describe("resolveTitleFont legend slot", () => {
 		expect(f.size).toBe(resolveTitleFont(base, "primary", { size: 20 }).size)
 		expect(f.italic).toBe(false)
 		expect(f.underline).toBe(true)
+	})
+})
+
+/** Legend ENTRY labels (not the section titles above them): the shared body
+ *  text font, then the theme's "Legend text" slot, then the per-visual
+ *  override the Legend panel's "Legend text" subsection writes. */
+describe("resolveLegendTextFont", () => {
+	const base = {
+		...DEFAULT_BASE_FONT_CONFIG,
+		text: {
+			...DEFAULT_BASE_FONT_CONFIG.text,
+			family: "Shared, sans-serif",
+			size: 12,
+			color: "#111111",
+			weight: 400,
+			legendFamily: "Theme, sans-serif",
+			legendSize: 10,
+			legendColor: "#0000aa",
+			legendWeight: 600,
+		},
+	}
+
+	it("falls back to the theme's legend slot when there is no override", () => {
+		const f = resolveLegendTextFont(base)
+		expect(f.family).toBe("Theme, sans-serif")
+		expect(f.color).toBe("#0000aa")
+		expect(f.weight).toBe(600)
+		// Size is configured in points and returned in px.
+		expect(f.size).toBe(ptToPx(10))
+	})
+
+	it("the per-visual override wins field by field", () => {
+		const f = resolveLegendTextFont(base, {
+			family: "Visual, serif",
+			size: 18,
+			underline: true,
+		})
+		expect(f.family).toBe("Visual, serif")
+		expect(f.size).toBe(ptToPx(18))
+		expect(f.underline).toBe(true)
+		// Untouched fields still come from the theme's legend slot.
+		expect(f.color).toBe("#0000aa")
+		expect(f.weight).toBe(600)
+	})
+
+	it("an empty override is the same as none", () => {
+		expect(resolveLegendTextFont(base, {})).toEqual(resolveLegendTextFont(base))
+	})
+
+	it("with no legend slot on the theme it follows the shared text font", () => {
+		const shared = {
+			...base,
+			text: {
+				...base.text,
+				legendFamily: undefined,
+				legendSize: undefined,
+				legendColor: undefined,
+				legendWeight: undefined,
+			},
+		}
+		const f = resolveLegendTextFont(shared)
+		expect(f.family).toBe("Shared, sans-serif")
+		expect(f.color).toBe("#111111")
+		expect(f.weight).toBe(400)
+		expect(f.size).toBe(ptToPx(12))
 	})
 })

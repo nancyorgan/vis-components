@@ -1,7 +1,6 @@
 import { useAtomValue } from "jotai"
 import {
 	DEFAULT_DATA_LABELS_CONFIG,
-	effectiveLabelPoints,
 	type DataLabelsConfig,
 	type HueConfig,
 } from "../../lib/channelConfig"
@@ -15,6 +14,14 @@ import {
 	type LabelBox,
 } from "../../lib/dataLabelsLayout"
 import {
+	populationOverrides,
+	populationTemplate,
+	populationsAtTag,
+	resolveLabelSelection,
+	type LabelPopulation,
+	type LabelSelection,
+} from "../../lib/dataLabelsSelection"
+import {
 	buildLabelSegments,
 	labelHueScaleParts,
 	resolveLabelFill,
@@ -22,6 +29,7 @@ import {
 } from "../../lib/dataLabelsStyle"
 import { ptToPx } from "../../lib/fontUnit"
 import { effectiveType } from "../../lib/fieldType"
+import { dataLabelsOnPanel } from "../../lib/facetScope"
 import {
 	renderMultilineTspans,
 	wrapByCharCount,
@@ -51,6 +59,7 @@ import {
 } from "../../store/renderConfigs"
 import { rowHighlight, useLegendHighlight } from "../../store/useLegendHighlight"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useFacetPanelKey } from "./plotCanvas/FacetPanelContext"
 
 /** A pre-computed label position. Renderers like BarPlot / AreaPlot
  * compute these from their aggregation slices so labels sit at slice
@@ -90,6 +99,15 @@ export type DataLabelAnchor = {
 	/** Pre-resolved font size in PX, same reason as `fill` (depth-driven
 	 * sizing lives in the layout renderer's style resolvers). */
 	fontSize?: number
+	/** Multi-field labels: the row the layer composes the label from — one
+	 * synthetic record per slice carrying the category, the group (hue /
+	 * pattern / …) values, the measure, and every selected label field
+	 * aggregated over the slice's rows (numeric → sum, else first non-empty;
+	 * the same rule as `textValue`). When present and the Value mapping is
+	 * multi-field, the layer arranges it with the templates and ignores
+	 * `label`; without it the anchor stays pre-formatted. Bars set it; area
+	 * / pie / tile anchors don't yet. */
+	row?: Record<string, unknown>
 }
 
 type Props = {
@@ -160,71 +178,65 @@ const alignmentAnchor = (
 ): "start" | "middle" | "end" =>
 	alignment === "left" ? "start" : alignment === "right" ? "end" : "middle"
 
-/** Positioning inputs the `labelPoints` pass needs beyond the layout box:
+/** Positioning inputs the population pass needs beyond the layout box:
  *  the RAW anchor coords (pre-offset), so an endpoint's offset override can
  *  REPLACE the layer-wide offset instead of stacking on top of it. */
 type EndpointAwareBox = LabelBox & {
 	label: string
+	key: string
 	anchorX: number
 	anchorY: number
 	alignment?: "left" | "center" | "right"
 }
 
-/** Apply the effective `labelPoints` selection: drop unselected boxes and —
- *  in `"first-last"` mode only — restyle the survivors from their endpoint's
+/** Apply the label selection: expand each anchor box into one label per
+ *  population it carries (`populationsAtTag`), dropping anchors that carry
+ *  none. In a split selection the series-end populations restyle from their
  *  override block (offset replaces, alignment replaces; unset fields inherit
- *  the layer values the box was built with). The single `"first"` / `"last"`
- *  modes keep the layer-wide styling untouched: only one label population
- *  renders there, so the base controls ARE its controls (and the panel only
- *  splits into First/Last pairs when both ends are shown). Classification
- *  runs on the already-offset positions — the base offset is uniform, so
- *  the per-series ranking is unaffected.
+ *  the layer values the box was built with) and recompose their text through
+ *  `recompose` (multi-field templates — a no-op for single-field labels and
+ *  for anchors that arrive pre-formatted). The all-labels population keeps
+ *  the box as built: its text was composed with the all-labels template up
+ *  front. Classification runs on the already-offset positions — the base
+ *  offset is uniform, so the per-series ranking is unaffected.
  *
- *  `recomposeText` (row-based path only) rebuilds a box's text when the
- *  endpoint block carries its own template — anchor-based labels arrive
- *  pre-formatted from their renderer and never had templates, so they skip
- *  it by construction. */
-const applyLabelPoints = <T extends EndpointAwareBox>(
+ *  Fast path: an all-labels-only selection returns the boxes untouched. */
+const expandLabelPopulations = <T extends EndpointAwareBox>(
 	boxes: T[],
 	cfg: DataLabelsConfig,
+	sel: LabelSelection,
 	axis: "x" | "y",
-	recomposeText?: (box: T, template: string) => T
+	recompose?: (box: T, pop: LabelPopulation) => T | null
 ): T[] => {
-	const mode = effectiveLabelPoints(cfg)
-	if (mode === "all") return boxes
+	if (sel.present.all && !sel.present.first && !sel.present.last) return boxes
 	const tags = selectEndpointsPerSeries(boxes, axis)
 	const out: T[] = []
 	for (const b of boxes) {
-		const tag = tags.get(b)
-		if (!tag) continue
-		// A single-anchor series tags "both". It counts as the FIRST label
-		// only when the user asked for firsts alone; in "last" and
-		// "first-last" modes it takes the last-label styling — direct
-		// labeling is the dominant intent for those modes.
-		const end: "first" | "last" =
-			tag === "both" ? (mode === "first" ? "first" : "last") : tag
-		if (mode === "first" && end !== "first") continue
-		if (mode === "last" && end !== "last") continue
-		if (mode !== "first-last") {
-			out.push(b)
-			continue
+		for (const pop of populationsAtTag(sel, tags.get(b))) {
+			if (pop === "all") {
+				out.push(b)
+				continue
+			}
+			const ov = populationOverrides(cfg, sel, pop)
+			// An unset endpoint offset inherits the box's EFFECTIVE offset (its
+			// already-applied cx/cy), not `cfg.xOffset` — a matching position rule
+			// may have replaced the base offset for this label, and inheriting must
+			// not clobber that. The key gains a population suffix so an anchor's
+			// several labels reconcile independently.
+			let next: T = {
+				...b,
+				key: `${b.key}:${pop}`,
+				cx: ov.xOffset != null ? b.anchorX + ov.xOffset : b.cx,
+				cy: ov.yOffset != null ? b.anchorY + ov.yOffset : b.cy,
+				alignment: ov.alignment ?? undefined,
+			}
+			if (recompose) {
+				const r = recompose(next, pop)
+				if (!r) continue
+				next = r
+			}
+			out.push(next)
 		}
-		const ov = (end === "first" ? cfg.firstLabel : cfg.lastLabel) ?? {}
-		// An unset endpoint offset inherits the box's EFFECTIVE offset (its
-		// already-applied cx/cy), not `cfg.xOffset` — a matching position rule
-		// may have replaced the base offset for this label, and inheriting must
-		// not clobber that.
-		let next: T = {
-			...b,
-			cx: ov.xOffset != null ? b.anchorX + ov.xOffset : b.cx,
-			cy: ov.yOffset != null ? b.anchorY + ov.yOffset : b.cy,
-			alignment: ov.alignment ?? undefined,
-		}
-		// Empty string means "inherit", not "blank label" — hiding an
-		// endpoint is `labelPoints`' job.
-		const template = ov.labelTemplate ?? ""
-		if (template !== "" && recomposeText) next = recomposeText(next, template)
-		out.push(next)
 	}
 	return out
 }
@@ -453,6 +465,7 @@ export const DataLabelsLayer = ({
 	// spans many rows), so aggregating renderers hand the fade down on each
 	// anchor's `opacityMul`.
 	const legendHighlight = useLegendHighlight()
+	const facetPanelKey = useFacetPanelKey()
 	// When wrapping is on, the overlap pass (`nudgeOverlaps`) must reserve
 	// each label's WRAPPED footprint — narrower and taller than the raw
 	// single-line string — or it would collide-check a phantom one-line box.
@@ -538,6 +551,10 @@ export const DataLabelsLayer = ({
 		(encodings.value.multiField === true &&
 			(encodings.value.fields?.length ?? 0) > 0)
 	if (!positionMapped || !valueMapped) return null
+	// Facet scope: "Label all facets" unchecked ⇒ only the ticked panels
+	// draw labels. Outside PlotCanvas (no panel key) and on an unfaceted
+	// chart's single panel the scope never applies.
+	if (!dataLabelsOnPanel(cfg, facetPanelKey)) return null
 	// Anchors without per-series endpoints: maps (regions) and layout-placed
 	// labels (tree nodes). The `labelPoints` selection is skipped for them —
 	// a stored "last per series" from a previous chart must not silently
@@ -545,6 +562,155 @@ export const DataLabelsLayer = ({
 	// direction, since their anchors scatter over a plane rather than
 	// lining up along a series.
 	const seriesless = positionGate === "geo" || positionGate === "layout"
+	const multi = encodings.value.multiField === true
+	// Which label populations exist (all / first / last) and whether the
+	// endpoint override blocks apply. Seriesless anchors read every field as
+	// "all": a stored "last per series" from a previous chart must not
+	// silently drop every label but one.
+	const selection = resolveLabelSelection(cfg, encodings.value, { seriesless })
+	// Primary axis for endpoint-per-series ranking. When the chart's
+	// categorical axis is x (vertical bars/areas, scatter), the "last" anchor
+	// is the rightmost (largest cx). When it's y (horizontal bars/areas), use
+	// cy. xType/yType arrive from the caller via props so we don't need to
+	// know the chart mode here.
+	const lastAxis: "x" | "y" =
+		yType === "categorical" || yType === "ordinal" ? "y" : "x"
+	const candidateRows = rowFilter ? rows.filter(rowFilter) : rows
+
+	// Per-variable label color (multi-field): one color slot per shown field
+	// (`cfg.fieldColors[field]`), mirroring the mark color slots. A slot with
+	// no field → its single color; a slot varying by a field → a hue scale
+	// over that field. Prebuild each slot's scale once (few slots), then look
+	// up per row. No slot for a field → that segment uses the label's base fill.
+	const fieldColorScales = new Map<
+		string,
+		{ scale: HueScale; field: string; type: FieldType }
+	>()
+	for (const [fieldName, slotCfg] of Object.entries(cfg.fieldColors ?? {})) {
+		const varyField = slotCfg?.field
+		if (!varyField) continue
+		const t: FieldType = dataset
+			? effectiveType(dataset, varyField, overrides)
+			: "categorical"
+		const values = (dataset?.rows ?? candidateRows).map((r) => r[varyField])
+		fieldColorScales.set(fieldName, {
+			scale: makeHueScale(
+				values,
+				t,
+				slotCfg.hue,
+				slotCfg.palette && slotCfg.palette.length > 0
+					? slotCfg.palette
+					: undefined
+			),
+			field: varyField,
+			type: t,
+		})
+	}
+	// One label segment's fill. Literal (fieldless) segments and unconfigured
+	// fields use the label's base fill; a configured slot uses its scale (vary
+	// by a field) or its single color.
+	const resolveSegmentFill = (
+		field: string | null,
+		row: Record<string, unknown>,
+		baseFill: string
+	): string => {
+		if (!field) return baseFill
+		const slotCfg = cfg.fieldColors?.[field]
+		if (!slotCfg) return baseFill
+		if (slotCfg.field) {
+			const s = fieldColorScales.get(field)
+			const c = s ? applyHueScale(s.scale, row[s.field], s.type) : null
+			return c ?? slotCfg.singleColor ?? baseFill
+		}
+		return slotCfg.singleColor ?? baseFill
+	}
+	/** Compose one label from a row: single-field formats the one field;
+	 *  multi-field arranges the selected fields per `template`. Returns the
+	 *  joined text plus per-variable colored segments — only carried when
+	 *  some segment's fill differs from the base, so single-color labels keep
+	 *  the plain (wrappable) render path. Null when nothing renders. */
+	const composeLabel = (
+		row: Record<string, unknown>,
+		template: string,
+		baseFill: string
+	): { label: string; segments?: { text: string; fill: string }[] } | null => {
+		const segs = buildLabelSegments(
+			row,
+			encodings.value,
+			multi ? { ...cfg, labelTemplate: template } : cfg,
+			xField ?? yField
+		)
+		if (!segs) return null
+		const label = segs.map((s) => s.text).join("")
+		const coloredSegs = segs.map((s) => ({
+			text: s.text,
+			fill: resolveSegmentFill(s.field, row, baseFill),
+		}))
+		const segments = coloredSegs.some((s) => s.fill !== baseFill)
+			? coloredSegs
+			: undefined
+		return { label, segments }
+	}
+	// Boxes are built with the all-labels template; the population pass
+	// recomposes series-end labels with theirs.
+	const allTemplate = populationTemplate(cfg, selection, "all")
+
+	type RenderBox = EndpointAwareBox & {
+		fill: string
+		opacityMul?: number
+		/** Per-variable colored pieces (multi-field mode with field colors).
+		 *  When set, `renderLabels` draws one `<tspan>` per segment with its
+		 *  own fill instead of the single-color `label`. */
+		segments?: { text: string; fill: string }[]
+		/** The row the label composes from (multi-field): the dataset row on
+		 *  the row path, the slice's synthetic row on bar anchors. Absent for
+		 *  pre-formatted anchors, which keep their text through the pass. */
+		row?: Record<string, unknown>
+	}
+	// Series-end label recomposition (multi-field): rebuild the box's text —
+	// and its per-variable colored segments — from the population's template.
+	// Runs BEFORE `nudgeOverlaps` so collision boxes measure the final (often
+	// wider) text. Boxes without a row (single-field, pre-formatted anchors)
+	// pass through unchanged.
+	const recomposeForPopulation = (
+		box: RenderBox,
+		pop: LabelPopulation
+	): RenderBox | null => {
+		if (!multi || !box.row) return box
+		const composed = composeLabel(
+			box.row,
+			populationTemplate(cfg, selection, pop),
+			box.fill
+		)
+		if (!composed) return null
+		return wrapBoxForLayout({
+			...box,
+			label: composed.label,
+			text: composed.label,
+			segments: composed.segments,
+		})
+	}
+	// Selection, then overlap. A multi-field box whose all-labels text is
+	// empty still enters the pass — its series-end populations may compose
+	// something — and empties are dropped here.
+	const selectAndSpread = (boxes: RenderBox[]): RenderBox[] => {
+		const filtered = expandLabelPopulations(
+			boxes.map(wrapBoxForLayout),
+			cfg,
+			selection,
+			lastAxis,
+			recomposeForPopulation
+		).filter((b) => b.label !== "")
+		// Overlap pass: seriesless anchors (maps, layout-placed labels) spread
+		// colliding labels in ANY direction (a downward-only pile looks
+		// lopsided around a ring or with leader lines); series charts keep the
+		// vertical-only nudge, which preserves the reading order of stacked
+		// end-of-line labels.
+		if (!cfg.avoidOverlaps) return filtered
+		return seriesless
+			? spreadOverlaps2D(filtered, { prefer: preferOpenSpace })
+			: nudgeOverlaps(filtered)
+	}
 
 	// --- Anchor-based path (bars/areas). --------------------------------
 	if (anchors) {
@@ -570,16 +736,15 @@ export const DataLabelsLayer = ({
 					.map((a) => Number(a.sizeValue))
 					.filter((n) => Number.isFinite(n))
 			: []
-		// Build per-anchor render boxes once so the post-passes (`labelPoints`
-		// + `avoidOverlaps`) operate on a stable shape and the downstream
+		// Build per-anchor render boxes once so the post-passes (selection +
+		// `avoidOverlaps`) operate on a stable shape and the downstream
 		// `<text>` map can read its already-resolved fields.
-		type RenderBox = EndpointAwareBox & {
-			key: string
-			fill: string
-			opacityMul?: number
-		}
 		const renderBoxes: RenderBox[] = anchors.flatMap((a, i) => {
-			if (a.label === null) return []
+			// Pre-formatted anchors (single-field, or renderers that don't carry
+			// a row) skip when their renderer produced no text. Multi-field
+			// anchors with a row compose below instead.
+			const composes = multi && a.row !== undefined
+			if (!composes && a.label === null) return []
 			const hueColor =
 				hueScale && a.hueValue !== undefined
 					? (applyHueScale(hueScale, a.hueValue, hueFieldType) ?? null)
@@ -593,6 +758,12 @@ export const DataLabelsLayer = ({
 				(sizeField
 					? resolveLabelSize(a.sizeValue, cfg, sizeValues)
 					: ptToPx(cfg.fontSize))
+			// Multi-field: arrange the slice's row with the all-labels template
+			// (empty when that population has nothing to say here — the
+			// selection pass may still add a series-end label).
+			const composed =
+				composes && a.row ? composeLabel(a.row, allTemplate, fill) : null
+			const label = composes ? (composed?.label ?? "") : (a.label ?? "")
 			// A matching position rule REPLACES the base offsets for this label
 			// (same first-match-wins walk — and same backing value — as the
 			// text-color rules).
@@ -603,43 +774,25 @@ export const DataLabelsLayer = ({
 					cy: a.cy + (posRule?.yOffset ?? cfg.yOffset),
 					anchorX: a.cx,
 					anchorY: a.cy,
-					text: a.label,
+					text: label,
 					fontSize,
 					// Anchor-based renderers (bars/areas) carry the hue value as
 					// the de-facto "series" identity — every slice in the same
 					// stack/layer shares the same hue. Falls back to "" when
-					// no hue is mapped, which `keepLastPerSeries` interprets as
+					// no hue is mapped, which the endpoint ranking interprets as
 					// "all anchors are one big group" (single-survivor fallback).
 					series: a.hueValue === undefined ? "" : String(a.hueValue ?? ""),
 					index: i,
 					key: a.key,
 					fill,
-					label: a.label,
+					label,
+					segments: composed?.segments,
+					row: composes ? a.row : undefined,
 					opacityMul: a.opacityMul,
 				},
 			]
 		})
-		// Pick the primary axis for endpoint-per-series ranking. When the
-		// chart's categorical axis is x (vertical bars/areas, scatter), the
-		// "last" anchor is the rightmost (largest cx). When it's y
-		// (horizontal bars/areas), use cy. xType/yType arrive from the
-		// caller via props so we don't need to know the chart mode here.
-		const lastAxis: "x" | "y" =
-			yType === "categorical" || yType === "ordinal" ? "y" : "x"
-		const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
-		const filtered = seriesless
-			? layoutBoxes
-			: applyLabelPoints(layoutBoxes, cfg, lastAxis)
-		// Overlap pass: seriesless anchors (maps, layout-placed labels) spread
-		// colliding labels in ANY direction (a downward-only pile looks
-		// lopsided around a ring or with leader lines); series charts keep the
-		// vertical-only nudge, which preserves the reading order of stacked
-		// end-of-line labels.
-		const finalBoxes = cfg.avoidOverlaps
-			? seriesless
-				? spreadOverlaps2D(filtered, { prefer: preferOpenSpace })
-				: nudgeOverlaps(filtered)
-			: filtered
+		const finalBoxes = selectAndSpread(renderBoxes)
 		const labels = renderLabels(finalBoxes, cfg, textBgColor)
 		// Maps only: leader lines from each region's centroid (the raw anchor)
 		// to its label's box edge, drawn UNDER the labels. A label still on its
@@ -708,8 +861,6 @@ export const DataLabelsLayer = ({
 		return null
 	}
 
-	const candidateRows = rowFilter ? rows.filter(rowFilter) : rows
-
 	let hueScale: HueScale | null = null
 	if (hueField && hueConfig) {
 		// Build the hue domain from the FULL dataset, not the (possibly
@@ -734,69 +885,11 @@ export const DataLabelsLayer = ({
 				.filter((n) => Number.isFinite(n))
 		: []
 
-	type RenderBox = EndpointAwareBox & {
-		key: string
-		fill: string
-		opacityMul?: number
-		/** Per-variable colored pieces (multi-field mode with field colors).
-		 *  When set, `renderLabels` draws one `<tspan>` per segment with its
-		 *  own fill instead of the single-color `label`. */
-		segments?: { text: string; fill: string }[]
-	}
-
-	// Per-variable label color (multi-field): one color slot per shown field
-	// (`cfg.fieldColors[field]`), mirroring the mark color slots. A slot with
-	// no field → its single color; a slot varying by a field → a hue scale
-	// over that field. Prebuild each slot's scale once (few slots), then look
-	// up per row. No slot for a field → that segment uses the label's base fill.
-	const fieldColorScales = new Map<
-		string,
-		{ scale: HueScale; field: string; type: FieldType }
-	>()
-	for (const [fieldName, slotCfg] of Object.entries(cfg.fieldColors ?? {})) {
-		const varyField = slotCfg?.field
-		if (!varyField) continue
-		const t: FieldType = dataset
-			? effectiveType(dataset, varyField, overrides)
-			: "categorical"
-		const values = (dataset?.rows ?? candidateRows).map((r) => r[varyField])
-		fieldColorScales.set(fieldName, {
-			scale: makeHueScale(
-				values,
-				t,
-				slotCfg.hue,
-				slotCfg.palette && slotCfg.palette.length > 0
-					? slotCfg.palette
-					: undefined
-			),
-			field: varyField,
-			type: t,
-		})
-	}
-	// One label segment's fill. Literal (fieldless) segments and unconfigured
-	// fields use the label's base fill; a configured slot uses its scale (vary
-	// by a field) or its single color.
-	const resolveSegmentFill = (
-		field: string | null,
-		row: Record<string, unknown>,
-		baseFill: string
-	): string => {
-		if (!field) return baseFill
-		const slotCfg = cfg.fieldColors?.[field]
-		if (!slotCfg) return baseFill
-		if (slotCfg.field) {
-			const s = fieldColorScales.get(field)
-			const c = s ? applyHueScale(s.scale, row[s.field], s.type) : null
-			return c ?? slotCfg.singleColor ?? baseFill
-		}
-		return slotCfg.singleColor ?? baseFill
-	}
-
 	// Build the row-based render boxes through the same shape the anchor path
-	// uses, so the same `keepLastPerSeries` / `nudgeOverlaps` passes apply.
-	// Series identity for line charts comes from the connection field —
-	// each connection group is one polyline, so its "last label" sits at
-	// the rightmost data point of that line.
+	// uses, so the same selection / `nudgeOverlaps` passes apply. Series
+	// identity for line charts comes from the connection field — each
+	// connection group is one polyline, so its "last label" sits at the
+	// rightmost data point of that line.
 	const renderBoxes: RenderBox[] = candidateRows.flatMap((row, i) => {
 		const cx =
 			xField && xScale && xType
@@ -809,18 +902,10 @@ export const DataLabelsLayer = ({
 		if (cx === null && cy === null) return []
 		const anchorX = cx ?? 0
 		const anchorY = cy ?? 0
-		// Text: single-field formats one field's value; multi-field composes
-		// several from the template. `buildLabelSegments` returns the ordered
-		// pieces (value segments carry their field name; literals don't) so we
-		// can color each variable independently. Fall back to the position
-		// field when no value field is mapped.
-		const segs = buildLabelSegments(row, encodings.value, cfg, xField ?? yField)
-		if (!segs) return []
-		const label = segs.map((s) => s.text).join("")
 		// Numeric backing for the label-level text-color rules: the value field
 		// (or, in multi-field mode, the first selected field) — rules compare
 		// against a number, not the composed string.
-		const primaryField = encodings.value.multiField
+		const primaryField = multi
 			? (encodings.value.fields?.[0] ?? null)
 			: (valueField ?? xField ?? yField)
 		const labelValue = primaryField ? row[primaryField] : undefined
@@ -834,16 +919,12 @@ export const DataLabelsLayer = ({
 			hueColor,
 			labelValue
 		)
-		// Resolve each segment's color; only carry `segments` when at least one
-		// differs from the base fill, so single-color labels keep the plain
-		// (wrappable) render path.
-		const coloredSegs = segs.map((s) => ({
-			text: s.text,
-			fill: resolveSegmentFill(s.field, row, fill),
-		}))
-		const segments = coloredSegs.some((s) => s.fill !== fill)
-			? coloredSegs
-			: undefined
+		// Text: single-field formats one field's value (nothing to show →
+		// no box); multi-field composes the all-labels arrangement, keeping
+		// an empty box so a series-end population can still label the point.
+		const composed = composeLabel(row, allTemplate, fill)
+		if (!composed && !multi) return []
+		const label = composed?.label ?? ""
 		const fontSize = sizeField
 			? resolveLabelSize(row[sizeField], cfg, sizeValues)
 			: ptToPx(cfg.fontSize)
@@ -870,49 +951,13 @@ export const DataLabelsLayer = ({
 				key: `row-${i}`,
 				fill,
 				label,
-				segments,
+				segments: composed?.segments,
+				row,
 				// `rowHighlight` guards on the hovered field being a column of
 				// the row, so an unrelated legend hover leaves labels alone.
 				opacityMul: rowHighlight(legendHighlight, row).opacityMul,
 			},
 		]
 	})
-	const lastAxis: "x" | "y" =
-		yType === "categorical" || yType === "ordinal" ? "y" : "x"
-	const layoutBoxes = renderBoxes.map(wrapBoxForLayout)
-	// Endpoint template override (multi-field mode): rebuild the box's text —
-	// and its per-variable colored segments — from the endpoint's template.
-	// `index` is the box's position in `candidateRows`, so the source row is
-	// still at hand. Runs BEFORE `nudgeOverlaps` so collision boxes measure
-	// the final (often wider) text.
-	const recomposeForEndpoint = (box: RenderBox, template: string): RenderBox => {
-		if (encodings.value.multiField !== true) return box
-		const row = candidateRows[box.index]
-		if (!row) return box
-		const segs = buildLabelSegments(
-			row,
-			encodings.value,
-			{ ...cfg, labelTemplate: template },
-			xField ?? yField
-		)
-		if (!segs) return box
-		const label = segs.map((s) => s.text).join("")
-		const coloredSegs = segs.map((s) => ({
-			text: s.text,
-			fill: resolveSegmentFill(s.field, row, box.fill),
-		}))
-		const segments = coloredSegs.some((s) => s.fill !== box.fill)
-			? coloredSegs
-			: undefined
-		return wrapBoxForLayout({ ...box, label, text: label, segments })
-	}
-	const filtered = applyLabelPoints(
-		layoutBoxes,
-		cfg,
-		lastAxis,
-		recomposeForEndpoint
-	)
-	const finalBoxes = cfg.avoidOverlaps ? nudgeOverlaps(filtered) : filtered
-
-	return renderLabels(finalBoxes, cfg, textBgColor)
+	return renderLabels(selectAndSpread(renderBoxes), cfg, textBgColor)
 }

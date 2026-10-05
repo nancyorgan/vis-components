@@ -28,6 +28,7 @@ import {
 	type LegendConfig,
 } from "../../lib/labelsConfig"
 import { CUSTOM_GLYPH_BASE } from "../../lib/customGlyphs"
+import { ptToPx } from "../../lib/fontUnit"
 import { applyHueScale, makeHueScale } from "../../lib/scales"
 import { emptyEncodings, type Dataset } from "../../lib/types"
 import {
@@ -2593,5 +2594,98 @@ describe("Legend — filled-radar polygon pattern swatches", () => {
 		const ids = patternIds(container)
 		expect(ids.length).toBe(1)
 		expect(ids[0]).toContain("vc-pat-4-")
+	})
+})
+
+/** "Legend text" (Legend panel): a per-visual font + alignment for the
+ *  labels beside each swatch. Sparse — unset fields follow the theme's
+ *  legend-text defaults, so the un-customized legend must look exactly as
+ *  it always has. */
+describe("Legend — Legend text", () => {
+	const DATASET_ID = "ds-legend-text"
+
+	const buildDataset = (): Dataset =>
+		buildDatasetFixture({
+			id: DATASET_ID,
+			name: "tiers",
+			filename: "tiers.csv",
+			fields: [{ name: "Tier", inferredType: "categorical" }],
+			rows: [{ Tier: "A" }, { Tier: "Bbbbbbbbbb" }],
+		})
+
+	const mountLegend = (legend: Partial<LegendConfig> = {}) => {
+		const store = installInMemoryLocalStorage()
+		const encodings = { ...emptyEncodings(), hue: { field: "Tier" } }
+		const legendCfg: LegendConfig = { ...DEFAULT_LEGEND_CONFIG, ...legend }
+		/* eslint-disable @th/use-wrapped-json-functions */
+		store.set(
+			"vis-components:datasets",
+			JSON.stringify({ [DATASET_ID]: buildDataset() })
+		)
+		store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
+		store.set("vis-components:previewVersionId", JSON.stringify(null))
+		store.set("vis-components:currentEncodings", JSON.stringify(encodings))
+		store.set("vis-components:currentLegend", JSON.stringify(legendCfg))
+		/* eslint-enable @th/use-wrapped-json-functions */
+		const init = (snap: TestStore) => {
+			snap.set(loadedDatasetsAtom, { [DATASET_ID]: buildDataset() })
+			snap.set(currentDatasetIdAtom, DATASET_ID)
+			snap.set(previewVersionIdAtom, null)
+			snap.set(currentEncodingsAtom, encodings)
+			snap.set(currentChannelConfigsAtom, EMPTY_CHANNEL_CONFIGS)
+			snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+			snap.set(currentLegendConfigAtom, legendCfg)
+			snap.set(currentFieldOverridesAtom, {})
+			snap.set(currentFieldLevelOrdersAtom, {})
+		}
+		return render(
+			<TestProvider initializeState={init}>
+				<Legend />
+			</TestProvider>
+		)
+	}
+
+	/** The section's entry block — the div the section applies the text font
+	 *  and alignment to, right after the (here absent) title. */
+	const entries = (container: HTMLElement): HTMLElement =>
+		container.querySelector<HTMLElement>(
+			"[data-legend-root] .vc-legend-entries"
+		) as HTMLElement
+
+	it("leaves the entry block unaligned by default", () => {
+		const { container } = mountLegend()
+		const block = entries(container)
+		expect(block.style.textAlign).toBe("")
+		expect(block.className).not.toContain("vc-legend-text-align")
+	})
+
+	it("an alignment sets text-align and the label-grow class", () => {
+		const { container } = mountLegend({ textAlign: "right" })
+		const block = entries(container)
+		expect(block.style.textAlign).toBe("right")
+		expect(block.className).toContain("vc-legend-text-align")
+	})
+
+	it("the textFont override drives entry size / weight / style", () => {
+		const { container } = mountLegend({
+			textFont: { size: 18, weight: 700, italic: true, underline: true },
+		})
+		const block = entries(container)
+		// Configured in points, rendered in px.
+		expect(block.style.fontSize).toBe(`${ptToPx(18)}px`)
+		expect(block.style.fontWeight).toBe("700")
+		expect(block.style.fontStyle).toBe("italic")
+		expect(block.style.textDecoration).toBe("underline")
+	})
+
+	it("family and color land on the legend body, which the entries inherit", () => {
+		const { container } = mountLegend({
+			textFont: { family: "Georgia, 'Times New Roman', serif", color: "#ff0000" },
+		})
+		const body = container.querySelector<HTMLElement>(
+			"[data-legend-root] > div"
+		) as HTMLElement
+		expect(body.style.fontFamily).toContain("Georgia")
+		expect(d3Rgb(body.style.color).formatHex()).toBe("#ff0000")
 	})
 })

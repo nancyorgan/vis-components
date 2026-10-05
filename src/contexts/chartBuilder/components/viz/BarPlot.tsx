@@ -163,9 +163,18 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 		dataLabels?.x?.field ||
 		dataLabels?.y?.field ||
 		dataLabels?.value?.field ||
+		(dataLabels?.value?.multiField === true &&
+			(dataLabels.value.fields?.length ?? 0) > 0) ||
 		dataLabels?.hue?.field ||
 		dataLabels?.size?.field
 	)
+	// Multi-field labels: every selected field is aggregated per slice into
+	// the anchor's synthetic `row`, which the layer arranges with the
+	// templates. Single-field anchors stay pre-formatted (no row).
+	const dataLabelsRowFields =
+		dataLabels?.value?.multiField === true
+			? (dataLabels.value.fields ?? [])
+			: undefined
 	const dataset = useCurrentDatasetView()
 	const aestheticScales = useAestheticScales()
 	const legendHighlight = useLegendHighlight()
@@ -835,6 +844,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 							formatSpec: dataLabelsFormatSpec,
 							position: dataLabelsCfg?.barLabelPosition ?? "center",
 							sizeField: dataLabels?.size?.field ?? null,
+							labelFields: dataLabelsRowFields,
 							encodings,
 							rows: rowsForChart,
 							valueFieldMapped,
@@ -1451,7 +1461,14 @@ const buildSliceLabels = ({
  * render no label. The `slice.value` (bar measure) fallback only applies
  * when no distinct value field is mapped. Hue inheritance pulls from the
  * slice's groupValues so stacked bars colored by hue get same-color
- * labels. */
+ * labels.
+ *
+ * Multi-field labels (`labelFields` set): each anchor additionally carries
+ * a synthetic `row` — the slice's category, its group values (hue /
+ * pattern / … under their field names), the measure under the length
+ * field, and every label field aggregated over the slice's rows (numeric
+ * → sum, else first non-empty — the `textValue` rule). The label layer
+ * arranges that row with the user's templates. */
 export const buildBarAnchors = ({
 	aggregation,
 	categoryScale,
@@ -1462,6 +1479,7 @@ export const buildBarAnchors = ({
 	position,
 	outsideOffsetPx,
 	sizeField,
+	labelFields,
 	encodings,
 	rows,
 	valueFieldMapped,
@@ -1485,6 +1503,9 @@ export const buildBarAnchors = ({
 	 *  across rows matching the slice's category + groupValues, then
 	 *  surface the sum as the anchor's `sizeValue`. */
 	sizeField?: string | null
+	/** Multi-field Data Labels: the selected fields, each aggregated per
+	 *  slice into the anchor's `row` (see above). Unset → no row. */
+	labelFields?: readonly string[]
 	encodings?: Encodings
 	rows?: ReadonlyArray<Record<string, unknown>>
 	/** True when the label value field is mapped and distinct from the
@@ -1501,6 +1522,70 @@ export const buildBarAnchors = ({
 	const maxLeaves = countMaxLeaves(aggregation.stacks, modes)
 	const pos = position ?? "center"
 	const pad = outsideOffsetPx ?? 4
+	// Rows belonging to each slice (same category + matching mapped
+	// group-channel values), indexed once so per-slice field aggregation
+	// (the size field, the multi-field label fields) doesn't rescan the
+	// dataset per slice. Only built when something needs it.
+	const needsSliceRows =
+		encodings && rows && (sizeField || (labelFields?.length ?? 0) > 0)
+	const sliceRowsIndex = new Map<string, Record<string, unknown>[]>()
+	if (needsSliceRows && encodings && rows) {
+		const groupFields = Object.keys(
+			aggregation.stacks[0]?.slices[0]?.groupValues ?? {}
+		)
+			.map((ch) => ({
+				channel: ch,
+				field: encodings[ch as keyof typeof encodings]?.field ?? null,
+			}))
+			.filter((g): g is { channel: string; field: string } => g.field !== null)
+		for (const row of rows) {
+			const cat = String(row[aggregation.categoryField])
+			const gv = groupFields
+				.map((g) => `${g.channel}=${String(row[g.field])}`)
+				.join("|")
+			const k = `${cat}\u0000${gv}`
+			const bucket = sliceRowsIndex.get(k)
+			if (bucket) bucket.push(row)
+			else sliceRowsIndex.set(k, [row])
+		}
+	}
+	const sliceRowsFor = (
+		category: string,
+		groupValues: Record<string, string | undefined>
+	): Record<string, unknown>[] => {
+		if (!encodings) return []
+		const gv = Object.entries(groupValues)
+			.filter(([ch]) => encodings[ch as keyof typeof encodings]?.field)
+			.map(([ch, v]) => `${ch}=${v}`)
+			.join("|")
+		return sliceRowsIndex.get(`${category}\u0000${gv}`) ?? []
+	}
+	// Aggregate one field over a slice's rows: numeric sum (blank cells stay
+	// missing — `parseNumericCell`, not `Number`, so `""` isn't 0), else the
+	// first non-empty value. Mirrors the aggregator's `textValue` rule.
+	const aggregateField = (
+		sliceRows: readonly Record<string, unknown>[],
+		field: string
+	): number | string | undefined => {
+		let sum = 0
+		let foundNumeric = false
+		let firstNonNumeric: string | undefined
+		for (const row of sliceRows) {
+			const raw = row[field]
+			const n = parseNumericCell(raw)
+			if (n !== null) {
+				sum += n
+				foundNumeric = true
+			} else if (
+				firstNonNumeric === undefined &&
+				raw != null &&
+				String(raw).trim() !== ""
+			) {
+				firstNonNumeric = String(raw)
+			}
+		}
+		return foundNumeric ? sum : firstNonNumeric
+	}
 	for (const stack of aggregation.stacks) {
 		const catPos = categoryScale(stack.category) ?? 0
 		const catSize = categoryScale.bandwidth()
@@ -1545,46 +1630,32 @@ export const buildBarAnchors = ({
 			// slice (same category + matching mapped group-channel values).
 			// Numeric sum mirrors `textValue`'s aggregation rule; non-
 			// numeric size fields fall back to the first matching row.
-			let sizeValue: number | string | undefined
-			if (sizeField && encodings && rows) {
-				let sum = 0
-				let foundNumeric = false
-				let firstNonNumeric: string | undefined
-				for (const row of rows) {
-					if (
-						String(row[aggregation.categoryField]) !== stack.category
-					)
-						continue
-					let matches = true
-					for (const [channel, value] of Object.entries(slice.groupValues)) {
-						const fieldName =
-							encodings[channel as keyof typeof encodings]?.field
-						if (!fieldName) continue
-						if (String(row[fieldName]) !== value) {
-							matches = false
-							break
-						}
-					}
-					if (!matches) continue
-					const raw = row[sizeField]
-					// parseNumericCell, not Number: blanks are missing data and
-					// must not enter the size sum as 0 (`Number("") === 0`).
-					const n = parseNumericCell(raw)
-					if (n !== null) {
-						sum += n
-						foundNumeric = true
-					} else if (
-						firstNonNumeric === undefined &&
-						raw != null &&
-						String(raw).trim() !== ""
-					) {
-						firstNonNumeric = String(raw)
-					}
+			const sliceRows = needsSliceRows
+				? sliceRowsFor(stack.category, slice.groupValues)
+				: []
+			const sizeValue =
+				sizeField && needsSliceRows
+					? aggregateField(sliceRows, sizeField)
+					: undefined
+			// Multi-field labels: the slice as one record. Aggregated label
+			// fields first, then the slice's own identity on top — category,
+			// group values under their field names, the measure under the
+			// length field (so a mirrored bar labels its magnitude, and a
+			// histogram's count-per-bin reads through the binned field).
+			let row: Record<string, unknown> | undefined
+			if (labelFields && labelFields.length > 0 && encodings) {
+				row = {}
+				for (const f of labelFields) row[f] = aggregateField(sliceRows, f)
+				row[aggregation.categoryField] = stack.category
+				for (const [channel, value] of Object.entries(slice.groupValues)) {
+					const fieldName = encodings[channel as keyof typeof encodings]?.field
+					if (fieldName) row[fieldName] = value
 				}
-				sizeValue = foundNumeric ? sum : firstNonNumeric
+				if (aggregation.lengthField) row[aggregation.lengthField] = measureValue
 			}
 
 			anchors.push({
+				row,
 				cx: aggregation.isVertical ? catCenter : measurePoint,
 				cy: aggregation.isVertical ? measurePoint : catCenter,
 				key: `${stack.category}|${slice.key}`,

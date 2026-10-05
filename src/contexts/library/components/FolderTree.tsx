@@ -37,6 +37,27 @@ import { UNFILED_FOLDER_ID } from "../lib/folderSubtree"
 const newFolderId = () =>
 	`fl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
+/** Every row in the tree — "All visualizations", folders, visuals — so the
+ *  three stay the same height.
+ *
+ *  24px rows, the SAME on touch and mouse. Touch used to get a taller row,
+ *  but the tree is a long list and on a phone it's the whole screen, so the
+ *  extra height cost more than it bought. A row is full-width, so the tap
+ *  target is ~330x24 on a phone: narrow vertically, but hard to miss.
+ *
+ *  Nothing in the row may exceed the 20px text line, or IT sets the height
+ *  instead of this padding — that's what kept the earlier passes at 40px
+ *  and then 32px. Keep ROW_CHEVRON_BOX and the row's action buttons
+ *  (`p-0.5` around a 10px glyph = 18px) at or under 20px. */
+const TREE_ROW =
+	"flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none"
+
+/** The expand chevron's box — and, as a bare span, the stand-in on rows that
+ *  have none, so a chevron-less row isn't shorter than its neighbours. 20px
+ *  matches the text line exactly: the widest it can be without driving the
+ *  row height (see TREE_ROW). */
+const ROW_CHEVRON_BOX = "h-5 w-4 flex-shrink-0"
+
 /** Shared drop-target behavior for folder rows and the "All visualizations"
  *  row. Uses the enter/leave depth-counter pattern from DataDrawer so
  *  hovering child elements doesn't flicker the highlight. `resolve` maps a
@@ -172,7 +193,7 @@ const VisualTreeItem = ({
 	<Link
 		to="/editor/$visualId"
 		params={{ visualId: visual.id }}
-		className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
+		className={`${TREE_ROW} ${
 			isSelected
 				? "vc-nav-active"
 				: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -192,7 +213,7 @@ const VisualTreeItem = ({
 		onDragLeave={() => dropHandlers.onDragLeave()}
 		onDrop={(e) => dropHandlers.onDrop(e as unknown as React.DragEvent)}
 	>
-		<span className="w-4 flex-shrink-0" />
+		<span className={ROW_CHEVRON_BOX} />
 		<span className="min-w-0 flex-1 truncate">{visual.name}</span>
 	</Link>
 )
@@ -268,7 +289,7 @@ const FolderRowMenu = ({
 			<button
 				type="button"
 				onClick={() => (open ? close() : onOpenChange(true))}
-				className="rounded p-0.5 text-stone-400 hover:text-stone-700 pointer-coarse:p-1.5 dark:hover:text-white"
+				className="rounded p-0.5 text-stone-400 hover:text-stone-700 dark:hover:text-white"
 				title="More actions"
 				aria-label={`Actions for ${folder.name}`}
 				aria-haspopup="menu"
@@ -463,7 +484,7 @@ const FolderTreeItem = ({
 	return (
 		<div>
 			<div
-				className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
+				className={`group ${TREE_ROW} ${
 					isSelected
 						? "vc-nav-active"
 						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -502,7 +523,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onToggleExpanded(folder.id)
 						}}
-						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-vc-brand-text pointer-coarse:h-7 dark:text-th-electric-indigo-300"
+						className={`flex ${ROW_CHEVRON_BOX} items-center justify-center text-vc-brand-text dark:text-th-electric-indigo-300`}
 					>
 						<svg
 							viewBox="0 0 8 8"
@@ -514,7 +535,7 @@ const FolderTreeItem = ({
 						</svg>
 					</button>
 				) : (
-					<span className="w-4 flex-shrink-0" />
+					<span className={ROW_CHEVRON_BOX} />
 				)}
 				{editing ? (
 					<input
@@ -559,7 +580,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onCreateChild(folder.id)
 						}}
-						className="rounded p-0.5 text-stone-400 hover:text-stone-700 pointer-coarse:p-1.5 dark:hover:text-white"
+						className="rounded p-0.5 text-stone-400 hover:text-stone-700 dark:hover:text-white"
 						title="New subfolder"
 					>
 						<svg viewBox="0 0 12 12" width={10} height={10}>
@@ -578,7 +599,7 @@ const FolderTreeItem = ({
 								e.stopPropagation()
 								onDelete(folder.id)
 							}}
-							className="rounded p-0.5 text-stone-400 hover:text-red-600 pointer-coarse:p-1.5 dark:hover:text-red-400"
+							className="rounded p-0.5 text-stone-400 hover:text-red-600 dark:hover:text-red-400"
 							title="Delete folder"
 						>
 							<svg viewBox="0 0 12 12" width={10} height={10}>
@@ -971,7 +992,7 @@ export const FolderTree = ({
 			>
 				{/* "All visualizations" root item */}
 				<div
-					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
+					className={`${TREE_ROW} ${
 						selectedFolderId === null
 							? "vc-nav-active"
 							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -987,7 +1008,7 @@ export const FolderTree = ({
 					role="button"
 					tabIndex={0}
 				>
-					<span className="w-4 flex-shrink-0" />
+					<span className={ROW_CHEVRON_BOX} />
 					<span className="flex-1">All visualizations</span>
 				</div>
 				{rootFolders.map((folder) => (

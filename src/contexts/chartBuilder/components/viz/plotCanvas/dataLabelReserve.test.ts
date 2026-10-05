@@ -218,3 +218,52 @@ describe("computeDataLabelOverflow", () => {
 		expect(endpoint.right).toBe(plain.right + 25)
 	})
 })
+
+describe("computeDataLabelOverflow — per-variable label populations", () => {
+	const multiEncodings = () => ({
+		...emptyDataLabelsEncodings(),
+		value: { field: null, multiField: true, fields: ["val", "name"] },
+	})
+	it("reserves for a last-label population's own offset and template", () => {
+		// `val` on every label, `name` (the long one) on the last only, pushed
+		// right by its override: the reserve must cover the LONG name at +25,
+		// not just the short value labels at the base offset.
+		const plain = computeDataLabelOverflow({
+			...base,
+			dataset: view(ROWS),
+			encodings: scatterEncodings(),
+			dataLabelsEncodings: multiEncodings(),
+			dataLabels: labelsOn({
+				alignment: "left",
+				xOffset: 0,
+				fieldLabelPoints: { name: "last" },
+			}),
+		})
+		const pushed = computeDataLabelOverflow({
+			...base,
+			dataset: view(ROWS),
+			encodings: scatterEncodings(),
+			dataLabelsEncodings: multiEncodings(),
+			dataLabels: labelsOn({
+				alignment: "left",
+				xOffset: 0,
+				fieldLabelPoints: { name: "last" },
+				lastLabel: { xOffset: 25 },
+			}),
+		})
+		expect(pushed.right).toBe(plain.right + 25)
+		// The long name only renders on the last population; a value-only
+		// layer reserves strictly less.
+		const valueOnly = computeDataLabelOverflow({
+			...base,
+			dataset: view(ROWS),
+			encodings: scatterEncodings(),
+			dataLabelsEncodings: {
+				...emptyDataLabelsEncodings(),
+				value: { field: null, multiField: true, fields: ["val"] },
+			},
+			dataLabels: labelsOn({ alignment: "left", xOffset: 0 }),
+		})
+		expect(plain.right).toBeGreaterThan(valueOnly.right)
+	})
+})

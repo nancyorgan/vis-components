@@ -154,67 +154,6 @@ export const AxisValueInput = ({
 	)
 }
 
-/** Per-annotation facet targeting. "Apply to all facets" checked ⇒
- *  `facetKeys` is null = every panel (the default). Unchecking reveals a
- *  checkbox per facet so the user picks exactly which panels the annotation
- *  is drawn on. Only rendered when the chart is actually faceted. */
-export const FacetScopeControl = ({
-	facetKeys,
-	facetOptions,
-	onChange,
-}: {
-	facetKeys: string[] | null | undefined
-	facetOptions: readonly string[]
-	onChange: (next: string[] | null) => void
-}) => {
-	const applyAll = facetKeys == null
-	return (
-		/* px-2: this control renders as a bare sibling of the boxed subsections
-		 * inside each editor's purple panel, so pad it to their content edge. */
-		<div className="flex flex-col gap-1.5 px-2">
-			<label className="flex items-center gap-2 text-sm">
-				<input
-					type="checkbox"
-					checked={applyAll}
-					onChange={(e) =>
-						onChange(e.target.checked ? null : [...facetOptions])
-					}
-					className="h-3 w-3"
-				/>
-				<span className="text-stone-600 dark:text-stone-400">
-					Apply to all facets
-				</span>
-			</label>
-			{!applyAll && (
-				<div className="flex flex-col gap-1 pl-5">
-					{facetOptions.map((key) => (
-						<label key={key} className="flex items-center gap-2 text-sm">
-							<input
-								type="checkbox"
-								checked={facetKeys?.includes(key) ?? false}
-								onChange={(e) => {
-									const set = new Set(facetKeys ?? [])
-									if (e.target.checked) set.add(key)
-									else set.delete(key)
-									// Keep stored keys in panel order for stable display.
-									onChange(facetOptions.filter((k) => set.has(k)))
-								}}
-								className="h-3 w-3"
-							/>
-							<span
-								className="min-w-0 truncate text-stone-700 dark:text-stone-300"
-								title={key}
-							>
-								{key}
-							</span>
-						</label>
-					))}
-				</div>
-			)}
-		</div>
-	)
-}
-
 /** Behind-chart / in-front layer toggle — identical across all three
  *  annotation kinds, so it lives here rather than being copy-pasted into
  *  each editor. */

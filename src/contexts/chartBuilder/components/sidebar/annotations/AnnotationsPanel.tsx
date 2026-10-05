@@ -22,7 +22,10 @@ import {
 	type FacetConfig,
 } from "../../../lib/channelConfig"
 import { effectiveType } from "../../../lib/fieldType"
-import { resolveFacetPanels } from "../../../lib/resolveFacetPanels"
+import {
+	facetPanelOptions,
+	resolveFacetPanels,
+} from "../../../lib/resolveFacetPanels"
 import {
 	currentAnnotationsAtom,
 	currentChannelConfigsAtom,
@@ -35,7 +38,7 @@ import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { nameSuggestion, type AxisInfo } from "./axisInfo"
 import { CircleEditor } from "./CircleEditor"
-import { FacetScopeControl } from "./controls"
+import { FacetScopeControl } from "../FacetScopeControl"
 import { LineSegmentEditor } from "./LineSegmentEditor"
 import { RectangleEditor } from "./RectangleEditor"
 import { TextAnnotationEditor } from "./TextAnnotationEditor"
@@ -79,7 +82,10 @@ export const AnnotationsPanel = () => {
 		[dataset, encodings, levelOrders, overrides, facetCfg],
 	)
 	const isFaceted = facetPanels.mode !== "single"
-	const facetOptions = facetPanels.values
+	const facetOptions = useMemo(
+		() => facetPanelOptions(facetPanels),
+		[facetPanels],
+	)
 	// Mode gating is trait-driven (never compare mode ids here): the mode def
 	// declares which encoding channel backs each value axis and whether value
 	// coords are polar. Radar maps onto the same x→angle, y→r convention the
@@ -297,6 +303,8 @@ export const AnnotationsPanel = () => {
 					facetScope={
 						isFaceted ? (
 							<FacetScopeControl
+								label="Apply to all facets"
+								className="px-2"
 								facetKeys={rect.facetKeys}
 								facetOptions={facetOptions}
 								onChange={(next) => updateRect(rect.id, { facetKeys: next })}
@@ -322,6 +330,8 @@ export const AnnotationsPanel = () => {
 					facetScope={
 						isFaceted ? (
 							<FacetScopeControl
+								label="Apply to all facets"
+								className="px-2"
 								facetKeys={circle.facetKeys}
 								facetOptions={facetOptions}
 								onChange={(next) => updateCircle(circle.id, { facetKeys: next })}
@@ -346,6 +356,8 @@ export const AnnotationsPanel = () => {
 					facetScope={
 						isFaceted ? (
 							<FacetScopeControl
+								label="Apply to all facets"
+								className="px-2"
 								facetKeys={line.facetKeys}
 								facetOptions={facetOptions}
 								onChange={(next) => updateLine(line.id, { facetKeys: next })}
@@ -370,6 +382,8 @@ export const AnnotationsPanel = () => {
 					facetScope={
 						isFaceted ? (
 							<FacetScopeControl
+								label="Apply to all facets"
+								className="px-2"
 								facetKeys={t.facetKeys}
 								facetOptions={facetOptions}
 								onChange={(next) => updateText(t.id, { facetKeys: next })}
