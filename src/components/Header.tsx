@@ -108,12 +108,12 @@ const MENU_TITLE = "font-medium text-stone-900 dark:text-white"
 const MENU_HINT = "text-sm text-stone-600 dark:text-stone-400"
 
 /**
- * Always a dropdown. Its first entries start a new visualization — in the
- * editor with a dataset bound, the user chooses between carrying that
- * dataset forward and starting from zero; elsewhere there is one plain
- * "start" entry — and the last entry imports a JSON file: one visual's
- * "Download JSON" or a whole library bundle (the same format), merged
- * additively exactly as Settings → Sharing does.
+ * A split button. The main segment starts a new visualization on a clean
+ * slate (no dataset); the arrow segment opens a menu: in the editor with a
+ * dataset bound, carrying that dataset forward or (same as the main
+ * segment) starting clean, and everywhere, importing a JSON file — one visual's "Download JSON" or a
+ * whole library bundle (the same format), merged additively exactly as
+ * Settings → Sharing does.
  */
 const NewVisualizationButton = () => {
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
@@ -160,10 +160,6 @@ const NewVisualizationButton = () => {
 		}
 	}, [open])
 
-	const onStartFresh = async () => {
-		setOpen(false)
-		await navigate({ to: "/editor/new" })
-	}
 	const onKeepDataset = async () => {
 		if (!currentDataset) return
 		setOpen(false)
@@ -176,6 +172,8 @@ const NewVisualizationButton = () => {
 	}
 	const onFreshDataset = async () => {
 		setOpen(false)
+		// Clear the bound dataset explicitly: /editor/new alone resets the
+		// draft, but a dataset the editor still holds would be re-bound.
 		clearDataset()
 		await navigate({ to: "/editor/new" })
 	}
@@ -190,21 +188,32 @@ const NewVisualizationButton = () => {
 
 	return (
 		<div className="relative" ref={wrapperRef}>
-			<Button
-				compact
-				className="whitespace-nowrap"
-				onClick={() => setOpen((v) => !v)}
-				aria-haspopup="menu"
-				aria-expanded={open}
-			>
-				<NewVisualizationLabel /> ▾
-			</Button>
+			<div className="flex">
+				<Button
+					compact
+					className="rounded-r-none whitespace-nowrap"
+					onClick={onFreshDataset}
+					title="Start a new visualization"
+				>
+					<NewVisualizationLabel />
+				</Button>
+				<Button
+					compact
+					className="rounded-l-none border-l border-l-white/30 px-2"
+					onClick={() => setOpen((v) => !v)}
+					aria-label="More ways to start"
+					aria-haspopup="menu"
+					aria-expanded={open}
+				>
+					▾
+				</Button>
+			</div>
 			{open && (
 				<div
 					className="absolute top-full right-0 z-20 mt-1 w-64 overflow-hidden rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800"
 					role="menu"
 				>
-					{currentDataset ? (
+					{currentDataset && (
 						<>
 							<button
 								type="button"
@@ -212,40 +221,32 @@ const NewVisualizationButton = () => {
 								onClick={onKeepDataset}
 								className={MENU_ITEM}
 							>
-								<div className={MENU_TITLE}>With this data set</div>
+								<div className={MENU_TITLE}>New with this data set</div>
 								<div className={MENU_HINT}>
 									Keep {currentDataset.name}; clear encodings and styling.
 								</div>
 							</button>
+							{/* Same as the main segment — listed here so the editor's
+							 *  menu spells out both ways to start side by side. */}
 							<button
 								type="button"
 								role="menuitem"
 								onClick={onFreshDataset}
 								className={MENU_ITEM_DIVIDED}
 							>
-								<div className={MENU_TITLE}>With a new data set</div>
+								<div className={MENU_TITLE}>New with a new data set</div>
 								<div className={MENU_HINT}>
 									Totally clean slate — upload a CSV to start.
 								</div>
 							</button>
 						</>
-					) : (
-						<button
-							type="button"
-							role="menuitem"
-							onClick={onStartFresh}
-							className={MENU_ITEM}
-						>
-							<div className={MENU_TITLE}>Start from scratch</div>
-							<div className={MENU_HINT}>Upload a CSV to start.</div>
-						</button>
 					)}
 					<button
 						type="button"
 						role="menuitem"
 						onClick={onPickImport}
 						disabled={importing}
-						className={MENU_ITEM_DIVIDED}
+						className={currentDataset ? MENU_ITEM_DIVIDED : MENU_ITEM}
 					>
 						<div className={MENU_TITLE}>
 							{importing ? "Importing…" : "Import from JSON…"}

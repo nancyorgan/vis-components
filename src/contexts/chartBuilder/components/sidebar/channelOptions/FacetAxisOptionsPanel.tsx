@@ -6,6 +6,7 @@ import {
 	type FacetConfig,
 } from "../../../lib/channelConfig"
 import { useChartModeDef } from "../../../store/useChartModeDef"
+import { axisRangeIsContinuous } from "../../../lib/axisFields"
 import { facetAxisMapping } from "../../../lib/facetAxisMapping"
 import { effectiveType } from "../../../lib/fieldType"
 import {
@@ -205,8 +206,17 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 		: null
 	const axisType =
 		axisField && dataset ? effectiveType(dataset, axisField, overrides) : null
-	const axisIsContinuous =
-		axisType === "quantitative" || axisType === "temporal"
+	// Range editors gate on the field the axis ACTUALLY reads (Length for
+	// a bar's measure axis, which `axisField` above — the raw position
+	// encoding — misses). The sizing toggles below keep the raw gate: the
+	// solver's unit-range weights read the position field, so "size by
+	// unit range" would be inert on a measure axis.
+	const axisIsContinuous = axisRangeIsContinuous(
+		mode,
+		axisChannel === "x" ? "x" : "y",
+		encodings,
+		dataset ? (f: string) => effectiveType(dataset, f, overrides) : null,
+	)
 
 	const share = migrateShareValue(cfg[spec.shareKey], cfg.shareAxes)
 	const size = migrateProportionalSizing(

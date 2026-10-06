@@ -13,6 +13,7 @@ import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { useChartModeDef } from "../../../store/useChartModeDef"
+import { axisRangeIsContinuous } from "../../../lib/axisFields"
 import { facetAxisMapping } from "../../../lib/facetAxisMapping"
 import { effectiveType } from "../../../lib/fieldType"
 import { resolveFacetGrid } from "../../../lib/resolveFacetGrid"
@@ -230,16 +231,24 @@ export const FacetOptionsPanel = () => {
 
 	// Range editors only render for continuous (quantitative / temporal)
 	// axes — categorical / ordinal axes have no meaningful min/max bounds.
+	// The gate keys off the field the axis ACTUALLY reads (Length for a
+	// vertical bar's y axis; always continuous on the measure axis), not
+	// the raw position encoding `rowAxisIsContinuous` reads above — that
+	// one still governs the sizing toggles, whose unit-range weights read
+	// the position field in the solver and would be inert on a measure axis.
+	const getType = dataset
+		? (field: string) => effectiveType(dataset, field, overrides)
+		: null
 	const yRangeApplicable =
 		fieldName != null &&
 		values.length > 0 &&
 		overridableAxes.includes("y") &&
-		(rowAxisIsContinuous ?? false)
+		axisRangeIsContinuous(mode, "y", encodings, getType)
 	const xRangeApplicable =
 		fieldName != null &&
 		values.length > 0 &&
 		overridableAxes.includes("x") &&
-		(colAxisIsContinuous ?? false)
+		axisRangeIsContinuous(mode, "x", encodings, getType)
 	// What range-editor kind to show on each axis based on share mode:
 	//   shareY = none      → per-panel ranges (one min/max per facet value)
 	//   shareY = perGroup  → per-row ranges (one per layout row)

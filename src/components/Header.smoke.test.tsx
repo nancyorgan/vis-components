@@ -39,10 +39,12 @@ vi.mock("@tanstack/react-router", () => ({
 	}) => select({ location: { pathname } }),
 }))
 
-/** The "New visualization" header button is a dropdown everywhere: start
- *  entries first (keep / fresh data set in the editor, a single "start" entry
- *  elsewhere), then "Import from JSON…" — the Settings → Sharing bundle
- *  import, reachable without leaving the page. */
+/** The "New visualization" header button is a split button: the main
+ *  segment starts a clean-slate visualization, the arrow opens a menu of the
+ *  alternatives — "New with this data set" and "New with a new data set"
+ *  in the editor, and everywhere
+ *  "Import from JSON…", the Settings → Sharing bundle import reachable
+ *  without leaving the page. */
 
 afterEach(() => {
 	cleanup()
@@ -61,6 +63,14 @@ const vis = (id: string): Visual =>
 		createdAt: 1,
 		updatedAt: 1,
 	}) as unknown as Visual
+
+const dataset = () =>
+	buildDataset({
+		id: "ds-1",
+		name: "Q3 Sales",
+		fields: [{ name: "region", inferredType: "categorical" }],
+		rows: [{ region: "East" }],
+	})
 
 const bundleFile = (body: unknown): File =>
 	new File([stringifyJsonDangerous(body as never)], "library-bundle.json", {
@@ -86,7 +96,7 @@ const mount = (initializeState?: (store: TestStore) => void) => {
 }
 
 const openMenu = () => {
-	fireEvent.click(screen.getByRole("button", { name: /New/ }))
+	fireEvent.click(screen.getByRole("button", { name: "More ways to start" }))
 	return screen.getByRole("menu")
 }
 
@@ -97,38 +107,59 @@ const pickFile = (container: HTMLElement, file: File) => {
 }
 
 describe("Header → New visualization dropdown", () => {
-	it("on the library page offers a start entry and the import entry", () => {
+	it("starts a clean-slate visualization from the main segment", () => {
+		pathname = "/editor/dv-1"
+		const { store } = mount((s) => {
+			s.set(loadedDatasetsAtom, { "ds-1": dataset() })
+			s.set(currentDatasetIdAtom, "ds-1")
+		})
+		fireEvent.click(screen.getByRole("button", { name: /New/ }))
+		expect(screen.queryByRole("menu")).toBeNull()
+		expect(navigate).toHaveBeenCalledWith({ to: "/editor/new" })
+		expect(store.get(currentDatasetIdAtom)).toBeNull()
+	})
+
+	it("on the library page the arrow menu offers only the import entry", () => {
 		mount()
 		openMenu()
 		const items = screen.getAllByRole("menuitem").map((el) => el.textContent)
-		expect(items[0]).toContain("Start from scratch")
-		expect(items[1]).toContain("Import from JSON…")
-		expect(items).toHaveLength(2)
-
-		fireEvent.click(screen.getByText("Start from scratch"))
-		expect(navigate).toHaveBeenCalledWith({ to: "/editor/new" })
+		expect(items).toHaveLength(1)
+		expect(items[0]).toContain("Import from JSON…")
+		expect(navigate).not.toHaveBeenCalled()
 	})
 
-	it("in the editor with a data set bound keeps the keep/fresh choice ahead of import", () => {
+	it("in the editor with a data set bound the menu leads with keeping it", () => {
 		pathname = "/editor/dv-1"
 		mount((s) => {
-			s.set(loadedDatasetsAtom, {
-				"ds-1": buildDataset({
-					id: "ds-1",
-					name: "Q3 Sales",
-					fields: [{ name: "region", inferredType: "categorical" }],
-					rows: [{ region: "East" }],
-				}),
-			})
+			s.set(loadedDatasetsAtom, { "ds-1": dataset() })
 			s.set(currentDatasetIdAtom, "ds-1")
 		})
 		openMenu()
 		const items = screen.getAllByRole("menuitem").map((el) => el.textContent)
-		expect(items[0]).toContain("With this data set")
-		expect(items[0]).toContain("Q3 Sales")
-		expect(items[1]).toContain("With a new data set")
-		expect(items[2]).toContain("Import from JSON…")
 		expect(items).toHaveLength(3)
+		expect(items[0]).toContain("New with this data set")
+		expect(items[0]).toContain("Q3 Sales")
+		expect(items[1]).toContain("New with a new data set")
+		expect(items[2]).toContain("Import from JSON…")
+
+		fireEvent.click(screen.getByText("New with this data set"))
+		expect(navigate).toHaveBeenCalledWith({
+			to: "/editor/new",
+			search: { datasetId: "ds-1" },
+		})
+	})
+
+	it("the menu's clean-slate entry matches the main segment", () => {
+		pathname = "/editor/dv-1"
+		const { store } = mount((s) => {
+			s.set(loadedDatasetsAtom, { "ds-1": dataset() })
+			s.set(currentDatasetIdAtom, "ds-1")
+		})
+		openMenu()
+		fireEvent.click(screen.getByText("New with a new data set"))
+		expect(screen.queryByRole("menu")).toBeNull()
+		expect(navigate).toHaveBeenCalledWith({ to: "/editor/new" })
+		expect(store.get(currentDatasetIdAtom)).toBeNull()
 	})
 
 	it("imports a picked bundle into the live library and reports it", async () => {

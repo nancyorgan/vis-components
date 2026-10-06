@@ -1,5 +1,6 @@
 import type { ChartMode } from "./chartMode"
-import type { Encodings } from "./types"
+import type { ChartModeDef } from "./chartModes/types"
+import type { Encodings, FieldType } from "./types"
 
 /** Resolve which encoding field drives each axis for a given chart mode.
  *  `null` means that axis doesn't exist in this mode (e.g. y in pies-x)
@@ -50,3 +51,25 @@ export const hasXAxis = (mode: ChartMode): boolean =>
  *  single-pie, and radar modes. */
 export const hasYAxis = (mode: ChartMode): boolean =>
 	mode !== "pies-x" && mode !== "pies" && mode !== "radar"
+
+/** Whether a facet panel's axis-RANGE editor (overall / per-row / per-panel
+ *  min-max) applies to `axis`. True when the field the axis actually reads
+ *  (per `axisFieldsFor` — Length for a vertical bar's y, not Y position) is
+ *  quantitative / temporal, or when the axis is the mode's MEASURE axis,
+ *  which is continuous by construction even with no field behind it (a
+ *  histogram's count axis). Mirrors `yIsMeasureAxis` / `xIsMeasureAxis` in
+ *  the panel render loop, so the sidebar never hides an editor whose bounds
+ *  the renderer would honor. Reading the raw `encodings.y` field instead
+ *  hid the editor on every length-encoded bar chart. */
+export const axisRangeIsContinuous = (
+	mode: Pick<ChartModeDef, "id" | "canvas">,
+	axis: "x" | "y",
+	encodings: Encodings,
+	getType: ((field: string) => FieldType) | null,
+): boolean => {
+	if (mode.canvas.measureAxis === axis) return true
+	const fields = axisFieldsFor(mode.id as ChartMode, encodings)
+	const field = axis === "x" ? fields.xField : fields.yField
+	const type = field && getType ? getType(field) : null
+	return type === "quantitative" || type === "temporal"
+}

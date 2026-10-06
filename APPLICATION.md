@@ -1353,6 +1353,17 @@ Visible when `facet` is mapped. Controls:
   panels with a larger axis range get proportionally more space. E.g.
   panel A's y is 0–10 and panel B's y is 0–20 → B is twice as tall.
   Same not-shared, one-row/column-only constraints.
+- **Axis range** — min / max inputs for the continuous axis, shaped by
+  its share mode: one overall range under "All panels", one per row /
+  column under "Per row" / "Per column", one per panel under "None"
+  (wrap mode keys these by facet value). Blank = auto-fit; a typed
+  bound is kept exact (no `.nice()` rounding). The editor gates on the
+  field the axis ACTUALLY reads — a vertical bar's y axis is its
+  Length measure, so the editor shows even though Y position is empty,
+  and a bar/area measure axis always counts as continuous (a
+  histogram's count axis has no field at all). The size-by-unit toggle
+  keeps the raw position-encoding gate, since its weights read that
+  field.
 - **Gap X / Gap Y** — moves panels further apart or closer together.
   Panels expand or contract to keep total layout area constant, until
   panels are touching; after that, they slide over each other into
@@ -3004,19 +3015,21 @@ in the library:
   Jotai atoms, so the library updates without a reload and, in server
   mode, the diffing HTTP adapter transmits only the imported items.
 
-The same import is also one click from anywhere: the header's **New
-visualization** button is always a dropdown, and its last entry,
-**Import from JSON…**, opens the file picker for a bundle or a single
-visual's Download JSON (the same format) and runs exactly the merge
-above (`store/importBundle.ts`, shared with the Sharing page). The
-entries ahead of it start a new visualization — in the editor with a
-data set bound, *With this data set* / *With a new data set*;
-elsewhere a single *Start from scratch*. Because the header has no
-status line, the result is acknowledged in a modal ("Import complete"
-/ "Import failed"), which away from the library also offers **Open
-library** to go look at what landed. The Settings pages hide the
-button (configuring the tool, not making charts), so there the
-Sharing page's own control remains the way in.
+The same import is also reachable from anywhere: the header's **New
+visualization** control is a split button. Its main segment starts a
+new visualization on a clean slate (no data set bound); its arrow
+segment opens a menu — in the editor with a data set bound, **New
+with this data set** (keeps the data, clears encodings and styling)
+and **New with a new data set** (the main segment's action, spelled
+out beside its alternative), and everywhere **Import from JSON…**, which
+opens the file picker for a bundle or a single visual's Download JSON
+(the same format) and runs exactly the merge above
+(`store/importBundle.ts`, shared with the Sharing page). Because the
+header has no status line, the result is acknowledged in a modal
+("Import complete" / "Import failed"), which away from the library
+also offers **Open library** to go look at what landed. The Settings
+pages hide the control (configuring the tool, not making charts), so
+there the Sharing page's own button remains the way in.
 
 The same file also ships **bundled examples**: renamed to
 `src/seed/examples.json` (the public seed) or the gitignored
