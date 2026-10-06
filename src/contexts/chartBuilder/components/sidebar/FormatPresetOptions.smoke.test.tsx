@@ -31,6 +31,7 @@ describe("FormatPresetOptions", () => {
 		expect(values).toContain(",.0f")
 		expect(opts.find((o) => o.value === ",.0f")?.text).toMatch(/Whole numbers/)
 		expect(values).toContain(LITERAL_FORMAT)
+		expect(values).toContain(`${LITERAL_FORMAT}%`)
 		expect(values).toContain(FORMAT_PRESET_AUTO)
 		for (const v of [",", ".2f", ".0%", ".1%", ".2e", "$,.0f", "$,.2f", ".3s"]) {
 			expect(values).toContain(v)

@@ -63,23 +63,21 @@ export const AngleLegend = ({
 	const breaks = resolveLegendBreaks(values, type, channelCfg, 3, 3)
 	if (breaks.length === 0) return null
 	const dataExt = legendDataExtent(values, type)
-	const customFmt = buildLegendFormatter(merged.format)
+	// Default angle label is the resolved degrees, not the raw input
+	// value — degrees are what the swatch actually shows so the label
+	// reading "0°", "45°", "90°" matches the rotation visually. Users
+	// who want raw-value labels can pick a custom d3-format and the
+	// raw break value is fed through it instead; Before / After text
+	// wraps whichever applies.
+	const fmt = buildLegendFormatter(merged.format, (s) =>
+		Number.isFinite(s) ? `${(((scale(s) ?? 0) * 180) / Math.PI).toFixed(0)}°` : ""
+	)
 	const lineLen = 10
 	const angleSvgFor = (s: number) => {
 		const rad = scale(s) ?? 0
 		const dx = Math.cos(rad) * lineLen
 		const dy = Math.sin(rad) * lineLen
-		// Default angle label is the resolved degrees, not the raw input
-		// value — degrees are what the swatch actually shows so the label
-		// reading "0°", "45°", "90°" matches the rotation visually. Users
-		// who want raw-value labels can pick a custom d3-format and the
-		// raw break value is fed through it instead.
-		const rawLabel = customFmt
-			? customFmt(s)
-			: Number.isFinite(s)
-				? `${((rad * 180) / Math.PI).toFixed(0)}°`
-				: ""
-		return { dx, dy, rawLabel }
+		return { dx, dy, rawLabel: fmt(s) }
 	}
 	if (orientation === "horizontal") {
 		return (

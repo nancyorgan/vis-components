@@ -1813,6 +1813,17 @@ export type DataLabelsConfig = {
 	 * text and a last-label text. Resolution lives in
 	 * `lib/dataLabelsSelection.ts`. */
 	fieldLabelPoints?: Record<string, LabelPointsMode>
+	/** What the series ends ("first" / "last") run over on BAR charts.
+	 *  Layer-wide (shared by every variable's "Which labels" choice):
+	 *   - "series" (default): the first / last category along the axis,
+	 *     per series — a series being the bar's stack + group channel
+	 *     values, excluding any channel mapped to the category (x) field.
+	 *   - "group": the first / last bar INSIDE each group (sub-band order).
+	 *   - "stack": the base-most / outermost layer of each stack.
+	 *  Other chart families ignore it (their anchors carry no explicit
+	 *  series / rank, so the layer ranks by hue series and position as
+	 *  before). A scope whose channel isn't mapped falls back to "series". */
+	labelPointsScope?: LabelPointsScope
 	/** Per-endpoint overrides, consulted ONLY when two or more label
 	 * populations coexist (`LabelSelection.split`): single-field
 	 * `"first-last"`, or multi-field selections whose per-field modes name
@@ -1932,6 +1943,7 @@ export type DataLabelsConfig = {
 }
 
 export type LabelPointsMode = "all" | "first" | "last" | "first-last"
+export type LabelPointsScope = "series" | "group" | "stack"
 
 /** Overrides one endpoint's labels can apply on top of the layer-wide
  *  Data Labels config. Deliberately limited to template + offset +
@@ -2020,6 +2032,7 @@ export const DEFAULT_DATA_LABELS_CONFIG: DataLabelsConfig = {
 	// legacy `onlyLastLabel: true` on saves from before the selector.
 	// `effectiveLabelPoints` owns the fallback chain instead.
 	fieldLabelPoints: {},
+	labelPointsScope: "series",
 	firstLabel: {},
 	lastLabel: {},
 	avoidOverlaps: false,

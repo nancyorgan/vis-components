@@ -1,9 +1,7 @@
 import { ticks as d3Ticks } from "d3-array"
-import { format as d3Format } from "d3-format"
 import { scaleLinear } from "d3-scale"
-import { timeFormat } from "d3-time-format"
 
-import { LITERAL_FORMAT } from "./formatTick"
+import { buildTickFormatter } from "./formatTick"
 import {
 	DEFAULT_LEGEND_CHANNEL_CONFIG,
 	type LegendChannelConfig,
@@ -58,36 +56,29 @@ export const legendDataExtent = (
 	return Number.isFinite(lo) && Number.isFinite(hi) ? [lo, hi] : null
 }
 
-/** Build the formatter for legend break labels. Spec-aware just like the
- * axis tick formatter: a `%<letter>` directive selects d3-time-format,
- * everything else selects d3-format. Returns null when the spec is empty
- * (caller falls back to `defaultLegendFormatter`). */
-export const buildLegendFormatter = (
+/** Build the formatter for legend break labels — the axis tick formatter
+ * over the same stored string (Literal / d3-time-format / d3-format spec,
+ * plus any Before / After text). Without `fallback` it returns null for a
+ * fully-Auto spec (caller falls back to `defaultLegendFormatter`); WITH the
+ * caller's default formatter it always returns a function, so an
+ * affixes-only format like `{}%` wraps the default break labels. */
+export function buildLegendFormatter(
 	spec: string,
-): ((v: number) => string) | null => {
-	const trimmed = spec.trim()
-	if (trimmed === "") return null
-	// Literal preset (shared format dropdown): print the break verbatim.
-	if (trimmed.toLowerCase() === LITERAL_FORMAT) return (v) => String(v)
-	const isTime = /%[a-zA-Z]/.test(trimmed)
-	if (isTime) {
-		try {
-			const f = timeFormat(trimmed)
-			return (v) => {
-				const d = new Date(v)
-				if (Number.isNaN(d.getTime())) return String(v)
-				return f(d)
-			}
-		} catch {
-			return (v) => String(v)
-		}
-	}
-	try {
-		const f = d3Format(trimmed)
-		return (v) => f(v)
-	} catch {
-		return (v) => String(v)
-	}
+	fallback: (v: number) => string,
+): (v: number) => string
+export function buildLegendFormatter(
+	spec: string,
+	fallback?: (v: number) => string,
+): ((v: number) => string) | null
+export function buildLegendFormatter(
+	spec: string,
+	fallback?: (v: number) => string,
+): ((v: number) => string) | null {
+	return buildTickFormatter(
+		{ customFormat: spec },
+		"quantitative",
+		fallback ? (v) => fallback(v as number) : undefined,
+	)
 }
 
 /** Default ("Auto") formatter for legend break labels when no custom

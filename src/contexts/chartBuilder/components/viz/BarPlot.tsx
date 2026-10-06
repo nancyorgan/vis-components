@@ -19,12 +19,13 @@ import {
 	type ChannelConfigs,
 	type ColorSlotConfig,
 	type HistogramConfig,
+	type LabelPointsScope,
 	type TextConfig,
 } from "../../lib/channelConfig"
 import { ptToPx } from "../../lib/fontUnit"
 import { getChartMode } from "../../lib/chartMode"
 import type { MeasureAxisRendererProps } from "../../lib/chartRendererProps"
-import { buildTickFormatter } from "../../lib/formatTick"
+import { buildTickFormatterWithAuto } from "../../lib/formatTick"
 import { densityCurveGroupField } from "../../lib/colorSlots"
 import { densityCurveMeasures } from "../../lib/densityCurve"
 import { computeHistogramBins } from "../../lib/histogramBins"
@@ -48,6 +49,10 @@ import {
 	type PositionScale,
 	type UnitScale,
 } from "../../lib/scales"
+import {
+	labelSeriesChannelsFromModes,
+	labelSeriesResolver,
+} from "../../lib/labelSeries"
 import {
 	resolveStackModes,
 	type StackModeEntry,
@@ -317,18 +322,19 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 		// from the category scale source so shared-axis facets agree on the
 		// buckets.
 		// Bin-edge labels honor the binned axis's tick-format setting (e.g. an
-		// SI format renders "20000 – 30000" as "20k – 30k"). `buildTickFormatter`
-		// returns null when no custom format is set, in which case the binner
-		// uses its built-in precision formatter.
+		// SI format renders "20000 – 30000" as "20k – 30k"; Before / After
+		// text wraps each edge). `buildTickFormatterWithAuto` returns null
+		// when the format is fully Auto, in which case the binner uses its
+		// built-in precision formatter.
 		const categoryAxisConfig = channelConfigs[categoryChannel]
 		const tickFormatter = categoryAxisConfig
-			? buildTickFormatter(categoryAxisConfig, "quantitative")
+			? buildTickFormatterWithAuto(categoryAxisConfig)
 			: null
 		const binning = isHistogram
 			? computeHistogramBins(
 					categoryRows.map((r) => r[categoryField]),
 					histogramCfg?.binCount ?? 10,
-					tickFormatter ? (n: number) => tickFormatter(n) : undefined,
+					tickFormatter ?? undefined,
 					{ min: categoryAxisConfig?.min ?? null, max: categoryAxisConfig?.max ?? null },
 					histogramCfg?.labelMode ?? "range"
 			  )
@@ -851,6 +857,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 							sliceOpacity: (groupValues) =>
 								groupHighlight(legendHighlight, groupValues, aestheticScales)
 									.opacityMul,
+							labelPointsScope: dataLabelsCfg?.labelPointsScope,
 						})}
 					/>
 				)}
@@ -1484,6 +1491,7 @@ export const buildBarAnchors = ({
 	rows,
 	valueFieldMapped,
 	sliceOpacity,
+	labelPointsScope,
 }: {
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	categoryScale: ReturnType<typeof scaleBand<string>>
@@ -1517,9 +1525,18 @@ export const buildBarAnchors = ({
 	 * label recedes with its own bar. Resolved by the caller, which holds the
 	 * highlight state and the aesthetic scales. */
 	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
+	/** What "first" / "last" run over (`DataLabelsConfig.labelPointsScope`).
+	 *  Drives each anchor's `series` + `rank`; defaults to "series". */
+	labelPointsScope?: LabelPointsScope
 }): DataLabelAnchor[] => {
 	const anchors: DataLabelAnchor[] = []
 	const maxLeaves = countMaxLeaves(aggregation.stacks, modes)
+	const seriesOf = labelSeriesResolver(
+		labelPointsScope ?? "series",
+		labelSeriesChannelsFromModes(modes),
+		aggregation.categoryField,
+		encodings
+	)
 	const pos = position ?? "center"
 	const pad = outsideOffsetPx ?? 4
 	// Rows belonging to each slice (same category + matching mapped
@@ -1654,11 +1671,21 @@ export const buildBarAnchors = ({
 				if (aggregation.lengthField) row[aggregation.lengthField] = measureValue
 			}
 
+			const { series, rank } = seriesOf({
+				category: stack.category,
+				groupValues: slice.groupValues,
+				categoryRank: g.catPos,
+				leafIndex: g.leafIndex,
+				layerIndex: g.stackIndex,
+				negative: slice.value < 0,
+			})
 			anchors.push({
 				row,
 				cx: aggregation.isVertical ? catCenter : measurePoint,
 				cy: aggregation.isVertical ? measurePoint : catCenter,
 				key: `${stack.category}|${slice.key}`,
+				series,
+				rank,
 				label: formatted,
 				// Raw (unformatted) value so conditional text-color / position
 				// rules compare against the number, not its display string.
@@ -1758,6 +1785,12 @@ export type SliceGeometry = {
 	catSize: number
 	measureStart: number
 	measureEnd: number
+	/** Sub-band position inside the category band (0 = first leaf in legend
+	 *  order). Every slice in an ungrouped bar reads 0. */
+	leafIndex: number
+	/** Layer order within the slice's leaf AND sign ledger (0 = the layer
+	 *  touching the baseline). Overlay layers count in slice order. */
+	stackIndex: number
 }
 
 /** Compute per-slice geometry for one category band.
@@ -1801,18 +1834,27 @@ export const layoutSlices = (
 	// instead of letting a negative slice eat into the positive stack.
 	const runningPosByLeaf = new Map<string, number>()
 	const runningNegByLeaf = new Map<string, number>()
+	// Layer counters per (leaf, sign) ledger — the data-label "stack" scope
+	// ranks slices by this, so "first" is always the layer on the baseline.
+	const layerCount = new Map<string, number>()
 	return stack.slices.map((slice) => {
 		const k = leafKey(slice.groupValues, groupModeChannels)
-		const ledger = slice.value < 0 ? runningNegByLeaf : runningPosByLeaf
+		const negative = slice.value < 0
+		const ledger = negative ? runningNegByLeaf : runningPosByLeaf
 		const start = hasStack ? ledger.get(k) ?? 0 : 0
 		const end = start + slice.value
 		if (hasStack) ledger.set(k, end)
+		const layerKey = `${k}\u001F${negative ? "-" : "+"}`
+		const stackIndex = layerCount.get(layerKey) ?? 0
+		layerCount.set(layerKey, stackIndex + 1)
 		return {
 			key: slice.key,
 			catPos: leafPos.get(k) ?? bandPos,
 			catSize: subBand,
 			measureStart: start,
 			measureEnd: end,
+			leafIndex: leafOrder.indexOf(k),
+			stackIndex,
 		}
 	})
 }

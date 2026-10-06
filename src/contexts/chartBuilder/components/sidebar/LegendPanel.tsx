@@ -3,6 +3,7 @@ import { useAtom, useAtomValue } from "jotai"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { formatPresetSelection } from "../../lib/formatPresets"
 import { FormatPresetOptions } from "./FormatPresetOptions"
+import { FORMAT_BOX_HELP } from "./channelOptions/AxisOptionsPanel"
 import {
 	densityCurveGroupField,
 	densityCurveOn,
@@ -215,6 +216,7 @@ const QuantLegendChannelControls = ({
 						onChange={(e) => onChange({ ...cfg, format: e.target.value })}
 						placeholder="Auto"
 						aria-label="Custom label format string"
+						title={FORMAT_BOX_HELP}
 						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 					/>
 				</div>

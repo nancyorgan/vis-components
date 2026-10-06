@@ -25,6 +25,13 @@ export type LabelBox = {
 	/** Original index in the input list. The "last" anchor in a series is the
 	 *  one with the highest `index` whose `series` matches. */
 	index: number
+	/** Explicit ordering within the series, supplied by renderers that know
+	 *  their layout (bars: category position, sub-band index, or stacking
+	 *  order, per the "Which labels" scope). When EVERY box in a series
+	 *  carries one, endpoint ranking uses it instead of pixel position —
+	 *  pixel position can't tell "bottom of the stack" from "leftmost
+	 *  category". Absent → position ranking as before. */
+	rank?: number
 }
 
 /** Width of a label's bbox in pixels. When `text` contains `\n` (a wrapped
@@ -95,6 +102,12 @@ export const selectEndpointsPerSeries = <T extends LabelBox>(
 	axis: "x" | "y" = "x"
 ): Map<T, EndpointTag> => {
 	const cmp = (a: T, b: T): number => {
+		// Explicit renderer-supplied order wins when both sides carry it
+		// (a series' boxes all do or none do — the bar renderer sets it per
+		// anchor; mixed series fall through to position).
+		if (a.rank !== undefined && b.rank !== undefined && a.rank !== b.rank) {
+			return a.rank - b.rank
+		}
 		// Primary axis: higher = "later". For axis="x", rightmost wins.
 		// For axis="y", bottom-most (largest cy) wins. Callers in
 		// horizontal-bar layouts pass axis="y".

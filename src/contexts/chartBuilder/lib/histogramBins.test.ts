@@ -332,3 +332,15 @@ describe("computeHistogramBins", () => {
 		})
 	})
 })
+
+describe("computeHistogramBins edge formatter override", () => {
+	it("hands the override each edge's built-in label so affixes-only formats can wrap it", () => {
+		const binning = computeHistogramBins([0, 100], 4, (_v, builtIn) => `${builtIn} kg`)!
+		expect(binning.bins[0].label).toBe("0 kg – 20 kg")
+	})
+
+	it("drops an override that collapses distinct edges", () => {
+		const binning = computeHistogramBins([0, 100], 4, () => "same")!
+		expect(binning.bins[0].label).toBe("0 – 20")
+	})
+})

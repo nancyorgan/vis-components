@@ -57,16 +57,28 @@ export const buildSolverPanelInputs = ({
 	if (!ds) return []
 	const xField = encodings.x?.field ?? null
 	const yField = encodings.y?.field ?? null
-	// Custom tick formatters (d3-format), when the axis sets one. The
-	// margin estimate must measure the FORMATTED label — "$140,000" is
-	// wider than the raw "140000", and under-measuring it lets the
+	// Stand-in for d3's default tick formatter: trim trailing zeros /
+	// unnecessary precision. The rendered axis formats ticks (e.g. d3 picks
+	// "150" for an axis whose data goes to 148.50000000001), so we mirror
+	// that by truncating to ~4 significant figures here. Otherwise the raw
+	// `String(148.50000000001)` produces 14-char labels and
+	// `estimateExtraLeftMargin` over-reserves ~80px of left chrome — the
+	// user-reported "blank strip on the left" bug (May 2026). Close enough
+	// for character-count estimation (no exact pixel parity needed).
+	const autoMarginLabel = (v: unknown): string => {
+		const n = Number(v)
+		return n === 0 ? "0" : Number(n.toPrecision(4)).toString()
+	}
+	// The axis tick Format over that stand-in. The margin estimate must
+	// measure the FORMATTED label — "$140,000" is wider than the raw
+	// "140000", and "25 units" wider than "25" — or under-measuring lets the
 	// centered edge tick label clip past the plot's right edge.
-	const xTickFmt = channelConfigs.x?.customFormat
-		? buildTickFormatter({ customFormat: channelConfigs.x.customFormat }, "quantitative")
-		: null
-	const yTickFmt = channelConfigs.y?.customFormat
-		? buildTickFormatter({ customFormat: channelConfigs.y.customFormat }, "quantitative")
-		: null
+	const xTickFmt = channelConfigs.x
+		? buildTickFormatter({ customFormat: channelConfigs.x.customFormat }, "quantitative", autoMarginLabel)
+		: autoMarginLabel
+	const yTickFmt = channelConfigs.y
+		? buildTickFormatter({ customFormat: channelConfigs.y.customFormat }, "quantitative", autoMarginLabel)
+		: autoMarginLabel
 	const labelsAxisFor = (axis: "x" | "y", panelRows: Array<Record<string, unknown>>): string[] => {
 		const field = axis === "x" ? xField : yField
 		if (!field) return []
@@ -78,31 +90,14 @@ export const buildSolverPanelInputs = ({
 				),
 			]
 		}
-		// Quantitative: use min/max as representative tick labels. The
-		// rendered axis will format ticks (e.g. d3 picks "150" for an
-		// axis whose data goes to 148.50000000001), so we mirror that
-		// by truncating to ~4 significant figures here. Otherwise the
-		// raw `String(148.50000000001)` produces 14-char labels and
-		// `estimateExtraLeftMargin` over-reserves ~80px of left chrome
-		// — the user-reported "blank strip on the left" bug (May 2026).
+		// Quantitative: use min/max as representative tick labels.
 		const nums: number[] = []
 		for (const r of panelRows) {
 			const n = Number(r[field])
 			if (Number.isFinite(n)) nums.push(n)
 		}
 		if (nums.length === 0) return []
-		const customFmt = axis === "x" ? xTickFmt : yTickFmt
-		const fmtForMargin = (n: number): string => {
-			// When the axis has an explicit d3-format spec, measure the
-			// label as it will actually render (e.g. "$140,000") so the
-			// chrome reserves match the on-screen width.
-			if (customFmt) return customFmt(n)
-			if (n === 0) return "0"
-			// Trim trailing zeros / unnecessary precision; matches d3's
-			// default tick formatter closely enough for character-count
-			// estimation purposes (we don't need exact pixel parity).
-			return Number(n.toPrecision(4)).toString()
-		}
+		const fmtForMargin = axis === "x" ? xTickFmt : yTickFmt
 		return [
 			fmtForMargin(Math.min(...nums)),
 			fmtForMargin(Math.max(...nums)),

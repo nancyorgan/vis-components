@@ -63,20 +63,13 @@ export const buildRadarScales = (args: {
 }): RadialScales => {
 	const angleBounds = resolveAngleBounds(args.angleConfig)
 	const angleTickCount = args.angleConfig?.tickCount ?? 6
-	// The Angle panel's "Format" (Spoke labels section): a d3-format /
-	// d3-time-format spec for the perimeter labels. Empty → the built-in
-	// per-type formatting below.
-	const angleFormat = buildTickFormatter(
-		{ customFormat: args.angleConfig?.customFormat ?? "" },
-		args.angleType,
-	)
 	const angle = buildAngleScale(
 		args.angleRaws,
 		args.angleType,
 		args.angleLevelOrder,
 		angleBounds,
 		angleTickCount,
-		angleFormat,
+		args.angleConfig?.customFormat ?? "",
 	)
 	const r = buildRScale(
 		args.rRaws,
@@ -133,26 +126,24 @@ const buildAngleScale = (
 	levelOrder: ReadonlyArray<string> | undefined,
 	bounds: { startRad: number; endRad: number },
 	tickCount: number,
-	/** User format for the perimeter labels; `null` = built-in formatting. */
-	customFmt: ((v: unknown) => string) | null = null,
+	/** The Angle panel's "Format" (Spoke Labels section) for the perimeter
+	 *  labels; "" = the built-in per-type formatting. */
+	customFormat = "",
 ): AngleBundle => {
 	const { startRad, endRad } = bounds
 	const sweep = endRad - startRad
-	// Built-in label text per type; the user's format spec wins when set.
-	// Temporal raws arrive as epoch ms in the discrete path and as Dates in
-	// the continuous one — normalize to Date before formatting.
-	const labelFor = (raw: number | Date | string): string => {
-		if (customFmt) {
-			const v =
-				type === "temporal" && typeof raw === "number" ? new Date(raw) : raw
-			return customFmt(v)
-		}
-		if (typeof raw === "string") return raw
-		if (raw instanceof Date) return raw.toISOString().slice(0, 10)
-		return type === "temporal"
-			? new Date(raw).toISOString().slice(0, 10)
-			: formatNumberTick(raw)
+	// Built-in label text per type; the user's format spec wins when set,
+	// and any Before / After text wraps either. Temporal raws arrive as
+	// epoch ms in the discrete path and as Dates in the continuous one —
+	// normalize to Date before formatting.
+	const builtIn = (v: unknown): string => {
+		if (typeof v === "string") return v
+		if (v instanceof Date) return v.toISOString().slice(0, 10)
+		return formatNumberTick(Number(v))
 	}
+	const fmt = buildTickFormatter({ customFormat }, type, builtIn)
+	const labelFor = (raw: number | Date | string): string =>
+		fmt(type === "temporal" && typeof raw === "number" ? new Date(raw) : raw)
 	if (type === "categorical" || type === "ordinal") {
 		const parsed = raws
 			.map((v) => parseValue(v, type))

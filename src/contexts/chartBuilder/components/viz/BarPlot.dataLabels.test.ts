@@ -287,3 +287,143 @@ describe("buildBarAnchors — multi-field label rows (labelFields)", () => {
 		expect(anchors.every((a) => a.row === undefined)).toBe(true)
 	})
 })
+
+/** "Which labels" scope — the series identity and in-series rank each bar
+ *  anchor hands the label layer. The CCI shape: x = Setting, hue = Setting
+ *  (purely cosmetic — it IS the category), brightness = level, grouped.
+ *  Before the scope existed the layer used the hue value as the series, so
+ *  "First" labeled the leftmost bar of EVERY setting instead of every bar
+ *  of the FIRST setting. */
+describe("buildBarAnchors — label series + rank per scope", () => {
+	const settings = ["Home", "Away"]
+	const levels = ["a", "b", "c"]
+	const groupedStacks = settings.map((s) => ({
+		category: s,
+		slices: levels.map((l) => ({
+			key: `${s}|${l}`,
+			groupValues: { hue: s, brightness: l },
+			value: 10,
+		})),
+	}))
+	const groupedAgg = {
+		...aggregation,
+		categoryField: "Setting",
+		stacks: groupedStacks,
+		categories: settings,
+	}
+	const groupedScale = scaleBand<string>()
+		.domain(settings)
+		.range([0, 200])
+		.padding(0)
+	const modes = [
+		{ channel: "hue" as const, mode: "group" as const },
+		{ channel: "brightness" as const, mode: "group" as const },
+	]
+	const encodings = {
+		x: { field: "Setting" },
+		length: { field: "val" },
+		hue: { field: "Setting" },
+		brightness: { field: "level" },
+	}
+	const build = (scope: "series" | "group" | "stack" | undefined) =>
+		buildBarAnchors({
+			 
+			aggregation: groupedAgg as any,
+			categoryScale: groupedScale,
+			measureScale,
+			modes,
+			decimals: null,
+			 
+			encodings: encodings as any,
+			labelPointsScope: scope,
+		})
+	const find = (anchors: ReturnType<typeof build>, key: string) =>
+		anchors.find((a) => a.key === key)
+
+	it("'series' (default) drops the channel mapped to the category field — the level is the series", () => {
+		const anchors = build(undefined)
+		// Home|a and Away|a share a series (the level), ranked by band position.
+		expect(find(anchors, "Home|Home|a")?.series).toBe(
+			find(anchors, "Away|Away|a")?.series
+		)
+		expect(find(anchors, "Home|Home|a")?.series).not.toBe(
+			find(anchors, "Home|Home|b")?.series
+		)
+		expect(find(anchors, "Home|Home|a")?.rank).toBeLessThan(
+			find(anchors, "Away|Away|a")?.rank ?? -Infinity
+		)
+	})
+
+	it("'group' keys on the category so every bar of a band is one series, ranked by sub-band", () => {
+		const anchors = build("group")
+		const a = find(anchors, "Home|Home|a")
+		const c = find(anchors, "Home|Home|c")
+		expect(a?.series).toBe(c?.series)
+		expect(a?.series).not.toBe(find(anchors, "Away|Away|a")?.series)
+		expect(a?.rank).toBe(0)
+		expect(c?.rank).toBe(2)
+	})
+
+	it("'stack' keys on the physical bar, ranked from the baseline", () => {
+		const stackedStacks = settings.map((s) => ({
+			category: s,
+			slices: levels.map((l) => ({
+				key: l,
+				groupValues: { hue: l },
+				value: 10,
+			})),
+		}))
+		const anchors = buildBarAnchors({
+			 
+			aggregation: { ...groupedAgg, stacks: stackedStacks } as any,
+			categoryScale: groupedScale,
+			measureScale,
+			modes: [{ channel: "hue", mode: "stack" }],
+			decimals: null,
+			labelPointsScope: "stack",
+		})
+		const base = find(anchors, "Home|a")
+		const top = find(anchors, "Home|c")
+		expect(base?.series).toBe(top?.series)
+		expect(base?.series).not.toBe(find(anchors, "Away|a")?.series)
+		expect(base?.rank).toBe(0)
+		expect(top?.rank).toBe(2)
+	})
+
+	it("a scope whose channel isn't mapped falls back to 'series'", () => {
+		// Grouped bars have no stack channel: "stack" reads as "series".
+		const stackScoped = build("stack")
+		const series = build("series")
+		for (const a of stackScoped) {
+			const ref = find(series, a.key)
+			expect(a.series).toBe(ref?.series)
+			expect(a.rank).toBe(ref?.rank)
+		}
+	})
+
+	it("a mirrored (negative) layer is its own stack side", () => {
+		const diverging = [
+			{
+				category: "Home",
+				slices: [
+					{ key: "pos", groupValues: { hue: "pos" }, value: 10 },
+					{ key: "neg", groupValues: { hue: "neg" }, value: -10 },
+				],
+			},
+		]
+		const anchors = buildBarAnchors({
+			 
+			aggregation: { ...groupedAgg, stacks: diverging, measureMin: -100 } as any,
+			categoryScale: groupedScale,
+			measureScale: scaleLinear().domain([-100, 100]).range([400, 0]),
+			modes: [{ channel: "hue", mode: "stack" }],
+			decimals: null,
+			labelPointsScope: "stack",
+		})
+		expect(find(anchors, "Home|pos")?.series).not.toBe(
+			find(anchors, "Home|neg")?.series
+		)
+		expect(find(anchors, "Home|pos")?.rank).toBe(0)
+		expect(find(anchors, "Home|neg")?.rank).toBe(0)
+	})
+})

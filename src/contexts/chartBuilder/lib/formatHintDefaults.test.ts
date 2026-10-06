@@ -172,3 +172,36 @@ describe("applyFormatHintsToDataLabels", () => {
 		expect(applyFormatHintsToDataLabels(cfg, dollar)).toBe(cfg)
 	})
 })
+
+describe("format hints under Before / After text", () => {
+	it("fills the Auto spec inside an axis's affixes, keeping the affixes", () => {
+		const out = applyFormatHintsToChannelConfigs(
+			{ y: { ...DEFAULT_AXIS_CONFIG, customFormat: "{} of total" } },
+			encodingsWith("y", "Share"),
+			both
+		)
+		expect(out.y?.customFormat).toBe(`{${PERCENT_FORMAT_SPEC}} of total`)
+	})
+
+	it("does the same for legend channels and data labels", () => {
+		const legend: Pick<LegendConfig, "channels"> = {
+			channels: { area: { format: "~{}", breaks: [], breakCount: 5 } },
+		}
+		const outLegend = applyFormatHintsToLegendConfig(
+			legend,
+			encodingsWith("area", "Revenue"),
+			dollar
+		)
+		expect(outLegend.channels?.area?.format).toBe(`~{${DOLLAR_FORMAT_SPEC}}`)
+		const outLabels = applyFormatHintsToDataLabels(
+			{ fieldFormats: { Revenue: "{} USD" } },
+			dollar
+		)
+		expect(outLabels.fieldFormats?.Revenue).toBe(`{${DOLLAR_FORMAT_SPEC}} USD`)
+	})
+
+	it("still treats an explicit spec inside affixes as user-picked", () => {
+		const cfg = { fieldFormats: { Revenue: "{,.0f} USD" } }
+		expect(applyFormatHintsToDataLabels(cfg, dollar)).toBe(cfg)
+	})
+})

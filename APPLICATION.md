@@ -1608,9 +1608,24 @@ The X-axis and Y-axis panels (under Encodings) configure:
   option) that populates an editable text box. The user can pick a
   preset and then refine it as raw d3-format syntax. Every format
   dropdown in the sidebar — x / y / r tick labels, the chord ring
-  axis's Tick Labels, per-field data labels, legend measure labels —
-  offers this ONE preset list (`FormatPresetOptions`); only the
-  countries-level Geography group (§ maps) is conditional.
+  axis's Tick Labels, radar Spoke Labels, per-field data labels, legend
+  measure labels — offers this ONE preset list (`FormatPresetOptions`);
+  only the countries-level Geography group (§ maps) is conditional.
+  The box also takes literal text around the value, so whole-number
+  percents (3 meaning 3%) need no derived variable: `literal%` prints
+  "3%" (also a preset, "Literal + %"), `literal units` prints "3 units",
+  `€literal` prints "€3", and text after a d3 code is appended too
+  (`,.0f kg` → "1,234 kg"; a d3 code never contains whitespace, so the
+  split is at the first space). The text is kept verbatim — the space
+  in `literal units` is the gap, `literal%` has none. Time-format codes
+  are used whole (`%Y years` already prints its text). The explicit
+  form `prefix{spec}suffix` covers the rest: `{}%` wraps the Auto
+  labels ("0%", "5%", "10%"), `~{,.0f}` puts text before a d3 code. An
+  empty value stays empty (never a bare "%"). Everything is the ONE
+  stored string the user typed (`parseFormatSpec`), so saved visuals,
+  themes, undo, and the "changed" dot need no new fields; the dollar /
+  percent cell hints (§ 2.2) fill the *spec* half when it is Auto and
+  keep the text.
 - **Distribution overlay** — adds a violin or box plot on the value
   axis of strip plots (categorical × quantitative). The box draws its
   Tukey outliers as small open circles only while the underlying data
@@ -1979,10 +1994,39 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   First and last per series. Endpoint selection is position-ranked along
   the chart's primary axis (rightmost = last for vertical charts,
   bottom-most for horizontal), not row-order-ranked; "series" is the hue
-  field (bars/areas) or connection field (line charts), with no mapped
+  field (areas) or connection field (line charts), with no mapped
   series treated as one implicit group. A one-point series counts as
   "last". Legacy saves with the old "Only show last label per series"
   toggle read as "Last per series".
+  **Bars, stacked areas and multiple pies** hand the layer an explicit
+  series and rank instead (`lib/labelSeries.ts`), chosen by an **Of
+  each** select (`DataLabelsConfig.labelPointsScope`, layer-wide, shared
+  by every variable's choice) that appears under "Which labels" only when
+  the marks are grouped or layered by a channel other than the x field
+  (bars: a group / stack / overlay channel; areas and several pies: a
+  stack channel; a single pie never shows it), and only while some
+  choice is not "All labels" (the "Which labels" options then read
+  "First" / "Last" / "First and last" so the two selects form one
+  sentence):
+  - **Series** (default) — the first / last category along the axis, per
+    series. A series is the bar's stack + group channel values EXCLUDING
+    any channel mapped to the category (x) field: hue on the x field
+    colors each bar but forms no series, so a brightness-grouped chart
+    colored by its own x labels every bar of the first category, not the
+    first bar of every category. No distinguishing channel → one implicit
+    group (single survivor).
+  - **Group** (offered when a group-mode channel exists) — the first /
+    last bar INSIDE each category band, in sub-band (legend) order; every
+    layer of that bar.
+  - **Stack** (offered when a stack- or overlay-mode channel exists;
+    labeled **Pie** on pie charts) — the baseline / outermost layer of
+    each physical bar, each area column's bottom / top layer, or each
+    pie's first / last wedge from the arc start. A mirrored or diverging
+    bar's two sides are separate stacks.
+  On several pies, Series means the same wedge across the pies, so
+  "First" labels every wedge of the first pie.
+  A stored scope whose channel is no longer mapped reads as Series (the
+  select shows Series; the stored value is left alone).
   With a single mapped Value there is one select. With **Multiple
   variables…** there is one select PER checked variable (listed by field
   name under a "Which labels" header), stored in
@@ -2388,7 +2432,8 @@ controls:
 
 Quantitative legend break labels take the shared **Label format**
 preset dropdown + custom d3-format spec (Literal prints each break
-as-is). **Auto** (empty spec) follows the break set: when every break
+as-is, `literal%` as-is plus "%" — see the axis Tick label format for
+the text-around-the-value forms). **Auto** (empty spec) follows the break set: when every break
 is a whole number (0 / 50 / 100, or a user-typed 1, 2, 3) labels print
 as whole numbers with no trailing ".00"; once any break carries a
 fraction every label prints two decimals so the column stays aligned

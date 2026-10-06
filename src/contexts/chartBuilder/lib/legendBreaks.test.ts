@@ -253,3 +253,23 @@ describe("parseBreaksInput / formatBreaksInput", () => {
 		expect(formatBreaksInput([0, 12.5, 99.999])).toBe("0, 12.50, 100.00")
 	})
 })
+
+describe("buildLegendFormatter with Before / After text", () => {
+	it("wraps the spec's output", () => {
+		const f = buildLegendFormatter(",.0f units")!
+		expect(f(1234)).toBe("1,234 units")
+	})
+
+	it("affixes-only wraps the caller's default break formatter", () => {
+		const f = buildLegendFormatter("{}%", defaultLegendFormatter([0, 50, 100], "quantitative"))
+		expect(f(50)).toBe("50%")
+		expect(f(NaN)).toBe("")
+	})
+
+	it("falls through to the default formatter when fully Auto", () => {
+		const auto = defaultLegendFormatter([0, 1], "quantitative")
+		const f = buildLegendFormatter("", auto)
+		expect(f(0.5)).toBe(auto(0.5))
+		expect(f(1)).toBe("1")
+	})
+})

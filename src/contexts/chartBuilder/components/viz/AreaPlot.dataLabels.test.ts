@@ -158,3 +158,48 @@ describe("buildAreaAnchors — sparse value column (valueFieldMapped)", () => {
 		expect(anchors.find((a) => a.key === "2|A")?.labelValue).toBe(20)
 	})
 })
+
+describe("buildAreaAnchors — label series + rank per scope", () => {
+	const encodings = {
+		x: { field: "month" },
+		length: { field: "val" },
+		hue: { field: "series" },
+	}
+	const build = (scope: "series" | "stack" | "group" | undefined) =>
+		buildAreaAnchors({
+			 
+			aggregation: aggregation as any,
+			categoryScale,
+			measureScale,
+			stackMode: "stack",
+			decimals: null,
+			 
+			encodings: encodings as any,
+			labelPointsScope: scope,
+		})
+	const find = (anchors: ReturnType<typeof build>, key: string) =>
+		anchors.find((a) => a.key === key)
+
+	it("'series' (default): the same layer across the axis, ranked by position", () => {
+		const anchors = build(undefined)
+		expect(find(anchors, "1|A")?.series).toBe(find(anchors, "2|A")?.series)
+		expect(find(anchors, "1|A")?.series).not.toBe(find(anchors, "1|B")?.series)
+		expect(find(anchors, "1|A")?.rank).toBeLessThan(find(anchors, "2|A")?.rank ?? -1)
+	})
+
+	it("'stack': each column's layers form a series, ranked from the baseline", () => {
+		const anchors = build("stack")
+		expect(find(anchors, "1|A")?.series).toBe(find(anchors, "1|B")?.series)
+		expect(find(anchors, "1|A")?.series).not.toBe(find(anchors, "2|A")?.series)
+		expect(find(anchors, "1|A")?.rank).toBe(0)
+		expect(find(anchors, "1|B")?.rank).toBe(1)
+	})
+
+	it("'group' has no meaning for areas and reads as 'series'", () => {
+		const grouped = build("group")
+		for (const a of build("series")) {
+			expect(find(grouped, a.key)?.series).toBe(a.series)
+			expect(find(grouped, a.key)?.rank).toBe(a.rank)
+		}
+	})
+})

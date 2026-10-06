@@ -92,11 +92,11 @@ export const chordTickFormatter = (
 	customFormat: string,
 	step: number
 ): ((v: number) => string) => {
-	const custom = buildTickFormatter({ customFormat }, "quantitative")
-	if (custom) return custom
 	const auto =
 		step >= 1
 			? formatPrefix(",.0", step)
 			: format(`,.${Math.min(20, precisionFixed(step))}f`)
-	return (v) => auto(v)
+	return buildTickFormatter({ customFormat }, "quantitative", (v) =>
+		auto(Number(v))
+	)
 }

@@ -723,14 +723,21 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	)
 }
 
+/** Hover help for the custom format box — the one place the "text around
+ *  the value" grammar (`parseFormatSpec`) is spelled out to the user. */
+export const FORMAT_BOX_HELP =
+	"A format code, or literal plus text to add to each value: literal% → 3%, literal units → 3 units, €literal → €3. Text after a code is added too: ,.0f kg → 1,234 kg."
+
 /** The tick "Format" control: the shared preset dropdown
  *  (`FormatPresetOptions`) over a free-typed custom format box. Shared with
- *  the chord ring axis's Tick Labels section AND the per-field data-label
- *  formatting, so the format mental model matches x / y exactly. `label`
- *  overrides the row label (defaults to "Format") — data labels pass the
- *  field name. `countryNames` adds the Geography preset group; the
- *  data-label panels pass it on countries-level geo charts only, so the
- *  option never pollutes other chart types or the axis tick dropdowns. */
+ *  the chord ring axis's Tick Labels section, the radar Spoke Labels AND
+ *  the per-field data-label formatting, so the format mental model matches
+ *  x / y exactly. The box takes a spec OR a spec with text around it
+ *  (`literal%`, `,.0f kg` — see `parseFormatSpec`). `label` overrides the
+ *  row label (defaults to "Format") — data labels pass the field name.
+ *  `countryNames` adds the Geography preset group; the data-label panels
+ *  pass it on countries-level geo charts only, so the option never pollutes
+ *  other chart types or the axis tick dropdowns. */
 export const TickFormatControl = ({
 	value,
 	changed,
@@ -774,6 +781,7 @@ export const TickFormatControl = ({
 				onChange={(e) => onChange(e.target.value)}
 				placeholder="Auto"
 				aria-label="Custom format code"
+				title={FORMAT_BOX_HELP}
 				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			/>
 		</div>

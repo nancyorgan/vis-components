@@ -8,6 +8,7 @@ import {
 	type EndpointLabelOverrides,
 	type FacetConfig,
 	type LabelPointsMode,
+	type LabelPointsScope,
 } from "../../lib/channelConfig"
 import { resolveHierarchyIdField } from "../../lib/buildHierarchy"
 import {
@@ -17,6 +18,7 @@ import {
 	presentPopulations,
 	resolveLabelSelection,
 } from "../../lib/dataLabelsSelection"
+import { resolveStackModes } from "../../lib/stackMode"
 import { dataLabelsConfigFromTheme } from "../../lib/themeConfig"
 import { effectiveType } from "../../lib/fieldType"
 import {
@@ -78,16 +80,51 @@ import type { DataLabelsChannel } from "./dataLabels/shared"
 const DATA_LABELS_MULTI_VALUE = "__multiple__"
 
 /** "Which labels" choices — shared by the single-field select and the
- *  per-variable selects of multi-field mode. */
-const LABEL_POINTS_OPTIONS: ReadonlyArray<{
-	value: LabelPointsMode
-	label: string
-}> = [
+ *  per-variable selects of multi-field mode. With the scope select showing
+ *  beneath ("Of each: Series / Group / Stack") the choices drop their
+ *  "per series" tail so the two selects read as one sentence; elsewhere
+ *  the tail says what the ends run over. */
+const labelPointsOptions = (
+	withScope: boolean
+): ReadonlyArray<{ value: LabelPointsMode; label: string }> => [
 	{ value: "all", label: "All labels" },
-	{ value: "first", label: "First per series" },
-	{ value: "last", label: "Last per series" },
-	{ value: "first-last", label: "First and last per series" },
+	{ value: "first", label: withScope ? "First" : "First per series" },
+	{ value: "last", label: withScope ? "Last" : "Last per series" },
+	{
+		value: "first-last",
+		label: withScope ? "First and last" : "First and last per series",
+	},
 ]
+
+/** What the series ends run over (`DataLabelsConfig.labelPointsScope`),
+ *  worded per chart family. Only the scopes the chart supports are
+ *  offered: "Group" needs a group-mode channel (bars only), "Stack" / "Pie"
+ *  a layering channel (stack / overlay on bars and areas; the wedge
+ *  channel on pies). The stored value is "stack" for pies too — a pie's
+ *  wedges are its layers. */
+type ScopeFamily = "bars" | "areas" | "pies"
+const SCOPE_OPTION: Record<ScopeFamily, Record<LabelPointsScope, string>> = {
+	bars: { series: "Series", group: "Group", stack: "Stack" },
+	areas: { series: "Series", group: "Group", stack: "Stack" },
+	pies: { series: "Series", group: "Group", stack: "Pie" },
+}
+const SCOPE_HELP: Record<ScopeFamily, Record<LabelPointsScope, string>> = {
+	bars: {
+		series: "The first and last bar of each series along the axis.",
+		group: "The first and last bar inside each group.",
+		stack: "The bottom and top layer of each stack.",
+	},
+	areas: {
+		series: "The first and last point of each layer along the axis.",
+		group: "",
+		stack: "The bottom and top layer at each point.",
+	},
+	pies: {
+		series: "The same wedge on the first and last pie.",
+		group: "",
+		stack: "The first and last wedge of each pie.",
+	},
+}
 
 const CHANNEL_LABEL: Record<DataLabelsChannel, string> = {
 	x: "X position",
@@ -191,6 +228,53 @@ export const DataLabelsPanel = () => {
 	// the only mode where "Bar position" (label placement along the measure
 	// axis) applies — gate the control on it.
 	const isBarMode = chartMode === "bars-x" || chartMode === "bars-y"
+	// "Of each" scope for the series ends. Shown only where it can change
+	// anything: bars grouped (a group-mode channel) or layered (stack /
+	// overlay), stacked areas, or several pies with a wedge channel — AND
+	// some "Which labels" choice is not "All labels". A channel mapped to
+	// the x field colors marks without forming groups or layers, so it
+	// doesn't count. A single pie has no series across pies, so the scope
+	// stands down there (every wedge is its own series, as before).
+	const scopeFamily: ScopeFamily | null = isBarMode
+		? "bars"
+		: chartMode === "areas-x" || chartMode === "areas-y"
+			? "areas"
+			: chartMode === "pies-x" || chartMode === "pies-y"
+				? "pies"
+				: null
+	const stackModes = resolveStackModes(chartConfigs, chartEncodings).filter(
+		(m) => chartEncodings[m.channel]?.field !== chartEncodings.x?.field
+	)
+	const scopeGrouped =
+		scopeFamily === "bars" && stackModes.some((m) => m.mode === "group")
+	const scopeLayered =
+		scopeFamily === "bars"
+			? stackModes.some((m) => m.mode !== "group")
+			: stackModes.length > 0
+	const anyEndpointChoice = encodings.value.multiField
+		? (encodings.value.fields ?? []).some(
+				(f) => fieldLabelPointsMode(merged, f) !== "all"
+			)
+		: effectiveLabelPoints(merged) !== "all"
+	const showScope =
+		scopeFamily !== null && (scopeGrouped || scopeLayered) && anyEndpointChoice
+	const scopeWording = SCOPE_OPTION[scopeFamily ?? "bars"]
+	const scopeOptions = (
+		["series", "group", "stack"] as const satisfies readonly LabelPointsScope[]
+	)
+		.filter((sc) =>
+			sc === "group" ? scopeGrouped : sc === "stack" ? scopeLayered : true
+		)
+		.map((sc) => ({ value: sc, label: scopeWording[sc] }))
+	// A stored scope whose channel is gone reads as "series" (the renderer
+	// falls back the same way); the stored value is left alone.
+	const storedScope = merged.labelPointsScope ?? "series"
+	const effectiveScope: LabelPointsScope = scopeOptions.some(
+		(o) => o.value === storedScope
+	)
+		? storedScope
+		: "series"
+	const whichLabelsOptions = labelPointsOptions(showScope)
 	const chartXField = chartEncodings.x?.field ?? null
 	const chartYField = chartEncodings.y?.field ?? null
 
@@ -676,7 +760,7 @@ export const DataLabelsPanel = () => {
 										label={field}
 										labelClassName={LABEL_COL}
 										value={fieldLabelPointsMode(merged, field)}
-										options={LABEL_POINTS_OPTIONS}
+										options={whichLabelsOptions}
 										onChange={(mode: LabelPointsMode) =>
 											setFieldLabelPoints(field, mode)
 										}
@@ -689,12 +773,28 @@ export const DataLabelsPanel = () => {
 							label="Which labels"
 							labelClassName={LABEL_COL}
 							value={effectiveLabelPoints(merged)}
-							options={LABEL_POINTS_OPTIONS}
+							options={whichLabelsOptions}
 							onChange={(labelPoints: LabelPointsMode) =>
 								updateCfg({ labelPoints })
 							}
 						/>
 					))}
+				{showScope && (
+					<>
+						<SelectInput
+							label="Of each"
+							labelClassName={LABEL_COL}
+							value={effectiveScope}
+							options={scopeOptions}
+							onChange={(labelPointsScope: LabelPointsScope) =>
+								updateCfg({ labelPointsScope })
+							}
+						/>
+						<p className="vc-help">
+							{SCOPE_HELP[scopeFamily ?? "bars"][effectiveScope]}
+						</p>
+					</>
+				)}
 				<Toggle
 					label="Avoid overlapping labels"
 					className="mt-1"

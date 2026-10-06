@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import { DEFAULT_AXIS_CONFIG, type AxisConfig } from "./channelConfig"
-import { buildTickFormatter } from "./formatTick"
+import {
+	buildTickFormatter,
+	buildTickFormatterWithAuto,
+	composeFormatSpec,
+	parseFormatSpec,
+} from "./formatTick"
 
 /** Build an AxisConfig override on top of the default — cleaner than
  *  spelling out every field per test. */
@@ -139,5 +144,125 @@ describe("buildTickFormatter", () => {
 		const f = buildTickFormatter(cfg({ customFormat: "%Y" }), "temporal")
 		expect(f!("not a date")).toBe("not a date")
 		expect(f!(null)).toBe("")
+	})
+})
+
+describe("parseFormatSpec / composeFormatSpec", () => {
+	it("treats every preset and pre-existing stored spec as a bare spec", () => {
+		for (const raw of ["", ",.0f", ".1%", "$,.2f", "%Y-%m-%d", "%b %Y", "literal", "country-name"]) {
+			expect(parseFormatSpec(raw)).toEqual({ prefix: "", spec: raw, suffix: "" })
+			expect(composeFormatSpec(parseFormatSpec(raw))).toBe(raw)
+		}
+	})
+
+	it("reads text around the word literal as prefix / suffix, verbatim", () => {
+		expect(parseFormatSpec("literal%")).toEqual({ prefix: "", spec: "literal", suffix: "%" })
+		expect(parseFormatSpec("literal units")).toEqual({
+			prefix: "",
+			spec: "literal",
+			suffix: " units",
+		})
+		expect(parseFormatSpec("€literal")).toEqual({ prefix: "€", spec: "literal", suffix: "" })
+		expect(parseFormatSpec("~Literal monkeys")).toEqual({
+			prefix: "~",
+			spec: "literal",
+			suffix: " monkeys",
+		})
+	})
+
+	it("splits a d3 spec from trailing text at the first whitespace", () => {
+		expect(parseFormatSpec(",.0f kg")).toEqual({ prefix: "", spec: ",.0f", suffix: " kg" })
+		expect(parseFormatSpec("  .0% pts")).toEqual({ prefix: "", spec: ".0%", suffix: " pts" })
+		expect(parseFormatSpec("   ")).toEqual({ prefix: "", spec: "", suffix: "" })
+	})
+
+	it("leaves a time-format spec whole — that grammar prints its own text", () => {
+		expect(parseFormatSpec("%Y years")).toEqual({ prefix: "", spec: "%Y years", suffix: "" })
+	})
+
+	it("splits the explicit prefix{spec}suffix form and round-trips it", () => {
+		expect(parseFormatSpec("{literal}%")).toEqual({ prefix: "", spec: "literal", suffix: "%" })
+		expect(parseFormatSpec("~{,.0f} monkeys")).toEqual({
+			prefix: "~",
+			spec: ",.0f",
+			suffix: " monkeys",
+		})
+		expect(parseFormatSpec("{}%")).toEqual({ prefix: "", spec: "", suffix: "%" })
+		expect(composeFormatSpec({ prefix: "~", spec: ",.0f", suffix: " monkeys" })).toBe(
+			"~{,.0f} monkeys"
+		)
+	})
+
+	it("stores the spec bare when both affixes are empty (Auto stays '')", () => {
+		expect(composeFormatSpec({ prefix: "", spec: "", suffix: "" })).toBe("")
+		expect(composeFormatSpec({ prefix: "", spec: ".1%", suffix: "" })).toBe(".1%")
+		expect(composeFormatSpec({ prefix: "", spec: "", suffix: "%" })).toBe("{}%")
+	})
+})
+
+describe("buildTickFormatter with text around the value", () => {
+	it("appends a suffix to the literal value — the 3 → '3%' case", () => {
+		const f = buildTickFormatter(cfg({ customFormat: "literal%" }), "quantitative")
+		expect(f!(3)).toBe("3%")
+		expect(f!("3")).toBe("3%")
+		expect(buildTickFormatter(cfg({ customFormat: "literal units" }), "quantitative")!(4)).toBe(
+			"4 units"
+		)
+	})
+
+	it("wraps a d3 spec's output, keeping a leading space in the suffix", () => {
+		const f = buildTickFormatter(cfg({ customFormat: ",.0f monkeys" }), "quantitative")
+		expect(f!(1234.4)).toBe("1,234 monkeys")
+		const braced = buildTickFormatter(cfg({ customFormat: "~{,.0f} monkeys" }), "quantitative")
+		expect(braced!(1234.4)).toBe("~1,234 monkeys")
+	})
+
+	it("affixes-only (Auto spec) wraps the caller's fallback formatter", () => {
+		const auto = (v: unknown) => `auto:${String(v)}`
+		const f = buildTickFormatter(cfg({ customFormat: "{}%" }), "quantitative", auto)
+		expect(f(5)).toBe("auto:5%")
+	})
+
+	it("affixes-only without a fallback wraps the literal value", () => {
+		const f = buildTickFormatter(cfg({ customFormat: "{}%" }), "quantitative")
+		expect(f).not.toBeNull()
+		expect(f!(5)).toBe("5%")
+	})
+
+	it("returns the fallback itself when the format is fully Auto, null without one", () => {
+		const auto = (v: unknown) => `auto:${String(v)}`
+		expect(buildTickFormatter(cfg({ customFormat: "" }), "quantitative", auto)).toBe(auto)
+		expect(buildTickFormatter(cfg({ customFormat: "" }), "quantitative")).toBeNull()
+	})
+
+	it("never affixes an empty value (no bare '%' for a missing label)", () => {
+		const f = buildTickFormatter(cfg({ customFormat: "{literal}%" }), "quantitative")
+		expect(f!(null)).toBe("")
+		expect(f!(undefined)).toBe("")
+	})
+
+	it("ignores whitespace around a braced inner spec but not inside the affixes", () => {
+		const f = buildTickFormatter(cfg({ customFormat: " { .0% } pts" }), "quantitative")
+		expect(f!(0.5)).toBe(" 50% pts")
+	})
+
+	it("time-format text is not treated as a suffix", () => {
+		const f = buildTickFormatter(cfg({ customFormat: "%Y years" }), "temporal")
+		expect(f!(new Date(Date.UTC(2024, 5, 15, 12)))).toBe("2024 years")
+	})
+})
+
+describe("buildTickFormatterWithAuto", () => {
+	it("is null for a fully Auto format", () => {
+		expect(buildTickFormatterWithAuto(cfg({ customFormat: "" }))).toBeNull()
+	})
+
+	it("uses the per-value auto text only while the spec is Auto", () => {
+		const affixOnly = buildTickFormatterWithAuto(cfg({ customFormat: "{} kg" }))!
+		expect(affixOnly(20000, "20000")).toBe("20000 kg")
+		const si = buildTickFormatterWithAuto(cfg({ customFormat: "{.2s} kg" }))!
+		expect(si(20000, "20000")).toBe("20k kg")
+		const bare = buildTickFormatterWithAuto(cfg({ customFormat: ".2s" }))!
+		expect(bare(20000, "20000")).toBe("20k")
 	})
 })

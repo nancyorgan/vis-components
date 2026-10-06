@@ -92,8 +92,10 @@ export const computeHistogramBins = (
 	/** Optional edge formatter — when provided (e.g. built from the axis's
 	 * tick-format setting), bin-edge labels use it instead of the built-in
 	 * precision formatter. Lets a user format "20000 – 30000" as "20k – 30k"
-	 * by picking an SI tick format on the binned axis. */
-	formatEdgeOverride?: (value: number) => string,
+	 * by picking an SI tick format on the binned axis. It also receives the
+	 * built-in label for the edge, so an affixes-only format (Auto spec +
+	 * Before / After text) can wrap it: "20000 – 30000" → "20000 kg – 30000 kg". */
+	formatEdgeOverride?: (value: number, builtIn: string) => string,
 	/** Optional binning extent (the axis min/max). A pinned bound overrides the
 	 * data extent and is honored EXACTLY (not snapped); values outside the
 	 * resolved extent are excluded from the bins. Invalid pins (min ≥ max) are
@@ -131,7 +133,7 @@ export const computeHistogramBins = (
 		useOverride: boolean
 	): string =>
 		useOverride && formatEdgeOverride
-			? formatEdgeOverride(value)
+			? formatEdgeOverride(value, formatEdge(value, width))
 			: formatEdge(value, width)
 	let min = Infinity
 	let max = -Infinity
@@ -200,7 +202,7 @@ export const computeHistogramBins = (
 	}
 	const overrideSafe =
 		formatEdgeOverride != null &&
-		new Set(edgeValues.map((v) => formatEdgeOverride(v))).size ===
+		new Set(edgeValues.map((v) => formatEdgeOverride(v, formatEdge(v, step)))).size ===
 			edgeValues.length
 
 	const bins: HistogramBin[] = []

@@ -197,15 +197,17 @@ export const Axis = ({
 	// labels on a quantitative axis when the spine alone is sufficient (or
 	// when data labels cover the axis labeling).
 	const tickCount = Math.max(0, Math.min(requestedCount, maxMeaningfulTicks))
-	const baseCustomFmt = config ? buildTickFormatter(config, fieldType) : null
 	// Mirrored measure axis: labels show magnitudes on both sides of zero.
-	// Wraps whichever formatter ends up applying (custom spec or the scale's
-	// default) so the two paths stay in step.
+	// Applied to the value BEFORE whichever formatter ends up applying
+	// (custom spec, Before / After text, or the scale's default) so the
+	// paths stay in step.
 	const toMagnitude = (v: unknown): unknown =>
 		mirrored && typeof v === "number" ? Math.abs(v) : v
-	const customFmt = baseCustomFmt
-		? (v: unknown) => baseCustomFmt(toMagnitude(v))
-		: null
+	/** The tick Format resolved over `auto`, the default label text for this
+	 * axis: the user's spec when set, `auto` wrapped in any Before / After
+	 * text when the spec is Auto, `auto` itself when nothing is set. */
+	const formatterOver = (auto: (v: unknown) => string) =>
+		config ? buildTickFormatter(config, fieldType, auto) : auto
 
 	// A continuous (quantitative / temporal) scale exposes `.ticks()`;
 	// categorical scalePoint / scaleBand don't.
@@ -284,8 +286,7 @@ export const Axis = ({
 					: s.tickFormat?.(
 							tickCount > 0 ? tickCount : Math.max(2, DEFAULT_TICK_COUNT)
 						)
-			const fmt =
-				customFmt ?? (fallback ? (v: unknown) => fallback(toMagnitude(v)) : undefined)
+			const fmt = formatterOver(fallback ?? ((v: unknown) => String(v)))
 			// Sort by axis value (breaks land between the auto ticks) and de-dup
 			// on pixel position so a break that coincides with an auto tick
 			// draws one tick + label, not two.
@@ -296,7 +297,7 @@ export const Axis = ({
 				.sort((a, b) => toNum(a) - toNum(b))
 				.map((v) => ({
 					pos: (scale as unknown as (x: unknown) => number)(v),
-					label: fmt ? fmt(v) : String(toMagnitude(v)),
+					label: fmt(toMagnitude(v)),
 				}))
 				.filter((t) => {
 					const key = t.pos.toFixed(2)
@@ -321,6 +322,7 @@ export const Axis = ({
 		// every entry — the default. We always keep the first and last so
 		// the axis ends stay anchored, then walk forward by `stride`.
 		const stride = Math.max(1, config?.categoricalTickStride ?? 1)
+		const categoryFmt = formatterOver((v: unknown) => String(v))
 		const visibleIndices = new Set<number>()
 		if (stride <= 1) {
 			for (let i = 0; i < domain.length; i++) visibleIndices.add(i)
@@ -333,7 +335,7 @@ export const Axis = ({
 		return domain
 			.map((d, i) => ({
 				pos: ((scale as unknown as (x: unknown) => number)(d) ?? 0) + halfBand,
-				label: customFmt ? customFmt(d) : String(d),
+				label: categoryFmt(toMagnitude(d)),
 				visible: visibleIndices.has(i),
 			}))
 			.filter((t) => t.visible)

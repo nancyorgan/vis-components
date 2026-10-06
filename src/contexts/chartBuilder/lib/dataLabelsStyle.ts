@@ -14,7 +14,11 @@ import {
 } from "./channelConfig"
 import { buildLabelHueConfig } from "./dataLabelsHue"
 import { ptToPx } from "./fontUnit"
-import { buildTickFormatter } from "./formatTick"
+import {
+	applyFormatAffixes,
+	buildTickFormatter,
+	parseFormatSpec,
+} from "./formatTick"
 import { COUNTRY_NAME_FORMAT, fullCountryName } from "./geo/countryNames"
 import { resolveRuleColor } from "./textColorRules"
 import type { DataLabelsEncodings, FieldType } from "./types"
@@ -41,28 +45,32 @@ export const formatLabel = (
  * spec (`.1%`, `$,.0f`, …) wins — reusing the axis formatter so percent /
  * currency / grouping all work and numeric strings coerce. With no spec it
  * falls back to the shared `decimals` behavior. Returns "" for empty values
- * so a token collapses to nothing rather than "null". */
+ * so a token collapses to nothing rather than "null" (or a bare suffix). */
 export const formatField = (
 	raw: unknown,
 	spec: string | undefined,
 	decimals: number | null
 ): string => {
-	const trimmed = spec?.trim()
-	if (trimmed) {
-		// "Full country name": resolve any recognizable country value (atlas
-		// short name, variant, ISO code) to its long form; unrecognized values
-		// print as-is. A LABEL-only spec — offered in the Label-format dropdown
-		// on countries-level geo charts — so it routes here, before the d3
-		// spec formatters, and never touches the axis tick path.
-		if (trimmed.toLowerCase() === COUNTRY_NAME_FORMAT) {
-			const s = raw == null ? "" : String(raw)
-			if (s.trim() === "") return ""
-			return fullCountryName(s) ?? s
-		}
-		const fmt = buildTickFormatter({ customFormat: trimmed }, "quantitative")
-		if (fmt) return fmt(raw)
+	const parts = parseFormatSpec(spec ?? "")
+	const inner = parts.spec.trim()
+	// "Full country name": resolve any recognizable country value (atlas
+	// short name, variant, ISO code) to its long form; unrecognized values
+	// print as-is. A LABEL-only spec — offered in the Label-format dropdown
+	// on countries-level geo charts — so it routes here, before the d3
+	// spec formatters, and never touches the axis tick path.
+	if (inner.toLowerCase() === COUNTRY_NAME_FORMAT) {
+		const s = raw == null ? "" : String(raw)
+		if (s.trim() === "") return ""
+		return applyFormatAffixes(parts, fullCountryName(s) ?? s)
 	}
-	return formatLabel(raw, decimals) ?? ""
+	// Any Before / After text in the stored format wraps the spec's output,
+	// or the `decimals` fallback while the spec is Auto.
+	const fmt = buildTickFormatter(
+		{ customFormat: spec ?? "" },
+		"quantitative",
+		(v) => formatLabel(v, decimals) ?? ""
+	)
+	return fmt(raw)
 }
 
 /** Format a single-field label value: the field's `fieldFormats` spec wins,

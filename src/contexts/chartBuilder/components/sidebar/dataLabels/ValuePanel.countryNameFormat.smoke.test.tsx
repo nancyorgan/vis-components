@@ -43,6 +43,6 @@ describe("Data Labels Label format — Full country name option", () => {
 		const { queryByRole } = mount(false, vi.fn())
 		expect(queryByRole("option", { name: /Full country name/i })).toBeNull()
 		// The rest of the dropdown is unchanged.
-		expect(queryByRole("option", { name: /Literal/i })).toBeTruthy()
+		expect(queryByRole("option", { name: /^Literal \(show value as-is\)/i })).toBeTruthy()
 	})
 })

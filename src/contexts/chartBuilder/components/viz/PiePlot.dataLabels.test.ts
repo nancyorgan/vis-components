@@ -159,3 +159,59 @@ describe("buildPieAnchors — sparse value column (valueFieldMapped)", () => {
 		expect(anchors.find((a) => a.key === "A|s")?.labelValue).toBe(3)
 	})
 })
+
+describe("buildPieAnchors — label series + rank per scope", () => {
+	// Two pies (pies-x: one per category), the same two wedges each.
+	const twoPies = [
+		{
+			category: "P1",
+			slices: [
+				{ key: "n", groupValues: { hue: "n" }, value: 1 },
+				{ key: "s", groupValues: { hue: "s" }, value: 1 },
+			],
+		},
+		{
+			category: "P2",
+			slices: [
+				{ key: "n", groupValues: { hue: "n" }, value: 1 },
+				{ key: "s", groupValues: { hue: "s" }, value: 1 },
+			],
+		},
+	]
+	const encodings = {
+		x: { field: "cat" },
+		angle: { field: "val" },
+		hue: { field: "wedge" },
+	}
+	const build = (scope: "series" | "stack" | undefined) =>
+		buildPieAnchors({
+			...baseArgs,
+			 
+			stacks: twoPies as any,
+			pieCenters: [
+				{ stackKey: "P1", cx: 100, cy: 100 },
+				{ stackKey: "P2", cx: 300, cy: 100 },
+			],
+			 
+			encodings: encodings as any,
+			labelPointsScope: scope,
+		})
+	const find = (anchors: ReturnType<typeof build>, key: string) =>
+		anchors.find((a) => a.key === key)
+
+	it("'series' (default): the same wedge across pies, ranked by pie order — 'First' labels the first pie", () => {
+		const anchors = build(undefined)
+		expect(find(anchors, "P1|n")?.series).toBe(find(anchors, "P2|n")?.series)
+		expect(find(anchors, "P1|n")?.series).not.toBe(find(anchors, "P1|s")?.series)
+		expect(find(anchors, "P1|n")?.rank).toBe(0)
+		expect(find(anchors, "P2|n")?.rank).toBe(1)
+	})
+
+	it("'stack': each pie's wedges form a series, ranked from the arc start", () => {
+		const anchors = build("stack")
+		expect(find(anchors, "P1|n")?.series).toBe(find(anchors, "P1|s")?.series)
+		expect(find(anchors, "P1|n")?.series).not.toBe(find(anchors, "P2|n")?.series)
+		expect(find(anchors, "P1|n")?.rank).toBe(0)
+		expect(find(anchors, "P1|s")?.rank).toBe(1)
+	})
+})

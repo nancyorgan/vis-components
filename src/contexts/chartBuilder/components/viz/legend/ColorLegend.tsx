@@ -166,8 +166,7 @@ export const ColorLegend = ({
 	const hi = breaks.at(-1)
 	if (lo === undefined || hi === undefined) return null
 	const dataExt = legendDataExtent(values, type)
-	const customFmt = buildLegendFormatter(merged.format)
-	const fmt = customFmt ?? defaultLegendFormatter(breaks, type)
+	const fmt = buildLegendFormatter(merged.format, defaultLegendFormatter(breaks, type))
 	// When the user's chosen top break sits below the data max, append a
 	// "+" to that label — signals "this value or higher, all the same
 	// color" (matches the clamp-out-of-range behavior).

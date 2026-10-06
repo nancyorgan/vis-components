@@ -238,3 +238,23 @@ describe("buildLabelSegments", () => {
 		expect(segs.map((s) => s.text).join("")).toBe(buildLabelText(row, value, c))
 	})
 })
+
+describe("formatField with Before / After text", () => {
+	it("appends a suffix to the literal value — whole-number percents", () => {
+		expect(formatField(3, "literal%", null)).toBe("3%")
+		expect(formatField(4, "literal monkeys", null)).toBe("4 monkeys")
+	})
+	it("wraps the decimals fallback when the spec is Auto", () => {
+		expect(formatField(3.14159, "{}%", 1)).toBe("3.1%")
+		expect(formatField(4, "{} monkeys", 0)).toBe("4 monkeys")
+	})
+	it("wraps a d3 spec and the country-name spec alike", () => {
+		expect(formatField(1200, "~{$,.0f}", null)).toBe("~$1,200")
+		expect(formatField("USA", "{country-name}!", null)).toBe("United States of America!")
+	})
+	it("leaves empty values empty — no bare suffix", () => {
+		expect(formatField(null, "literal%", null)).toBe("")
+		expect(formatField("", "{country-name}!", null)).toBe("")
+		expect(formatSingleLabel(null, "{}%", null)).toBeNull()
+	})
+})

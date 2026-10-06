@@ -17,6 +17,7 @@ import {
 	type ChannelConfigs,
 	type LineDashPattern,
 	type StackMode,
+	type LabelPointsScope,
 } from "../../lib/channelConfig"
 import { getChartMode } from "../../lib/chartMode"
 import type { MeasureAxisRendererProps } from "../../lib/chartRendererProps"
@@ -47,6 +48,10 @@ import {
 	parseValue,
 	type PositionScale,
 } from "../../lib/scales"
+import {
+	labelSeriesChannelsFromEncodings,
+	labelSeriesResolver,
+} from "../../lib/labelSeries"
 import { resolveStackMode } from "../../lib/stackMode"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import type { DatasetView, Encodings, FieldType } from "../../lib/types"
@@ -551,6 +556,7 @@ export const AreaPlot = (props: AreaPlotProps = {}) => {
 							sliceOpacity: (groupValues) =>
 								groupHighlight(legendHighlight, groupValues, aestheticScales)
 									.opacityMul,
+							labelPointsScope: dataLabelsCfg?.labelPointsScope,
 						})}
 					/>
 				)}
@@ -1356,6 +1362,7 @@ export const buildAreaAnchors = ({
 	rows,
 	valueFieldMapped,
 	sliceOpacity,
+	labelPointsScope,
 }: {
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	categoryScale: PositionScale
@@ -1380,7 +1387,20 @@ export const buildAreaAnchors = ({
 	 * label recedes with its own area. Resolved by the caller, which holds
 	 * the highlight state and the aesthetic scales. */
 	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
+	/** What "first" / "last" run over (`DataLabelsConfig.labelPointsScope`):
+	 *  "series" = the same layer across the axis, "stack" = each column's
+	 *  bottom / top layer ("group" has no meaning for areas → series). Drives
+	 *  each anchor's `series` + `rank`; defaults to "series". */
+	labelPointsScope?: LabelPointsScope
 }): DataLabelAnchor[] => {
+	const seriesOf = labelSeriesResolver(
+		labelPointsScope ?? "series",
+		encodings
+			? labelSeriesChannelsFromEncodings(encodings)
+			: { group: [], layer: ["hue"] },
+		aggregation.categoryField,
+		encodings
+	)
 	// Areas reduce "group" → "overlay" (no meaningful side-by-side); mirrors
 	// the same coercion used in `buildAreas` so the anchor positions match
 	// the rendered polygon edges exactly.
@@ -1430,7 +1450,7 @@ export const buildAreaAnchors = ({
 	}).fill(0)
 
 	const anchors: DataLabelAnchor[] = []
-	layerKeys.forEach((layerKey) => {
+	layerKeys.forEach((layerKey, layerIndex) => {
 		const meta = layerMeta.get(layerKey)
 		const hueValue = meta?.groupValues.hue
 		stackValues.forEach((sv, i) => {
@@ -1493,10 +1513,19 @@ export const buildAreaAnchors = ({
 				}
 				sizeValue = foundNumeric ? sum : firstNonNumeric
 			}
+			const { series, rank } = seriesOf({
+				category: sv.stack.category,
+				groupValues: meta?.groupValues ?? {},
+				categoryRank: px,
+				leafIndex: 0,
+				layerIndex,
+			})
 			anchors.push({
 				cx: aggregation.isVertical ? px : measurePoint,
 				cy: aggregation.isVertical ? measurePoint : px,
 				key: `${sv.stack.category}|${layerKey}`,
+				series,
+				rank,
 				label: formatted,
 				// Raw value feeds the conditional text-color / position rules.
 				labelValue,

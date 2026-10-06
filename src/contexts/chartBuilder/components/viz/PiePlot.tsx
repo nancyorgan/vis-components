@@ -11,6 +11,7 @@ import {
 	DEFAULT_ANGLE_CONFIG,
 	DEFAULT_SHAPE_CONFIG,
 	type ChannelConfigs,
+	type LabelPointsScope,
 } from "../../lib/channelConfig"
 import { getChartMode } from "../../lib/chartMode"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
@@ -29,6 +30,10 @@ import {
 	slotOpacityResolver,
 } from "../../lib/resolveLayerColor"
 import { parseNumericCell, type PositionScale } from "../../lib/scales"
+import {
+	labelSeriesChannelsFromEncodings,
+	labelSeriesResolver,
+} from "../../lib/labelSeries"
 import type { FieldType } from "../../lib/types"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import type { Encodings } from "../../lib/types"
@@ -522,6 +527,7 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 								labelRadiusPct: dataLabelsRadiusPct,
 								labelAngleDeg: dataLabelsCfg?.polarLabelAngle,
 								valueFieldMapped,
+								labelPointsScope: dataLabelsCfg?.labelPointsScope,
 								sliceOpacity: (groupValues) =>
 									groupHighlight(legendHighlight, groupValues, aestheticScales)
 										.opacityMul,
@@ -606,6 +612,7 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 							rows: rowsForChart,
 							arc: resolvePieArc(channelConfigs.angle),
 							valueFieldMapped,
+							labelPointsScope: dataLabelsCfg?.labelPointsScope,
 							sliceOpacity: (groupValues) =>
 								groupHighlight(legendHighlight, groupValues, aestheticScales)
 									.opacityMul,
@@ -757,6 +764,7 @@ export const buildPieAnchors = ({
 	labelAngleDeg,
 	valueFieldMapped,
 	sliceOpacity,
+	labelPointsScope,
 }: {
 	stacks: Stack[]
 	pieCenters: ReadonlyArray<{
@@ -793,8 +801,21 @@ export const buildPieAnchors = ({
 	 * label recedes with its own wedge. Resolved by the caller, which holds
 	 * the highlight state and the aesthetic scales. */
 	sliceOpacity?: (groupValues: Record<string, string | undefined>) => number
+	/** What "first" / "last" run over (`DataLabelsConfig.labelPointsScope`):
+	 *  "series" = the same wedge across the pies (first / last PIE), "stack"
+	 *  = each pie's first / last wedge from the arc start ("group" has no
+	 *  meaning for pies → series). Defaults to "series". */
+	labelPointsScope?: LabelPointsScope
 }): DataLabelAnchor[] => {
 	const anchors: DataLabelAnchor[] = []
+	const seriesOf = labelSeriesResolver(
+		labelPointsScope ?? "series",
+		encodings
+			? labelSeriesChannelsFromEncodings(encodings)
+			: { group: [], layer: ["hue"] },
+		categoryField,
+		encodings
+	)
 	const midRadius = pieRadius * ((labelRadiusPct ?? 100) / 100)
 	const angleOffset = ((labelAngleDeg ?? 0) * Math.PI) / 180
 	const arcStart = arc?.start ?? 0
@@ -807,7 +828,7 @@ export const buildPieAnchors = ({
 		const total = stack.slices.reduce((acc, s) => acc + s.value, 0)
 		if (total <= 0) return
 		let runningAngle = arcStart
-		stack.slices.forEach((slice) => {
+		stack.slices.forEach((slice, wedgeIndex) => {
 			const sweep = (slice.value / total) * arcSweep
 			const startAngle = runningAngle
 			const endAngle = runningAngle + sweep
@@ -865,10 +886,19 @@ export const buildPieAnchors = ({
 				sizeValue = foundNumeric ? sum : firstNonNumeric
 			}
 			void measureField // measureField currently unused — slice.value already carries the aggregated measure
+			const { series, rank } = seriesOf({
+				category: stack.category,
+				groupValues: slice.groupValues,
+				categoryRank: stackIdx,
+				leafIndex: 0,
+				layerIndex: wedgeIndex,
+			})
 			anchors.push({
 				cx,
 				cy,
 				key: `${stack.category}|${slice.key}`,
+				series,
+				rank,
 				label: formatted,
 				// Raw value feeds the conditional text-color / position rules.
 				labelValue,

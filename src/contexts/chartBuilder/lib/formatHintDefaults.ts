@@ -9,6 +9,7 @@ import {
 	QUANTITATIVE_LEGEND_CHANNELS,
 	type LegendConfig,
 } from "./labelsConfig"
+import { composeFormatSpec, parseFormatSpec } from "./formatTick"
 import type { DatasetView, Encodings, Field } from "./types"
 
 /** The default d3-format spec applied wherever a dollar-hinted field's
@@ -43,7 +44,15 @@ export const hintedFormats = (view: DatasetView | undefined): HintedFormats => {
 	return out
 }
 
-const isAuto = (spec: string | undefined): boolean => (spec ?? "").trim() === ""
+/** A stored format whose SPEC is still Auto — "" outright, or Before /
+ * After text around an empty spec (`{}%`). */
+const isAuto = (stored: string | undefined): boolean =>
+	parseFormatSpec(stored ?? "").spec.trim() === ""
+
+/** The hint's spec slotted into an Auto stored format, keeping any Before /
+ * After text the user typed around it. */
+const withHint = (stored: string | undefined, hint: string): string =>
+	composeFormatSpec({ ...parseFormatSpec(stored ?? ""), spec: hint })
 
 /** Fold the hint defaults into the RENDER-side channel configs: any x / y /
  * r axis (or angle) whose mapped field carries a format hint and whose
@@ -74,7 +83,7 @@ export const applyFormatHintsToChannelConfigs = (
 		if (out === configs) out = { ...configs }
 		out[ch] = {
 			...(existing ?? DEFAULT_AXIS_CONFIG),
-			customFormat: spec,
+			customFormat: withHint(existing?.customFormat, spec),
 		}
 	}
 	const angleField = encodings.angle?.field
@@ -86,7 +95,7 @@ export const applyFormatHintsToChannelConfigs = (
 			out.angle = {
 				...DEFAULT_ANGLE_CONFIG,
 				...(existing ?? {}),
-				customFormat: angleSpec,
+				customFormat: withHint(existing?.customFormat, angleSpec),
 			}
 		}
 	}
@@ -117,7 +126,7 @@ export const applyFormatHintsToLegendConfig = <
 			...(channels ?? {}),
 			[ch]: {
 				...(existing ?? DEFAULT_LEGEND_CHANNEL_CONFIG),
-				format: spec,
+				format: withHint(existing?.format, spec),
 			},
 		}
 		changed = true
@@ -140,7 +149,7 @@ export const applyFormatHintsToDataLabels = <
 	let changed = false
 	for (const [field, spec] of hinted) {
 		if (!isAuto(formats?.[field])) continue
-		formats = { ...(formats ?? {}), [field]: spec }
+		formats = { ...(formats ?? {}), [field]: withHint(formats?.[field], spec) }
 		changed = true
 	}
 	return changed ? { ...cfg, fieldFormats: formats } : cfg

@@ -532,8 +532,7 @@ export const CombinedGroupLegend = ({
 		const stops = resolveLegendBreaks(values, type, channelCfg, 5, 2)
 		if (stops.length === 0) return null
 		const dataExt = legendDataExtent(values, type)
-		const customFmt = buildLegendFormatter(merged.format)
-		const rawFmt = customFmt ?? defaultLegendFormatter(stops, type)
+		const rawFmt = buildLegendFormatter(merged.format, defaultLegendFormatter(stops, type))
 		const fmt = (v: number, i: number) =>
 			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		const domainOverride =
@@ -663,8 +662,7 @@ export const CombinedGroupLegend = ({
 		const stops = resolveLegendBreaks(values, type, channelCfg, 5, 2)
 		if (stops.length === 0) return null
 		const dataExt = legendDataExtent(values, type)
-		const customFmt = buildLegendFormatter(merged.format)
-		const rawFmt = customFmt ?? defaultLegendFormatter(stops, type)
+		const rawFmt = buildLegendFormatter(merged.format, defaultLegendFormatter(stops, type))
 		const fmt = (v: number, i: number) =>
 			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		const domainOverride =
@@ -749,8 +747,7 @@ export const CombinedGroupLegend = ({
 		const hi = stops.at(-1)
 		if (lo === undefined || hi === undefined) return null
 		const dataExt = legendDataExtent(values, type)
-		const customFmt = buildLegendFormatter(merged.format)
-		const rawFmt = customFmt ?? defaultLegendFormatter(stops, type)
+		const rawFmt = buildLegendFormatter(merged.format, defaultLegendFormatter(stops, type))
 		const fmt = (v: number, i: number) =>
 			decorateOpenEndLabel(rawFmt(v), i, stops, dataExt)
 		// Gradient bar mode is only meaningful when hue is the ONLY mapped

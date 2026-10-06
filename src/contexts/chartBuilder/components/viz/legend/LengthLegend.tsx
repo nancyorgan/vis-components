@@ -71,8 +71,7 @@ export const LengthLegend = ({
 	const breaks = resolveLegendBreaks(values, type, channelCfg, 3, 3)
 	if (breaks.length === 0) return null
 	const dataExt = legendDataExtent(values, type)
-	const customFmt = buildLegendFormatter(merged.format)
-	const fmt = customFmt ?? defaultLegendFormatter(breaks, type)
+	const fmt = buildLegendFormatter(merged.format, defaultLegendFormatter(breaks, type))
 	const maxBreakLen = breaks.reduce((m, s) => Math.max(m, scale(s) ?? 10), 0)
 	const svgWidth = Math.max(24, maxBreakLen + 4)
 	if (orientation === "horizontal") {

@@ -81,6 +81,14 @@ export type DataLabelAnchor = {
 	hueValue?: unknown
 	/** Raw value used when the user has mapped a size field. */
 	sizeValue?: unknown
+	/** Explicit series identity for the "Which labels" endpoint ranking.
+	 *  Bars set it from their stack / group layout per the label scope
+	 *  (`DataLabelsConfig.labelPointsScope`); renderers that don't set it
+	 *  fall back to the hue value (every slice in a stack shares one hue). */
+	series?: string
+	/** Explicit order within `series` (see `LabelBox.rank`). Set together
+	 *  with `series`; absent → pixel-position ranking. */
+	rank?: number
 	/** Raw numeric value backing the label, when known. Feeds the
 	 * conditional text-color rules — the formatted `label` string isn't
 	 * sufficient because rules compare against the underlying number, not
@@ -776,12 +784,17 @@ export const DataLabelsLayer = ({
 					anchorY: a.cy,
 					text: label,
 					fontSize,
-					// Anchor-based renderers (bars/areas) carry the hue value as
-					// the de-facto "series" identity — every slice in the same
-					// stack/layer shares the same hue. Falls back to "" when
-					// no hue is mapped, which the endpoint ranking interprets as
-					// "all anchors are one big group" (single-survivor fallback).
-					series: a.hueValue === undefined ? "" : String(a.hueValue ?? ""),
+					// Bars hand over an explicit series + rank (their stack /
+					// group layout, per the label scope). Other anchor-based
+					// renderers (areas, pies) carry the hue value as the de-facto
+					// "series" identity — every slice in the same stack/layer
+					// shares the same hue. Falls back to "" when no hue is
+					// mapped, which the endpoint ranking interprets as "all
+					// anchors are one big group" (single-survivor fallback).
+					series:
+						a.series ??
+						(a.hueValue === undefined ? "" : String(a.hueValue ?? "")),
+					rank: a.rank,
 					index: i,
 					key: a.key,
 					fill,

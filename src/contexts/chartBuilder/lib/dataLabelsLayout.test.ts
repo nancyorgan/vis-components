@@ -619,3 +619,36 @@ describe("spreadOverlaps2D with an open-space preference", () => {
 		])
 	})
 })
+
+describe("selectEndpointsPerSeries — explicit rank", () => {
+	it("ranks by `rank` when every box in the series carries one, ignoring position", () => {
+		// A stacked bar's layers share cx; the renderer ranks them by stacking
+		// order so "first" = the baseline layer even though pixel-ranking on
+		// x would tie and fall through to y.
+		const boxes: LabelBox[] = [
+			{ cx: 10, cy: 300, text: "top", fontSize: 10, series: "A", index: 0, rank: 2 },
+			{ cx: 10, cy: 380, text: "base", fontSize: 10, series: "A", index: 1, rank: 0 },
+			{ cx: 10, cy: 340, text: "mid", fontSize: 10, series: "A", index: 2, rank: 1 },
+		]
+		const tags = selectEndpointsPerSeries(boxes, "y")
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("base")).toBe("first")
+		expect(byText.get("top")).toBe("last")
+		expect(byText.has("mid")).toBe(false)
+	})
+
+	it("falls back to position for boxes without a rank", () => {
+		const boxes: LabelBox[] = [
+			{ cx: 30, cy: 0, text: "right", fontSize: 10, series: "A", index: 0 },
+			{ cx: 5, cy: 0, text: "left", fontSize: 10, series: "A", index: 1 },
+		]
+		const tags = selectEndpointsPerSeries(boxes)
+		const byText = new Map(
+			[...tags.entries()].map(([b, t]) => [b.text, t] as const)
+		)
+		expect(byText.get("left")).toBe("first")
+		expect(byText.get("right")).toBe("last")
+	})
+})

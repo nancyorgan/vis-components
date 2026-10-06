@@ -17,6 +17,7 @@ export const FormatPresetOptions = ({
 		<option value="">— Pick a preset —</option>
 		<option value={FORMAT_PRESET_AUTO}>Auto (default)</option>
 		<option value={LITERAL_FORMAT}>Literal (show value as-is)</option>
+		<option value={`${LITERAL_FORMAT}%`}>Literal + % (3 → 3%)</option>
 		{countryNames && (
 			<optgroup label="Geography">
 				<option value={COUNTRY_NAME_FORMAT}>
