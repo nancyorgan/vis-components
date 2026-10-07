@@ -9,7 +9,7 @@ export const BASE_MARGIN = { top: 16, right: 24, bottom: 64, left: 76 } as const
  *  side — see `solveFacetLayout`'s per-side resolution. */
 export const POLAR_MARGIN = { top: 4, right: 8, bottom: 8, left: 8 } as const
 export const TITLE_RESERVE = 36
-export const SUBTITLE_RESERVE = 22
+const SUBTITLE_RESERVE = 22
 
 /** Height of the band reserved for the chart title / subtitle, derived from
  *  the resolved title font size (px). The fixed reserves above were sized

@@ -18,13 +18,7 @@ import {
 import { inkPaletteForHue, type ThemeInkFallback } from "../../../lib/patterns"
 import { sortByDrawOrder } from "../../../lib/drawOrder"
 import { resolveSlotColor } from "../../../lib/resolveLayerColor"
-import {
-	applyHueScale,
-	applyPositionScale,
-	CATEGORICAL_HUE_PALETTE,
-	makeHueScale,
-	type PositionScale,
-} from "../../../lib/scales"
+import { applyPositionScale, type PositionScale } from "../../../lib/scales"
 import { splitPolylineAtRange } from "../../../lib/dashRange"
 import type { DatasetView, Encodings, FieldType } from "../../../lib/types"
 import type { AestheticScales } from "../../../store/useAestheticScales"
@@ -555,42 +549,14 @@ export const renderAxisStems = (
 		stem === "custom-y" ? customPx(yScale, cfg.axisStemCustomY ?? null) : null
 	const customX =
 		stem === "custom-x" ? customPx(xScale, cfg.axisStemCustomX ?? null) : null
-	// Optional INDEPENDENT stem-color encoding:
-	//   - "point" (default): each stem inherits its point's fill.
-	//   - "single": every stem uses the one `stemColor` swatch.
-	//   - "field": stems are colored by `stemColorField` through the
-	//     user-picked categorical palette (colors snapshotted on the config).
-	const stemMode = cfg.stemColorMode ?? "point"
-	const stemColorField = cfg.stemColorField ?? null
-	const stemPalette =
-		cfg.stemColorPalette && cfg.stemColorPalette.length > 0
-			? cfg.stemColorPalette
-			: CATEGORICAL_HUE_PALETTE
-	const stemHueScale =
-		stemMode === "field" && stemColorField
-			? makeHueScale(
-					marks.map((m) => m.row[stemColorField]),
-					"categorical",
-					undefined,
-					stemPalette
-				)
-			: null
-	const colorFor = (m: Mark): string => {
-		// The stem color slot, when configured, owns the color (independent
-		// field mapping or single color). In single-color mode (or with no
-		// slot) stems draw the theme connection color — a real single color
-		// matching the swatch — NOT the point fill.
-		if (stemSlotCfg)
-			return resolveSlotColor(stemSlot, stemSlotCfg, m.row, connectionColor)
-		if (stemMode === "single") return cfg.stemColor ?? connectionColor
-		if (stemMode === "field" && stemColorField && stemHueScale) {
-			return (
-				applyHueScale(stemHueScale, m.row[stemColorField], "categorical") ??
-				connectionColor
-			)
-		}
-		return connectionColor
-	}
+	// Stem color comes from the Color → Stem slot (single color or a field
+	// through a palette). With no slot configured, stems draw the theme
+	// connection color — a real single color matching the swatch — NOT the
+	// point fill.
+	const colorFor = (m: Mark): string =>
+		stemSlotCfg
+			? resolveSlotColor(stemSlot, stemSlotCfg, m.row, connectionColor)
+			: connectionColor
 	const stems = marks.map((m) => {
 		// Vertical stems (to a horizontal line): x-axis edge or custom y.
 		// Horizontal stems (to a vertical line): y-axis edge or custom x.
@@ -602,6 +568,8 @@ export const renderAxisStems = (
 		return (
 			<line
 				key={`stem-${m.i}`}
+				/* `vc-axis-stem` is a marker for tests / user CSS, not styling —
+				   there is deliberately no CSS rule for it. */
 				className="vc-axis-stem"
 				x1={m.cx}
 				y1={m.cy}

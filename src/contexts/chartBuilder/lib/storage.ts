@@ -1322,13 +1322,19 @@ export const saveCurrentLabels = (l: LabelsConfig): void =>
 		data: l,
 	})
 
-export const loadCurrentLegend = (): LegendConfig =>
-	loadVersioned<LegendConfig>({
+/** The draft-slice loaders below default-merge (`{ ...DEFAULT, ...stored }`)
+ *  the same way `useLoadVisual` does for saved visuals: `fallback` only
+ *  applies when the key is absent, so a draft written before a required
+ *  field was added would otherwise come back with that field `undefined`. */
+export const loadCurrentLegend = (): LegendConfig => ({
+	...DEFAULT_LEGEND_CONFIG,
+	...loadVersioned<LegendConfig>({
 		key: KEY_CURRENT_LEGEND,
 		currentVersion: LEGEND_VERSION,
 		migrations: legendMigrations,
 		fallback: DEFAULT_LEGEND_CONFIG,
-	})
+	}),
+})
 export const saveCurrentLegend = (l: LegendConfig): void =>
 	saveVersioned({
 		key: KEY_CURRENT_LEGEND,
@@ -1336,13 +1342,15 @@ export const saveCurrentLegend = (l: LegendConfig): void =>
 		data: l,
 	})
 
-export const loadCurrentTooltip = (): TooltipConfig =>
-	loadVersioned<TooltipConfig>({
+export const loadCurrentTooltip = (): TooltipConfig => ({
+	...DEFAULT_TOOLTIP_CONFIG,
+	...loadVersioned<TooltipConfig>({
 		key: KEY_CURRENT_TOOLTIP,
 		currentVersion: TOOLTIP_VERSION,
 		migrations: tooltipMigrations,
 		fallback: DEFAULT_TOOLTIP_CONFIG,
-	})
+	}),
+})
 export const saveCurrentTooltip = (t: TooltipConfig): void =>
 	saveVersioned({
 		key: KEY_CURRENT_TOOLTIP,
@@ -1364,13 +1372,15 @@ export const saveCurrentDataLabelsEncodings = (e: DataLabelsEncodings): void =>
 		data: e,
 	})
 
-export const loadCurrentDataLabelsConfig = (): DataLabelsConfig =>
-	loadVersioned<DataLabelsConfig>({
+export const loadCurrentDataLabelsConfig = (): DataLabelsConfig => ({
+	...DEFAULT_DATA_LABELS_CONFIG,
+	...loadVersioned<DataLabelsConfig>({
 		key: KEY_CURRENT_DATA_LABELS_CONFIG,
 		currentVersion: DATA_LABELS_CONFIG_VERSION,
 		migrations: dataLabelsConfigMigrations,
 		fallback: DEFAULT_DATA_LABELS_CONFIG,
-	})
+	}),
+})
 export const saveCurrentDataLabelsConfig = (c: DataLabelsConfig): void =>
 	saveVersioned({
 		key: KEY_CURRENT_DATA_LABELS_CONFIG,
@@ -1392,13 +1402,15 @@ export const saveCurrentAnnotations = (a: AnnotationsConfig): void =>
 		data: a,
 	})
 
-export const loadCurrentCaption = (): CaptionConfig =>
-	loadVersioned<CaptionConfig>({
+export const loadCurrentCaption = (): CaptionConfig => ({
+	...DEFAULT_CAPTION_CONFIG,
+	...loadVersioned<CaptionConfig>({
 		key: KEY_CURRENT_CAPTION,
 		currentVersion: CAPTION_VERSION,
 		migrations: captionMigrations,
 		fallback: DEFAULT_CAPTION_CONFIG,
-	})
+	}),
+})
 export const saveCurrentCaption = (c: CaptionConfig): void =>
 	saveVersioned({
 		key: KEY_CURRENT_CAPTION,

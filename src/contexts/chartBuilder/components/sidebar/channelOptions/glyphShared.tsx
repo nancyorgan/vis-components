@@ -8,12 +8,28 @@ import {
 	CHIP_STROKE_SELECTED,
 } from "../../../lib/previewInk"
 import { symbolPath } from "../../../lib/scales"
+import { combine as c } from "../../../../../lib/cls"
 
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 export const PREVIEW_SIZE = 20
+
+/** Class string for the gray glyph swatch chips — the shape / dash / pattern
+ *  pickers, the legend swatch-shape picker, the map no-data pattern row and
+ *  the theme editor's default-shape row. These chips are the documented GRAY
+ *  exception to the purple `<Button>` rule, so this is the one copy of the
+ *  look. `extra` carries the per-use sizing: `"w-7"` for a glyph chip,
+ *  `"px-2 text-sm"` for a text chip ("None" / "Custom" / "Blank"). */
+export const swatchChipClass = (selected: boolean, extra?: string) =>
+	c(
+		"flex h-7 items-center justify-center rounded border transition-colors",
+		selected
+			? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
+			: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+		extra
+	)
 
 export const ShapeGlyph = ({ idx, selected }: { idx: number; selected: boolean }) => (
 	<svg
@@ -150,11 +166,7 @@ export const CategoryRow = ({
 						type="button"
 						onClick={() => onPick(idx)}
 						aria-pressed={selected}
-						className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-							selected
-								? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-								: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-						}`}
+						className={swatchChipClass(selected, "w-7")}
 					>
 						<Glyph idx={idx} selected={selected} />
 					</button>
@@ -165,17 +177,17 @@ export const CategoryRow = ({
 	</div>
 )
 
-/** Color row local to this panel that wraps the shared `ColorInput`
- *  with an optional inline "clear" button. The clearable semantics are
- *  GlyphPickerPanel-specific (per-shape stroke/fill overrides can be
- *  null = "inherit from defaults") so they don't belong in the shared
- *  primitive. */
+/** `ColorInput` in its inherit mode plus a trailing reset link — the pattern
+ *  panel's ink / background rows. `onClear` restores the default (emptying
+ *  the hex box does the same through the primitive); `placeholder` is the
+ *  inherited hex a null `value` previews. */
 export const ColorRow = ({
 	label,
 	value,
 	onChange,
 	onClear,
 	clearLabel = "reset",
+	placeholder,
 	className,
 }: {
 	label: string
@@ -195,8 +207,10 @@ export const ColorRow = ({
 		<ColorInput
 			label={label}
 			labelClassName={LABEL_COL}
-			value={value ?? "#000000"}
+			value={value}
 			onChange={onChange}
+			onClear={onClear}
+			placeholder={placeholder}
 			className="contents"
 		/>
 		{onClear && value !== null && (

@@ -83,7 +83,7 @@ const ROW_SPEC: FacetAxisSpec = {
 	polarShareClearKey: "shareR",
 	sizingKey: "proportionalSizingY",
 	gapKey: "gapY",
-	gapLabel: "Gap Y",
+	gapLabel: "Vertical gap",
 	panelDimKey: "panelHeight",
 	panelDimLabel: "Panel height",
 	renderedDimKey: "heightPx",
@@ -112,7 +112,7 @@ const COL_SPEC: FacetAxisSpec = {
 	polarShareClearKey: "shareAngle",
 	sizingKey: "proportionalSizingX",
 	gapKey: "gapX",
-	gapLabel: "Gap X",
+	gapLabel: "Horizontal gap",
 	panelDimKey: "panelWidth",
 	panelDimLabel: "Panel width",
 	renderedDimKey: "widthPx",
@@ -218,7 +218,7 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 		dataset ? (f: string) => effectiveType(dataset, f, overrides) : null,
 	)
 
-	const share = migrateShareValue(cfg[spec.shareKey], cfg.shareAxes)
+	const share = migrateShareValue(cfg[spec.shareKey])
 	const size = migrateProportionalSizing(
 		cfg[spec.sizingKey],
 		cfg.proportionalSizing,
@@ -359,12 +359,10 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 					onChange={(next) => {
 						const other = migrateShareValue(
 							cfg[spec.otherShareKey],
-							cfg.shareAxes,
 						)
 						updateCfg({
 							[spec.shareKey]: next,
 							[spec.otherShareKey]: other,
-							shareAxes: next === "all" && other === "all",
 							// Clear the polar override so the polar runtime picks
 							// up THIS cartesian value via migratePolarShareValue's
 							// fallback (see spec.polarShareClearKey).

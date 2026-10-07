@@ -667,7 +667,7 @@ export const ConnectionOptionsPanel = () => {
 									changed={axisCh.format}
 									onChange={(customFormat) => updateAxis({ customFormat })}
 								/>
-								<div className="mb-1.5 flex items-center gap-2 text-sm">
+								<div className="flex items-center gap-2 text-sm">
 									<NumberInput
 										label="Label every"
 										labelClassName={LABEL_COL}
@@ -699,7 +699,7 @@ export const ConnectionOptionsPanel = () => {
 								</div>
 								{/* Sparse flag: off writes `undefined` so an untouched
 								 *  axis carries no `verticalLabels` key. */}
-								<div className="mb-1.5">
+								<div>
 									<Toggle
 										label="Make all tick labels vertical"
 										checked={axis.verticalLabels === true}
@@ -905,8 +905,8 @@ export const ConnectionOptionsPanel = () => {
 							</div>
 						))}
 						{axisStem !== "none" && (
-							<p className="mt-1 border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
-								Set stem color under the <strong>Color</strong> menu →{" "}
+							<p className="vc-divider-group vc-help">
+								Set stem color under <strong>Color</strong> →{" "}
 								<strong>Stem</strong>.
 							</p>
 						)}
@@ -934,7 +934,7 @@ export const ConnectionOptionsPanel = () => {
 							</span>
 						</label>
 						<p className="vc-help">
-							Adjust line and fill opacity in the Opacity panel.
+							Adjust line and fill opacity in Opacity.
 						</p>
 					</div>
 				</CollapsibleSubsection>

@@ -3,7 +3,7 @@ import type { ThemeSectionProps } from "./types"
 
 export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 	<SectionGroup title="Axes and gridlines" isReadOnly={isReadOnly}>
-		<Section title="X gridline defaults">
+		<Section title="X gridline">
 			<ColorInput
 				label="Color"
 				value={theme.xGridlineColor ?? theme.gridlineColor}
@@ -20,7 +20,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			/>
 		</Section>
 
-		<Section title="Y gridline defaults">
+		<Section title="Y gridline">
 			<ColorInput
 				label="Color"
 				value={theme.yGridlineColor ?? theme.gridlineColor}
@@ -37,7 +37,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			/>
 		</Section>
 
-		<Section title="R gridline defaults">
+		<Section title="R gridline">
 			<ColorInput
 				label="Color"
 				value={theme.rGridlineColor ?? theme.gridlineColor}
@@ -60,7 +60,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 		</Section>
 
 		{/* Tick marks */}
-		<Section title="Tick mark defaults">
+		<Section title="Tick mark">
 			<ColorInput
 				label="Color"
 				value={theme.tickmarkColor}
@@ -88,7 +88,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 
 		{/* Axis spines — per-axis fields written on edit; the legacy shared
 		    spineColor/spineThickness remain the fallback for old themes. */}
-		<Section title="X spine defaults">
+		<Section title="X spine">
 			<ColorInput
 				label="Color"
 				value={theme.xSpineColor ?? theme.spineColor}
@@ -105,7 +105,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			/>
 		</Section>
 
-		<Section title="Y spine defaults">
+		<Section title="Y spine">
 			<ColorInput
 				label="Color"
 				value={theme.ySpineColor ?? theme.spineColor}
@@ -122,7 +122,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 			/>
 		</Section>
 
-		<Section title="Polar spine defaults">
+		<Section title="Polar spine">
 			<ColorInput
 				label="Color"
 				value={theme.polarSpineColor ?? theme.spineColor}

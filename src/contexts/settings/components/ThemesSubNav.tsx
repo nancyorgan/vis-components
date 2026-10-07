@@ -278,7 +278,7 @@ export const ThemesSubNav = ({
 													moveByTap(t.id, managed ? "custom" : "managed")
 												}
 											}}
-											className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-200 pointer-coarse:flex dark:text-stone-400 dark:hover:bg-stone-700"
+											className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 pointer-coarse:flex dark:hover:bg-stone-700 vc-muted"
 										>
 											{managed ? "↓" : "↑"}
 										</span>

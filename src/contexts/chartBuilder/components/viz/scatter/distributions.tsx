@@ -84,27 +84,10 @@ export const renderDistributionOverlays = (args: {
 					[stripAxes.categoryField]: category,
 				})
 			: (rowsForChart[0] ?? {})
-	// Build category-index lookup for the optional split palettes. The
-	// stats array preserves the categoryScale's ordering, so indexing into
-	// `aggregation.stats` matches the axis tick order (which is what users
-	// see and reason about).
-	const categoryIndex = new Map<string, number>(
-		aggregation.stats.map((s, i) => [s.category, i])
-	)
 	// Border thickness from the Shape panel's "Violin / box outline" knob —
 	// deliberately independent of `shape.outlineWidth` (which the point marks
 	// read). 0 hides.
 	const strokeWidth = channelConfigs.shape?.distributionOutlineWidth ?? 1
-	const strokePalette = overlay.strokePalette ?? []
-	const fillPalette = overlay.fillPalette ?? []
-	const colorFromPalette = (
-		palette: string[],
-		category: string
-	): string | null => {
-		if (palette.length === 0) return null
-		const i = categoryIndex.get(category) ?? 0
-		return palette[i % palette.length] ?? null
-	}
 
 	return (
 		<g aria-hidden>
@@ -114,21 +97,14 @@ export const renderDistributionOverlays = (args: {
 				const inheritedColor = inheritFromHue
 					? (applyHueScale(hueScale.scale, s.category, "categorical") ?? null)
 					: null
-				const strokeFromPalette = colorFromPalette(strokePalette, s.category)
-				const fillFromPalette = colorFromPalette(fillPalette, s.category)
 				// Resolution order for stroke/fill (highest priority first):
 				//   1. per-category override
-				//   2. split palette (strokePalette / fillPalette) when set
-				//   3. hue inheritance when applicable
-				//   4. single fallback color / fillColor
+				//   2. hue inheritance when applicable
+				//   3. single fallback color / fillColor
 				const legacyStroke =
-					overlay.colorOverrides[s.category] ??
-					strokeFromPalette ??
-					inheritedColor ??
-					overlay.color
+					overlay.colorOverrides[s.category] ?? inheritedColor ?? overlay.color
 				const legacyFill =
 					overlay.fillColorOverrides[s.category] ??
-					fillFromPalette ??
 					inheritedColor ??
 					overlay.fillColor
 				// The violinStroke / violinFill color slots, when configured, own

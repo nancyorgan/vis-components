@@ -253,7 +253,7 @@ export const NumberInput = ({
 			disabled={disabled}
 			tabIndex={-1}
 			aria-label={dir === 1 ? "Increment" : "Decrement"}
-			className="flex flex-1 items-center justify-center px-1 text-[7px] leading-none text-stone-500 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-100"
+			className="flex flex-1 items-center justify-center px-1 text-[7px] leading-none hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-stone-700 dark:hover:text-stone-100 vc-muted"
 		>
 			{dir === 1 ? "▲" : "▼"}
 		</button>
@@ -294,7 +294,7 @@ export const NumberInput = ({
 					</div>
 				</div>
 				{suffix !== undefined && (
-					<span className="text-sm text-stone-500 dark:text-stone-400">
+					<span className="text-sm vc-muted">
 						{suffix}
 					</span>
 				)}

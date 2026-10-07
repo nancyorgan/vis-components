@@ -28,7 +28,7 @@ export type FontConfig = FontStyles & {
 	size: number
 }
 
-export const DEFAULT_FONT_CONFIG: FontConfig = {
+const DEFAULT_FONT_CONFIG: FontConfig = {
 	family: "system-ui, sans-serif",
 	color: "#111827",
 	size: 12,
@@ -1062,15 +1062,7 @@ export type LabelsConfig = {
 	 * left-aligned title starts at the same x with or without its prefix.
 	 * See `chartTitlePrefixOf` / `resolveTitlePrefixFont`. */
 	titlePrefix?: TitlePrefixConfig
-	/** Schema version for this labels blob. Bumped when the MEANING of a
-	 * stored value changes so `migrateLabelsConfig` can distinguish a legacy
-	 * blob (no version) from a current one. v2 introduced the three-state
-	 * axis / legend title model (undefined = fallback, "" = blank). */
-	configVersion?: number
 }
-
-/** Current labels-config schema version. See `configVersion`. */
-export const LABELS_CONFIG_VERSION = 2
 
 export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	title: "",
@@ -1079,7 +1071,6 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	// customized" so a fresh chart falls back to the field name. `""` is
 	// reserved for "user explicitly cleared it → no title".
 	legendTitles: {},
-	configVersion: LABELS_CONFIG_VERSION,
 	baseFont: {
 		titles: { ...DEFAULT_BASE_FONT_CONFIG.titles },
 		text: { ...DEFAULT_BASE_FONT_CONFIG.text },
@@ -1380,28 +1371,18 @@ export const migrateLabelsConfig = (
 			override as Record<string, unknown>
 		) as Partial<FontConfig>
 	}
-	// Three-state title migration. Current blobs (configVersion set) store the
-	// three states verbatim: undefined = fallback, "" = blank, string = custom.
-	// Legacy blobs (no configVersion) predate the "blank" state — their "" (and
-	// undefined) always meant "use the field name", so collapse empties back to
-	// undefined; otherwise every un-customized axis / legend on an old visual
-	// would suddenly lose its title.
-	const isLegacy = (raw as { configVersion?: number }).configVersion === undefined
-	const migrateTitle = (v: string | undefined): string | undefined =>
-		isLegacy ? (v ? v : undefined) : v
+	// Axis / legend titles are three-state and stored verbatim:
+	// undefined = fallback to the field name, "" = blank, string = custom.
 	const migratedLegendTitles: LabelsConfig["legendTitles"] = {}
 	for (const [ch, v] of Object.entries(raw.legendTitles ?? {})) {
-		const migrated = migrateTitle(v as string | undefined)
-		if (migrated !== undefined)
-			migratedLegendTitles[ch as LegendChannel] = migrated
+		if (v !== undefined) migratedLegendTitles[ch as LegendChannel] = v as string
 	}
 	return {
 		title: raw.title ?? "",
 		subtitle: raw.subtitle ?? "",
-		xAxisTitle: migrateTitle(raw.xAxisTitle),
-		yAxisTitle: migrateTitle(raw.yAxisTitle),
+		xAxisTitle: raw.xAxisTitle,
+		yAxisTitle: raw.yAxisTitle,
 		legendTitles: migratedLegendTitles,
-		configVersion: LABELS_CONFIG_VERSION,
 		baseFont: migratedBase,
 		fontOverrides: migratedOverrides,
 		// Preserve newer fields when present. Without these, loading an older

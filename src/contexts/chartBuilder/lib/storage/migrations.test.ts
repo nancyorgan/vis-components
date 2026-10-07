@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { CONTENT_VERSION_COLLECTIONS } from "../../../../../server/src/contentVersionCollections"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 
 import {
@@ -516,17 +517,15 @@ describe("CONTENT_MIGRATIONS", () => {
 		}
 	})
 
-	// Deliberately spelled out: if a collection is added or its name changes,
-	// this fails and points at the matching whitelist in server/src/db.ts
-	// (CONTENT_VERSION_COLLECTIONS) — the two must agree or the stamp write
-	// 404s. `folders` is absent from both because folders are unversioned.
-	it("covers exactly the versioned adapter-backed collections", () => {
-		expect(Object.keys(CONTENT_MIGRATIONS).sort()).toEqual([
-			"datasets",
-			"embed-instances",
-			"fonts",
-			"themes",
-			"visuals",
-		])
+	// The server only accepts stamp writes for the collections in its own
+	// whitelist (CONTENT_VERSION_COLLECTIONS); a collection registered here
+	// but missing there 404s on the stamp write, and one present there but
+	// missing here never gets migrated. Importing the server's list keeps
+	// the two from drifting. `folders` is absent from both because folders
+	// are unversioned.
+	it("covers exactly the server's versioned collections", () => {
+		expect(Object.keys(CONTENT_MIGRATIONS).sort()).toEqual(
+			[...CONTENT_VERSION_COLLECTIONS].sort()
+		)
 	})
 })

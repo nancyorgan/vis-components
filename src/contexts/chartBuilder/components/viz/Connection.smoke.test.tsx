@@ -235,37 +235,8 @@ describe("Connection — axis stems (lollipop)", () => {
 			)
 		}
 	})
-
-	it("colors stems by `stemColorField` through the chosen palette", () => {
-		// `g` has 2 values: north (rows 0–4) then south (rows 5–9). The
-		// ordinal scale maps them to palette[0] / palette[1] by first
-		// appearance.
-		const c = mount({
-			axisStem: "x-axis",
-			stemColorMode: "field",
-			stemColorField: "g",
-			stemColorPalette: ["#ff0000", "#00ff00"],
-		})
-		const strokes = [...c.querySelectorAll(".vc-axis-stem")].map((l) =>
-			l.getAttribute("stroke")
-		)
-		expect(strokes.filter((s) => s === "#ff0000").length).toBe(5)
-		expect(strokes.filter((s) => s === "#00ff00").length).toBe(5)
-	})
-
-	it("`single` mode paints every stem the one `stemColor` swatch", () => {
-		const c = mount({
-			axisStem: "x-axis",
-			stemColorMode: "single",
-			stemColor: "#123456",
-		})
-		const strokes = [...c.querySelectorAll(".vc-axis-stem")].map((l) =>
-			l.getAttribute("stroke")
-		)
-		expect(strokes.length).toBe(10)
-		expect(strokes.every((s) => s === "#123456")).toBe(true)
-	})
 })
+
 
 describe("Connection — dash patterns", () => {
 	it("default solid pattern emits a single polyline per group with NO stroke-dasharray", () => {

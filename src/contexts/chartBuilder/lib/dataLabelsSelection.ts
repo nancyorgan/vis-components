@@ -28,7 +28,7 @@ export type LabelPopulation = "all" | "first" | "last"
 
 /** Display order for anything that lists populations (panel blocks, template
  *  inputs): every-label text first, then the series ends. */
-export const LABEL_POPULATIONS: readonly LabelPopulation[] = [
+const LABEL_POPULATIONS: readonly LabelPopulation[] = [
 	"all",
 	"first",
 	"last",
@@ -155,7 +155,7 @@ export const populationsAtTag = (
 
 /** Fields joined as `{A}, {B}` — the pre-filled arrangement a population
  *  starts from. */
-export const joinFieldTokens = (fields: readonly string[]): string =>
+const joinFieldTokens = (fields: readonly string[]): string =>
 	fields.map((f) => `{${f}}`).join(", ")
 
 const sameSet = (a: readonly string[], b: readonly string[]): boolean =>

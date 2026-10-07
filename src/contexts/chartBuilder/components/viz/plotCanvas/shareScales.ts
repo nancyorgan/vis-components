@@ -321,7 +321,6 @@ if (isPolar && facetCfg.proportionalPanelSizing === true && isFaceted) {
 		? migratePolarShareValue(
 				facetCfg.shareR,
 				facetCfg.shareY,
-				facetCfg.shareAxes,
 				"R",
 			)
 		: undefined

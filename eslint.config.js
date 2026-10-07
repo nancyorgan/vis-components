@@ -91,10 +91,10 @@ export default tseslint.config(
 			'react-hooks/set-state-in-effect': 'warn',
 			'react-hooks/static-components': 'warn',
 
-			'react-refresh/only-export-components': [
-				'warn',
-				{ allowConstantExport: true },
-			],
+			// Dev-only Fast Refresh hint. Renderer / panel modules deliberately
+			// export helpers beside their component (the codebase's unit of
+			// organization is the feature file), so the rule only produced noise.
+			'react-refresh/only-export-components': 'off',
 		},
 	},
 	{

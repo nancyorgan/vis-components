@@ -14,7 +14,7 @@
 
 const CSS2_BASE = "https://fonts.googleapis.com/css2"
 
-export const CANONICAL_WEIGHTS = [
+const CANONICAL_WEIGHTS = [
 	100, 200, 300, 400, 500, 600, 700, 800, 900,
 ] as const
 

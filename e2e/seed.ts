@@ -147,9 +147,6 @@ const buildVisualScript = (fixture: SeedFixture): string => `
 		facet: {
 			rows: fixture.facet.rows,
 			cols: fixture.facet.cols,
-			shareAxes:
-				(facetShareX === true || facetShareX === "all") &&
-				(facetShareY === true || facetShareY === "all"),
 			shareX: facetShareX,
 			shareY: facetShareY,
 			gapX: fixture.facet.gapX,
@@ -185,8 +182,6 @@ const buildVisualScript = (fixture: SeedFixture): string => `
 			showDensityViolin: false, showBoxPlot: false, showPoints: true,
 			color: "#475569", fillColor: "#cbd5e1",
 			colorOverrides: {}, fillColorOverrides: {},
-			strokePaletteId: null, strokePalette: [],
-			fillPaletteId: null, fillPalette: [],
 		},
 		categoricalTickStride: 1,
 	};

@@ -64,7 +64,7 @@ const inferFields = (
 	}))
 
 /** Parse a CSV file into the shape consumed by `useCreateNewDataset`. */
-export const parseUpload = async (file: File): Promise<ParsedUpload> => {
+const parseUpload = async (file: File): Promise<ParsedUpload> => {
 	const { fieldNames, rows } = await parseCsvFile(file)
 	return { filename: file.name, fields: inferFields(fieldNames, rows), rows }
 }
@@ -260,7 +260,7 @@ export const useHandleCsvUpload = () => {
 }
 
 /** Byte size of pasted text, for the same size gate a file goes through. */
-export const pastedDataBytes = (text: string): number =>
+const pastedDataBytes = (text: string): number =>
 	new TextEncoder().encode(text).byteLength
 
 /** Entry point for the data tray's Paste data dialog: the pasted text goes

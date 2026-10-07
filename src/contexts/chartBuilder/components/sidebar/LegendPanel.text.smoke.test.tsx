@@ -102,7 +102,9 @@ describe("LegendPanel — Legend text", () => {
 		expect(weight.value).toBe("")
 		expect(weight.options[0].text).toBe("(Semibold)")
 		// The color swatch previews the inherited legend color.
-		const swatch = utils.getByLabelText("Color swatch") as HTMLInputElement
+		// The Color row is a ColorInput: its <label> names the swatch "Color".
+		const swatch = utils.getByLabelText("Color") as HTMLInputElement
+		expect(swatch.type).toBe("color")
 		expect(swatch.value).toBe("#0000aa")
 	})
 
@@ -114,14 +116,15 @@ describe("LegendPanel — Legend text", () => {
 			target: { value: "Georgia, 'Times New Roman', serif" },
 		})
 		fireEvent.change(utils.getByLabelText("Weight"), { target: { value: "700" } })
-		fireEvent.change(utils.getByLabelText("Color swatch"), {
+		fireEvent.change(utils.getByLabelText("Color"), {
 			target: { value: "#ff0000" },
 		})
 		expect(utils.cfg()?.textFont).toEqual({
 			size: 16,
 			family: "Georgia, 'Times New Roman', serif",
 			weight: 700,
-			color: "#ff0000",
+			// ColorInput normalizes swatch picks to uppercase hex.
+			color: "#FF0000",
 		})
 	})
 

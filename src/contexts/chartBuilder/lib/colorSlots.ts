@@ -139,7 +139,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		// renderDistributionOverlays) — so the default must not claim "Single
 		// color".
 		inherit: {
-			label: "Automatic",
+			label: "Auto",
 			help: "Matches the point colors when Color varies by the category variable; otherwise a single default color.",
 		},
 	},
@@ -151,7 +151,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		themeColor: (t) => t.distributionOverlayStroke,
 		acceptsFieldMapping: true,
 		inherit: {
-			label: "Automatic",
+			label: "Auto",
 			help: "Matches the point colors when Color varies by the category variable; otherwise a single default color.",
 		},
 	},
@@ -187,7 +187,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		// Unconfigured, each per-group regression line inherits its hue group's
 		// color (see RegressionLayer) — same truth-in-labeling as the violin.
 		inherit: {
-			label: "Automatic",
+			label: "Auto",
 			help: "Matches each Color group's color when points are grouped; otherwise a single default color.",
 		},
 	},
@@ -199,7 +199,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		themeColor: (t) => t.regressionCiFill,
 		acceptsFieldMapping: true,
 		inherit: {
-			label: "Automatic",
+			label: "Auto",
 			help: "Matches each Color group's color when points are grouped; otherwise a single default color.",
 		},
 	},
@@ -270,13 +270,12 @@ export const legacySlotColor = (
 			return overlay?.fillColor
 		case "densityCurveFill":
 		case "densityCurveStroke":
-			// New feature — no legacy per-feature color field to seed from; the
-			// slot's theme-seeded singleColor is the source of truth.
+		case "stem":
+			// No legacy per-feature color field to seed from; the slot's
+			// theme-seeded singleColor is the source of truth.
 			return undefined
 		case "line":
 			return connection?.strokeColor ?? undefined
-		case "stem":
-			return connection?.stemColor ?? undefined
 		case "spine":
 			return configs.angle?.spine?.color
 		case "regressionStroke":

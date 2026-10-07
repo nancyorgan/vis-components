@@ -695,7 +695,7 @@ explicit justification in the doc but materially affect layout:
 The Aesthetics panel's "Fix aspect ratio" option pins every panel's
 inner plot rect to a user-chosen shape. It reaches the solver as
 `SolverInput.aspectRatio?: number | null` — the desired
-**height / width** ratio (PlotCanvas computes it as Length ÷ Width from
+**height / width** ratio (PlotCanvas computes it as Height ÷ Width from
 `ChannelConfigs.aspectRatio`). `null` / `undefined` / `≤ 0` = off.
 
 **Ratio wins.** At the top of `solveFacetLayout`, when the ratio is

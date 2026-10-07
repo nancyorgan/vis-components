@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { SectionChevron } from "../../../components/ui/Chevron"
 import { Link } from "@tanstack/react-router"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import type { Folder, Visual } from "../../chartBuilder/lib/types"
@@ -308,7 +309,7 @@ const FolderRowMenu = ({
 				>
 					{picking ? (
 						<>
-							<div className="px-3 py-1 text-xs font-medium tracking-wider text-stone-500 uppercase dark:text-stone-400">
+							<div className="px-3 py-1 text-xs font-medium tracking-wider uppercase vc-muted">
 								Move to
 							</div>
 							{folder.parentId !== null && (
@@ -340,7 +341,7 @@ const FolderRowMenu = ({
 								</button>
 							))}
 							{targets.length === 0 && folder.parentId === null && (
-								<div className="px-3 py-1.5 text-sm text-stone-500 italic dark:text-stone-400">
+								<div className="px-3 py-1.5 text-sm italic vc-muted">
 									No other folder to move into
 								</div>
 							)}
@@ -525,14 +526,7 @@ const FolderTreeItem = ({
 						}}
 						className={`flex ${ROW_CHEVRON_BOX} items-center justify-center text-vc-brand-text dark:text-th-electric-indigo-300`}
 					>
-						<svg
-							viewBox="0 0 8 8"
-							width={8}
-							height={8}
-							className={`transition-transform ${expanded ? "rotate-90" : ""}`}
-						>
-							<path d="M2 1l4 3-4 3z" fill="currentColor" />
-						</svg>
+						<SectionChevron open={expanded} />
 					</button>
 				) : (
 					<span className={ROW_CHEVRON_BOX} />

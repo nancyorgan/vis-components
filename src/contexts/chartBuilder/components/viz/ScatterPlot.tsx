@@ -161,9 +161,6 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 
 	// Coord factory — defers xScale/yScale construction to post-measurement.
 	const coord: CoordFactory = (inner) => {
-		// The first-tick offsets are honored by `makePositionScale` only for
-		// categorical / string-ordinal scales; quantitative axes ignore
-		// them. Per-axis: PlotCanvas anchors only SHARED categorical axes.
 		const xScale =
 			xField && xRaw && xType
 				? overrideLinearDomain(
@@ -171,8 +168,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 							xRaw,
 							xType,
 							[inner.x0, inner.x1],
-							levelOrders[xField],
-							{ firstTickPxOffset: props.firstTickPxOffsetX }
+							levelOrders[xField]
 						),
 						xType,
 						props.xMinOverride,
@@ -186,8 +182,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 							yRaw,
 							yType,
 							[inner.y1, inner.y0],
-							levelOrders[yField],
-							{ firstTickPxOffset: props.firstTickPxOffsetY }
+							levelOrders[yField]
 						),
 						yType,
 						props.yMinOverride,
@@ -608,11 +603,6 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 
 		if (!xScale || !yScale || !xType || !yType) return null
 
-		// TODO(audit, P1.1): buildMarks runs on every render of this
-		// render-prop callback (hover state, resize). Decomposing it
-		// into a scale-independent prepass (memoized at the top level)
-		// + a scale-application step (cheap, runs here) is in scope
-		// for the P1.1 renderer-helper extraction work.
 		const marks = buildMarks({
 			rowsForChart,
 			encodings,

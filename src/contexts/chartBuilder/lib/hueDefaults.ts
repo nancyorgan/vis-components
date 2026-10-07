@@ -36,26 +36,6 @@ export const resolveGradientToConfig = (
 			sourcePaletteId: gradientId,
 		}
 	}
-	if (gradientId === "customLinear" && theme.customLinearGradient) {
-		return {
-			...DEFAULT_QUANTITATIVE_HUE_CONFIG,
-			palette: "customLinear",
-			lowColor: theme.customLinearGradient.low,
-			midColor: null,
-			highColor: theme.customLinearGradient.high,
-			sourcePaletteId: "customLinear",
-		}
-	}
-	if (gradientId === "customDiverging" && theme.customDivergingGradient) {
-		return {
-			...DEFAULT_QUANTITATIVE_HUE_CONFIG,
-			palette: "customDiverging",
-			lowColor: theme.customDivergingGradient.low,
-			midColor: theme.customDivergingGradient.mid,
-			highColor: theme.customDivergingGradient.high,
-			sourcePaletteId: "customDiverging",
-		}
-	}
 	return {
 		...DEFAULT_QUANTITATIVE_HUE_CONFIG,
 		palette: (gradientId || "viridis") as PaletteName,

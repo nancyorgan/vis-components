@@ -178,7 +178,7 @@ export const ThemesGalleryPage = () => {
 					>
 						{THEME_FOLDER_LABEL[folder]}
 						{locked && (
-							<span className="text-stone-500 dark:text-stone-400">
+							<span className="vc-muted">
 								<LockIcon size={12} />
 							</span>
 						)}
@@ -188,7 +188,7 @@ export const ThemesGalleryPage = () => {
 					</p>
 				</div>
 				{entries.length === 0 ? (
-					<p className="rounded-card border border-dashed border-stone-300 px-4 py-6 text-center text-sm italic text-stone-500 dark:border-stone-700 dark:text-stone-400">
+					<p className="rounded-card border border-dashed border-stone-300 px-4 py-6 text-center text-sm italic dark:border-stone-700 vc-muted">
 						{FOLDER_EMPTY[folder]}
 					</p>
 				) : (

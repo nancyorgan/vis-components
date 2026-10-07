@@ -113,7 +113,7 @@ describe("Angle panel — radar mode", () => {
 		const q = await mount()
 		fireEvent.click(header(q, /spoke labels/i))
 		expect(q.getByLabelText("Label angle")).not.toBeNull()
-		expect(q.getByLabelText("Custom format code")).not.toBeNull()
+		expect(q.getByLabelText("Custom text format")).not.toBeNull()
 		expect(q.getByLabelText("Label every")).not.toBeNull()
 		expect(q.getByLabelText("Distance")).not.toBeNull()
 	})

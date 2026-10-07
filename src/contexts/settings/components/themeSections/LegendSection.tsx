@@ -4,7 +4,7 @@ import type { ThemeSectionProps } from "./types"
 
 export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 	<SectionGroup title="Legend" isReadOnly={isReadOnly}>
-		<Section title="Legend defaults">
+		<Section title="Legend">
 			<div className="flex flex-col gap-1.5">
 				<span className="text-sm vc-muted">
 					Legend background
@@ -46,11 +46,11 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 				<span className="text-sm vc-muted">
 					Legend swatch color
 				</span>
-				<p className="text-xs text-stone-500 dark:text-stone-400">
+				<p className="text-xs vc-muted">
 					Default fill and outline for length / angle / area / opacity
 					legend swatches when they render alongside a gradient (no hue
 					color to inherit). The outline applies to the area (size)
-					swatch. Per-visual overrides live in the Legend panel.
+					swatch. Per-visual overrides live in Legend.
 				</p>
 				<ColorInput
 					label="Fill"
@@ -65,10 +65,10 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 			</div>
 		</Section>
 		<Section title="Legend swatches">
-			<p className="text-xs text-stone-500 dark:text-stone-400">
+			<p className="text-xs vc-muted">
 				What the discrete swatches of a color, saturation, brightness,
 				pattern, opacity, or rug legend start as. A shape encoding keeps
-				its own glyphs. The Legend panel&apos;s Swatches groups override
+				its own glyphs. Legend&apos;s Swatches groups override
 				these per visual.
 			</p>
 			<div className="flex flex-col gap-1.5">
@@ -88,7 +88,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 				onChange={(v) => set("legendSwatchSize", v)}
 			/>
 			<NumberInput
-				label="Outline width"
+				label="Outline thickness"
 				value={theme.legendSwatchOutlineWidth}
 				min={0}
 				max={10}

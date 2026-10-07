@@ -25,7 +25,7 @@ export const DOLLAR_FORMAT_SPEC = "$,.2~f"
 export const PERCENT_FORMAT_SPEC = ".2~%"
 
 /** The default spec for each view-time format hint. */
-export const FORMAT_HINT_SPECS: Record<
+const FORMAT_HINT_SPECS: Record<
 	NonNullable<Field["formatHint"]>,
 	string
 > = {

@@ -174,6 +174,8 @@ export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 									// Lattice centers are unique per cell and stable
 									// across re-renders — a proper key, unlike the index.
 									key={`${c.cx},${c.cy}`}
+									/* `vc-hexbin-cell` is a marker for tests / user CSS, not
+									   styling — there is deliberately no CSS rule for it. */
 									className="vc-hexbin-cell"
 									d={d}
 									fill={

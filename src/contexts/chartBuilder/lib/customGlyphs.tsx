@@ -25,7 +25,7 @@ export const MAX_TEXT_GLYPH_CHARS = 3
 /** Longest side of a stored image glyph, px. Marks render at ~4–30 px
  * radius, so 128 px is ample while keeping each glyph a few KB inside the
  * localStorage visual blob. */
-export const MAX_IMAGE_GLYPH_PX = 128
+const MAX_IMAGE_GLYPH_PX = 128
 
 /** First shape index that refers into `customGlyphs` (one past the
  * built-in symbol palette). */

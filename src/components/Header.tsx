@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { DisclosureChevron } from "./ui/Chevron"
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import { useAtom, useAtomValue } from "jotai"
 import { useAtomCallback } from "jotai/utils"
@@ -58,7 +59,7 @@ export const Header = () => {
 				 *  editor's page-fill height assumes `--vc-header-h`), and the
 				 *  badge is the first thing to give. */}
 				<span
-					className="-ml-4 hidden rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-stone-500 sm:inline dark:bg-stone-800 dark:text-stone-400"
+					className="-ml-4 hidden rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums sm:inline dark:bg-stone-800 vc-muted"
 					title={`Built ${new Date(__BUILD_DATE__).toLocaleString(undefined, {
 						dateStyle: "medium",
 						timeStyle: "short",
@@ -237,7 +238,7 @@ const NewVisualizationButton = () => {
 					aria-haspopup="menu"
 					aria-expanded={open}
 				>
-					▾
+					<DisclosureChevron open={open} />
 				</Button>
 			</div>
 			{open && (

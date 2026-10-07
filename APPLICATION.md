@@ -329,8 +329,9 @@ snapshot is the same 17 atoms `useSaveVisual` reads.)
 ### 2.4 Dataset versions & cleanup
 The editor header carries a **version badge** — the dataset name plus
 `v2 of 3 · latest` — styled amber while a non-latest version is being
-previewed. Clicking it opens a popover listing every version
-newest-first with its upload timestamp and filename:
+previewed. Clicking it opens a popover whose header names the dataset
+and the version in use right now (`v2 · <upload time> · <note>`), then
+lists every version newest-first with its upload timestamp and filename:
 
 - **Switching versions** — picking a row sets `previewVersionIdAtom`
   (null = follow whatever is latest), so the editor re-renders against
@@ -698,14 +699,14 @@ pulling labels closer; x / y then shift in screen space on top.
 only; checkbox, off by default): graduated value tick marks around the
 ring showing each node's flow total (d3's classic chord group ticks —
 every group shares ONE step so the ring reads as a single scale).
-Enabling it reveals **Ticks / Tick Labels / Spine** subheaders
+Enabling it reveals **Ticks / Tick labels / Spine** subheaders
 mirroring the x / y position panels: *Ticks* = **Count** (target tick
 marks around the FULL ring, default 100 — the axis is continuous, so
 it takes a count like the continuous x / y axes, never the categorical
 "Tick every" stride; the step snaps to a nice round flow value and
 each node gets ticks proportional to its total) + tick-mark color /
-thickness / length; *Tick Labels* = the shared **Format** control
-(same preset dropdown + custom d3-format spec as the x / y Tick Labels
+thickness / length; *Tick labels* = the shared **Format** control
+(same preset dropdown + custom d3-format spec as the x / y Tick labels
 section; Auto = SI-prefixed calibrated to the step, fixed decimals for
 fractional steps) + **Label every** Nth tick (default 5th; each
 group's graduation starts at 0 from its start angle) + the shared
@@ -713,7 +714,7 @@ tick-label font editor (unset fields inherit the base text font);
 *Spine* = the thin arc drawn along each group's outer edge
 (theme POLAR spine color / thickness — the circular analogue of an
 axis line). Tick labels read radially outward and flip 180° past 6 o'clock
-so they never render upside-down; the Tick Labels **Make all tick labels
+so they never render upside-down; the Tick labels **Make all tick labels
 vertical** toggle (off by default) instead keeps every label upright in
 screen space, centered just past its tick mark. The ring shrinks to
 reserve the axis's radial extent (tick length + deepest label — the
@@ -1051,7 +1052,7 @@ Behavior depends on chart context:
 
 - **No connection mapped** (bar / area / scatter): SVG fill patterns
   (six pattern shapes). Per-value pattern picker. Ink and background
-  color controls, defaulting to the Pattern defaults from the theme.
+  color controls, defaulting to the Pattern section of the theme.
   With no pattern variable mapped, the panel's **Default pattern**
   picker (`defaultPattern` + its ink) fills EVERY mark — scatter
   points, bars, area layers, and pie wedges alike (the pattern tile's
@@ -1269,13 +1270,13 @@ Histograms ignore it — their bars always abut.
 collapsible subsections (all start collapsed), so the panel opens as a
 short list of headers.
 Pies lead with the Pie / Donut chart-type toggle above the sections.
-- **Angle Extent** — the **Min** / **Max** sweep in degrees (a gauge on
+- **Angle extent** — the **Min** / **Max** sweep in degrees (a gauge on
   pies, a partial dial on radar).
 - **Spokes** (radar only) — the spoke count (quantitative / temporal
   angle; categorical angle always gets one spoke per category) and the
   spoke line's thickness / dash via the shared Spine control. Spoke
-  color lives in the Color menu's Radar Spine slot.
-- **Spoke Labels** (radar only) — the perimeter labels at each spoke:
+  color lives in the Color menu's Radar spine slot.
+- **Spoke labels** (radar only) — the perimeter labels at each spoke:
   **Label angle** (rotation), **Format** (the same preset dropdown +
   custom d3-format / d3-time-format box the x / y axes use),
   **Label every** N spokes (labels thin out from the first spoke; the
@@ -1386,7 +1387,7 @@ Visible when `facet` is mapped. Controls:
   histogram's count axis has no field at all). The size-by-unit toggle
   keeps the raw position-encoding gate, since its weights read that
   field.
-- **Gap X / Gap Y** — moves panels further apart or closer together.
+- **Horizontal gap / Vertical gap** — moves panels further apart or closer together.
   Panels expand or contract to keep total layout area constant, until
   panels are touching; after that, they slide over each other into
   overlap (ridgeline plot territory).
@@ -1577,9 +1578,9 @@ The X-axis and Y-axis panels (under Encodings) configure:
   strokes' combined width. Cartesian coordinates only (`Axis`'s `opposingAxis`
   prop, passed from `components/viz/coords/cartesian.tsx`); polar and radar axes
   have no opposing spine.
-- **Adjust position** (end of Tick Labels, behind a divider) — X / Y
+- **Adjust position** (end of Tick labels, behind a divider) — X / Y
   pixel nudge that moves the TICK LABELS only. The control sits in the
-  Tick Labels section, so nothing else follows it: the spine, tick
+  Tick labels section, so nothing else follows it: the spine, tick
   marks, axis title, and gridlines all stay where they were. Same
   input convention as the data-labels nudge: positive X = right,
   positive Y = up (stored in screen coords, sign flipped at the input
@@ -1587,7 +1588,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   new `offsetX`/`offsetY` are unset and cleared on their first write.
   The radar **R** panel has the same control: it moves the r-tick
   labels along the 12 o'clock spoke, and the rings and spokes stay put.
-- **Angle** (Tick Labels) — tick label rotation in degrees. Blank =
+- **Angle** (Tick labels) — tick label rotation in degrees. Blank =
   auto: a categorical / ordinal x-axis rotates its labels to -45° when
   two NEIGHBORING labels would collide (half of each label's measured
   width plus a quarter-em gap exceeds the spacing between their ticks;
@@ -1603,7 +1604,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   that migration (and the seed / bundle-import paths, which carry no
   storage version) clears it to blank. Also here: **label stride**
   (every Nth).
-- **Wrap text** (Tick Labels) — line-wraps long tick labels. X-axis
+- **Wrap text** (Tick labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis
   labels wrap to a fixed font-relative max width (~8em). Wrapping
   breaks on spaces, splitting a word only when it alone exceeds a
@@ -1611,7 +1612,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   replaces rotation as the overflow strategy); an explicit tick label
   angle still applies. The layout solver reserves matching multi-line
   room (line count below the x-axis, widest line left of the y-axis).
-- **Alignment** (Tick Labels) — a left / center / right row (same
+- **Alignment** (Tick labels) — a left / center / right row (same
   glyph buttons as the Labels panel), shown while Wrap text is on.
   Wrapped labels align their lines within the wrapped
   block; the block itself stays anchored to its tick. Unwrapped
@@ -1630,7 +1631,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   option) that populates an editable text box. The user can pick a
   preset and then refine it as raw d3-format syntax. Every format
   dropdown in the sidebar — x / y / r tick labels, the chord ring
-  axis's Tick Labels, radar Spoke Labels, per-field data labels, legend
+  axis's Tick labels, radar Spoke labels, per-field data labels, legend
   measure labels — offers this ONE preset list (`FormatPresetOptions`);
   only the countries-level Geography group (§ maps) is conditional.
   The box also takes literal text around the value, so whole-number
@@ -1656,7 +1657,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   rather than double-drawing them. The Shape panel's **Violin / box
   outline** (shown only while an overlay is on) drives the violin
   outline and all box strokes (body, whiskers, caps, outlier circles) —
-  a separate knob from that panel's point **Outline width**; width 0
+  a separate knob from that panel's point **Outline thickness**; width 0
   hides the borders. The median line stays 1.5× that width for
   emphasis.
 - **Regression** (X position only) — offered when BOTH position axes
@@ -1892,7 +1893,7 @@ controls:
 
 In the TREE layouts (packed circles / treemap / sunburst) labels are
 placed by the layout itself, so the panel hides its position rows and
-a note says so. Value, Color, Size, and Text Properties still apply
+a note says so. Value, Color, Size, and Text properties still apply
 (see §6.2); Value defaults to each row's name. Packed circles and
 treemap draw their labels themselves, so the position / overlap /
 background fine-tuning stands down there too. The SUNBURST hands its
@@ -1946,7 +1947,7 @@ config field), resolves through the same alias table the join uses
 every other chart type and geography level — other dropdowns are
 unchanged.
 
-Geo modes add a **Draw leader lines** toggle under Label selection and
+Geo modes add a **Show leader lines** toggle under Label selection and
 overlap (geo-only; hidden elsewhere). When on, every label that sits
 away from its region's centroid — displaced by the X/Y offsets or by
 overlap avoidance — draws a straight line from the centroid to the
@@ -1963,7 +1964,7 @@ saved before the fields existed), seeded on chart creation and flowed
 through on a theme switch like the data-label font knobs. Leader lines
 live inside the map's pan/zoom group with the labels.
 
-Packed circles additionally get a **Text Position** subheader with one
+Packed circles additionally get a **Text position** subheader with one
 "Wrap label around" checkbox per CONTAINER level (top level circle,
 second level circle, … — levels come from the drawn hierarchy, the
 deepest all-leaf level excluded; with no grouping circles the panel
@@ -1985,7 +1986,7 @@ panel edge. No clear window — or text longer than ~a
 half-circumference — means no label, same convention as the rim fit
 check (`arcWrapLevels` in `DataLabelsConfig`).
 
-- **Label format** — every mapped Value takes a per-field format (the
+- **Text format** — every mapped Value takes a per-field format (the
   same preset dropdown + custom d3 spec the axes use), stored in
   `DataLabelsConfig.fieldFormats` keyed by field name. A single mapped
   field shows one format control under the Value row's disclosure;
@@ -2077,9 +2078,9 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
     when no all-labels population exists and the shared text covers the
     same variables, the shared arrangement (the legacy first-and-last
     inheritance: `{value}` on firsts, `{value} {series}` on lasts). There
-    is still exactly ONE "Label format" section — per-field formats are
+    is still exactly ONE "Text format" section — per-field formats are
     shared across populations.
-  - Under **Position Adjustment and Alignment**, the Alignment control
+  - Under **Adjust position and alignment**, the Alignment control
     and the Adjust-position X/Y inputs each become one row / pair per
     population ("All labels" writes the base values; "First label" /
     "Last label" write the endpoint overrides). Wrap text stays a single
@@ -2442,7 +2443,7 @@ clears the setting rather than storing it. Center / right make each
 label's cell grow to fill the rest of its row first
 (`.vc-legend-text-align`), so the alignment has somewhere to work; the
 gradient bar's break labels are NOT affected — they keep their own
-**Label alignment** under Label formatting.
+**Label alignment** under Text formatting.
 
 The "Gradient legend style" toggle (quantitative hue only) switches
 between a gradient bar and sampled swatches; both honor the legend's
@@ -2469,7 +2470,7 @@ controls:
   thickness** (default 1px) and **Tick color** (default a neutral
   stone gray) appear only once ticks are on.
 
-Quantitative legend break labels take the shared **Label format**
+Quantitative legend break labels take the shared **Text format**
 preset dropdown + custom d3-format spec (Literal prints each break
 as-is, `literal%` as-is plus "%" — see the axis Tick label format for
 the text-around-the-value forms). **Auto** (empty spec) follows the break set: when every break
@@ -2478,7 +2479,7 @@ as whole numbers with no trailing ".00"; once any break carries a
 fraction every label prints two decimals so the column stays aligned
 (0.00 / 0.50 / 1.00). Temporal breaks print as locale dates.
 
-The Label formatting subsection additionally offers **Label
+The Text formatting subsection additionally offers **Label
 alignment** (left / center / right, via the shared AlignmentControl)
 whenever a gradient bar is active: under a horizontal bar each break
 label anchors its left edge / center / right edge at its stop; beside
@@ -2523,14 +2524,14 @@ here, it drops out of that separate subsection — which now surfaces
 only for length / angle / area, plus measure-mapped (Count / Density)
 opacity, whose ramp has no Swatches group.
 
-**Swatch outline** (per-section Outline color + Outline width rows):
+**Swatch outline** (per-section Outline color + Outline thickness rows):
 a border drawn around that section's swatches — keeps pale swatches
 (e.g. the white midpoint of a diverging gradient) visible against the
 legend background. Width is the switch: 0 draws no outline, so there's
 no separate toggle; the theme's default width (0 out of the box) is
 where every section starts. The color starts from the theme's default
 outline color when it has one, else pipes in from the
-marks' outline color (Color menu → Outline), falling back to
+marks' outline color (Color → Outline), falling back to
 `#cccccc`; picking a color stores an override and "reset" returns to
 the piped-in value. A visual saved before per-section outlines had one
 global color + width pair; those legacy fields still apply to every
@@ -2747,7 +2748,7 @@ Theme settings:
   discrete swatches of a color / outline-color / saturation /
   brightness / pattern / opacity / rug legend section start with. A
   shape encoding's glyphs are never replaced (they ARE the key). The
-  outline color is Automatic by default — swatches that stand in for
+  outline color is Auto by default — swatches that stand in for
   marks take the marks' outline color, aux-painted sections take the
   legend-swatch outline above — or a custom color. Read live: the
   Legend panel's Swatches groups show these values and store an
@@ -3030,7 +3031,10 @@ the embed inherits the size the user sees (fixed fallbacks when a
 piece can't be measured). The snippets are editable textareas: hand
 edits survive until an option that rebuilds the snippet changes.
 Copying a snippet records an embed instance, which is what lets live
-embeds follow later version uploads.
+embeds follow later version uploads; the library's Data set column shows
+each instance's pinned version and when its snippet was last exported.
+The "Pin to current version" option names the version being pinned with
+its upload date and note.
 
 **Editing a published visual is flagged twice.** The landing page's
 Pin State column reports publish reality per instance; the editor
@@ -3256,9 +3260,9 @@ These are intentional design decisions worth pinning explicitly:
     left one-category panels uncentered, and the cross-panel alignment
     it bought already holds under `padding(0.5)` because panels sharing
     an axis have identical domains and identical panel widths (the
-    solver keeps column widths / row heights uniform). The
-    `firstTickPxOffset` scale option remains available but no caller
-    passes it.
+    solver keeps column widths / row heights uniform). The scale
+    option that drove the anchoring is gone too; `makePositionScale`
+    takes no spacing options.
 
 ---
 

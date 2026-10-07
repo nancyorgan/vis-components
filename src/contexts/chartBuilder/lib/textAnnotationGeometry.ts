@@ -39,7 +39,7 @@ const toNumber = (v: number | string): number => {
 /** Line-box height as a multiple of the font size — the same 1.2 factor
  *  `renderMultilineTspans` drops each subsequent line by, so a measured box
  *  matches the rendered stack. */
-export const TEXT_ANNOTATION_LINE_HEIGHT = 1.2
+const TEXT_ANNOTATION_LINE_HEIGHT = 1.2
 
 /** Lay out a text annotation's auto-sized box around a resolved pixel anchor.
  *

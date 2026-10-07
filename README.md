@@ -27,6 +27,10 @@ pnpm dev
 
 Editor: http://localhost:3002.
 
+To develop against a running self-host server instead of browser-local
+storage, point the dev server's `/api` proxy at it:
+`VIS_DEV_API=http://localhost:<port> pnpm dev`.
+
 Run this way (or served as static files), everything you make is stored in
 your own browser (localStorage + IndexedDB) — private to that browser, no
 server required.

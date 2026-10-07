@@ -373,7 +373,6 @@ export const PlotCanvas = () => {
 		facetCfg.proportionalSizingY,
 		facetCfg.shareX,
 		facetCfg.shareY,
-		facetCfg.shareAxes,
 		// Override maps drive the effective-range weight computation, so
 		// the panelInputs memo must recompute when they change — otherwise
 		// updating per-panel / per-row / overall ranges doesn't reflow
@@ -460,7 +459,6 @@ export const PlotCanvas = () => {
 			facetCfg.panelHeight,
 			facetCfg.shareX,
 			facetCfg.shareY,
-			facetCfg.shareAxes,
 			facetCfg.proportionalSizing,
 			facetCfg.proportionalSizingByUnit,
 			facetCfg.proportionalSizingX,
@@ -558,10 +556,10 @@ export const PlotCanvas = () => {
 	// whole render so every panel below picks its scale source via the same
 	// logic.
 	const shareXMode: "none" | "perGroup" | "all" = isFaceted
-		? migrateShareValue(facetCfg.shareX, facetCfg.shareAxes)
+		? migrateShareValue(facetCfg.shareX)
 		: "none"
 	const shareYMode: "none" | "perGroup" | "all" = isFaceted
-		? migrateShareValue(facetCfg.shareY, facetCfg.shareAxes)
+		? migrateShareValue(facetCfg.shareY)
 		: "none"
 	const allDatasetRows = dataset.rows
 	const { colRowsByColKey, rowRowsByRowKey } = groupRowsByShareGroup(panelData)

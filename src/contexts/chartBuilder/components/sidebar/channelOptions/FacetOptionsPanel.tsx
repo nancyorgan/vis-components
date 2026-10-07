@@ -177,21 +177,19 @@ export const FacetOptionsPanel = () => {
 		cfg.proportionalSizing,
 		cfg.proportionalSizingByUnit,
 	)
-	const shareX = migrateShareValue(cfg.shareX, cfg.shareAxes)
-	const shareY = migrateShareValue(cfg.shareY, cfg.shareAxes)
+	const shareX = migrateShareValue(cfg.shareX)
+	const shareY = migrateShareValue(cfg.shareY)
 	// Polar share modes — independent of shareX/Y but migrate from
 	// them when unset for back-compat with saved cartesian-style
 	// settings on polar charts.
 	const shareR = migratePolarShareValue(
 		cfg.shareR,
 		cfg.shareY,
-		cfg.shareAxes,
 		"R",
 	)
 	const shareAngle = migratePolarShareValue(
 		cfg.shareAngle,
 		cfg.shareX,
-		cfg.shareAxes,
 		"angle",
 	)
 	// "Per row" / "Per column" options need the grid to be 2D —
@@ -378,7 +376,6 @@ export const FacetOptionsPanel = () => {
 				<NumberInput
 					label="Columns"
 					labelClassName={LABEL_COL}
-					className="mt-2"
 					min={1}
 					max={maxPerAxis}
 					step={1}
@@ -568,7 +565,6 @@ export const FacetOptionsPanel = () => {
 							updateCfg({
 								shareX,
 								shareY: next,
-								shareAxes: shareX === "all" && next === "all",
 							})
 						}}
 					/>
@@ -670,7 +666,6 @@ export const FacetOptionsPanel = () => {
 							updateCfg({
 								shareX: next,
 								shareY,
-								shareAxes: next === "all" && shareY === "all",
 							})
 						}}
 					/>
@@ -753,14 +748,13 @@ export const FacetOptionsPanel = () => {
 			{/* ─── Custom sizing ──────────────────────────────────────── */}
 			<CollapsibleSubsection title="Custom sizing">
 				<GapInput
-					label="Gap X"
+					label="Horizontal gap"
 					value={cfg.gapX}
 					defaultValue={DEFAULT_FACET_CONFIG.gapX}
 					onChange={(n) => updateCfg({ gapX: n })}
 				/>
 				<GapInput
-					className="mt-2"
-					label="Gap Y"
+					label="Vertical gap"
 					value={cfg.gapY}
 					defaultValue={DEFAULT_FACET_CONFIG.gapY}
 					onChange={(n) => updateCfg({ gapY: n })}

@@ -31,7 +31,7 @@ export const TextBackgroundPanel = ({
 	return (
 		<div className="flex flex-col gap-2">
 			<Toggle
-				label="Use text background"
+				label="Show text background"
 				checked={enabled}
 				onChange={(textBackground) => onChange({ textBackground })}
 			/>

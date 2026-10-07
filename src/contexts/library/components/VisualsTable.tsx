@@ -258,8 +258,9 @@ export const VisualsTable = ({
 										<>
 											{row.dataset.name}
 											{row.kind === "instance" && (
-												<span className="ml-1 text-stone-500 dark:text-stone-400">
-													· {row.versionLabel}
+												<span className="ml-1 vc-muted">
+													· {row.versionLabel} · exported{" "}
+													{formatDate(row.instance.lastExportedAt)}
 												</span>
 											)}
 										</>

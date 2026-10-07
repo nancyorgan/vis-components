@@ -198,8 +198,8 @@ describe("FacetAxisOptionsPanel — preserved asymmetries", () => {
 		expect(
 			utils.getByText(/no row axis to configure/i).textContent,
 		).toContain("Use the column panel")
-		// The row panel still surfaces Gap Y (panel layout applies to pies).
-		expect(utils.getByLabelText(/Gap Y/)).toBeTruthy()
+		// The row panel still surfaces Vertical gap (panel layout applies to pies).
+		expect(utils.getByLabelText(/Vertical gap/)).toBeTruthy()
 
 		expand(utils, /columns/i)
 		expect(

@@ -2,6 +2,8 @@ import { CHIP_INK } from "../../lib/previewInk"
 import type { LegendSwatchShape } from "../../lib/labelsConfig"
 import { SHAPE_PALETTE, symbolPath } from "../../lib/scales"
 
+import { swatchChipClass } from "./channelOptions/glyphShared"
+
 const PREVIEW_SIZE = 20
 
 /** Every glyph a legend swatch can take: the rounded rectangle, a line
@@ -111,11 +113,7 @@ export const SwatchShapePicker = ({
 					aria-pressed={selected}
 					aria-label={label}
 					title={label}
-					className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-						selected
-							? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-							: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-					}`}
+					className={swatchChipClass(selected, "w-7")}
 				>
 					<SwatchShapeGlyph idx={opt} selected={selected} />
 				</button>

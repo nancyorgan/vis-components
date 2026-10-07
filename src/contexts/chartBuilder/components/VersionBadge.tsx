@@ -152,6 +152,13 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 						<div className="truncate text-sm font-medium vc-heading">
 							{view.name}
 						</div>
+						{/* The version in use right now: its upload time and note, so
+						    the header answers "which data am I looking at?" without
+						    scanning the list below. */}
+						<div className="truncate text-xs vc-muted">
+							v{view.versionIndex} · {formatTime(view.versionCreatedAt)}
+							{view.versionNote ? ` · ${view.versionNote}` : ""}
+						</div>
 					</div>
 					{mutateError && (
 						<div className="border-b border-stone-200 px-3 py-2 text-sm text-red-700 dark:border-stone-700 dark:text-red-300">
@@ -242,12 +249,12 @@ const VersionList = ({
 											v{versionNumber}
 										</span>
 										{isLatest && (
-											<span className="text-sm text-stone-500 dark:text-stone-400">
+											<span className="text-sm vc-muted">
 												latest
 											</span>
 										)}
 									</div>
-									<div className="text-sm text-stone-500 dark:text-stone-400">
+									<div className="text-sm vc-muted">
 										{formatTime(v.createdAt)} · {v.filename}
 									</div>
 								</button>
@@ -293,7 +300,7 @@ const VersionList = ({
 										setNoteDraft(v.note ?? "")
 										setEditingNoteId(v.id)
 									}}
-									className="mt-1 w-full text-left text-sm text-stone-500 italic hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+									className="mt-1 w-full text-left text-sm italic hover:text-stone-700 dark:hover:text-stone-200 vc-muted"
 								>
 									{v.note || "Add a note…"}
 								</button>

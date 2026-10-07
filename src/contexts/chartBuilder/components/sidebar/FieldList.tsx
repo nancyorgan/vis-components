@@ -116,7 +116,7 @@ export const FieldList = () => {
 											<DerivedFieldName field={field} />
 										) : (
 											<span
-												className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
+												className="min-w-0 flex-1 truncate text-sm vc-text"
 												title={field.name}
 											>
 												{field.name}
@@ -275,7 +275,7 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 						: `${field.name} — click to rename`
 				}
 				aria-label={`Rename ${field.name}`}
-				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm text-stone-800 dark:text-stone-200"
+				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm vc-text"
 			>
 				<span className="min-w-0 truncate">{field.name}</span>
 				<svg
@@ -309,7 +309,7 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
 				autoFocus
 				onFocus={(e) => e.target.select()}
-				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-stone-800 outline-none dark:bg-stone-900 dark:text-stone-200"
+				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm outline-none dark:bg-stone-900 vc-text"
 			/>
 			{error && (
 				<p className="text-xs text-red-700 dark:text-red-300">{error}</p>
@@ -339,7 +339,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 		// plain non-interactive name.
 		return (
 			<span
-				className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
+				className="min-w-0 flex-1 truncate text-sm vc-text"
 				title={field.name}
 			>
 				{field.name}
@@ -381,7 +381,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 				onClick={startEditing}
 				title={`${field.name} — click to rename`}
 				aria-label={`Rename ${field.name}`}
-				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm text-stone-800 dark:text-stone-200"
+				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm vc-text"
 			>
 				<span className="min-w-0 truncate">{field.name}</span>
 				<svg
@@ -415,7 +415,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
 				autoFocus
 				onFocus={(e) => e.target.select()}
-				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-stone-800 outline-none dark:bg-stone-900 dark:text-stone-200"
+				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm outline-none dark:bg-stone-900 vc-text"
 			/>
 			{error && (
 				<p className="text-xs text-red-700 dark:text-red-300">{error}</p>
@@ -694,7 +694,6 @@ const LevelReorderPanel = ({
 							)
 						}}
 						labelClassName={ORDER_LABEL_COL}
-						selectClassName="py-0.5 text-xs"
 					/>
 					{byField !== null && (
 						<div className="flex items-center gap-2">
@@ -713,7 +712,6 @@ const LevelReorderPanel = ({
 									applyOrderBy(orderBy, decreasing, next, "")
 								}}
 								labelClassName={ORDER_LABEL_COL}
-								selectClassName="py-0.5 text-xs"
 							/>
 							{scopeVar !== "" && (
 								<SelectInput
@@ -727,7 +725,6 @@ const LevelReorderPanel = ({
 									onChange={(next) => {
 										applyOrderBy(orderBy, decreasing, scopeVar, next)
 									}}
-									selectClassName="py-0.5 text-xs"
 									className="min-w-0"
 								/>
 							)}

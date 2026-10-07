@@ -313,7 +313,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 				created or re-themed.
 			</p>
 			<FontFamilyRow
-				label="Font family"
+				label="Family"
 				value={
 					theme.dataLabelsFontFamily ??
 					DEFAULT_DATA_LABELS_CONFIG.fontFamily
@@ -321,7 +321,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 				onChange={(v) => set("dataLabelsFontFamily", v)}
 			/>
 			<ColorInput
-				label="Font color"
+				label="Color"
 				value={
 					// Same effective-value chain as `dataLabelsConfigFromTheme`:
 					// unset falls to the theme's text-encoding color, so the sheet
@@ -333,7 +333,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 				onChange={(v) => set("dataLabelsColor", v)}
 			/>
 			<NumberInput
-				label="Font size"
+				label="Size"
 				value={theme.dataLabelsFontSize ?? 11}
 				onChange={(v) => set("dataLabelsFontSize", v)}
 				min={6}
@@ -360,7 +360,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 		{/* Caption defaults */}
 		<Section title="Caption">
 			<p className="text-sm vc-muted">
-				Initial text style for the Caption panel, applied when a chart
+				Initial text style for Caption, applied when a chart
 				is created or re-themed. Family and color fall back to the
 				Axis text font.
 			</p>

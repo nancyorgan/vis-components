@@ -174,7 +174,7 @@ export const PalettePickerButton = ({
 									? "Hide other theme palettes"
 									: "Show other theme palettes"
 							}
-							className="-my-0.5 flex h-4 w-full flex-shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="-my-0.5 flex h-4 w-full flex-shrink-0 items-center justify-center rounded hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 						>
 							<DisclosureChevron open={showOthers} />
 						</button>

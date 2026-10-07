@@ -85,7 +85,7 @@ const useOutlineHueField = () => {
 /** Field-selector for the `outlineHue` channel. Standalone form used by the
  *  channel-panel registry; the Shape panel uses `OutlineColorRow` instead,
  *  which folds this dropdown into the same row as the fallback color. */
-export const OutlineColorFieldDropdown = () => {
+const OutlineColorFieldDropdown = () => {
 	const { value, fieldOptions, onChange, disabled } = useOutlineHueField()
 	return (
 		<SelectInput
@@ -270,7 +270,7 @@ const OutlineColorRulesRow = ({
  *  discrete fields get a per-category swatch editor that mirrors the hue
  *  panel's, but stays self-contained so it never touches hue's shared
  *  palette slots (`categoricalPaletteId`, etc.). */
-export const OutlineColorScaleControls = () => {
+const OutlineColorScaleControls = () => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)

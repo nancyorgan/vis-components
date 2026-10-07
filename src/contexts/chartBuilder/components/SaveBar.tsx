@@ -114,7 +114,7 @@ export const SaveBar = () => {
 						title="Show title and actions"
 						className="flex w-full items-center justify-between gap-2 px-4 py-1 text-left"
 					>
-						<span className="truncate text-xs text-stone-500 dark:text-stone-400">
+						<span className="truncate text-xs vc-muted">
 							{name.trim() || "Untitled visualization"}
 						</span>
 						<DisclosureChevron open={false} />

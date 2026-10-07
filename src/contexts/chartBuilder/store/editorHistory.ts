@@ -79,7 +79,7 @@ export type DraftSnapshot = {
 
 /** The whole editable draft as one object. Recomputes whenever any piece
  * changes; the pieces themselves are shared by reference. */
-export const draftSnapshotAtom = atom((get): DraftSnapshot => {
+const draftSnapshotAtom = atom((get): DraftSnapshot => {
 	const snap = {} as Record<DraftKey, unknown>
 	// Same widening as applyDraftSnapshot: the record is heterogeneous.
 	for (const k of DRAFT_KEYS) snap[k] = get(DRAFT_ATOMS[k] as Atom<unknown>)
@@ -87,7 +87,7 @@ export const draftSnapshotAtom = atom((get): DraftSnapshot => {
 })
 
 /** Write a snapshot back into the draft atoms. */
-export const applyDraftSnapshot = (set: Setter, snap: DraftSnapshot): void => {
+const applyDraftSnapshot = (set: Setter, snap: DraftSnapshot): void => {
 	// The atoms are a heterogeneous record; one widening cast here beats
 	// seventeen hand-written `set(...)` lines that would drift from
 	// DRAFT_ATOMS.
@@ -193,7 +193,7 @@ export const redoHistory = (h: EditorHistory): EditorHistory => {
 // Atoms + hooks
 
 /** In-memory only: the stack lives for one editor visit. */
-export const editorHistoryAtom = atom<EditorHistory>(EMPTY_HISTORY)
+const editorHistoryAtom = atom<EditorHistory>(EMPTY_HISTORY)
 
 /** Bumped by `useLoadVisual` (when the id actually changes) and
  * `useResetVisual`; `useEditorHistory` restarts the stack on it. */
@@ -231,7 +231,7 @@ export const useRedo = () =>
 /** Focus in a place where ⌘Z means "undo my typing": leave it to the
  * browser. Checkboxes, radios, ranges, buttons and selects have no native
  * text undo, so the shortcut reaches the visual from those. */
-export const isTextEditingTarget = (t: EventTarget | null): boolean => {
+const isTextEditingTarget = (t: EventTarget | null): boolean => {
 	if (!(t instanceof HTMLElement)) return false
 	if (t.isContentEditable) return true
 	if (t.tagName === "TEXTAREA") return true

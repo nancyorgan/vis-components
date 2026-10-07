@@ -21,7 +21,7 @@ import { currentDatasetViewAtom } from "./useCurrentDatasetView"
 /** Default format spec per current-view field whose raw cells were
  * dollar-formatted ("$1,234.56") or percent-formatted ("14%") — tagged by
  * the cell conversions at the view seam. */
-export const hintedFormatsAtom = atom(
+const hintedFormatsAtom = atom(
 	(get): HintedFormats => hintedFormats(get(currentDatasetViewAtom)),
 )
 

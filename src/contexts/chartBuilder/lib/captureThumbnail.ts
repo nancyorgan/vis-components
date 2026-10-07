@@ -578,7 +578,7 @@ const withoutDisplayScale = <T>(doc: Document, fn: () => T): T => {
 	}
 }
 
-export const captureThumbnailFromDocument = async (
+const captureThumbnailFromDocument = async (
 	doc: Document
 ): Promise<string | null> => {
 	const svgText = withoutDisplayScale(doc, () => serializeChartSvg(doc))

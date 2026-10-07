@@ -307,7 +307,7 @@ export const DataTable = () => {
 								onClick={() => setDerivedEditor({ mode: "new" })}
 								title="New derived variable"
 								aria-label="New derived variable"
-								className="w-full text-base leading-none font-medium text-stone-500 hover:text-brand-500 dark:text-stone-400 dark:hover:text-indigo-400"
+								className="w-full text-base leading-none font-medium hover:text-brand-500 dark:hover:text-indigo-400 vc-muted"
 							>
 								+
 							</button>

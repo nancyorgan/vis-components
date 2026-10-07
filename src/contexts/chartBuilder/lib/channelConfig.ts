@@ -95,19 +95,6 @@ export type DistributionOverlayConfig = {
 	/** Per-category fill overrides. Same precedence as `colorOverrides` for
 	 * fills. */
 	fillColorOverrides: Record<string, string>
-	/** Optional saved palette id used to color each category's stroke + dots
-	 * INDEPENDENTLY of the fill. When set (paired with `strokePalette` —
-	 * the resolved colors snapshotted from `theme.categoricalPalettes`),
-	 * each category's stroke draws from `strokePalette[i mod n]` (sorted by
-	 * category order). `null` means "no palette — fall back to hue inheritance
-	 * or the single `color`". */
-	strokePaletteId?: string | null
-	strokePalette?: string[]
-	/** Same as the above pair, but for fill. Lets the user pair (e.g.) a dark
-	 * palette for strokes/dots with a light/muted palette for fills, without
-	 * dropping into per-category overrides. */
-	fillPaletteId?: string | null
-	fillPalette?: string[]
 }
 
 export const DEFAULT_DISTRIBUTION_OVERLAY_CONFIG: DistributionOverlayConfig = {
@@ -120,10 +107,6 @@ export const DEFAULT_DISTRIBUTION_OVERLAY_CONFIG: DistributionOverlayConfig = {
 	fillColor: "#cbd5e1", // slate-300
 	colorOverrides: {},
 	fillColorOverrides: {},
-	strokePaletteId: null,
-	strokePalette: [],
-	fillPaletteId: null,
-	fillPalette: [],
 }
 
 /** Histogram options surfaced on a *quantitative* category axis in a bar
@@ -1149,27 +1132,6 @@ export type ConnectionConfig = {
 	 *  custom options existed load unchanged. */
 	axisStemCustomX?: number | null
 	axisStemCustomY?: number | null
-	/** Lollipop stems only — optional INDEPENDENT color encoding for the
-	 *  stems (active only when `axisStem` is set). `stemColorField` names
-	 *  the dataset column whose value drives each stem's color; `null` /
-	 *  absent (default) means stems inherit each point's fill — the prior
-	 *  behavior. `stemColorPaletteId` is the chosen categorical palette;
-	 *  its resolved colors are snapshotted into `stemColorPalette` so the
-	 *  renderer needn't re-resolve from the theme (mirrors how
-	 *  `categoricalPaletteId` / `categoricalPalette` pair up). */
-	stemColorField?: string | null
-	stemColorPaletteId?: string | null
-	stemColorPalette?: string[] | null
-	/** How stems pick their color:
-	 *   - `"point"` (default): each stem inherits its point's fill.
-	 *   - `"single"`: every stem uses the one `stemColor` swatch.
-	 *   - `"field"`: stems are colored by `stemColorField` through the
-	 *     chosen palette.
-	 *  Kept separate from `stemColorField` so "Point color" and a fixed
-	 *  single color are both expressible without overloading the field. */
-	stemColorMode?: "point" | "single" | "field"
-	/** The single color used when `stemColorMode` is `"single"`. */
-	stemColor?: string | null
 	/** Cap style for OPEN line ends — scatter connection polylines and
 	 *  area/line-mode layer edges (dash segments too). Radar polygons are
 	 *  closed, so caps never show there. `"square"` maps to SVG's `butt`
@@ -1259,11 +1221,6 @@ export const DEFAULT_CONNECTION_CONFIG: ConnectionConfig = {
 	axisStem: "none",
 	axisStemCustomX: null,
 	axisStemCustomY: null,
-	stemColorField: null,
-	stemColorPaletteId: null,
-	stemColorPalette: null,
-	stemColorMode: "point",
-	stemColor: null,
 	lineCap: "round",
 	smoothing: 0,
 	hierarchyIdField: null,
@@ -1292,12 +1249,6 @@ export type PanelAxisOverride = {
 export type FacetConfig = {
 	rows: number | null
 	cols: number | null
-	/** @deprecated Legacy bundled toggle. Both `shareX` and `shareY` are
-	 * authoritative going forward; we keep this so older saved visuals
-	 * still hydrate, but new code reads the per-axis flags. The
-	 * `migrateShareValue` helper derives `shareX`/`shareY` from this when
-	 * the stored config predates the split. */
-	shareAxes: boolean
 	/** Tri-state scale sharing for the x-axis. "all" = one shared x-axis
 	 *  across the grid; "perGroup" = one per column (each column's panels
 	 *  share x); "none" = every panel its own x. Legacy boolean values
@@ -1426,7 +1377,6 @@ export type FacetConfig = {
 export const DEFAULT_FACET_CONFIG: FacetConfig = {
 	rows: null,
 	cols: null,
-	shareAxes: true,
 	shareX: "all",
 	shareY: "all",
 	gapX: 30,
@@ -1454,16 +1404,15 @@ export const DEFAULT_FACET_CONFIG: FacetConfig = {
  *
  *  - `true` → "all"  (legacy "shared")
  *  - `false` → "none" (legacy "unshared")
- *  - `undefined` → derives from `shareAxes` (older configs only stored
+ *  - `undefined` → "all" (the default; both axes shared)
  *    the bundled flag): true → "all", false → "none"
  *  - any tri-state string → passes through verbatim */
 export const migrateShareValue = (
 	value: "none" | "perGroup" | "all" | boolean | undefined,
-	shareAxes: boolean,
 ): "none" | "perGroup" | "all" => {
 	if (value === true) return "all"
 	if (value === false) return "none"
-	if (value === undefined) return shareAxes ? "all" : "none"
+	if (value === undefined) return "all"
 	return value
 }
 
@@ -1477,11 +1426,10 @@ export const migrateShareValue = (
 export const migratePolarShareValue = (
 	polarValue: "none" | "perRow" | "perCol" | "all" | undefined,
 	cartesianValue: "none" | "perGroup" | "all" | boolean | undefined,
-	cartesianShareAxes: boolean | undefined,
 	mappedAxis: "R" | "angle",
 ): "none" | "perRow" | "perCol" | "all" => {
 	if (polarValue !== undefined) return polarValue
-	const v = migrateShareValue(cartesianValue, cartesianShareAxes ?? false)
+	const v = migrateShareValue(cartesianValue)
 	if (v === "perGroup") return mappedAxis === "R" ? "perRow" : "perCol"
 	return v
 }

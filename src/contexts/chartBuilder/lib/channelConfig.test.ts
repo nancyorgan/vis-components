@@ -9,85 +9,70 @@ import {
 
 describe("migrateShareValue", () => {
 	it("returns 'all' for legacy boolean true", () => {
-		expect(migrateShareValue(true, false)).toBe("all")
-		expect(migrateShareValue(true, true)).toBe("all")
+		expect(migrateShareValue(true)).toBe("all")
+		expect(migrateShareValue(true)).toBe("all")
 	})
 
 	it("returns 'none' for legacy boolean false", () => {
-		expect(migrateShareValue(false, true)).toBe("none")
-		expect(migrateShareValue(false, false)).toBe("none")
+		expect(migrateShareValue(false)).toBe("none")
+		expect(migrateShareValue(false)).toBe("none")
 	})
 
-	it("falls back to shareAxes when value is undefined", () => {
-		expect(migrateShareValue(undefined, true)).toBe("all")
-		expect(migrateShareValue(undefined, false)).toBe("none")
+	it("defaults an unset value to 'all' (both axes shared)", () => {
+		expect(migrateShareValue(undefined)).toBe("all")
 	})
 
 	it("passes through new tri-state values verbatim", () => {
-		expect(migrateShareValue("none", true)).toBe("none")
-		expect(migrateShareValue("perGroup", false)).toBe("perGroup")
-		expect(migrateShareValue("all", false)).toBe("all")
+		expect(migrateShareValue("none")).toBe("none")
+		expect(migrateShareValue("perGroup")).toBe("perGroup")
+		expect(migrateShareValue("all")).toBe("all")
 	})
 })
 
 /** The polar sibling of migrateShareValue: R / angle store their own
  *  four-state share value, but visuals saved before those fields existed only
- *  carry the cartesian shareX / shareY (or the even older bundled shareAxes
- *  boolean). Read at 5 call sites — a regression here silently re-shares (or
+ *  carry the cartesian shareX / shareY (possibly as a legacy boolean).
+ *  Read at 5 call sites — a regression here silently re-shares (or
  *  un-shares) a radar's rings on load. */
 describe("migratePolarShareValue", () => {
 	it("passes the polar value through verbatim when set (the no-op path)", () => {
 		// Any polar value wins outright — the cartesian args are ignored, even
 		// when they'd map to something else.
-		expect(migratePolarShareValue("none", "all", true, "R")).toBe("none")
-		expect(migratePolarShareValue("perRow", "none", false, "R")).toBe("perRow")
-		expect(migratePolarShareValue("perCol", "all", true, "angle")).toBe("perCol")
-		expect(migratePolarShareValue("all", false, false, "angle")).toBe("all")
+		expect(migratePolarShareValue("none", "all", "R")).toBe("none")
+		expect(migratePolarShareValue("perRow", "none", "R")).toBe("perRow")
+		expect(migratePolarShareValue("perCol", "all", "angle")).toBe("perCol")
+		expect(migratePolarShareValue("all", false, "angle")).toBe("all")
 	})
 
 	it("falls back to the cartesian value when the polar field is unset", () => {
-		expect(migratePolarShareValue(undefined, "none", true, "R")).toBe("none")
-		expect(migratePolarShareValue(undefined, "all", false, "R")).toBe("all")
-		expect(migratePolarShareValue(undefined, "none", true, "angle")).toBe("none")
-		expect(migratePolarShareValue(undefined, "all", false, "angle")).toBe("all")
+		expect(migratePolarShareValue(undefined, "none", "R")).toBe("none")
+		expect(migratePolarShareValue(undefined, "all", "R")).toBe("all")
+		expect(migratePolarShareValue(undefined, "none", "angle")).toBe("none")
+		expect(migratePolarShareValue(undefined, "all", "angle")).toBe("all")
 	})
 
 	it("translates cartesian 'perGroup' per mapped axis (R → perRow, angle → perCol)", () => {
-		expect(migratePolarShareValue(undefined, "perGroup", false, "R")).toBe(
+		expect(migratePolarShareValue(undefined, "perGroup", "R")).toBe(
 			"perRow",
 		)
-		expect(migratePolarShareValue(undefined, "perGroup", false, "angle")).toBe(
+		expect(migratePolarShareValue(undefined, "perGroup", "angle")).toBe(
 			"perCol",
 		)
 	})
 
 	it("maps the legacy cartesian booleans through migrateShareValue", () => {
-		expect(migratePolarShareValue(undefined, true, false, "R")).toBe("all")
-		expect(migratePolarShareValue(undefined, false, true, "R")).toBe("none")
-		expect(migratePolarShareValue(undefined, true, false, "angle")).toBe("all")
-		expect(migratePolarShareValue(undefined, false, true, "angle")).toBe("none")
+		expect(migratePolarShareValue(undefined, true, "R")).toBe("all")
+		expect(migratePolarShareValue(undefined, false, "R")).toBe("none")
+		expect(migratePolarShareValue(undefined, true, "angle")).toBe("all")
+		expect(migratePolarShareValue(undefined, false, "angle")).toBe("none")
 	})
 
-	it("falls back to the bundled shareAxes flag when the cartesian value is unset too", () => {
-		expect(migratePolarShareValue(undefined, undefined, true, "R")).toBe("all")
-		expect(migratePolarShareValue(undefined, undefined, false, "R")).toBe("none")
-		expect(migratePolarShareValue(undefined, undefined, true, "angle")).toBe("all")
-		expect(migratePolarShareValue(undefined, undefined, false, "angle")).toBe(
-			"none",
-		)
-	})
-
-	it("treats an undefined shareAxes as false (oldest configs → 'none')", () => {
-		// Unlike migrateShareValue, the polar wrapper takes shareAxes as
-		// optional and defaults it to false — the pre-shareAxes default.
-		expect(migratePolarShareValue(undefined, undefined, undefined, "R")).toBe(
-			"none",
-		)
-		expect(migratePolarShareValue(undefined, undefined, undefined, "angle")).toBe(
-			"none",
-		)
+	it("defaults to 'all' when the cartesian value is unset too", () => {
+		expect(migratePolarShareValue(undefined, undefined, "R")).toBe("all")
+		expect(migratePolarShareValue(undefined, undefined, "angle")).toBe("all")
 	})
 })
+
 
 describe("migrateProportionalSizing", () => {
 	it("returns the per-axis value verbatim when set", () => {

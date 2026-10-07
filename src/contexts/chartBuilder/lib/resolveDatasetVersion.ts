@@ -10,7 +10,7 @@ import type { Dataset, DatasetMeta, DatasetView } from "./types"
  *                          latest version. Returns null if the dataset itself
  *                          is missing or has no versions.
  */
-export const resolveDatasetVersion = <V extends { id: string }>(
+const resolveDatasetVersion = <V extends { id: string }>(
 	dataset: { versions: readonly V[]; latestVersionId: string } | undefined,
 	preferredVersionId: string | null | undefined
 ): V | null => {

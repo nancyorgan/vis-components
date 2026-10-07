@@ -1248,7 +1248,6 @@ describe("labelsFromTheme", () => {
 		expect(cfg.titleAlignments).toEqual({})
 		expect(cfg.titleOffsets).toEqual({})
 		expect(cfg.yAxisTitleHorizontal).toBe(false)
-		expect(cfg.configVersion).toBe(DEFAULT_LABELS_CONFIG.configVersion)
 	})
 
 	it("numeric theme weights win over the legacy bold flag", () => {

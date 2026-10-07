@@ -555,10 +555,10 @@ export type Theme = {
 	 * Otherwise one of the `categoricalPalettes` IDs. */
 	defaultTextPaletteId: string | null
 	defaultGradientPalette: string // preset name, or ID of a saved linear/diverging
-	// Legacy single palette fields (kept for back-compat on load, mapped to palettes)
+	// Legacy single-palette field (kept for back-compat on load, mapped to
+	// `categoricalPalettes`). The old custom gradient fields are migrated in
+	// `migrateTheme` (store/atoms.ts) and no longer exist on the type.
 	categoricalPalette?: string[]
-	customLinearGradient?: { low: string; high: string }
-	customDivergingGradient?: { low: string; mid: string; high: string }
 	// Pattern defaults
 	patternInkColor: string
 	patternBackgroundColor: string

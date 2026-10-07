@@ -29,13 +29,12 @@ import {
 
 import { ScatterPlot } from "./ScatterPlot"
 
-/** Per-axis first-tick anchoring. PlotCanvas pins a categorical axis's
- *  first/last ticks 12px from the plot edges ONLY when that axis is
- *  shared across facet panels; an unshared axis keeps d3's `padding(0.5)`
- *  spacing (first tick at step/2), so a panel with two categories shows
- *  them at 25% / 75% of the width instead of stretched to the edges.
- *  These tests pin the renderer half of that contract: each axis honors
- *  ITS OWN offset prop and ignores the other's. */
+/** Categorical first-tick spacing at the renderer level: every categorical
+ *  axis keeps d3's `padding(0.5)` spacing (first tick at step/2), so a
+ *  panel with two categories shows them at 25% / 75% of the width and a
+ *  lone category sits centered — faceted or not (APPLICATION.md §15.11).
+ *  The fixed-pixel edge anchoring faceted charts briefly used is gone;
+ *  these cases pin the spacing that replaced it. */
 
 const DATASET_ID = "ds-first-tick"
 
@@ -58,10 +57,7 @@ const TWO_BY_TWO = [
 	{ g: "B", h: "Q" },
 ]
 
-const mount = (
-	rows: Array<Record<string, string>>,
-	props: { firstTickPxOffsetX?: number; firstTickPxOffsetY?: number },
-) => {
+const mount = (rows: Array<Record<string, string>>) => {
 	const encodings: Encodings = {
 		...emptyEncodings(),
 		x: { field: "g" },
@@ -92,7 +88,7 @@ const mount = (
 	const { container } = render(
 		<TestProvider initializeState={init}>
 			<div style={{ width: 600, height: 400 }}>
-				<ScatterPlot inner={INNER} {...props} />
+				<ScatterPlot inner={INNER} />
 			</div>
 		</TestProvider>,
 	)
@@ -108,28 +104,16 @@ const mount = (
 	}
 }
 
-describe("ScatterPlot — per-axis first-tick anchoring", () => {
+describe("ScatterPlot — categorical first-tick spacing", () => {
 	// inner width 400 (100..500), height 300 (350..50, y-inverted).
-	it("no offsets: padding(0.5) spacing on both axes (2 cats at 25% / 75%)", () => {
-		const { xs, ys } = mount(TWO_BY_TWO, {})
+	it("padding(0.5) spacing on both axes (2 cats at 25% / 75%)", () => {
+		const { xs, ys } = mount(TWO_BY_TWO)
 		expect(xs).toEqual([200, 400])
 		expect(ys).toEqual([125, 275])
 	})
 
-	it("firstTickPxOffsetX only: x pinned 12px from edges, y untouched", () => {
-		const { xs, ys } = mount(TWO_BY_TWO, { firstTickPxOffsetX: 12 })
-		expect(xs).toEqual([112, 488])
-		expect(ys).toEqual([125, 275])
-	})
-
-	it("firstTickPxOffsetY only: y pinned 12px from edges, x untouched", () => {
-		const { xs, ys } = mount(TWO_BY_TWO, { firstTickPxOffsetY: 12 })
-		expect(xs).toEqual([200, 400])
-		expect(ys).toEqual([62, 338])
-	})
-
-	it("single category without offset centers in the band (unshared sparse panel)", () => {
-		const { xs } = mount([{ g: "A", h: "P" }], {})
+	it("a single category centers in the band", () => {
+		const { xs } = mount([{ g: "A", h: "P" }])
 		expect(xs).toEqual([300])
 	})
 })

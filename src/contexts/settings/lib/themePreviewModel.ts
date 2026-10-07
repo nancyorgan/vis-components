@@ -76,7 +76,7 @@ export type GradientStop = { offset: number; color: string }
 
 /** A saved gradient's own anchors as stops: two for a linear one, three
  *  (mid at the centre) for a diverging one. */
-export const savedGradientStops = (
+const savedGradientStops = (
 	g: SavedLinearGradient | SavedDivergingGradient
 ): GradientStop[] =>
 	"mid" in g
@@ -92,7 +92,7 @@ export const savedGradientStops = (
 
 /** A d3 preset sampled evenly across its range; unknown names draw as
  *  viridis, which is what the scale itself falls back to. */
-export const presetGradientStops = (name: string): GradientStop[] => {
+const presetGradientStops = (name: string): GradientStop[] => {
 	const interpolator =
 		PALETTE_INTERPOLATORS[name as PaletteName] ?? PALETTE_INTERPOLATORS.viridis
 	return Array.from({ length: PRESET_GRADIENT_SAMPLES }, (_, i) => {

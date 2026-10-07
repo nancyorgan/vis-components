@@ -931,7 +931,7 @@ const toHex = (rgbString: string): string => {
  * text in the little value boxes). 4 significant digits keeps long
  * fractions from overflowing the w-12 input. */
 const fmtStopValue = (n: number): string =>
-	Number.isFinite(n) ? String(Number(n.toPrecision(4))) : "auto"
+	Number.isFinite(n) ? String(Number(n.toPrecision(4))) : "Auto"
 
 /** How many swatch rows to show for each linear preset. Sequential
  * palettes like viridis/plasma/inferno pass through several distinct
@@ -1642,7 +1642,7 @@ const CustomStopRow = ({
 					e.preventDefault()
 					onValue(base + (e.key === "ArrowUp" ? 1 : -1))
 				}}
-				placeholder={placeholder ?? "auto"}
+				placeholder={placeholder ?? "Auto"}
 				aria-label={`${label} stop value`}
 				className="no-spinner w-12 min-w-0 flex-shrink rounded border border-stone-300 bg-white px-0.5 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			/>

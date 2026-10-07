@@ -36,7 +36,7 @@ export type Issue = { kind: string; detail: string }
  *  data-label-clipped, legend-clipped-*, panel-{x,y}-drift,
  *  title-not-left-aligned, screenshot-failure, no-data-labels-rendered —
  *  indicates real breakage and IS asserted. */
-export const ADVISORY_ISSUE_KINDS: ReadonlySet<string> = new Set([
+const ADVISORY_ISSUE_KINDS: ReadonlySet<string> = new Set([
 	"panels-too-small",
 	// Tick-label crowding (both kinds) is a user-configurable state, not a
 	// defect (owner decision, 2026-08): categorical crowding is addressed by

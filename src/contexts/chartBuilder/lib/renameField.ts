@@ -321,10 +321,6 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 		r: swapAxis(cc.r),
 		connection: cc.connection
 			? patched(cc.connection, {
-					stemColorField:
-						cc.connection.stemColorField === oldName
-							? newName
-							: cc.connection.stemColorField,
 					hierarchyIdField:
 						cc.connection.hierarchyIdField === oldName
 							? newName

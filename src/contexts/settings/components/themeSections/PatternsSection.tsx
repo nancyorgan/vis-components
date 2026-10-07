@@ -1,4 +1,5 @@
 import { ColorInput, Section, SectionGroup } from "./controls"
+import { ColorInput as UiColorInput } from "../../../../components/ui/ColorInput"
 import { updateCategoricalPalette } from "./paletteHelpers"
 import type { ThemeSectionProps } from "./types"
 
@@ -9,7 +10,7 @@ export const PatternsSection = ({
 }: ThemeSectionProps) => (
 	<SectionGroup title="Patterns" isReadOnly={isReadOnly}>
 		{/* Pattern defaults */}
-		<Section title="Pattern defaults">
+		<Section title="Pattern">
 			<p className="text-sm vc-muted">
 				Background color is used when patterns sit on a mark with no hue
 				mapping. Ink color is the default pattern stroke; per-palette
@@ -63,27 +64,24 @@ export const PatternsSection = ({
 												style={{ backgroundColor: color }}
 												aria-label={`Hue swatch ${i + 1}`}
 											/>
-											<input
-												type="color"
-												value={ink || theme.patternInkColor}
-												onChange={(e) => setInk(e.target.value)}
-												aria-label={`Pattern ink for hue ${i + 1}`}
-												className={`h-6 w-10 shrink-0 cursor-pointer rounded border ${
-													ink
-														? "border-stone-400 dark:border-stone-500"
-														: "border-dashed border-stone-300 dark:border-stone-700"
-												}`}
-												title={
-													ink
-														? `Pattern ink paired with this hue`
-														: `Using global ink — click to override`
-												}
+											{/* Inherit mode: no ink = the global ink, previewed behind
+											 *  the primitive's dashed "inherited" border. Swatch-only
+											 *  (the hue swatch above is the row's label) and, as on
+											 *  every theme-editor swatch, no palette picker. */}
+											<UiColorInput
+												label={`Pattern ink for hue ${i + 1}`}
+												labelClassName="sr-only"
+												value={ink || null}
+												onChange={setInk}
+												placeholder={theme.patternInkColor}
+												showHexInput={false}
+												showPalettePicker={false}
 											/>
 											{ink && (
 												<button
 													type="button"
 													onClick={() => setInk(null)}
-													className="text-[10px] leading-none text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-white"
+													className="text-[10px] leading-none underline hover:text-stone-700 dark:hover:text-white vc-muted"
 													title="Reset to global default"
 												>
 													reset

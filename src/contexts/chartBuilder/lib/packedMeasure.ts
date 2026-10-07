@@ -15,7 +15,7 @@ export type PackedDerivedSource = "rootGroup" | "depth"
  * (see chartModes/hierarchySignature.ts). Everything mode-gated for
  * packed circles — the Hierarchy section, derived channel options, the
  * proportional size legend — applies to all three. */
-export const HIERARCHY_MODE_IDS = [
+const HIERARCHY_MODE_IDS = [
 	"packed-circles",
 	"treemap",
 	"sunburst",
@@ -27,7 +27,7 @@ export const isHierarchyModeId = (id: string): boolean =>
 /** The chart modes that render the flow reading of the same signature —
  * directed edges (connection = source, `flowTargetField` = target) instead
  * of a tree. Derived channel sources (rootGroup / depth) stay tree-only. */
-export const FLOW_MODE_IDS = ["chord", "sankey"] as const
+const FLOW_MODE_IDS = ["chord", "sankey"] as const
 
 export const isFlowModeId = (id: string): boolean =>
 	(FLOW_MODE_IDS as readonly string[]).includes(id)
@@ -70,7 +70,7 @@ export const hierarchyHighlightField = (source: PackedDerivedSource): string =>
  * opacity overrides; sat/bri spread groups evenly across their min→max;
  * pattern glyphs auto-cycle per group), "Nesting depth" is ordinal
  * (discrete levels — per-level colors / ranges / glyphs). */
-export const PACKED_DERIVED_CHANNELS = [
+const PACKED_DERIVED_CHANNELS = [
 	"hue",
 	"opacity",
 	"saturation",

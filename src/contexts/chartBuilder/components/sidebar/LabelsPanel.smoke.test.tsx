@@ -156,9 +156,7 @@ describe("LabelsPanel — Panel titles row (hide-empty per-panel styling)", () =
 		// Single-axis facet has one automatic title, so its styling controls are
 		// shown inline (no per-row chevron) — the font editor's color swatch is
 		// present straight away once the subsection is open.
-		expect(
-			container.querySelector('input[aria-label="Color swatch"]')
-		).not.toBeNull()
+		expect(container.querySelector('input[type="color"]')).not.toBeNull()
 	})
 
 	it("setting a color via the row's font editor writes fontOverrides.facetPanelTitle", () => {
@@ -175,12 +173,13 @@ describe("LabelsPanel — Panel titles row (hide-empty per-panel styling)", () =
 		// open, so its color swatch is the only one on the page.
 		fireEvent.click(rowToggle(container, "Panel titles")!)
 		const swatch = container.querySelector<HTMLInputElement>(
-			'input[aria-label="Color swatch"]'
+			'input[type="color"]'
 		)
 		expect(swatch).not.toBeNull()
 		fireEvent.change(swatch!, { target: { value: "#ff0000" } })
 
-		expect(probe.dataset.panelColor).toBe("#ff0000")
+		// ColorInput normalizes swatch picks to uppercase hex.
+		expect(probe.dataset.panelColor).toBe("#FF0000")
 	})
 })
 

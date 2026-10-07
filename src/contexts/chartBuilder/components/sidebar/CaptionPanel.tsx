@@ -165,7 +165,7 @@ export const CaptionPanel = () => {
 					step={1}
 					value={value > 0 ? value : null}
 					placeholder={
-						renderedBox ? String(resolveDimStart(dim, unit)) : "auto"
+						renderedBox ? String(resolveDimStart(dim, unit)) : "Auto"
 					}
 					stepBase={resolveDimStart(dim, unit)}
 					onChange={(n) => {
@@ -253,7 +253,7 @@ export const CaptionPanel = () => {
 					<CollapsibleSubsection title="Text" changed={textChanged}>
 						<div className="flex flex-col gap-2">
 							<SelectInput
-								label="Font family"
+								label="Family"
 								labelClassName={LABEL_COL}
 								value={merged.fontFamily}
 								options={familyOptions}
@@ -262,7 +262,7 @@ export const CaptionPanel = () => {
 							/>
 							<div className="flex items-center gap-2">
 								<NumberInput
-									label="Font size"
+									label="Size"
 									labelClassName={LABEL_COL}
 									value={merged.fontSize}
 									onChange={(v) => update({ fontSize: v })}
@@ -280,7 +280,7 @@ export const CaptionPanel = () => {
 							</div>
 							<div className="flex items-center gap-2">
 								<SelectInput
-									label="Font weight"
+									label="Weight"
 									labelClassName={LABEL_COL}
 									value={String(merged.fontWeight)}
 									options={fontWeightOptionsFor(
@@ -308,7 +308,7 @@ export const CaptionPanel = () => {
 							</div>
 							<div className="flex flex-wrap items-center gap-2">
 								<ColorInput
-									label="Text color"
+									label="Color"
 									labelClassName={LABEL_COL}
 									value={merged.textColor}
 									onChange={(c) => update({ textColor: c })}
@@ -389,7 +389,7 @@ export const CaptionPanel = () => {
 							</div>
 							<div className="flex items-center gap-2">
 								<NumberInput
-									label="Border radius"
+									label="Corner radius"
 									labelClassName={LABEL_COL}
 									value={merged.borderRadius}
 									onChange={(v) => update({ borderRadius: v })}
@@ -439,7 +439,7 @@ export const CaptionPanel = () => {
 									</div>
 									<div className="flex items-center gap-2">
 										<NumberInput
-											label="Border width"
+											label="Border thickness"
 											labelClassName={LABEL_COL}
 											value={merged.borderWidth}
 											onChange={(v) => update({ borderWidth: v })}

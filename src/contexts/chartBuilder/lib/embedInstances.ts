@@ -3,7 +3,7 @@ import type { EmbedInstance } from "./types"
 /** Generate a new instance id. Timestamps + random suffix mirrors the scheme
  * used elsewhere in the app (`dv-<ts>-<rand>`, `ds-<ts>-<rand>`) so all ids
  * are visually distinguishable in dev tools. */
-export const newEmbedInstanceId = (now = Date.now()): string =>
+const newEmbedInstanceId = (now = Date.now()): string =>
 	`ei-${now}-${Math.random().toString(36).slice(2, 8)}`
 
 /** Record an embed action. If an instance already exists for this

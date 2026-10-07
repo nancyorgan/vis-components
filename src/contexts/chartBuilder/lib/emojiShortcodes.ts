@@ -11,7 +11,7 @@
  * names pass through unchanged (the user sees their literal text and
  * the length cap explains itself). The system emoji picker covers the
  * long tail. */
-export const EMOJI_SHORTCODES: Record<string, string> = {
+const EMOJI_SHORTCODES: Record<string, string> = {
 	// Smileys
 	grinning: "😀",
 	smiley: "😃",

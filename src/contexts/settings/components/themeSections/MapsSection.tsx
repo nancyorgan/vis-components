@@ -13,8 +13,8 @@ export const MapsSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 			<Section title="Data label leader lines">
 				<p className="text-sm vc-muted">
 					Default stroke for the leader lines that connect a map&apos;s data
-					labels back to their regions (&quot;Draw leader lines&quot; in the
-					Data Labels panel).
+					labels back to their regions (&quot;Show leader lines&quot; in
+					Data labels).
 				</p>
 				<ColorInput
 					label="Line color"

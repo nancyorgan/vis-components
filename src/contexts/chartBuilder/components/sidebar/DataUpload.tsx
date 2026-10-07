@@ -307,7 +307,7 @@ const UploadPromptModal = () => {
 			{pending && (
 				<div className="flex flex-col gap-4">
 					<div className="text-sm vc-muted">
-						<span className="font-medium text-stone-800 dark:text-stone-200">
+						<span className="font-medium vc-text">
 							{pending.filename}
 						</span>{" "}
 						· {pending.rows.length} row

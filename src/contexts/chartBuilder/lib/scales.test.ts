@@ -364,14 +364,13 @@ describe("makeSaturationScale / makeBrightnessScale — per-value overrides", ()
 	})
 })
 
-describe("makePositionScale — categorical with firstTickPxOffset", () => {
-	/** With `padding(0.5)` (the default), first-tick position depends on
-	 *  range size AND N — exactly the math that produces the facet
-	 *  title-to-first-tick drift bug. With `firstTickPxOffset` set, the
-	 *  position is FIXED. These tests pin both behaviors so a future
-	 *  refactor can't silently flip the contract. */
+describe("makePositionScale — categorical spacing", () => {
+	/** `padding(0.5)` on every categorical axis: first-tick position depends
+	 *  on range size AND N (half a step in from the edge), faceted or not.
+	 *  Pinned so a future refactor can't silently reintroduce fixed-pixel
+	 *  edge anchoring (APPLICATION.md §15.11). */
 
-	it("default behavior: first-tick position depends on N (current d3 padding(0.5))", () => {
+	it("first tick sits half a step from the edge, so it moves with N", () => {
 		// Range size 100, N=2 → step = 50, first at 25 (range[0] + 0.5*step).
 		const s2 = makePositionScale(
 			["A", "B"],
@@ -390,103 +389,16 @@ describe("makePositionScale — categorical with firstTickPxOffset", () => {
 		) as typeof s2
 		expect(s5("A")).toBe(10)
 
-		// Confirms the bug: same range, different first-tick.
 		expect(s2("A")).not.toBe(s5("A"))
 	})
 
-	it("with firstTickPxOffset=12: first tick lands at offset from range[0] regardless of N", () => {
-		const s2 = makePositionScale(
-			["A", "B"],
-			"categorical",
-			[0, 100],
-			undefined,
-			{ firstTickPxOffset: 12 }
-		) as ReturnType<typeof makePositionScale> & {
-			(v: string): number
-		}
-		const s5 = makePositionScale(
-			["A", "B", "C", "D", "E"],
-			"categorical",
-			[0, 100],
-			undefined,
-			{ firstTickPxOffset: 12 }
-		) as typeof s2
-
-		expect(s2("A")).toBe(12)
-		expect(s5("A")).toBe(12)
-		// First tick is CONSTANT across N — this is the property the
-		// facet-title fix relies on.
-		expect(s2("A")).toBe(s5("A"))
-	})
-
-	it("with firstTickPxOffset=12: LAST tick lands at range[1] minus offset, regardless of N", () => {
-		const s2 = makePositionScale(
-			["A", "B"],
-			"categorical",
-			[0, 100],
-			undefined,
-			{ firstTickPxOffset: 12 }
-		) as ReturnType<typeof makePositionScale> & { (v: string): number }
-		const s5 = makePositionScale(
-			["A", "B", "C", "D", "E"],
-			"categorical",
-			[0, 100],
-			undefined,
-			{ firstTickPxOffset: 12 }
-		) as typeof s2
-
-		expect(s2("B")).toBe(88) // last of 2
-		expect(s5("E")).toBe(88) // last of 5
-	})
-
-	it("with firstTickPxOffset on a SINGLE-category scale: the only tick lands at range[0] + offset", () => {
-		// N=1 is the case that surfaced the bug — under padding(0.5),
-		// the single point goes to the middle of the range.
-		const s = makePositionScale(["only"], "categorical", [0, 100], undefined, {
-			firstTickPxOffset: 12,
-		}) as ReturnType<typeof makePositionScale> & { (v: string): number }
-		expect(s("only")).toBe(12)
-	})
-
-	it("with firstTickPxOffset and a REVERSED range (y-axis convention), inset is still inward", () => {
-		// range[0]=100 (bottom of plot, large y) > range[1]=0 (top, small y).
-		// First-listed category should land near range[0] (bottom) at
-		// 100 - 12 = 88, last near range[1] at 0 + 12 = 12.
+	it("a single category sits at the midpoint of the range", () => {
 		const s = makePositionScale(
-			["first", "second"],
-			"categorical",
-			[100, 0],
-			undefined,
-			{ firstTickPxOffset: 12 }
-		) as ReturnType<typeof makePositionScale> & { (v: string): number }
-		expect(s("first")).toBe(88)
-		expect(s("second")).toBe(12)
-	})
-
-	it("firstTickPxOffset=0 is a no-op (falls through to default padding behavior)", () => {
-		const sDefault = makePositionScale(
-			["A", "B"],
+			["only"],
 			"categorical",
 			[0, 100]
 		) as ReturnType<typeof makePositionScale> & { (v: string): number }
-		const sZero = makePositionScale(
-			["A", "B"],
-			"categorical",
-			[0, 100],
-			undefined,
-			{ firstTickPxOffset: 0 }
-		) as typeof sDefault
-		expect(sZero("A")).toBe(sDefault("A"))
-		expect(sZero("B")).toBe(sDefault("B"))
-	})
-
-	it("quantitative scales ignore firstTickPxOffset (no categorical anchoring needed)", () => {
-		const s = makePositionScale([0, 100], "quantitative", [0, 100], undefined, {
-			firstTickPxOffset: 12,
-		}) as ReturnType<typeof makePositionScale> & { (v: number): number }
-		// Linear scale: 0 maps to 0, 100 maps to 100. No inset.
-		expect(s(0)).toBe(0)
-		expect(s(100)).toBe(100)
+		expect(s("only")).toBe(50)
 	})
 })
 
@@ -503,18 +415,6 @@ describe("makePositionScale — numeric ordinal edge padding", () => {
 		expect(s(1)).toBe(10)
 		expect(s(5)).toBe(90)
 		expect(s(3)).toBe(50)
-	})
-
-	it("honors firstTickPxOffset for faceted numeric-ordinal axes", () => {
-		const s = makePositionScale(
-			[1, 2, 3],
-			"ordinal",
-			[0, 100],
-			undefined,
-			{ firstTickPxOffset: 12 }
-		) as ReturnType<typeof makePositionScale> & { (v: number): number }
-		expect(s(1)).toBe(12)
-		expect(s(3)).toBe(88)
 	})
 
 	it("insets inward on a reversed range (y-axis convention)", () => {

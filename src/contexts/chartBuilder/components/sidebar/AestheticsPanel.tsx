@@ -186,7 +186,7 @@ export const AestheticsPanel = () => {
 						rectangle; the viewport area outside it is shaded gray.
 					</p>
 				</div>
-				<div className="vc-divider-group gap-1">
+				<div className="vc-divider-group">
 					<label className="flex items-center gap-2 text-sm vc-text">
 						<input
 							type="checkbox"
@@ -228,15 +228,6 @@ export const AestheticsPanel = () => {
 					{aspect?.enabled && (
 						<>
 							<NumberInput
-								label="Length"
-								labelClassName={LABEL_COL}
-								value={aspect.length}
-								onChange={(length) => setAspect({ ...aspect, length })}
-								min={0.1}
-								step={0.1}
-								clamp
-							/>
-							<NumberInput
 								label="Width"
 								labelClassName={LABEL_COL}
 								value={aspect.width}
@@ -245,13 +236,22 @@ export const AestheticsPanel = () => {
 								step={0.1}
 								clamp
 							/>
+							<NumberInput
+								label="Height"
+								labelClassName={LABEL_COL}
+								value={aspect.length}
+								onChange={(length) => setAspect({ ...aspect, length })}
+								min={0.1}
+								step={0.1}
+								clamp
+							/>
 						</>
 					)}
 					<p className="vc-help">
-						Keeps every panel&apos;s plot area at a set Length-to-Width shape
+						Keeps every panel&apos;s plot area at a set width-to-height shape
 						no matter the viewport size. 1 : 1 makes the axes equal length. Faceted charts apply the
-						shape to each panel. Overrides the Facet
-						panel&apos;s Custom sizing, proportional panel weights, and
+						shape to each panel. Overrides Custom sizing in
+						Facet, proportional panel weights, and
 						scroll-mode panel minimums.
 					</p>
 				</div>

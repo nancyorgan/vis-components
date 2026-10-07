@@ -40,7 +40,7 @@ const bytesFromBase64 = (base64: string): ArrayBuffer => {
 /** Register the payload's font faces. Best-effort per face (a corrupt binary
  *  skips that face, the rest still register) and inert where the FontFace API
  *  doesn't exist (tests). */
-export const registerEmbedFonts = (fonts: readonly EmbedFontFace[]): void => {
+const registerEmbedFonts = (fonts: readonly EmbedFontFace[]): void => {
 	if (typeof FontFace === "undefined" || typeof document === "undefined") return
 	if (!("fonts" in document)) return
 	for (const font of fonts) {

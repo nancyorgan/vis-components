@@ -137,7 +137,7 @@ export const ValuePanel = ({
 			{fields.length > 0 && (
 				<div className="flex flex-col gap-1">
 					<span className="vc-group-header">
-						Label format
+						Text format
 					</span>
 					{fields.map((name) => (
 						<TickFormatControl
@@ -179,7 +179,7 @@ export const SingleValuePanel = ({
 	countryNames?: boolean
 }) => (
 	<div className="flex flex-col gap-1">
-		<span className="vc-group-header">Label format</span>
+		<span className="vc-group-header">Text format</span>
 		<TickFormatControl
 			label={field}
 			value={cfg.fieldFormats?.[field] ?? ""}

@@ -341,7 +341,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 	const selectClass = `min-w-0 flex-1 ${
 		value || derivedSource || hexbinSource
 			? "text-vc-section-header font-semibold"
-			: "text-stone-700 dark:text-stone-200"
+			: "vc-text"
 	}`
 
 	const fieldOptions = [

@@ -61,7 +61,7 @@ export const labelSeriesChannelsFromEncodings = (
 /** The scope that actually applies: a scope whose channel isn't mapped
  *  reads as "series". Channels mapped to the category field don't count
  *  (they color without grouping or layering). */
-export const effectiveLabelScope = (
+const effectiveLabelScope = (
 	scope: LabelPointsScope,
 	channels: LabelSeriesChannels,
 	categoryField: string | null,

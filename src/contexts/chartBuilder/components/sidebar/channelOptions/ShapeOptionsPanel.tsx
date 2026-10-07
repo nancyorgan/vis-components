@@ -28,7 +28,7 @@ import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 import { CustomGlyphChips, CustomGlyphEditor } from "./customGlyphEditor"
-import { CategoryRow, ShapeGlyph } from "./glyphShared"
+import { CategoryRow, ShapeGlyph, swatchChipClass } from "./glyphShared"
 import { useUniqueValuesForChannel } from "./useUniqueValuesForChannel"
 
 /** Row key for the Default-shape row's custom-glyph editor — distinct from
@@ -141,7 +141,7 @@ export const ShapeOptionsPanel = () => {
 	return (
 		<div className="vc-option-panel">
 			<NumberInput
-				label="Outline width"
+				label="Outline thickness"
 				labelClassName={LABEL_COL}
 				value={cfg.outlineWidth}
 				min={0}
@@ -198,11 +198,7 @@ export const ShapeOptionsPanel = () => {
 											}))
 										}
 										aria-pressed={selected}
-										className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-											selected
-												? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-												: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-										}`}
+										className={swatchChipClass(selected, "w-7")}
 									>
 										<ShapeGlyph idx={idx} selected={selected} />
 									</button>

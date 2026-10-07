@@ -45,7 +45,6 @@ import { Disclosure } from "@headlessui/react"
 import { DisclosureChevron } from "../../../../components/ui/Chevron"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
-import { PalettePickerButton } from "../../../../components/ui/PalettePickerButton"
 import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
@@ -1263,7 +1262,7 @@ const LabelStyleControls = ({
 			)}
 			{onAngle && (
 				<NumberInput
-					label="Orientation"
+					label="Angle"
 					labelClassName={LABEL_COL}
 					value={angle ?? 0}
 					min={-180}
@@ -1480,44 +1479,26 @@ export const FontEditor = ({
 				)}
 			</label>
 			{!hideColor && (
-				<label className="flex items-center gap-2 text-sm">
-					<span className={LABEL_COL}>Color</span>
-					<Input
-						type="text"
-						value={value.color ?? ""}
-						onChange={(e) =>
-							onChange({
-								...value,
-								color: e.target.value === "" ? undefined : e.target.value,
-							})
-						}
+				// flex-wrap: a squeezed row (phone-width menu sheet) drops the
+				// reset link under the swatch instead of pushing past the edge.
+				<div className="flex flex-wrap items-center gap-2 text-sm">
+					<ColorInput
+						label="Color"
+						labelClassName={LABEL_COL}
+						value={value.color ?? null}
+						onChange={(color) => onChange({ ...value, color })}
+						onClear={() => reset("color")}
 						placeholder={showResetFields ? (baseColor ?? "(inherit)") : "#111827"}
-						// Shrinks to min-w-18 when the row is tight and hides below 360px
-						// viewports — same rule as ColorInput's hex box.
-						className="hidden w-24 min-w-18 font-mono min-[360px]:block"
-					/>
-					<input
-						type="color"
-						value={value.color ?? baseColor ?? "#111827"}
-						onChange={(e) => onChange({ ...value, color: e.target.value })}
-						aria-label="Color swatch"
-						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
-					/>
-					{/* This row colors TEXT, so the picker leads with the theme's
-					 *  TEXT palette (the other palettes stay one chevron away).
-					 *  Hand-rolled rather than a `ColorInput` because this row's
-					 *  empty text box means "inherit", which ColorInput has no
-					 *  notion of. */}
-					<PalettePickerButton
+						// This row colors TEXT, so the picker leads with the theme's
+						// TEXT palette (the other palettes stay one chevron away).
 						paletteKind="text"
-						current={value.color ?? baseColor ?? "#111827"}
-						onPick={(color) => onChange({ ...value, color })}
-						label="Pick palette color for text"
+						pickerLabel="Pick palette color for text"
+						className="contents"
 					/>
 					{showResetFields && value.color !== undefined && (
 						<ResetLink onClick={() => reset("color")} />
 					)}
-				</label>
+				</div>
 			)}
 			{afterColor}
 			{/* Blank = inherit the theme size, shown as the placeholder; the

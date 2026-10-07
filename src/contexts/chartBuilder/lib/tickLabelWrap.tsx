@@ -48,7 +48,7 @@ export const wrapTickLabel = (
 /** The line alignment a block anchor produces on its own: every line of a
  *  wrapped label is anchored at the same `x`, so anchor "start" reads as
  *  left-aligned lines, "middle" as centered, "end" as right-aligned. */
-export const naturalAlignForAnchor = (
+const naturalAlignForAnchor = (
 	anchor: "start" | "middle" | "end"
 ): LabelAlignment =>
 	anchor === "start" ? "left" : anchor === "middle" ? "center" : "right"

@@ -332,7 +332,7 @@ const RadarSpokesSection = ({
 			    off; the section header carries the dot instead. */}
 			<div className="vc-divider-group">
 				<p className="vc-help">
-					Set spoke color under the <strong>Color</strong> menu →{" "}
+					Set spoke color under <strong>Color</strong> →{" "}
 					<strong>Radar Spine</strong>.
 				</p>
 				<SpineControls
@@ -469,7 +469,7 @@ const BarGapControl = ({
 				min={0}
 				step={1}
 				value={barGapPx}
-				placeholder="auto"
+				placeholder="Auto"
 				onChange={(next) => onChange(Math.max(0, next))}
 				onClear={() => onChange(null)}
 				suffix="px"

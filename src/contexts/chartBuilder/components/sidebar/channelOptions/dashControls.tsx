@@ -24,23 +24,19 @@ import {
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 
-import { LineDashGlyph } from "./glyphShared"
+import { LineDashGlyph, swatchChipClass } from "./glyphShared"
 import { Input } from "../../../../../components/ui/Input"
 
-const swatchClass = (selected: boolean) =>
-	`flex h-7 items-center justify-center rounded border transition-colors ${
-		selected
-			? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-			: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-	}`
-
 /** The None / dash swatches / Custom button row every single-choice dash
- *  picker shares (regression line, annotation borders + lines). The three
- *  states are mutually exclusive: picking a swatch clears any custom
- *  dasharray, and Custom opens the dasharray text box (which stays open
- *  while empty via local state — an empty string isn't persisted).
+ *  picker shares (the Pattern panel's default + per-category Line dash rows,
+ *  regression line, annotation borders + lines). The states are mutually
+ *  exclusive: picking a swatch clears any custom dasharray, and Custom opens
+ *  the dasharray text box, which stays open while empty via the "custom
+ *  open" flag — local state by default, or the caller's via `customOpen` +
+ *  `onCustomOpenChange` when a reset link outside the row has to close it.
  *  `pattern: "solid"` doubles as None; a non-null `customDasharray` wins
- *  over `pattern` at render time. `ariaContext` names the owning control in
+ *  over `pattern` at render time. `showBlank` adds the range-mode "Blank"
+ *  swatch (`pattern: "blank"`). `ariaContext` names the owning control in
  *  the buttons' aria-labels (e.g. "regression line" → "No dash for
  *  regression line" / "Regression line dash dotted"). */
 export const DashStylePicker = ({
@@ -48,6 +44,9 @@ export const DashStylePicker = ({
 	customDasharray,
 	onChange,
 	ariaContext,
+	customOpen: customOpenProp,
+	onCustomOpenChange,
+	showBlank = false,
 }: {
 	pattern: LineDashPattern
 	customDasharray: string | null
@@ -56,10 +55,21 @@ export const DashStylePicker = ({
 		customDasharray: string | null
 	}) => void
 	ariaContext: string
+	/** Controlled "Custom box open" flag (see above). Omit for local state. */
+	customOpen?: boolean
+	onCustomOpenChange?: (open: boolean) => void
+	/** Offers "Blank" after the dash swatches. */
+	showBlank?: boolean
 }) => {
-	const [customOpen, setCustomOpen] = useState(false)
+	const [localCustomOpen, setLocalCustomOpen] = useState(false)
+	const customOpen = customOpenProp ?? localCustomOpen
+	const setCustomOpen = (open: boolean) => {
+		setLocalCustomOpen(open)
+		onCustomOpenChange?.(open)
+	}
 	const customActive = customOpen || !!customDasharray
 	const isNone = pattern === "solid" && !customActive
+	const isBlank = pattern === "blank" && !customActive
 	const activeIdx = DASH_CYCLE.indexOf(pattern)
 	const capped = ariaContext.charAt(0).toUpperCase() + ariaContext.slice(1)
 	const pick = (style: LineDashPattern) => {
@@ -74,7 +84,7 @@ export const DashStylePicker = ({
 					onClick={() => pick("solid")}
 					aria-pressed={isNone}
 					aria-label={`No dash for ${ariaContext}`}
-					className={`${swatchClass(isNone)} px-2 text-sm`}
+					className={swatchChipClass(isNone, "px-2 text-sm")}
 				>
 					None
 				</button>
@@ -88,18 +98,29 @@ export const DashStylePicker = ({
 							onClick={() => pick(style)}
 							aria-pressed={selected}
 							aria-label={`${capped} dash ${style}`}
-							className={`${swatchClass(selected)} w-7`}
+							className={swatchChipClass(selected, "w-7")}
 						>
 							<LineDashGlyph idx={idx} selected={selected} />
 						</button>
 					)
 				})}
+				{showBlank && (
+					<button
+						type="button"
+						onClick={() => pick("blank")}
+						aria-pressed={isBlank}
+						aria-label={`${capped} dash blank`}
+						className={swatchChipClass(isBlank, "px-2 text-sm")}
+					>
+						Blank
+					</button>
+				)}
 				<button
 					type="button"
 					onClick={() => setCustomOpen(true)}
 					aria-pressed={customActive}
 					aria-label={`Custom dash for ${ariaContext}`}
-					className={`${swatchClass(customActive)} px-2 text-sm`}
+					className={swatchChipClass(customActive, "px-2 text-sm")}
 				>
 					Custom
 				</button>

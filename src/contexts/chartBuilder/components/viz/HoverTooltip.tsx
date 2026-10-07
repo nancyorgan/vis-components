@@ -126,7 +126,7 @@ export const HoverTooltip = ({ state }: { state: TooltipState }) => {
 							<span className="vc-muted">
 								{f.name}:
 							</span>
-							<span className="truncate font-medium text-stone-800 dark:text-stone-200">
+							<span className="truncate font-medium vc-text">
 								{String(f.value ?? "")}
 							</span>
 						</div>

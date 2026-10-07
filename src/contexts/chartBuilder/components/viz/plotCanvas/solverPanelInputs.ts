@@ -165,10 +165,10 @@ export const buildSolverPanelInputs = ({
 	// the solver.
 	const isFacetedHere = isFaceted
 	const shareXMode: "none" | "perGroup" | "all" = isFacetedHere
-		? migrateShareValue(facetCfg.shareX, facetCfg.shareAxes)
+		? migrateShareValue(facetCfg.shareX)
 		: "none"
 	const shareYMode: "none" | "perGroup" | "all" = isFacetedHere
-		? migrateShareValue(facetCfg.shareY, facetCfg.shareAxes)
+		? migrateShareValue(facetCfg.shareY)
 		: "none"
 	// Resolve per-axis sizing modes once per memo run. Each axis chooses
 	// independently between "off" (equal-sized along that axis),

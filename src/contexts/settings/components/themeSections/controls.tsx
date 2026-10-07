@@ -179,7 +179,7 @@ export const AlignmentRow = ({
  * When `onDefault` is provided, a leading "(default)" entry clears the
  * weight so the slot falls back to its render-site default. */
 export const FontWeightRow = ({
-	label = "Font weight",
+	label = "Weight",
 	family,
 	value,
 	onChange,

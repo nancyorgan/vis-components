@@ -150,7 +150,7 @@ export const selectEndpointsPerSeries = <T extends LabelBox>(
  *  zero-clearance (tangent) landing is float-fragile: the gap can compute
  *  to e.g. 35.19999999999999 vs a 35.2 threshold, re-triggering the strict
  *  `<` overlap test forever. */
-export const NUDGE_CLEARANCE_PX = 1
+const NUDGE_CLEARANCE_PX = 1
 
 /** Isotonic regression via pool-adjacent-violators: the non-decreasing
  *  sequence closest (least-squares) to `targets`. Equal-weight PAV: walk

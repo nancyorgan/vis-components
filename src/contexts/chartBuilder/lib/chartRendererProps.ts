@@ -70,23 +70,6 @@ export type CartesianRendererProps = ChartRendererBaseProps & {
 	 *  call for a smaller margin. */
 	extraMarginFloorLeft?: number
 	extraMarginFloorBottom?: number
-	/** When set, anchors the FIRST and LAST categorical / string-ordinal
-	 *  tick of that axis at a fixed pixel offset from each plot-area edge —
-	 *  instead of the default `padding(0.5)` behavior where the first tick
-	 *  lands at `step/2` from the edge (i.e. scales with N and plot size).
-	 *
-	 *  PlotCanvas sets an axis's offset ONLY when the chart is faceted AND
-	 *  that axis is SHARED across panels (share mode ≠ "none") — shared
-	 *  categorical axes need their first/last ticks at the same absolute
-	 *  position in every panel or the title-to-first-tick distance drifts
-	 *  with each panel's category count. When the axis is NOT shared, each
-	 *  panel owns its own category set, cross-panel alignment is
-	 *  meaningless, and pinning a sparse panel's two categories to the far
-	 *  edges just looks stretched — so the offset stays undefined and the
-	 *  historical `padding(0.5)` spacing applies per panel. Standalone
-	 *  (non-faceted) charts leave both undefined. */
-	firstTickPxOffsetX?: number
-	firstTickPxOffsetY?: number
 }
 
 /** Adds per-axis scale-row overrides — Scatter and Tile share one axis

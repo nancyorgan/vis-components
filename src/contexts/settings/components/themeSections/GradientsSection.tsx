@@ -7,6 +7,7 @@ import type {
 import { Section, SectionGroup, SelectInput } from "./controls"
 import type { ThemeSectionProps } from "./types"
 import { Button } from "../../../../components/ui/Button"
+import { ColorInput } from "../../../../components/ui/ColorInput"
 import { Input } from "../../../../components/ui/Input"
 
 const PALETTE_NAMES: PaletteName[] = [
@@ -73,7 +74,7 @@ const GradientCard = ({
 			<button
 				type="button"
 				onClick={onDelete}
-				className="ml-auto text-sm text-stone-500 hover:text-red-600 dark:text-stone-400 dark:hover:text-red-400"
+				className="ml-auto text-sm hover:text-red-600 dark:hover:text-red-400 vc-muted"
 			>
 				Delete
 			</button>
@@ -86,20 +87,19 @@ const GradientCard = ({
 		/>
 		<div className="flex justify-between">
 			{stops.map((stop) => (
-				<label
+				// Swatch-only, label stacked. No palette picker: on this page the
+				// swatches DEFINE the theme (see controls.tsx's wrapper).
+				<ColorInput
 					key={stop.label}
-					className="flex flex-col items-center gap-0.5"
-				>
-					<input
-						type="color"
-						value={stop.value}
-						onChange={(e) => stop.onChange(e.target.value)}
-						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
-					/>
-					<span className="text-sm vc-muted">
-						{stop.label}
-					</span>
-				</label>
+					label={stop.label}
+					labelClassName="vc-muted"
+					value={stop.value}
+					onChange={stop.onChange}
+					inline={false}
+					showHexInput={false}
+					showPalettePicker={false}
+					className="items-center"
+				/>
 			))}
 		</div>
 	</div>

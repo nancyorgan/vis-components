@@ -121,7 +121,7 @@ export const TrashButton = () => {
 									<button
 										type="button"
 										onClick={() => purgeVisuals([v.id])}
-										className="text-sm whitespace-nowrap text-stone-500 hover:text-red-700 dark:text-stone-400 dark:hover:text-red-300"
+										className="text-sm whitespace-nowrap hover:text-red-700 dark:hover:text-red-300 vc-muted"
 										title="Delete this visualization permanently"
 									>
 										Delete forever

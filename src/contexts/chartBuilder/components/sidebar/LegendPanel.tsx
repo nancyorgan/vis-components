@@ -197,7 +197,7 @@ const QuantLegendChannelControls = ({
 			<div className="ml-6 flex flex-col gap-2">
 				<label className="flex items-center gap-2 text-sm">
 					<span className={LABEL_COL_NESTED}>
-						Label format
+						Text format
 					</span>
 					<Select
 						value=""
@@ -217,7 +217,7 @@ const QuantLegendChannelControls = ({
 						value={cfg.format}
 						onChange={(e) => onChange({ ...cfg, format: e.target.value })}
 						placeholder="Auto"
-						aria-label="Custom label format string"
+						aria-label="Custom text format"
 						title={FORMAT_BOX_HELP}
 						className="flex-1 font-mono"
 					/>
@@ -347,7 +347,7 @@ export const LegendPanel = () => {
 						? Math.round(autoLegendWidth)
 						: pxToUnit(autoLegendWidth, widthUnit)
 				)
-			: "auto"
+			: "Auto"
 	const commitWidthUnit = (n: number) =>
 		update({ width: Math.max(0, n * PX_PER_UNIT[widthUnit]) })
 
@@ -835,7 +835,7 @@ export const LegendPanel = () => {
 					 *  section + one title, instead of a legend per channel. Only
 					 *  offered when there's actually a shared field to combine. */}
 					{sharedVariableExists && (
-						<div className="vc-divider-group gap-1">
+						<div className="vc-divider-group">
 							<Toggle
 								label="Combine legends with same variables"
 								checked={combineLegendSections}
@@ -890,7 +890,7 @@ export const LegendPanel = () => {
 										placeholder={
 											roundedAutoInsideX != null
 												? String(roundedAutoInsideX)
-												: "auto"
+												: "Auto"
 										}
 										onChange={(insideX) => update({ insideX })}
 										onClear={() => update({ insideX: null })}
@@ -991,7 +991,7 @@ export const LegendPanel = () => {
 								</div>
 								<div className="flex items-center gap-2">
 									<NumberInput
-										label="Radius"
+										label="Corner radius"
 										labelClassName={LABEL_COL}
 										value={merged.borderRadius}
 										min={0}
@@ -1259,7 +1259,7 @@ export const LegendPanel = () => {
 									placeholder={
 										autoGradientBarLength != null
 											? String(autoGradientBarLength)
-											: "auto"
+											: "Auto"
 									}
 									stepBase={resolveGradientBarLengthStart()}
 									onChange={(gradientBarLength) =>
@@ -1629,7 +1629,7 @@ export const LegendPanel = () => {
 											)}
 										</div>
 										<NumberInput
-											label="Outline width"
+											label="Outline thickness"
 											labelClassName={LABEL_COL}
 											value={resolveLegendSwatchOutlineWidth(merged, theme, ch)}
 											min={0}
@@ -1711,7 +1711,7 @@ export const LegendPanel = () => {
 					)}
 					<p className="vc-help">
 						Default fill / stroke for shape swatches in the legend. Per-shape
-						overrides set in the Shape panel (including
+						overrides set in Shape (including
 						<code> none</code> for outline-only) win when present.
 					</p>
 					</div>

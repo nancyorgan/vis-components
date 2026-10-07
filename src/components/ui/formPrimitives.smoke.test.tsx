@@ -419,6 +419,90 @@ describe("ColorInput", () => {
 		fireEvent.click(getByText("set"))
 		expect(text.value).toBe("#222222")
 	})
+
+	// Inherit mode: `value: null` + `onClear` — the row's color is a sparse
+	// override that falls back to a parent / theme color.
+	it("inherit mode: a null value leaves the hex box blank over the placeholder and previews it in the swatch", () => {
+		const { container } = render(
+			<ColorInput
+				label="Fill"
+				value={null}
+				onChange={() => {}}
+				onClear={() => {}}
+				placeholder="#ABCDEF"
+			/>
+		)
+		const text = container.querySelector(
+			'input[type="text"]'
+		) as HTMLInputElement
+		const swatch = container.querySelector(
+			'input[type="color"]'
+		) as HTMLInputElement
+		expect(text.value).toBe("")
+		expect(text.placeholder).toBe("#ABCDEF")
+		expect(swatch.value.toLowerCase()).toBe("#abcdef")
+		expect(swatch.className).toContain("border-dashed")
+	})
+
+	it("inherit mode: a non-hex placeholder gets the neutral inherit swatch", () => {
+		const { container } = render(
+			<ColorInput
+				label="Fill"
+				value={null}
+				onChange={() => {}}
+				onClear={() => {}}
+				placeholder="(inherit)"
+			/>
+		)
+		const swatch = container.querySelector(
+			'input[type="color"]'
+		) as HTMLInputElement
+		expect(swatch.value.toLowerCase()).toBe("#9ca3af")
+	})
+
+	it("inherit mode: emptying the hex box fires onClear (not onChange); a pick still fires onChange", () => {
+		const onChange = vi.fn()
+		const onClear = vi.fn()
+		const { container } = render(
+			<ColorInput
+				label="Fill"
+				value="#123456"
+				onChange={onChange}
+				onClear={onClear}
+				placeholder="#ABCDEF"
+			/>
+		)
+		const text = container.querySelector('input[type="text"]')!
+		fireEvent.change(text, { target: { value: "" } })
+		expect(onClear).toHaveBeenCalledTimes(1)
+		expect(onChange).not.toHaveBeenCalled()
+		fireEvent.change(container.querySelector('input[type="color"]')!, {
+			target: { value: "#ff0000" },
+		})
+		expect(onChange).toHaveBeenCalledWith("#FF0000")
+	})
+
+	it("without onClear, an emptied hex box is just invalid text: no callback, snaps back on blur", () => {
+		const onChange = vi.fn()
+		const { container } = render(
+			<ColorInput label="Fill" value="#123456" onChange={onChange} />
+		)
+		const text = container.querySelector(
+			'input[type="text"]'
+		) as HTMLInputElement
+		fireEvent.change(text, { target: { value: "" } })
+		expect(onChange).not.toHaveBeenCalled()
+		fireEvent.blur(text)
+		expect(text.value).toBe("#123456")
+	})
+
+	it("names the hex box after the label so it stays reachable beside the swatch", () => {
+		const { getByLabelText } = render(
+			<ColorInput label="Fill" value="#123456" onChange={() => {}} />
+		)
+		expect((getByLabelText("Fill hex") as HTMLInputElement).type).toBe("text")
+		expect((getByLabelText("Fill") as HTMLInputElement).type).toBe("color")
+	})
 })
 
 describe("SelectInput", () => {

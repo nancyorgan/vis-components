@@ -151,7 +151,7 @@ export const FontsPage = () => {
 								>
 									{font.family}
 								</div>
-								<div className="text-xs text-stone-500 dark:text-stone-400">
+								<div className="text-xs vc-muted">
 									{fontMeta(font)}
 								</div>
 							</div>
@@ -159,7 +159,7 @@ export const FontsPage = () => {
 								compact
 								onClick={() => setRemoving(font)}
 							>
-								Remove
+								Delete
 							</Button>
 						</li>
 					))}
@@ -168,7 +168,7 @@ export const FontsPage = () => {
 
 			<ConfirmDialog
 				open={removing !== null}
-				title="Remove font?"
+				title="Delete font?"
 				message={
 					<>
 						Remove <strong>{removing?.family}</strong> from your font

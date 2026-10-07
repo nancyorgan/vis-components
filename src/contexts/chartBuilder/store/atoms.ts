@@ -1262,7 +1262,7 @@ export type QuickStartState = {
 	lastSetByScaffold: boolean
 }
 
-export const EMPTY_QUICK_START_STATE: QuickStartState = {
+const EMPTY_QUICK_START_STATE: QuickStartState = {
 	cyclePositions: {},
 	lastSetByScaffold: false,
 }

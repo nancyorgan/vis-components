@@ -33,13 +33,13 @@ export const DEFAULT_RESHAPE_CONFIG: ReshapeConfig = {
  * auto-fallback inputs. The panel shows the fallback as the placeholder. */
 export const effectiveVariableName = (config: ReshapeConfig): string =>
 	config.variableName.trim() || DEFAULT_RESHAPE_CONFIG.variableName
-export const effectiveValueName = (config: ReshapeConfig): string =>
+const effectiveValueName = (config: ReshapeConfig): string =>
 	config.valueName.trim() || DEFAULT_RESHAPE_CONFIG.valueName
 
 /** The ID columns actually present in the dataset, in dataset column order.
  * The config may hold stale names (version switch, field prune) — those are
  * ignored rather than treated as errors. */
-export const presentIdFields = (
+const presentIdFields = (
 	fields: Field[],
 	config: ReshapeConfig
 ): Field[] => fields.filter((f) => config.idFields.includes(f.name))

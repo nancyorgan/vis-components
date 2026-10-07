@@ -797,7 +797,6 @@ export const DataLabelsPanel = () => {
 				)}
 				<Toggle
 					label="Avoid overlapping labels"
-					className="mt-1"
 					checked={merged.avoidOverlaps === true}
 					onChange={(avoidOverlaps) => updateCfg({ avoidOverlaps })}
 				/>
@@ -819,7 +818,7 @@ export const DataLabelsPanel = () => {
 				{isGeoMode && (
 					<>
 						<Toggle
-							label="Draw leader lines"
+							label="Show leader lines"
 							checked={merged.leaderLines === true}
 							onChange={(leaderLines) => updateCfg({ leaderLines })}
 						/>

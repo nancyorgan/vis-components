@@ -176,7 +176,7 @@ const RegressionLineStyleControls = () => {
 	return (
 		<div className="vc-divider-group">
 			<NumberInput
-				label="Width"
+				label="Line thickness"
 				labelClassName={LABEL_COL}
 				value={regression.strokeWidth}
 				min={0}
@@ -186,7 +186,7 @@ const RegressionLineStyleControls = () => {
 				onChange={(strokeWidth) => update({ strokeWidth })}
 			/>
 			<p className="vc-help">
-				Set the dash pattern under the <strong>Pattern</strong> menu →{" "}
+				Set the dash pattern under <strong>Pattern</strong> →{" "}
 				<strong>Regression line</strong>.
 			</p>
 		</div>

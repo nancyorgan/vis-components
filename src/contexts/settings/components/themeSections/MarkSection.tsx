@@ -1,4 +1,5 @@
 import { SHAPE_PALETTE } from "../../../chartBuilder/lib/scales"
+import { swatchChipClass } from "../../../chartBuilder/components/sidebar/channelOptions/glyphShared"
 
 import {
 	ColorInput,
@@ -12,7 +13,7 @@ import type { ThemeSectionProps } from "./types"
 export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 	<SectionGroup title="Mark" isReadOnly={isReadOnly}>
 		{/* Mark defaults */}
-		<Section title="Mark defaults">
+		<Section title="Mark">
 			<ColorInput
 				label="Fill color"
 				value={theme.defaultFill}
@@ -50,11 +51,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 								onClick={() => set("defaultShape", idx)}
 								aria-label={`Shape ${idx + 1}`}
 								aria-pressed={selected}
-								className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-									selected
-										? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-										: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900"
-								}`}
+								className={swatchChipClass(selected, "w-7")}
 							>
 								<ShapeGlyph idx={idx} selected={selected} />
 							</button>
@@ -68,7 +65,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				onChange={(v) => set("outlineColor", v)}
 			/>
 			<NumberInput
-				label="Outline width"
+				label="Outline thickness"
 				value={theme.outlineWidth}
 				onChange={(v) => set("outlineWidth", v)}
 				min={0}

@@ -246,8 +246,6 @@ export const AnnotationRects = ({
 	axisFields,
 	xDomainOverride,
 	yDomainOverride,
-	firstTickPxOffsetX,
-	firstTickPxOffsetY,
 	levelOrders,
 	isRadar,
 	radiusScale,
@@ -268,8 +266,6 @@ export const AnnotationRects = ({
 	}
 	xDomainOverride?: { min?: number; max?: number }
 	yDomainOverride?: { min?: number; max?: number }
-	firstTickPxOffsetX?: number
-	firstTickPxOffsetY?: number
 	levelOrders: Record<string, readonly string[]>
 	/** Radar panels render VALUE-mode circles themselves (RadarPlot owns the
 	 *  radial scales), so skip them here to avoid a wrong (percent-fallback)
@@ -335,8 +331,7 @@ export const AnnotationRects = ({
 				raws,
 				axisFields.xType,
 				xRange,
-				levelOrders[axisFields.xField],
-				{ firstTickPxOffset: firstTickPxOffsetX }
+				levelOrders[axisFields.xField]
 			),
 			axisFields.xType,
 			xDomainOverride?.min,
@@ -350,8 +345,7 @@ export const AnnotationRects = ({
 				raws,
 				axisFields.yType,
 				yRange,
-				levelOrders[axisFields.yField],
-				{ firstTickPxOffset: firstTickPxOffsetY }
+				levelOrders[axisFields.yField]
 			),
 			axisFields.yType,
 			yDomainOverride?.min,

@@ -110,7 +110,6 @@ export const resolvePanelRenderInputs = ({
 				migratePolarShareValue(
 					facetCfg.shareAngle,
 					facetCfg.shareX,
-					facetCfg.shareAxes,
 					"angle",
 				),
 			)
@@ -124,7 +123,6 @@ export const resolvePanelRenderInputs = ({
 				migratePolarShareValue(
 					facetCfg.shareR,
 					facetCfg.shareY,
-					facetCfg.shareAxes,
 					"R",
 				),
 			)
@@ -312,7 +310,6 @@ export const resolvePanelRenderInputs = ({
 		? migratePolarShareValue(
 				facetCfg.shareR,
 				facetCfg.shareY,
-				facetCfg.shareAxes,
 				"R",
 			)
 		: undefined

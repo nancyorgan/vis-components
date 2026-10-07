@@ -11,6 +11,8 @@ import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 
+import { CONTENT_VERSION_COLLECTIONS } from "./contentVersionCollections.js"
+
 /** Numbered migrations, applied in order inside a transaction at boot.
  *  NEVER edit a shipped entry — append a new one. */
 const MIGRATIONS: readonly string[] = [
@@ -109,22 +111,14 @@ export type JsonCollection = keyof typeof JSON_TABLES
 export const isJsonCollection = (value: string): value is JsonCollection =>
 	value in JSON_TABLES
 
-/** Collections whose stored bodies carry a frontend content-schema version.
- *  `datasets` is here despite living in files rather than a JSON table;
- *  `folders` and `settings` are absent because the frontend never versioned
- *  them (they're read unversioned; if that changes, add them here AND to the
- *  client registry in lib/storage/migrations.ts). The server never interprets
- *  these numbers — it only stores what the client stamps. */
-const CONTENT_VERSION_COLLECTIONS = new Set([
-	"visuals",
-	"datasets",
-	"embed-instances",
-	"themes",
-	"fonts",
-])
+/** See contentVersionCollections.ts for what's in the list and why it lives
+ *  in its own module. */
+const CONTENT_VERSION_COLLECTION_SET: ReadonlySet<string> = new Set(
+	CONTENT_VERSION_COLLECTIONS
+)
 
 export const isContentVersionCollection = (value: string): boolean =>
-	CONTENT_VERSION_COLLECTIONS.has(value)
+	CONTENT_VERSION_COLLECTION_SET.has(value)
 
 /** Every stamped content version, keyed by collection. A collection with no
  *  row is simply absent — the client decides what an absent stamp means. */

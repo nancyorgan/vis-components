@@ -6,14 +6,14 @@ import { zctaTopologyAvailable } from "./zctaTopology"
 /** How well a candidate level must match before we stop looking. When the
  *  best of states/countries clears this, the (lazily imported, 842KB)
  *  counties table isn't loaded at all — the common case stays cheap. */
-export const GOOD_MATCH_THRESHOLD = 0.5
+const GOOD_MATCH_THRESHOLD = 0.5
 
 /** Cap on distinct values scored per level. Detection needs a verdict, not a
  *  full join — the sidebar match status still resolves every value. */
 const SAMPLE_CAP = 500
 
 /** Fraction of the sampled distinct values that join `table` (0..1). */
-export const scoreGeographyTable = (
+const scoreGeographyTable = (
 	values: string[],
 	table: GeoLookupRow[],
 	keyTypeOverride?: RegionKeyType

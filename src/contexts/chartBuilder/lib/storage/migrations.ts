@@ -392,7 +392,7 @@ export const clearLegacyAutoTickLabelAngle = <T>(visual: T): T => {
 /** Same step over a bare `ChannelConfigs` record (the editor's persisted
  *  draft slice, channelConfigs v1→v2). Returns the input reference when
  *  nothing changed. */
-export const clearLegacyAutoTickLabelAngleInConfigs = (
+const clearLegacyAutoTickLabelAngleInConfigs = (
 	cc: Record<string, unknown>,
 ): Record<string, unknown> => {
 	let next: Record<string, unknown> | null = null

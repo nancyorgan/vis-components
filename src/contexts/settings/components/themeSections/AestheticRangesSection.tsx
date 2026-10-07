@@ -8,7 +8,7 @@ export const AestheticRangesSection = ({
 }: ThemeSectionProps) => (
 	<SectionGroup title="Aesthetic ranges" isReadOnly={isReadOnly}>
 		{/* Aesthetic-channel range defaults */}
-		<Section title="Aesthetic range defaults">
+		<Section title="Aesthetic ranges">
 			<p className="text-sm vc-muted">
 				Min and max bounds used when each aesthetic channel is first
 				mapped.

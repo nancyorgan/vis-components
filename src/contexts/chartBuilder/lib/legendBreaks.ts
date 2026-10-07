@@ -122,7 +122,7 @@ export const resolveLegendDomain = (
  * requested count. Uses d3's `scale.nice()` to round the endpoints
  * outward (so 2..194 → 0..200) and then `d3.ticks()` for the step
  * between them — the same algorithm axis tick generators use. */
-export const prettyBreaks = (
+const prettyBreaks = (
 	lo: number,
 	hi: number,
 	count: number,

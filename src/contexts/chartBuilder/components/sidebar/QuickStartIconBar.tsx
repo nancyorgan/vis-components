@@ -526,7 +526,7 @@ export const QuickStartIconBar = () => {
 							}}
 							onMouseLeave={() => setHovered(null)}
 							aria-label={LABELS[chartType]}
-							className="flex h-8 w-full items-center justify-center rounded border border-stone-300 bg-white text-stone-700 transition hover:enabled:scale-125 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+							className="flex h-8 w-full items-center justify-center rounded border border-stone-300 bg-white transition hover:enabled:scale-125 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-800 vc-text"
 						>
 							<Icon className="h-6 w-6 fill-current" />
 						</button>
@@ -555,7 +555,7 @@ export const QuickStartIconBar = () => {
 				</div>
 			)}
 			{pending && (
-				<div className="flex flex-col gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-stone-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-stone-200">
+				<div className="flex flex-col gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-sm dark:border-amber-700 dark:bg-amber-950/40 vc-text">
 					<div>
 						Replace the current encoding with a{" "}
 						<span className="font-medium">{LABELS[pending.chartType]}</span>{" "}

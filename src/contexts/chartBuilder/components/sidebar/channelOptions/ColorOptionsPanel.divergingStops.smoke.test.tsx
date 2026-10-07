@@ -142,7 +142,7 @@ describe("QuantitativePanel — diverging stop rows", () => {
 		).toBe("20")
 	})
 
-	it("keeps 'auto' when no extent is available (derived measures)", () => {
+	it("keeps 'Auto' when no extent is available (derived measures)", () => {
 		const { getByLabelText } = render(
 			<QuantitativePanel
 				hueConfig={divergingCfg}
@@ -152,7 +152,7 @@ describe("QuantitativePanel — diverging stop rows", () => {
 		)
 		expect(
 			(getByLabelText("Low stop value") as HTMLInputElement).placeholder,
-		).toBe("auto")
+		).toBe("Auto")
 	})
 
 	it("shows no reset links (and no section reset) while every row matches its palette default", () => {

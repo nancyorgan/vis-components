@@ -144,65 +144,37 @@ export type PositionScale =
 	| ReturnType<typeof scalePoint<string>>
 	| ReturnType<typeof scaleBand<string>>
 
-/** When `firstTickPxOffset` is set on a categorical / non-numeric ordinal
- *  scale, this helper insets the range by that many pixels on each end
- *  and switches to `padding(0)`. Net effect: the first AND last ticks
- *  always land at `range_edge ± offset`, regardless of how many domain
- *  values there are. This is what fixes the "title-to-first-tick distance
- *  varies per panel" facet bug (see AUDIT.md P1.6) — under the default
- *  `padding(0.5)`, that distance depends on `plot_area / N`, so any
- *  panel-size variation drifts the offset.
- *
- *  Non-categorical axes are untouched: `firstTickPxOffset` only matters
- *  for scales where d3 places ticks via `padding`. Quantitative / temporal
- *  scales use a continuous domain that anchors naturally. */
-const insetRangeForFixedTickOffset = (
+/** Inset a pixel range by `inset` on BOTH ends, inward regardless of
+ *  direction (a y-axis range is reversed: top-to-bottom, so r0 > r1). */
+const insetRangeInward = (
 	range: [number, number],
-	offset: number
+	inset: number
 ): [number, number] => {
 	const [r0, r1] = range
-	// Range can be reversed (y-axis convention: top-to-bottom, so r0 > r1).
-	// Inset INWARD on both ends regardless of direction.
-	return r0 > r1 ? [r0 - offset, r1 + offset] : [r0 + offset, r1 - offset]
+	return r0 > r1 ? [r0 - inset, r1 + inset] : [r0 + inset, r1 - inset]
 }
 
 /** Numeric-ordinal axes use a linear scale (so positions still reflect
  *  magnitude), but like categorical axes they should leave a little
  *  breathing room before the first value and after the last instead of
- *  butting them against the plot edges. Inset the range so the data span
- *  doesn't reach the edges: by `firstTickPxOffset` when faceting demands a
- *  fixed offset, otherwise by half a step (`R / 2N`) — matching the outer
- *  padding a `scalePoint` with `padding(0.5)` gives a categorical axis of
- *  N values, so numeric-ordinal and categorical axes pad identically. */
+ *  butting them against the plot edges. Inset the range by half a step
+ *  (`R / 2N`) — matching the outer padding a `scalePoint` with
+ *  `padding(0.5)` gives a categorical axis of N values, so numeric-ordinal
+ *  and categorical axes pad identically. */
 const insetNumericOrdinalRange = (
 	range: [number, number],
-	distinctCount: number,
-	options: MakePositionScaleOptions | undefined
+	distinctCount: number
 ): [number, number] => {
-	const offset = options?.firstTickPxOffset
-	if (typeof offset === "number" && offset > 0) {
-		return insetRangeForFixedTickOffset(range, offset)
-	}
 	if (distinctCount < 2) return range
 	const halfStep = Math.abs(range[1] - range[0]) / (2 * distinctCount)
-	return insetRangeForFixedTickOffset(range, halfStep)
-}
-
-export type MakePositionScaleOptions = {
-	/** Pixel offset from each range edge for the first/last categorical
-	 *  tick. When provided, the scale uses `padding(0)` with an insetted
-	 *  range so first/last positions are FIXED regardless of N. When
-	 *  undefined, the default `padding(0.5)` places ticks at `step/2`
-	 *  from each edge (the historical behavior for non-faceted charts). */
-	firstTickPxOffset?: number
+	return insetRangeInward(range, halfStep)
 }
 
 export const makePositionScale = (
 	rawValues: unknown[],
 	type: FieldType,
 	range: [number, number],
-	pinnedOrder?: readonly string[],
-	options?: MakePositionScaleOptions
+	pinnedOrder?: readonly string[]
 ): PositionScale => {
 	if (type === "quantitative") {
 		const nums = rawValues
@@ -225,11 +197,7 @@ export const makePositionScale = (
 		if (isNumericOrdinal(parsed)) {
 			const nums = parsed as number[]
 			const [lo = 0, hi = 1] = extent(nums) as [number, number]
-			const insetRange = insetNumericOrdinalRange(
-				range,
-				new Set(nums).size,
-				options
-			)
+			const insetRange = insetNumericOrdinalRange(range, new Set(nums).size)
 			return scaleLinear().domain([lo, hi]).range(insetRange).nice()
 		}
 		// Honor the user's pinned ordering; fall back to smart-sort.
@@ -238,7 +206,7 @@ export const makePositionScale = (
 			"ordinal",
 			pinnedOrder
 		)
-		return buildCategoricalScale(uniqueStrings, range, options)
+		return buildCategoricalScale(uniqueStrings, range)
 	}
 	// categorical — pinned order wins; otherwise discovery order.
 	const uniqueStrings = applyLevelOrder(
@@ -252,7 +220,7 @@ export const makePositionScale = (
 		"categorical",
 		pinnedOrder
 	)
-	return buildCategoricalScale(uniqueStrings, range, options)
+	return buildCategoricalScale(uniqueStrings, range)
 }
 
 /** Replace a position scale's domain with user-supplied bounds. Valid for
@@ -288,34 +256,15 @@ export const overrideLinearDomain = (
 }
 
 /** Construct a scalePoint for a categorical (or string-ordinal) axis.
- *  With `firstTickPxOffset` set, switches from the historical
- *  `padding(0.5)` (first/last at `step/2` from range edges) to a fixed
- *  inset + `padding(0)` (first/last at exact pixel offset from edges).
- *  The fixed variant keeps tick positions stable across panels of
- *  different sizes — see `insetRangeForFixedTickOffset` for the bug
- *  context. */
+ *  `padding(0.5)` puts the first/last values half a step in from the range
+ *  edges (two categories at the quarter points, a lone category centered)
+ *  on every axis, faceted or not — see APPLICATION.md §15.11 for why the
+ *  fixed-pixel edge anchoring faceted charts briefly used was dropped. */
 const buildCategoricalScale = (
 	domain: string[],
-	range: [number, number],
-	options: MakePositionScaleOptions | undefined
-): PositionScale => {
-	const offset = options?.firstTickPxOffset
-	if (typeof offset === "number" && offset > 0) {
-		const insetRange = insetRangeForFixedTickOffset(range, offset)
-		// d3's scalePoint puts a SINGLE-domain point at the midpoint of
-		// its range — not at range[0] as the formula would suggest. That
-		// midpoint behavior is what surfaced the facet bug: a one-category
-		// panel placed its single category in the middle while multi-
-		// category panels placed first/last at the edges. Collapsing the
-		// range to a single point (range[0] === range[1]) forces d3 to
-		// place the only value at that exact pixel, matching where the
-		// first tick of a multi-category panel would land.
-		const stableRange: [number, number] =
-			domain.length === 1 ? [insetRange[0], insetRange[0]] : insetRange
-		return scalePoint<string>().domain(domain).range(stableRange).padding(0)
-	}
-	return scalePoint<string>().domain(domain).range(range).padding(0.5)
-}
+	range: [number, number]
+): PositionScale =>
+	scalePoint<string>().domain(domain).range(range).padding(0.5)
 
 export const applyPositionScale = (
 	scale: PositionScale,
@@ -939,7 +888,7 @@ export const maxMeaningfulTicks = (
 
 // Length: quantitative/ordinal → scale to pixel length. Used when the mark
 // becomes a line segment.
-export const LENGTH_RANGE: [number, number] = [4, 40]
+const LENGTH_RANGE: [number, number] = [4, 40]
 
 export const makeLengthScale = (
 	rawValues: unknown[],

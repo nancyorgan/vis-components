@@ -52,7 +52,7 @@ const CONTINUOUS_HUE_TYPES: readonly FieldType[] = ["quantitative", "temporal"]
  * the chance of including exactly ONE of brightness/saturation/opacity (none
  * otherwise). Hue is always prioritized and `area` is always added on point
  * charts, so neither has a lever here. */
-export const AUTOGEN_FILL_WEIGHTS = {
+const AUTOGEN_FILL_WEIGHTS = {
 	pattern: 0.45,
 	shape: 0.4,
 	colorModulation: 0.55,

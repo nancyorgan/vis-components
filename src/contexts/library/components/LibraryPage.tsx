@@ -513,7 +513,7 @@ export const LibraryPage = () => {
 									onClick={onBulkDelete}
 									title="Move the selected visualizations to the trash"
 								>
-									Delete
+									Move to trash
 								</Button>
 								<ResetLink label="Clear" onClick={clearSelection} />
 							</div>
@@ -612,7 +612,7 @@ export const LibraryPage = () => {
 													? `Data set: ${d.datasetName}`
 													: "No data set"}
 											</div>
-											<div className="text-sm text-stone-500 dark:text-stone-400">
+											<div className="text-sm vc-muted">
 												Updated {formatTimestamp(d.visual.updatedAt)}
 											</div>
 										</div>

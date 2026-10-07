@@ -156,7 +156,7 @@ const AddThemeDialog = ({
 		<Modal open={open} onClose={onCancel} title="Add a new theme">
 			<div className="flex flex-col gap-4">
 				<div className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
+					<span className="text-sm font-medium vc-text">
 						Base on an existing theme
 					</span>
 					<Select
@@ -171,7 +171,7 @@ const AddThemeDialog = ({
 							</option>
 						))}
 					</Select>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="text-xs vc-muted">
 						The copy is added to <strong>Custom Themes</strong> — copying a
 						managed theme never changes the original.
 					</p>
@@ -187,10 +187,10 @@ const AddThemeDialog = ({
 				</div>
 				<hr className="border-stone-200 dark:border-stone-700" />
 				<div className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
+					<span className="text-sm font-medium vc-text">
 						Import a JSON theme
 					</span>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="text-xs vc-muted">
 						Loads a previously-exported theme file. The imported theme is added
 						as a new entry — your other themes are untouched.
 					</p>

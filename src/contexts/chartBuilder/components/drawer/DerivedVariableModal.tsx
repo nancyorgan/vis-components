@@ -58,7 +58,6 @@ const InsertVariableSelect = ({
 		onChange={(e) => {
 			if (e.target.value) onInsert(e.target.value)
 		}}
-		className="text-xs"
 	>
 		<option value="">Insert variable…</option>
 		{fields.map((f) => (

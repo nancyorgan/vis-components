@@ -18,7 +18,7 @@ import type { DatasetView, Encodings, FieldType } from "./types"
  *
  *  Values present in the user's ordering come first in that order;
  *  remaining values follow in dataset-encounter order. */
-export const applyOrderingForField = (
+const applyOrderingForField = (
 	natural: readonly string[],
 	levelOrder: readonly string[] | undefined,
 	legacyPanelOrder: Record<string, number> | undefined,

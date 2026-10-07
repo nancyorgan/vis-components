@@ -590,7 +590,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				 *  typed number — 0 included — is explicit and wins, so "set to 0"
 				 *  (shown while auto rotated the labels) pins them level; "reset"
 				 *  on an explicit value returns the field to auto. */}
-				<div className="mb-1.5 mt-1.5 flex items-center gap-2">
+				<div className="flex items-center gap-2">
 					<NumberInput
 						label="Angle"
 						labelClassName={LABEL_COL}
@@ -622,7 +622,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						)
 					)}
 				</div>
-				<div className="mb-1.5 flex flex-col gap-1">
+				<div className="flex flex-col gap-1">
 					<Toggle
 						label="Wrap text"
 						checked={config.wrapTickLabels === true}
@@ -743,7 +743,7 @@ export const TickFormatControl = ({
 	value,
 	changed,
 	onChange,
-	label = "Format",
+	label = "Text format",
 	countryNames = false,
 }: {
 	value: string
@@ -752,7 +752,7 @@ export const TickFormatControl = ({
 	label?: string
 	countryNames?: boolean
 }) => (
-	<div className="mb-1.5 flex flex-col gap-1.5">
+	<div className="flex flex-col gap-1">
 		<label className="flex items-center gap-2 text-sm">
 			<span
 				className={
@@ -781,7 +781,7 @@ export const TickFormatControl = ({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder="Auto"
-				aria-label="Custom format code"
+				aria-label="Custom text format"
 				title={FORMAT_BOX_HELP}
 				className="flex-1 font-mono"
 			/>
@@ -830,7 +830,7 @@ const AxisAdjustPositionControl = ({
 	onChange: (next: { offsetX?: number; offsetY?: number }) => void
 	onReset: () => void
 }) => (
-	<div className="vc-divider-group mt-3 pt-3">
+	<div className="vc-divider-group">
 		<div className="flex items-center gap-2">
 			<span className="vc-group-header">Adjust position</span>
 			{(offsetX !== 0 || offsetY !== 0) && (
@@ -1022,7 +1022,7 @@ const ScaleRangeControls = ({
 	const inputClass = BOUND_INPUT_CLASS
 
 	return (
-		<div className="vc-divider-group mt-3 gap-1.5 pt-3">
+		<div className="vc-divider-group">
 			<span className="text-sm vc-muted">
 				Scale range
 			</span>
@@ -1203,7 +1203,7 @@ const MirroredAxisControls = ({
 				? "This variable no longer has exactly two options — pick another."
 				: "Only variables with exactly two options are listed."
 	return (
-		<div className="vc-divider-group mt-3 pt-3">
+		<div className="vc-divider-group">
 			<Toggle
 				label="Use a mirrored axis"
 				checked={mirror.enabled}
@@ -1754,9 +1754,9 @@ const RugControls = ({
 				/>
 				<p className="vc-help">
 					Ticks are centered on the axis (length splits evenly above and
-					below). Set the rug color under the <strong>Color</strong> menu →{" "}
+					below). Set the rug color under <strong>Color</strong> →{" "}
 					<strong>Rug</strong> and its opacity under the{" "}
-					<strong>Opacity</strong> menu → <strong>Rug</strong>.
+					<strong>Opacity</strong> → <strong>Rug</strong>.
 				</p>
 			</>
 		)}
@@ -1803,7 +1803,7 @@ const DensityCurveControls = ({
 		</div>
 		<p className="vc-help">
 			Smoothing scales the kernel bandwidth — higher is smoother. Set the curve
-			color under the <strong>Color</strong> menu → <strong>Density Curve</strong>.
+			color under <strong>Color</strong> → <strong>Density curve</strong>.
 		</p>
 	</>
 )
@@ -2007,10 +2007,10 @@ const DistributionTypeControls = ({
 						</label>
 					)}
 					<p className="vc-help">
-						Set violin / box colors under the <strong>Color</strong> menu →{" "}
+						Set violin / box colors under <strong>Color</strong> →{" "}
 						<strong>Violin / box fill</strong> and{" "}
 						<strong>Violin / box outline</strong>, and the border width under
-						the <strong>Shape</strong> menu → <strong>Violin / box outline</strong>.
+						<strong>Shape</strong> → <strong>Violin / box outline</strong>.
 					</p>
 				</>
 			)}
@@ -2123,14 +2123,14 @@ const RegressionControls = ({
 					)}
 					<div className="flex items-center gap-2 text-sm">
 						<span className={`shrink-0 ${LABEL_COL}`}>
-							Position
+							Layer
 						</span>
 						<SegmentedRadioRow
-							ariaLabel="Regression draw position"
+							ariaLabel="Regression layer"
 							value={regression.drawPosition}
 							segments={[
 								{ key: "front", label: "In front" },
-								{ key: "back", label: "Behind" },
+								{ key: "back", label: "Behind chart" },
 							]}
 							onChange={(drawPosition) => onChange({ drawPosition })}
 						/>
@@ -2199,9 +2199,9 @@ const RegressionControls = ({
 					</div>
 					<p className="vc-help">
 						Style the line and band under the <strong>Color</strong> and{" "}
-						<strong>Opacity</strong> menus → <strong>Regression line</strong>{" "}
+						<strong>Opacity</strong> → <strong>Regression line</strong>{" "}
 						and <strong>Confidence interval</strong>; set the line&apos;s dash
-						under the <strong>Pattern</strong> menu →{" "}
+						under <strong>Pattern</strong> →{" "}
 						<strong>Regression line</strong>.
 					</p>
 				</>

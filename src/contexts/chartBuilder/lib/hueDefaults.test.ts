@@ -109,30 +109,6 @@ describe("resolveGradientToConfig", () => {
 		expect(cfg.highColor).toBe("#00f")
 	})
 
-	it("handles the literal 'customLinear' id with the theme's custom slot", () => {
-		const theme: Theme = {
-			...baseTheme,
-			customLinearGradient: { low: "#000", high: "#fff" },
-		}
-		const cfg = resolveGradientToConfig("customLinear", theme)
-		expect(cfg.palette).toBe("customLinear")
-		expect(cfg.lowColor).toBe("#000")
-		expect(cfg.highColor).toBe("#fff")
-		expect(cfg.midColor).toBeNull()
-	})
-
-	it("handles the literal 'customDiverging' id with the theme's custom slot", () => {
-		const theme: Theme = {
-			...baseTheme,
-			customDivergingGradient: { low: "#a", mid: "#b", high: "#c" },
-		}
-		const cfg = resolveGradientToConfig("customDiverging", theme)
-		expect(cfg.palette).toBe("customDiverging")
-		expect(cfg.lowColor).toBe("#a")
-		expect(cfg.midColor).toBe("#b")
-		expect(cfg.highColor).toBe("#c")
-	})
-
 	it("falls back to the gradientId as a preset PaletteName when no match exists", () => {
 		// e.g. "viridis" / "plasma" — d3-interpolate presets handled
 		// downstream. The resolver just passes them through.
@@ -165,15 +141,6 @@ describe("resolveGradientToConfig", () => {
 		expect(cfg.lowColor).toBe("#aa")
 	})
 
-	it("ignores the 'customLinear' literal when no customLinearGradient is set in theme", () => {
-		// Falls through to preset path with 'customLinear' as the palette
-		// name — caller-facing fallback rather than a crash.
-		const cfg = resolveGradientToConfig("customLinear", {
-			...baseTheme,
-			customLinearGradient: undefined,
-		})
-		expect(cfg.palette).toBe("customLinear")
-	})
 })
 
 describe("buildQuantHueConfigFromTheme", () => {

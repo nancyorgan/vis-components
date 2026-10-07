@@ -9,6 +9,11 @@ import { PalettePickerButton } from "./PalettePickerButton"
  *  ever emits valid 6-digit hex itself. */
 const HEX_PATTERN = /^#(?:[\dA-Fa-f]{3}|[\dA-Fa-f]{6}|[\dA-Fa-f]{8})$/
 
+/** Swatch color for an inherit-mode row whose inherited color isn't known
+ *  (the placeholder is a word like "(inherit)" rather than a hex). Neutral
+ *  gray so the swatch reads as "nothing chosen" rather than as a pick. */
+const INHERIT_SWATCH = "#9CA3AF"
+
 /** Paired color picker — a native `<input type="color">` swatch and a
  *  free-form hex text input that stay in sync. Both share the same id
  *  via `<label htmlFor>`, so clicking the visible label opens the
@@ -17,12 +22,23 @@ const HEX_PATTERN = /^#(?:[\dA-Fa-f]{3}|[\dA-Fa-f]{6}|[\dA-Fa-f]{8})$/
  *  The text input is intentionally `type="text"` (not `color`) so users
  *  can paste a hex code without the browser intercepting. It only fires
  *  `onChange` when the text is a valid hex — invalid intermediate
- *  states stay local until the user produces a parseable value. */
+ *  states stay local until the user produces a parseable value.
+ *
+ *  INHERIT MODE (`onClear` + a nullable `value`): rows whose color is a
+ *  sparse override — a font color falling back to the theme, a per-category
+ *  pattern ink falling back to the hue-paired ink — pass `value: null` when
+ *  nothing is set. The hex box then sits blank over `placeholder` (the
+ *  inherited hex when the caller knows it, else a word like "(inherit)"),
+ *  the swatch previews that inherited color behind a dashed border, and
+ *  emptying the hex box calls `onClear` so the caller drops its override.
+ *  Picking from the swatch or the palette still commits via `onChange`. */
 export const ColorInput = ({
 	id,
 	label,
 	value,
 	onChange,
+	onClear,
+	placeholder,
 	disabled,
 	className,
 	labelClassName,
@@ -36,8 +52,15 @@ export const ColorInput = ({
 }: {
 	id?: string
 	label: React.ReactNode
-	value: string
+	/** The chosen hex, or `null` for "inherit" (see `onClear`). */
+	value: string | null
 	onChange: (hex: string) => void
+	/** Enables inherit mode: called when the user empties the hex box, so the
+	 *  caller clears its override (and passes `value: null` back down). */
+	onClear?: () => void
+	/** Hex-box placeholder while `value` is null — the inherited color when
+	 *  known (the swatch previews it) or a word like "(inherit)". */
+	placeholder?: string
 	disabled?: boolean
 	className?: string
 	/** Tailwind classes for the `<label>` element. Used to pin a fixed
@@ -69,12 +92,20 @@ export const ColorInput = ({
 }) => {
 	const generatedId = useId()
 	const inputId = id ?? generatedId
+	const inherited = value === null
+	// What the swatch (and the palette picker's "current" ring) shows: the
+	// value, else the inherited color when the placeholder names one.
+	const swatchColor =
+		value ??
+		(placeholder !== undefined && HEX_PATTERN.test(placeholder)
+			? placeholder
+			: INHERIT_SWATCH)
 	// Local mirror of the text input so the user can type freely without
 	// every intermediate keystroke firing onChange. Synced back from
 	// `value` whenever the parent updates it (so external resets work).
-	const [textValue, setTextValue] = useState(value.toUpperCase())
+	const [textValue, setTextValue] = useState(value?.toUpperCase() ?? "")
 	useEffect(() => {
-		setTextValue(value.toUpperCase())
+		setTextValue(value?.toUpperCase() ?? "")
 	}, [value])
 
 	const handleSwatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,14 +116,17 @@ export const ColorInput = ({
 	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const next = e.target.value.toUpperCase()
 		setTextValue(next)
-		if (HEX_PATTERN.test(next)) onChange(next)
+		if (next === "" && onClear) onClear()
+		else if (HEX_PATTERN.test(next)) onChange(next)
 	}
 	const handleTextBlur = () => {
 		// On blur, snap back to the last-committed value if the user
 		// left invalid intermediate text. Prevents the input from
-		// looking out of sync with the swatch indefinitely.
-		if (!HEX_PATTERN.test(textValue)) setTextValue(value.toUpperCase())
+		// looking out of sync with the swatch indefinitely. (An empty box
+		// in inherit mode IS the committed state, and `value` is null then.)
+		if (!HEX_PATTERN.test(textValue)) setTextValue(value?.toUpperCase() ?? "")
 	}
+	const labelText = typeof label === "string" ? label : undefined
 
 	return (
 		<LabeledField
@@ -112,8 +146,10 @@ export const ColorInput = ({
 						value={textValue}
 						onChange={handleTextChange}
 						onBlur={handleTextBlur}
+						placeholder={placeholder}
 						disabled={disabled}
 						spellCheck={false}
+						aria-label={labelText ? `${labelText} hex` : "Hex color"}
 						// Shrinkable down to min-w-18 (72px; seven mono characters need
 						// ~65) when a row is squeezed — a phone-width menu sheet or a
 						// narrowed sidebar. Below 360px viewports (the 2016 iPhone SE)
@@ -123,6 +159,7 @@ export const ColorInput = ({
 						className={c(
 							"hidden w-24 min-w-18 rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500 min-[360px]:block",
 							!HEX_PATTERN.test(textValue) &&
+								!(textValue === "" && onClear) &&
 								"border-amber-400 focus:border-amber-500"
 						)}
 					/>
@@ -130,10 +167,16 @@ export const ColorInput = ({
 				<input
 					id={inputId}
 					type="color"
-					value={value}
+					value={swatchColor}
 					onChange={handleSwatchChange}
 					disabled={disabled}
-					className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700"
+					title={inherited ? "Inherited — pick a color to override" : undefined}
+					className={c(
+						"h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700",
+						// Dashed border = "nothing chosen here; previewing the inherited
+						// color" — the one visual cue that the swatch isn't a pick.
+						inherited && "border-dashed"
+					)}
 				/>
 				{/* Every swatch in the app carries the on-palette shortcut — the
 				 *  native picker is open-ended, so without this each row is one
@@ -142,13 +185,13 @@ export const ColorInput = ({
 					<PalettePickerButton
 						label={
 							pickerLabel ??
-							(typeof label === "string"
-								? `Pick palette color for ${label}`
+							(labelText
+								? `Pick palette color for ${labelText}`
 								: "Pick palette color")
 						}
 						palette={palette}
 						paletteKind={paletteKind}
-						current={value}
+						current={swatchColor}
 						onPick={onChange}
 					/>
 				)}

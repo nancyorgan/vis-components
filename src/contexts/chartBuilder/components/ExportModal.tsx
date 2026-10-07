@@ -338,7 +338,7 @@ const TabButton = ({
 		className={`px-4 py-2 text-sm font-medium transition-colors ${
 			active
 				? "border-b-2 border-stone-900 text-stone-900 dark:border-white dark:text-white"
-				: "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-white"
+				: "hover:text-stone-800 dark:hover:text-white vc-muted"
 		}`}
 	>
 		{children}
@@ -522,8 +522,14 @@ const EmbedTab = ({
 
 	const formatVersionLabel = (): string => {
 		if (!view) return ""
-		if (view.totalVersions === 1) return "v1"
-		return `v${view.versionIndex} of ${view.totalVersions}`
+		const index =
+			view.totalVersions === 1 ? "v1" : `v${view.versionIndex} of ${view.totalVersions}`
+		const date = new Date(view.versionCreatedAt).toLocaleDateString(undefined, {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+		return `${index}, ${date}${view.versionNote ? ` · ${view.versionNote}` : ""}`
 	}
 	const versionLabel = formatVersionLabel()
 

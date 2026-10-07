@@ -28,6 +28,7 @@ import {
 } from "../../lib/mapConfig"
 import { zctaTopologyAvailable } from "../../lib/geo/zctaTopology"
 import { PATTERN_PALETTE } from "../../lib/patterns"
+import { swatchChipClass } from "./channelOptions/glyphShared"
 import { currentMapConfigAtom } from "../../store/atoms"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
@@ -528,11 +529,7 @@ export const MapsSection = () => {
 										type="button"
 										onClick={() => update({ noDataPattern: null })}
 										aria-pressed={mapConfig.noDataPattern === null}
-										className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
-											mapConfig.noDataPattern === null
-												? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-												: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-										}`}
+										className={swatchChipClass(mapConfig.noDataPattern === null, "px-2 text-sm")}
 									>
 										None
 									</button>
@@ -546,11 +543,7 @@ export const MapsSection = () => {
 												onClick={() => update({ noDataPattern: idx })}
 												aria-pressed={selected}
 												aria-label={`No-data pattern option ${idx + 1}`}
-												className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-													selected
-														? "border-stone-900 bg-white dark:border-white dark:bg-stone-800"
-														: "border-stone-300 bg-white hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900"
-												}`}
+												className={swatchChipClass(selected, "w-7")}
 											>
 												<NoDataPatternChip
 													idx={idx}

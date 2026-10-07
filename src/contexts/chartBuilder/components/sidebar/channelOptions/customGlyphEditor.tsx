@@ -18,18 +18,9 @@ import { CHIP_INK } from "../../../lib/previewInk"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 
-import { PREVIEW_SIZE } from "./glyphShared"
+import { PREVIEW_SIZE, swatchChipClass } from "./glyphShared"
 import { Button } from "../../../../../components/ui/Button"
 import { Input } from "../../../../../components/ui/Input"
-
-/** Shared chip-button styling for the shape rows (built-in glyphs inline
- *  the same string; new custom-glyph chips reuse it from here). */
-const chipClass = (selected: boolean) =>
-	`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-		selected
-			? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-			: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-	}`
 
 /** Chip preview for a custom glyph. Text tints like the built-in glyphs;
  *  images render as-is (slightly larger radius so they use the chip). */
@@ -85,7 +76,7 @@ export const CustomGlyphChips = ({
 						type="button"
 						onClick={() => onPick(idx)}
 						aria-pressed={selected}
-						className={chipClass(selected)}
+						className={swatchChipClass(selected, "w-7")}
 					>
 						<CustomGlyphPreview glyph={g} selected={selected} />
 					</button>
@@ -105,7 +96,7 @@ export const CustomGlyphChips = ({
 			onClick={onAdd}
 			aria-label="Add custom shape"
 			title="Custom shape — type characters or upload an image"
-			className={chipClass(false)}
+			className={swatchChipClass(false, "w-7")}
 		>
 			+
 		</button>
@@ -219,7 +210,7 @@ export const CustomGlyphEditor = ({
 				>
 					Add
 				</Button>
-				<span className="text-stone-500 dark:text-stone-400">or</span>
+				<span className="vc-muted">or</span>
 				<label className="cursor-pointer underline hover:text-stone-900 dark:hover:text-white vc-muted">
 					upload image
 					<input
@@ -271,7 +262,7 @@ export const CustomGlyphEditor = ({
 			 *  to place, and never again after Add (there's no post-hoc glyph
 			 *  edit; delete and re-add to change it). Image uploads bypass it. */}
 			{count > 0 && !tooLong && (
-				<div className="vc-divider-group mt-1">
+				<div className="vc-divider-group">
 					<span className="vc-group-header">Adjust position</span>
 					<div className="flex flex-wrap items-center gap-2">
 						<div className="flex flex-col gap-2">

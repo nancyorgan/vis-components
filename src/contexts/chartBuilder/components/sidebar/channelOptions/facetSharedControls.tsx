@@ -34,7 +34,7 @@ const buttonClass = (active: boolean) =>
 		? "vc-toggle-on flex items-center justify-center px-2 py-1 text-sm"
 		: "vc-toggle-off flex items-center justify-center px-2 py-1 text-sm"
 
-export const ShareAxisPicker = ({
+const ShareAxisPicker = ({
 	value,
 	perGroupLabel,
 	perGroupAvailable,
@@ -234,7 +234,7 @@ export const AxisRangeSection = ({
 }) => (
 	<div
 		className={cls(
-			"vc-divider-group mt-2",
+			"vc-divider-group",
 			className,
 		)}
 	>
@@ -331,11 +331,11 @@ export const PanelDimInput = ({
 		<NumberInput
 			label={label}
 			labelClassName={LABEL_COL}
-			className={cls("mt-2", className)}
+			className={className}
 			min={1}
 			step={1}
 			value={value ?? null}
-			placeholder={autoPx && autoPx > 0 ? String(Math.round(autoPx)) : "auto"}
+			placeholder={autoPx && autoPx > 0 ? String(Math.round(autoPx)) : "Auto"}
 			stepBase={200}
 			onChange={(n) => {
 				if (n > 0) onCommit(n)

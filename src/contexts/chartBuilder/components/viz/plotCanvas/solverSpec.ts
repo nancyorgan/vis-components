@@ -92,10 +92,10 @@ export const buildSolverInput = ({
 	// ignored at render time even if the cfg still carries a stale
 	// value (loaded saved visual, sidebar collapsed, etc.).
 	const shareXModeSpec: "none" | "perGroup" | "all" = isFaceted
-		? migrateShareValue(facetCfg.shareX, facetCfg.shareAxes)
+		? migrateShareValue(facetCfg.shareX)
 		: "none"
 	const shareYModeSpec: "none" | "perGroup" | "all" = isFaceted
-		? migrateShareValue(facetCfg.shareY, facetCfg.shareAxes)
+		? migrateShareValue(facetCfg.shareY)
 		: "none"
 	const sizeXSpec = migrateProportionalSizing(
 		facetCfg.proportionalSizingX,

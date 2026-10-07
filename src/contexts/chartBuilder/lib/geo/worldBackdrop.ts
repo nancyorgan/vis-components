@@ -7,7 +7,7 @@ import { featureId } from "./loadGeometry"
  *  counties/zcta later): the US is drawn precisely by the foreground level's
  *  own features, and the coarse 110m US country outline would otherwise show
  *  through them. */
-export const US_ISO_NUMERIC = "840"
+const US_ISO_NUMERIC = "840"
 
 /**
  * Features for the world-countries backdrop drawn behind a non-world map (US

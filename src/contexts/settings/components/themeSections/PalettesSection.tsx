@@ -153,7 +153,7 @@ const PaletteCard = ({
 				type="button"
 				disabled={deleteDisabled}
 				onClick={onDelete}
-				className="ml-auto text-sm text-stone-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:text-red-400"
+				className="ml-auto text-sm hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:text-red-400 vc-muted"
 			>
 				Delete
 			</button>
@@ -268,7 +268,7 @@ const PaletteCard = ({
 				}}
 				className="self-start text-sm hover:text-stone-700 dark:hover:text-white vc-muted"
 			>
-				Remove last color
+				Delete last color
 			</button>
 		)}
 	</div>
@@ -502,14 +502,14 @@ export const PalettesSection = ({
 				>
 					Add palette
 				</Button>
-				<div className="vc-divider-group gap-1 pt-3">
+				<div className="vc-divider-group">
 					<label
 						htmlFor={textPaletteSelectId}
 						className="text-sm font-medium vc-text"
 					>
 						Default text palette
 					</label>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="text-xs vc-muted">
 						Offered by text color pickers — per-category label colors and
 						per-facet title colors. Pick a palette of darker shades that
 						pair with your default categorical palette and stay legible as

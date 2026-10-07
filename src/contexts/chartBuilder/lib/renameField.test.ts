@@ -200,7 +200,6 @@ describe("renameFieldInConfigs — standard (view-field) rewrite", () => {
 			},
 			connection: {
 				...DEFAULT_CONNECTION_CONFIG,
-				stemColorField: "sales",
 				flowTargetField: "sales",
 			},
 			drawOrder: { field: "sales", dir: "asc" },
@@ -212,7 +211,6 @@ describe("renameFieldInConfigs — standard (view-field) rewrite", () => {
 		}
 		const next = renameFieldInConfigs(state, fields, "sales", "revenue")
 		expect(next.channelConfigs.x?.regression?.groupField).toBe("revenue")
-		expect(next.channelConfigs.connection?.stemColorField).toBe("revenue")
 		expect(next.channelConfigs.connection?.flowTargetField).toBe("revenue")
 		expect(next.channelConfigs.drawOrder?.field).toBe("revenue")
 		expect(next.channelConfigs.colorSlots?.stem?.field).toBe("revenue")

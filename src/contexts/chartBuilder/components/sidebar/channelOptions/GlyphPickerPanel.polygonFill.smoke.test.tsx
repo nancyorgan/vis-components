@@ -134,8 +134,10 @@ describe("Pattern panel — radar 'Polygon fill' (pattern variable mapped)", () 
 		const store = seed({ ...RADAR, pattern: { field: "team" } }, FILLED)
 		const q = await mount()
 		expect(q.getAllByLabelText("No polygon pattern for north").length).toBe(1)
-		// Line dash + Point fill each keep their plain "No pattern" button.
-		expect(q.getAllByLabelText("No pattern for north").length).toBe(2)
+		// Point fill keeps its plain "No pattern" button; Line dash renders the
+		// shared DashStylePicker's "No dash".
+		expect(q.getAllByLabelText("No pattern for north").length).toBe(1)
+		expect(q.getAllByLabelText("No dash for north").length).toBe(1)
 		fireEvent.click(q.getAllByLabelText("Polygon pattern option 2")[0]!)
 		const configs = readSavedConfigs(store)
 		expect(configs.pattern?.polygonOverrides).toEqual({ north: 1 })

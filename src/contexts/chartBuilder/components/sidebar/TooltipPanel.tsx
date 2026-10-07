@@ -313,7 +313,7 @@ export const TooltipPanel = () => {
 										onChange={(c) => update({ hoverOutlineColor: c })}
 									/>
 									<NumberInput
-										label="Outline width"
+										label="Outline thickness"
 										labelClassName={LABEL_COL_NESTED}
 										value={hoverOutlineWidth}
 										min={0}

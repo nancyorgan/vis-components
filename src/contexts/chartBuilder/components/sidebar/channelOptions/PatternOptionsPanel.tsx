@@ -48,18 +48,22 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useThemeInkFallback } from "../../../store/useThemeInkFallback"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
-import { PalettePickerButton } from "../../../../../components/ui/PalettePickerButton"
+import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 
 import { StackModeRow } from "./StackModeRow"
 import {
 	ConnectionDashRangeRows,
-	CustomDashInput,
+	DashStylePicker,
 	RegressionDashSubsection,
 } from "./dashControls"
-import { ColorRow, LineDashGlyph, PatternGlyph } from "./glyphShared"
+import {
+	ColorRow,
+	LineDashGlyph,
+	PatternGlyph,
+	swatchChipClass,
+} from "./glyphShared"
 import { useUniqueValuesForChannel } from "./useUniqueValuesForChannel"
-import { Input } from "../../../../../components/ui/Input"
 
 // ---------------------------------------------------------------------------
 // Pattern
@@ -260,8 +264,8 @@ export const PatternOptionsPanel = () => {
 	const gapColorRow = (args: {
 		key: string
 		label: string
-		/** Accessible name for the inputs; defaults to "Gap color for <label>"
-		 *  (the single no-hue row passes plain "Gap color"). */
+		/** Names the palette picker + reset link; defaults to "Gap color for
+		 *  <label>" (the single no-hue row passes plain "Gap color"). */
 		ariaLabel?: string
 		override: string | null
 		fallback: string
@@ -269,41 +273,22 @@ export const PatternOptionsPanel = () => {
 	}) => {
 		const aria = args.ariaLabel ?? `Gap color for ${args.label}`
 		return (
-			<div key={args.key} className="flex items-center gap-2 text-sm">
-				<span
-					className="w-24 flex-shrink-0 truncate vc-muted"
-					title={args.label}
-				>
-					{args.label}
-				</span>
-				<Input
-					type="text"
-					value={args.override ?? ""}
+			// Inherit mode: no override = the paired / default ink (`fallback`),
+			// previewed in the swatch. flex-wrap drops the reset link under the
+			// swatch when the row is squeezed.
+			<div
+				key={args.key}
+				className="flex flex-wrap items-center gap-2 text-sm"
+			>
+				<ColorInput
+					label={args.label}
+					labelClassName="w-24 truncate vc-muted"
+					value={args.override}
+					onChange={args.onChange}
+					onClear={() => args.onChange(null)}
 					placeholder={args.fallback}
-					onChange={(e) =>
-						args.onChange(e.target.value === "" ? null : e.target.value)
-					}
-					aria-label={aria}
-					// Shrinks to min-w-18 when the row is tight and hides below 360px
-					// viewports — same rule as ColorInput's hex box.
-					className="hidden w-24 min-w-18 font-mono min-[360px]:block"
-				/>
-				<input
-					type="color"
-					value={args.override ?? args.fallback}
-					onChange={(e) => args.onChange(e.target.value)}
-					aria-label={`${aria} swatch`}
-					className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
-				/>
-				{/* Hand-rolled rather than a `ColorInput` because this row's
-				 *  empty text box means "use the paired/default ink", which
-				 *  ColorInput has no notion of — so the on-palette shortcut
-				 *  every other swatch carries is hand-placed (mirrors the
-				 *  FontEditor Color row). */}
-				<PalettePickerButton
-					current={args.override ?? args.fallback}
-					onPick={(color) => args.onChange(color)}
-					label={`Pick palette ${aria.charAt(0).toLowerCase()}${aria.slice(1)}`}
+					pickerLabel={`Pick palette ${aria.charAt(0).toLowerCase()}${aria.slice(1)}`}
+					className="contents"
 				/>
 				{args.override !== null && (
 					<ResetLink
@@ -532,11 +517,7 @@ export const PatternOptionsPanel = () => {
 							type="button"
 							onClick={() => target.setIdx(null)}
 							aria-pressed={target.activeIdx === null}
-							className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
-								target.activeIdx === null
-									? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-									: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-							}`}
+							className={swatchChipClass(target.activeIdx === null, "px-2 text-sm")}
 						>
 							None
 						</button>
@@ -551,11 +532,7 @@ export const PatternOptionsPanel = () => {
 								onClick={() => target.setIdx(idx)}
 								aria-pressed={selected}
 								aria-label={`${target.ariaName} ${idx + 1}`}
-								className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-									selected
-										? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-										: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-								}`}
+								className={swatchChipClass(selected, "w-7")}
 							>
 								<Glyph
 									idx={idx}
@@ -570,116 +547,37 @@ export const PatternOptionsPanel = () => {
 			</div>
 		)
 
-		// Default LINE DASH row (no pattern variable) — writes the CONNECTION
-		// config's `defaultDashPattern`, which is what the line renderers
-		// actually read (scatter connection polylines + area line-mode
-		// edges). Deliberately NOT `configs.defaultPattern`: that's the
-		// point-fill selection, and sharing one index between the two rows
-		// made picking a dash silently pick a point fill too (and the dash
-		// itself never rendered).
-		const dashSwatchClass = (selected: boolean) =>
-			`flex h-7 items-center justify-center rounded border transition-colors ${
-				selected
-					? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-					: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-			}`
-		// None / a dash swatch / Custom are a single mutually-exclusive choice
-		// (same row the per-category and regression pickers render). A custom
-		// dasharray wins in the renderer, so it takes visual precedence here;
-		// picking None or a swatch clears it.
-		const hasCustomDefaultDash =
-			(configs.connection?.customDashPattern ?? null) !== null
-		const defaultCustomActive = defaultCustomDashOpen || hasCustomDefaultDash
-		const renderDefaultDashRow = (label: string | null) => {
-			const activeIdx = DASH_CYCLE.indexOf(connDefaultDash)
-			// "Blank" is a range-mode option (a whole-line blank would erase the
-			// line), so the swatch only renders while the range below is on.
-			const rangeEnabled = configs.connection?.dashRange?.enabled ?? false
-			const blankActive = connDefaultDash === "blank" && !defaultCustomActive
-			const noneActive =
-				activeIdx < 0 && connDefaultDash !== "blank" && !defaultCustomActive
-			return (
-				<div className="flex flex-col gap-1 text-sm">
-					{label && (
-						<span className="vc-muted">{label}</span>
-					)}
-					<div className="flex flex-wrap gap-1">
-						<button
-							type="button"
-							onClick={() => {
-								setDefaultCustomDashOpen(false)
-								updateConnectionCfg({
-									defaultDashPattern: "solid",
-									customDashPattern: null,
-								})
-							}}
-							aria-pressed={noneActive}
-							aria-label="No line dash"
-							className={`${dashSwatchClass(noneActive)} px-2 text-sm`}
-						>
-							None
-						</button>
-						{DASH_CYCLE.map((style, idx) => {
-							const selected = idx === activeIdx && !defaultCustomActive
-							return (
-								<button
-									key={style}
-									type="button"
-									onClick={() => {
-										setDefaultCustomDashOpen(false)
-										updateConnectionCfg({
-											defaultDashPattern: style,
-											customDashPattern: null,
-										})
-									}}
-									aria-pressed={selected}
-									aria-label={`Line dash option ${idx + 1}`}
-									className={`${dashSwatchClass(selected)} w-7`}
-								>
-									<LineDashGlyph idx={idx} selected={selected} />
-								</button>
-							)
-						})}
-						{rangeEnabled && (
-							<button
-								type="button"
-								onClick={() => {
-									setDefaultCustomDashOpen(false)
-									updateConnectionCfg({
-										defaultDashPattern: "blank",
-										customDashPattern: null,
-									})
-								}}
-								aria-pressed={blankActive}
-								aria-label="Blank line dash"
-								className={`${dashSwatchClass(blankActive)} px-2 text-sm`}
-							>
-								Blank
-							</button>
-						)}
-						<button
-							type="button"
-							onClick={() => setDefaultCustomDashOpen(true)}
-							aria-pressed={defaultCustomActive}
-							aria-label="Custom line dash"
-							className={`${dashSwatchClass(defaultCustomActive)} px-2 text-sm`}
-						>
-							Custom
-						</button>
-					</div>
-					{defaultCustomActive && (
-						<CustomDashInput
-							value={configs.connection?.customDashPattern ?? ""}
-							onChange={(raw) =>
-								updateConnectionCfg({
-									customDashPattern: raw === "" ? null : raw,
-								})
-							}
-						/>
-					)}
-				</div>
-			)
-		}
+		// Default LINE DASH row (no pattern variable) — the shared
+		// DashStylePicker (same row the per-category and regression pickers
+		// render), writing the CONNECTION config's `defaultDashPattern`, which
+		// is what the line renderers actually read (scatter connection
+		// polylines + area line-mode edges). Deliberately NOT
+		// `configs.defaultPattern`: that's the point-fill selection, and
+		// sharing one index between the two rows made picking a dash silently
+		// pick a point fill too (and the dash itself never rendered). The
+		// "Custom open" flag is this panel's state so the Reset link below can
+		// close the box. "Blank" is a range-mode option (a whole-line blank
+		// would erase the line), so the swatch only renders while the range
+		// below is on.
+		const renderDefaultDashRow = (label: string | null) => (
+			<div className="flex flex-col gap-1 text-sm">
+				{label && <span className="vc-muted">{label}</span>}
+				<DashStylePicker
+					pattern={connDefaultDash}
+					customDasharray={configs.connection?.customDashPattern ?? null}
+					customOpen={defaultCustomDashOpen}
+					onCustomOpenChange={setDefaultCustomDashOpen}
+					showBlank={configs.connection?.dashRange?.enabled ?? false}
+					onChange={({ pattern, customDasharray }) =>
+						updateConnectionCfg({
+							defaultDashPattern: pattern,
+							customDashPattern: customDasharray,
+						})
+					}
+					ariaContext="line"
+				/>
+			</div>
+		)
 		// Nudge when the range is on but no dash is picked — the range only
 		// gates where a dash applies, so on its own it draws nothing. A custom
 		// dasharray counts once it parses (mirrors the renderer's fallback).
@@ -951,11 +849,6 @@ export const PatternOptionsPanel = () => {
 			ink: string
 			setIdx: (idx: number) => void
 			setNone: () => void
-			/** When set, a trailing "Custom" button joins the row. `customActive`
-			 *  takes visual precedence — None and every swatch de-highlight while
-			 *  it's on (matching the renderer, where a custom dasharray wins). */
-			customActive?: boolean
-			onCustom?: () => void
 			/** Accessible-name prefix for the row's buttons ("pattern" by
 			 *  default). The Polygon-fill rows pass "polygon pattern" so they
 			 *  stay distinguishable from the Point-fill rows beside them. */
@@ -963,7 +856,6 @@ export const PatternOptionsPanel = () => {
 		}
 	) => {
 		const Glyph = args.Glyph
-		const customActive = !!args.customActive
 		const kind = args.ariaKind ?? "pattern"
 		const optionName = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} option`
 		return (
@@ -971,19 +863,14 @@ export const PatternOptionsPanel = () => {
 				<button
 					type="button"
 					onClick={args.setNone}
-					aria-pressed={args.isNone && !customActive}
+					aria-pressed={args.isNone}
 					aria-label={`No ${kind} for ${v}`}
-					className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
-						args.isNone && !customActive
-							? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-							: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-					}`}
+					className={swatchChipClass(args.isNone, "px-2 text-sm")}
 				>
 					None
 				</button>
 				{args.palette.map((_, idx) => {
-					const selected =
-						!args.isNone && !customActive && idx === args.activeIdx
+					const selected = !args.isNone && idx === args.activeIdx
 					return (
 						<button
 							// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
@@ -992,11 +879,7 @@ export const PatternOptionsPanel = () => {
 							onClick={() => args.setIdx(idx)}
 							aria-pressed={selected}
 							aria-label={`${optionName} ${idx + 1}`}
-							className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-								selected
-									? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-									: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-							}`}
+							className={swatchChipClass(selected, "w-7")}
 						>
 							<Glyph
 								idx={idx}
@@ -1007,21 +890,6 @@ export const PatternOptionsPanel = () => {
 						</button>
 					)
 				})}
-				{args.onCustom && (
-					<button
-						type="button"
-						onClick={args.onCustom}
-						aria-pressed={customActive}
-						aria-label={`Custom dash for ${v}`}
-						className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
-							customActive
-								? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-								: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-						}`}
-					>
-						Custom
-					</button>
-				)}
 			</div>
 		)
 	}
@@ -1038,38 +906,17 @@ export const PatternOptionsPanel = () => {
 			ariaKind: string
 		} = { set: setCategoryInk, reset: resetCategoryInk, ariaKind: "Pattern" }
 	) => (
-		<div className="flex items-center gap-2">
-			<label className="flex min-w-0 items-center gap-2">
-				<span className="text-sm vc-muted">Color</span>
-				<Input
-					type="text"
-					value={hasInk ? ink : ""}
-					onChange={(e) => {
-						if (e.target.value === "") target.reset(v)
-						else target.set(v, e.target.value)
-					}}
-					placeholder={ink}
-					className="hidden w-24 min-w-18 font-mono min-[360px]:block"
-				/>
-			</label>
-			<input
-				type="color"
-				value={ink}
-				onChange={(e) => target.set(v, e.target.value)}
-				className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
-				aria-label={`${target.ariaKind} color for ${v}`}
-			/>
-			{/* Hand-rolled rather than a `ColorInput` because this row's empty
-			 *  text box means "use the hue-paired/default ink", which
-			 *  ColorInput has no notion of — so the on-palette shortcut every
-			 *  other swatch carries is hand-placed (mirrors the FontEditor
-			 *  Color row). */}
-			<PalettePickerButton
-				current={ink}
-				onPick={(color) => target.set(v, color)}
-				label={`Pick palette ${target.ariaKind.toLowerCase()} color for ${v}`}
-			/>
-		</div>
+		// Inherit mode: no per-category ink = the hue-paired / default ink,
+		// which `ink` already resolves to (previewed in the swatch).
+		<ColorInput
+			label="Color"
+			labelClassName="vc-muted"
+			value={hasInk ? ink : null}
+			onChange={(color) => target.set(v, color)}
+			onClear={() => target.reset(v)}
+			placeholder={ink}
+			pickerLabel={`Pick palette ${target.ariaKind.toLowerCase()} color for ${v}`}
+		/>
 	)
 
 	const categoryNameRow = (
@@ -1092,64 +939,60 @@ export const PatternOptionsPanel = () => {
 		</div>
 	)
 
-	// One category's Line-dash controls. None / the dash swatches / Custom are
-	// a single mutually-exclusive choice; picking Custom opens the dasharray
-	// box below the row. Reset clears the dash override, the custom dasharray,
-	// and the local "Custom open" flag.
+	// One category's Line-dash controls: the shared DashStylePicker (None /
+	// the dash swatches / Custom as a single mutually-exclusive choice; the
+	// custom box opens below the row). The "Custom open" flag lives in this
+	// panel's `customDashOpen` so the category's Reset link can close it;
+	// Reset also clears the dash override and the custom dasharray.
 	const renderDashCategory = (v: string, i: number, display?: string) => {
 		const s = categoryState(v, i)
-		const hasCustomDash = customDashOverrides[v] !== undefined
-		const customActive = customDashOpen[v] || hasCustomDash
-		const closeCustom = () =>
+		const customDash = customDashOverrides[v] ?? null
+		const customOpen = customDashOpen[v] ?? false
+		const setCustomOpen = (open: boolean) =>
 			setCustomDashOpen((prev) => {
+				if (open) return { ...prev, [v]: true }
 				const { [v]: _removed, ...rest } = prev
 				return rest
 			})
-		// Switching to None or a swatch clears any custom dash so the row stays
-		// single-select.
-		const clearCustom = () => {
-			if (hasCustomDash) resetCustomDashOverride(v)
-			closeCustom()
-		}
+		// The row's pick as the picker's single choice: None is a solid stroke,
+		// otherwise the override (or the auto-cycled position).
+		const current: LineDashPattern = s.dashIsNone
+			? "solid"
+			: (DASH_CYCLE[s.dashActiveIdx % DASH_CYCLE.length] ?? "solid")
 		return (
 			<div key={v} className="flex flex-col gap-1 text-sm">
 				{categoryNameRow(
 					v,
-					s.hasDashOverride || hasCustomDash || customActive,
+					s.hasDashOverride || customDash !== null || customOpen,
 					() => {
 						if (s.hasDashOverride) resetDashOverride(v)
-						if (hasCustomDash) resetCustomDashOverride(v)
-						closeCustom()
+						if (customDash !== null) resetCustomDashOverride(v)
+						setCustomOpen(false)
 					},
 					display
 				)}
-				{renderSwatchRow(v, {
-					palette: DASH_CYCLE,
-					Glyph: LineDashGlyph,
-					isNone: s.dashIsNone,
-					activeIdx: s.dashActiveIdx,
-					ink: s.ink,
-					setIdx: (idx) => {
-						clearCustom()
-						setDashOverride(v, idx)
-					},
-					setNone: () => {
-						clearCustom()
-						setDashOverride(v, PATTERN_NONE)
-					},
-					customActive,
-					onCustom: () =>
-						setCustomDashOpen((prev) => ({ ...prev, [v]: true })),
-				})}
-				{customActive && (
-					<CustomDashInput
-						value={customDashOverrides[v] ?? ""}
-						onChange={(raw) => {
-							if (raw === "") resetCustomDashOverride(v)
-							else setCustomDashOverride(v, raw)
-						}}
-					/>
-				)}
+				<DashStylePicker
+					pattern={current}
+					customDasharray={customDash}
+					customOpen={customOpen}
+					onCustomOpenChange={setCustomOpen}
+					onChange={({ pattern, customDasharray }) => {
+						// Picking None or a swatch clears any custom dash (the row stays
+						// single-select); typing in the Custom box leaves the dash pick
+						// alone, so no override gets pinned where the auto-cycle applied.
+						if (customDasharray !== customDash) {
+							if (customDasharray === null) resetCustomDashOverride(v)
+							else setCustomDashOverride(v, customDasharray)
+						}
+						if (pattern !== current) {
+							setDashOverride(
+								v,
+								pattern === "solid" ? PATTERN_NONE : DASH_CYCLE.indexOf(pattern)
+							)
+						}
+					}}
+					ariaContext={v}
+				/>
 			</div>
 		)
 	}

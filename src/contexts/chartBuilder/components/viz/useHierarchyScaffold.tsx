@@ -117,7 +117,7 @@ export type HierarchyLayoutNode = {
  * root-level anonymous leaf has no name → the channel falls back. Shared by
  * the mark resolvers, the label styling, and the hover-highlight publisher so
  * all three agree on which group a node belongs to. */
-export const hierarchyRootNameOf = (
+const hierarchyRootNameOf = (
 	node: HierarchyLayoutNode
 ): string | null => {
 	let a = node
@@ -127,7 +127,7 @@ export const hierarchyRootNameOf = (
 
 /** A node's value on a DERIVED color source — the group it sits in, or its
  * nesting level. */
-export const hierarchyDerivedValueOf = (
+const hierarchyDerivedValueOf = (
 	source: PackedDerivedSource,
 	node: HierarchyLayoutNode
 ): unknown => (source === "rootGroup" ? hierarchyRootNameOf(node) : node.depth)
