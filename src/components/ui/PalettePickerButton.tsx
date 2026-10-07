@@ -120,7 +120,7 @@ export const PalettePickerButton = ({
 				aria-haspopup="true"
 				aria-expanded={open}
 				title="Pick a palette color"
-				className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+				className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 hover:text-stone-900 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 			>
 				<svg
 					viewBox="0 0 24 24"

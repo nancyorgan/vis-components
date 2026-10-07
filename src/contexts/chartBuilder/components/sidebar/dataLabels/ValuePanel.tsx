@@ -8,6 +8,7 @@ import {
 } from "../../../lib/dataLabelsSelection"
 
 import { TickFormatControl } from "../channelOptions/AxisOptionsPanel"
+import { Input } from "../../../../../components/ui/Input"
 
 // ---------------------------------------------------------------------------
 // Value panel — multi-field mode only ("Multiple variables…"): pick which
@@ -39,8 +40,6 @@ export const ValuePanel = ({
 }) => {
 	const toggleField = (name: string, on: boolean) =>
 		onFieldsChange(on ? [...fields, name] : fields.filter((f) => f !== name))
-	const textInputClass =
-		"w-full rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 	const emptyHint = fields.length > 0 ? null : "Check some fields above"
 
 	return (
@@ -81,25 +80,25 @@ export const ValuePanel = ({
 				presentPopulations(selection).map((pop) =>
 					pop === "all" ? (
 						<label key={pop} className="flex flex-col gap-1 text-sm">
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								{POPULATION_TEMPLATE_LABEL.all}
 							</span>
-							<input
+							<Input
 								type="text"
 								value={cfg.labelTemplate ?? ""}
 								placeholder={
 									emptyHint ?? defaultSharedTemplate(selection, fields)
 								}
 								onChange={(e) => onChange({ labelTemplate: e.target.value })}
-								className={textInputClass}
+								className="w-full"
 							/>
 						</label>
 					) : (
 						<label key={pop} className="flex flex-col gap-1 text-sm">
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								{POPULATION_TEMPLATE_LABEL[pop]}
 							</span>
-							<input
+							<Input
 								type="text"
 								value={cfg[`${pop}Label`]?.labelTemplate ?? ""}
 								placeholder={
@@ -113,22 +112,22 @@ export const ValuePanel = ({
 									else next.labelTemplate = e.target.value
 									onChange({ [key]: next })
 								}}
-								className={textInputClass}
+								className="w-full"
 							/>
 						</label>
 					)
 				)
 			) : (
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">
+					<span className="vc-muted">
 						{POPULATION_TEMPLATE_LABEL.all}
 					</span>
-					<input
+					<Input
 						type="text"
 						value={cfg.labelTemplate ?? ""}
 						placeholder={emptyHint ?? defaultSharedTemplate(selection, fields)}
 						onChange={(e) => onChange({ labelTemplate: e.target.value })}
-						className={textInputClass}
+						className="w-full"
 					/>
 				</label>
 			)}

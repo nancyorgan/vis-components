@@ -448,7 +448,7 @@ export const LibraryPage = () => {
 				 *  title keeps clear of it. */}
 				<div className="mx-auto max-w-6xl px-4 py-6 pl-10 sm:px-6 sm:py-10 sm:pl-10">
 					<div className="mb-6 flex flex-wrap items-center gap-3">
-						<h1 className="mr-auto text-xl font-semibold text-stone-900 dark:text-white">
+						<h1 className="mr-auto text-xl vc-heading">
 							{selectedFolderName}
 						</h1>
 						<Input
@@ -490,7 +490,7 @@ export const LibraryPage = () => {
 						<ViewToggle view={view} onChange={setView} />
 					</div>
 					{backfillNote && (
-						<p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
+						<p className="mb-4 text-sm vc-muted">
 							{backfillNote}
 						</p>
 					)}
@@ -531,7 +531,7 @@ export const LibraryPage = () => {
 						/>
 					) : gridRows.length === 0 ? (
 						<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
-							<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
+							<p className="max-w-md text-sm vc-muted">
 								{query
 									? `No visualizations match "${query}".`
 									: selectedFolderId === UNFILED_FOLDER_ID
@@ -598,16 +598,16 @@ export const LibraryPage = () => {
 													className="h-full w-full object-contain"
 												/>
 											) : (
-												<div className="text-sm text-stone-600 dark:text-stone-400">
+												<div className="text-sm vc-muted">
 													No preview
 												</div>
 											)}
 										</div>
 										<div className="border-t border-stone-200 px-3 py-2 dark:border-stone-700">
-											<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+											<div className="truncate text-sm font-medium vc-heading">
 												{d.visual.name}
 											</div>
-											<div className="truncate text-sm text-stone-600 dark:text-stone-400">
+											<div className="truncate text-sm vc-muted">
 												{d.datasetName
 													? `Data set: ${d.datasetName}`
 													: "No data set"}

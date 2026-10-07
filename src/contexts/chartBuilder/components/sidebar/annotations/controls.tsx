@@ -4,6 +4,7 @@ import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { cleanNumber, type AxisInfo } from "./axisInfo"
+import { Input } from "../../../../../components/ui/Input"
 
 /** Which annotation an editor card belongs to — drives the kind glyph in its
  *  header row. */
@@ -84,7 +85,7 @@ export const AnnotationCard = ({
 				onClick={onToggle}
 				aria-expanded={open}
 				aria-label={open ? "Collapse annotation" : "Expand annotation"}
-				className="flex h-6 w-4 flex-shrink-0 items-center justify-center text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="flex h-6 w-4 flex-shrink-0 items-center justify-center hover:text-stone-900 dark:hover:text-white vc-muted"
 			>
 				<SectionChevron open={open} />
 			</button>
@@ -92,17 +93,17 @@ export const AnnotationCard = ({
 			<span className="text-vc-section-header flex flex-shrink-0 items-center">
 				<AnnotationKindGlyph kind={kind} />
 			</span>
-			<input
+			<Input
 				type="text"
 				value={name}
 				placeholder={namePlaceholder}
 				onChange={(e) => onNameChange(e.target.value)}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+				className="flex-1"
 			/>
 			<button
 				type="button"
 				onClick={onRemove}
-				className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="text-sm hover:text-stone-900 dark:hover:text-white vc-muted"
 			>
 				remove
 			</button>

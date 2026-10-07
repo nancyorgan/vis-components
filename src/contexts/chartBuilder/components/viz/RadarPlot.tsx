@@ -374,7 +374,7 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 	if (!dataset) return null
 	if (missing) {
 		return (
-			<div className="flex h-full items-center justify-center text-center text-sm text-stone-600 dark:text-stone-400">
+			<div className="flex h-full items-center justify-center text-center text-sm vc-muted">
 				Map a field to <span className="mx-1 font-semibold">R position</span>{" "}
 				and <span className="mx-1 font-semibold">Angle</span> to render a radar
 				chart.

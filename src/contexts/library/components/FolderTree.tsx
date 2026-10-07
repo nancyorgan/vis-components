@@ -196,7 +196,7 @@ const VisualTreeItem = ({
 		className={`${TREE_ROW} ${
 			isSelected
 				? "vc-nav-active"
-				: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+				: "hover:bg-stone-100 dark:hover:bg-stone-800 vc-text"
 		}`}
 		style={{ paddingLeft: `${depth * 16 + 4}px` }}
 		title={visual.name}
@@ -219,7 +219,7 @@ const VisualTreeItem = ({
 )
 
 const menuItem =
-	"block w-full px-3 py-1.5 text-left text-sm text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:py-2 dark:text-stone-300 dark:hover:bg-stone-700"
+	"block w-full px-3 py-1.5 text-left text-sm hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:py-2 dark:hover:bg-stone-700 vc-text"
 
 /** The folder row's "⋯" menu: rename, step up/down among siblings, and move
  *  into another folder — every drag-and-drop outcome (plus the double-click
@@ -487,7 +487,7 @@ const FolderTreeItem = ({
 				className={`group ${TREE_ROW} ${
 					isSelected
 						? "vc-nav-active"
-						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+						: "hover:bg-stone-100 dark:hover:bg-stone-800 vc-text"
 				} ${dropZoneClass(rowDropZone)}`}
 				data-drop-zone={rowDropZone ?? undefined}
 				style={{ paddingLeft: `${depth * 16 + 4}px` }}
@@ -955,7 +955,7 @@ export const FolderTree = ({
 	return (
 		<div className="flex h-full w-full flex-col bg-white dark:bg-stone-900">
 			<div className="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-stone-700">
-				<span className="text-sm font-medium tracking-wider text-stone-600 uppercase dark:text-stone-400">
+				<span className="text-sm font-medium tracking-wider uppercase vc-muted">
 					Folders
 				</span>
 				<button
@@ -995,7 +995,7 @@ export const FolderTree = ({
 					className={`${TREE_ROW} ${
 						selectedFolderId === null
 							? "vc-nav-active"
-							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+							: "hover:bg-stone-100 dark:hover:bg-stone-800 vc-text"
 					} ${dropZoneClass(rootDrop.dropZone ?? rootContents.dropZone)}`}
 					{...rootDrop.dropHandlers}
 					onClick={() => onSelect(null)}

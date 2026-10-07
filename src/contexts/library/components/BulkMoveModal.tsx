@@ -29,7 +29,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 			widthClass="max-w-md"
 		>
 			<div className="flex flex-col gap-4">
-				<p className="text-sm text-stone-700 dark:text-stone-300">
+				<p className="text-sm vc-text">
 					Pick a destination folder.
 				</p>
 				<div className="max-h-64 overflow-y-auto rounded border border-stone-200 dark:border-stone-700">
@@ -39,7 +39,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 						className={`w-full px-3 py-1.5 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
 							target === null
 								? "vc-nav-active font-medium"
-								: "text-stone-700 dark:text-stone-300"
+								: "vc-text"
 						}`}
 					>
 						Root (no folder)
@@ -52,7 +52,7 @@ export const BulkMoveModal = ({ open, count, onCancel, onConfirm }: Props) => {
 							className={`w-full px-3 py-1.5 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
 								target === f.id
 									? "vc-nav-active font-medium"
-									: "text-stone-700 dark:text-stone-300"
+									: "vc-text"
 							}`}
 							style={{ paddingLeft: `${12 + depth * 12}px` }}
 						>

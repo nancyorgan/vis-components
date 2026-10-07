@@ -33,6 +33,7 @@ import { TextSection } from "./themeSections/TextSection"
 import { Button } from "../../../components/ui/Button"
 import { ThemePreview } from "./ThemePreview"
 import { ThemeSamplerPreview } from "./ThemeSamplerPreview"
+import { Input } from "../../../components/ui/Input"
 
 /** The editor's live previews: the gallery card's bar chart plus a sampler
  *  of what it leaves out. Both read the theme straight from the atom, so
@@ -262,10 +263,10 @@ export const ThemesPage = ({
 		return (
 			<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 				{backLink && <div className="mb-4">{backLink}</div>}
-				<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+				<h1 className="mb-1 text-xl vc-heading">
 					Theme not found
 				</h1>
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="text-sm vc-muted">
 					There is no theme with this id in your library. It may have been
 					deleted.
 				</p>
@@ -291,15 +292,15 @@ export const ThemesPage = ({
 								Managed
 							</span>
 						) : null}
-						<input
+						<Input
 							type="text"
 							value={editingTheme.name}
 							onChange={(e) => renameTheme(e.target.value)}
 							disabled={isReadOnly}
 							aria-label="Theme name"
-							className="w-full rounded border border-stone-300 bg-white px-2 py-1 text-xl font-semibold text-stone-900 disabled:cursor-not-allowed disabled:opacity-70 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+							className="w-full text-xl font-semibold disabled:opacity-70"
 						/>
-						<p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+						<p className="mt-1 text-sm vc-muted">
 							{isSystem ? (
 								"System themes are read-only. Copy this one from + Add a new theme to customize it."
 							) : isReadOnly ? (
@@ -365,7 +366,7 @@ export const ThemesPage = ({
 							disabled={isReadOnly && !isSystem}
 							onChange={(e) => requestSetDefault(e.target.checked)}
 						/>
-						<span className="text-stone-700 dark:text-stone-300">
+						<span className="vc-text">
 							Make this the default theme for all new visualizations?
 						</span>
 					</label>
@@ -436,7 +437,7 @@ export const ThemesPage = ({
 				message={
 					<>
 						Delete the theme{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
+						<span className="font-medium vc-heading">
 							&ldquo;{editingTheme.name}&rdquo;
 						</span>
 						? This cannot be undone.
@@ -453,7 +454,7 @@ export const ThemesPage = ({
 				message={
 					<>
 						This theme will replace{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
+						<span className="font-medium vc-heading">
 							&ldquo;{previousDefaultName}&rdquo;
 						</span>{" "}
 						as the default for all new visualizations. Continue?
@@ -469,7 +470,7 @@ export const ThemesPage = ({
 				message={
 					<>
 						Importing will overwrite the contents of{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
+						<span className="font-medium vc-heading">
 							&ldquo;{editingTheme.name}&rdquo;
 						</span>
 						. The theme&rsquo;s name stays the same. To import as a new theme

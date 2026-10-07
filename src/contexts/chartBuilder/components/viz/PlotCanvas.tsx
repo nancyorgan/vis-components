@@ -527,7 +527,7 @@ export const PlotCanvas = () => {
 		return (
 			<div
 				ref={ref}
-				className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-stone-600 dark:text-stone-400"
+				className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center vc-muted"
 				style={bgStyle}
 			>
 				<div className="text-sm">No data set loaded.</div>

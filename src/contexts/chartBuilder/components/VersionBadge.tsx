@@ -149,7 +149,7 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 			{open && (
 				<div className="absolute top-full right-0 z-20 mt-1 w-80 rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800">
 					<div className="border-b border-stone-200 px-3 py-2 dark:border-stone-700">
-						<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+						<div className="truncate text-sm font-medium vc-heading">
 							{view.name}
 						</div>
 					</div>

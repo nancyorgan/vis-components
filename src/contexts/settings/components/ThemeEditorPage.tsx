@@ -18,7 +18,7 @@ export const ThemeEditorPage = () => {
 			backLink={
 				<Link
 					to="/settings/themes"
-					className="inline-flex items-center gap-1 text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+					className="inline-flex items-center gap-1 text-sm hover:text-stone-900 dark:hover:text-white vc-muted"
 				>
 					<span aria-hidden="true">&larr;</span> All themes
 				</Link>

@@ -9,7 +9,7 @@ export const AestheticRangesSection = ({
 	<SectionGroup title="Aesthetic ranges" isReadOnly={isReadOnly}>
 		{/* Aesthetic-channel range defaults */}
 		<Section title="Aesthetic range defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Min and max bounds used when each aesthetic channel is first
 				mapped.
 			</p>
@@ -101,7 +101,7 @@ export const AestheticRangesSection = ({
 					step={0.05}
 				/>
 			</div>
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Saturation and brightness are levels relative to the palette color,
 				not absolute values: 0.5 draws the palette color untouched, lower is
 				grayer / darker, higher is more saturated / lighter. A range that

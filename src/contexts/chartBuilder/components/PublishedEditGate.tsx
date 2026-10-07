@@ -52,7 +52,7 @@ export const PublishedEditGate = () => {
 			panelClassName="!border-2 !border-brand-500 [&>div:first-child]:!border-brand-300 dark:[&>div:first-child]:!border-brand-800"
 		>
 			<div className="flex flex-col gap-4">
-				<div className="text-sm text-stone-700 dark:text-stone-300">
+				<div className="text-sm vc-text">
 					This visual is already embedded. Edits you make here will affect
 					published content.
 				</div>

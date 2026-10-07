@@ -5,6 +5,7 @@ import type {
 
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { Input } from "../../../../../components/ui/Input"
 
 /** Conditional position rules under "Adjust position" — the positional
  *  sibling of the text-color rules. Each rule pairs a comparison condition
@@ -52,18 +53,18 @@ export const PositionRulesEditor = ({
 					 *  X/Y adjusters above: condition line, then X, then Y. */}
 					<div className="flex items-center gap-2 text-sm">
 						<span className={LABEL_COL}>Rule {i + 1}</span>
-						<input
+						<Input
 							type="text"
 							value={rule.condition}
 							onChange={(e) => setRule(i, { condition: e.target.value })}
 							placeholder="< 0"
 							aria-label={`Condition for position rule ${i + 1}`}
-							className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="w-24"
 						/>
 						<button
 							type="button"
 							onClick={() => removeRule(i)}
-							className="rounded px-1 text-stone-600 hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 							aria-label={`Remove position rule ${i + 1}`}
 						>
 							×

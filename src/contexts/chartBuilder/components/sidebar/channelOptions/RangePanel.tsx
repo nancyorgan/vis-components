@@ -276,7 +276,7 @@ const ScaleByRow = () => {
 				className={
 					sizeBy === "diameter"
 						? "text-sm font-semibold !text-vc-section-header"
-						: "text-sm text-stone-600 dark:text-stone-400"
+						: "text-sm vc-muted"
 				}
 			>
 				Scale by
@@ -296,7 +296,7 @@ const ScaleByRow = () => {
 						onChange={() => setSizeBy(value)}
 						className="h-3 w-3"
 					/>
-					<span className="text-stone-600 dark:text-stone-400">{label}</span>
+					<span className="vc-muted">{label}</span>
 				</label>
 			))}
 			<p className="vc-help">
@@ -828,7 +828,7 @@ const ModulationDefaultPanel = ({
 						[configKey]: enabled ? null : MODULATION_ANCHOR,
 					}))
 				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="self-start text-sm underline hover:text-stone-900 dark:hover:text-white vc-muted"
 			>
 				{enabled ? "Turn off override" : "Enable override"}
 			</button>

@@ -123,7 +123,7 @@ export const HoverTooltip = ({ state }: { state: TooltipState }) => {
 				) : (
 					filtered.map((f) => (
 						<div key={f.name} className="flex gap-2 whitespace-nowrap">
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								{f.name}:
 							</span>
 							<span className="truncate font-medium text-stone-800 dark:text-stone-200">

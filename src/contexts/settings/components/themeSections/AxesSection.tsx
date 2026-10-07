@@ -52,7 +52,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				step={0.5}
 				suffix="px"
 			/>
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Concentric rings on radar charts. By default, one gridline is
 				drawn per labeled axis tick; adjust the count per-visualization
 				from the X, Y, or R axis panel.
@@ -137,7 +137,7 @@ export const AxesSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				step={0.5}
 				suffix="px"
 			/>
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Spokes and perimeter on radar charts, and the ring axis on chord
 				diagrams.
 			</p>

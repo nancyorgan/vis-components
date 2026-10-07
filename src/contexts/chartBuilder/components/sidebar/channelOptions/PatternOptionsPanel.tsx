@@ -59,6 +59,7 @@ import {
 } from "./dashControls"
 import { ColorRow, LineDashGlyph, PatternGlyph } from "./glyphShared"
 import { useUniqueValuesForChannel } from "./useUniqueValuesForChannel"
+import { Input } from "../../../../../components/ui/Input"
 
 // ---------------------------------------------------------------------------
 // Pattern
@@ -270,12 +271,12 @@ export const PatternOptionsPanel = () => {
 		return (
 			<div key={args.key} className="flex items-center gap-2 text-sm">
 				<span
-					className="w-24 flex-shrink-0 truncate text-stone-600 dark:text-stone-400"
+					className="w-24 flex-shrink-0 truncate vc-muted"
 					title={args.label}
 				>
 					{args.label}
 				</span>
-				<input
+				<Input
 					type="text"
 					value={args.override ?? ""}
 					placeholder={args.fallback}
@@ -285,7 +286,7 @@ export const PatternOptionsPanel = () => {
 					aria-label={aria}
 					// Shrinks to min-w-18 when the row is tight and hides below 360px
 					// viewports — same rule as ColorInput's hex box.
-					className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm placeholder:text-stone-300 min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
+					className="hidden w-24 min-w-18 font-mono min-[360px]:block"
 				/>
 				<input
 					type="color"
@@ -351,7 +352,7 @@ export const PatternOptionsPanel = () => {
 					onChange={(e) => setGapFill(e.target.checked)}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">
+				<span className="vc-muted">
 					Fill dash gaps
 				</span>
 			</label>
@@ -523,7 +524,7 @@ export const PatternOptionsPanel = () => {
 		) => (
 			<div className="flex flex-col gap-1 text-sm">
 				{label && (
-					<span className="text-stone-600 dark:text-stone-400">{label}</span>
+					<span className="vc-muted">{label}</span>
 				)}
 				<div className="flex flex-wrap gap-1">
 					{showNone && (
@@ -600,7 +601,7 @@ export const PatternOptionsPanel = () => {
 			return (
 				<div className="flex flex-col gap-1 text-sm">
 					{label && (
-						<span className="text-stone-600 dark:text-stone-400">{label}</span>
+						<span className="vc-muted">{label}</span>
 					)}
 					<div className="flex flex-wrap gap-1">
 						<button
@@ -1039,8 +1040,8 @@ export const PatternOptionsPanel = () => {
 	) => (
 		<div className="flex items-center gap-2">
 			<label className="flex min-w-0 items-center gap-2">
-				<span className="text-sm text-stone-600 dark:text-stone-400">Color</span>
-				<input
+				<span className="text-sm vc-muted">Color</span>
+				<Input
 					type="text"
 					value={hasInk ? ink : ""}
 					onChange={(e) => {
@@ -1048,7 +1049,7 @@ export const PatternOptionsPanel = () => {
 						else target.set(v, e.target.value)
 					}}
 					placeholder={ink}
-					className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="hidden w-24 min-w-18 font-mono min-[360px]:block"
 				/>
 			</label>
 			<input
@@ -1082,7 +1083,7 @@ export const PatternOptionsPanel = () => {
 	) => (
 		<div className="flex items-center justify-between gap-2">
 			<span
-				className="min-w-0 flex-1 truncate text-stone-700 dark:text-stone-300"
+				className="min-w-0 flex-1 truncate vc-text"
 				title={display ?? v}
 			>
 				{display ?? v}

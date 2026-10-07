@@ -14,9 +14,7 @@ import {
 	currentDatasetViewAtom,
 	currentRawDatasetViewAtom,
 } from "../../store/useCurrentDatasetView"
-
-const textInputClass =
-	"w-full rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+import { Input } from "../../../../components/ui/Input"
 
 /** Wide→long reshape options under Data, shown/hidden by the data tray's
  * "Reshape" button and the "Save and close" button below — closing the menu
@@ -119,12 +117,12 @@ export const ReshapePanel = () => {
 					)}
 				</div>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">
+					<span className="vc-muted">
 						Combined variable name
 					</span>
-					<input
+					<Input
 						type="text"
-						className={textInputClass}
+						className="w-full"
 						placeholder="category"
 						value={config.variableName}
 						onChange={(e) =>
@@ -136,12 +134,12 @@ export const ReshapePanel = () => {
 					/>
 				</label>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">
+					<span className="vc-muted">
 						Value variable name
 					</span>
-					<input
+					<Input
 						type="text"
-						className={textInputClass}
+						className="w-full"
 						placeholder="value"
 						value={config.valueName}
 						onChange={(e) =>

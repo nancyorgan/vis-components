@@ -25,6 +25,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 
 import { LineDashGlyph } from "./glyphShared"
+import { Input } from "../../../../../components/ui/Input"
 
 const swatchClass = (selected: boolean) =>
 	`flex h-7 items-center justify-center rounded border transition-colors ${
@@ -190,7 +191,7 @@ const DashRangeRows = ({
 	range: DashRangeConfig
 	onChange: (next: Partial<DashRangeConfig>) => void
 }) => (
-	<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+	<div className="vc-divider-group">
 		<label className="flex items-center gap-2 text-sm">
 			<input
 				type="checkbox"
@@ -198,7 +199,7 @@ const DashRangeRows = ({
 				onChange={(e) => onChange({ enabled: e.target.checked })}
 				className="h-3 w-3"
 			/>
-			<span className="text-stone-600 dark:text-stone-400">
+			<span className="vc-muted">
 				Apply pattern to range
 			</span>
 		</label>
@@ -214,7 +215,7 @@ const DashRangeRows = ({
 						<span className={`shrink-0 ${LABEL_COL}`}>
 							{label}
 						</span>
-						<input
+						<Input
 							type="text"
 							value={String(range[key] ?? "")}
 							onChange={(e) =>
@@ -223,7 +224,7 @@ const DashRangeRows = ({
 								})
 							}
 							aria-label={`Pattern range ${label.toLowerCase()}`}
-							className="w-24 rounded border border-stone-300 bg-white px-1.5 py-0.5 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="w-24 font-mono"
 						/>
 					</div>
 				))}
@@ -276,7 +277,7 @@ export const CustomDashInput = ({
 	value: string
 	onChange: (raw: string) => void
 }) => (
-	<input
+	<Input
 		type="text"
 		value={value}
 		placeholder="2,2"
@@ -284,7 +285,7 @@ export const CustomDashInput = ({
 		autoFocus
 		aria-label="Custom dash pattern"
 		onChange={(e) => onChange(e.target.value)}
-		className="w-24 rounded border border-stone-300 bg-white px-1.5 py-0.5 font-mono text-sm placeholder:text-stone-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
+		className="w-24 font-mono"
 	/>
 )
 

@@ -15,6 +15,7 @@ import {
 	GoogleFontLookupError,
 	lookupGoogleFont,
 } from "../../../lib/googleFonts"
+import { Input } from "../../../components/ui/Input"
 
 const fontMeta = (font: UserFont): string => {
 	const weights = font.weights.join(", ")
@@ -83,10 +84,10 @@ export const FontsPage = () => {
 
 	return (
 		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
-			<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+			<h1 className="mb-1 text-xl vc-heading">
 				Fonts
 			</h1>
-			<p className="mb-8 text-sm text-stone-600 dark:text-stone-400">
+			<p className="mb-8 text-sm vc-muted">
 				Add fonts from{" "}
 				<a
 					href="https://fonts.google.com"
@@ -102,7 +103,7 @@ export const FontsPage = () => {
 			</p>
 
 			<div className="max-w-2xl rounded-lg border border-stone-200 p-5 dark:border-stone-700">
-				<h2 className="mb-2 text-sm font-semibold text-stone-900 dark:text-white">
+				<h2 className="mb-2 text-sm vc-heading">
 					Add a Google Font
 				</h2>
 				<form
@@ -112,13 +113,13 @@ export const FontsPage = () => {
 						void onAdd()
 					}}
 				>
-					<input
+					<Input
 						type="text"
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						placeholder="Font name, e.g. Roboto Slab"
 						aria-label="Google Font name"
-						className="w-64 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="w-64"
 					/>
 					<Button
 						compact

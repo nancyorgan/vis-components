@@ -20,6 +20,7 @@ import { NumberInput } from "../../../../../components/ui/NumberInput"
 
 import { PREVIEW_SIZE } from "./glyphShared"
 import { Button } from "../../../../../components/ui/Button"
+import { Input } from "../../../../../components/ui/Input"
 
 /** Shared chip-button styling for the shape rows (built-in glyphs inline
  *  the same string; new custom-glyph chips reuse it from here). */
@@ -193,7 +194,7 @@ export const CustomGlyphEditor = ({
 	return (
 		<div className="flex flex-col gap-1 text-sm">
 			<div className="flex flex-wrap items-center gap-2">
-				<input
+				<Input
 					type="text"
 					value={text}
 					// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the editor the user just opened via the "+" chip
@@ -210,7 +211,7 @@ export const CustomGlyphEditor = ({
 					}}
 					placeholder="Aa ★ 🔥"
 					aria-label="Custom shape text"
-					className="w-20 rounded border border-stone-300 bg-white px-2 py-1 dark:border-stone-700 dark:bg-stone-900"
+					className="w-20"
 				/>
 				<Button compact
 					onClick={submitText}
@@ -219,7 +220,7 @@ export const CustomGlyphEditor = ({
 					Add
 				</Button>
 				<span className="text-stone-500 dark:text-stone-400">or</span>
-				<label className="cursor-pointer text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white">
+				<label className="cursor-pointer underline hover:text-stone-900 dark:hover:text-white vc-muted">
 					upload image
 					<input
 						type="file"
@@ -247,7 +248,7 @@ export const CustomGlyphEditor = ({
 				<button
 					type="button"
 					onClick={onClose}
-					className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+					className="underline hover:text-stone-900 dark:hover:text-white vc-muted"
 				>
 					cancel
 				</button>
@@ -270,7 +271,7 @@ export const CustomGlyphEditor = ({
 			 *  to place, and never again after Add (there's no post-hoc glyph
 			 *  edit; delete and re-add to change it). Image uploads bypass it. */}
 			{count > 0 && !tooLong && (
-				<div className="mt-1 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+				<div className="vc-divider-group mt-1">
 					<span className="vc-group-header">Adjust position</span>
 					<div className="flex flex-wrap items-center gap-2">
 						<div className="flex flex-col gap-2">

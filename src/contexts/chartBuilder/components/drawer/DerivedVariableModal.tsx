@@ -27,6 +27,7 @@ import {
 } from "../../store/atoms"
 import { preDerivedDatasetViewAtom } from "../../store/useCurrentDatasetView"
 import { renameFieldAcrossEditorAtoms } from "../../store/useRenameField"
+import { Select } from "../../../../components/ui/Select"
 
 const newDerivedVariableId = () =>
 	`dvr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -51,13 +52,13 @@ const InsertVariableSelect = ({
 	fields: string[]
 	onInsert: (fieldName: string) => void
 }) => (
-	<select
+	<Select
 		value=""
 		aria-label="Insert variable"
 		onChange={(e) => {
 			if (e.target.value) onInsert(e.target.value)
 		}}
-		className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-xs text-stone-600 hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+		className="text-xs"
 	>
 		<option value="">Insert variable…</option>
 		{fields.map((f) => (
@@ -65,7 +66,7 @@ const InsertVariableSelect = ({
 				{f}
 			</option>
 		))}
-	</select>
+	</Select>
 )
 
 /** The create/edit popup for derived variables (math / combine text /
@@ -361,7 +362,7 @@ const DerivedVariableEditor = ({
 				<div className="flex items-center gap-3 text-sm">
 					<label
 						htmlFor={nameId}
-						className="w-16 flex-shrink-0 text-stone-600 dark:text-stone-400"
+						className="w-16 flex-shrink-0 vc-muted"
 					>
 						Name
 					</label>
@@ -491,7 +492,7 @@ const DerivedVariableEditor = ({
 							</div>
 						))}
 						<div className="flex items-center gap-2">
-							<span className="text-sm text-stone-600 dark:text-stone-400">
+							<span className="text-sm vc-muted">
 								Otherwise
 							</span>
 							<span aria-hidden="true" className="text-stone-400">
@@ -570,7 +571,7 @@ const DerivedVariableEditor = ({
 												{row[f] ?? ""}
 											</td>
 										))}
-										<td className="px-2 py-1 font-medium text-stone-900 dark:text-white">
+										<td className="px-2 py-1 font-medium vc-heading">
 											{result}
 										</td>
 									</tr>

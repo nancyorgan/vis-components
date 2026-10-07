@@ -5,7 +5,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 	<SectionGroup title="Legend" isReadOnly={isReadOnly}>
 		<Section title="Legend defaults">
 			<div className="flex flex-col gap-1.5">
-				<span className="text-sm text-stone-600 dark:text-stone-400">
+				<span className="text-sm vc-muted">
 					Legend background
 				</span>
 				<label className="flex items-center gap-2 text-sm">
@@ -14,7 +14,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 						checked={theme.legendBackgroundColor === null}
 						onChange={() => set("legendBackgroundColor", null)}
 					/>
-					<span className="text-stone-700 dark:text-stone-300">
+					<span className="vc-text">
 						Transparent
 					</span>
 				</label>
@@ -29,7 +29,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 							)
 						}
 					/>
-					<span className="text-stone-700 dark:text-stone-300">
+					<span className="vc-text">
 						Custom color
 					</span>
 				</label>
@@ -42,7 +42,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 				)}
 			</div>
 			<div className="flex flex-col gap-1.5">
-				<span className="text-sm text-stone-600 dark:text-stone-400">
+				<span className="text-sm vc-muted">
 					Legend swatch color
 				</span>
 				<p className="text-xs text-stone-500 dark:text-stone-400">

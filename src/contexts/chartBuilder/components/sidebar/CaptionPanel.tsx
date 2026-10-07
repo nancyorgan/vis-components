@@ -22,9 +22,8 @@ import {
 	useFontFamilyOptions,
 	useUserFontWeights,
 } from "../../store/useFontOptions"
-
-const UNIT_SELECT_CLASS =
-	"rounded-control border border-stone-300 bg-white px-1 py-1 text-sm text-stone-700 outline-none hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+import { Select } from "../../../../components/ui/Select"
+import { Textarea } from "../../../../components/ui/Input"
 
 /** A NumberInput with a trailing px/% unit selector — used for the position
  *  offsets, which sensibly start stepping from 0. */
@@ -48,15 +47,14 @@ const OffsetField = ({
 		onChange={onValue}
 		step={1}
 		suffix={
-			<select
+			<Select
 				aria-label={`${label} unit`}
 				value={unit}
 				onChange={(e) => onUnit(e.target.value as CaptionUnit)}
-				className={UNIT_SELECT_CLASS}
 			>
 				<option value="px">px</option>
 				<option value="%">%</option>
-			</select>
+			</Select>
 		}
 	/>
 )
@@ -166,7 +164,7 @@ export const CaptionPanel = () => {
 					onClear={() => setValue(0)}
 					inputClassName="w-20"
 				/>
-				<select
+				<Select
 					aria-label={`${label} unit`}
 					value={unit}
 					onChange={(e) => {
@@ -176,11 +174,10 @@ export const CaptionPanel = () => {
 							[valueKey]: convertDim(dim, value, unit, nextUnit),
 						} as Partial<CaptionConfig>)
 					}}
-					className={UNIT_SELECT_CLASS}
 				>
 					<option value="px">px</option>
 					<option value="%">%</option>
-				</select>
+				</Select>
 			</div>
 		)
 	}
@@ -196,21 +193,20 @@ export const CaptionPanel = () => {
 					onChange={(e) => update({ enabled: e.target.checked })}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">Show caption</span>
+				<span className="vc-muted">Show caption</span>
 			</label>
 
 			{merged.enabled && (
 				<>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-muted">
 							Caption text
 						</span>
-						<textarea
+						<Textarea
 							value={merged.text}
 							onChange={(e) => update({ text: e.target.value })}
 							placeholder="A short caption shown below the x-axis title…"
 							rows={4}
-							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 						/>
 					</label>
 

@@ -85,7 +85,7 @@ export const TrashButton = () => {
 			>
 				<div className="flex flex-col gap-4">
 					{count === 0 ? (
-						<p className="text-sm text-stone-600 dark:text-stone-400">
+						<p className="text-sm vc-muted">
 							Nothing in the trash. Deleted visualizations wait here until you
 							restore them or empty the trash.
 						</p>
@@ -105,10 +105,10 @@ export const TrashButton = () => {
 										)}
 									</div>
 									<div className="min-w-0 flex-1">
-										<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+										<div className="truncate text-sm font-medium vc-heading">
 											{v.name}
 										</div>
-										<div className="truncate text-xs text-stone-600 dark:text-stone-400">
+										<div className="truncate text-xs vc-muted">
 											{v.datasetId && datasets[v.datasetId]
 												? `Data set: ${datasets[v.datasetId].name} · `
 												: ""}
@@ -133,7 +133,7 @@ export const TrashButton = () => {
 					{count > 0 &&
 						(confirmEmpty ? (
 							<div className="flex flex-col gap-3 rounded-card border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-900/20">
-								<p className="text-sm text-stone-700 dark:text-stone-300">
+								<p className="text-sm vc-text">
 									Permanently delete {plural(count, "visualization")}? This
 									can&rsquo;t be undone.
 									{publishedCount > 0

@@ -186,6 +186,60 @@
 		color: var(--color-vc-section-header);
 	}
 
+	/* ---- Text roles -------------------------------------------------------
+	 * The three stone text colors the UI is built from, named by ROLE so a
+	 * call site reads as "muted label" rather than a stone-600/stone-400
+	 * pair. COLORS only (plus weight for headings): call sites keep their
+	 * own size (text-sm / text-xs / text-xl), truncation and spacing
+	 * utilities, which out-cascade this layer as usual.
+	 *
+	 *   .vc-muted    secondary text — row labels, hints, timestamps,
+	 *                counts (was text-stone-600 / dark:text-stone-400)
+	 *   .vc-text     primary body text — values, names, menu items
+	 *                (was text-stone-700 / dark:text-stone-300)
+	 *   .vc-heading  titles and emphasised names — semibold by default;
+	 *                add `font-medium` at the call site for a lighter one
+	 *                (was text-stone-900 / dark:text-white)
+	 *
+	 * Not for text on the purple option panels: that's `.vc-help` and
+	 * `.vc-group-header` above, which use the brand color so they pass AA
+	 * on the tinted background. */
+	.vc-muted {
+		color: var(--color-stone-600);
+	}
+	.dark .vc-muted {
+		color: var(--color-stone-400);
+	}
+	.vc-text {
+		color: var(--color-stone-700);
+	}
+	.dark .vc-text {
+		color: var(--color-stone-300);
+	}
+	.vc-heading {
+		color: var(--color-stone-900);
+		font-weight: var(--font-weight-semibold);
+	}
+	.dark .vc-heading {
+		color: #ffffff;
+	}
+
+	/* A run of control rows separated from the rows above by a hairline.
+	 * Used for the optional sub-blocks inside option panels (e.g. the
+	 * mirrored-axis block, legend fine-tuning). Owns the rule, the
+	 * top padding and the same column rhythm as .vc-option-panel; a call
+	 * site may still override the gap or padding with its own utility. */
+	.vc-divider-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem; /* matches gap-2 */
+		border-top: 1px solid var(--color-stone-200);
+		padding-top: 0.5rem; /* matches pt-2 */
+	}
+	.dark .vc-divider-group {
+		border-top-color: var(--color-stone-700);
+	}
+
 	/* Toggle / segmented-control states. Every ACTION button in the app is
 	 * the filled brand <Button> (or <Button danger> for destructive ones);
 	 * this pair is only for on/off state controls — Pie/Donut-style

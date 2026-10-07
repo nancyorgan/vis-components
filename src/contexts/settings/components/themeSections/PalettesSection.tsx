@@ -11,9 +11,11 @@ import {
 } from "./paletteHelpers"
 import type { ThemeSectionProps } from "./types"
 import { Button } from "../../../../components/ui/Button"
+import { Input } from "../../../../components/ui/Input"
+import { Select } from "../../../../components/ui/Select"
 
 const paletteMoveButton =
-	"flex h-8 w-8 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:bg-stone-700"
+	"flex h-8 w-8 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-stone-700 vc-muted"
 
 type PaletteCardProps = {
 	palette: SavedCategoricalPalette
@@ -138,14 +140,14 @@ const PaletteCard = ({
 			>
 				{isDefault ? "★" : "☆"}
 			</button>
-			<input
+			<Input
 				type="text"
 				value={palette.name}
 				aria-label="Palette name"
 				onChange={(e) => onUpdate({ name: e.target.value })}
 				// min-w-0 + flex-1: an input's intrinsic width would otherwise push
 				// the Delete button off a phone screen.
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="flex-1"
 			/>
 			<button
 				type="button"
@@ -264,7 +266,7 @@ const PaletteCard = ({
 						...(inks ? { patternInks: inks } : {}),
 					})
 				}}
-				className="self-start text-sm text-stone-600 hover:text-stone-700 dark:text-stone-400 dark:hover:text-white"
+				className="self-start text-sm hover:text-stone-700 dark:hover:text-white vc-muted"
 			>
 				Remove last color
 			</button>
@@ -474,7 +476,7 @@ export const PalettesSection = ({
 		<SectionGroup title="Color palettes" isReadOnly={isReadOnly}>
 			{/* Categorical palettes */}
 			<Section title="Categorical palettes">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="text-sm vc-muted">
 					Named color palettes assigned to categories when hue is mapped to
 					a categorical field. Mark one as the default for new
 					visualizations. Drag swatches to reorder colors, or drag the ⠿
@@ -500,10 +502,10 @@ export const PalettesSection = ({
 				>
 					Add palette
 				</Button>
-				<div className="flex flex-col gap-1 border-t border-stone-200 pt-3 dark:border-stone-700">
+				<div className="vc-divider-group gap-1 pt-3">
 					<label
 						htmlFor={textPaletteSelectId}
-						className="text-sm font-medium text-stone-700 dark:text-stone-300"
+						className="text-sm font-medium vc-text"
 					>
 						Default text palette
 					</label>
@@ -514,7 +516,7 @@ export const PalettesSection = ({
 						text. Without one, those pickers offer the default categorical
 						palette (text-encoded labels fall back to a single color).
 					</p>
-					<select
+					<Select
 						id={textPaletteSelectId}
 						value={theme.defaultTextPaletteId ?? "__none__"}
 						onChange={(e) =>
@@ -523,7 +525,7 @@ export const PalettesSection = ({
 								e.target.value === "__none__" ? null : e.target.value
 							)
 						}
-						className="self-start rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="self-start"
 					>
 						<option value="__none__">
 							No palette (single fallback color)
@@ -533,7 +535,7 @@ export const PalettesSection = ({
 								{p.name}
 							</option>
 						))}
-					</select>
+					</Select>
 				</div>
 			</Section>
 
@@ -542,7 +544,7 @@ export const PalettesSection = ({
 			 *  discrete fields. See spec §4.1 / §12. */}
 
 			<Section title="Ordinal palettes">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="text-sm vc-muted">
 					Discrete palettes used when hue is mapped to an ordinal field.
 					Use these for ordered categories (e.g., &quot;low / medium / high&quot;)
 					where a sequential ramp reads as ordered, instead of the

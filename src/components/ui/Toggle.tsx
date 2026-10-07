@@ -38,7 +38,7 @@ export const Toggle = ({
 			<label
 				htmlFor={inputId}
 				className={c(
-					"cursor-pointer text-stone-700 dark:text-stone-300",
+					"cursor-pointer vc-text",
 					disabled && "cursor-not-allowed opacity-60",
 					changed && "font-semibold !text-vc-section-header"
 				)}

@@ -81,19 +81,19 @@ export const SharingPage = () => {
 
 	return (
 		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
-			<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+			<h1 className="mb-1 text-xl vc-heading">
 				Sharing
 			</h1>
-			<p className="mb-8 text-sm text-stone-600 dark:text-stone-400">
+			<p className="mb-8 text-sm vc-muted">
 				Tools for backing up your library, handing it to someone else, and
 				packaging this app as a single, self-contained HTML file.
 			</p>
 
 			<div className="mb-6 max-w-2xl rounded-lg border border-stone-200 p-5 dark:border-stone-700">
-				<h2 className="mb-2 text-sm font-semibold text-stone-900 dark:text-white">
+				<h2 className="mb-2 text-sm vc-heading">
 					Bundle your library as JSON
 				</h2>
-				<p className="mb-3 text-sm text-stone-600 dark:text-stone-400">
+				<p className="mb-3 text-sm vc-muted">
 					Downloads everything in your library — {ownVisuals.length}{" "}
 					visualization
 					{ownVisuals.length === 1 ? "" : "s"}, {datasetCount} data set
@@ -104,7 +104,7 @@ export const SharingPage = () => {
 					imports it below and everything lands alongside their own work, with
 					your folder structure preserved and nothing of theirs overwritten.
 				</p>
-				<p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
+				<p className="mb-4 text-sm vc-muted">
 					The same file can seed a build&apos;s starter examples. Rename it to{" "}
 					<code className="text-xs">src/seed/examples.local.json</code> in the
 					repo (a gitignored override) — or{" "}
@@ -118,7 +118,7 @@ export const SharingPage = () => {
 						{exporting ? "Exporting…" : "Download bundle"}
 					</Button>
 					{status && (
-						<span className="text-sm text-stone-600 dark:text-stone-400">
+						<span className="text-sm vc-muted">
 							{status}
 						</span>
 					)}
@@ -126,10 +126,10 @@ export const SharingPage = () => {
 			</div>
 
 			<div className="max-w-2xl rounded-lg border border-stone-200 p-5 dark:border-stone-700">
-				<h2 className="mb-2 text-sm font-semibold text-stone-900 dark:text-white">
+				<h2 className="mb-2 text-sm vc-heading">
 					Import a bundle
 				</h2>
-				<p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
+				<p className="mb-4 text-sm vc-muted">
 					Adds the contents of a bundle file to this library. Imports are
 					additive: your own visualizations, data, and themes are never replaced
 					or overwritten. Folders are matched to yours by name — anything
@@ -145,7 +145,7 @@ export const SharingPage = () => {
 						{importing ? "Importing…" : "Import bundle…"}
 					</Button>
 					{importStatus && (
-						<span className="text-sm text-stone-600 dark:text-stone-400">
+						<span className="text-sm vc-muted">
 							{importStatus}
 						</span>
 					)}

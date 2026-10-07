@@ -9,6 +9,7 @@ import { useEffect, useMemo } from "react"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { Input } from "../../../../../components/ui/Input"
 
 /** Segmented control for one axis's share mode. Three options:
  *
@@ -155,9 +156,6 @@ export const PolarShareAxisPicker = ({
 const cls = (base: string, extra?: string) =>
 	extra ? `${base} ${extra}` : base
 
-const boundInputClass =
-	"w-16 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
-
 /** "Share ___" label + segmented picker row. `label` is the visible
  *  copy (the standalone panels lowercase the axis name, the wrap panel
  *  doesn't); `ariaLabel` always uses the canonical axis label. */
@@ -168,7 +166,7 @@ export const ShareAxisRow = ({
 }: ShareAxisPickerProps & { label: string; className?: string }) => (
 	<div
 		className={cls(
-			"flex items-start gap-2 text-sm text-stone-700 dark:text-stone-300",
+			"flex items-start gap-2 text-sm vc-text",
 			className,
 		)}
 	>
@@ -197,7 +195,7 @@ export const SizeByCheckboxRow = ({
 }) => (
 	<div className={cls("mt-2 flex items-center gap-2 text-sm", className)}>
 		<LabelSpacer />
-		<label className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
+		<label className="flex items-center gap-2 vc-text">
 			<input
 				type="checkbox"
 				checked={checked}
@@ -241,7 +239,7 @@ export const AxisRangeSection = ({
 			className,
 		)}
 	>
-		<div className="text-sm text-stone-700 dark:text-stone-300">
+		<div className="text-sm vc-text">
 			{title}
 		</div>
 		<div className="vc-help">{help}</div>
@@ -250,7 +248,7 @@ export const AxisRangeSection = ({
 				<div key={entry.key} className="flex flex-col gap-1 text-sm">
 					{entry.label !== undefined && (
 						<span
-							className="truncate text-stone-700 dark:text-stone-300"
+							className="truncate vc-text"
 							title={entry.label}
 						>
 							{entry.label}
@@ -261,22 +259,22 @@ export const AxisRangeSection = ({
 							<span className={LABEL_COL}>
 								min
 							</span>
-							<input
+							<Input
 								type="number"
 								value={entry.min ?? ""}
 								onChange={(e) => entry.onChange("min", e.target.value)}
-								className={boundInputClass}
+								className="w-16"
 							/>
 						</label>
 						<label className="flex items-center gap-2">
 							<span className={LABEL_COL}>
 								max
 							</span>
-							<input
+							<Input
 								type="number"
 								value={entry.max ?? ""}
 								onChange={(e) => entry.onChange("max", e.target.value)}
-								className={boundInputClass}
+								className="w-16"
 							/>
 						</label>
 					</div>

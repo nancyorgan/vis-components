@@ -74,7 +74,7 @@ export const FieldList = () => {
 
 	if (!dataset) {
 		return (
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Upload a CSV to see its fields.
 			</p>
 		)
@@ -167,7 +167,7 @@ export const FieldList = () => {
 										/>
 										{reorderable ? (
 											<Disclosure.Button
-												className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+												className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 hover:text-stone-900 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 												aria-label={`Reorder levels of ${field.name}`}
 												title="Reorder levels"
 											>
@@ -429,7 +429,7 @@ type EffectiveField = { name: string; type: FieldType }
 /** Fixed label column for the Order-by picker rows (the compact-panel
  * counterpart of LABEL_COL) so the "Order by" and "in" selects — and the
  * Decreasing checkbox via a matching spacer — share one vertical edge. */
-const ORDER_LABEL_COL = "w-14 text-xs text-stone-600 dark:text-stone-400"
+const ORDER_LABEL_COL = "w-14 text-xs vc-muted"
 
 /** Order-by select values are PREFIXED (`alpha` / `f:<name>`) so a dataset
  * field literally named "Alphabetical" can't collide with the standard
@@ -744,7 +744,7 @@ const LevelReorderPanel = ({
 								}}
 								className="h-3 w-3"
 							/>
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								Decreasing
 							</span>
 						</label>
@@ -752,7 +752,7 @@ const LevelReorderPanel = ({
 				</div>
 			)}
 			<div className="mb-1 flex items-center justify-between gap-2">
-				<span className="text-xs text-stone-600 dark:text-stone-400">
+				<span className="text-xs vc-muted">
 					Levels ({ordered.length})
 				</span>
 				<div className="flex items-center gap-2 text-xs">
@@ -760,7 +760,7 @@ const LevelReorderPanel = ({
 						<button
 							type="button"
 							onClick={reverse}
-							className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							className="underline hover:text-stone-900 dark:hover:text-white vc-muted"
 							title="Flip the current level order end to end"
 						>
 							reverse
@@ -770,7 +770,7 @@ const LevelReorderPanel = ({
 						<button
 							type="button"
 							onClick={reset}
-							className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							className="underline hover:text-stone-900 dark:hover:text-white vc-muted"
 							title="Drop the pinned order and use smart-sort"
 						>
 							reset
@@ -840,7 +840,7 @@ const LevelReorderPanel = ({
 								onClick={() => move(i, -1)}
 								disabled={i === 0}
 								title="Move up"
-								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:text-stone-400 dark:hover:bg-stone-700"
+								className="flex h-5 w-5 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:hover:bg-stone-700 vc-muted"
 							>
 								↑
 							</button>
@@ -849,7 +849,7 @@ const LevelReorderPanel = ({
 								onClick={() => move(i, 1)}
 								disabled={i === ordered.length - 1}
 								title="Move down"
-								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:text-stone-400 dark:hover:bg-stone-700"
+								className="flex h-5 w-5 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:hover:bg-stone-700 vc-muted"
 							>
 								↓
 							</button>

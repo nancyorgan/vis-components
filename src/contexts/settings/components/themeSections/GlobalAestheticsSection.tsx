@@ -9,7 +9,7 @@ export const GlobalAestheticsSection = ({
 	<SectionGroup title="Global aesthetics" isReadOnly={isReadOnly}>
 		<Section title="Backgrounds">
 			<div className="flex flex-col gap-1.5">
-				<span className="text-sm text-stone-600 dark:text-stone-400">
+				<span className="text-sm vc-muted">
 					Chart background
 				</span>
 				<label className="flex items-center gap-2 text-sm">
@@ -18,7 +18,7 @@ export const GlobalAestheticsSection = ({
 						checked={theme.chartBackgroundColor === null}
 						onChange={() => set("chartBackgroundColor", null)}
 					/>
-					<span className="text-stone-700 dark:text-stone-300">
+					<span className="vc-text">
 						Transparent (host page shows through)
 					</span>
 				</label>
@@ -33,7 +33,7 @@ export const GlobalAestheticsSection = ({
 							)
 						}
 					/>
-					<span className="text-stone-700 dark:text-stone-300">
+					<span className="vc-text">
 						Custom color
 					</span>
 				</label>

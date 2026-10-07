@@ -36,6 +36,7 @@ import {
 	QuantitativePanel,
 	useQuantFieldExtent,
 } from "./ColorOptionsPanel"
+import { Input } from "../../../../../components/ui/Input"
 
 /** Field-mapping state for the `outlineHue` channel, shared by the
  *  standalone dropdown (registry panel) and the combined `OutlineColorRow`
@@ -219,12 +220,12 @@ const OutlineColorRulesRow = ({
 						{/* Dropped below 360px: on the 2016 iPhone SE the menu sheet's
 						 *  rows are ~223px, and spacer + condition box + swatch don't fit. */}
 						<LabelSpacer className="hidden min-[360px]:inline" />
-						<input
+						<Input
 							type="text"
 							value={rule.condition}
 							onChange={(e) => setRule(i, { condition: e.target.value })}
 							placeholder="> 0"
-							className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="w-20"
 						/>
 						<ColorInput
 							label={`Outline color for rule ${i + 1}`}
@@ -237,7 +238,7 @@ const OutlineColorRulesRow = ({
 							<button
 								type="button"
 								onClick={() => removeRule(i)}
-								className="rounded px-1 text-stone-600 hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+								className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 								aria-label={`Remove rule ${i + 1}`}
 							>
 								×

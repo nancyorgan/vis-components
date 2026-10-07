@@ -9,6 +9,7 @@ import { symbolPath } from "../../../chartBuilder/lib/scales"
 import { ColorInput as UiColorInput } from "../../../../components/ui/ColorInput"
 import { NumberInput as UiNumberInput } from "../../../../components/ui/NumberInput"
 import { SelectInput as UiSelectInput } from "../../../../components/ui/SelectInput"
+import { Select } from "../../../../components/ui/Select"
 
 export const Section = ({
 	title,
@@ -18,7 +19,7 @@ export const Section = ({
 	children: React.ReactNode
 }) => (
 	<div className="flex flex-col gap-3">
-		<h3 className="text-sm font-semibold text-stone-900 dark:text-white">
+		<h3 className="text-sm vc-heading">
 			{title}
 		</h3>
 		{/* Rows inset past the subheader so section titles overhang their
@@ -58,7 +59,7 @@ export const SectionGroup = ({
 /** Fixed-width label column used by every settings row on this page so the
  *  controls line up vertically. Passed to the shared primitives via
  *  `labelClassName` (the established pattern for pinning width + color). */
-export const THEME_LABEL_CLASS = "w-32 text-stone-600 dark:text-stone-400"
+export const THEME_LABEL_CLASS = "w-32 vc-muted"
 
 /** Thin page-local wrappers around the shared UI primitives — they only
  *  pin the page's label column so the ~45 call sites below stay terse. */
@@ -134,12 +135,11 @@ export const FontFamilyRow = ({
 			<span className={THEME_LABEL_CLASS}>
 				{label}
 				</span>
-			<select
+			<Select
 				value={value ?? ""}
 				onChange={(e) =>
 					e.target.value === "" ? onDefault?.() : onChange(e.target.value)
 				}
-				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			>
 				{onDefault && <option value="">(default)</option>}
 				{familyOptions.map((opt) => (
@@ -147,7 +147,7 @@ export const FontFamilyRow = ({
 						{opt.label}
 					</option>
 				))}
-			</select>
+			</Select>
 		</label>
 	)
 }
@@ -198,14 +198,13 @@ export const FontWeightRow = ({
 			<span className={THEME_LABEL_CLASS}>
 				{label}
 				</span>
-			<select
+			<Select
 				value={value ?? ""}
 				onChange={(e) =>
 					e.target.value === ""
 						? onDefault?.()
 						: onChange(Number(e.target.value))
 				}
-				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			>
 				{onDefault && <option value="">(default)</option>}
 				{weightOptions.map((opt) => (
@@ -213,7 +212,7 @@ export const FontWeightRow = ({
 						{opt.label}
 					</option>
 				))}
-			</select>
+			</Select>
 		</label>
 	)
 }

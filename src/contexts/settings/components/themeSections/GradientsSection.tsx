@@ -95,7 +95,7 @@ const GradientCard = ({
 						onChange={(e) => stop.onChange(e.target.value)}
 						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
 					/>
-					<span className="text-sm text-stone-600 dark:text-stone-400">
+					<span className="text-sm vc-muted">
 						{stop.label}
 					</span>
 				</label>
@@ -192,7 +192,7 @@ export const GradientsSection = ({
 
 			{/* Linear gradients */}
 			<Section title="Linear gradients">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="text-sm vc-muted">
 					Two-stop gradients for quantitative fields.
 				</p>
 				{theme.linearGradients.map((gradient) => (
@@ -229,7 +229,7 @@ export const GradientsSection = ({
 
 			{/* Diverging gradients */}
 			<Section title="Diverging gradients">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="text-sm vc-muted">
 					Three-stop gradients for data with a meaningful midpoint.
 				</p>
 				{theme.divergingGradients.map((gradient) => (

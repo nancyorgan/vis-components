@@ -36,7 +36,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				step={0.05}
 			/>
 			<div className="flex items-center gap-2 text-sm">
-				<span className="w-32 text-stone-600 dark:text-stone-400">
+				<span className="w-32 vc-muted">
 					Default shape
 				</span>
 				<div className="flex gap-1" role="group" aria-label="Default shape">
@@ -80,7 +80,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 
 		{/* Connection (line) defaults */}
 		<Section title="Connection (line) defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Defaults applied when a connection (line / lollipop stem) is first
 				mapped on a scatter plot.
 			</p>

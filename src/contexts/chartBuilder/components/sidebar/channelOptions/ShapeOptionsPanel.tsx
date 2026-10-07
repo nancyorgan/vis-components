@@ -180,7 +180,7 @@ export const ShapeOptionsPanel = () => {
 				<>
 					<hr className="border-stone-200 dark:border-stone-700" />
 					<div className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-muted">
 							Default shape
 						</span>
 						<div className="flex flex-wrap gap-1">

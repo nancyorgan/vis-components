@@ -174,7 +174,7 @@ const RegressionLineStyleControls = () => {
 			},
 		}))
 	return (
-		<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+		<div className="vc-divider-group">
 			<NumberInput
 				label="Width"
 				labelClassName={LABEL_COL}

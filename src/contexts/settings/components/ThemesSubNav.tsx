@@ -237,7 +237,7 @@ export const ThemesSubNav = ({
 										draggingId === t.id && "opacity-50",
 										isActive
 											? "vc-nav-active"
-											: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+											: "hover:bg-stone-100 dark:hover:bg-stone-800 vc-text"
 									)}
 								>
 									<span className="min-w-0 flex-1 truncate">{t.name}</span>

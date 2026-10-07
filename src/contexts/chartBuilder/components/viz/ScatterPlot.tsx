@@ -268,7 +268,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 	// (matches the legacy behavior).
 	if (missing) {
 		return (
-			<div className="flex h-full items-center justify-center text-center text-sm text-stone-600 dark:text-stone-400">
+			<div className="flex h-full items-center justify-center text-center text-sm vc-muted">
 				Map a field to <span className="mx-1 font-semibold">X position</span> or{" "}
 				<span className="mx-1 font-semibold">Y position</span> to render.
 			</div>

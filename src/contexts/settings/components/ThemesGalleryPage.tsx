@@ -103,7 +103,7 @@ const CardBody = ({
 				/>
 			</div>
 			<div className="flex items-start justify-between gap-2 border-t border-stone-200 px-3 py-2 dark:border-stone-700">
-				<div className="min-w-0 truncate text-sm font-medium text-stone-900 dark:text-white">
+				<div className="min-w-0 truncate text-sm font-medium vc-heading">
 					{theme.name}
 				</div>
 				<div className="flex flex-shrink-0 flex-wrap justify-end gap-1">
@@ -183,7 +183,7 @@ export const ThemesGalleryPage = () => {
 							</span>
 						)}
 					</h2>
-					<p className="text-sm text-stone-600 dark:text-stone-400">
+					<p className="text-sm vc-muted">
 						{FOLDER_HELP[folder]}
 					</p>
 				</div>
@@ -229,10 +229,10 @@ export const ThemesGalleryPage = () => {
 		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 			<div className="mb-8">
 				<div>
-					<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+					<h1 className="mb-1 text-xl vc-heading">
 						{onlyFolder ? THEME_FOLDER_LABEL[onlyFolder] : "Themes"}
 					</h1>
-					<p className="text-sm text-stone-600 dark:text-stone-400">
+					<p className="text-sm vc-muted">
 						Each card previews a theme&rsquo;s fonts and default palette.
 						Click one to edit it. These values seed every new
 						visualization that picks the theme.

@@ -167,7 +167,7 @@ export const DataDrawer = () => {
 							className={
 								reshapeApplied
 									? "text-sm font-medium text-vc-brand-text hover:opacity-80 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-th-electric-indigo-300"
-									: "text-sm text-stone-600 transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-stone-400 dark:hover:text-white"
+									: "text-sm transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:hover:text-white vc-muted"
 							}
 						>
 							{reshapeApplied ? "Reshape ✓" : "Reshape"}
@@ -176,7 +176,7 @@ export const DataDrawer = () => {
 					<button
 						type="button"
 						onClick={() => setOpen((v) => !v)}
-						className="text-sm text-stone-600 transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-stone-400 dark:hover:text-white"
+						className="text-sm transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:hover:text-white vc-muted"
 					>
 						{open ? "Collapse" : "Expand"}
 					</button>

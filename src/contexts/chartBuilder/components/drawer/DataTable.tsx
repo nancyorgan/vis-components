@@ -172,7 +172,7 @@ export const DataTable = () => {
 
 	if (!dataset) {
 		return (
-			<div className="flex h-full items-center justify-center p-4 text-sm text-stone-600 dark:text-stone-400">
+			<div className="flex h-full items-center justify-center p-4 text-sm vc-muted">
 				No data set loaded. Upload a CSV from the sidebar.
 			</div>
 		)
@@ -354,7 +354,7 @@ export const DataTable = () => {
 				</tbody>
 			</table>
 			{truncated && (
-				<div className="border-t border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-400">
+				<div className="border-t border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900/50 vc-muted">
 					Showing first {MAX_ROWS_RENDERED} of {sortedRows.length} rows.
 				</div>
 			)}

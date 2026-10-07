@@ -25,6 +25,8 @@ import { ColorSlotControls } from "../channelOptions/ColorPanel"
 import {
 	CategoricalSwatchList,
 } from "../channelOptions/ColorOptionsPanel"
+import { Input } from "../../../../../components/ui/Input"
+import { Select } from "../../../../../components/ui/Select"
 
 const PALETTE_PRESET_NAMES: PaletteName[] = [
 	"viridis",
@@ -324,13 +326,13 @@ const TextColorRulesRow = ({
 					{/* Dropped below 360px: on the 2016 iPhone SE the menu sheet's
 					 *  rows are ~223px, and spacer + condition box + swatch don't fit. */}
 					<LabelSpacer className="hidden min-[360px]:inline" />
-					<input
+					<Input
 						type="text"
 						value={rule.condition}
 						onChange={(e) => setRule(i, { condition: e.target.value })}
 						placeholder="> 0"
 						aria-label={`Condition for rule ${i + 1}`}
-						className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="w-24"
 					/>
 					<ColorInput
 						label={`Color for rule ${i + 1}`}
@@ -345,7 +347,7 @@ const TextColorRulesRow = ({
 						<button
 							type="button"
 							onClick={() => removeRule(i)}
-							className="rounded px-1 text-stone-600 hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 							aria-label={`Remove rule ${i + 1}`}
 						>
 							×
@@ -411,10 +413,10 @@ const CategoricalPaletteRow = ({
 		<>
 			<label className="flex items-center gap-2 text-sm">
 				<span className={LABEL_COL}>Palette</span>
-				<select
+				<Select
 					value={currentSelection}
 					onChange={(e) => onPickPalette(e.target.value)}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="flex-1"
 				>
 					<option value="__match__">Match chart colors</option>
 					<option value={DATA_LABELS_SINGLE_COLOR_ID}>
@@ -425,7 +427,7 @@ const CategoricalPaletteRow = ({
 							{p.name}
 						</option>
 					))}
-				</select>
+				</Select>
 			</label>
 			<p className="vc-help">
 				<em>Match chart colors</em> inherits the chart&apos;s palette so labels
@@ -477,10 +479,10 @@ const GradientRow = ({
 	return (
 		<label className="flex items-center gap-2 text-sm">
 			<span className={LABEL_COL}>Gradient</span>
-			<select
+			<Select
 				value={currentSelection}
 				onChange={(e) => onPickGradient(e.target.value)}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="flex-1"
 			>
 				<option value="__none__">None</option>
 				<optgroup label="Presets">
@@ -508,7 +510,7 @@ const GradientRow = ({
 						))}
 					</optgroup>
 				)}
-			</select>
+			</Select>
 		</label>
 	)
 }

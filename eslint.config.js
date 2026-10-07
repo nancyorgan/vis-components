@@ -74,6 +74,13 @@ export default tseslint.config(
 				},
 			],
 
+			// The shared form primitives (components/ui) wrap native controls, so
+			// a <label> enclosing one counts as associated — same as a bare <input>.
+			'jsx-a11y/label-has-associated-control': [
+				'error',
+				{ controlComponents: ['Input', 'Select', 'Textarea', 'NumberInput', 'ColorInput'] },
+			],
+
 			'react/display-name': 'off',
 			'react/no-array-index-key': 'error',
 			'react/prop-types': 'off',

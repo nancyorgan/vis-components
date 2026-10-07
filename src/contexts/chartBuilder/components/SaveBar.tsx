@@ -75,7 +75,7 @@ export const SaveBar = () => {
 			aria-expanded
 			aria-label="Collapse title and actions"
 			title="Collapse title and actions"
-			className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+			className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
 		>
 			<DisclosureChevron open />
 		</button>
@@ -131,7 +131,7 @@ export const SaveBar = () => {
 			{nameField}
 			<VersionBadge />
 			{indicator && (
-				<span className="hidden text-sm text-stone-600 sm:inline dark:text-stone-400">
+				<span className="hidden text-sm sm:inline vc-muted">
 					{indicator}
 				</span>
 			)}

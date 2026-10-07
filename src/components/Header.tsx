@@ -71,7 +71,7 @@ export const Header = () => {
 				<EditorOnlyBlackAndWhiteToggle />
 				<Link
 					to="/settings"
-					className="flex h-8 w-8 items-center justify-center rounded-full text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
+					className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"
 					title="Settings"
 				>
 					<svg
@@ -104,8 +104,8 @@ const NewVisualizationLabel = () => (
 const MENU_ITEM =
 	"block w-full px-3 py-2 text-left text-sm hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-stone-700"
 const MENU_ITEM_DIVIDED = `${MENU_ITEM} border-t border-stone-200 dark:border-stone-700`
-const MENU_TITLE = "font-medium text-stone-900 dark:text-white"
-const MENU_HINT = "text-sm text-stone-600 dark:text-stone-400"
+const MENU_TITLE = "vc-heading font-medium"
+const MENU_HINT = "text-sm vc-muted"
 
 /**
  * A split button. The main segment starts a new visualization on a clean
@@ -304,7 +304,7 @@ const ImportOutcomeModal = ({
 		title={outcome?.ok ? "Import complete" : "Import failed"}
 	>
 		<div className="flex flex-col gap-4">
-			<div className="text-sm text-stone-700 dark:text-stone-300">
+			<div className="text-sm vc-text">
 				{outcome?.message}
 			</div>
 			<div className="flex justify-end gap-2">
@@ -347,7 +347,7 @@ const BlackAndWhiteToggle = () => {
 			className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
 				active
 					? "vc-toggle-on"
-					: "text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
+					: "hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"
 			}`}
 		>
 			<svg

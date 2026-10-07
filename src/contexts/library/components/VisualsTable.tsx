@@ -62,7 +62,7 @@ const SortHeader = ({
 }
 
 const BADGE_GREY =
-	"bg-stone-100 text-stone-700 dark:bg-stone-700 dark:text-stone-300"
+	"bg-stone-100 dark:bg-stone-700 vc-text"
 const BADGE_GREEN =
 	"bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200"
 const BADGE_BLUE = "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200"
@@ -130,7 +130,7 @@ export const VisualsTable = ({
 	if (rows.length === 0) {
 		return (
 			<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
-				<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
+				<p className="max-w-md text-sm vc-muted">
 					No visualizations match the current filters.
 				</p>
 			</div>
@@ -248,12 +248,12 @@ export const VisualsTable = ({
 									<Link
 										to="/editor/$visualId"
 										params={{ visualId: row.visual.id }}
-										className="font-medium text-stone-900 hover:underline dark:text-white"
+										className="font-medium hover:underline vc-heading"
 									>
 										{row.visual.name}
 									</Link>
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="px-3 py-2 vc-text">
 									{row.dataset ? (
 										<>
 											{row.dataset.name}
@@ -270,13 +270,13 @@ export const VisualsTable = ({
 								<td className="px-3 py-2">
 									<PinStateBadge row={row} />
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="px-3 py-2 vc-text">
 									{formatDate(row.rowCreatedAt)}
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="px-3 py-2 vc-text">
 									{formatDate(row.visualUpdatedAt)}
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="px-3 py-2 vc-text">
 									{row.folderPath || (
 										<span className="text-stone-400 italic">Root</span>
 									)}

@@ -40,7 +40,7 @@ const NarrowSettingsNav = () => {
 					aria-controls="settings-theme-list"
 					className={c(
 						navLink,
-						"ml-auto text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+						"ml-auto hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
 					)}
 				>
 					<SectionChevron open={themesOpen} />
@@ -90,7 +90,7 @@ export const SettingsLayout = () => {
 				<div className="border-b border-stone-200 px-4 py-3 dark:border-stone-700">
 					{/* The rail's heading is the way back to the landing page (the
 					 *  theme gallery) from anywhere in Settings, editor included. */}
-					<h2 className="text-sm font-semibold text-stone-900 dark:text-white">
+					<h2 className="text-sm vc-heading">
 						<Link
 							to="/settings/themes"
 							className="rounded hover:text-brand-700 dark:hover:text-brand-300"

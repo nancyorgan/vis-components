@@ -49,6 +49,8 @@ import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
 import { Toggle } from "../../../../components/ui/Toggle"
+import { Input, Textarea } from "../../../../components/ui/Input"
+import { Select } from "../../../../components/ui/Select"
 
 /** Weights the renderers fall back to when neither the per-label override nor
  * the base font sets one — fed into the Weight dropdown's "(inherit)" entry so
@@ -398,7 +400,7 @@ export const LabelsPanel = () => {
 							 *  the swatches line up with the controls above. Long
 							 *  values truncate with a tooltip. */}
 							<span
-								className="w-24 flex-shrink-0 truncate text-stone-700 dark:text-stone-300"
+								className="w-24 flex-shrink-0 truncate vc-text"
 								title={v}
 							>
 								{v}
@@ -473,7 +475,7 @@ export const LabelsPanel = () => {
 			/>
 			{/* Divider above Subtitle so the two primary title rows read as
 			 * separate groups rather than one run of controls. */}
-			<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+			<div className="vc-divider-group">
 				<LabelRow
 					label="Subtitle"
 					fontKey="subtitle"
@@ -1223,7 +1225,7 @@ const LabelRow = ({
 							// row; the chevron opens the styling controls. Used when a
 							// subsection has several such targets (grid Column/Row/Panel
 							// titles) that need to stay individually collapsible.
-							<span className="mt-1 min-w-0 flex-1 text-sm text-stone-600 dark:text-stone-400">
+							<span className="mt-1 min-w-0 flex-1 text-sm vc-muted">
 								{label}
 							</span>
 						) : (
@@ -1231,17 +1233,17 @@ const LabelRow = ({
 								<span className={`mt-1 shrink-0 ${LABEL_COL}`}>
 									{label}
 								</span>
-								<textarea
+								<Textarea
 									value={value}
 									onChange={(e) => onChange(e.target.value)}
 									placeholder={placeholder}
 									rows={isMultiline ? 2 : 1}
-									className="min-w-0 flex-1 resize-y rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+									className="flex-1 resize-y"
 								/>
 							</label>
 						)}
 						<Disclosure.Button
-							className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white`}
+							className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 hover:text-stone-900 dark:hover:bg-stone-700 dark:hover:text-white vc-muted`}
 							aria-label={`Toggle font settings for ${label}`}
 						>
 							<DisclosureChevron open={open} />
@@ -1340,7 +1342,7 @@ export const FontEditor = ({
 		<div className="flex flex-col gap-2">
 			<label className="flex items-center gap-2 text-sm">
 				<span className={LABEL_COL}>Family</span>
-				<select
+				<Select
 					value={value.family ?? ""}
 					onChange={(e) =>
 						onChange(
@@ -1349,7 +1351,7 @@ export const FontEditor = ({
 								: { ...value, family: e.target.value }
 						)
 					}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="flex-1"
 				>
 					{showResetFields && (
 						<option value="">
@@ -1363,7 +1365,7 @@ export const FontEditor = ({
 							{opt.label}
 						</option>
 					))}
-				</select>
+				</Select>
 				{showResetFields && value.family !== undefined && (
 					<ResetLink onClick={() => reset("family")} />
 				)}
@@ -1371,7 +1373,7 @@ export const FontEditor = ({
 			{!hideColor && (
 				<label className="flex items-center gap-2 text-sm">
 					<span className={LABEL_COL}>Color</span>
-					<input
+					<Input
 						type="text"
 						value={value.color ?? ""}
 						onChange={(e) =>
@@ -1383,7 +1385,7 @@ export const FontEditor = ({
 						placeholder={showResetFields ? (baseColor ?? "(inherit)") : "#111827"}
 						// Shrinks to min-w-18 when the row is tight and hides below 360px
 						// viewports — same rule as ColorInput's hex box.
-						className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="hidden w-24 min-w-18 font-mono min-[360px]:block"
 					/>
 					<input
 						type="color"

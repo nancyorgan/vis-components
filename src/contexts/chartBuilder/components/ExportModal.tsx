@@ -31,6 +31,8 @@ import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
 import { Button } from "../../../components/ui/Button"
 import { Modal } from "../../../components/ui/Modal"
 import { NumberInput } from "../../../components/ui/NumberInput"
+import { Select } from "../../../components/ui/Select"
+import { Textarea } from "../../../components/ui/Input"
 
 type Props = {
 	open: boolean
@@ -568,7 +570,7 @@ const EmbedTab = ({
 						<div className="font-medium text-stone-900 dark:text-stone-100">
 							Latest at publish
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
+						<div className="text-sm vc-muted">
 							Publishes a snapshot of the latest data. Republish any time to
 							update the embed in place — the URL never changes.
 						</div>
@@ -587,7 +589,7 @@ const EmbedTab = ({
 						<div className="font-medium text-stone-900 dark:text-stone-100">
 							Pin to current version{view ? ` (${versionLabel})` : ""}
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
+						<div className="text-sm vc-muted">
 							The embed stays on this data version; republishing refreshes the
 							styling but keeps the pinned data.
 						</div>
@@ -607,7 +609,7 @@ const EmbedTab = ({
 					<div className="font-medium text-stone-900 dark:text-stone-100">
 						Publish legend as a separate iframe
 					</div>
-					<div className="text-sm text-stone-600 dark:text-stone-400">
+					<div className="text-sm vc-muted">
 						Get two snippets — chart and legend in independently sized iframes,
 						so you can place the legend wherever it fits your page layout.
 					</div>
@@ -651,14 +653,14 @@ const EmbedTab = ({
 								>
 									{s.label}
 								</label>
-								<textarea
+								<Textarea
 									id={`${snippetIdBase}-${s.key}`}
 									value={value}
 									onChange={(e) =>
 										setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
 									}
 									rows={3}
-									className="rounded-control border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+									className="font-mono"
 									onFocus={(e) => e.currentTarget.select()}
 								/>
 								<div className="flex items-center justify-end">
@@ -794,7 +796,7 @@ const ExportTab = ({
 			<div className="flex flex-wrap items-end gap-3">
 				<NumberInput
 					label={`Width (${unit})`}
-					labelClassName="text-stone-600 dark:text-stone-400"
+					labelClassName="vc-muted"
 					inline={false}
 					value={pxToUnit(width, unit)}
 					min={pxToUnit(MIN_EXPORT_DIM, unit)}
@@ -807,7 +809,7 @@ const ExportTab = ({
 				/>
 				<NumberInput
 					label={`Height (${unit})`}
-					labelClassName="text-stone-600 dark:text-stone-400"
+					labelClassName="vc-muted"
 					inline={false}
 					value={pxToUnit(height, unit)}
 					min={pxToUnit(MIN_EXPORT_DIM, unit)}
@@ -817,18 +819,17 @@ const ExportTab = ({
 					inputClassName="w-24"
 				/>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">Units</span>
-					<select
+					<span className="vc-muted">Units</span>
+					<Select
 						value={unit}
 						onChange={(e) => setUnit(e.target.value as ExportUnit)}
-						className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
 					>
 						{UNIT_OPTIONS.map((u) => (
 							<option key={u} value={u}>
 								{u}
 							</option>
 						))}
-					</select>
+					</Select>
 				</label>
 				{/* Bottom padding centers the checkbox against the input row. */}
 				<label className="flex items-center gap-2 pb-1.5 text-sm">
@@ -837,40 +838,38 @@ const ExportTab = ({
 						checked={aspectLocked}
 						onChange={(e) => onAspectLockedChange(e.target.checked)}
 					/>
-					<span className="text-stone-600 dark:text-stone-400">
+					<span className="vc-muted">
 						Lock aspect ratio
 					</span>
 				</label>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">Format</span>
-					<select
+					<span className="vc-muted">Format</span>
+					<Select
 						value={format}
 						onChange={(e) => setFormat(e.target.value as ImageFormat)}
-						className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
 					>
 						{FORMAT_OPTIONS.map((o) => (
 							<option key={o.value} value={o.value}>
 								{o.label}
 							</option>
 						))}
-					</select>
+					</Select>
 				</label>
 				{rasterized && (
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-muted">
 							Resolution
 						</span>
-						<select
+						<Select
 							value={pixelRatio}
 							onChange={(e) => setPixelRatio(Number(e.target.value))}
-							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
 						>
 							{RESOLUTION_OPTIONS.map((r) => (
 								<option key={r} value={r}>
 									{r}×
 								</option>
 							))}
-						</select>
+						</Select>
 					</label>
 				)}
 			</div>
@@ -882,7 +881,7 @@ const ExportTab = ({
 			)}
 
 			<div className="flex flex-col gap-2">
-				<span className="text-sm text-stone-600 dark:text-stone-400">
+				<span className="text-sm vc-muted">
 					Preview ({pxToUnit(width, unit)} × {pxToUnit(height, unit)}
 					{unit === "px" ? "" : ` ${unit}`})
 					{(format === "png" || format === "jpeg") &&

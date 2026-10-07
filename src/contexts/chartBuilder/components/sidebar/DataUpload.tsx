@@ -78,8 +78,8 @@ export const DataUpload = () => {
 				}}
 			/>
 			{currentDataset && (
-				<div className="text-sm text-stone-600 dark:text-stone-400">
-					<div className="truncate font-medium text-stone-700 dark:text-stone-300">
+				<div className="text-sm vc-muted">
+					<div className="truncate font-medium vc-text">
 						{currentDataset.name}
 					</div>
 					<div>
@@ -306,7 +306,7 @@ const UploadPromptModal = () => {
 		>
 			{pending && (
 				<div className="flex flex-col gap-4">
-					<div className="text-sm text-stone-600 dark:text-stone-400">
+					<div className="text-sm vc-muted">
 						<span className="font-medium text-stone-800 dark:text-stone-200">
 							{pending.filename}
 						</span>{" "}
@@ -326,7 +326,7 @@ const UploadPromptModal = () => {
 							<div className="font-medium text-stone-900 dark:text-stone-100">
 								Add as a new data version for this visualization
 							</div>
-							<div className="text-sm text-stone-600 dark:text-stone-400">
+							<div className="text-sm vc-muted">
 								Appends a new version to{" "}
 								<span className="font-medium">
 									{currentDatasetMeta?.name ?? "the bound data set"}
@@ -367,7 +367,7 @@ const UploadPromptModal = () => {
 							<div className="font-medium text-stone-900 dark:text-stone-100">
 								Start a new visualization
 							</div>
-							<div className="text-sm text-stone-600 dark:text-stone-400">
+							<div className="text-sm vc-muted">
 								Saves{" "}
 								<span className="font-medium">
 									&ldquo;{currentVisualName}&rdquo;
@@ -378,7 +378,7 @@ const UploadPromptModal = () => {
 								<div className="mt-2 flex flex-col gap-1">
 									<label
 										htmlFor="data-upload-new-name"
-										className="text-sm text-stone-600 dark:text-stone-400"
+										className="text-sm vc-muted"
 									>
 										Data set name
 									</label>

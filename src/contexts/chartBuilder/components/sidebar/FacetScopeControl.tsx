@@ -32,7 +32,7 @@ export const FacetScopeControl = ({
 					onChange={(e) => onChange(e.target.checked ? null : [...keys])}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">{label}</span>
+				<span className="vc-muted">{label}</span>
 			</label>
 			{!applyAll && (
 				<div className="flex flex-col gap-1 pl-5">
@@ -51,7 +51,7 @@ export const FacetScopeControl = ({
 								className="h-3 w-3"
 							/>
 							<span
-								className="min-w-0 truncate text-stone-700 dark:text-stone-300"
+								className="min-w-0 truncate vc-text"
 								title={o.label}
 							>
 								{o.label}

@@ -999,7 +999,7 @@ export const DataLabelsPanel = () => {
 						<div className="flex items-center gap-2 text-sm">
 							<NumberInput
 								label="Angle"
-								labelClassName="w-12 text-stone-600 dark:text-stone-400"
+								labelClassName="w-12 vc-muted"
 								value={merged.polarLabelAngle ?? 0}
 								step={5}
 								onChange={(polarLabelAngle) => updateCfg({ polarLabelAngle })}
@@ -1008,7 +1008,7 @@ export const DataLabelsPanel = () => {
 							/>
 							<NumberInput
 								label="R"
-								labelClassName="w-8 text-stone-600 dark:text-stone-400"
+								labelClassName="w-8 vc-muted"
 								value={merged.polarLabelRadius ?? 100}
 								min={0}
 								max={200}
@@ -1081,7 +1081,7 @@ export const DataLabelsPanel = () => {
 									: (merged[`${pop}Label`]?.yOffset ?? merged.yOffset)
 							return (
 								<div key={pop} className="flex flex-col gap-2">
-									<span className="text-sm text-stone-600 dark:text-stone-400">
+									<span className="text-sm vc-muted">
 										{POPULATION_LABEL[pop]}
 									</span>
 									<div className="ml-6 flex flex-col gap-2 text-sm">

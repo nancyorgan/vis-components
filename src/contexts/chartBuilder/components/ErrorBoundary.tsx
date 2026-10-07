@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
 		if (this.props.fallback) return this.props.fallback(error, this.reset)
 		return (
 			<div className="flex h-full w-full flex-col items-center justify-center gap-4 p-8 text-center">
-				<div className="max-w-md text-sm text-stone-700 dark:text-stone-300">
+				<div className="max-w-md text-sm vc-text">
 					<div className="mb-2 text-base font-semibold text-stone-900 dark:text-stone-100">
 						Something went wrong rendering this view.
 					</div>
@@ -54,7 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
 						again on refresh. The technical details are in your browser console.
 					</div>
 					{error.message && (
-						<div className="mt-3 max-h-32 overflow-auto rounded border border-stone-300 bg-stone-50 p-2 text-left font-mono text-xs text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
+						<div className="mt-3 max-h-32 overflow-auto rounded border border-stone-300 bg-stone-50 p-2 text-left font-mono text-xs dark:border-stone-700 dark:bg-stone-900 vc-text">
 							{error.message}
 						</div>
 					)}

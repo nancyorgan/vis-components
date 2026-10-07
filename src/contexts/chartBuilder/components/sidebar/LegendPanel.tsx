@@ -87,6 +87,8 @@ import { ResetLink } from "../../../../components/ui/ResetLink"
 import { RadioGroup } from "../../../../components/ui/RadioGroup"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
+import { Input } from "../../../../components/ui/Input"
+import { Select } from "../../../../components/ui/Select"
 
 /** Fallbacks when neither the legend config nor the theme provides a swatch
  *  color — one definition so the aux and shape pickers can't drift. */
@@ -185,7 +187,7 @@ const QuantLegendChannelControls = ({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="text-xs text-stone-600 dark:text-stone-400">
+			<span className="text-xs vc-muted">
 				{sectionLabel}
 				{dataHint && ` · ${dataHint}`}
 			</span>
@@ -197,27 +199,27 @@ const QuantLegendChannelControls = ({
 					<span className={LABEL_COL_NESTED}>
 						Label format
 					</span>
-					<select
+					<Select
 						value=""
 						onChange={(e) => {
 							const spec = formatPresetSelection(e.target.value)
 							if (spec !== null) onChange({ ...cfg, format: spec })
 						}}
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="flex-1"
 					>
 						<FormatPresetOptions />
-					</select>
+					</Select>
 				</label>
 				<div className="flex items-center gap-2">
 					<LabelSpacerNested />
-					<input
+					<Input
 						type="text"
 						value={cfg.format}
 						onChange={(e) => onChange({ ...cfg, format: e.target.value })}
 						placeholder="Auto"
 						aria-label="Custom label format string"
 						title={FORMAT_BOX_HELP}
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="flex-1 font-mono"
 					/>
 				</div>
 				<div className="flex items-center gap-2 text-sm">
@@ -235,7 +237,7 @@ const QuantLegendChannelControls = ({
 				</div>
 				<label className="flex items-center gap-2 text-sm">
 					<span className={LABEL_COL_NESTED}>Custom breaks</span>
-					<input
+					<Input
 						type="text"
 						value={breaksText}
 						onChange={(e) => setBreaksText(e.target.value)}
@@ -247,7 +249,7 @@ const QuantLegendChannelControls = ({
 							}
 						}}
 						placeholder="e.g. 0, 50, 100, 150, 200"
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="flex-1 font-mono"
 					/>
 				</label>
 				<div className="flex gap-2">
@@ -808,7 +810,7 @@ export const LegendPanel = () => {
 					 *  section + one title, instead of a legend per channel. Only
 					 *  offered when there's actually a shared field to combine. */}
 					{sharedVariableExists && (
-						<div className="flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">
+						<div className="vc-divider-group gap-1">
 							<Toggle
 								label="Combine legends with same variables"
 								checked={combineLegendSections}
@@ -888,7 +890,7 @@ export const LegendPanel = () => {
 					{/* Legend width group — a fixed box width (px truth, shown in
 					 *  px / in / cm) between Position and Orientation. Blank = auto.
 					 *  Labels that stop fitting wrap onto extra lines in the render. */}
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend width"
@@ -901,20 +903,19 @@ export const LegendPanel = () => {
 								onClear={() => update({ width: null })}
 								inputClassName="w-20"
 							/>
-							<select
+							<Select
 								aria-label="Legend width unit"
 								value={widthUnit}
 								onChange={(e) =>
 									update({ widthUnit: e.target.value as DisplayUnit })
 								}
-								className="rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
 							>
 								{UNIT_OPTIONS.map((u) => (
 									<option key={u} value={u}>
 										{u}
 									</option>
 								))}
-							</select>
+							</Select>
 							{merged.width != null && (
 								<ResetLink onClick={() => update({ width: null })} />
 							)}
@@ -927,7 +928,7 @@ export const LegendPanel = () => {
 						</p>
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<RadioGroup
 							legend="Orientation"
 							value={merged.orientation}
@@ -940,7 +941,7 @@ export const LegendPanel = () => {
 						</p>
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<Toggle
 							label="Border box"
 							checked={merged.showBorder}
@@ -988,7 +989,7 @@ export const LegendPanel = () => {
 						)}
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<RadioGroup
 							legend="Background"
 							value={bgKind}
@@ -1028,7 +1029,7 @@ export const LegendPanel = () => {
 						/>
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend columns"
@@ -1461,7 +1462,7 @@ export const LegendPanel = () => {
 								changed={sectionChanged}
 							>
 							<div className="flex flex-col gap-1 text-sm">
-								<span className="text-stone-600 dark:text-stone-400">
+								<span className="vc-muted">
 									Swatch shape
 								</span>
 								<div className="flex flex-wrap gap-1">

@@ -106,7 +106,7 @@ export const Modal = ({
 			aria-modal="true"
 		>
 			{title && (
-				<div className="border-b border-stone-200 px-4 py-3 text-sm font-medium text-stone-900 dark:border-stone-700 dark:text-white">
+				<div className="border-b border-stone-200 px-4 py-3 text-sm font-medium dark:border-stone-700 vc-heading">
 					{title}
 				</div>
 			)}
@@ -206,7 +206,7 @@ export const ConfirmDialog = ({
 		}
 	>
 		<div className="flex flex-col gap-4">
-			<div className="text-sm text-stone-700 dark:text-stone-300">
+			<div className="text-sm vc-text">
 				{message}
 			</div>
 			<div className="flex justify-end gap-2">

@@ -12,6 +12,7 @@ import { themesAtom } from "../../chartBuilder/store/atoms"
 
 import { Button } from "../../../components/ui/Button"
 import { Modal } from "../../../components/ui/Modal"
+import { Select } from "../../../components/ui/Select"
 
 const newThemeId = (): string =>
 	`th-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -158,10 +159,9 @@ const AddThemeDialog = ({
 					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
 						Base on an existing theme
 					</span>
-					<select
+					<Select
 						value={selectedId}
 						onChange={(e) => setSelectedId(e.target.value)}
-						className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 					>
 						<option value="">Pick a theme to copy…</option>
 						{themes.map((t) => (
@@ -170,7 +170,7 @@ const AddThemeDialog = ({
 								{isManagedTheme(t) ? " (managed)" : ""}
 							</option>
 						))}
-					</select>
+					</Select>
 					<p className="text-xs text-stone-500 dark:text-stone-400">
 						The copy is added to <strong>Custom Themes</strong> — copying a
 						managed theme never changes the original.

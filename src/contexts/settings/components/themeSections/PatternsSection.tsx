@@ -10,7 +10,7 @@ export const PatternsSection = ({
 	<SectionGroup title="Patterns" isReadOnly={isReadOnly}>
 		{/* Pattern defaults */}
 		<Section title="Pattern defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="text-sm vc-muted">
 				Background color is used when patterns sit on a mark with no hue
 				mapping. Ink color is the default pattern stroke; per-palette
 				overrides below let you pair a specific ink with each hue swatch.
@@ -27,7 +27,7 @@ export const PatternsSection = ({
 			/>
 			{theme.categoricalPalettes.length > 0 && (
 				<div className="mt-2 flex flex-col gap-3">
-					<span className="text-sm font-medium text-stone-700 dark:text-stone-300">
+					<span className="text-sm font-medium vc-text">
 						Per-hue ink overrides
 					</span>
 					{theme.categoricalPalettes.map((palette) => (
@@ -35,7 +35,7 @@ export const PatternsSection = ({
 							key={palette.id}
 							className="rounded-md border border-stone-200 p-3 dark:border-stone-700"
 						>
-							<div className="mb-2 text-sm font-medium text-stone-700 dark:text-stone-300">
+							<div className="mb-2 text-sm font-medium vc-text">
 								{palette.name}
 							</div>
 							<div className="flex flex-wrap gap-2">

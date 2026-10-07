@@ -74,6 +74,7 @@ import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
+import { Select } from "../../../../../components/ui/Select"
 
 /** Sequential (single-progression) d3 presets — render with Low + High
  * swatches in the panel; edits transition to `customLinear`. */
@@ -161,7 +162,7 @@ export const CategoricalSwatchList = ({
 					 *  the dropdowns above) so the hex input + swatch line up with
 					 *  the dropdown controls. Long names truncate with a tooltip. */}
 					<span
-						className="w-24 flex-shrink-0 truncate text-stone-700 dark:text-stone-300"
+						className="w-24 flex-shrink-0 truncate vc-text"
 						title={v}
 					>
 						{v}
@@ -894,7 +895,7 @@ export const AreaRadarOutlinePanel = () => {
 							pickerLabel={`Pick palette line color for ${v}`}
 						/>
 						<span
-							className="min-w-0 flex-1 truncate text-stone-700 dark:text-stone-300"
+							className="min-w-0 flex-1 truncate vc-text"
 							title={v}
 						>
 							{v}
@@ -1165,10 +1166,10 @@ export const QuantitativePanel = ({
 		<div className="flex flex-col gap-2">
 			<label className="flex items-center gap-2 text-sm">
 				<span className={LABEL_COL}>Palette</span>
-				<select
+				<Select
 					value={activeGradientId}
 					onChange={(e) => onPaletteChange(e.target.value)}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="flex-1"
 				>
 					<optgroup label="Linear presets">
 						{LINEAR_PRESETS.map((p) => (
@@ -1205,7 +1206,7 @@ export const QuantitativePanel = ({
 					<optgroup label="Manual">
 						<option value="custom">Custom (manual stops)</option>
 					</optgroup>
-				</select>
+				</Select>
 			</label>
 			{/* Blend-space picker — the color space the scale interpolates
 			 *  through between stops. Custom gradients only: presets are
@@ -1216,21 +1217,21 @@ export const QuantitativePanel = ({
 			{paletteMode !== "preset" && (
 				<label className="flex items-center gap-2 text-sm">
 					<span className={LABEL_COL}>Interpolation</span>
-					<select
+					<Select
 						value={cfg.interpolation ?? "rgb"}
 						onChange={(e) =>
 							updateQ({
 								interpolation: e.target.value as GradientInterpolation,
 							})
 						}
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="flex-1"
 					>
 						{GRADIENT_INTERPOLATIONS.map((o) => (
 							<option key={o.id} value={o.id}>
 								{o.label}
 							</option>
 						))}
-					</select>
+					</Select>
 				</label>
 			)}
 			{/* Manual-stops mode keeps a whole-palette reset (rows come and go,
@@ -1556,7 +1557,7 @@ const CustomStopsList = ({
 							<button
 								type="button"
 								onClick={() => removeAt(i)}
-								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+								className="text-sm hover:text-stone-900 dark:hover:text-white vc-muted"
 							>
 								remove
 							</button>
@@ -1567,7 +1568,7 @@ const CustomStopsList = ({
 			<button
 				type="button"
 				onClick={addStop}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="self-start text-sm underline hover:text-stone-900 dark:hover:text-white vc-muted"
 			>
 				+ Add a new step
 			</button>

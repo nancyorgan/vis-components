@@ -51,7 +51,7 @@ export const EmbedRoot = ({
 	if (state === "missing") {
 		return (
 			<div className="flex h-screen flex-col items-center justify-center gap-2 px-6 text-center">
-				<p className="text-sm text-stone-700 dark:text-stone-300">
+				<p className="text-sm vc-text">
 					This embed could not be loaded.
 				</p>
 				<p className="text-sm text-stone-500">

@@ -47,6 +47,7 @@ import { Select } from "../../../../../components/ui/Select"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../../components/ui/Toggle"
 import { AlignmentControl, FontEditor } from "../LabelsPanel"
+import { Input } from "../../../../../components/ui/Input"
 
 type Props = {
 	channel: "x" | "y" | "r"
@@ -757,32 +758,32 @@ export const TickFormatControl = ({
 				className={
 					changed
 						? "w-24 shrink-0 truncate font-semibold !text-vc-section-header"
-						: "w-24 shrink-0 truncate text-stone-600 dark:text-stone-400"
+						: "w-24 shrink-0 truncate vc-muted"
 				}
 			>
 				{label}
 			</span>
-			<select
+			<Select
 				value=""
 				onChange={(e) => {
 					const spec = formatPresetSelection(e.target.value)
 					if (spec !== null) onChange(spec)
 				}}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="flex-1"
 			>
 				<FormatPresetOptions countryNames={countryNames} />
-			</select>
+			</Select>
 		</label>
 		<div className="flex items-center gap-2">
 			<LabelSpacer />
-			<input
+			<Input
 				type="text"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder="Auto"
 				aria-label="Custom format code"
 				title={FORMAT_BOX_HELP}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="flex-1 font-mono"
 			/>
 		</div>
 	</div>
@@ -829,7 +830,7 @@ const AxisAdjustPositionControl = ({
 	onChange: (next: { offsetX?: number; offsetY?: number }) => void
 	onReset: () => void
 }) => (
-	<div className="mt-3 flex flex-col gap-2 border-t border-stone-200 pt-3 dark:border-stone-700">
+	<div className="vc-divider-group mt-3 pt-3">
 		<div className="flex items-center gap-2">
 			<span className="vc-group-header">Adjust position</span>
 			{(offsetX !== 0 || offsetY !== 0) && (
@@ -882,7 +883,7 @@ const HistogramSubOptions = ({
 	<div className="flex flex-col gap-2">
 		<label className="flex items-center gap-2 text-sm">
 			<span className={LABEL_COL}>Show</span>
-			<select
+			<Select
 				value={histogram.mode}
 				onChange={(e) =>
 					onChange({
@@ -890,11 +891,11 @@ const HistogramSubOptions = ({
 						mode: e.target.value as "count" | "density",
 					})
 				}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="flex-1"
 			>
 				<option value="count">Counts</option>
 				<option value="density">Density (0–1)</option>
-			</select>
+			</Select>
 		</label>
 		<NumberInput
 			label="Bins"
@@ -913,7 +914,7 @@ const HistogramSubOptions = ({
 		</span>
 		<label className="flex items-center gap-2 text-sm">
 			<span className={LABEL_COL}>Bin labels</span>
-			<select
+			<Select
 				value={histogram.labelMode}
 				onChange={(e) =>
 					onChange({
@@ -921,12 +922,12 @@ const HistogramSubOptions = ({
 						labelMode: e.target.value as "range" | "low" | "high",
 					})
 				}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="flex-1"
 			>
 				<option value="range">Full range (10 – 20)</option>
 				<option value="low">Lowest value (10)</option>
 				<option value="high">Highest value (20)</option>
-			</select>
+			</Select>
 		</label>
 	</div>
 )
@@ -960,7 +961,7 @@ const NumericBoundField = ({
 		if (Number.isFinite(n)) onCommit(n)
 	}
 	return (
-		<input
+		<Input
 			type="text"
 			inputMode="decimal"
 			value={draft ?? (value ?? "")}
@@ -973,12 +974,12 @@ const NumericBoundField = ({
 
 /** Bound / max text inputs shared by Scale range and the mirror's side maxes. */
 const BOUND_INPUT_CLASS =
-	"w-24 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+	"w-24"
 /** Field label: bold purple when the value differs from the theme default. */
 const boundLabelClass = (on: boolean | undefined) =>
 	on
 		? "font-semibold !text-vc-section-header"
-		: "text-stone-600 dark:text-stone-400"
+		: "vc-muted"
 
 /** Custom domain bounds for a continuous (quantitative or temporal) axis.
  * The min/max here pin the scale's domain (the base default applied to every
@@ -1021,8 +1022,8 @@ const ScaleRangeControls = ({
 	const inputClass = BOUND_INPUT_CLASS
 
 	return (
-		<div className="mt-3 flex flex-col gap-1.5 border-t border-stone-200 pt-3 dark:border-stone-700">
-			<span className="text-sm text-stone-600 dark:text-stone-400">
+		<div className="vc-divider-group mt-3 gap-1.5 pt-3">
+			<span className="text-sm vc-muted">
 				Scale range
 			</span>
 			<div className="vc-help">
@@ -1033,7 +1034,7 @@ const ScaleRangeControls = ({
 				<label className="flex items-center gap-2">
 					<span className={`w-24 ${lbl(changed?.min)}`}>min</span>
 					{isTemporal ? (
-						<input
+						<Input
 							type="date"
 							value={toDateInput(min)}
 							onChange={(e) => commitBound("min", e.target.value)}
@@ -1050,7 +1051,7 @@ const ScaleRangeControls = ({
 				<label className="flex items-center gap-2">
 					<span className={`w-24 ${lbl(changed?.max)}`}>max</span>
 					{isTemporal ? (
-						<input
+						<Input
 							type="date"
 							value={toDateInput(max)}
 							onChange={(e) => commitBound("max", e.target.value)}
@@ -1125,12 +1126,12 @@ const BreaksField = ({
 					className={`w-24 shrink-0 ${
 						changed
 							? "font-semibold !text-vc-section-header"
-							: "text-stone-600 dark:text-stone-400"
+							: "vc-muted"
 					}`}
 				>
 					Custom breaks
 				</span>
-				<input
+				<Input
 					type="text"
 					value={breaksText}
 					onChange={(e) => setBreaksText(e.target.value)}
@@ -1142,7 +1143,7 @@ const BreaksField = ({
 						}
 					}}
 					placeholder={isTemporal ? "e.g. 2024-01-01, 2024-07-01" : "e.g. 0, 50, 100, 150, 200"}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="flex-1 font-mono"
 				/>
 			</label>
 			<div className="flex gap-2">
@@ -1202,7 +1203,7 @@ const MirroredAxisControls = ({
 				? "This variable no longer has exactly two options — pick another."
 				: "Only variables with exactly two options are listed."
 	return (
-		<div className="mt-3 flex flex-col gap-2 border-t border-stone-200 pt-3 dark:border-stone-700">
+		<div className="vc-divider-group mt-3 pt-3">
 			<Toggle
 				label="Use a mirrored axis"
 				checked={mirror.enabled}
@@ -1524,7 +1525,7 @@ export const TickmarkControls = ({
 			}`}
 		>
 			{divider && (
-				<span className="text-sm text-stone-600 dark:text-stone-400">
+				<span className="text-sm vc-muted">
 					Tick marks
 				</span>
 			)}
@@ -1659,7 +1660,7 @@ const WrapAlignmentControl = ({
 				className={
 					changed
 						? "w-24 shrink-0 font-semibold !text-vc-section-header"
-						: "w-24 shrink-0 text-stone-600 dark:text-stone-400"
+						: "w-24 shrink-0 vc-muted"
 				}
 			>
 				Alignment
@@ -1719,7 +1720,7 @@ const RugControls = ({
 				}
 				className="h-3 w-3"
 			/>
-			<span className="text-stone-600 dark:text-stone-400">
+			<span className="vc-muted">
 				Show points (rug)
 			</span>
 		</label>
@@ -1797,7 +1798,7 @@ const DensityCurveControls = ({
 					onChange={(e) => onChangeFill(e.target.checked)}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">Fill under curve</span>
+				<span className="vc-muted">Fill under curve</span>
 			</label>
 		</div>
 		<p className="vc-help">
@@ -1913,13 +1914,13 @@ const DistributionTypeControls = ({
 					{/* Rug (points) — grouped below the histogram shape and divided
 					    off so the two clusters read as distinct groups. Shares the
 					    tassel config with the Density display. */}
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<RugControls histogram={histogram} onChange={onChange} />
 					</div>
 					{/* Density curve — a smooth KDE overlaid on the bars, rescaled to
 					    their count / relative-frequency units. Divided off as its own
 					    cluster, like the rug above. */}
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<label className="flex items-center gap-2 text-sm">
 							<input
 								type="checkbox"
@@ -1931,7 +1932,7 @@ const DistributionTypeControls = ({
 								}
 								className="h-3 w-3"
 							/>
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								Show density curve
 							</span>
 						</label>
@@ -1957,7 +1958,7 @@ const DistributionTypeControls = ({
 					{/* Same tassel config as the histogram rug, so switching between
 					    Histogram and Density keeps the ticks and their sizes. */}
 					<RugControls histogram={histogram} onChange={onChange} />
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<DensityCurveControls
 							bandwidthScale={histogram.densityBandwidthScale ?? 1}
 							fill={histogram.densityFill === true}
@@ -1980,7 +1981,7 @@ const DistributionTypeControls = ({
 							onChange={(e) => setOverlay({ showPoints: e.target.checked })}
 							className="h-3 w-3"
 						/>
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-muted">
 							Show points
 						</span>
 					</label>
@@ -2088,7 +2089,7 @@ const RegressionControls = ({
 					onChange={(e) => onChange({ enabled: e.target.checked })}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">
+				<span className="vc-muted">
 					Add regression line
 				</span>
 			</label>
@@ -2134,7 +2135,7 @@ const RegressionControls = ({
 							onChange={(drawPosition) => onChange({ drawPosition })}
 						/>
 					</div>
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<label className="flex items-center gap-2 text-sm">
 							<input
 								type="checkbox"
@@ -2154,7 +2155,7 @@ const RegressionControls = ({
 								}
 								className="h-3 w-3"
 							/>
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								Line per group
 							</span>
 						</label>
@@ -2171,7 +2172,7 @@ const RegressionControls = ({
 							/>
 						)}
 					</div>
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-divider-group">
 						<label className="flex items-center gap-2 text-sm">
 							<input
 								type="checkbox"
@@ -2179,7 +2180,7 @@ const RegressionControls = ({
 								onChange={(e) => onChange({ showCi: e.target.checked })}
 								className="h-3 w-3"
 							/>
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-muted">
 								Confidence interval
 							</span>
 						</label>

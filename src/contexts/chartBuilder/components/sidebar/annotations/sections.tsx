@@ -24,6 +24,7 @@ import {
 	type AxisInfo,
 } from "./axisInfo"
 import { AxisValueInput } from "./controls"
+import { Textarea } from "../../../../../components/ui/Input"
 
 /** The coordinate fields rectangles and line segments share: four edge /
  *  endpoint values plus how they're interpreted. Both annotation types store
@@ -474,13 +475,12 @@ export const TextStyleSection = ({
 	return (
 		<CollapsibleSubsection title="Text">
 			<label className="flex flex-col gap-1 text-sm">
-				<span className="text-stone-600 dark:text-stone-400">Text</span>
-				<textarea
+				<span className="vc-muted">Text</span>
+				<Textarea
 					value={style.text ?? ""}
 					onChange={(e) => onChange({ text: e.target.value })}
 					placeholder={placeholder}
 					rows={2}
-					className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 				/>
 			</label>
 			<SelectInput

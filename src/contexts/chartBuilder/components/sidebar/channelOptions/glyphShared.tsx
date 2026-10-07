@@ -134,7 +134,7 @@ export const CategoryRow = ({
 	<div className="flex flex-col gap-1 text-sm">
 		<div className="flex items-center justify-between gap-2">
 			<span
-				className="min-w-0 flex-1 truncate text-stone-700 dark:text-stone-300"
+				className="min-w-0 flex-1 truncate vc-text"
 				title={value}
 			>
 				{value}

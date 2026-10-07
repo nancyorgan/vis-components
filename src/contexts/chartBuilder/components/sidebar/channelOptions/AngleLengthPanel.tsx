@@ -330,7 +330,7 @@ const RadarSpokesSection = ({
 			    ranges). The color row is dropped — spoke color lives in the Color
 			    menu's "Radar Spine" slot — and the per-line "changed" dots stay
 			    off; the section header carries the dot instead. */}
-			<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+			<div className="vc-divider-group">
 				<p className="vc-help">
 					Set spoke color under the <strong>Color</strong> menu →{" "}
 					<strong>Radar Spine</strong>.
