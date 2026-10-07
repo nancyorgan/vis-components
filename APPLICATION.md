@@ -1657,7 +1657,7 @@ The X-axis and Y-axis panels (under Encodings) configure:
   rather than double-drawing them. The Shape panel's **Violin / box
   outline** (shown only while an overlay is on) drives the violin
   outline and all box strokes (body, whiskers, caps, outlier circles) —
-  a separate knob from that panel's point **Outline thickness**; width 0
+  a separate knob from that panel's point **Outline width**; width 0
   hides the borders. The median line stays 1.5× that width for
   emphasis.
 - **Regression** (X position only) — offered when BOTH position axes
@@ -2524,7 +2524,7 @@ here, it drops out of that separate subsection — which now surfaces
 only for length / angle / area, plus measure-mapped (Count / Density)
 opacity, whose ramp has no Swatches group.
 
-**Swatch outline** (per-section Outline color + Outline thickness rows):
+**Swatch outline** (per-section Outline color + Outline width rows):
 a border drawn around that section's swatches — keeps pale swatches
 (e.g. the white midpoint of a diverging gradient) visible against the
 legend background. Width is the switch: 0 draws no outline, so there's

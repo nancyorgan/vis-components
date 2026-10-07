@@ -1629,7 +1629,7 @@ export const LegendPanel = () => {
 											)}
 										</div>
 										<NumberInput
-											label="Outline thickness"
+											label="Outline width"
 											labelClassName={LABEL_COL}
 											value={resolveLegendSwatchOutlineWidth(merged, theme, ch)}
 											min={0}

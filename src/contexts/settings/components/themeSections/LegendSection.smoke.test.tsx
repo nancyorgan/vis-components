@@ -31,7 +31,7 @@ describe("LegendSection — legend swatch defaults", () => {
 		fireEvent.change(size, { target: { value: "8" } })
 		expect(set).toHaveBeenCalledWith("legendSwatchSize", 8)
 
-		const width = screen.getByLabelText("Outline thickness") as HTMLInputElement
+		const width = screen.getByLabelText("Outline width") as HTMLInputElement
 		fireEvent.change(width, { target: { value: "1.5" } })
 		expect(set).toHaveBeenCalledWith("legendSwatchOutlineWidth", 1.5)
 	})

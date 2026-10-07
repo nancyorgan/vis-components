@@ -141,7 +141,7 @@ export const ShapeOptionsPanel = () => {
 	return (
 		<div className="vc-option-panel">
 			<NumberInput
-				label="Outline thickness"
+				label="Outline width"
 				labelClassName={LABEL_COL}
 				value={cfg.outlineWidth}
 				min={0}
