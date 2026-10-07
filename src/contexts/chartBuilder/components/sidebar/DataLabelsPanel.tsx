@@ -574,7 +574,7 @@ export const DataLabelsPanel = () => {
 			{isTreeMode && (
 				<p className="vc-help">
 					{isSunburstMode
-						? "Labels sit on each arc that can hold them; fine-tune placement under Position Adjustment. "
+						? "Labels sit on each arc that can hold them; fine-tune placement under Adjust position. "
 						: "Labels are placed by the layout (leaf centers, container rims). "}
 					Value, Color, and Size apply — Value defaults to each row&apos;s
 					name from the ID column.
@@ -889,7 +889,7 @@ export const DataLabelsPanel = () => {
 			</CollapsibleSubsection>
 
 			<CollapsibleSubsection
-				title="Position Adjustment and Alignment"
+				title="Adjust position and alignment"
 				changed={positionChanged}
 			>
 				<div className="flex flex-col gap-2">
@@ -1140,7 +1140,7 @@ export const DataLabelsPanel = () => {
 			 *  default inside-the-rim placement and wrapping the group name
 			 *  around the OUTSIDE of the circle on an arc. */}
 			{isPackedMode && (
-				<CollapsibleSubsection title="Text Position" changed={textPositionChanged}>
+				<CollapsibleSubsection title="Text position" changed={textPositionChanged}>
 					<TextPositionPanel
 						cfg={merged}
 						onChange={updateCfg}
@@ -1149,7 +1149,7 @@ export const DataLabelsPanel = () => {
 				</CollapsibleSubsection>
 			)}
 
-			<CollapsibleSubsection title="Text Properties" changed={textPropertiesChanged}>
+			<CollapsibleSubsection title="Text properties" changed={textPropertiesChanged}>
 				<TextPropertiesPanel
 					cfg={merged}
 					onChange={updateCfg}
@@ -1158,7 +1158,7 @@ export const DataLabelsPanel = () => {
 			</CollapsibleSubsection>
 
 			{fineTuningApplies && (
-			<CollapsibleSubsection title="Text Background" changed={textBackgroundChanged}>
+			<CollapsibleSubsection title="Text background" changed={textBackgroundChanged}>
 				<TextBackgroundPanel
 					cfg={merged}
 					onChange={updateCfg}

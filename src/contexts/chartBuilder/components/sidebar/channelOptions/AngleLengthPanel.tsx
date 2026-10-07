@@ -102,7 +102,7 @@ export const AngleOptionsPanel = () => {
 						updateCfg={updateCfg}
 					/>
 				)}
-				<CollapsibleSubsection title="Angle Extent" changed={extentChanged}>
+				<CollapsibleSubsection title="Angle extent" changed={extentChanged}>
 					{extent}
 				</CollapsibleSubsection>
 				{showRadarAxisControls && (
@@ -374,7 +374,7 @@ const RadarSpokeLabelsSection = ({
 		valueChanged(cfg.tickLabelDistance, themeAngle.tickLabelDistance)
 
 	return (
-		<CollapsibleSubsection title="Spoke Labels" changed={changed}>
+		<CollapsibleSubsection title="Spoke labels" changed={changed}>
 			<div className="flex items-center gap-2">
 				<NumberInput
 					label="Label angle"
@@ -412,7 +412,7 @@ const RadarSpokeLabelsSection = ({
 					onChange={(tickLabelEvery) => updateCfg({ tickLabelEvery })}
 					inputClassName="w-20"
 				/>
-				<span className="text-sm text-stone-600">
+				<span className="text-sm vc-muted">
 					{labelEvery > 1 ? `${ordinalSuffix(labelEvery)} spoke` : "spoke"}
 				</span>
 				{labelEvery !== defaultEvery && (
@@ -610,7 +610,7 @@ export const LengthOptionsPanel = () => {
 						/>
 					)}
 				</div>
-				<div className="text-sm text-stone-600">
+				<div className="text-sm vc-muted">
 					Defaults: {DEFAULT_LENGTH_CONFIG.minLength}px –{" "}
 					{DEFAULT_LENGTH_CONFIG.maxLength}px
 				</div>

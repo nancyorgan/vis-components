@@ -652,7 +652,7 @@ export const ConnectionOptionsPanel = () => {
 								/>
 							</CollapsibleSubsection>
 							<CollapsibleSubsection
-								title="Tick Labels"
+								title="Tick labels"
 								changed={
 									axisCh.format ||
 									axisCh.labelEvery ||
@@ -683,7 +683,7 @@ export const ConnectionOptionsPanel = () => {
 										inputClassName="w-20"
 										changed={axisCh.labelEvery}
 									/>
-									<span className="text-sm text-stone-600">
+									<span className="text-sm vc-muted">
 										{axis.labelEvery > 1
 											? `${ordinalSuffix(axis.labelEvery)} tick`
 											: "tick"}
@@ -808,7 +808,7 @@ export const ConnectionOptionsPanel = () => {
 									}
 									className="min-w-0 flex-1"
 								/>
-								<span className="w-10 text-right text-sm text-stone-600">
+								<span className="w-10 text-right text-sm vc-muted">
 									{Math.round((cfg.smoothing ?? 0) * 100)}%
 								</span>
 							</label>

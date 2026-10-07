@@ -12,7 +12,7 @@ import { restrictedGlobals } from './tooling/eslint/restricted-globals.js'
 // apply to a standalone Vite repo (no nx/import/unicorn/tanstack machinery),
 // plus jsx-a11y, which this repo adds.
 export default tseslint.config(
-	{ ignores: ['dist', 'node_modules', 'test-results', 'playwright-report'] },
+	{ ignores: ['dist', 'server/dist', 'coverage', 'node_modules', 'test-results', 'playwright-report'] },
 	{
 		files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts'],
 		extends: [

@@ -296,7 +296,7 @@ export const LEGEND_FRIENDLY_NAME: Record<LegendChannel, string> = {
 	saturation: "Saturation",
 	brightness: "Brightness",
 	rug: "Rug",
-	densityCurve: "Density Curve",
+	densityCurve: "Density curve",
 }
 
 /** The slice of a chart mode's `legend` traits that drives DEFAULT legend

@@ -79,7 +79,7 @@ const mount = async ({
 	)
 	await new Promise((r) => setTimeout(r, 50))
 	const q = within(container)
-	const header = q.queryByText("Tick Labels")
+	const header = q.queryByText("Tick labels")
 	expect(header).not.toBeNull()
 	// Opens the collapsed section (a no-op click on the title if it's open).
 	if (q.queryByLabelText("Angle") === null) fireEvent.click(header!)

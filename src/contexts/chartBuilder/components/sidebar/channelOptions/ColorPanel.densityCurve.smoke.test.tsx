@@ -135,8 +135,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).not.toContain("Fill")
 		expect(headers).not.toContain("Outline")
-		expect(headers).toContain("Density Curve Fill")
-		expect(headers).toContain("Density Curve Outline")
+		expect(headers).toContain("Density curve fill")
+		expect(headers).toContain("Density curve outline")
 	})
 
 	it("pure density curve without 'Fill under curve': outline group only", () => {
@@ -144,8 +144,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).not.toContain("Fill")
 		expect(headers).not.toContain("Outline")
-		expect(headers).not.toContain("Density Curve Fill")
-		expect(headers).toContain("Density Curve Outline")
+		expect(headers).not.toContain("Density curve fill")
+		expect(headers).toContain("Density curve outline")
 	})
 
 	it("histogram with the density overlay + fill: all four groups", () => {
@@ -156,8 +156,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).toContain("Fill")
 		expect(headers).toContain("Outline")
-		expect(headers).toContain("Density Curve Fill")
-		expect(headers).toContain("Density Curve Outline")
+		expect(headers).toContain("Density curve fill")
+		expect(headers).toContain("Density curve outline")
 	})
 
 	it("histogram with an UNFILLED density overlay: no Density Curve Fill group", () => {
@@ -168,8 +168,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).toContain("Fill")
 		expect(headers).toContain("Outline")
-		expect(headers).not.toContain("Density Curve Fill")
-		expect(headers).toContain("Density Curve Outline")
+		expect(headers).not.toContain("Density curve fill")
+		expect(headers).toContain("Density curve outline")
 	})
 
 	it("plain histogram (no curve): only the mark Fill / Outline groups", () => {
@@ -180,8 +180,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).toContain("Fill")
 		expect(headers).toContain("Outline")
-		expect(headers).not.toContain("Density Curve Fill")
-		expect(headers).not.toContain("Density Curve Outline")
+		expect(headers).not.toContain("Density curve fill")
+		expect(headers).not.toContain("Density curve outline")
 	})
 
 	it("regular scatter (both axes mapped) keeps Fill / Outline even with a stale curve flag", () => {

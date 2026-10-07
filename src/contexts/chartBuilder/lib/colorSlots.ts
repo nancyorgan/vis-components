@@ -129,7 +129,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	},
 	{
 		key: "violinFill",
-		label: "Violin / Box Fill",
+		label: "Violin / box fill",
 		modes: m("scatter"),
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		themeColor: (t) => t.distributionOverlayFill,
@@ -145,7 +145,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	},
 	{
 		key: "violinStroke",
-		label: "Violin / Box Outline",
+		label: "Violin / box outline",
 		modes: m("scatter"),
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		themeColor: (t) => t.distributionOverlayStroke,
@@ -157,7 +157,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	},
 	{
 		key: "densityCurveFill",
-		label: "Density Curve Fill",
+		label: "Density curve fill",
 		// Standalone curve renders in scatter (single-variable distribution);
 		// the histogram overlay renders in bars-x / bars-y.
 		modes: m("scatter", "bars-x", "bars-y"),
@@ -171,7 +171,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	},
 	{
 		key: "densityCurveStroke",
-		label: "Density Curve Outline",
+		label: "Density curve outline",
 		modes: m("scatter", "bars-x", "bars-y"),
 		isApplicable: (_encodings, configs) => densityCurveOn(configs),
 		themeColor: (t) => t.distributionOverlayStroke,
@@ -214,7 +214,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	},
 	{
 		key: "spine",
-		label: "Radar Spine",
+		label: "Radar spine",
 		modes: m("radar"),
 		isApplicable: () => true,
 		// Per-axis polar spine field first, legacy shared field as fallback —

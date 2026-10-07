@@ -108,8 +108,8 @@ describe("OpacityOptionsPanel — pure density curve visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).not.toContain("Fill")
 		expect(headers).not.toContain("Outline")
-		expect(headers).toContain("Density Curve Fill")
-		expect(headers).toContain("Density Curve Outline")
+		expect(headers).toContain("Density curve fill")
+		expect(headers).toContain("Density curve outline")
 	})
 
 	it("histogram with a density overlay: keeps Fill and Outline alongside the curve slots", () => {
@@ -117,7 +117,7 @@ describe("OpacityOptionsPanel — pure density curve visibility", () => {
 		const headers = subheaders(container)
 		expect(headers).toContain("Fill")
 		expect(headers).toContain("Outline")
-		expect(headers).toContain("Density Curve Fill")
-		expect(headers).toContain("Density Curve Outline")
+		expect(headers).toContain("Density curve fill")
+		expect(headers).toContain("Density curve outline")
 	})
 })

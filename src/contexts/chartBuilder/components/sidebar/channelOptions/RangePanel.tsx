@@ -796,7 +796,7 @@ const ModulationDefaultPanel = ({
 					}
 					className="flex-1 disabled:opacity-50"
 				/>
-				<span className="w-10 text-right font-mono text-sm text-stone-600">
+				<span className="w-10 text-right font-mono text-sm vc-muted">
 					{enabled ? currentValue.toFixed(2) : "—"}
 				</span>
 			</label>

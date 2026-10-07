@@ -9,7 +9,6 @@ import { useEffect, useMemo } from "react"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
-import { Input } from "../../../../../components/ui/Input"
 
 /** Segmented control for one axis's share mode. Three options:
  *
@@ -235,7 +234,7 @@ export const AxisRangeSection = ({
 }) => (
 	<div
 		className={cls(
-			"mt-2 flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700",
+			"vc-divider-group mt-2",
 			className,
 		)}
 	>
@@ -255,28 +254,20 @@ export const AxisRangeSection = ({
 						</span>
 					)}
 					<div className="flex flex-col gap-1">
-						<label className="flex items-center gap-2">
-							<span className={LABEL_COL}>
-								min
-							</span>
-							<Input
-								type="number"
-								value={entry.min ?? ""}
-								onChange={(e) => entry.onChange("min", e.target.value)}
-								className="w-16"
-							/>
-						</label>
-						<label className="flex items-center gap-2">
-							<span className={LABEL_COL}>
-								max
-							</span>
-							<Input
-								type="number"
-								value={entry.max ?? ""}
-								onChange={(e) => entry.onChange("max", e.target.value)}
-								className="w-16"
-							/>
-						</label>
+						<NumberInput
+							label="min"
+							value={entry.min ?? null}
+							onChange={(n) => entry.onChange("min", String(n))}
+							onClear={() => entry.onChange("min", "")}
+							inputClassName="w-16"
+						/>
+						<NumberInput
+							label="max"
+							value={entry.max ?? null}
+							onChange={(n) => entry.onChange("max", String(n))}
+							onClear={() => entry.onChange("max", "")}
+							inputClassName="w-16"
+						/>
 					</div>
 				</div>
 			))}

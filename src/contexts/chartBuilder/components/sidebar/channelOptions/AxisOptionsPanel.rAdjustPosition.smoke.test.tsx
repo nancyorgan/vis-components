@@ -73,7 +73,7 @@ const mount = async () => {
 /** Make sure the Tick Labels subsection is open (it may start collapsed). */
 const openTickLabels = (q: ReturnType<typeof within>) => {
 	if (q.queryByText("Adjust position")) return
-	const header = q.queryByText("Tick Labels")
+	const header = q.queryByText("Tick labels")
 	expect(header).not.toBeNull()
 	fireEvent.click(header!)
 }

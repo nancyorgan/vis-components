@@ -332,7 +332,7 @@ const FillOpacityControls = ({
 						setConfigs((prev) => ({ ...prev, defaultOpacity }))
 					}
 				/>
-				<div className="text-sm text-stone-600">
+				<div className="text-sm vc-muted">
 					Your default: {theme.defaultOpacity}
 				</div>
 			</div>

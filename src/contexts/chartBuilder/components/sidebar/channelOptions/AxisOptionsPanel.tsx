@@ -144,7 +144,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 					ch.min ||
 					ch.max ||
 					ch.mirror)),
-		"Tick Labels":
+		"Tick labels":
 			(channel === "r" && (ch.tickCount || ch.stride)) ||
 			ch.format ||
 			ch.tickLabelAngle ||
@@ -416,7 +416,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				inputClassName="w-20"
 				changed={ch.stride}
 			/>
-			<span className="text-sm text-stone-600">
+			<span className="text-sm vc-muted">
 				{config.categoricalTickStride && config.categoricalTickStride > 1
 					? `${ordinalSuffix(config.categoricalTickStride)} bin`
 					: "bin"}
@@ -444,7 +444,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				}
 				inputClassName="w-20"
 			/>
-			<span className="text-sm text-stone-600">
+			<span className="text-sm vc-muted">
 				{config.categoricalTickStride &&
 				config.categoricalTickStride > 1
 					? `${ordinalSuffix(config.categoricalTickStride)} of ${maxTicks}`
@@ -471,7 +471,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				inputClassName="w-20"
 				changed={ch.tickCount}
 			/>
-			<span className="text-sm text-stone-600">max {maxTicks}</span>
+			<span className="text-sm vc-muted">max {maxTicks}</span>
 			{config.tickCount !== themeTickCount && (
 				<ResetLink
 					onClick={() => update({ tickCount: themeTickCount })}
@@ -575,7 +575,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				</Section>
 			)}
 
-			<Section title="Tick Labels" changed={sectionChanged["Tick Labels"]}>
+			<Section title="Tick labels" changed={sectionChanged["Tick labels"]}>
 				<TickFormatControl
 					value={config.customFormat}
 					changed={ch.format}
@@ -1693,7 +1693,7 @@ const JitterControl = ({
 			onChange={(e) => onChange({ jitterAmount: Number(e.target.value) })}
 			className="min-w-0 flex-1"
 		/>
-		<span className="w-10 text-right text-sm text-stone-600">
+		<span className="w-10 text-right text-sm vc-muted">
 			{Math.round(jitterAmount * 100)}%
 		</span>
 	</label>
@@ -2001,15 +2001,15 @@ const DistributionTypeControls = ({
 								}
 								className="min-w-0 flex-1"
 							/>
-							<span className="w-10 text-right text-sm text-stone-600">
+							<span className="w-10 text-right text-sm vc-muted">
 								{(overlay.boxWidthScale ?? 1).toFixed(2)}×
 							</span>
 						</label>
 					)}
 					<p className="vc-help">
 						Set violin / box colors under the <strong>Color</strong> menu →{" "}
-						<strong>Violin / Box Fill</strong> and{" "}
-						<strong>Violin / Box Outline</strong>, and the border width under
+						<strong>Violin / box fill</strong> and{" "}
+						<strong>Violin / box outline</strong>, and the border width under
 						the <strong>Shape</strong> menu → <strong>Violin / box outline</strong>.
 					</p>
 				</>

@@ -82,8 +82,10 @@ pnpm typecheck   # tsc --noEmit (also runs as the first step of `build`)
 pnpm lint        # eslint
 pnpm test        # unit + component tests (vitest)
 pnpm test:watch  # vitest in watch mode
+pnpm test:coverage # same suite with the CI coverage floor enforced
 pnpm test:e2e    # Playwright end-to-end suite (~12 min; starts its own server)
 pnpm build       # typecheck + production bundle + self-host server
+pnpm build:static # typecheck + production bundle only (browser-local mode)
 pnpm preview     # serve the production bundle locally (dev-grade, not for deployment)
 ```
 

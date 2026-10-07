@@ -23,7 +23,7 @@ import { DataLabelsPanel } from "./DataLabelsPanel"
 /** Tree layouts hide the Data Labels position rows (the layout places
  *  labels), but the fine-tuning subsections differ by layout: the sunburst
  *  renders through the shared label layer, so it keeps selection / overlap,
- *  Position Adjustment (with a ring-relative polar pair, no per-series
+ *  Adjust position (with a ring-relative polar pair, no per-series
  *  "Which labels"), and Text Background; packed circles / treemap draw
  *  their own labels and keep those subsections hidden. */
 
@@ -104,10 +104,10 @@ const expand = (container: HTMLElement, title: string) => {
 describe("DataLabelsPanel — sunburst fine-tuning", () => {
 	afterEach(cleanup)
 
-	it("sunburst shows Text Background, Position Adjustment, and selection/overlap", () => {
+	it("sunburst shows Text background, Adjust position, and selection/overlap", () => {
 		const c = mountPanel("sunburst")
-		expect(sectionHeader(c, "Text Background")).not.toBeNull()
-		expect(sectionHeader(c, "Position Adjustment and Alignment")).not.toBeNull()
+		expect(sectionHeader(c, "Text background")).not.toBeNull()
+		expect(sectionHeader(c, "Adjust position and alignment")).not.toBeNull()
 		expect(sectionHeader(c, "Label selection and overlap")).not.toBeNull()
 		// Position rows stay hidden — the layout places labels.
 		expect(c.textContent).not.toContain("X position")
@@ -123,7 +123,7 @@ describe("DataLabelsPanel — sunburst fine-tuning", () => {
 
 	it("sunburst Adjust position carries the ring-relative Angle / R pair plus X / Y", () => {
 		const c = mountPanel("sunburst")
-		expand(c, "Position Adjustment and Alignment")
+		expand(c, "Adjust position and alignment")
 		expect(c.textContent).toContain("percent of the ring")
 		const inputs = [...c.querySelectorAll<HTMLInputElement>("input")]
 		// R defaults to 50 (the ring's middle), not the pie's 100 (the rim).
@@ -135,10 +135,10 @@ describe("DataLabelsPanel — sunburst fine-tuning", () => {
 	it("treemap and packed circles keep the fine-tuning hidden (self-drawn labels)", () => {
 		for (const layout of ["treemap", "pack"] as const) {
 			const c = mountPanel(layout)
-			expect(sectionHeader(c, "Text Background")).toBeNull()
-			expect(sectionHeader(c, "Position Adjustment and Alignment")).toBeNull()
+			expect(sectionHeader(c, "Text background")).toBeNull()
+			expect(sectionHeader(c, "Adjust position and alignment")).toBeNull()
 			expect(sectionHeader(c, "Label selection and overlap")).toBeNull()
-			expect(sectionHeader(c, "Text Properties")).not.toBeNull()
+			expect(sectionHeader(c, "Text properties")).not.toBeNull()
 			cleanup()
 		}
 	})

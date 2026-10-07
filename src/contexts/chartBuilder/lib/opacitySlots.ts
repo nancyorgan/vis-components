@@ -75,7 +75,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	},
 	{
 		key: "violinFill",
-		label: "Violin / Box Fill",
+		label: "Violin / box fill",
 		modes: m("scatter"),
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		defaultLevel: 0.45,
@@ -83,7 +83,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	},
 	{
 		key: "violinStroke",
-		label: "Violin / Box Outline",
+		label: "Violin / box outline",
 		modes: m("scatter"),
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		defaultLevel: 1,
@@ -98,7 +98,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	// opacity through buildDensityCurve — a feature, not a flag flip.
 	{
 		key: "densityCurveFill",
-		label: "Density Curve Fill",
+		label: "Density curve fill",
 		modes: m("scatter", "bars-x", "bars-y"),
 		// Mirrors the color slot's gate: only when "Fill under curve" is on.
 		isApplicable: (_encodings, configs) => densityCurveFillOn(configs),
@@ -107,7 +107,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	},
 	{
 		key: "densityCurveStroke",
-		label: "Density Curve Outline",
+		label: "Density curve outline",
 		modes: m("scatter", "bars-x", "bars-y"),
 		isApplicable: (_encodings, configs) => densityCurveOn(configs),
 		defaultLevel: 1,
@@ -142,7 +142,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	},
 	{
 		key: "spine",
-		label: "Radar Spine",
+		label: "Radar spine",
 		modes: m("radar"),
 		isApplicable: () => true,
 		defaultLevel: 1,

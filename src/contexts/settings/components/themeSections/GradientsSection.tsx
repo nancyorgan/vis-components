@@ -7,6 +7,7 @@ import type {
 import { Section, SectionGroup, SelectInput } from "./controls"
 import type { ThemeSectionProps } from "./types"
 import { Button } from "../../../../components/ui/Button"
+import { Input } from "../../../../components/ui/Input"
 
 const PALETTE_NAMES: PaletteName[] = [
 	"viridis",
@@ -60,14 +61,14 @@ const GradientCard = ({
 			>
 				{isDefault ? "★" : "☆"}
 			</button>
-			<input
+			<Input
 				type="text"
 				value={name}
 				aria-label="Gradient name"
 				onChange={(e) => onRename(e.target.value)}
 				// min-w-0 + flex-1: an input's intrinsic width would otherwise hold
 				// the card wider than a phone screen.
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="min-w-0 flex-1"
 			/>
 			<button
 				type="button"

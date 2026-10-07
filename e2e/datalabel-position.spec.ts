@@ -25,7 +25,7 @@ const openPositionSubsection = async (
 	await page.getByRole("button", { name: "Data Labels" }).click()
 	await page.waitForTimeout(150)
 	await page
-		.getByRole("button", { name: "Position Adjustment and Alignment" })
+		.getByRole("button", { name: "Adjust position and alignment" })
 		.click()
 	await page.waitForTimeout(150)
 }

@@ -1548,7 +1548,7 @@ export const FontEditor = ({
 			</div>
 			<label className="flex items-center gap-2 text-sm">
 				<span className={LABEL_COL}>Weight</span>
-				<select
+				<Select
 					value={value.weight ?? ""}
 					onChange={(e) =>
 						onChange({
@@ -1556,7 +1556,7 @@ export const FontEditor = ({
 							weight: e.target.value === "" ? undefined : Number(e.target.value),
 						})
 					}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="min-w-0 flex-1"
 				>
 					<option value="">
 						{showResetFields
@@ -1576,7 +1576,7 @@ export const FontEditor = ({
 							</option>
 						)
 					)}
-				</select>
+				</Select>
 				{showResetFields && value.weight !== undefined && (
 					<ResetLink onClick={() => reset("weight")} />
 				)}

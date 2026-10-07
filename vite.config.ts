@@ -80,13 +80,13 @@ export default defineConfig({
 			exclude: ["src/**/*.test.{ts,tsx}", "src/**/*.d.ts"],
 			reporter: ["text-summary", "html"],
 			// Ratcheting floors: set just under the measured baseline at the
-			// time coverage was introduced (2026-07-09). CI fails if coverage
+			// time coverage was introduced (2026-07-09; re-ratcheted 2026-10-07). CI fails if coverage
 			// drops below these; raise them as coverage improves, never lower.
 			thresholds: {
-				lines: 49,
-				functions: 63,
-				branches: 73,
-				statements: 49,
+				lines: 72,
+				functions: 66,
+				branches: 81,
+				statements: 72,
 			},
 		},
 	},

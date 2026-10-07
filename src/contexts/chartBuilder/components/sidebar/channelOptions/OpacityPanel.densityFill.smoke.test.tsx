@@ -21,7 +21,7 @@ import {
 
 import { OpacityOptionsPanel } from "./OpacityOptionsPanel"
 
-/** The Opacity menu's "Density Curve Fill" subsection: it appears for a
+/** The Opacity menu's "Density curve fill" subsection: it appears for a
  *  histogram with a density overlay (fill on), and its single Opacity level
  *  writes `opacitySlots.densityCurveFill.level` — the exact key both curve
  *  renderers (BarPlot overlay + ScatterPlot standalone) read. Pins the
@@ -85,19 +85,19 @@ const mount = () => {
 	return { ...utils, store: store! as TestStore }
 }
 
-describe("OpacityOptionsPanel — Density Curve Fill", () => {
-	it("shows a Density Curve Fill subsection for a histogram with density curve", () => {
+describe("OpacityOptionsPanel — Density curve fill", () => {
+	it("shows a Density curve fill subsection for a histogram with density curve", () => {
 		const { container } = mount()
 		const headers = [...container.querySelectorAll("button[aria-expanded]")].map(
 			(b) => b.textContent?.trim() ?? ""
 		)
-		expect(headers).toContain("Density Curve Fill")
+		expect(headers).toContain("Density curve fill")
 	})
 
-	it("changing the Density Curve Fill opacity writes opacitySlots.densityCurveFill.level", () => {
+	it("changing the Density curve fill opacity writes opacitySlots.densityCurveFill.level", () => {
 		const { container, store } = mount()
 		const btn = [...container.querySelectorAll("button[aria-expanded]")].find(
-			(b) => b.textContent?.trim() === "Density Curve Fill"
+			(b) => b.textContent?.trim() === "Density curve fill"
 		)!
 		fireEvent.click(btn)
 		// The subsection's single Opacity number input.

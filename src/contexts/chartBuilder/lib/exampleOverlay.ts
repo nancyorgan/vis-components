@@ -86,10 +86,6 @@ export const clearExampleOverlay = (): void => {
 	registry = null
 }
 
-/** Whether an ephemeral example overlay is installed — true only in the
- *  browser-local build running the public seed. */
-export const exampleOverlayActive = (): boolean => registry !== null
-
 /** Is this id a seed row the user has NOT adopted, i.e. session-only? */
 export const isEphemeralSeedId = (id: string | null | undefined): boolean => {
 	if (registry === null || id == null || registry.adopted.has(id)) return false

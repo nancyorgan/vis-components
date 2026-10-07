@@ -71,7 +71,7 @@ test("Color menu shows Fill + Outline + violin/box subheaders", async ({ page })
 	await page.getByRole("button", { name: /Toggle options for Color/i }).click()
 	await page.waitForTimeout(300)
 	await page.screenshot({ path: "/tmp/color-menu.png", fullPage: true })
-	for (const label of ["Fill", "Outline", "Violin / Box Fill", "Violin / Box Outline"]) {
+	for (const label of ["Fill", "Outline", "Violin / box fill", "Violin / box outline"]) {
 		await expect(page.getByText(label, { exact: true })).toBeVisible()
 	}
 })

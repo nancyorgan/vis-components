@@ -175,7 +175,7 @@ export const ColorRow = ({
 	value,
 	onChange,
 	onClear,
-	clearLabel = "clear",
+	clearLabel = "reset",
 	className,
 }: {
 	label: string

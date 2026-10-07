@@ -153,7 +153,7 @@ export const LabelColorPanel = ({
 					className={
 						perVariableColor
 							? "flex flex-col gap-2"
-							: "flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700"
+							: "vc-divider-group"
 					}
 				>
 					{multiFields.map((name) => (
