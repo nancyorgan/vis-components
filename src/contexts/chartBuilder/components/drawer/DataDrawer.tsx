@@ -15,6 +15,7 @@ import {
 } from "../../store/useCurrentDatasetView"
 
 import { DataTable } from "./DataTable"
+import { PasteDataModal } from "./PasteDataModal"
 
 const MIN_HEIGHT = 80
 const MAX_HEIGHT = 600
@@ -40,6 +41,38 @@ export const DataDrawer = () => {
 	// Counter to handle nested drag enters/leaves (child elements) without
 	// flicker. We only hide the overlay when the counter returns to zero.
 	const dragDepthRef = useRef(0)
+	// The Paste data dialog: opened from the header button, or by a paste
+	// that lands on the page outside any text box (see the effect below).
+	const [paste, setPaste] = useState<{ open: boolean; text: string }>({
+		open: false,
+		text: "",
+	})
+
+	// Cmd/Ctrl+V anywhere that isn't a text field opens the dialog with the
+	// clipboard text already in it — "I have the data on my clipboard, just
+	// let me put it in." Only tabular-looking text qualifies (a tab, or a
+	// second line), so a stray word pasted into nothing doesn't pop a dialog.
+	useEffect(() => {
+		const onPaste = (e: ClipboardEvent) => {
+			if (paste.open) return
+			const target = e.target as HTMLElement | null
+			if (
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				target?.isContentEditable
+			) {
+				return
+			}
+			// A dialog of any kind is up (export, add-data…): leave its paste alone.
+			if (document.querySelector('[role="dialog"]')) return
+			const text = e.clipboardData?.getData("text/plain") ?? ""
+			if (!/[\t\n]/.test(text.trim())) return
+			e.preventDefault()
+			setPaste({ open: true, text })
+		}
+		document.addEventListener("paste", onPaste)
+		return () => document.removeEventListener("paste", onPaste)
+	}, [paste.open])
 
 	const onPointerDown = useCallback(
 		(e: React.PointerEvent<HTMLDivElement>) => {
@@ -143,8 +176,15 @@ export const DataDrawer = () => {
 						</span>
 					)}
 					<span className="hidden text-sm text-stone-500 sm:inline dark:text-stone-500">
-						Drop a CSV to upload
+						Drop a CSV to upload, or
 					</span>
+					<button
+						type="button"
+						onClick={() => setPaste({ open: true, text: "" })}
+						className="text-sm transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:hover:text-white vc-muted"
+					>
+						Paste data
+					</button>
 					{dataset && (
 						<button
 							type="button"
@@ -187,6 +227,11 @@ export const DataDrawer = () => {
 					<DataTable />
 				</div>
 			)}
+			<PasteDataModal
+				open={paste.open}
+				initialText={paste.text}
+				onClose={() => setPaste({ open: false, text: "" })}
+			/>
 			{dragOver && (
 				<div
 					aria-hidden="true"

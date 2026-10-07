@@ -14,7 +14,7 @@ import {
 import { DEFAULT_DERIVED_VARIABLES_CONFIG } from "../lib/derivedVariables"
 import { inferFieldType } from "../lib/inferFieldType"
 import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
-import { parseCsvFile } from "../lib/parseCsv"
+import { parseCsvFile, parseCsvText } from "../lib/parseCsv"
 import {
 	emptyEncodings,
 	type Dataset,
@@ -54,14 +54,44 @@ const newDatasetId = () =>
 const newDatasetVersionId = () =>
 	`dv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
-/** Parse a CSV file into the shape consumed by `useCreateNewDataset`. */
-export const parseUpload = async (file: File): Promise<ParsedUpload> => {
-	const { fieldNames, rows } = await parseCsvFile(file)
-	const fields: Field[] = fieldNames.map((name) => ({
+const inferFields = (
+	fieldNames: string[],
+	rows: Array<Record<string, string>>
+): Field[] =>
+	fieldNames.map((name) => ({
 		name,
 		inferredType: inferFieldType(rows.map((r) => r[name] ?? "")),
 	}))
-	return { filename: file.name, fields, rows }
+
+/** Parse a CSV file into the shape consumed by `useCreateNewDataset`. */
+export const parseUpload = async (file: File): Promise<ParsedUpload> => {
+	const { fieldNames, rows } = await parseCsvFile(file)
+	return { filename: file.name, fields: inferFields(fieldNames, rows), rows }
+}
+
+/** The stand-in "filename" for data that arrived by paste rather than as a
+ *  file: it labels the version in the history list and heads the Add-data
+ *  prompt, where a real upload would show its file name. */
+export const PASTED_DATA_FILENAME = "Pasted data"
+
+/** Parse delimited text the user pasted (from a spreadsheet, a terminal, an
+ *  email…) into the same shape a CSV upload produces. The delimiter is
+ *  auto-detected — a spreadsheet copy arrives tab-separated, a CSV file's
+ *  contents comma-separated — and the first row is always the header, as
+ *  with a file. Throws on a malformed paste, or one with no data rows, with
+ *  a message fit to show the user. */
+export const parsePastedData = (text: string): ParsedUpload => {
+	const trimmed = text.trim()
+	if (trimmed === "") throw new Error("Paste a header row and at least one data row.")
+	const { fieldNames, rows } = parseCsvText(trimmed)
+	if (fieldNames.length === 0 || rows.length === 0) {
+		throw new Error("Paste a header row and at least one data row.")
+	}
+	return {
+		filename: PASTED_DATA_FILENAME,
+		fields: inferFields(fieldNames, rows),
+		rows,
+	}
 }
 
 /** Create a brand new Dataset from a parsed upload, bind it to the current
@@ -157,6 +187,45 @@ export type UploadResult =
 	| { ok: true; warning?: string }
 	| { ok: false; error: string }
 
+/** Common tail of every data-import path once the text is parsed: hand the
+ *  upload to the Add-data prompt when a Visual is open (new version vs. new
+ *  visualization is the user's call), otherwise create the data set on the
+ *  spot. The cost notes are advisory and can fire together: a modest import
+ *  can still carry a column too wide to chart quickly. */
+const useRouteParsedUpload = () => {
+	const createNewDataset = useCreateNewDataset()
+	return useAtomCallback(
+		useCallback(
+			async (
+				get,
+				set,
+				parsed: ParsedUpload,
+				name: string,
+				bytes: number
+			): Promise<UploadResult> => {
+				const visualId = get(currentVisualIdAtom)
+				if (visualId) {
+					set(pendingUploadAtom, parsed)
+				} else {
+					await createNewDataset(parsed, name)
+				}
+				const warnings = [
+					datasetSizeIssue(bytes) === "warn" ? datasetWarnMessage(bytes) : null,
+					datasetPerformanceWarning(parsed.fields, parsed.rows),
+				].filter((w): w is string => w !== null)
+				return {
+					ok: true,
+					warning: warnings.length > 0 ? warnings.join(" ") : undefined,
+				}
+			},
+			[createNewDataset]
+		)
+	)
+}
+
+const importErrorMessage = (error: unknown, fallback: string): string =>
+	error instanceof Error ? error.message : fallback
+
 /** Top-level entry point for both the sidebar Upload button and the data-
  * drawer drag-and-drop. Parses the CSV, then either:
  *   - populates `pendingUploadAtom` so the shared upload-prompt modal can
@@ -166,44 +235,57 @@ export type UploadResult =
  *     editor or first upload).
  */
 export const useHandleCsvUpload = () => {
-	const createNewDataset = useCreateNewDataset()
-	return useAtomCallback(
-		useCallback(
-			async (get, set, file: File): Promise<UploadResult> => {
-				// Size gate before any parsing: very large files are slow to
-				// parse, render, and (in server mode) transfer — and the server
-				// independently rejects bodies over the hard limit.
-				const sizeIssue = datasetSizeIssue(file.size)
-				if (sizeIssue === "reject") {
-					return { ok: false, error: datasetRejectMessage(file.size) }
+	const routeParsedUpload = useRouteParsedUpload()
+	return useCallback(
+		async (file: File): Promise<UploadResult> => {
+			// Size gate before any parsing: very large files are slow to
+			// parse, render, and (in server mode) transfer — and the server
+			// independently rejects bodies over the hard limit.
+			if (datasetSizeIssue(file.size) === "reject") {
+				return { ok: false, error: datasetRejectMessage(file.size) }
+			}
+			try {
+				const parsed = await parseUpload(file)
+				return await routeParsedUpload(
+					parsed,
+					file.name.replace(/\.csv$/i, ""),
+					file.size
+				)
+			} catch (error) {
+				return { ok: false, error: importErrorMessage(error, "Failed to parse CSV") }
+			}
+		},
+		[routeParsedUpload]
+	)
+}
+
+/** Byte size of pasted text, for the same size gate a file goes through. */
+export const pastedDataBytes = (text: string): number =>
+	new TextEncoder().encode(text).byteLength
+
+/** Entry point for the data tray's Paste data dialog: the pasted text goes
+ * through the same gates and routing as a CSV file. `name` is the data set
+ * name when no Visual is open (the dialog requires one); with a Visual open
+ * the Add-data prompt collects the name itself on its "start a new
+ * visualization" branch. */
+export const useHandlePastedData = () => {
+	const routeParsedUpload = useRouteParsedUpload()
+	return useCallback(
+		async (text: string, name: string): Promise<UploadResult> => {
+			const bytes = pastedDataBytes(text)
+			if (datasetSizeIssue(bytes) === "reject") {
+				return { ok: false, error: datasetRejectMessage(bytes) }
+			}
+			try {
+				const parsed = parsePastedData(text)
+				return await routeParsedUpload(parsed, name, bytes)
+			} catch (error) {
+				return {
+					ok: false,
+					error: importErrorMessage(error, "Failed to parse the pasted data"),
 				}
-				try {
-					const parsed = await parseUpload(file)
-					const visualId = get(currentVisualIdAtom)
-					if (visualId) {
-						set(pendingUploadAtom, parsed)
-					} else {
-						await createNewDataset(parsed, file.name.replace(/\.csv$/i, ""))
-					}
-					// Both warnings are advisory and can fire together: a modest
-					// file can still carry a column too wide to chart quickly.
-					const warnings = [
-						sizeIssue === "warn" ? datasetWarnMessage(file.size) : null,
-						datasetPerformanceWarning(parsed.fields, parsed.rows),
-					].filter((w): w is string => w !== null)
-					return {
-						ok: true,
-						warning: warnings.length > 0 ? warnings.join(" ") : undefined,
-					}
-				} catch (error) {
-					return {
-						ok: false,
-						error:
-							error instanceof Error ? error.message : "Failed to parse CSV",
-					}
-				}
-			},
-			[createNewDataset]
-		)
+			}
+		},
+		[routeParsedUpload]
 	)
 }

@@ -17,7 +17,13 @@ export const parseCsvText = (text: string): ParsedCsv => {
 		dynamicTyping: false,
 	})
 	if (result.errors.length > 0) {
-		const firstFatal = result.errors.find((e) => e.type !== "Quotes")
+		// "Quotes" is a stray quote inside a field, which the parser recovers
+		// from. "Delimiter" means it couldn't tell the delimiter apart and fell
+		// back to a comma — which is exactly right for a single-column file or
+		// paste, where there is no delimiter to find.
+		const firstFatal = result.errors.find(
+			(e) => e.type !== "Quotes" && e.type !== "Delimiter"
+		)
 		if (firstFatal) {
 			throw new Error(
 				`CSV parse error at row ${firstFatal.row}: ${firstFatal.message}`

@@ -42,7 +42,26 @@ overlay; we default to stacking and let the user toggle.
 
 ### 2.1 Data upload
 Users drop a CSV file via the Data section or with the CSV upload
-button under Data in the left menu bar. When uploading INTO an
+button under Data in the left menu bar, or **paste** delimited text
+into the data tray. The tray header's "Paste data" button opens a
+dialog with a text box; so does pressing Cmd/Ctrl+V anywhere on the
+page that isn't a text field, when the clipboard holds tabular text
+(a tab or a second line), with the clipboard text already in the box.
+The delimiter is auto-detected — a spreadsheet selection arrives
+tab-separated, a CSV's contents comma-separated, a single column has
+no delimiter at all — and the first row is the header, as with a
+file. The dialog previews "N rows · M columns" (or the parse
+complaint) live, and refuses a paste with no data rows. With no
+visual open it asks for a data set name (required, and checked
+against existing names) and creates the data set on the spot; with
+a visual open there is no name field — the parsed rows go to the
+same Add-data prompt a dropped file reaches, which collects the name
+on its "start a new visualization" branch. A pasted version carries
+"Pasted data" where a file's version would carry its filename. Size
+and cost gates below apply to pasted text byte-for-byte as they do
+to a file.
+
+When uploading INTO an
 existing visual, they're asked: add as a new dataset *version* (live
 iframes embedding this visual update automatically), OR detach into a
 brand-new visual. New datasets get their type-inferred fields and
