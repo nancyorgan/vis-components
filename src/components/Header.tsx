@@ -11,6 +11,7 @@ import {
 	useImportLibraryBundle,
 	type ImportBundleOutcome,
 } from "../contexts/chartBuilder/store/importBundle"
+import { getAccountUrl } from "../lib/accountUrl"
 import { Button } from "./ui/Button"
 import { Modal } from "./ui/Modal"
 
@@ -88,13 +89,44 @@ export const Header = () => {
 						/>
 					</svg>
 				</Link>
+				<AccountLink />
 			</div>
 		</header>
 	)
 }
 
+/** Link to the host's account page (log out etc.), only when the server
+ *  advertised one. A plain anchor, not a router Link: the page belongs to
+ *  the host, not this SPA. */
+const AccountLink = () => {
+	const href = getAccountUrl()
+	if (!href) return null
+	return (
+		<a
+			href={href}
+			className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"
+			title="Account and log out"
+			aria-label="Account and log out"
+		>
+			<svg
+				viewBox="0 0 20 20"
+				width={18}
+				height={18}
+				aria-hidden="true"
+				fill="currentColor"
+			>
+				<path
+					fillRule="evenodd"
+					d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z"
+					clipRule="evenodd"
+				/>
+			</svg>
+		</a>
+	)
+}
+
 /** "New" on phones, the full label from `sm` up — the header has to fit
- *  brand + this button + two icon links on a 360px screen in one line. */
+ *  brand + this button + three icon links on a 360px screen in one line. */
 const NewVisualizationLabel = () => (
 	<>
 		New<span className="hidden sm:inline"> visualization</span>

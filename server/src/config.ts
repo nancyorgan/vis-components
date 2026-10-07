@@ -22,6 +22,10 @@ export type ServerConfig = {
 	/** Public base URL that static server serves `publishDir` at. A file at
 	 *  `$publishDir/<path>` is reachable at `$publishBaseUrl/<path>`. */
 	publishBaseUrl: string
+	/** Optional same-origin path to an account page (log out etc.) owned by
+	 *  whatever hosts this handler. When set, the header links to it. The
+	 *  standalone server never sets it — it has no accounts. */
+	accountUrl?: string
 }
 
 const REQUIRED = [
