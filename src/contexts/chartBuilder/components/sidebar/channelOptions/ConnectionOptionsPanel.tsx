@@ -905,10 +905,12 @@ export const ConnectionOptionsPanel = () => {
 							</div>
 						))}
 						{axisStem !== "none" && (
-							<p className="vc-divider-group vc-help">
-								Set stem color under <strong>Color</strong> →{" "}
-								<strong>Stem</strong>.
-							</p>
+							<div className="vc-divider-group">
+								<p className="vc-help">
+									Set stem color under <strong>Color</strong> →{" "}
+									<strong>Stem</strong>.
+								</p>
+							</div>
 						)}
 					</div>
 				</CollapsibleSubsection>
