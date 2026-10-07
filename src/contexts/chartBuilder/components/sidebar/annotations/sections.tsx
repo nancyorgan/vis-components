@@ -481,6 +481,7 @@ export const TextStyleSection = ({
 					onChange={(e) => onChange({ text: e.target.value })}
 					placeholder={placeholder}
 					rows={2}
+					autoSize
 				/>
 			</label>
 			<SelectInput

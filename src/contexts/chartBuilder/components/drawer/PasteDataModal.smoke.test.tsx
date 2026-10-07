@@ -54,7 +54,12 @@ describe("Paste data into the tray", () => {
 		fireEvent.change(screen.getByLabelText("Pasted data"), {
 			target: { value: TSV },
 		})
-		expect(dialog.textContent).toContain("3 rows · 2 columns: city, sales")
+		expect(dialog.textContent).toContain("3 rows · 2 columns")
+		// The preview is a real table: a header row, then the data rows.
+		const headers = dialog.querySelectorAll("th")
+		expect([...headers].map((h) => h.textContent)).toEqual(["city", "sales"])
+		expect(dialog.querySelectorAll("tbody tr")).toHaveLength(3)
+		expect(dialog.querySelector("tbody")?.textContent).toContain("Quito20")
 		// Parsed fine, but a new data set needs a name first.
 		expect(addButton.disabled).toBe(true)
 
@@ -146,6 +151,15 @@ describe("Paste data into the tray", () => {
 		const dialog = screen.getByRole("dialog")
 		expect((screen.getByLabelText("Pasted data") as HTMLTextAreaElement).value).toBe(TSV)
 		expect(dialog.textContent).toContain("3 rows · 2 columns")
+	})
+
+	it("previews only the first rows of a long paste, and says so", () => {
+		mount()
+		const dialog = openDialog()
+		const long = ["n", ...Array.from({ length: 40 }, (_, i) => String(i))].join("\n")
+		fireEvent.change(screen.getByLabelText("Pasted data"), { target: { value: long } })
+		expect(dialog.textContent).toContain("40 rows · 1 column · first 6 shown")
+		expect(dialog.querySelectorAll("tbody tr")).toHaveLength(6)
 	})
 
 	it("leaves a one-word paste alone", () => {

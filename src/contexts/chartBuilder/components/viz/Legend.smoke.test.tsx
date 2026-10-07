@@ -30,7 +30,8 @@ import {
 import { CUSTOM_GLYPH_BASE } from "../../lib/customGlyphs"
 import { ptToPx } from "../../lib/fontUnit"
 import { applyHueScale, makeHueScale } from "../../lib/scales"
-import { emptyEncodings, type Dataset } from "../../lib/types"
+import { SYSTEM_LIGHT_THEME, themeOf } from "../../lib/systemThemes"
+import { emptyEncodings, type Dataset, type Theme } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
 	currentDatasetIdAtom,
@@ -42,6 +43,7 @@ import {
 	hoveredLegendEntryAtom,
 	loadedDatasetsAtom,
 	previewVersionIdAtom,
+	themeAtom,
 } from "../../store/atoms"
 
 import {
@@ -1657,6 +1659,7 @@ describe("Legend — solo saturation / brightness sections", () => {
 		channel?: "saturation" | "brightness"
 		legend?: Partial<LegendConfig>
 		configs?: typeof EMPTY_CHANNEL_CONFIGS
+		theme?: Theme
 	}) => {
 		const channel = opts?.channel ?? "brightness"
 		const channelConfigs = opts?.configs ?? EMPTY_CHANNEL_CONFIGS
@@ -1693,6 +1696,9 @@ describe("Legend — solo saturation / brightness sections", () => {
 			snap.set(currentLegendConfigAtom, legendCfg)
 			snap.set(currentFieldOverridesAtom, {})
 			snap.set(currentFieldLevelOrdersAtom, {})
+			// `currentThemeIdAtom` defaults to null, so the legend reads the
+			// legacy `themeAtom` — override it to test theme defaults.
+			if (opts?.theme) snap.set(themeAtom, opts.theme)
 		}
 		return render(
 			<TestProvider initializeState={init}>
@@ -1765,6 +1771,48 @@ describe("Legend — solo saturation / brightness sections", () => {
 				(s) => d3Rgb(s.style.borderColor).formatHex() === "#123456"
 			)
 		).toBe(true)
+	})
+
+	it("an untouched visual takes the theme's swatch outline, shape, and size", () => {
+		// Theme defaults (Settings → Themes → Legend → Legend swatches): a
+		// visual with no swatch entries of its own renders the theme's
+		// outline width + color and glyph, and a per-visual entry still
+		// wins — explicit 0 width switches the theme's outline off.
+		const themed = {
+			...themeOf(SYSTEM_LIGHT_THEME),
+			legendSwatchOutlineWidth: 2,
+			legendSwatchOutlineColor: "#0000ff",
+			legendSwatchShape: 0,
+			legendSwatchSize: 9,
+		}
+		const { container } = mountLegend({ theme: themed })
+		const bordered = [
+			...container.querySelectorAll<HTMLElement>("span"),
+		].filter((s) => s.style.borderColor !== "")
+		expect(bordered.length).toBe(0)
+		// Glyph swatches are <path>s (not the default rectangle spans) at the
+		// theme's size.
+		const glyphs = container.querySelectorAll("path")
+		expect(glyphs.length).toBe(3)
+		const stroked = [...container.querySelectorAll<SVGElement>("path")].filter(
+			(p) => p.getAttribute("stroke") === "#0000ff"
+		)
+		expect(stroked.length).toBe(3)
+		expect(stroked[0]!.getAttribute("stroke-width")).toBe("2")
+
+		const { container: pinned } = mountLegend({
+			theme: themed,
+			legend: {
+				swatchShapes: { brightness: "rect" },
+				swatchOutlineWidths: { brightness: 0 },
+			},
+		})
+		expect(pinned.querySelectorAll("path").length).toBe(0)
+		expect(
+			[...pinned.querySelectorAll<HTMLElement>("span")].filter(
+				(s) => s.style.borderColor !== ""
+			).length
+		).toBe(0)
 	})
 })
 

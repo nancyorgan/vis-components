@@ -236,6 +236,10 @@ export const LIGHT_THEME_BASE: Theme = {
 	legendBackgroundColor: null,
 	legendSwatchColor: "#e0e0e0",
 	legendSwatchStroke: "#ffffff",
+	legendSwatchShape: null,
+	legendSwatchSize: 5,
+	legendSwatchOutlineColor: null,
+	legendSwatchOutlineWidth: 0,
 }
 
 /** Dark companion to LIGHT_THEME_BASE — same structure on a navy chart
@@ -280,6 +284,7 @@ const SYSTEM_THEME_STYLE: Partial<Theme> = {
 	textFontWeight: 400,
 	dataLabelsFontFamily: QUICKSAND,
 	dataLabelsColor: "#000000",
+	captionFontFamily: QUICKSAND,
 	xGridlineThickness: 0,
 	xSpineColor: "#000000",
 	xSpineThickness: 1,

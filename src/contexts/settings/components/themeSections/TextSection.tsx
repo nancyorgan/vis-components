@@ -1,3 +1,4 @@
+import { DEFAULT_CAPTION_CONFIG } from "../../../chartBuilder/lib/captionConfig"
 import { DEFAULT_DATA_LABELS_CONFIG } from "../../../chartBuilder/lib/channelConfig"
 import { useFontFamilyOptions } from "../../../chartBuilder/store/useFontOptions"
 
@@ -67,6 +68,49 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 				underline={theme.titleFontUnderline ?? false}
 				onItalic={(v) => set("titleFontItalic", v)}
 				onUnderline={(v) => set("titleFontUnderline", v)}
+			/>
+		</Section>
+
+		<Section title="Title prefix">
+			<p className="text-sm vc-muted">
+				The optional run in front of the chart title (&ldquo;FIGURE
+				5.&rdquo;), shown when a chart&rsquo;s Title turns on Add
+				prefix. Every field falls back to the Main title font.
+			</p>
+			<FontFamilyRow
+				label="Family"
+				value={theme.titlePrefixFontFamily}
+				onChange={(v) => set("titlePrefixFontFamily", v)}
+				onDefault={() => set("titlePrefixFontFamily", undefined)}
+			/>
+			<ColorInput
+				label="Color"
+				value={theme.titlePrefixFontColor ?? theme.titleFontColor}
+				onChange={(v) => set("titlePrefixFontColor", v)}
+			/>
+			<NumberInput
+				label="Size"
+				value={theme.titlePrefixFontSize ?? theme.titlePrimarySize}
+				onChange={(v) => set("titlePrefixFontSize", v)}
+				min={8}
+				max={48}
+				step={1}
+				suffix="pt"
+			/>
+			<FontWeightRow
+				label="Weight"
+				family={theme.titlePrefixFontFamily ?? theme.titleFontFamily}
+				value={theme.titlePrefixFontWeight}
+				onChange={(w) => set("titlePrefixFontWeight", w)}
+				onDefault={() => set("titlePrefixFontWeight", undefined)}
+			/>
+			<StyleToggleRow
+				italic={theme.titlePrefixFontItalic ?? theme.titleFontItalic ?? false}
+				underline={
+					theme.titlePrefixFontUnderline ?? theme.titleFontUnderline ?? false
+				}
+				onItalic={(v) => set("titlePrefixFontItalic", v)}
+				onUnderline={(v) => set("titlePrefixFontUnderline", v)}
 			/>
 		</Section>
 
@@ -310,6 +354,47 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 				underline={theme.dataLabelsUnderline ?? false}
 				onItalic={(v) => set("dataLabelsItalic", v)}
 				onUnderline={(v) => set("dataLabelsUnderline", v)}
+			/>
+		</Section>
+
+		{/* Caption defaults */}
+		<Section title="Caption">
+			<p className="text-sm vc-muted">
+				Initial text style for the Caption panel, applied when a chart
+				is created or re-themed. Family and color fall back to the
+				Axis text font.
+			</p>
+			<FontFamilyRow
+				label="Family"
+				value={theme.captionFontFamily ?? theme.textFontFamily}
+				onChange={(v) => set("captionFontFamily", v)}
+				onDefault={() => set("captionFontFamily", undefined)}
+			/>
+			<ColorInput
+				label="Color"
+				value={theme.captionFontColor ?? theme.textFontColor}
+				onChange={(v) => set("captionFontColor", v)}
+			/>
+			<NumberInput
+				label="Size"
+				value={theme.captionFontSize ?? DEFAULT_CAPTION_CONFIG.fontSize}
+				onChange={(v) => set("captionFontSize", v)}
+				min={6}
+				max={48}
+				step={1}
+				suffix="pt"
+			/>
+			<FontWeightRow
+				label="Weight"
+				family={theme.captionFontFamily ?? theme.textFontFamily}
+				value={theme.captionFontWeight ?? DEFAULT_CAPTION_CONFIG.fontWeight}
+				onChange={(w) => set("captionFontWeight", w)}
+				onDefault={() => set("captionFontWeight", undefined)}
+			/>
+			<AlignmentRow
+				label="Alignment"
+				value={theme.captionAlignment ?? DEFAULT_CAPTION_CONFIG.align}
+				onChange={(a) => set("captionAlignment", a)}
 			/>
 		</Section>
 	</SectionGroup>

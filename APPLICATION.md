@@ -50,8 +50,11 @@ page that isn't a text field, when the clipboard holds tabular text
 The delimiter is auto-detected — a spreadsheet selection arrives
 tab-separated, a CSV's contents comma-separated, a single column has
 no delimiter at all — and the first row is the header, as with a
-file. The dialog previews "N rows · M columns" (or the parse
-complaint) live, and refuses a paste with no data rows. With no
+file. Under the text box the dialog previews the PARSED result live
+as a small table — every column, numbers right-aligned, the first
+six rows (with "first 6 shown" when
+there are more), scrolling sideways when wide — or the parse
+complaint, and refuses a paste with no data rows. With no
 visual open it asks for a data set name (required, and checked
 against existing names) and creates the data set on the spot; with
 a visual open there is no name field — the parsed rows go to the
@@ -2193,6 +2196,23 @@ title, and facet/legend titles. Each title has:
   the Y sign convention (positive = up).
 - Y-axis title only: a "Read horizontally" toggle that un-rotates the
   title from -90°.
+- Chart title only: an **Add prefix** checkbox (between the Style row
+  and Adjust position). Checking it reveals a **Prefix** text box and a
+  font editor (family / color / size / weight / style — no alignment)
+  for the prefix alone, so a house style like "**FIGURE 5.** Distribution
+  of …" is one title with a bold run in front. Unset prefix font fields
+  inherit the theme's **Title prefix** defaults (Settings → Themes →
+  Text: family / color / size / weight / style, each falling back to the
+  Main title font), and those in turn inherit the title's effective
+  font. The prefix is drawn before the
+  title's first line, separated by one space, in the SAME text run, so
+  the title's alignment and position offset place prefix + title as a
+  unit: a left-aligned title nudged 10 px starts at that same x whether
+  or not it has a prefix (the title text itself shifts right by the
+  prefix's width). Unchecking hides the prefix but keeps the typed text
+  and font for a later re-check; a checked prefix lights the Title row's
+  changed dot. A prefix with an empty title still renders (the title
+  band exists for typed text OR an active prefix).
 
 The alignment control positions each title against the PANEL's plot
 span, never the canvas — so left-aligning parks the text at the plot's
@@ -2467,9 +2487,15 @@ a vertical bar the labels align within the label column. The default
 left beside a vertical one.
 
 **Swatches** subsection: every legend section that renders discrete
-swatches gets a full control group — glyph picker (default rectangle /
-line segment / the shape palette), Swatch size, Outline color, and
-Outline width. One group appears per rendered section, keyed by the
+swatches gets a full control group — glyph picker (rectangle / line
+segment / the shape palette), Swatch size, Outline color, and Outline
+width. Each starts from the theme's legend-swatch defaults (Settings →
+Themes → Legend → "Legend swatches": the rectangle, 5px, no outline,
+automatic outline color out of the box); the picker names the theme's
+glyph "(theme default)". A per-visual value is stored only when it
+differs from the theme — picking the theme's own value clears the
+override, so the subsection's dot goes out and a later theme edit flows
+through again. One group appears per rendered section, keyed by the
 channel that leads it: Color, Outline color, Saturation, Brightness,
 Pattern, Opacity, and Rug. Channels sharing a field collapse into one
 combined legend section, so only the leading channel's group shows (a
@@ -2482,7 +2508,8 @@ continuous gradient bar / ramp offer no group; a quantitative color
 section that other group channels share (and so falls back to
 composed swatches even in "bar" style) does.
 
-**Swatch size** (px, radius-like, default 5) applies to every swatch
+**Swatch size** (px, radius-like; the theme's default, 5 out of the
+box) applies to every swatch
 form: it's the symbol radius for a chosen glyph and proportionally
 scales the default rectangle (including pattern-filled rectangles), so
 the input is always live — not glyph-only.
@@ -2499,8 +2526,10 @@ opacity, whose ramp has no Swatches group.
 **Swatch outline** (per-section Outline color + Outline width rows):
 a border drawn around that section's swatches — keeps pale swatches
 (e.g. the white midpoint of a diverging gradient) visible against the
-legend background. Width is the switch: 0 (the default) draws no
-outline, so there's no separate toggle. The color pipes in from the
+legend background. Width is the switch: 0 draws no outline, so there's
+no separate toggle; the theme's default width (0 out of the box) is
+where every section starts. The color starts from the theme's default
+outline color when it has one, else pipes in from the
 marks' outline color (Color menu → Outline), falling back to
 `#cccccc`; picking a color stores an override and "reset" returns to
 the piped-in value. A visual saved before per-section outlines had one
@@ -2688,6 +2717,15 @@ Theme settings:
   created or re-themed; the Data Labels panel's reset links restore
   these theme values. Themes saved before these fields existed fall
   back to the built-in defaults (11pt, weight 500, plain).
+- **Caption defaults** — font family, color, size, weight, and alignment
+  used by the Caption panel's text. Applied when a chart is created or
+  re-themed (the caption's text, position / size nudges, padding, and
+  box are user-driven and untouched); the Caption panel's reset links
+  compare against and restore these theme values. An unset family or
+  color follows the Axis text font, so a dark theme's caption is
+  readable without editing this section; unset size / weight /
+  alignment keep the built-in caption defaults (13pt, weight 400,
+  left).
 - **Annotations** — the initial style newly added annotations get:
   fill color + opacity, border color / thickness / opacity / dash for
   rectangles and circles; font family / size / color / weight,
@@ -2704,6 +2742,18 @@ Theme settings:
   saved before these fields existed fall back to the built-in seeds
   (yellow 20% fill, invisible border, slate line, 13pt centered
   text).
+- **Legend swatches** — the glyph (rectangle / line segment / a shape
+  from the palette), size, outline width, and outline color that the
+  discrete swatches of a color / outline-color / saturation /
+  brightness / pattern / opacity / rug legend section start with. A
+  shape encoding's glyphs are never replaced (they ARE the key). The
+  outline color is Automatic by default — swatches that stand in for
+  marks take the marks' outline color, aux-painted sections take the
+  legend-swatch outline above — or a custom color. Read live: the
+  Legend panel's Swatches groups show these values and store an
+  override only when a visual deviates. Themes saved before these
+  fields existed fall back to the historical look (rectangle, 5px, no
+  outline).
 - **Maps** — default stroke (line color + thickness) for the leader
   lines that connect a map's data labels back to their regions ("Draw
   leader lines" in the Data Labels panel, §6). Seeded on chart

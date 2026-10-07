@@ -8,7 +8,6 @@ import {
 	densityCurveGroupField,
 	densityCurveOn,
 } from "../../lib/colorSlots"
-import { CHIP_INK } from "../../lib/previewInk"
 import {
 	PX_PER_UNIT,
 	UNIT_OPTIONS,
@@ -31,9 +30,10 @@ import {
 	QUANTITATIVE_LEGEND_CHANNELS,
 	legendChannelHiddenByDefault,
 	legendSwatchOutlineColor,
-	legendSwatchOutlineWidth,
-	legendSwatchShape,
-	legendSwatchSize,
+	resolveLegendSwatchOutlineColor,
+	resolveLegendSwatchOutlineWidth,
+	resolveLegendSwatchShape,
+	resolveLegendSwatchSize,
 	resolveLegendHidden,
 	type EncodingLegendChannel,
 	type FontConfig,
@@ -55,7 +55,6 @@ import {
 } from "../../lib/legendBreaks"
 import { isHierarchyModeId, packedSourceOf } from "../../lib/packedMeasure"
 import { DEFAULT_PATTERN_INK } from "../../lib/patterns"
-import { SHAPE_PALETTE, symbolPath } from "../../lib/scales"
 import {
 	explainLegendCustomization,
 	type LegendDotGroup,
@@ -84,6 +83,7 @@ import {
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
+import { SwatchShapePicker } from "./SwatchShapePicker"
 import { RadioGroup } from "../../../../components/ui/RadioGroup"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Toggle } from "../../../../components/ui/Toggle"
@@ -622,29 +622,54 @@ export const LegendPanel = () => {
 		),
 		...(rugRendersSwatches ? (["rug"] as const) : []),
 	]
-	const setSwatchShape = (ch: SwatchShapeChannel, shape: LegendSwatchShape) =>
-		update({ swatchShapes: { ...merged.swatchShapes, [ch]: shape } })
-	const setSwatchSize = (ch: SwatchShapeChannel, size: number) =>
-		update({ swatchSizes: { ...merged.swatchSizes, [ch]: size } })
+	// Swatch shape / size / outline entries are SPARSE against the theme:
+	// picking the theme's own value drops the entry (so the subsection's dot
+	// clears and a later theme edit flows through), anything else is stored
+	// explicitly — the rectangle as "rect", since a stored null means
+	// "follow the theme". Hue's legacy global fields are cleared alongside
+	// so they can't shine through a dropped entry.
+	const setSwatchShape = (ch: SwatchShapeChannel, shape: LegendSwatchShape) => {
+		const next = { ...merged.swatchShapes }
+		if (shape === theme.legendSwatchShape) delete next[ch]
+		else next[ch] = shape === null ? "rect" : shape
+		update({
+			swatchShapes: next,
+			...(ch === "hue" && merged.hueLegendSwatchShape != null
+				? { hueLegendSwatchShape: null }
+				: {}),
+		})
+	}
+	const setSwatchSize = (ch: SwatchShapeChannel, size: number) => {
+		const next = { ...merged.swatchSizes }
+		if (size === theme.legendSwatchSize) delete next[ch]
+		else next[ch] = size
+		update({
+			swatchSizes: next,
+			...(ch === "hue" && merged.hueLegendSwatchSize != null
+				? { hueLegendSwatchSize: null }
+				: {}),
+		})
+	}
 	const setSwatchOutlineColor = (ch: SwatchShapeChannel, color: string) =>
 		update({
 			swatchOutlineColors: { ...merged.swatchOutlineColors, [ch]: color },
 		})
 	const resetSwatchOutlineColor = (ch: SwatchShapeChannel) => {
-		// Back to auto (pipe in the marks' outline color). An explicit null
-		// entry is needed to override a legacy GLOBAL color; otherwise keep
-		// the stored map sparse.
+		// Back to the theme's default (its own color, else auto: pipe in the
+		// marks' outline color). An explicit null entry is needed to override
+		// a legacy GLOBAL color; otherwise keep the stored map sparse.
 		const next = { ...merged.swatchOutlineColors }
 		if (merged.swatchOutlineColor != null) next[ch] = null
 		else delete next[ch]
 		update({ swatchOutlineColors: next })
 	}
 	const setSwatchOutlineWidth = (ch: SwatchShapeChannel, width: number) => {
-		// Keep the stored config sparse: 0 IS the default (no outline), so
-		// drop the entry — unless a legacy GLOBAL width would shine through,
-		// which an explicit 0 must override.
+		// Keep the stored config sparse: the theme's width is the default, so
+		// drop the entry when it's picked — unless a legacy GLOBAL width would
+		// shine through, which an explicit entry must override.
 		const next = { ...merged.swatchOutlineWidths }
-		if (width === 0 && (merged.swatchOutlineWidth ?? 0) === 0) delete next[ch]
+		if (width === theme.legendSwatchOutlineWidth && merged.swatchOutlineWidth == null)
+			delete next[ch]
 		else next[ch] = width
 		update({ swatchOutlineWidths: next })
 	}
@@ -1422,13 +1447,9 @@ export const LegendPanel = () => {
 			)}
 
 			{swatchShapeSections.map((ch) => {
-						const current = legendSwatchShape(merged, ch)
-						// null = rectangle, "line" = line segment, then palette shapes.
-						const options: LegendSwatchShape[] = [
-							null,
-							"line",
-							...SHAPE_PALETTE.map((_, i) => i),
-						]
+						// The glyph this section renders with: its own choice, else
+						// the theme's default.
+						const current = resolveLegendSwatchShape(merged, theme, ch)
 						// Channels folded into this section (lead first). Drives the
 						// subsection title AND which color rows are live: pattern tiles
 						// own the swatch background, so the aux Swatch-color row is
@@ -1465,42 +1486,15 @@ export const LegendPanel = () => {
 								<span className="vc-muted">
 									Swatch shape
 								</span>
-								<div className="flex flex-wrap gap-1">
-									{options.map((opt) => {
-										const selected = current === opt
-										const shapeName =
-											opt === null
-												? "Rectangle (default)"
-												: opt === "line"
-													? "Line segment"
-													: `Shape ${opt + 1}`
-										return (
-											<button
-												key={opt === null ? "rect" : String(opt)}
-												type="button"
-												onClick={() => setSwatchShape(ch, opt)}
-												aria-pressed={selected}
-												aria-label={shapeName}
-												title={
-													opt === null || opt === "line"
-														? shapeName
-														: undefined
-												}
-												className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
-													selected
-														? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-														: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-												}`}
-											>
-												<SwatchShapeGlyph idx={opt} selected={selected} />
-											</button>
-										)
-									})}
-								</div>
+								<SwatchShapePicker
+									value={current}
+									defaultShape={theme.legendSwatchShape}
+									onChange={(shape) => setSwatchShape(ch, shape)}
+								/>
 								<NumberInput
 									label="Swatch size"
 									labelClassName={LABEL_COL}
-									value={legendSwatchSize(merged, ch) ?? 5}
+									value={resolveLegendSwatchSize(merged, theme, ch)}
 									min={3}
 									max={20}
 									step={1}
@@ -1598,8 +1592,9 @@ export const LegendPanel = () => {
 								 *  while the outline-color channel is encoded — mapped
 								 *  outline colors own the swatch strokes and this
 								 *  setting is inert (the renderer ignores it too).
-								 *  Width 0 (the default) draws no outline. The color
-								 *  seeds from the marks' outline color (Color menu →
+								 *  Width 0 draws no outline; both rows start from the
+								 *  theme's defaults. A theme without an outline color
+								 *  seeds it from the marks' outline color (Color menu →
 								 *  Outline) so the legend matches the chart when the
 								 *  user turns the width up — except aux-painted
 								 *  sections (opacity / saturation / brightness), whose
@@ -1612,16 +1607,18 @@ export const LegendPanel = () => {
 											<ColorInput
 												label="Outline color"
 												labelClassName={LABEL_COL}
-												value={
-													legendSwatchOutlineColor(merged, ch) ??
-													(ch === "opacity" ||
-													ch === "saturation" ||
-													ch === "brightness"
+												value={resolveLegendSwatchOutlineColor(
+													merged,
+													theme,
+													ch,
+													ch === "opacity" ||
+														ch === "saturation" ||
+														ch === "brightness"
 														? resolvedAuxSwatchStroke
 														: (configs.shape?.outlineColor ??
 															theme.outlineColor ??
-															"#cccccc"))
-												}
+															"#cccccc")
+												)}
 												onChange={(color) =>
 													setSwatchOutlineColor(ch, color)
 												}
@@ -1634,7 +1631,7 @@ export const LegendPanel = () => {
 										<NumberInput
 											label="Outline width"
 											labelClassName={LABEL_COL}
-											value={legendSwatchOutlineWidth(merged, ch) ?? 0}
+											value={resolveLegendSwatchOutlineWidth(merged, theme, ch)}
 											min={0}
 											max={10}
 											step={0.5}
@@ -1703,7 +1700,7 @@ export const LegendPanel = () => {
 						<NumberInput
 							label="Swatch size"
 							labelClassName={LABEL_COL}
-							value={legendSwatchSize(merged, "shape") ?? 5}
+							value={resolveLegendSwatchSize(merged, theme, "shape")}
 							min={3}
 							max={20}
 							step={1}
@@ -1721,71 +1718,5 @@ export const LegendPanel = () => {
 				</CollapsibleSubsection>
 			)}
 		</div>
-	)
-}
-
-const PREVIEW_SIZE = 20
-
-/** Preview glyph for the swatch shape picker. `null` renders the default
- *  rounded rectangle, `"line"` a short line segment, otherwise the matching
- *  `SHAPE_PALETTE` symbol. */
-const SwatchShapeGlyph = ({
-	idx,
-	selected,
-}: {
-	idx: LegendSwatchShape
-	selected: boolean
-}) => {
-	const fill = selected ? "currentColor" : CHIP_INK
-	if (idx === null) {
-		return (
-			<svg
-				width={PREVIEW_SIZE}
-				height={PREVIEW_SIZE}
-				viewBox={`0 0 ${PREVIEW_SIZE} ${PREVIEW_SIZE}`}
-				aria-hidden="true"
-			>
-				<rect
-					x={4}
-					y={6}
-					width={12}
-					height={8}
-					rx={1.5}
-					fill={fill}
-					fillOpacity={0.9}
-				/>
-			</svg>
-		)
-	}
-	if (idx === "line") {
-		return (
-			<svg
-				width={PREVIEW_SIZE}
-				height={PREVIEW_SIZE}
-				viewBox={`0 0 ${PREVIEW_SIZE} ${PREVIEW_SIZE}`}
-				aria-hidden="true"
-			>
-				<line
-					x1={3}
-					y1={PREVIEW_SIZE / 2}
-					x2={PREVIEW_SIZE - 3}
-					y2={PREVIEW_SIZE / 2}
-					stroke={fill}
-					strokeOpacity={0.9}
-					strokeWidth={2.5}
-					strokeLinecap="round"
-				/>
-			</svg>
-		)
-	}
-	return (
-		<svg
-			width={PREVIEW_SIZE}
-			height={PREVIEW_SIZE}
-			viewBox={`${-PREVIEW_SIZE / 2} ${-PREVIEW_SIZE / 2} ${PREVIEW_SIZE} ${PREVIEW_SIZE}`}
-			aria-hidden="true"
-		>
-			<path d={symbolPath(idx, 5)} fill={fill} fillOpacity={0.9} />
-		</svg>
 	)
 }

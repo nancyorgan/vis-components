@@ -71,6 +71,10 @@ const baseTheme: Theme = {
 	legendBackgroundColor: null,
 	legendSwatchColor: "#4f8eda",
 	legendSwatchStroke: "#ffffff",
+	legendSwatchShape: null,
+	legendSwatchSize: 5,
+	legendSwatchOutlineColor: null,
+	legendSwatchOutlineWidth: 0,
 }
 
 const divergingCfg: Extract<HueConfig, { kind: "quantitative" }> = {

@@ -8,10 +8,10 @@ import { DEFAULT_TOOLTIP_CONFIG } from "../../lib/labelsConfig"
 import {
 	DEFAULT_LEGEND_CONFIG,
 	legendFontKey,
-	legendSwatchOutlineColor,
-	legendSwatchOutlineWidth,
-	legendSwatchShape,
-	legendSwatchSize,
+	resolveLegendSwatchOutlineColor,
+	resolveLegendSwatchOutlineWidth,
+	resolveLegendSwatchShape,
+	resolveLegendSwatchSize,
 	resolveGradientBarStyle,
 	resolveLegendHidden,
 	resolveTitleFont,
@@ -344,29 +344,37 @@ export const Legend = ({
 												? 1
 												: undefined
 								}
-								hueSwatchShape={legendSwatchShape(
+								// Per-visual choice, else the theme's default swatch
+								// shape / size. Sections keyed by a non-swatch-shape
+								// channel (shape / length / …) have no entry of their
+								// own and so take the theme's.
+								hueSwatchShape={resolveLegendSwatchShape(
 									legendCfg,
-									// Sections keyed by a non-swatch-shape channel (shape /
-									// length / …) just resolve to null — no entry is ever
-									// written for those keys.
+									theme,
 									keyChannel as SwatchShapeChannel
 								)}
-								hueSwatchSize={legendSwatchSize(
+								hueSwatchSize={resolveLegendSwatchSize(
 									legendCfg,
+									theme,
 									keyChannel as SwatchShapeChannel
 								)}
 								// Shape-channel glyph radius — its own key, independent
 								// of the section's lead channel, so the Shape swatch
 								// size applies whether shape stands alone or folds into
 								// a combined (e.g. Color · Shape) section.
-								shapeSwatchSize={legendSwatchSize(legendCfg, "shape")}
+								shapeSwatchSize={resolveLegendSwatchSize(
+									legendCfg,
+									theme,
+									"shape"
+								)}
 								swatchOutline={(() => {
-									// Width 0 / unset = no outline. The user's swatch
-									// outline also stays inert while the outline-color
-									// encoding is mapped — those strokes are a faithful
-									// key for that encoding. Resolved per section (keyed
-									// like the swatch shape, legacy globals as fallback).
-									// Auto color depends on what the swatch DEPICTS:
+									// Width 0 = no outline; unset follows the theme's
+									// default width. The user's swatch outline also stays
+									// inert while the outline-color encoding is mapped —
+									// those strokes are a faithful key for that encoding.
+									// Resolved per section (keyed like the swatch shape,
+									// legacy globals then the theme as fallback). Auto
+									// color depends on what the swatch DEPICTS:
 									// sections whose fill is the hue scale (a mark
 									// stand-in) pipe the marks' outline color (Color
 									// menu → Outline) so the legend matches the chart;
@@ -377,20 +385,27 @@ export const Legend = ({
 									// to do with those swatches. Same chains the panel
 									// displays.
 									const key = keyChannel as SwatchShapeChannel
-									const width = legendSwatchOutlineWidth(legendCfg, key) ?? 0
+									const width = resolveLegendSwatchOutlineWidth(
+										legendCfg,
+										theme,
+										key
+									)
 									const auxLed =
 										key === "opacity" ||
 										key === "saturation" ||
 										key === "brightness"
 									return width > 0 && !encodings.outlineHue?.field
 										? {
-												color:
-													legendSwatchOutlineColor(legendCfg, key) ??
-													(auxLed
+												color: resolveLegendSwatchOutlineColor(
+													legendCfg,
+													theme,
+													key,
+													auxLed
 														? resolvedAuxSwatchStroke
 														: (configs.shape?.outlineColor ??
 															theme.outlineColor ??
-															"#cccccc")),
+															"#cccccc")
+												),
 												width,
 											}
 										: null

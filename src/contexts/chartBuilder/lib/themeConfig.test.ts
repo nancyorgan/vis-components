@@ -27,6 +27,7 @@ import {
 	chordAxisConfigFromTheme,
 	configsFromTheme,
 	connectionConfigFromTheme,
+	captionConfigFromTheme,
 	dataLabelsConfigFromTheme,
 	explainChannelCustomization,
 	explainLegendCustomization,
@@ -39,6 +40,7 @@ import {
 	spineThemeFor,
 	textConfigFromTheme,
 } from "./themeConfig"
+import { DEFAULT_CAPTION_CONFIG } from "./captionConfig"
 import { DEFAULT_LABELS_CONFIG, type LegendConfig } from "./labelsConfig"
 import type { Theme } from "./types"
 
@@ -98,6 +100,10 @@ const STUB_THEME: Theme = {
 	legendBackgroundColor: "#fff",
 	legendSwatchColor: "#4f8eda",
 	legendSwatchStroke: "#ffffff",
+	legendSwatchShape: null,
+	legendSwatchSize: 5,
+	legendSwatchOutlineColor: null,
+	legendSwatchOutlineWidth: 0,
 }
 
 const dot = (
@@ -705,6 +711,80 @@ describe("opacity stackMode dot (phase 2)", () => {
 	})
 })
 
+// ── Caption theme seed ──────────────────────────────────────────────────────
+// Same situation as the Data Labels seed above: the caption is its OWN
+// persisted slice (`currentCaptionConfigAtom` / `Visual.captionConfig`), so
+// these direct tests guard the theme pickup and the legacy-theme fallbacks.
+describe("captionConfigFromTheme", () => {
+	const THEMED: Theme = {
+		...STUB_THEME,
+		captionFontFamily: "Inter, system-ui, sans-serif",
+		captionFontColor: "#ff00aa",
+		captionFontSize: 17,
+		captionFontWeight: 800,
+		captionAlignment: "right",
+	}
+
+	it("picks up every theme-driven caption field", () => {
+		const cfg = captionConfigFromTheme(THEMED)
+		expect(cfg.fontFamily).toBe("Inter, system-ui, sans-serif")
+		expect(cfg.textColor).toBe("#ff00aa")
+		expect(cfg.fontSize).toBe(17)
+		expect(cfg.fontWeight).toBe(800)
+		expect(cfg.align).toBe("right")
+	})
+
+	it("leaves the non-theme-driven fields at the built-in defaults", () => {
+		// The caption text, nudges, padding and box are user-driven; a re-theme
+		// that touched them would wipe the user's caption.
+		const cfg = captionConfigFromTheme(THEMED)
+		expect(cfg.enabled).toBe(DEFAULT_CAPTION_CONFIG.enabled)
+		expect(cfg.text).toBe(DEFAULT_CAPTION_CONFIG.text)
+		expect(cfg.offsetX).toBe(DEFAULT_CAPTION_CONFIG.offsetX)
+		expect(cfg.offsetY).toBe(DEFAULT_CAPTION_CONFIG.offsetY)
+		expect(cfg.width).toBe(DEFAULT_CAPTION_CONFIG.width)
+		expect(cfg.height).toBe(DEFAULT_CAPTION_CONFIG.height)
+		expect(cfg.padding).toBe(DEFAULT_CAPTION_CONFIG.padding)
+		expect(cfg.backgroundColor).toBe(DEFAULT_CAPTION_CONFIG.backgroundColor)
+		expect(cfg.backgroundOpacity).toBe(DEFAULT_CAPTION_CONFIG.backgroundOpacity)
+		expect(cfg.borderEnabled).toBe(DEFAULT_CAPTION_CONFIG.borderEnabled)
+	})
+
+	it("a legacy theme (fields predate the feature) follows the Axis text font", () => {
+		// STUB_THEME carries none of the five optional fields. Family and color
+		// fall to the theme's Axis text font (so a dark theme's caption is
+		// readable); size / weight / alignment keep the built-in caption
+		// defaults.
+		const cfg = captionConfigFromTheme(STUB_THEME)
+		expect(cfg).toEqual({
+			...DEFAULT_CAPTION_CONFIG,
+			fontFamily: STUB_THEME.textFontFamily,
+			textColor: STUB_THEME.textFontColor,
+		})
+		// Pinned literally so a default change has to be a deliberate edit here.
+		expect(cfg.fontSize).toBe(13)
+		expect(cfg.fontWeight).toBe(400)
+		expect(cfg.align).toBe("left")
+	})
+
+	it("family / color fall back caption → Axis text → built-in", () => {
+		expect(captionConfigFromTheme(THEMED).fontFamily).toBe(
+			"Inter, system-ui, sans-serif"
+		)
+		expect(captionConfigFromTheme(STUB_THEME).textColor).toBe("#444")
+		// Only a theme with NEITHER lands on the hardcoded default (stored
+		// themes from before `textFont*` existed load without them — cast to
+		// simulate that shape).
+		const bare = captionConfigFromTheme({
+			...STUB_THEME,
+			textFontFamily: undefined,
+			textFontColor: undefined,
+		} as unknown as Theme)
+		expect(bare.fontFamily).toBe(DEFAULT_CAPTION_CONFIG.fontFamily)
+		expect(bare.textColor).toBe(DEFAULT_CAPTION_CONFIG.textColor)
+	})
+})
+
 // ── Data Labels theme seed ──────────────────────────────────────────────────
 // `dataLabelsConfigFromTheme` can't join the configsFromTheme parity describe
 // above: the Data Labels blob is its OWN persisted slice
@@ -1049,6 +1129,12 @@ describe("labelsFromTheme", () => {
 		legendTitleFontSize: 11,
 		legendTitleFontItalic: false,
 		legendTitleFontUnderline: true,
+		titlePrefixFontFamily: "Georgia, 'Times New Roman', serif",
+		titlePrefixFontColor: "#aa00aa",
+		titlePrefixFontSize: 22,
+		titlePrefixFontWeight: 700,
+		titlePrefixFontItalic: true,
+		titlePrefixFontUnderline: false,
 		titleAlignment: "left",
 		subtitleAlignment: "right",
 		legendTitleAlignment: "center",
@@ -1085,6 +1171,12 @@ describe("labelsFromTheme", () => {
 			legendSize: 11,
 			legendItalic: false,
 			legendUnderline: true,
+			prefixFamily: "Georgia, 'Times New Roman', serif",
+			prefixColor: "#aa00aa",
+			prefixSize: 22,
+			prefixWeight: 700,
+			prefixItalic: true,
+			prefixUnderline: false,
 			primaryAlignment: "left",
 			subtitleAlignment: "right",
 			legendAlignment: "center",
@@ -1116,6 +1208,8 @@ describe("labelsFromTheme", () => {
 		// value here would freeze the slot against later theme edits.
 		const { titles, text } = labelsFromTheme(STUB_THEME).baseFont
 		expect(titles.weight).toBeUndefined()
+		expect(titles.prefixWeight).toBeUndefined()
+		expect(titles.prefixFamily).toBeUndefined()
 		expect(titles.subtitleWeight).toBeUndefined()
 		expect(titles.secondaryWeight).toBeUndefined()
 		expect(titles.legendWeight).toBeUndefined()

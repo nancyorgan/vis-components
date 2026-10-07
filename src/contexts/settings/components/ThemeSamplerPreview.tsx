@@ -1,3 +1,4 @@
+import { lab } from "d3-color"
 import { useId, useMemo } from "react"
 
 import type { TextFontConfig } from "../../chartBuilder/lib/labelsConfig"
@@ -6,6 +7,7 @@ import type { Theme } from "../../chartBuilder/lib/types"
 import {
 	buildThemeSamplerModel,
 	dasharrayOf,
+	type GradientStop,
 	type SamplerGradient,
 	type SamplerPalette,
 } from "../lib/themePreviewModel"
@@ -39,6 +41,30 @@ const MAX_CHIPS = 12
 const TILE_H = 24
 const TILE_GAP = 6
 const TILES_PER_ROW = 3
+/** Size-legend swatches on the Legend row: large / medium / small, stacked
+ *  vertically like a real size legend. `dy` is the row offset below the
+ *  first line; x offsets are from the column's left edge. */
+const SIZE_LEGEND_SWATCHES = [
+	{ dy: 0, r: 7 },
+	{ dy: 18, r: 5 },
+	{ dy: 34, r: 3 },
+]
+const SIZE_LEGEND_CX = 8
+const SIZE_LEGEND_TEXT_X = 20
+/** Where the map-label specimen starts within the right column. */
+const MAP_X = 62
+/** The lightest stop of a gradient, by CIELAB lightness: the end a
+ *  choropleth paints its smallest values with. */
+const lightestStop = (stops: GradientStop[]): string | undefined =>
+	stops
+		.map((s) => ({ color: s.color, l: lab(s.color).l }))
+		.filter((s) => Number.isFinite(s.l))
+		.sort((a, b) => b.l - a.l)[0]?.color
+
+/** Washington's mainland outline (us-atlas states-10m, Albers, simplified),
+ *  fitted to a 44×30 box so the leader line has a real shape to point at. */
+const WASHINGTON_PATH =
+	"M42.4,0.7L44.0,25.3L32.1,25.5L19.8,28.8L17.5,27.8L11.1,28.7L8.5,23.9L3.0,23.0L3.2,20.0L3.8,22.1L4.6,19.4L2.9,17.8L4.5,17.5L3.0,16.7L2.7,17.6L0.0,7.4L0.5,5.5L10.0,8.5L10.9,7.9L11.7,10.0L8.6,14.3L9.9,14.0L8.8,14.0L12.2,9.9L12.0,14.9L11.0,14.5L11.0,16.2L10.2,15.0L11.2,16.4L13.2,14.4L13.9,9.4L11.3,5.3L12.9,4.2L11.1,0.9Z"
 
 const caption = (t: TextFontConfig) => ({
 	fontFamily: t.family,
@@ -151,6 +177,11 @@ export const ThemeSamplerPreview = ({
 					: m.pattern.ink,
 		}
 	})
+
+	// The map specimen takes the default gradient's lightest end, as a
+	// choropleth's low values would.
+	const mapFill =
+		lightestStop(m.gradients[0]?.stops ?? []) ?? m.legendSwatch.color
 
 	const markCx = RIGHT_X0 + 12
 	const textBoxX = RIGHT_X0 + 82
@@ -376,32 +407,24 @@ export const ThemeSamplerPreview = ({
 				strokeDasharray={dasharrayOf(m.line.lineDash, m.line.lineDasharray)}
 			/>
 
-			{/* Data label, standalone legend swatch, map leader line */}
+			{/* Stacked size legend, then a map data label: a leader line from a
+			    state outline (Washington) to its label. */}
 			<text x={RIGHT_X0} y={labelsCaptionY} {...caption(m.text)}>
-				Labels
+				Legend
 			</text>
+			{SIZE_LEGEND_SWATCHES.map(({ dy, r }) => (
+				<circle
+					key={r}
+					cx={RIGHT_X0 + SIZE_LEGEND_CX}
+					cy={labelsY + dy}
+					r={r}
+					fill={m.legendSwatch.color}
+					stroke={m.legendSwatch.stroke}
+					strokeWidth={1.5}
+				/>
+			))}
 			<text
-				x={RIGHT_X0}
-				y={labelsY + m.dataLabels.size * 0.35}
-				fontFamily={m.dataLabels.family}
-				fontSize={m.dataLabels.size}
-				fontWeight={m.dataLabels.weight}
-				fontStyle={m.dataLabels.italic ? "italic" : undefined}
-				textDecoration={m.dataLabels.underline ? "underline" : undefined}
-				fill={m.dataLabels.color}
-			>
-				42
-			</text>
-			<circle
-				cx={RIGHT_X0 + 52}
-				cy={labelsY}
-				r={7}
-				fill={m.legendSwatch.color}
-				stroke={m.legendSwatch.stroke}
-				strokeWidth={1.5}
-			/>
-			<text
-				x={RIGHT_X0 + 64}
+				x={RIGHT_X0 + SIZE_LEGEND_TEXT_X}
 				y={labelsY + m.text.size * 0.35}
 				fontFamily={m.text.family}
 				fontSize={m.text.size}
@@ -410,29 +433,35 @@ export const ThemeSamplerPreview = ({
 			>
 				Size
 			</text>
-			<circle
-				cx={RIGHT_X0 + 108}
-				cy={labelsY + 8}
-				r={3}
-				fill={m.dataLabels.color}
+			<text x={RIGHT_X0 + MAP_X} y={labelsCaptionY} {...caption(m.text)}>
+				Map label
+			</text>
+			<path
+				d={WASHINGTON_PATH}
+				transform={`translate(${RIGHT_X0 + MAP_X},${labelsY - 4})`}
+				fill={mapFill}
+				stroke={m.legendSwatch.stroke}
+				strokeWidth={0.75}
 			/>
 			<line
-				x1={RIGHT_X0 + 108}
-				y1={labelsY + 8}
-				x2={RIGHT_X0 + 124}
-				y2={labelsY - 4}
+				x1={RIGHT_X0 + MAP_X + 24}
+				y1={labelsY + 10}
+				x2={RIGHT_X0 + MAP_X + 56}
+				y2={labelsY - 2}
 				stroke={m.leaderLine.color}
 				strokeWidth={m.leaderLine.width}
 			/>
 			<text
-				x={RIGHT_X0 + 128}
-				y={labelsY - 4 + m.dataLabels.size * 0.35}
+				x={RIGHT_X0 + MAP_X + 60}
+				y={labelsY - 2 + m.dataLabels.size * 0.35}
 				fontFamily={m.dataLabels.family}
 				fontSize={m.dataLabels.size}
 				fontWeight={m.dataLabels.weight}
+				fontStyle={m.dataLabels.italic ? "italic" : undefined}
+				textDecoration={m.dataLabels.underline ? "underline" : undefined}
 				fill={m.dataLabels.color}
 			>
-				Region
+				WA
 			</text>
 		</svg>
 	)

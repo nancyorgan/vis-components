@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { cleanup, fireEvent, render } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ColorInput } from "./ColorInput"
+import { Textarea } from "./Input"
 import { NumberInput } from "./NumberInput"
 import { RadioGroup } from "./RadioGroup"
 import { SelectInput } from "./SelectInput"
@@ -619,5 +620,52 @@ describe("Toggle", () => {
 		// this is the entire reason `htmlFor` matters for accessibility.
 		fireEvent.click(container.querySelector("label")!)
 		expect(captured).toBe(true)
+	})
+})
+
+/** `autoSize` fits the box to its content so long titles / captions /
+ *  annotation text never need the resize grip dragged open. happy-dom has
+ *  no layout, so scrollHeight is stubbed to stand in for the browser's
+ *  measurement. */
+describe("Textarea autoSize", () => {
+	afterEach(() => {
+		cleanup()
+		vi.restoreAllMocks()
+	})
+
+	it("sets the height to the content's scrollHeight and re-fits on change", () => {
+		let scroll = 42
+		vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockImplementation(
+			() => scroll
+		)
+		const { getByLabelText, rerender } = render(
+			<Textarea aria-label="Title" value="One line" autoSize onChange={() => {}} />
+		)
+		const el = getByLabelText("Title") as HTMLTextAreaElement
+		expect(el.style.height).toBe("42px")
+		expect(el.className).toContain("resize-none")
+
+		scroll = 84
+		rerender(
+			<Textarea aria-label="Title" value="One line\nTwo" autoSize onChange={() => {}} />
+		)
+		expect(el.style.height).toBe("84px")
+	})
+
+	it("leaves the height alone when nothing is measurable (scrollHeight 0)", () => {
+		vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockReturnValue(0)
+		const { getByLabelText } = render(
+			<Textarea aria-label="Title" value="x" autoSize onChange={() => {}} />
+		)
+		expect((getByLabelText("Title") as HTMLTextAreaElement).style.height).toBe("auto")
+	})
+
+	it("does not touch height or the resize grip without autoSize", () => {
+		const { getByLabelText } = render(
+			<Textarea aria-label="Title" value="x" onChange={() => {}} />
+		)
+		const el = getByLabelText("Title") as HTMLTextAreaElement
+		expect(el.style.height).toBe("")
+		expect(el.className).not.toContain("resize-none")
 	})
 })

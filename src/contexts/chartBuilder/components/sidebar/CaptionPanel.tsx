@@ -13,6 +13,7 @@ import {
 	type CaptionUnit,
 } from "../../lib/captionConfig"
 import { fontWeightOptionsFor } from "../../lib/labelsConfig"
+import { captionConfigFromTheme } from "../../lib/themeConfig"
 import { AlignmentControl } from "./LabelsPanel"
 import {
 	currentCaptionConfigAtom,
@@ -22,6 +23,7 @@ import {
 	useFontFamilyOptions,
 	useUserFontWeights,
 } from "../../store/useFontOptions"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { Select } from "../../../../components/ui/Select"
 import { Textarea } from "../../../../components/ui/Input"
 
@@ -75,14 +77,22 @@ export const CaptionPanel = () => {
 	// NumberInput can't express).
 	const dimIdBase = useId()
 	const merged: CaptionConfig = { ...DEFAULT_CAPTION_CONFIG, ...cfg }
+	// Resolve the LIVE theme so the text reset links compare against — and
+	// reset to — the theme's Caption defaults (Settings → Themes → Text →
+	// Caption) rather than the hardcoded constants. Everything the theme
+	// doesn't seed (position, size, padding, box) still compares against
+	// DEFAULT_CAPTION_CONFIG, which `captionConfigFromTheme` passes through.
+	const theme = useCurrentTheme()
+	const themeDefaults = captionConfigFromTheme(theme)
 
 	const update = (next: Partial<CaptionConfig>) => setCfg({ ...merged, ...next })
 
 	// Subsection "changed" dots — light when any control inside deviates from
-	// DEFAULT_CAPTION_CONFIG (the same baseline the reset links restore). Unit
-	// picks alone don't count: 0px and 0% (or auto) render identically, so a
-	// unit is only a change once its value is set.
-	const d = DEFAULT_CAPTION_CONFIG
+	// the baseline the reset links restore (theme seed for the text knobs,
+	// DEFAULT_CAPTION_CONFIG for the rest). Unit picks alone don't count: 0px
+	// and 0% (or auto) render identically, so a unit is only a change once
+	// its value is set.
+	const d = themeDefaults
 	const positionChanged = merged.offsetX !== d.offsetX || merged.offsetY !== d.offsetY
 	const sizeChanged = merged.width > 0 || merged.height > 0
 	const textChanged =
@@ -206,7 +216,8 @@ export const CaptionPanel = () => {
 							value={merged.text}
 							onChange={(e) => update({ text: e.target.value })}
 							placeholder="A short caption shown below the x-axis title…"
-							rows={4}
+							rows={2}
+							autoSize
 						/>
 					</label>
 
@@ -259,10 +270,10 @@ export const CaptionPanel = () => {
 									step={1}
 									suffix="pt"
 								/>
-								{merged.fontSize !== DEFAULT_CAPTION_CONFIG.fontSize && (
+								{merged.fontSize !== themeDefaults.fontSize && (
 									<ResetLink
 										onClick={() =>
-											update({ fontSize: DEFAULT_CAPTION_CONFIG.fontSize })
+											update({ fontSize: themeDefaults.fontSize })
 										}
 									/>
 								)}
@@ -279,10 +290,10 @@ export const CaptionPanel = () => {
 									).map((w) => ({ value: String(w.value), label: w.label }))}
 									onChange={(w) => update({ fontWeight: Number(w) })}
 								/>
-								{merged.fontWeight !== DEFAULT_CAPTION_CONFIG.fontWeight && (
+								{merged.fontWeight !== themeDefaults.fontWeight && (
 									<ResetLink
 										onClick={() =>
-											update({ fontWeight: DEFAULT_CAPTION_CONFIG.fontWeight })
+											update({ fontWeight: themeDefaults.fontWeight })
 										}
 									/>
 								)}
@@ -303,10 +314,10 @@ export const CaptionPanel = () => {
 									onChange={(c) => update({ textColor: c })}
 									paletteKind="text"
 								/>
-								{merged.textColor !== DEFAULT_CAPTION_CONFIG.textColor && (
+								{merged.textColor !== themeDefaults.textColor && (
 									<ResetLink
 										onClick={() =>
-											update({ textColor: DEFAULT_CAPTION_CONFIG.textColor })
+											update({ textColor: themeDefaults.textColor })
 										}
 									/>
 								)}

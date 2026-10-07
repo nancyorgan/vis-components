@@ -1,6 +1,20 @@
 import type { ReactNode } from "react"
 import { charWidthFactor } from "./estimateMargins"
 
+/** A styled run drawn in front of the FIRST line of a multiline text (the
+ *  chart-title prefix). It shares that line's text chunk, so the parent
+ *  `<text>`'s `text-anchor` aligns prefix + line as one run. Font fields are
+ *  the resolved px values; unset ones inherit from the parent `<text>`. */
+export type TextPrefix = {
+	text: string
+	fontFamily?: string
+	fontSize?: number
+	fontWeight?: number
+	fill?: string
+	italic?: boolean
+	underline?: boolean
+}
+
 /** Render a title/label string as one or more `<tspan>` lines.
  *
  * Splits on literal `\n` so users can break a title into multiple lines from
@@ -26,23 +40,53 @@ export const renderMultilineTspans = (
 		 *  block-edge `x` for the chosen alignment and anchors every line
 		 *  there (see `renderWrappedTickLabel`). */
 		lineAnchor?: "start" | "middle" | "end"
+		/** Styled run placed before the first line, separated by one space.
+		 *  Only the prefix tspan carries `x` / `dy`; the first line's tspan
+		 *  deliberately has neither, so it continues the prefix's chunk and
+		 *  the chunk's anchor covers both. */
+		prefix?: TextPrefix
 	}
 ): ReactNode[] => {
 	const lines = text.split("\n")
 	const firstDy = opts?.verticallyCentered
 		? `${-0.6 * (lines.length - 1)}em`
 		: 0
-	return lines.map((line, i) => (
-		<tspan
-			// eslint-disable-next-line react/no-array-index-key -- line index IS its identity
-			key={i}
-			x={x}
-			dy={i === 0 ? firstDy : "1.2em"}
-			textAnchor={opts?.lineAnchor}
-		>
-			{line.length > 0 ? line : " "}
-		</tspan>
-	))
+	const prefix = opts?.prefix
+	return lines.flatMap((line, i) => {
+		const content = line.length > 0 ? line : " "
+		if (i === 0 && prefix) {
+			return [
+				<tspan
+					key="prefix"
+					x={x}
+					dy={firstDy}
+					textAnchor={opts?.lineAnchor}
+					fontFamily={prefix.fontFamily}
+					fontSize={prefix.fontSize}
+					fontWeight={prefix.fontWeight}
+					fontStyle={prefix.italic ? "italic" : undefined}
+					textDecoration={prefix.underline ? "underline" : undefined}
+					fill={prefix.fill}
+				>
+					{prefix.text}
+				</tspan>,
+				// The separator lives on the title side so an underlined
+				// prefix doesn't underline the gap.
+				<tspan key={0}>{` ${content}`}</tspan>,
+			]
+		}
+		return [
+			<tspan
+				// eslint-disable-next-line react/no-array-index-key -- line index IS its identity
+				key={i}
+				x={x}
+				dy={i === 0 ? firstDy : "1.2em"}
+				textAnchor={opts?.lineAnchor}
+			>
+				{content}
+			</tspan>,
+		]
+	})
 }
 
 /** Number of lines in a multiline title string. */

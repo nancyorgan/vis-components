@@ -3,6 +3,7 @@ import useMeasure from "react-use-measure"
 import { useAtomValue, useSetAtom } from "jotai"
 import {
 	DEFAULT_LABELS_CONFIG,
+	hasChartTitle,
 	DEFAULT_LEGEND_CONFIG,
 	resolveTitleFont,
 	type LegendConfig,
@@ -238,7 +239,7 @@ const InsideLegendLayout = ({
 	const [canvasRef, canvasBounds] = useMeasure({ offsetSize: true })
 	const [legendRef, legendBounds] = useMeasure({ offsetSize: true })
 	const labels = useAtomValue(currentLabelsAtom)
-	const hasTitle = !!(labels.title ?? DEFAULT_LABELS_CONFIG.title)
+	const hasTitle = hasChartTitle(labels)
 	const hasSubtitle = !!(labels.subtitle ?? DEFAULT_LABELS_CONFIG.subtitle)
 	// Font-derived, matching the solver's bands (see plotLayout.titleReserve)
 	// so the inside-legend plot mapping stays glued to the real plot top.

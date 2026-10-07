@@ -3,12 +3,14 @@ import { useAtomCallback } from "jotai/utils"
 import { useCallback, useState } from "react"
 import { isManagedTheme, themeOf } from "../../lib/systemThemes"
 import {
+	captionConfigFromTheme,
 	configsFromTheme,
 	dataLabelsConfigFromTheme,
 	labelsFromTheme,
 	legendConfigFromTheme,
 } from "../../lib/themeConfig"
 import {
+	currentCaptionConfigAtom,
 	currentChannelConfigsAtom,
 	currentDataLabelsConfigAtom,
 	currentLabelsAtom,
@@ -142,6 +144,20 @@ export const ThemePanel = () => {
 						underline: fromTheme.underline,
 						leaderLineColor: fromTheme.leaderLineColor,
 						leaderLineWidth: fromTheme.leaderLineWidth,
+					}
+				})
+				set(currentCaptionConfigAtom, (prev) => {
+					const fromTheme = captionConfigFromTheme(theme)
+					// Only the theme-driven text knobs flow through; the caption
+					// text, its position / size nudges, padding, and the box are
+					// user-driven.
+					return {
+						...prev,
+						fontFamily: fromTheme.fontFamily,
+						fontSize: fromTheme.fontSize,
+						fontWeight: fromTheme.fontWeight,
+						textColor: fromTheme.textColor,
+						align: fromTheme.align,
 					}
 				})
 				set(currentThemeIdAtom, themeId)

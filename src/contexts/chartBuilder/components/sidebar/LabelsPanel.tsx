@@ -17,6 +17,7 @@ import {
 	type LabelAlignment,
 	type LabelFontKey,
 	type LegendChannel,
+	type TitlePrefixConfig,
 	type TitlesFontConfig,
 	type VerticalAlignment,
 } from "../../lib/labelsConfig"
@@ -182,6 +183,24 @@ export const LabelsPanel = () => {
 			return { ...prev, titleOffsets: next }
 		})
 	}
+	// Chart-title prefix ("FIGURE 5."). Patches merge into the stored block
+	// so unchecking keeps the typed text + font for a later re-check; an
+	// emptied font object is dropped rather than persisted as `{}`.
+	const setTitlePrefix = (patch: Partial<TitlePrefixConfig>) => {
+		setLabels((prev) => {
+			const next: TitlePrefixConfig = {
+				enabled: false,
+				text: "",
+				...prev.titlePrefix,
+				...patch,
+			}
+			if (next.font !== undefined && Object.keys(next.font).length === 0) {
+				delete next.font
+			}
+			return { ...prev, titlePrefix: next }
+		})
+	}
+	const titlePrefixOn = labels.titlePrefix?.enabled === true
 	const updateLegendTitle = (channel: LegendChannel, value: string) => {
 		setLabels((prev) => ({
 			...prev,
@@ -335,7 +354,10 @@ export const LabelsPanel = () => {
 			titleVerticalAlignments[key] !== "middle") ||
 		!!titleAngles[key] ||
 		!!labels.titleOffsets?.[key]
-	const primaryChanged = keyChanged("title") || keyChanged("subtitle")
+	// An active prefix is a rendered deviation (like "Color by facet"); text
+	// retained under an unchecked box doesn't dot.
+	const primaryChanged =
+		keyChanged("title") || keyChanged("subtitle") || titlePrefixOn
 	const axisChanged =
 		keyChanged("xAxisTitle") ||
 		keyChanged("yAxisTitle") ||
@@ -465,12 +487,43 @@ export const LabelsPanel = () => {
 				baseSize={labels.baseFont.titles.primarySize}
 				baseFamily={labels.baseFont.titles.family}
 				baseWeight={labels.baseFont.titles.weight ?? PRIMARY_TITLE_DEFAULT_WEIGHT}
-				extraActive={!!labels.titleOffsets?.title}
+				extraActive={!!labels.titleOffsets?.title || titlePrefixOn}
 				extraControls={
-					<OffsetControl
-						value={labels.titleOffsets?.title ?? {}}
-						onChange={(axis, n) => setOffset("title", axis, n)}
-					/>
+					<>
+						{/* The prefix font's inherit values mirror
+						 * resolveTitlePrefixFont's chain: the theme's prefix
+						 * slot, else the TITLE's effective font (its override,
+						 * else the theme base). */}
+						<TitlePrefixControl
+							value={labels.titlePrefix}
+							onChange={setTitlePrefix}
+							baseColor={
+								labels.baseFont.titles.prefixColor ??
+								overrides.title?.color ??
+								labels.baseFont.titles.color
+							}
+							baseSize={
+								labels.baseFont.titles.prefixSize ??
+								overrides.title?.size ??
+								labels.baseFont.titles.primarySize
+							}
+							baseFamily={
+								labels.baseFont.titles.prefixFamily ??
+								overrides.title?.family ??
+								labels.baseFont.titles.family
+							}
+							baseWeight={
+								labels.baseFont.titles.prefixWeight ??
+								overrides.title?.weight ??
+								labels.baseFont.titles.weight ??
+								PRIMARY_TITLE_DEFAULT_WEIGHT
+							}
+						/>
+						<OffsetControl
+							value={labels.titleOffsets?.title ?? {}}
+							onChange={(axis, n) => setOffset("title", axis, n)}
+						/>
+					</>
 				}
 			/>
 			{/* Divider above Subtitle so the two primary title rows read as
@@ -1067,6 +1120,62 @@ const OffsetControl = ({
 	)
 }
 
+/** "Add prefix" block for the chart title: a checkbox that reveals the
+ *  Prefix text box plus a font editor (family / color / size / weight /
+ *  style — no alignment, the prefix rides the title's). Sits between the
+ *  title's Style row and its "Adjust position" group. */
+const TitlePrefixControl = ({
+	value,
+	onChange,
+	baseColor,
+	baseSize,
+	baseFamily,
+	baseWeight,
+}: {
+	value: TitlePrefixConfig | undefined
+	onChange: (patch: Partial<TitlePrefixConfig>) => void
+	baseColor: string
+	baseSize: number
+	baseFamily: string
+	baseWeight: number
+}) => {
+	const on = value?.enabled === true
+	return (
+		<div className="flex flex-col gap-2">
+			<Toggle
+				label="Add prefix"
+				checked={on}
+				onChange={(enabled) => onChange({ enabled })}
+			/>
+			{on && (
+				<>
+					<label className="flex items-center gap-2 text-sm">
+						<span className={LABEL_COL}>Prefix</span>
+						<Input
+							type="text"
+							value={value?.text ?? ""}
+							onChange={(e) => onChange({ text: e.target.value })}
+							placeholder="FIGURE 1."
+							className="flex-1"
+						/>
+					</label>
+					{/* FontEditor hands back the FULL next font (it spreads the
+					 *  current value), so this replaces rather than merges. */}
+					<FontEditor
+						value={value?.font ?? {}}
+						onChange={(font) => onChange({ font })}
+						showResetFields
+						baseColor={baseColor}
+						baseSize={baseSize}
+						baseFamily={baseFamily}
+						baseWeight={baseWeight}
+					/>
+				</>
+			)}
+		</div>
+	)
+}
+
 /** The Align + Font + extra-controls block shared by every title control.
  *  Rendered inside a LabelRow's disclosure for typed titles, and inline
  *  (no disclosure) for a subsection whose only target is a single automatic
@@ -1213,7 +1322,6 @@ const LabelRow = ({
 	const hasVerticalAlignment =
 		onVerticalAlignment && verticalAlignment && verticalAlignment !== "middle"
 	const hasAngle = onAngle && !!angle
-	const isMultiline = value.includes("\n")
 	return (
 		<Disclosure as="div" className="flex flex-col gap-1">
 			{({ open }) => (
@@ -1237,8 +1345,9 @@ const LabelRow = ({
 									value={value}
 									onChange={(e) => onChange(e.target.value)}
 									placeholder={placeholder}
-									rows={isMultiline ? 2 : 1}
-									className="flex-1 resize-y"
+									rows={1}
+									autoSize
+									className="flex-1"
 								/>
 							</label>
 						)}

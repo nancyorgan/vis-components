@@ -1,5 +1,6 @@
 import { ptToPx } from "./fontUnit"
 import type { DisplayUnit } from "./displayUnits"
+import type { Theme } from "./types"
 
 // ---------------------------------------------------------------------------
 // Font types
@@ -71,6 +72,16 @@ export type TitlesFontConfig = FontStyles & {
 	legendSize?: number
 	legendItalic?: boolean
 	legendUnderline?: boolean
+	/** Optional theme defaults for the chart-title PREFIX run (see
+	 * `LabelsConfig.titlePrefix`). Each falls back to the RESOLVED chart
+	 * title font at resolve time (`resolveTitlePrefixFont`), never to the
+	 * shared fields directly, so the prefix tracks the title's own override. */
+	prefixFamily?: string
+	prefixColor?: string
+	prefixSize?: number
+	prefixWeight?: number
+	prefixItalic?: boolean
+	prefixUnderline?: boolean
 	/** Theme-default alignments for the chart title / subtitle / legend
 	 * section titles. These are the BASE the per-visual `titleAlignments`
 	 * overrides layer on top of (see `titleAlignmentOf`) — kept out of
@@ -340,9 +351,17 @@ export const QUANTITATIVE_LEGEND_CHANNELS: QuantitativeLegendChannel[] = [
 	"angle",
 ]
 
-/** A legend swatch's glyph: `null` = rounded rectangle (default), a
+/** A legend swatch's glyph as RENDERED: `null` = rounded rectangle, a
  * `SHAPE_PALETTE` index = that symbol, `"line"` = a short line segment. */
 export type LegendSwatchShape = number | "line" | null
+
+/** A per-visual swatch-shape CHOICE. Same values as `LegendSwatchShape`,
+ * but `null` means "follow the theme" and the rectangle is spelled out as
+ * `"rect"` so a visual can pin it on a theme whose default is a glyph.
+ * (Visuals saved before the theme carried a swatch shape stored the
+ * rectangle as `null`; they now follow the theme — which was always the
+ * rectangle until the theme says otherwise.) */
+export type LegendSwatchShapeChoice = LegendSwatchShape | "rect"
 
 /** Channels that can KEY a swatch-drawing legend section and so accept a
  * per-section swatch shape. A combined section resolves its shape from the
@@ -540,11 +559,13 @@ export type LegendConfig = {
 	 *  section (hue / outlineHue / saturation / brightness / pattern / opacity
 	 *  / rug). Lets each swatch-drawing legend use a distinct glyph so the
 	 *  user can tell them apart when several are mapped at once. `null` / absent
-	 *  = the default rectangle; a `SHAPE_PALETTE` index = that symbol; `"line"`
-	 *  = a short line segment (natural for the rug). For `hue` this supersedes
-	 *  the legacy global `hueLegendSwatchShape`. */
-	swatchShapes?: Partial<Record<SwatchShapeChannel, LegendSwatchShape>>
-	/** Per-section swatch radius (px), paired with `swatchShapes`. */
+	 *  = the theme's default (`Theme.legendSwatchShape`); `"rect"` = the
+	 *  rectangle; a `SHAPE_PALETTE` index = that symbol; `"line"` = a short
+	 *  line segment (natural for the rug). For `hue` this supersedes the
+	 *  legacy global `hueLegendSwatchShape`. */
+	swatchShapes?: Partial<Record<SwatchShapeChannel, LegendSwatchShapeChoice>>
+	/** Per-section swatch radius (px), paired with `swatchShapes`. Absent =
+	 *  the theme's default (`Theme.legendSwatchSize`). */
 	swatchSizes?: Partial<Record<SwatchShapeChannel, number>>
 	/** Outline drawn around each COLOR swatch in the legend (hue / rug /
 	 *  combined color sections). Keeps pale swatches — e.g. the white midpoint
@@ -566,8 +587,9 @@ export type LegendConfig = {
 	 *  outline color) even when the global is set. */
 	swatchOutlineColors?: Partial<Record<SwatchShapeChannel, string | null>>
 	/** Per-section swatch outline width (px), keyed like `swatchShapes`.
-	 *  Falls back to the legacy global `swatchOutlineWidth`; `0` / `null` =
-	 *  no outline for that section (the width IS the switch). */
+	 *  Falls back to the legacy global `swatchOutlineWidth`, then the theme's
+	 *  default (`Theme.legendSwatchOutlineWidth`); `0` = no outline for that
+	 *  section (the width IS the switch), `null` = follow the theme. */
 	swatchOutlineWidths?: Partial<Record<SwatchShapeChannel, number | null>>
 	/** Color used for length / angle / area / opacity legend swatches
 	 * when they render as a STANDALONE section (no hue gradient to
@@ -848,19 +870,74 @@ export type LabelFontKey =
 
 export const legendFontKey = (ch: LegendChannel): LabelFontKey => `legend:${ch}`
 
-/** Resolve a legend section's swatch shape: the per-channel `swatchShapes`
- * entry, falling back to the legacy global `hueLegendSwatchShape` for `hue`
- * (so visuals saved before per-section shapes keep their hue glyph). */
+/** The per-visual swatch-shape choice for a legend section: the
+ * per-channel `swatchShapes` entry, falling back to the legacy global
+ * `hueLegendSwatchShape` for `hue` (so visuals saved before per-section
+ * shapes keep their hue glyph). `null` = follow the theme — resolve the
+ * rendered glyph with `resolveLegendSwatchShape`. */
 export const legendSwatchShape = (
 	cfg: Pick<LegendConfig, "swatchShapes" | "hueLegendSwatchShape">,
 	ch: SwatchShapeChannel
-): LegendSwatchShape => {
+): LegendSwatchShapeChoice => {
 	const perChannel = cfg.swatchShapes?.[ch]
-	if (perChannel !== undefined) return perChannel
+	if (perChannel != null) return perChannel
 	return ch === "hue" ? (cfg.hueLegendSwatchShape ?? null) : null
 }
 
-/** Resolve a legend section's swatch size (px), paired with the shape. */
+/** Theme defaults the swatch resolvers below fall back to. */
+export type LegendSwatchThemeDefaults = Pick<
+	Theme,
+	| "legendSwatchShape"
+	| "legendSwatchSize"
+	| "legendSwatchOutlineColor"
+	| "legendSwatchOutlineWidth"
+>
+
+/** The glyph a legend section's swatches RENDER with: the visual's choice
+ * when it made one, else the theme's default. */
+export const resolveLegendSwatchShape = (
+	cfg: Pick<LegendConfig, "swatchShapes" | "hueLegendSwatchShape">,
+	theme: Pick<Theme, "legendSwatchShape">,
+	ch: SwatchShapeChannel
+): LegendSwatchShape => {
+	const choice = legendSwatchShape(cfg, ch)
+	if (choice === "rect") return null
+	return choice ?? theme.legendSwatchShape
+}
+
+/** Swatch size (px) a legend section renders with: the visual's value,
+ * else the theme's default. */
+export const resolveLegendSwatchSize = (
+	cfg: Pick<LegendConfig, "swatchSizes" | "hueLegendSwatchSize">,
+	theme: Pick<Theme, "legendSwatchSize">,
+	ch: SwatchShapeChannel
+): number => legendSwatchSize(cfg, ch) ?? theme.legendSwatchSize
+
+/** Swatch outline width (px) a legend section renders with: the visual's
+ * value (per-section, then legacy global), else the theme's default. `0`
+ * = no outline. */
+export const resolveLegendSwatchOutlineWidth = (
+	cfg: Pick<LegendConfig, "swatchOutlineWidths" | "swatchOutlineWidth">,
+	theme: Pick<Theme, "legendSwatchOutlineWidth">,
+	ch: SwatchShapeChannel
+): number =>
+	legendSwatchOutlineWidth(cfg, ch) ?? theme.legendSwatchOutlineWidth
+
+/** Swatch outline color a legend section renders with: the visual's value
+ * (per-section, then legacy global), else the theme's default, else
+ * `auto` — the caller's chain for what the swatch depicts (the marks'
+ * outline for mark stand-ins, the theme's legend-swatch outline for
+ * aux-painted sections). Same chain in the renderer and the panel. */
+export const resolveLegendSwatchOutlineColor = (
+	cfg: Pick<LegendConfig, "swatchOutlineColors" | "swatchOutlineColor">,
+	theme: Pick<Theme, "legendSwatchOutlineColor">,
+	ch: SwatchShapeChannel,
+	auto: string
+): string =>
+	legendSwatchOutlineColor(cfg, ch) ?? theme.legendSwatchOutlineColor ?? auto
+
+/** The per-visual swatch size (px) for a legend section, paired with the
+ * shape. `null` = follow the theme (`resolveLegendSwatchSize`). */
 export const legendSwatchSize = (
 	cfg: Pick<LegendConfig, "swatchSizes" | "hueLegendSwatchSize">,
 	ch: SwatchShapeChannel
@@ -902,6 +979,15 @@ export type LabelAlignment = "left" | "center" | "right"
  * can hug the top / center / bottom of each row's own plot rect). Missing
  * entries fall back to "middle" (the previous hard-coded default). */
 export type VerticalAlignment = "top" | "middle" | "bottom"
+
+/** See `LabelsConfig.titlePrefix`. `font` fields fall back to the TITLE's
+ * resolved font (not the theme base), so an untouched prefix matches the
+ * title exactly; sizes are points like every other FontConfig. */
+export type TitlePrefixConfig = {
+	enabled: boolean
+	text: string
+	font?: Partial<FontConfig>
+}
 
 export type LabelsConfig = {
 	title: string
@@ -966,6 +1052,16 @@ export type LabelsConfig = {
 	titleOffsets?: Partial<
 		Record<LabelFontKey, { x?: number; y?: number; distance?: number }>
 	>
+	/** Optional run of text drawn in front of the chart title — the
+	 * "FIGURE 5." in "FIGURE 5. Distribution of …" — with its own font so it
+	 * can be bold / colored / sized apart from the title proper. Absent or
+	 * `enabled: false` draws nothing (the typed text and font survive an
+	 * unchecked box, like `facetTitleColors`, so re-checking restores them).
+	 * The prefix and the title's first line share ONE text chunk, so the
+	 * title's alignment and position offset place the combined run: a
+	 * left-aligned title starts at the same x with or without its prefix.
+	 * See `chartTitlePrefixOf` / `resolveTitlePrefixFont`. */
+	titlePrefix?: TitlePrefixConfig
 	/** Schema version for this labels blob. Bumped when the MEANING of a
 	 * stored value changes so `migrateLabelsConfig` can distinguish a legacy
 	 * blob (no version) from a current one. v2 introduced the three-state
@@ -1048,6 +1144,48 @@ export const titleOffsetOf = (
 ): { x: number; y: number; distance: number } => {
 	const o = labels.titleOffsets?.[key]
 	return { x: o?.x ?? 0, y: o?.y ?? 0, distance: o?.distance ?? 0 }
+}
+
+/** The chart-title prefix that actually renders: the stored text when the
+ * "Add prefix" box is checked and the text isn't blank, else `null`. Gates
+ * at lookup time so unchecking hides the prefix without discarding it. */
+export const chartTitlePrefixOf = (labels: LabelsConfig): string | null => {
+	const p = labels.titlePrefix
+	if (!p || p.enabled !== true) return null
+	const text = p.text.trim()
+	return text.length > 0 ? text : null
+}
+
+/** Whether the chart draws a title band at all: typed title text OR an
+ * active prefix (a prefix with an empty title still renders, so the user
+ * sees what they typed). Every title-presence check — solver band, inside-
+ * legend plot mapping, the render gate — must agree, so they all read this. */
+export const hasChartTitle = (labels: LabelsConfig): boolean =>
+	labels.title.length > 0 || chartTitlePrefixOf(labels) !== null
+
+/** Effective chart-title prefix font: the visual's prefix override, then
+ * the theme's prefix defaults (`titles.prefix*`), then the RESOLVED title
+ * font (px sizes, see `resolveTitleFont`) — so an untouched prefix inherits
+ * whatever the title renders with, including the title's own per-visual
+ * override. Configured sizes are points; the returned `size` is px. */
+export const resolveTitlePrefixFont = (
+	titleFont: FontConfig,
+	titles: TitlesFontConfig,
+	prefixFont: Partial<FontConfig> | undefined
+): FontConfig => {
+	const sizePt = prefixFont?.size ?? titles.prefixSize
+	return {
+		family: prefixFont?.family ?? titles.prefixFamily ?? titleFont.family,
+		color: prefixFont?.color ?? titles.prefixColor ?? titleFont.color,
+		size: sizePt !== undefined ? ptToPx(sizePt) : titleFont.size,
+		weight: prefixFont?.weight ?? titles.prefixWeight ?? titleFont.weight,
+		italic: prefixFont?.italic ?? titles.prefixItalic ?? titleFont.italic ?? false,
+		underline:
+			prefixFont?.underline ??
+			titles.prefixUnderline ??
+			titleFont.underline ??
+			false,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1282,5 +1420,8 @@ export const migrateLabelsConfig = (
 		titleAngles: raw.titleAngles ?? {},
 		facetTitleColorByValue: raw.facetTitleColorByValue ?? false,
 		facetTitleColors: raw.facetTitleColors ?? {},
+		// Sparse: only carried when the visual stored one (same dropped-on-
+		// re-hydration hazard as titleOffsets above).
+		...(raw.titlePrefix ? { titlePrefix: raw.titlePrefix } : {}),
 	}
 }

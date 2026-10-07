@@ -11,6 +11,7 @@ import type {
 	SolverPanelInput,
 } from "../../../lib/facetLayoutSolver"
 import {
+	hasChartTitle,
 	titleAlignmentOf,
 	type FontConfig,
 	type LabelAlignment,
@@ -180,7 +181,9 @@ export const buildSolverInput = ({
 		rows: panelData.grid.rows,
 		cols: panelData.grid.cols,
 		panels: panelInputs,
-		chartTitle: labels.title
+		// A title band exists for typed text OR an active prefix (the prefix
+		// rides the first line, so the band's height is the same either way).
+		chartTitle: hasChartTitle(labels)
 			? {
 					text: labels.title,
 					fontSize: titleFont.size,

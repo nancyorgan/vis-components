@@ -40,6 +40,7 @@ import {
 	type RectangleTextStyle,
 	type TextAnnotationBoxStyle,
 } from "./annotationsConfig"
+import { DEFAULT_CAPTION_CONFIG, type CaptionConfig } from "./captionConfig"
 import { DEFAULT_HEXBIN_BIN_COUNT } from "./hexbins"
 import {
 	DEFAULT_LABELS_CONFIG,
@@ -266,6 +267,28 @@ export const dataLabelsConfigFromTheme = (t: Theme): DataLabelsConfig => ({
 		t.mapLeaderLineColor ?? DEFAULT_DATA_LABELS_CONFIG.leaderLineColor,
 	leaderLineWidth:
 		t.mapLeaderLineThickness ?? DEFAULT_DATA_LABELS_CONFIG.leaderLineWidth,
+})
+
+/** Theme-seeded Caption config — see `shapeConfigFromTheme` for why this is
+ * a shared builder. Only the text knobs (family / color / size / weight /
+ * alignment) are theme-driven; the caption text itself, its position / size
+ * nudges, padding, and the background box are user-driven and stay at the
+ * built-in defaults here. An unset family / color follows the theme's Axis
+ * text font (so a dark theme gets a readable caption without the theme
+ * author touching the Caption section); unset size / weight / alignment keep
+ * the built-in caption defaults, which is what every theme saved before these
+ * fields existed produced. */
+export const captionConfigFromTheme = (t: Theme): CaptionConfig => ({
+	...DEFAULT_CAPTION_CONFIG,
+	fontFamily:
+		t.captionFontFamily ??
+		t.textFontFamily ??
+		DEFAULT_CAPTION_CONFIG.fontFamily,
+	textColor:
+		t.captionFontColor ?? t.textFontColor ?? DEFAULT_CAPTION_CONFIG.textColor,
+	fontSize: t.captionFontSize ?? DEFAULT_CAPTION_CONFIG.fontSize,
+	fontWeight: t.captionFontWeight ?? DEFAULT_CAPTION_CONFIG.fontWeight,
+	align: t.captionAlignment ?? DEFAULT_CAPTION_CONFIG.align,
 })
 
 /** Theme-seeded fill + border style for NEW rectangle and circle annotations.
@@ -1168,6 +1191,14 @@ export const labelsFromTheme = (t: Theme): LabelsConfig => ({
 			legendSize: t.legendTitleFontSize,
 			legendItalic: t.legendTitleFontItalic,
 			legendUnderline: t.legendTitleFontUnderline,
+			// Chart-title prefix defaults; unset follows the resolved title
+			// font (resolveTitlePrefixFont).
+			prefixFamily: t.titlePrefixFontFamily,
+			prefixColor: t.titlePrefixFontColor,
+			prefixSize: t.titlePrefixFontSize,
+			prefixWeight: t.titlePrefixFontWeight,
+			prefixItalic: t.titlePrefixFontItalic,
+			prefixUnderline: t.titlePrefixFontUnderline,
 			// Base alignments for title / subtitle / legend titles — the layer
 			// under per-visual titleAlignments (titleAlignmentOf).
 			primaryAlignment: t.titleAlignment,

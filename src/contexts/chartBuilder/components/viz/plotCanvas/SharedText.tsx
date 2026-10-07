@@ -1,5 +1,5 @@
 import type { TextRect } from "../../../lib/facetLayoutSolver"
-import { renderMultilineTspans } from "../../../lib/multilineText"
+import { renderMultilineTspans, type TextPrefix } from "../../../lib/multilineText"
 
 export const TITLE_FILL_FALLBACK = "fill-stone-700 dark:fill-stone-300"
 
@@ -16,6 +16,7 @@ export const SharedText = ({
 	italic,
 	underline,
 	angleDeg,
+	prefix,
 }: {
 	rect: TextRect
 	text: string
@@ -33,6 +34,9 @@ export const SharedText = ({
 	 * Orientation). Ignored when the rect carries its own structural
 	 * `rotation` (the -90 rotated y-title). */
 	angleDeg?: number
+	/** Styled run in front of the first line (chart-title prefix); shares
+	 * the line's text chunk so `rect.textAnchor` aligns both together. */
+	prefix?: TextPrefix
 }) => {
 	const transform =
 		rect.rotation === -90
@@ -54,7 +58,7 @@ export const SharedText = ({
 			fill={fill}
 			className={fill ? undefined : TITLE_FILL_FALLBACK}
 		>
-			{renderMultilineTspans(text, rect.x)}
+			{renderMultilineTspans(text, rect.x, prefix ? { prefix } : undefined)}
 		</text>
 	)
 }

@@ -20,7 +20,9 @@ import {
 import {
 	facetTitleColorOf,
 	resolveTextFont,
+	chartTitlePrefixOf,
 	resolveTitleFont,
+	resolveTitlePrefixFont,
 } from "../../lib/labelsConfig"
 import {
 	DEFAULT_CAPTION_CONFIG,
@@ -180,6 +182,14 @@ export const PlotCanvas = () => {
 		labels.baseFont,
 		"primary",
 		labels.fontOverrides?.title
+	)
+	// Chart-title prefix ("FIGURE 5."): its font layers over the RESOLVED
+	// title font so unset fields match the title exactly.
+	const titlePrefixText = chartTitlePrefixOf(labels)
+	const titlePrefixFont = resolveTitlePrefixFont(
+		titleFont,
+		labels.baseFont.titles,
+		labels.titlePrefix?.font
 	)
 	const subtitleFont = resolveTitleFont(
 		labels.baseFont,
@@ -422,6 +432,7 @@ export const PlotCanvas = () => {
 			panelData,
 			panelInputs,
 			labels.title,
+			labels.titlePrefix,
 			labels.subtitle,
 			labels.titleAlignments,
 			// titleAlignmentOf also reads the theme-seeded base alignments.
@@ -684,6 +695,19 @@ export const PlotCanvas = () => {
 					weight={titleFont.weight}
 					italic={titleFont.italic}
 					underline={titleFont.underline}
+					prefix={
+						titlePrefixText !== null
+							? {
+									text: titlePrefixText,
+									fontFamily: titlePrefixFont.family,
+									fontSize: titlePrefixFont.size,
+									fontWeight: titlePrefixFont.weight,
+									fill: titlePrefixFont.color,
+									italic: titlePrefixFont.italic,
+									underline: titlePrefixFont.underline,
+								}
+							: undefined
+					}
 				/>
 			)}
 			{spec.subtitle && (

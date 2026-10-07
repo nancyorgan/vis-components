@@ -3,6 +3,7 @@
 // `types.ts` and `channels.ts` form an import cycle. Re-exported here because
 // this module is the barrel everything else imports them from.
 import type { EncodingChannel, FieldType } from "./channelNames"
+import type { LegendSwatchShape } from "./labelsConfig"
 export type { EncodingChannel, FieldType }
 
 // Re-exported from the channel registry so there's one source of truth.
@@ -502,6 +503,17 @@ export type Theme = {
 	legendTitleFontSize?: number
 	legendTitleFontItalic?: boolean
 	legendTitleFontUnderline?: boolean
+	/** Chart-title PREFIX ("FIGURE 5.") defaults — the Labels panel's "Add
+	 * prefix" run. Unset falls back to whatever the chart title renders with
+	 * (Main title theme fields, or the visual's own title override), so a
+	 * theme that only sets `titlePrefixFontWeight: 700` gets a bold prefix in
+	 * the title's family / color / size. */
+	titlePrefixFontFamily?: string
+	titlePrefixFontColor?: string
+	titlePrefixFontSize?: number
+	titlePrefixFontWeight?: number
+	titlePrefixFontItalic?: boolean
+	titlePrefixFontUnderline?: boolean
 	/** Default alignments for the chart title / subtitle / legend section
 	 * titles. Unset = "center". Per-visual alignment edits override these. */
 	titleAlignment?: "left" | "center" | "right"
@@ -601,6 +613,17 @@ export type Theme = {
 	dataLabelsColor?: string
 	dataLabelsItalic?: boolean
 	dataLabelsUnderline?: boolean
+	// Caption defaults — seed the Caption panel's text styling (font family /
+	// color / size / weight / alignment) when a chart is created or re-themed.
+	// All optional: an unset family / color follows the Axis text font, and
+	// unset size / weight / alignment keep the built-in caption defaults
+	// (13pt / 400 / left), so themes saved before these fields existed look
+	// exactly as they did.
+	captionFontFamily?: string
+	captionFontColor?: string
+	captionFontSize?: number
+	captionFontWeight?: number
+	captionAlignment?: "left" | "center" | "right"
 	// Annotation defaults — seed the style of NEWLY ADDED annotations (the
 	// sidebar's rectangles / circles / lines / text). Existing annotations keep
 	// the style they were authored with. All optional: themes saved before
@@ -702,6 +725,27 @@ export type Theme = {
 	 * — that field's null value falls back to this theme default. Historical
 	 * look is a white outline. */
 	legendSwatchStroke: string
+	/** Default glyph for the discrete swatches of a legend section (color,
+	 * outline color, saturation, brightness, pattern, opacity, rug):
+	 * `null` = rounded rectangle, a `SHAPE_PALETTE` index = that symbol,
+	 * `"line"` = a short line segment. Inert where a shape encoding keys
+	 * the swatches — those glyphs ARE the encoding. Per-visual override:
+	 * `LegendConfig.swatchShapes` (an absent entry follows this). */
+	legendSwatchShape: LegendSwatchShape
+	/** Default swatch size (px, radius-like; 5 is the historical look) for
+	 * every swatch-drawing legend section, shape glyphs included. Per-visual
+	 * override: `LegendConfig.swatchSizes`. */
+	legendSwatchSize: number
+	/** Default outline color drawn around legend swatches when
+	 * `legendSwatchOutlineWidth` is above 0. `null` = automatic: sections
+	 * whose swatches stand in for marks take the marks' outline color,
+	 * aux-painted sections (opacity / saturation / brightness) take
+	 * `legendSwatchStroke`. Per-visual override:
+	 * `LegendConfig.swatchOutlineColors`. */
+	legendSwatchOutlineColor: string | null
+	/** Default outline width (px) around legend swatches; `0` = no outline.
+	 * Per-visual override: `LegendConfig.swatchOutlineWidths`. */
+	legendSwatchOutlineWidth: number
 }
 
 /** Identity attached to a saved theme so the editor can list them, set

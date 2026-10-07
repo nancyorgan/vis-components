@@ -323,6 +323,14 @@ yTitle.x     = plotLeft - yTitleGap + offsetX
                                       (negative offsetX → leftGrow + canvas adjust)
 ```
 
+The chart-title prefix ("FIGURE 5.") is NOT a solver concern: it renders
+as a styled `<tspan>` in the title's first text chunk (only the prefix
+tspan carries `x`/`dy`; the first title line's tspan has neither), so
+the browser's `text-anchor` aligns prefix + title as one run at
+`chartTitle.x`. The band's height is unchanged — the prefix rides the
+first line — and `hasChartTitle` (text OR active prefix) is the single
+presence check the solver spec, `ChartCanvas` and the render gate share.
+
 Where:
 
 ```

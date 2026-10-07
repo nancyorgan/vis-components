@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest"
 import { ptToPx } from "./fontUnit"
 
 import {
+	chartTitlePrefixOf,
 	DEFAULT_BASE_FONT_CONFIG,
+	DEFAULT_LABELS_CONFIG,
 	facetTitleColorOf,
+	hasChartTitle,
 	fontWeightDisplayName,
 	fontWeightOptionsFor,
 	layerFacetOverride,
@@ -12,11 +15,16 @@ import {
 	legendSwatchOutlineColor,
 	legendSwatchOutlineWidth,
 	legendSwatchShape,
+	resolveLegendSwatchOutlineColor,
+	resolveLegendSwatchOutlineWidth,
+	resolveLegendSwatchShape,
+	resolveLegendSwatchSize,
 	legendSwatchSize,
 	migrateLabelsConfig,
 	resolveLegendHidden,
 	resolveLegendTextFont,
 	resolveTitleFont,
+	resolveTitlePrefixFont,
 } from "./labelsConfig"
 
 /** Migration regressions on this code path are silent — the user clicks
@@ -686,5 +694,154 @@ describe("resolveLegendTextFont", () => {
 		expect(f.color).toBe("#111111")
 		expect(f.weight).toBe(400)
 		expect(f.size).toBe(ptToPx(12))
+	})
+})
+
+describe("title prefix", () => {
+	it("migrateLabelsConfig carries titlePrefix through (export / embed re-hydration)", () => {
+		const out = migrateLabelsConfig({
+			...DEFAULT_LABELS_CONFIG,
+			titlePrefix: { enabled: true, text: "FIGURE 5.", font: { weight: 700 } },
+		})
+		expect(out.titlePrefix).toEqual({
+			enabled: true,
+			text: "FIGURE 5.",
+			font: { weight: 700 },
+		})
+		// Sparse: a visual without one doesn't gain the key.
+		expect("titlePrefix" in migrateLabelsConfig({ ...DEFAULT_LABELS_CONFIG })).toBe(
+			false
+		)
+	})
+
+	it("chartTitlePrefixOf gates on the checkbox AND non-blank text", () => {
+		const base = { ...DEFAULT_LABELS_CONFIG }
+		expect(chartTitlePrefixOf(base)).toBeNull()
+		expect(
+			chartTitlePrefixOf({
+				...base,
+				titlePrefix: { enabled: false, text: "FIGURE 5." },
+			})
+		).toBeNull()
+		expect(
+			chartTitlePrefixOf({ ...base, titlePrefix: { enabled: true, text: "   " } })
+		).toBeNull()
+		expect(
+			chartTitlePrefixOf({
+				...base,
+				titlePrefix: { enabled: true, text: " FIGURE 5. " },
+			})
+		).toBe("FIGURE 5.")
+	})
+
+	it("hasChartTitle is true for typed text OR an active prefix", () => {
+		const base = { ...DEFAULT_LABELS_CONFIG }
+		expect(hasChartTitle(base)).toBe(false)
+		expect(hasChartTitle({ ...base, title: "T" })).toBe(true)
+		expect(
+			hasChartTitle({ ...base, titlePrefix: { enabled: true, text: "FIGURE 5." } })
+		).toBe(true)
+		expect(
+			hasChartTitle({ ...base, titlePrefix: { enabled: false, text: "FIGURE 5." } })
+		).toBe(false)
+	})
+
+	it("resolveTitlePrefixFont layers over the RESOLVED title font, pt → px", () => {
+		const titles = DEFAULT_BASE_FONT_CONFIG.titles
+		const titleFont = resolveTitleFont(DEFAULT_BASE_FONT_CONFIG, "primary", {
+			color: "#123456",
+			weight: 300,
+		})
+		// Untouched prefix = the title's effective font, override included.
+		expect(resolveTitlePrefixFont(titleFont, titles, undefined)).toEqual(titleFont)
+		const out = resolveTitlePrefixFont(titleFont, titles, {
+			weight: 700,
+			size: 10,
+			italic: true,
+		})
+		expect(out.weight).toBe(700)
+		expect(out.size).toBe(ptToPx(10))
+		expect(out.italic).toBe(true)
+		expect(out.color).toBe("#123456")
+		expect(out.family).toBe(titleFont.family)
+	})
+
+	it("resolveTitlePrefixFont: visual override > theme prefix slot > title font", () => {
+		const titleFont = resolveTitleFont(DEFAULT_BASE_FONT_CONFIG, "primary", {
+			color: "#123456",
+		})
+		const themed = {
+			...DEFAULT_BASE_FONT_CONFIG.titles,
+			prefixWeight: 700,
+			prefixSize: 9,
+			prefixColor: "#aa00aa",
+			prefixUnderline: true,
+		}
+		// Theme prefix slot wins over the title's font…
+		const fromTheme = resolveTitlePrefixFont(titleFont, themed, undefined)
+		expect(fromTheme.weight).toBe(700)
+		expect(fromTheme.size).toBe(ptToPx(9))
+		expect(fromTheme.color).toBe("#aa00aa")
+		expect(fromTheme.underline).toBe(true)
+		expect(fromTheme.family).toBe(titleFont.family)
+		// …and the visual's prefix override wins over the theme.
+		const overridden = resolveTitlePrefixFont(titleFont, themed, {
+			weight: 400,
+			color: "#000000",
+		})
+		expect(overridden.weight).toBe(400)
+		expect(overridden.color).toBe("#000000")
+		expect(overridden.size).toBe(ptToPx(9))
+	})
+})
+
+describe("theme-default swatch resolvers", () => {
+	const theme = {
+		legendSwatchShape: 2,
+		legendSwatchSize: 8,
+		legendSwatchOutlineColor: "#abcdef",
+		legendSwatchOutlineWidth: 1.5,
+	}
+
+	it("an untouched section renders the theme's shape / size / outline", () => {
+		expect(resolveLegendSwatchShape({}, theme, "hue")).toBe(2)
+		expect(resolveLegendSwatchSize({}, theme, "pattern")).toBe(8)
+		expect(resolveLegendSwatchOutlineWidth({}, theme, "opacity")).toBe(1.5)
+		expect(resolveLegendSwatchOutlineColor({}, theme, "hue", "#111111")).toBe(
+			"#abcdef"
+		)
+	})
+
+	it("a visual's own choice wins, and \"rect\" pins the rectangle", () => {
+		const cfg = {
+			swatchShapes: { hue: "rect", pattern: "line" },
+			swatchSizes: { hue: 4 },
+			swatchOutlineWidths: { hue: 0 },
+			swatchOutlineColors: { hue: "#ff0000" },
+		} as const
+		expect(resolveLegendSwatchShape(cfg, theme, "hue")).toBe(null)
+		expect(resolveLegendSwatchShape(cfg, theme, "pattern")).toBe("line")
+		expect(resolveLegendSwatchSize(cfg, theme, "hue")).toBe(4)
+		// Explicit 0 = no outline even when the theme draws one.
+		expect(resolveLegendSwatchOutlineWidth(cfg, theme, "hue")).toBe(0)
+		expect(
+			resolveLegendSwatchOutlineColor(cfg, theme, "hue", "#111111")
+		).toBe("#ff0000")
+	})
+
+	it("a theme without an outline color hands back the caller's auto chain", () => {
+		const noColor = { ...theme, legendSwatchOutlineColor: null }
+		expect(
+			resolveLegendSwatchOutlineColor({}, noColor, "hue", "#111111")
+		).toBe("#111111")
+	})
+
+	it("a legacy null shape entry follows the theme (it meant the rectangle only while that was the sole default)", () => {
+		expect(
+			resolveLegendSwatchShape({ swatchShapes: { hue: null } }, theme, "hue")
+		).toBe(2)
+		expect(
+			resolveLegendSwatchShape({ hueLegendSwatchShape: null }, theme, "hue")
+		).toBe(2)
 	})
 })

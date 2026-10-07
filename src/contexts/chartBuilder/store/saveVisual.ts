@@ -17,6 +17,7 @@ import { DEFAULT_MAP_CONFIG } from "../lib/mapConfig"
 import { DEFAULT_RESHAPE_CONFIG } from "../lib/reshape"
 import {
 	configsFromTheme,
+	captionConfigFromTheme,
 	dataLabelsConfigFromTheme,
 	labelsFromTheme,
 	legendConfigFromTheme,
@@ -319,7 +320,7 @@ export const useResetVisual = () => {
 			set(currentFieldLevelOrdersAtom, {})
 			set(currentFieldLevelOrderSpecsAtom, {})
 			set(currentAnnotationsAtom, DEFAULT_ANNOTATIONS_CONFIG)
-			set(currentCaptionConfigAtom, DEFAULT_CAPTION_CONFIG)
+			set(currentCaptionConfigAtom, captionConfigFromTheme(defaultTheme))
 			set(currentMapConfigAtom, DEFAULT_MAP_CONFIG)
 			set(currentReshapeConfigAtom, DEFAULT_RESHAPE_CONFIG)
 			set(currentDerivedVariablesAtom, DEFAULT_DERIVED_VARIABLES_CONFIG)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useAtomValue, useSetAtom } from "jotai"
 import { nameCollides } from "../../lib/nameUniqueness"
+import type { ParsedUpload } from "../../lib/types"
 import {
 	currentVisualIdAtom,
 	datasetIndexAtom,
@@ -53,13 +54,13 @@ const PasteDataForm = ({
 	const setUploadNotice = useSetAtom(uploadNoticeAtom)
 	const handlePastedData = useHandlePastedData()
 
-	// Live read of what the paste would become, so the user sees "N rows ·
-	// M columns" (or the parse complaint) before committing.
+	// Live read of what the paste would become — the parsed table itself (or
+	// the parse complaint) — so the user sees columns and types resolve
+	// before committing, not a wall of tab-separated text.
 	const preview = useMemo(() => {
 		if (text.trim() === "") return null
 		try {
-			const parsed = parsePastedData(text)
-			return { ok: true as const, rows: parsed.rows.length, fields: parsed.fields }
+			return { ok: true as const, parsed: parsePastedData(text) }
 		} catch (error) {
 			return {
 				ok: false as const,
@@ -101,30 +102,21 @@ const PasteDataForm = ({
 				aria-label="Pasted data"
 				value={text}
 				onChange={(e) => setText(e.target.value)}
-				rows={10}
+				rows={6}
 				spellCheck={false}
 				placeholder={"country\tyear\tpopulation\nChile\t2020\t19.1\nPeru\t2020\t33.0"}
 				className="w-full resize-y font-mono"
 				// eslint-disable-next-line jsx-a11y/no-autofocus -- the box is what the user opened this dialog to paste into
 				autoFocus
 			/>
-			{preview && (
-				<div
-					className={
-						preview.ok
-							? "text-sm vc-muted"
-							: "rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
-					}
-				>
-					{preview.ok
-						? `${preview.rows} row${preview.rows === 1 ? "" : "s"} · ${
-								preview.fields.length
-							} column${preview.fields.length === 1 ? "" : "s"}: ${preview.fields
-								.map((f) => f.name)
-								.join(", ")}`
-						: preview.error}
-				</div>
-			)}
+			{preview &&
+				(preview.ok ? (
+					<PastePreviewTable parsed={preview.parsed} />
+				) : (
+					<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+						{preview.error}
+					</div>
+				))}
 			{needsName && (
 				<div className="flex flex-col gap-1">
 					<label htmlFor="paste-data-name" className="text-sm vc-muted">
@@ -158,6 +150,66 @@ const PasteDataForm = ({
 				<Button compact onClick={() => void onSubmit()} disabled={!canSubmit}>
 					Add data
 				</Button>
+			</div>
+		</div>
+	)
+}
+
+const PREVIEW_ROWS = 6
+
+/** The parsed paste as a small table: every column and the first few rows,
+ *  styled like the data tray. Wide pastes scroll sideways inside the dialog
+ *  rather than stretching it. */
+const PastePreviewTable = ({ parsed }: { parsed: ParsedUpload }) => {
+	const total = parsed.rows.length
+	const shown = parsed.rows.slice(0, PREVIEW_ROWS)
+	return (
+		<div className="flex flex-col gap-1">
+			<div className="text-sm vc-muted">
+				{total} row{total === 1 ? "" : "s"} · {parsed.fields.length} column
+				{parsed.fields.length === 1 ? "" : "s"}
+				{total > PREVIEW_ROWS && ` · first ${PREVIEW_ROWS} shown`}
+			</div>
+			<div className="max-w-full overflow-x-auto rounded-sm border border-stone-200 dark:border-stone-700">
+				<table className="min-w-full text-left text-sm">
+					<thead className="bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+						<tr>
+							{parsed.fields.map((f) => (
+								<th
+									key={f.name}
+									scope="col"
+									className={`border-r border-b border-stone-200 px-3 py-1.5 font-medium whitespace-nowrap last:border-r-0 dark:border-stone-700 ${
+										f.inferredType === "quantitative" ? "text-right" : ""
+									}`}
+								>
+									{f.name}
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{shown.map((row, i) => (
+							<tr
+								// eslint-disable-next-line react/no-array-index-key -- rows are a static snapshot of the paste
+								key={i}
+								className="odd:bg-white even:bg-stone-50 dark:odd:bg-stone-900 dark:even:bg-stone-900/50"
+							>
+								{parsed.fields.map((f) => (
+									<td
+										key={f.name}
+										className={`border-r border-stone-200 px-3 py-1 whitespace-nowrap last:border-r-0 dark:border-stone-700 ${
+											f.inferredType === "quantitative"
+												? "text-right tabular-nums"
+												: ""
+										}`}
+									>
+										{row[f.name] ?? ""}
+									</td>
+								))}
+							</tr>
+						))}
+					</tbody>
+				</table>
 			</div>
 		</div>
 	)
