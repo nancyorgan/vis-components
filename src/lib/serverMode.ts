@@ -10,9 +10,15 @@
 export type ServerModeConfig = {
 	v: 1
 	baseUrl: string
+	/** Same-origin path to the host's account page, when it has one. */
+	accountUrl?: string
 }
 
 const PROBE_TIMEOUT_MS = 3000
+
+/** Only a same-origin absolute path ("/account", not "//evil" or a URL) is
+ *  ever used as a link target. */
+const SAME_ORIGIN_PATH = /^\/(?!\/)[^\s\\]*$/
 
 /** Validate an /api/config payload. Exported for tests. */
 export const parseServerModeConfig = (value: unknown): ServerModeConfig | null => {
@@ -20,7 +26,11 @@ export const parseServerModeConfig = (value: unknown): ServerModeConfig | null =
 	const record = value as Record<string, unknown>
 	if (record.v !== 1) return null
 	if (typeof record.baseUrl !== "string") return null
-	return { v: 1, baseUrl: record.baseUrl }
+	const config: ServerModeConfig = { v: 1, baseUrl: record.baseUrl }
+	if (typeof record.accountUrl === "string" && SAME_ORIGIN_PATH.test(record.accountUrl)) {
+		config.accountUrl = record.accountUrl
+	}
+	return config
 }
 
 /** Probe the origin the app was loaded from. Resolves to the server config
