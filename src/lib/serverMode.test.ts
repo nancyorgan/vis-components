@@ -20,12 +20,12 @@ describe("parseServerModeConfig", () => {
 		})
 	})
 
-	it("keeps a same-origin accountUrl and drops anything else", () => {
+	it("keeps a same-origin signOutUrl and drops anything else", () => {
 		expect(
-			parseServerModeConfig({ v: 1, baseUrl: "https://x", accountUrl: "/account" })
-		).toEqual({ v: 1, baseUrl: "https://x", accountUrl: "/account" })
-		for (const accountUrl of ["//evil.example", "https://evil.example", "javascript:alert(1)", "/\\evil", 7]) {
-			expect(parseServerModeConfig({ v: 1, baseUrl: "https://x", accountUrl })).toEqual({
+			parseServerModeConfig({ v: 1, baseUrl: "https://x", signOutUrl: "/auth/sign-out" })
+		).toEqual({ v: 1, baseUrl: "https://x", signOutUrl: "/auth/sign-out" })
+		for (const signOutUrl of ["//evil.example", "https://evil.example", "javascript:alert(1)", "/\\evil", 7]) {
+			expect(parseServerModeConfig({ v: 1, baseUrl: "https://x", signOutUrl })).toEqual({
 				v: 1,
 				baseUrl: "https://x",
 			})

@@ -10,14 +10,15 @@
 export type ServerModeConfig = {
 	v: 1
 	baseUrl: string
-	/** Same-origin path to the host's account page, when it has one. */
-	accountUrl?: string
+	/** Same-origin path the header's "Log out" form posts to, when the host
+	 *  has sessions to end. */
+	signOutUrl?: string
 }
 
 const PROBE_TIMEOUT_MS = 3000
 
-/** Only a same-origin absolute path ("/account", not "//evil" or a URL) is
- *  ever used as a link target. */
+/** Only a same-origin absolute path ("/auth/sign-out", not "//evil" or a
+ *  URL) is ever used as the form's target. */
 const SAME_ORIGIN_PATH = /^\/(?!\/)[^\s\\]*$/
 
 /** Validate an /api/config payload. Exported for tests. */
@@ -27,8 +28,8 @@ export const parseServerModeConfig = (value: unknown): ServerModeConfig | null =
 	if (record.v !== 1) return null
 	if (typeof record.baseUrl !== "string") return null
 	const config: ServerModeConfig = { v: 1, baseUrl: record.baseUrl }
-	if (typeof record.accountUrl === "string" && SAME_ORIGIN_PATH.test(record.accountUrl)) {
-		config.accountUrl = record.accountUrl
+	if (typeof record.signOutUrl === "string" && SAME_ORIGIN_PATH.test(record.signOutUrl)) {
+		config.signOutUrl = record.signOutUrl
 	}
 	return config
 }

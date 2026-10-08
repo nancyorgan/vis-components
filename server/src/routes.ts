@@ -81,7 +81,7 @@ export const createHandler =
 				return sendJson(
 					res,
 					200,
-					JSON.stringify({ v: 1, baseUrl: config.baseUrl, accountUrl: config.accountUrl })
+					JSON.stringify({ v: 1, baseUrl: config.baseUrl, signOutUrl: config.signOutUrl })
 				)
 			}
 			if (path.startsWith("/api/")) return await handleApi(req, res, { config, db, distDir })

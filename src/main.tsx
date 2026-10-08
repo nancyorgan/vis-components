@@ -11,7 +11,7 @@ import {
 import { runDatasetStoreCleanup } from "./contexts/chartBuilder/lib/datasetSweep"
 import { createHttpStorageAdapter } from "./contexts/chartBuilder/lib/storage/httpAdapter"
 import { setStorageAdapter } from "./contexts/chartBuilder/lib/storage/registry"
-import { setAccountUrl } from "./lib/accountUrl"
+import { setSignOutUrl } from "./lib/signOutUrl"
 import { setAppOrigin } from "./lib/appOrigin"
 import { probeServerMode } from "./lib/serverMode"
 import publicSeed from "./seed/examples.json"
@@ -75,7 +75,7 @@ const bootstrapStorage = async (): Promise<void> => {
 	const serverConfig = await probeServerMode()
 	if (serverConfig) {
 		setAppOrigin(serverConfig.baseUrl)
-		if (serverConfig.accountUrl) setAccountUrl(serverConfig.accountUrl)
+		if (serverConfig.signOutUrl) setSignOutUrl(serverConfig.signOutUrl)
 		setStorageAdapter(createHttpStorageAdapter())
 		await applyExampleSeed(seed)
 		return
