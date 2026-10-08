@@ -10,7 +10,7 @@ export const PatternsSection = ({
 	<SectionGroup title="Patterns" isReadOnly={isReadOnly}>
 		{/* Pattern defaults */}
 		<Section title="Pattern defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Background color is used when patterns sit on a mark with no hue
 				mapping. Ink color is the default pattern stroke; per-palette
 				overrides below let you pair a specific ink with each hue swatch.
@@ -27,15 +27,15 @@ export const PatternsSection = ({
 			/>
 			{theme.categoricalPalettes.length > 0 && (
 				<div className="mt-2 flex flex-col gap-3">
-					<span className="text-sm font-medium text-stone-700 dark:text-stone-300">
+					<span className="vc-text-2 text-sm font-medium">
 						Per-hue ink overrides
 					</span>
 					{theme.categoricalPalettes.map((palette) => (
 						<div
 							key={palette.id}
-							className="rounded-md border border-stone-200 p-3 dark:border-stone-700"
+							className="vc-border rounded-md p-3"
 						>
-							<div className="mb-2 text-sm font-medium text-stone-700 dark:text-stone-300">
+							<div className="vc-text-2 mb-2 text-sm font-medium">
 								{palette.name}
 							</div>
 							<div className="flex flex-wrap gap-2">
@@ -59,7 +59,7 @@ export const PatternsSection = ({
 											className="flex flex-col items-center gap-1"
 										>
 											<span
-												className="block h-6 w-10 rounded border border-stone-300 dark:border-stone-700"
+												className="vc-border-color-strong block h-6 w-10 rounded border"
 												style={{ backgroundColor: color }}
 												aria-label={`Hue swatch ${i + 1}`}
 											/>
@@ -68,10 +68,10 @@ export const PatternsSection = ({
 												value={ink || theme.patternInkColor}
 												onChange={(e) => setInk(e.target.value)}
 												aria-label={`Pattern ink for hue ${i + 1}`}
-												className={`h-6 w-10 shrink-0 cursor-pointer rounded border ${
+												className={`h-6 w-10 flex-shrink-0 cursor-pointer rounded border ${
 													ink
-														? "border-stone-400 dark:border-stone-500"
-														: "border-dashed border-stone-300 dark:border-stone-700"
+														? "vc-settings-ink-override"
+														: "vc-border-color-strong border-dashed"
 												}`}
 												title={
 													ink
@@ -83,7 +83,7 @@ export const PatternsSection = ({
 												<button
 													type="button"
 													onClick={() => setInk(null)}
-													className="text-[10px] leading-none text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-white"
+													className="vc-link-faint text-[10px] leading-none underline"
 													title="Reset to global default"
 												>
 													reset

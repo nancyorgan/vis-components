@@ -44,7 +44,7 @@ export const DuplicateVisualButton = ({ visualId, visualName }: Props) => {
 			onClick={onClick}
 			title="Duplicate visualization"
 			aria-label={`Duplicate ${visualName}`}
-			className="flex h-6 w-6 items-center justify-center rounded bg-white/90 text-stone-500 shadow-sm ring-1 ring-stone-200 hover:bg-stone-100 hover:text-stone-700 dark:bg-stone-800/90 dark:text-stone-400 dark:ring-stone-700 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+			className="vc-library-tile-btn flex h-6 w-6 items-center justify-center rounded"
 		>
 			<CopyIcon />
 		</button>

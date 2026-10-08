@@ -17,7 +17,7 @@ export const buildDefaultTooltipHtml = (fields: string[]): string => {
 		.join("\n")
 }
 
-/** Default CSS that mirrors what `HoverTooltip` applies via Tailwind classes
+/** Default CSS that mirrors the classes `HoverTooltip` puts
  *  on the `.vc-tooltip` container today. Editing this in the sidebar lets the
  *  user override the look-and-feel without us shipping a separate styling
  *  panel. The string is intentionally formatted with one rule per line so

@@ -134,7 +134,7 @@ export const CategoryRow = ({
 	<div className="flex flex-col gap-1 text-sm">
 		<div className="flex items-center justify-between gap-2">
 			<span
-				className="min-w-0 flex-1 truncate text-stone-700 dark:text-stone-300"
+				className="min-w-0 flex-1 truncate vc-text-2"
 				title={value}
 			>
 				{value}
@@ -152,8 +152,8 @@ export const CategoryRow = ({
 						aria-pressed={selected}
 						className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 							selected
-								? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-								: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+								? "vc-swatch-selected"
+								: "vc-swatch"
 						}`}
 					>
 						<Glyph idx={idx} selected={selected} />

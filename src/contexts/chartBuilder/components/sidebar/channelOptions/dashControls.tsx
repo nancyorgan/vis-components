@@ -29,8 +29,8 @@ import { LineDashGlyph } from "./glyphShared"
 const swatchClass = (selected: boolean) =>
 	`flex h-7 items-center justify-center rounded border transition-colors ${
 		selected
-			? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-			: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+			? "vc-swatch-selected"
+			: "vc-swatch"
 	}`
 
 /** The None / dash swatches / Custom button row every single-choice dash
@@ -190,7 +190,7 @@ const DashRangeRows = ({
 	range: DashRangeConfig
 	onChange: (next: Partial<DashRangeConfig>) => void
 }) => (
-	<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+	<div className="flex flex-col gap-2 vc-rule-t pt-2">
 		<label className="flex items-center gap-2 text-sm">
 			<input
 				type="checkbox"
@@ -198,7 +198,7 @@ const DashRangeRows = ({
 				onChange={(e) => onChange({ enabled: e.target.checked })}
 				className="h-3 w-3"
 			/>
-			<span className="text-stone-600 dark:text-stone-400">
+			<span className="vc-text-muted">
 				Apply pattern to range
 			</span>
 		</label>
@@ -211,7 +211,7 @@ const DashRangeRows = ({
 					] as const
 				).map(([key, label]) => (
 					<div key={key} className="flex items-center gap-2 text-sm">
-						<span className={`shrink-0 ${LABEL_COL}`}>
+						<span className={`flex-shrink-0 ${LABEL_COL}`}>
 							{label}
 						</span>
 						<input
@@ -223,7 +223,7 @@ const DashRangeRows = ({
 								})
 							}
 							aria-label={`Pattern range ${label.toLowerCase()}`}
-							className="w-24 rounded border border-stone-300 bg-white px-1.5 py-0.5 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="vc-input w-24 px-1.5 py-0.5 font-mono text-sm"
 						/>
 					</div>
 				))}
@@ -284,7 +284,7 @@ export const CustomDashInput = ({
 		autoFocus
 		aria-label="Custom dash pattern"
 		onChange={(e) => onChange(e.target.value)}
-		className="w-24 rounded border border-stone-300 bg-white px-1.5 py-0.5 font-mono text-sm placeholder:text-stone-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
+		className="vc-input vc-placeholder-ghost w-24 px-1.5 py-0.5 font-mono text-sm"
 	/>
 )
 

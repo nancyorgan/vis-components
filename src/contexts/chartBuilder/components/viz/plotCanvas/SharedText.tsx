@@ -1,7 +1,7 @@
 import type { TextRect } from "../../../lib/facetLayoutSolver"
 import { renderMultilineTspans } from "../../../lib/multilineText"
 
-export const TITLE_FILL_FALLBACK = "fill-stone-700 dark:fill-stone-300"
+export const TITLE_FILL_FALLBACK = "vc-viz-title-text"
 
 /** Render a TextRect as an SVG <text> at its spec coordinates. Handles
  *  rotation (-90 for rotated y-titles) and multi-line text. */

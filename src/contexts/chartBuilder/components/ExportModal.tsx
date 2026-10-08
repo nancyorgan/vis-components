@@ -237,7 +237,7 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 			fitWidthOffsetPx={anchorOffset}
 		>
 			<div className="flex flex-col gap-4">
-				<div className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700">
+				<div className="flex items-stretch gap-3 vc-rule-b">
 					{/* Not a tab: the JSON bundle downloads straight away, so it sits
 					    beside the two panes rather than opening one. Wrapped so the
 					    button centers vertically while the tabs stay full height and
@@ -313,7 +313,7 @@ const DownloadJsonButton = ({ visualId }: { visualId: string }) => {
 				{busy ? "Downloading…" : "Download JSON"}
 			</Button>
 			{error !== null && (
-				<span className="self-center text-sm text-red-700 dark:text-red-300">
+				<span className="self-center text-sm vc-text-danger">
 					{error}
 				</span>
 			)}
@@ -333,10 +333,8 @@ const TabButton = ({
 	<button
 		type="button"
 		onClick={onClick}
-		className={`px-4 py-2 text-sm font-medium transition-colors ${
-			active
-				? "border-b-2 border-stone-900 text-stone-900 dark:border-white dark:text-white"
-				: "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-white"
+		className={`vc-export-tab px-4 py-2 text-sm font-medium transition-colors${
+			active ? " vc-export-tab-active" : ""
 		}`}
 	>
 		{children}
@@ -537,7 +535,7 @@ const EmbedTab = ({
 	if (!canPublish) {
 		return (
 			<div className="flex flex-col gap-4">
-				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+				<div className="vc-alert-warn px-3 py-2 text-sm">
 					Publishing embeds requires the self-host server — this session is
 					running browser-local, so there is nowhere public to publish to.
 				</div>
@@ -553,7 +551,7 @@ const EmbedTab = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<fieldset className="flex flex-col gap-3">
-				<legend className="text-sm font-medium text-stone-900 dark:text-stone-100">
+				<legend className="text-sm font-medium vc-text">
 					Pin behavior
 				</legend>
 				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
@@ -565,10 +563,10 @@ const EmbedTab = ({
 						onChange={() => setMode("live")}
 					/>
 					<div>
-						<div className="font-medium text-stone-900 dark:text-stone-100">
+						<div className="font-medium vc-text">
 							Latest at publish
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
+						<div className="text-sm vc-text-muted">
 							Publishes a snapshot of the latest data. Republish any time to
 							update the embed in place — the URL never changes.
 						</div>
@@ -584,10 +582,10 @@ const EmbedTab = ({
 						disabled={!view}
 					/>
 					<div>
-						<div className="font-medium text-stone-900 dark:text-stone-100">
+						<div className="font-medium vc-text">
 							Pin to current version{view ? ` (${versionLabel})` : ""}
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
+						<div className="text-sm vc-text-muted">
 							The embed stays on this data version; republishing refreshes the
 							styling but keeps the pinned data.
 						</div>
@@ -596,7 +594,7 @@ const EmbedTab = ({
 			</fieldset>
 
 			{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the checkbox; its text sits below the rule's depth-2 scan */}
-			<label className="flex items-start gap-2 rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60">
+			<label className="flex items-start gap-2 rounded-sm vc-bg-muted px-3 py-2 text-sm">
 				<input
 					type="checkbox"
 					className="mt-0.5"
@@ -604,10 +602,10 @@ const EmbedTab = ({
 					onChange={(e) => setSplitLegend(e.target.checked)}
 				/>
 				<div>
-					<div className="font-medium text-stone-900 dark:text-stone-100">
+					<div className="font-medium vc-text">
 						Publish legend as a separate iframe
 					</div>
-					<div className="text-sm text-stone-600 dark:text-stone-400">
+					<div className="text-sm vc-text-muted">
 						Get two snippets — chart and legend in independently sized iframes,
 						so you can place the legend wherever it fits your page layout.
 					</div>
@@ -634,7 +632,7 @@ const EmbedTab = ({
 			</div>
 
 			{publishError !== null && (
-				<div className="rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200">
+				<div className="vc-alert-error-bordered px-3 py-2 text-sm">
 					{publishError}
 				</div>
 			)}
@@ -647,7 +645,7 @@ const EmbedTab = ({
 							<div key={s.key} className="flex flex-col gap-2">
 								<label
 									htmlFor={`${snippetIdBase}-${s.key}`}
-									className="text-sm font-medium text-stone-900 dark:text-stone-100"
+									className="text-sm font-medium vc-text"
 								>
 									{s.label}
 								</label>
@@ -658,7 +656,7 @@ const EmbedTab = ({
 										setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
 									}
 									rows={3}
-									className="rounded-control border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+									className="vc-input-control vc-text px-2 py-1 font-mono text-sm"
 									onFocus={(e) => e.currentTarget.select()}
 								/>
 								<div className="flex items-center justify-end">
@@ -682,7 +680,7 @@ const EmbedTab = ({
 						href={embedUrl}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+						className="text-sm vc-link-info-strong underline"
 					>
 						Open embed in new tab
 					</a>
@@ -794,7 +792,7 @@ const ExportTab = ({
 			<div className="flex flex-wrap items-end gap-3">
 				<NumberInput
 					label={`Width (${unit})`}
-					labelClassName="text-stone-600 dark:text-stone-400"
+					labelClassName="vc-text-muted"
 					inline={false}
 					value={pxToUnit(width, unit)}
 					min={pxToUnit(MIN_EXPORT_DIM, unit)}
@@ -807,7 +805,7 @@ const ExportTab = ({
 				/>
 				<NumberInput
 					label={`Height (${unit})`}
-					labelClassName="text-stone-600 dark:text-stone-400"
+					labelClassName="vc-text-muted"
 					inline={false}
 					value={pxToUnit(height, unit)}
 					min={pxToUnit(MIN_EXPORT_DIM, unit)}
@@ -817,11 +815,11 @@ const ExportTab = ({
 					inputClassName="w-24"
 				/>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">Units</span>
+					<span className="vc-text-muted">Units</span>
 					<select
 						value={unit}
 						onChange={(e) => setUnit(e.target.value as ExportUnit)}
-						className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+						className="vc-input px-1.5 py-1 text-sm"
 					>
 						{UNIT_OPTIONS.map((u) => (
 							<option key={u} value={u}>
@@ -837,16 +835,16 @@ const ExportTab = ({
 						checked={aspectLocked}
 						onChange={(e) => onAspectLockedChange(e.target.checked)}
 					/>
-					<span className="text-stone-600 dark:text-stone-400">
+					<span className="vc-text-muted">
 						Lock aspect ratio
 					</span>
 				</label>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">Format</span>
+					<span className="vc-text-muted">Format</span>
 					<select
 						value={format}
 						onChange={(e) => setFormat(e.target.value as ImageFormat)}
-						className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+						className="vc-input px-1.5 py-1 text-sm"
 					>
 						{FORMAT_OPTIONS.map((o) => (
 							<option key={o.value} value={o.value}>
@@ -857,13 +855,13 @@ const ExportTab = ({
 				</label>
 				{rasterized && (
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							Resolution
 						</span>
 						<select
 							value={pixelRatio}
 							onChange={(e) => setPixelRatio(Number(e.target.value))}
-							className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+							className="vc-input px-1.5 py-1 text-sm"
 						>
 							{RESOLUTION_OPTIONS.map((r) => (
 								<option key={r} value={r}>
@@ -876,18 +874,18 @@ const ExportTab = ({
 			</div>
 
 			{error && (
-				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+				<div className="vc-alert-error px-2 py-1 text-sm">
 					{error}
 				</div>
 			)}
 
 			<div className="flex flex-col gap-2">
-				<span className="text-sm text-stone-600 dark:text-stone-400">
+				<span className="text-sm vc-text-muted">
 					Preview ({pxToUnit(width, unit)} × {pxToUnit(height, unit)}
 					{unit === "px" ? "" : ` ${unit}`})
 					{(format === "png" || format === "jpeg") &&
 						(effectiveRatio > 1 || unit !== "px") && (
-							<span className="text-stone-400 dark:text-stone-500">
+							<span className="vc-text-fainter">
 								{" "}
 								— exports at {Math.round(width * effectiveRatio)} ×{" "}
 								{Math.round(height * effectiveRatio)} px
@@ -897,13 +895,13 @@ const ExportTab = ({
 							</span>
 						)}
 					{previewScale < 1 && (
-						<span className="text-stone-400 dark:text-stone-500">
+						<span className="vc-text-fainter">
 							{" "}
 							— shown at {Math.round(previewScale * 100)}%
 						</span>
 					)}
 				</span>
-				<div className="w-fit rounded border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
+				<div className="vc-box-muted w-fit p-3">
 					{/* The box hugs the preview, so the popup resizes WITH the image —
 					    growing down/right only (the popup is pinned top-left), keeping
 					    the controls above in place and the drag handles tracking the
@@ -923,7 +921,7 @@ const ExportTab = ({
 							width={width}
 							height={height}
 							title="Export preview"
-							className="block bg-white shadow-sm dark:bg-stone-900"
+							className="block vc-bg vc-shadow-sm"
 							style={{
 								transform: `scale(${previewScale})`,
 								transformOrigin: "top left",
@@ -1053,7 +1051,7 @@ const ResizeHandles = ({
 					width="10"
 					height="10"
 					viewBox="0 0 10 10"
-					className="text-stone-400 dark:text-stone-500"
+					className="vc-text-fainter"
 					aria-hidden="true"
 				>
 					<path

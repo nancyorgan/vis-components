@@ -1,0 +1,55 @@
+/* Data-labels and annotations panels, plus the data drawer (table, derived-variable modal).
+ * Looks that only these screens use. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-panel-<thing>. */
+
+/* ======== Data drawer shell (drawer/DataDrawer.tsx) ======== */
+/* The thin drag strip along the drawer's top edge and the pill-shaped grip drawn inside it.
+ * The strip carries the "group" marker class, so hovering anywhere on it darkens the grip. */
+.vc-drawer-handle { background-color: var(--color-stone-100); }
+.vc-drawer-handle:hover { background-color: var(--color-stone-200); }
+.vc-drawer-grip { background-color: var(--color-stone-400); }
+.vc-drawer-grip:is(:where(.group):hover *) { background-color: var(--color-stone-600); }
+/* Overlay shown while a CSV file is dragged over the drawer. Colors only: the call site keeps
+ * "border-2 border-dashed" for the frame. */
+.vc-drawer-dropzone {
+	border-color: var(--color-blue-500);
+	background-color: color-mix(in oklab, var(--color-blue-50) 80%, transparent);
+	color: var(--color-blue-800);
+}
+
+/* ======== Data table (drawer/DataTable.tsx; the preview table in DerivedVariableModal.tsx
+ * reuses the head and row looks) ======== */
+.vc-drawer-head { background-color: var(--color-stone-100); color: var(--color-stone-600); } /* header row */
+.vc-drawer-header-cell { /* one column header: 1px rule on its right and bottom */
+	border-right: 1px solid var(--color-stone-200);
+	border-bottom: 1px solid var(--color-stone-200);
+}
+.vc-drawer-cell { /* one body cell: fainter rules, secondary text */
+	border-right: 1px solid var(--color-stone-100);
+	border-bottom: 1px solid var(--color-stone-100);
+	color: var(--color-stone-700);
+}
+/* Zebra-striped body rows. */
+.vc-drawer-row:nth-child(odd) { background-color: var(--color-white); }
+.vc-drawer-row:nth-child(even) { background-color: var(--color-stone-50); }
+/* Column-resize grab strip at a header's right edge: invisible until hovered. */
+.vc-drawer-col-handle { background-color: transparent; }
+.vc-drawer-col-handle:hover { background-color: color-mix(in oklab, var(--color-blue-400) 40%, transparent); }
+/* The "+" button in the last header cell that opens the new-derived-variable editor. */
+.vc-drawer-add-col { color: var(--color-stone-500); }
+.vc-drawer-add-col:hover { color: var(--color-brand-500); }
+
+/* ======== Derived variable modal (drawer/DerivedVariableModal.tsx) ======== */
+/* "Insert variable…" dropdown beside the template box: a control-radius select in muted text
+ * whose edge darkens on hover (no focus ring, unlike .vc-field). */
+.vc-drawer-insert-select {
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-control);
+	background-color: var(--color-white);
+	color: var(--color-stone-600);
+}
+.vc-drawer-insert-select:hover { border-color: var(--color-stone-400); }
+/* "+ Add rule" text link under the rules list: brand-500, underlined on hover. */
+.vc-drawer-add-rule { color: var(--color-brand-500); }
+.vc-drawer-add-rule:hover { text-decoration-line: underline; }

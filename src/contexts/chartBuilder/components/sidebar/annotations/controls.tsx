@@ -84,12 +84,12 @@ export const AnnotationCard = ({
 				onClick={onToggle}
 				aria-expanded={open}
 				aria-label={open ? "Collapse annotation" : "Expand annotation"}
-				className="flex h-6 w-4 flex-shrink-0 items-center justify-center text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="vc-link-muted flex h-6 w-4 flex-shrink-0 items-center justify-center"
 			>
 				<SectionChevron open={open} />
 			</button>
 			{/* Same purple as the CollapsibleSubsection headers inside the card. */}
-			<span className="text-vc-section-header flex flex-shrink-0 items-center">
+			<span className="vc-text-section flex flex-shrink-0 items-center">
 				<AnnotationKindGlyph kind={kind} />
 			</span>
 			<input
@@ -97,12 +97,12 @@ export const AnnotationCard = ({
 				value={name}
 				placeholder={namePlaceholder}
 				onChange={(e) => onNameChange(e.target.value)}
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-500"
+				className="vc-input vc-placeholder-fainter min-w-0 flex-1 px-1.5 py-1 text-sm"
 			/>
 			<button
 				type="button"
 				onClick={onRemove}
-				className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="vc-link-muted text-sm"
 			>
 				remove
 			</button>
@@ -181,7 +181,7 @@ export const FacetScopeControl = ({
 					}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">
+				<span className="vc-text-muted">
 					Apply to all facets
 				</span>
 			</label>
@@ -202,7 +202,7 @@ export const FacetScopeControl = ({
 								className="h-3 w-3"
 							/>
 							<span
-								className="min-w-0 truncate text-stone-700 dark:text-stone-300"
+								className="vc-text-2 min-w-0 truncate"
 								title={key}
 							>
 								{key}
@@ -232,7 +232,7 @@ export const LayerRow = ({
 		<div
 			role="group"
 			aria-label="Layer order"
-			className="inline-flex overflow-hidden rounded border border-vc-brand-text"
+			className="vc-border-brand inline-flex overflow-hidden rounded"
 		>
 			<button
 				type="button"

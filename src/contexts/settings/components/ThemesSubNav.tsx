@@ -166,7 +166,7 @@ export const ThemesSubNav = ({
 						"flex w-full items-center gap-1 rounded px-1 py-1 text-left text-[11px] font-semibold uppercase tracking-wide",
 						selectedFolder === folder
 							? "vc-nav-active"
-							: "text-stone-900 hover:bg-stone-100 dark:text-white dark:hover:bg-stone-800"
+							: "vc-settings-folder-btn"
 					)}
 				>
 					{/* The chevron folds the list without changing the page.
@@ -188,7 +188,7 @@ export const ThemesSubNav = ({
 								setExpanded((prev) => ({ ...prev, [folder]: !prev[folder] }))
 							}
 						}}
-						className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 pointer-coarse:h-7 pointer-coarse:w-7 dark:hover:bg-stone-700"
+						className="vc-settings-folder-chevron flex h-4 w-4 flex-shrink-0 items-center justify-center rounded pointer-coarse:h-7 pointer-coarse:w-7"
 					>
 						<SectionChevron open={open} />
 					</span>
@@ -200,7 +200,7 @@ export const ThemesSubNav = ({
 				{open && (
 					<div className="flex flex-col gap-0.5 pl-3">
 						{entries.length === 0 && (
-							<p className="px-2 py-1 text-[11px] italic text-stone-400 dark:text-stone-500">
+							<p className="vc-text-fainter px-2 py-1 text-[11px] italic">
 								{managed
 									? "Drag a theme here to manage it"
 									: system
@@ -237,12 +237,12 @@ export const ThemesSubNav = ({
 										draggingId === t.id && "opacity-50",
 										isActive
 											? "vc-nav-active"
-											: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+											: "vc-settings-theme-row"
 									)}
 								>
 									<span className="min-w-0 flex-1 truncate">{t.name}</span>
 									{(managed || system) && (
-										<span className="text-stone-400 dark:text-stone-500">
+										<span className="vc-text-fainter">
 											<LockIcon />
 										</span>
 									)}
@@ -278,7 +278,7 @@ export const ThemesSubNav = ({
 													moveByTap(t.id, managed ? "custom" : "managed")
 												}
 											}}
-											className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-200 pointer-coarse:flex dark:text-stone-400 dark:hover:bg-stone-700"
+											className="vc-settings-theme-move hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded pointer-coarse:flex"
 										>
 											{managed ? "↓" : "↑"}
 										</span>
@@ -293,7 +293,7 @@ export const ThemesSubNav = ({
 	}
 
 	return (
-		<div className="ml-4 flex flex-col gap-1 border-l border-stone-200 pl-2 dark:border-stone-700">
+		<div className="vc-rule-l ml-4 flex flex-col gap-1 pl-2">
 			{THEME_FOLDERS.map(renderFolder)}
 			<AddThemeButton
 				className="mt-1 self-start"

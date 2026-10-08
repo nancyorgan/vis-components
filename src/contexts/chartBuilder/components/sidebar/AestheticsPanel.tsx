@@ -71,7 +71,7 @@ export const AestheticsPanel = () => {
 							checked={current === null}
 							onChange={() => setBg(null)}
 						/>
-						<span className="text-stone-700 dark:text-stone-300">
+						<span className="vc-text-2">
 							Transparent (host page shows through)
 						</span>
 					</label>
@@ -82,7 +82,7 @@ export const AestheticsPanel = () => {
 								checked={current === themeDefault}
 								onChange={() => setBg(themeDefault)}
 							/>
-							<span className="text-stone-700 dark:text-stone-300">
+							<span className="vc-text-2">
 								Theme default ({themeDefault})
 							</span>
 						</label>
@@ -93,7 +93,7 @@ export const AestheticsPanel = () => {
 							checked={current !== null && current !== themeDefault}
 							onChange={() => setBg(current ?? "#ffffff")}
 						/>
-						<span className="text-stone-700 dark:text-stone-300">Custom</span>
+						<span className="vc-text-2">Custom</span>
 					</label>
 					{current !== null && current !== themeDefault && (
 						<ColorInput
@@ -107,7 +107,7 @@ export const AestheticsPanel = () => {
 			</CollapsibleSubsection>
 			<CollapsibleSubsection title="Canvas size" changed={canvasChanged}>
 				<div className="flex flex-col gap-2">
-					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+					<label className="vc-text-2 flex items-center gap-2 text-sm">
 						<input
 							type="checkbox"
 							checked={canvasSize?.enabled ?? false}
@@ -126,7 +126,7 @@ export const AestheticsPanel = () => {
 					{canvasSize?.enabled && (
 						<>
 							<label className="flex items-center gap-2 text-sm">
-								<span className={`shrink-0 ${LABEL_COL}`}>Units</span>
+								<span className={`flex-shrink-0 ${LABEL_COL}`}>Units</span>
 								<select
 									value={canvasUnit}
 									onChange={(e) =>
@@ -135,7 +135,7 @@ export const AestheticsPanel = () => {
 											unit: e.target.value as DisplayUnit,
 										})
 									}
-									className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+									className="vc-input vc-text-2 min-w-0 flex-1 px-2 py-1 text-sm"
 								>
 									{UNIT_OPTIONS.map((u) => (
 										<option key={u} value={u}>
@@ -185,8 +185,8 @@ export const AestheticsPanel = () => {
 						rectangle; the viewport area outside it is shaded gray.
 					</p>
 				</div>
-				<div className="flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">
-					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+				<div className="vc-rule-t flex flex-col gap-1 pt-2">
+					<label className="vc-text-2 flex items-center gap-2 text-sm">
 						<input
 							type="checkbox"
 							checked={scrollMode === "scroll"}
@@ -209,7 +209,7 @@ export const AestheticsPanel = () => {
 			</CollapsibleSubsection>
 			<CollapsibleSubsection title="Aspect ratio" changed={aspectChanged}>
 				<div className="flex flex-col gap-2">
-					<label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+					<label className="vc-text-2 flex items-center gap-2 text-sm">
 						<input
 							type="checkbox"
 							checked={aspect?.enabled ?? false}
@@ -258,7 +258,7 @@ export const AestheticsPanel = () => {
 			<CollapsibleSubsection title="Draw order" changed={drawOrderChanged}>
 				<div className="flex flex-col gap-2">
 					<label className="flex items-center gap-2 text-sm">
-						<span className={`shrink-0 ${LABEL_COL}`}>
+						<span className={`flex-shrink-0 ${LABEL_COL}`}>
 							Sort by
 						</span>
 						<select
@@ -270,7 +270,7 @@ export const AestheticsPanel = () => {
 										: { dir: "asc", ...drawOrder, field: e.target.value }
 								)
 							}
-							className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+							className="vc-input vc-text-2 min-w-0 flex-1 px-2 py-1 text-sm"
 						>
 							<option value="">Dataset order (default)</option>
 							{drawOrder !== null &&
@@ -288,7 +288,7 @@ export const AestheticsPanel = () => {
 					</label>
 					{drawOrder !== null && (
 						<label className="flex items-center gap-2 text-sm">
-							<span className={`shrink-0 ${LABEL_COL}`}>
+							<span className={`flex-shrink-0 ${LABEL_COL}`}>
 								Direction
 							</span>
 							<select
@@ -299,7 +299,7 @@ export const AestheticsPanel = () => {
 										dir: e.target.value as "asc" | "desc",
 									})
 								}
-								className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+								className="vc-input vc-text-2 min-w-0 flex-1 px-2 py-1 text-sm"
 							>
 								<option value="asc">Ascending — highest on top</option>
 								<option value="desc">Descending — lowest on top</option>

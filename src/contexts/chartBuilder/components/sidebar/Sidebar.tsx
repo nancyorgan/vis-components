@@ -34,49 +34,49 @@ export const Sidebar = () => {
 		// `100% - 1.5rem` wide, so on a 320px phone it is 296px and the floor
 		// would make the whole menu scroll sideways. The rows give up at most
 		// ~24px there, which the color row's hex box absorbs (ColorInput).
-		<aside className="bg-vc-sidebar h-full overflow-auto px-2 py-3 lg:py-5">
+		<aside className="vc-bg-sidebar h-full overflow-auto px-2 py-3 lg:py-5">
 			<div className="flex min-w-0 flex-col gap-1 sm:min-w-80 lg:gap-3">
 				<AsideSection title="Data">
 					<DataUpload />
 					<ReshapePanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Fields">
 					<FieldList />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Encodings">
 					<EncodingShelves />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Maps" defaultCollapsed>
 					<MapsSection />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Data Labels" defaultCollapsed>
 					<DataLabelsPanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Legend" defaultCollapsed>
 					<LegendPanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Axis Labels and Titles">
 					<LabelsPanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Tooltips and hover">
 					<TooltipPanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Caption" defaultCollapsed>
 					<CaptionPanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Annotations" defaultCollapsed>
 					<AnnotationsPanel />
 				</AsideSection>
-				<hr className="mx-3 border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr mx-3" />
 				<AsideSection title="Aesthetics & Theme">
 					<div className="vc-option-panel">
 						<ThemePanel />

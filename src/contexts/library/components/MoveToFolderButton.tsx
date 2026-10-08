@@ -28,13 +28,13 @@ export const MoveToFolderButton = ({
 					e.stopPropagation()
 					setOpen(!open)
 				}}
-				className="rounded bg-white/90 px-1.5 py-0.5 text-sm text-stone-600 shadow-sm ring-1 ring-stone-200 hover:bg-white dark:bg-stone-800/90 dark:text-stone-300 dark:ring-stone-700"
+				className="vc-library-tile-move rounded px-1.5 py-0.5 text-sm"
 			>
 				Move
 			</button>
 			{open && (
 				<div
-					className="absolute top-full right-0 z-20 mt-1 max-h-48 w-44 overflow-y-auto rounded border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800"
+					className="vc-popover-soft absolute top-full right-0 z-20 mt-1 max-h-48 w-44 overflow-y-auto py-1"
 					// click here only stops propagation so menu clicks don't
 					// reach the card link underneath; the buttons inside are
 					// the real (keyboard-accessible) interactions
@@ -48,10 +48,10 @@ export const MoveToFolderButton = ({
 							onMove(visualId, null)
 							setOpen(false)
 						}}
-						className={`w-full px-3 py-1 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
+						className={`vc-menu-item py-1 ${
 							currentFolderId === null
-								? "font-medium text-brand-700 dark:text-brand-300"
-								: "text-stone-700 dark:text-stone-300"
+								? "vc-library-menu-current font-medium"
+								: "vc-text-2"
 						}`}
 					>
 						Root (no folder)
@@ -65,10 +65,10 @@ export const MoveToFolderButton = ({
 								onMove(visualId, f.id)
 								setOpen(false)
 							}}
-							className={`w-full px-3 py-1 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
+							className={`vc-menu-item py-1 ${
 								currentFolderId === f.id
-									? "font-medium text-brand-700 dark:text-brand-300"
-									: "text-stone-700 dark:text-stone-300"
+									? "vc-library-menu-current font-medium"
+									: "vc-text-2"
 							}`}
 							style={{ paddingLeft: `${12 + depth * 12}px` }}
 						>

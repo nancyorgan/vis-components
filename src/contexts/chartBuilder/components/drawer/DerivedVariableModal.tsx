@@ -57,7 +57,7 @@ const InsertVariableSelect = ({
 		onChange={(e) => {
 			if (e.target.value) onInsert(e.target.value)
 		}}
-		className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-xs text-stone-600 hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+		className="vc-drawer-insert-select px-1.5 py-1 text-xs"
 	>
 		<option value="">Insert variable…</option>
 		{fields.map((f) => (
@@ -361,7 +361,7 @@ const DerivedVariableEditor = ({
 				<div className="flex items-center gap-3 text-sm">
 					<label
 						htmlFor={nameId}
-						className="w-16 flex-shrink-0 text-stone-600 dark:text-stone-400"
+						className="vc-text-muted w-16 flex-shrink-0"
 					>
 						Name
 					</label>
@@ -455,7 +455,7 @@ const DerivedVariableEditor = ({
 									/>
 									<span
 										aria-hidden="true"
-										className="flex-shrink-0 text-stone-400"
+										className="vc-text-fainter flex-shrink-0"
 									>
 										→
 									</span>
@@ -478,23 +478,23 @@ const DerivedVariableEditor = ({
 										onClick={() =>
 											setRules((prev) => prev.filter((_, j) => j !== i))
 										}
-										className="flex-shrink-0 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+										className="vc-link-fainter flex-shrink-0"
 									>
 										×
 									</button>
 								</div>
 								{ruleErrors[i] && (
-									<p className="text-xs text-amber-700 dark:text-amber-400">
+									<p className="vc-text-warn-mid text-xs">
 										{ruleErrors[i]}
 									</p>
 								)}
 							</div>
 						))}
 						<div className="flex items-center gap-2">
-							<span className="text-sm text-stone-600 dark:text-stone-400">
+							<span className="vc-text-muted text-sm">
 								Otherwise
 							</span>
-							<span aria-hidden="true" className="text-stone-400">
+							<span aria-hidden="true" className="vc-text-fainter">
 								→
 							</span>
 							<Input
@@ -510,7 +510,7 @@ const DerivedVariableEditor = ({
 							onClick={() =>
 								setRules((prev) => [...prev, { condition: "", output: "" }])
 							}
-							className="self-start text-xs text-brand-500 hover:underline dark:text-indigo-400"
+							className="vc-drawer-add-rule self-start text-xs"
 						>
 							+ Add rule
 						</button>
@@ -532,7 +532,7 @@ const DerivedVariableEditor = ({
 						{issues.map((issue) => (
 							<p
 								key={issue}
-								className="text-xs text-amber-700 dark:text-amber-400"
+								className="vc-text-warn-mid text-xs"
 							>
 								{issue}
 							</p>
@@ -541,16 +541,16 @@ const DerivedVariableEditor = ({
 				)}
 
 				{preview && preview.rows.length > 0 && (
-					<div className="overflow-x-auto rounded-md border border-stone-200 dark:border-stone-700">
+					<div className="vc-border overflow-x-auto rounded-md">
 						<table className="min-w-full text-left text-xs">
-							<thead className="bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+							<thead className="vc-drawer-head">
 								<tr>
 									{preview.referenced.map((f) => (
 										<th key={f} className="px-2 py-1 font-medium">
 											{f}
 										</th>
 									))}
-									<th className="px-2 py-1 font-medium text-brand-500 dark:text-indigo-400">
+									<th className="vc-text-brand-500 px-2 py-1 font-medium">
 										{effectiveName}
 									</th>
 								</tr>
@@ -560,17 +560,17 @@ const DerivedVariableEditor = ({
 									<tr
 										// eslint-disable-next-line react/no-array-index-key -- preview rows are a static sample
 										key={i}
-										className="odd:bg-white even:bg-stone-50 dark:odd:bg-stone-900 dark:even:bg-stone-900/50"
+										className="vc-drawer-row"
 									>
 										{preview.referenced.map((f) => (
 											<td
 												key={f}
-												className="px-2 py-1 text-stone-600 dark:text-stone-300"
+												className="vc-text-muted px-2 py-1"
 											>
 												{row[f] ?? ""}
 											</td>
 										))}
-										<td className="px-2 py-1 font-medium text-stone-900 dark:text-white">
+										<td className="vc-text px-2 py-1 font-medium">
 											{result}
 										</td>
 									</tr>
@@ -581,7 +581,7 @@ const DerivedVariableEditor = ({
 				)}
 			</div>
 
-			<div className="mt-4 flex flex-shrink-0 items-center justify-between gap-2 border-t border-stone-200 pt-3 dark:border-stone-700">
+			<div className="vc-rule-t mt-4 flex flex-shrink-0 items-center justify-between gap-2 pt-3">
 				{existing ? (
 					<Button compact danger onClick={() => setConfirmingDelete(true)}>
 						Delete

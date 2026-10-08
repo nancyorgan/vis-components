@@ -1,0 +1,106 @@
+/* Library page only: folder tree, visuals table / grid, bulk actions.
+ * Looks that only this screen uses. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-library-<thing>. */
+
+/* ======== Folder tree (FolderTree.tsx) ======== */
+/* A row in the tree (a folder, a visual, or the "All visualizations" root) while it is NOT the
+ * selected one: body-gray text that tints on hover. The selected row is .vc-nav-active. */
+.vc-library-tree-row { color: var(--color-stone-700); }
+.vc-library-tree-row:hover { background-color: var(--color-stone-100); }
+/* Drag-and-drop targets on a row. "inside" (nest / move into) rings the row; before / after
+ * draw the insertion line as an inset shadow on the row's top / bottom edge, so the row's
+ * height can't shift the way a border would. */
+.vc-library-drop-inside { box-shadow: 0 0 0 1px var(--color-brand-400); }
+.vc-library-drop-before { box-shadow: inset 0 2px 0 0 var(--color-brand-500); }
+.vc-library-drop-after { box-shadow: inset 0 -2px 0 0 var(--color-brand-500); }
+/* The inline rename box that replaces a folder's name on double-click. */
+.vc-library-rename-input {
+	border: 1px solid var(--color-blue-400);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-white);
+}
+/* "New folder" (+) in the panel header: faint until hovered, then tinted. */
+.vc-library-new-folder { color: var(--color-stone-400); }
+.vc-library-new-folder:hover { background-color: var(--color-stone-100); color: var(--color-stone-700); }
+/* "Delete folder" (×) on an empty folder's row: faint until hovered, then red. */
+.vc-library-folder-delete { color: var(--color-stone-400); }
+.vc-library-folder-delete:hover { color: var(--color-red-600); }
+
+/* ======== Library page (LibraryPage.tsx) ======== */
+/* Grid / table switch. The pressed segment is section-header purple (deliberately NOT
+ * .vc-toggle-on's brand-500); the other is white and tints on hover. */
+.vc-library-view-toggle-on { background-color: var(--color-vc-section-header); color: var(--color-white); }
+.vc-library-view-toggle-off { background-color: var(--color-white); color: var(--color-stone-600); }
+.vc-library-view-toggle-off:hover { background-color: var(--color-stone-100); }
+/* "N selected" bulk-action bar above the grid / table, and its count label. */
+.vc-library-selection-bar {
+	border: 1px solid var(--color-brand-200);
+	border-radius: var(--radius-card);
+	background-color: var(--color-brand-50);
+}
+.vc-library-selection-count { color: var(--color-brand-900); }
+/* Empty state (no visuals yet / nothing matches): a dashed card. Also the table's. */
+.vc-library-empty {
+	border: 1px dashed var(--color-stone-300);
+	border-radius: var(--radius-card);
+	background-color: var(--color-white);
+}
+/* A grid card is .vc-card .vc-hover-lift (components.css); this marks the selected one:
+ * brand border plus a 2px brand ring that stays on through the hover lift. */
+.vc-library-card-selected {
+	border-color: var(--color-brand-500);
+	box-shadow: 0 0 0 2px var(--color-brand-400), var(--shadow-sm);
+}
+.vc-library-card-selected:hover { box-shadow: 0 0 0 2px var(--color-brand-400), var(--shadow-md); }
+/* Controls floating over a grid card (select checkbox, Move, regenerate, duplicate, trash):
+ * a translucent white chip with a 1px stone ring and a soft shadow. Call sites keep
+ * "rounded" and their size. */
+.vc-library-tile-chip,
+.vc-library-tile-btn,
+.vc-library-tile-btn-danger,
+.vc-library-tile-move {
+	background-color: color-mix(in oklab, var(--color-white) 90%, transparent);
+	box-shadow: 0 0 0 1px var(--color-stone-200), var(--shadow-sm);
+}
+.vc-library-tile-btn,
+.vc-library-tile-btn-danger { color: var(--color-stone-500); } /* icon buttons */
+.vc-library-tile-btn:hover { background-color: var(--color-stone-100); color: var(--color-stone-700); }
+.vc-library-tile-btn-danger:hover { background-color: var(--color-red-50); color: var(--color-red-700); } /* trash */
+.vc-library-tile-move { color: var(--color-stone-600); } /* the "Move" text button */
+.vc-library-tile-move:hover { background-color: var(--color-white); }
+
+/* ======== Move menu (MoveToFolderButton.tsx) ======== */
+/* The visual's current folder in the Move menu (the items are .vc-menu-item). */
+.vc-library-menu-current { color: var(--color-brand-700); }
+
+/* ======== Visuals table (VisualsTable.tsx) ======== */
+/* Body rows tint on hover; a selected row is brand-tinted and deepens on hover. */
+.vc-library-table-row:hover { background-color: var(--color-stone-50); }
+.vc-library-table-row-selected { background-color: var(--color-brand-50); }
+.vc-library-table-row-selected:hover { background-color: var(--color-brand-100); }
+/* The visual's name: a link that only underlines on hover. */
+.vc-library-name-link { color: var(--color-stone-900); }
+.vc-library-name-link:hover { text-decoration-line: underline; }
+/* Pin-state pills in the "Pin state" column. */
+.vc-library-pin-badge-none { background-color: var(--color-stone-100); color: var(--color-stone-700); } /* not published */
+.vc-library-pin-badge-ok { background-color: var(--color-emerald-100); color: var(--color-emerald-900); } /* published · latest */
+.vc-library-pin-badge-pinned { background-color: var(--color-blue-100); color: var(--color-blue-900); } /* published, pinned to a version */
+.vc-library-pin-badge-warn { background-color: var(--color-amber-100); color: var(--color-amber-900); } /* behind, or pin deleted */
+
+/* ======== Trash (TrashButton.tsx) ======== */
+/* The floating can in the page's bottom-right corner (lifts on hover). */
+.vc-library-trash-fab { box-shadow: var(--shadow-lg); }
+.vc-library-trash-fab:hover { box-shadow: var(--shadow-xl); }
+/* Its item-count badge: red disc with a 2px white ring. */
+.vc-library-trash-count {
+	background-color: var(--color-red-600);
+	color: var(--color-white);
+	box-shadow: 0 0 0 2px var(--color-white);
+}
+/* The "Empty trash" confirmation box inside the Trash panel. */
+.vc-library-trash-confirm {
+	border: 1px solid var(--color-red-200);
+	border-radius: var(--radius-card);
+	background-color: var(--color-red-50);
+}

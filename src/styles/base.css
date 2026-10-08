@@ -1,0 +1,63 @@
+/* Element defaults for the whole app: what things look like before any class is involved.
+ * reset.css runs first (browser reset); this file adds the project's own defaults. */
+
+/* Borders: 0 wide and solid by default (reset.css), in this color when nothing names one. */
+*,
+::after,
+::before,
+::backdrop,
+::file-selector-button {
+	border-color: var(--color-border-default, currentcolor);
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+	cursor: pointer;
+}
+
+input,
+textarea {
+	background-color: field;
+}
+
+textarea {
+	display: block;
+}
+
+ol,
+ul {
+	padding: 0;
+}
+
+/* Headings render in the heading face. Covers the sidebar section headers too (AsideSection
+ * renders them as <h3>). Use .font-heading for header-like elements that aren't <h1>–<h6>. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--font-heading);
+}
+
+/* UI text at 450: Quicksand's 400 is too light to read comfortably at UI sizes. */
+body {
+	font-weight: 450;
+}
+
+/* Figure fence: chart surfaces keep the browser-default weight and the stock weight scale, so
+ * exported/embedded charts render exactly as they did before the UI font swap. Covers the
+ * editor viewport (incl. legends + tooltips) and the embed/export/thumbnail capture root. */
+[data-editor-chart-viewport],
+[data-export-root] {
+	font-weight: 400;
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+}
+
+/* Keep the embed route truly chromeless: scrollbars inside the iframe body would crop the
+ * chart by a few pixels on some platforms. */
+body:has([data-vc-embed]) {
+	overflow: hidden;
+}

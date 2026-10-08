@@ -24,7 +24,7 @@ import {
 } from "../../store/useFontOptions"
 
 const UNIT_SELECT_CLASS =
-	"rounded-control border border-stone-300 bg-white px-1 py-1 text-sm text-stone-700 outline-none hover:border-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+	"vc-sidebar-unit-select px-1 py-1 text-sm outline-none"
 
 /** A NumberInput with a trailing px/% unit selector — used for the position
  *  offsets, which sensibly start stepping from 0. */
@@ -196,13 +196,13 @@ export const CaptionPanel = () => {
 					onChange={(e) => update({ enabled: e.target.checked })}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">Show caption</span>
+				<span className="vc-text-muted">Show caption</span>
 			</label>
 
 			{merged.enabled && (
 				<>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							Caption text
 						</span>
 						<textarea
@@ -210,7 +210,7 @@ export const CaptionPanel = () => {
 							onChange={(e) => update({ text: e.target.value })}
 							placeholder="A short caption shown below the x-axis title…"
 							rows={4}
-							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="vc-input-control px-1.5 py-1 text-sm"
 						/>
 					</label>
 

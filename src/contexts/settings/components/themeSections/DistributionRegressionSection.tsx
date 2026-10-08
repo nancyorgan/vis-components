@@ -9,7 +9,7 @@ export const DistributionRegressionSection = ({
 	<SectionGroup title="Distribution and regression" isReadOnly={isReadOnly}>
 		{/* Distribution overlay defaults */}
 		<Section title="Distribution overlay defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Stroke and fill used by violin and box-plot overlays when first
 				enabled on a chart&apos;s value axis.
 			</p>
@@ -27,7 +27,7 @@ export const DistributionRegressionSection = ({
 
 		{/* Regression overlay defaults */}
 		<Section title="Regression line defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Line stroke and confidence-band fill used by the scatter
 				regression line when first enabled.
 			</p>

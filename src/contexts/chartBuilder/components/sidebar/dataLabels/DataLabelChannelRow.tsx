@@ -42,16 +42,16 @@ export const DataLabelChannelRow = ({
 }: DataLabelChannelRowProps) => {
 	// Associates the visible channel label with its field dropdown.
 	const selectId = useId()
-	const selectClass = `min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 ${
+	const selectClass = `vc-input min-w-0 flex-1 px-2 py-1 text-sm ${
 		value
-			? "text-vc-section-header font-semibold"
-			: "text-stone-700 dark:text-stone-200"
+			? "vc-text-section font-semibold"
+			: "vc-text-2"
 	}`
 	const fieldSelect = (
 		<div className="flex min-w-0 flex-1 items-center gap-2">
 			<label
 				htmlFor={selectId}
-				className={`${LABEL_COL} shrink-0 text-sm`}
+				className={`${LABEL_COL} flex-shrink-0 text-sm`}
 			>
 				{label}
 			</label>
@@ -95,7 +95,7 @@ export const DataLabelChannelRow = ({
 					<div className="flex items-center gap-1 px-2">
 						{fieldSelect}
 						<Disclosure.Button
-							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="vc-icon-btn relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
 							aria-label={`Toggle settings for ${label}`}
 						>
 							<DisclosureChevron open={open} />

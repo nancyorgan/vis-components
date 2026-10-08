@@ -78,8 +78,8 @@ export const DataUpload = () => {
 				}}
 			/>
 			{currentDataset && (
-				<div className="text-sm text-stone-600 dark:text-stone-400">
-					<div className="truncate font-medium text-stone-700 dark:text-stone-300">
+				<div className="vc-text-muted text-sm">
+					<div className="vc-text-2 truncate font-medium">
 						{currentDataset.name}
 					</div>
 					<div>
@@ -97,7 +97,7 @@ export const DataUpload = () => {
 								<button
 									type="button"
 									onClick={() => downloadDatasetCsv(rawDataset)}
-									className="text-brand-500 underline hover:text-brand-600 dark:text-indigo-400"
+									className="vc-sidebar-data-link underline"
 								>
 									download data
 								</button>
@@ -107,7 +107,7 @@ export const DataUpload = () => {
 				</div>
 			)}
 			{error && (
-				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+				<div className="vc-alert-error px-2 py-1 text-sm">
 					{error}
 				</div>
 			)}
@@ -306,8 +306,8 @@ const UploadPromptModal = () => {
 		>
 			{pending && (
 				<div className="flex flex-col gap-4">
-					<div className="text-sm text-stone-600 dark:text-stone-400">
-						<span className="font-medium text-stone-800 dark:text-stone-200">
+					<div className="vc-text-muted text-sm">
+						<span className="vc-text-soft font-medium">
 							{pending.filename}
 						</span>{" "}
 						· {pending.rows.length} row
@@ -323,10 +323,10 @@ const UploadPromptModal = () => {
 							onChange={() => setMode("addVersion")}
 						/>
 						<div className="flex-1">
-							<div className="font-medium text-stone-900 dark:text-stone-100">
+							<div className="vc-text font-medium">
 								Add as a new data version for this visualization
 							</div>
-							<div className="text-sm text-stone-600 dark:text-stone-400">
+							<div className="vc-text-muted text-sm">
 								Appends a new version to{" "}
 								<span className="font-medium">
 									{currentDatasetMeta?.name ?? "the bound data set"}
@@ -334,7 +334,7 @@ const UploadPromptModal = () => {
 								. Live iframes refresh; pinned iframes stay on their version.
 							</div>
 							{mode === "addVersion" && diff && !compatible && (
-								<div className="mt-2 rounded-sm border border-amber-300 bg-amber-50 px-2 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+								<div className="vc-alert-warn mt-2 px-2 py-2 text-sm">
 									Cannot add as a new version: {describeDiff(diff)}.
 									<br />
 									New versions must keep the same columns and types as the
@@ -347,7 +347,7 @@ const UploadPromptModal = () => {
 								diff &&
 								compatible &&
 								diff.added.length > 0 && (
-									<div className="mt-2 rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-2 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+									<div className="vc-alert-success mt-2 px-2 py-2 text-sm">
 										{describeAddedColumns(diff)} Earlier versions won&rsquo;t
 										have data for{" "}
 										{diff.added.length === 1 ? "this column" : "these columns"}.
@@ -364,10 +364,10 @@ const UploadPromptModal = () => {
 							onChange={() => setMode("newVisualization")}
 						/>
 						<div className="flex-1">
-							<div className="font-medium text-stone-900 dark:text-stone-100">
+							<div className="vc-text font-medium">
 								Start a new visualization
 							</div>
-							<div className="text-sm text-stone-600 dark:text-stone-400">
+							<div className="vc-text-muted text-sm">
 								Saves{" "}
 								<span className="font-medium">
 									&ldquo;{currentVisualName}&rdquo;
@@ -378,7 +378,7 @@ const UploadPromptModal = () => {
 								<div className="mt-2 flex flex-col gap-1">
 									<label
 										htmlFor="data-upload-new-name"
-										className="text-sm text-stone-600 dark:text-stone-400"
+										className="vc-text-muted text-sm"
 									>
 										Data set name
 									</label>
@@ -390,13 +390,13 @@ const UploadPromptModal = () => {
 										autoFocus
 									/>
 									{newNameCollides && (
-										<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+										<div className="vc-alert-error px-2 py-1 text-sm">
 											A data set named &ldquo;{newName.trim()}&rdquo; already
 											exists. Pick a different name.
 										</div>
 									)}
 									{reusableDatasetId !== null && (
-										<div className="rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-1 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+										<div className="vc-alert-success px-2 py-1 text-sm">
 											This upload matches the existing data set &ldquo;
 											{newName.trim()}&rdquo; exactly — it will be reused, not
 											duplicated.
@@ -408,7 +408,7 @@ const UploadPromptModal = () => {
 					</label>
 
 					{confirmError && (
-						<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+						<div className="vc-alert-error px-2 py-1 text-sm">
 							{confirmError}
 						</div>
 					)}

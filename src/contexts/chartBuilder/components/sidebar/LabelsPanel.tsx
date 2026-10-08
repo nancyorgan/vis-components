@@ -398,7 +398,7 @@ export const LabelsPanel = () => {
 							 *  the swatches line up with the controls above. Long
 							 *  values truncate with a tooltip. */}
 							<span
-								className="w-24 flex-shrink-0 truncate text-stone-700 dark:text-stone-300"
+								className="vc-text-2 w-24 flex-shrink-0 truncate"
 								title={v}
 							>
 								{v}
@@ -473,7 +473,7 @@ export const LabelsPanel = () => {
 			/>
 			{/* Divider above Subtitle so the two primary title rows read as
 			 * separate groups rather than one run of controls. */}
-			<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+			<div className="vc-rule-t flex flex-col gap-2 pt-2">
 				<LabelRow
 					label="Subtitle"
 					fontKey="subtitle"
@@ -932,8 +932,8 @@ const AlignmentGlyph = ({ a }: { a: LabelAlignment }) => {
 const segmentButtonClass = (on: boolean) =>
 	`flex h-7 w-7 items-center justify-center rounded border text-sm ${
 		on
-			? "border-stone-700 bg-stone-200 text-stone-900 dark:border-stone-300 dark:bg-stone-700 dark:text-white"
-			: "border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+			? "vc-sidebar-style-btn-on"
+			: "vc-sidebar-style-btn-off"
 	}`
 
 export const AlignmentControl = ({
@@ -1223,12 +1223,12 @@ const LabelRow = ({
 							// row; the chevron opens the styling controls. Used when a
 							// subsection has several such targets (grid Column/Row/Panel
 							// titles) that need to stay individually collapsible.
-							<span className="mt-1 min-w-0 flex-1 text-sm text-stone-600 dark:text-stone-400">
+							<span className="vc-text-muted mt-1 min-w-0 flex-1 text-sm">
 								{label}
 							</span>
 						) : (
 							<label className="flex min-w-0 flex-1 items-start gap-2 text-sm">
-								<span className={`mt-1 shrink-0 ${LABEL_COL}`}>
+								<span className={`mt-1 flex-shrink-0 ${LABEL_COL}`}>
 									{label}
 								</span>
 								<textarea
@@ -1236,12 +1236,12 @@ const LabelRow = ({
 									onChange={(e) => onChange(e.target.value)}
 									placeholder={placeholder}
 									rows={isMultiline ? 2 : 1}
-									className="min-w-0 flex-1 resize-y rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+									className="vc-input-control min-w-0 flex-1 resize-y px-1.5 py-1 text-sm"
 								/>
 							</label>
 						)}
 						<Disclosure.Button
-							className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white`}
+							className={`vc-icon-btn relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded`}
 							aria-label={`Toggle font settings for ${label}`}
 						>
 							<DisclosureChevron open={open} />
@@ -1251,7 +1251,7 @@ const LabelRow = ({
 								hasAngle ||
 								extraActive) && (
 								<span
-									className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-stone-900 dark:bg-white"
+									className="vc-bg-ink absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full"
 									aria-hidden="true"
 								/>
 							)}
@@ -1349,7 +1349,7 @@ export const FontEditor = ({
 								: { ...value, family: e.target.value }
 						)
 					}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 				>
 					{showResetFields && (
 						<option value="">
@@ -1383,14 +1383,14 @@ export const FontEditor = ({
 						placeholder={showResetFields ? (baseColor ?? "(inherit)") : "#111827"}
 						// Shrinks to min-w-18 when the row is tight and hides below 360px
 						// viewports — same rule as ColorInput's hex box.
-						className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input hidden w-24 min-w-18 px-1.5 py-1 font-mono text-sm min-[360px]:block"
 					/>
 					<input
 						type="color"
 						value={value.color ?? baseColor ?? "#111827"}
 						onChange={(e) => onChange({ ...value, color: e.target.value })}
 						aria-label="Color swatch"
-						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+						className="vc-border-strong h-6 w-10 flex-shrink-0 cursor-pointer rounded"
 					/>
 					{/* This row colors TEXT, so the picker leads with the theme's
 					 *  TEXT palette (the other palettes stay one chevron away).
@@ -1445,7 +1445,7 @@ export const FontEditor = ({
 							weight: e.target.value === "" ? undefined : Number(e.target.value),
 						})
 					}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 				>
 					<option value="">
 						{showResetFields
@@ -1471,7 +1471,7 @@ export const FontEditor = ({
 				)}
 			</label>
 			<div className="flex items-center gap-1.5">
-				<span className={`${LABEL_COL} shrink-0 text-sm`}>
+				<span className={`${LABEL_COL} flex-shrink-0 text-sm`}>
 					Style
 				</span>
 				<StyleButton
@@ -1528,8 +1528,8 @@ export const StyleButton = ({
 		aria-pressed={on}
 		className={`h-7 w-7 rounded border text-sm ${className} ${
 			on
-				? "border-stone-700 bg-stone-200 text-stone-900 dark:border-stone-300 dark:bg-stone-700 dark:text-white"
-				: "border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+				? "vc-sidebar-style-btn-on"
+				: "vc-sidebar-style-btn-off"
 		}`}
 	>
 		{label}

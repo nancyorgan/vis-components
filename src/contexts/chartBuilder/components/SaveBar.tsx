@@ -56,12 +56,12 @@ export const SaveBar = () => {
 				value={name}
 				onChange={(e) => setName(e.target.value)}
 				placeholder="Untitled visualization"
-				className={`min-w-0 rounded-control border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-stone-900 transition-colors outline-none hover:border-stone-200 focus:border-stone-400 dark:text-white dark:hover:border-stone-700 dark:focus:border-stone-500 ${
-					nameTaken ? "border-red-400 dark:border-red-500" : ""
+				className={`vc-title-input min-w-0 px-2 py-1 text-sm font-medium ${
+					nameTaken ? "vc-title-input-taken" : ""
 				}`}
 			/>
 			{nameTaken && (
-				<span className="px-2 text-xs text-red-700 dark:text-red-300">
+				<span className="vc-text-danger px-2 text-xs">
 					A visualization named &ldquo;{name.trim()}&rdquo; already exists.
 				</span>
 			)}
@@ -75,7 +75,7 @@ export const SaveBar = () => {
 			aria-expanded
 			aria-label="Collapse title and actions"
 			title="Collapse title and actions"
-			className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+			className="vc-icon-btn-plain flex h-8 w-8 flex-shrink-0 items-center justify-center rounded"
 		>
 			<DisclosureChevron open />
 		</button>
@@ -83,7 +83,7 @@ export const SaveBar = () => {
 
 	if (narrow) {
 		return (
-			<div className="border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
+			<div className="vc-rule-b vc-bg">
 				{barOpen && oneRow ? (
 					<div className="flex flex-wrap items-center gap-3 px-4 py-2">
 						{nameField}
@@ -114,7 +114,7 @@ export const SaveBar = () => {
 						title="Show title and actions"
 						className="flex w-full items-center justify-between gap-2 px-4 py-1 text-left"
 					>
-						<span className="truncate text-xs text-stone-500 dark:text-stone-400">
+						<span className="vc-text-faint truncate text-xs">
 							{name.trim() || "Untitled visualization"}
 						</span>
 						<DisclosureChevron open={false} />
@@ -127,11 +127,11 @@ export const SaveBar = () => {
 	return (
 		// `flex-wrap` is a safety net: an overflowing row would widen the
 		// mobile layout viewport and let the whole page pan into blank space.
-		<div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-stone-200 bg-white px-4 py-2 dark:border-stone-800 dark:bg-stone-900">
+		<div className="vc-rule-b vc-bg flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
 			{nameField}
 			<VersionBadge />
 			{indicator && (
-				<span className="hidden text-sm text-stone-600 sm:inline dark:text-stone-400">
+				<span className="vc-text-muted hidden text-sm sm:inline">
 					{indicator}
 				</span>
 			)}

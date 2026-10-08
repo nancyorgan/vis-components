@@ -63,7 +63,7 @@ export const RadioGroup = <V extends string>({
 		>
 			<legend
 				className={c(
-					"mb-1 text-stone-600 dark:text-stone-400",
+					"mb-1 vc-text-muted",
 					legendClassName
 				)}
 			>
@@ -86,7 +86,7 @@ export const RadioGroup = <V extends string>({
 						<label
 							htmlFor={optionId}
 							className={c(
-								"cursor-pointer text-stone-700 dark:text-stone-300",
+								"cursor-pointer vc-text-2",
 								opt.disabled && "cursor-not-allowed opacity-60"
 							)}
 						>

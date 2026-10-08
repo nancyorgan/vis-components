@@ -33,7 +33,7 @@ export const AsideSection = ({
 		setCollapsedMap((prev) => ({ ...prev, [title]: !collapsed }))
 
 	const headerContent = (
-		<h3 className="text-vc-section-header flex items-center gap-1.5 text-base font-semibold tracking-wider uppercase">
+		<h3 className="vc-text-section flex items-center gap-1.5 text-base font-semibold tracking-wider uppercase">
 			{collapsible && <SectionChevron open={!collapsed} />}
 			{title}
 		</h3>
@@ -48,7 +48,7 @@ export const AsideSection = ({
 					<button
 						type="button"
 						onClick={toggle}
-						className="flex flex-1 items-center gap-1.5 text-left hover:opacity-80 pointer-coarse:py-1.5"
+						className="vc-hover-dim flex flex-1 items-center gap-1.5 text-left pointer-coarse:py-1.5"
 						aria-expanded={!collapsed}
 						aria-controls={`aside-section-${title}`}
 					>

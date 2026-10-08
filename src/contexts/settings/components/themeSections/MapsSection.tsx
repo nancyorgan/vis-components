@@ -11,7 +11,7 @@ export const MapsSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 	return (
 		<SectionGroup title="Maps" isReadOnly={isReadOnly}>
 			<Section title="Data label leader lines">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Default stroke for the leader lines that connect a map&apos;s data
 					labels back to their regions (&quot;Draw leader lines&quot; in the
 					Data Labels panel).

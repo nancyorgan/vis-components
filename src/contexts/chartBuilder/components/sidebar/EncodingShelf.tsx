@@ -340,8 +340,8 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// are in use without expanding each disclosure.
 	const selectClass = `min-w-0 flex-1 ${
 		value || derivedSource || hexbinSource
-			? "text-vc-section-header font-semibold"
-			: "text-stone-700 dark:text-stone-200"
+			? "vc-text-section font-semibold"
+			: "vc-text-2"
 	}`
 
 	const fieldOptions = [
@@ -401,8 +401,8 @@ export const EncodingShelf = ({ channel }: Props) => {
 				selectClassName={selectClass}
 			/>
 			{pendingConflict && (
-				<div className="flex flex-col gap-1.5 rounded border border-amber-300 bg-amber-50 p-2 dark:border-amber-700 dark:bg-amber-900/30">
-					<div className="text-sm text-amber-800 dark:text-amber-300">
+				<div className="vc-alert-warn-plain flex flex-col gap-1.5 p-2">
+					<div className="vc-text-warn text-sm">
 						{conflictMessage} Proceed?
 					</div>
 					<div className="flex gap-2">
@@ -431,13 +431,13 @@ export const EncodingShelf = ({ channel }: Props) => {
 					<div className="flex items-center gap-1">
 						<div className="min-w-0 flex-1">{row}</div>
 						<Disclosure.Button
-							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 pointer-coarse:h-9 pointer-coarse:w-9 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="vc-icon-btn relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded pointer-coarse:h-9 pointer-coarse:w-9"
 							aria-label={`Toggle options for ${ENCODING_CHANNEL_LABELS[channel]}`}
 						>
 							<DisclosureChevron open={open} />
 							{hasCustomization && (
 								<span
-									className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-stone-900 dark:bg-white"
+									className="vc-bg-ink absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full"
 									aria-hidden="true"
 								/>
 							)}

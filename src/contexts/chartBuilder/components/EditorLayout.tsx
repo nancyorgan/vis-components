@@ -33,7 +33,7 @@ const MAX_WIDTH = 560
  *  element's bounding rect (`measureEditorChartSize` in ExportModal), so a
  *  real border would silently inflate every default export by 8px. */
 const PUBLISHED_FRAME_CLASS =
-	"shadow-[inset_0_0_0_4px_var(--color-brand-500)]"
+	"vc-published-frame"
 
 /** Padding around the fixed-canvas rectangle (`p-6` on each side). */
 const FIXED_CANVAS_PAD = 48
@@ -199,9 +199,9 @@ export const EditorLayout = () => {
 							aria-orientation="vertical"
 							aria-label="Resize sidebar"
 							onPointerDown={onPointerDown}
-							className="group relative flex w-1.5 cursor-ew-resize touch-none items-center justify-center border-r border-stone-200 bg-stone-50 hover:bg-stone-200 pointer-coarse:w-3 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-700"
+							className="vc-resize-handle group relative flex w-1.5 cursor-ew-resize touch-none items-center justify-center pointer-coarse:w-3"
 						>
-							<div className="h-8 w-0.5 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-stone-500" />
+							<div className="vc-resize-grip h-8 w-0.5 rounded-full opacity-0 transition-opacity group-hover:opacity-100" />
 							<RailTab
 								collapsed={false}
 								onClick={() => setSidebarHidden(true)}
@@ -228,12 +228,12 @@ export const EditorLayout = () => {
 							type="button"
 							aria-label="Close menu"
 							onClick={() => setSheetOpen(false)}
-							className="absolute inset-0 z-10 bg-stone-900/30"
+							className="vc-scrim-light absolute inset-0 z-10"
 						/>
 						{/* The sheet leaves a 1.5rem strip of the chart showing on
 						 *  phones so the tab has somewhere to sit; on tablets it's
 						 *  a fixed-width panel like the desktop column. */}
-						<div className="absolute inset-y-0 left-0 z-20 w-[calc(100%-1.5rem)] border-r border-stone-200 shadow-xl sm:w-[360px] dark:border-stone-700">
+						<div className="vc-sheet absolute inset-y-0 left-0 z-20 w-[calc(100%-1.5rem)] sm:w-[360px]">
 							{sidebar}
 							<RailTab collapsed={false} onClick={() => setSheetOpen(false)} />
 						</div>
@@ -258,7 +258,7 @@ export const EditorLayout = () => {
 							// rectangle's top-left reachable when it overflows.
 							<div
 								ref={setChartHost}
-								className={`min-h-0 flex-1 overflow-auto bg-stone-200 dark:bg-stone-800${publishedFrame}`}
+								className={`vc-bg-strong min-h-0 flex-1 overflow-auto${publishedFrame}`}
 								style={blackAndWhite ? { filter: "grayscale(1)" } : undefined}
 							>
 								<div className="flex min-h-full w-max min-w-full p-6">
@@ -271,7 +271,7 @@ export const EditorLayout = () => {
 										// still true-size (transforms don't change layout),
 										// and without clipping it would widen the `w-max`
 										// wrapper and make the host scroll into blank space.
-										className="m-auto shrink-0 overflow-hidden"
+										className="m-auto flex-shrink-0 overflow-hidden"
 										style={{
 											width: fixedCanvas.width * fixedScale,
 											height: fixedCanvas.height * fixedScale,
@@ -279,7 +279,7 @@ export const EditorLayout = () => {
 									>
 										<div
 											data-editor-chart-viewport
-											className="overflow-hidden bg-white shadow-md"
+											className="vc-paper overflow-hidden"
 											style={{
 												width: fixedCanvas.width,
 												height: fixedCanvas.height,

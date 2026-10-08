@@ -75,6 +75,18 @@ above 25 MB and are rejected above 100 MB (browser performance is the real
 constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
 startup; it's expected.
 
+## Styling
+
+The UI is styled with plain CSS in `src/styles/` (no CSS framework). Each file has one job:
+
+- `tokens.css` — every color, font, corner radius and shadow, named once. Change a value here and it changes everywhere.
+- `components.css` — the shared vocabulary: text roles (`.vc-text-muted`), form fields (`.vc-field`), buttons (`.vc-btn-primary`), cards, menus, alerts, swatches, the sidebar option panel.
+- `editor.css`, `editor-sidebar.css`, `editor-options.css`, `editor-panels.css`, `editor-viz.css`, `library.css`, `settings.css` — looks that only one screen uses, named `.vc-<area>-<thing>`.
+- `layout.css` — small structural utilities the markup still uses as class names (`flex`, `gap-2`, `w-full`, `text-sm`, `rounded`, `border`). Loaded last so a utility wins over a component class on the same element.
+- `reset.css` and `base.css` — the browser reset and element defaults.
+
+To change how something looks, find its `vc-` class in the markup and edit that rule; add a new `.vc-…` class rather than reaching for colors in the markup. `src/global.css` lists the load order.
+
 ## Verifying changes
 
 ```

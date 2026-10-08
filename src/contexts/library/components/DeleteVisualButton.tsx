@@ -40,7 +40,7 @@ export const DeleteVisualButton = ({
 				}}
 				title="Move to trash"
 				aria-label={`Move ${visualName} to trash`}
-				className="flex h-6 w-6 items-center justify-center rounded bg-white/90 text-stone-500 shadow-sm ring-1 ring-stone-200 hover:bg-red-50 hover:text-red-700 dark:bg-stone-800/90 dark:text-stone-400 dark:ring-stone-700 dark:hover:bg-red-900/30 dark:hover:text-red-300"
+				className="vc-library-tile-btn-danger flex h-6 w-6 items-center justify-center rounded"
 			>
 				<TrashIcon />
 			</button>
@@ -51,7 +51,7 @@ export const DeleteVisualButton = ({
 			type="button"
 			onClick={() => trashVisuals([visualId])}
 			title="Move to trash"
-			className="text-sm text-stone-500 hover:text-red-700 dark:text-stone-400 dark:hover:text-red-300"
+			className="vc-link-danger text-sm"
 		>
 			Delete
 		</button>

@@ -43,7 +43,7 @@ export const TextPositionPanel = ({
 	}
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="text-sm text-stone-600 dark:text-stone-400">
+			<span className="vc-text-muted text-sm">
 				Wrap label around
 			</span>
 			{levels.map((level) => (

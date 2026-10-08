@@ -45,9 +45,9 @@ const FOLDER_EMPTY: Record<ThemeFolder, string> = {
  *  gated tier. */
 const FOLDER_BOX: Record<ThemeFolder, string | false> = {
 	system:
-		"rounded-card border border-stone-200 bg-stone-50 p-4 sm:p-5 dark:border-stone-700 dark:bg-stone-900/40",
+		"vc-card-muted p-4 sm:p-5",
 	managed:
-		"rounded-card border border-brand-200 bg-brand-50/60 p-4 sm:p-5 dark:border-brand-800/60 dark:bg-brand-900/15",
+		"vc-settings-folder-box-managed p-4 sm:p-5",
 	custom: false,
 }
 
@@ -59,7 +59,7 @@ const CARD_GRID =
 	"grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),280px))] gap-4"
 
 const cardClass =
-	"group/card block w-full overflow-hidden rounded-card border border-stone-200 bg-white text-left shadow-sm transition-shadow hover:shadow-md dark:border-stone-700 dark:bg-stone-800"
+	"vc-card vc-hover-lift group/card block w-full overflow-hidden text-left transition-shadow"
 
 const Pill = ({
 	children,
@@ -72,11 +72,11 @@ const Pill = ({
 		className={c(
 			"inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
 			tone === "amber" &&
-				"bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+				"vc-tag-amber",
 			tone === "brand" &&
-				"bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200",
+				"vc-tag-brand",
 			tone === "stone" &&
-				"bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300"
+				"vc-tag-stone"
 		)}
 	>
 		{children}
@@ -95,15 +95,15 @@ const CardBody = ({
 	const folder = folderOfTheme(theme)
 	return (
 		<>
-			<div className="aspect-[4/3] overflow-hidden bg-stone-50 dark:bg-stone-900">
+			<div className="vc-bg-muted aspect-[4/3] overflow-hidden">
 				<ThemePreview
 					theme={themeOf(theme)}
 					name={theme.name}
 					className="block h-full w-full"
 				/>
 			</div>
-			<div className="flex items-start justify-between gap-2 border-t border-stone-200 px-3 py-2 dark:border-stone-700">
-				<div className="min-w-0 truncate text-sm font-medium text-stone-900 dark:text-white">
+			<div className="vc-rule-t flex items-start justify-between gap-2 px-3 py-2">
+				<div className="vc-text min-w-0 truncate text-sm font-medium">
 					{theme.name}
 				</div>
 				<div className="flex flex-shrink-0 flex-wrap justify-end gap-1">
@@ -172,23 +172,23 @@ export const ThemesGalleryPage = () => {
 					<h2
 						id={`theme-folder-${folder}`}
 						className={c(
-							"flex items-center gap-1.5 text-sm font-semibold text-stone-900 dark:text-white",
+							"vc-text flex items-center gap-1.5 text-sm font-semibold",
 							onlyFolder && "sr-only"
 						)}
 					>
 						{THEME_FOLDER_LABEL[folder]}
 						{locked && (
-							<span className="text-stone-500 dark:text-stone-400">
+							<span className="vc-text-faint">
 								<LockIcon size={12} />
 							</span>
 						)}
 					</h2>
-					<p className="text-sm text-stone-600 dark:text-stone-400">
+					<p className="vc-text-muted text-sm">
 						{FOLDER_HELP[folder]}
 					</p>
 				</div>
 				{entries.length === 0 ? (
-					<p className="rounded-card border border-dashed border-stone-300 px-4 py-6 text-center text-sm italic text-stone-500 dark:border-stone-700 dark:text-stone-400">
+					<p className="vc-border-color-strong vc-text-faint rounded-card border border-dashed px-4 py-6 text-center text-sm italic">
 						{FOLDER_EMPTY[folder]}
 					</p>
 				) : (
@@ -229,10 +229,10 @@ export const ThemesGalleryPage = () => {
 		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 			<div className="mb-8">
 				<div>
-					<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+					<h1 className="vc-text mb-1 text-xl font-semibold">
 						{onlyFolder ? THEME_FOLDER_LABEL[onlyFolder] : "Themes"}
 					</h1>
-					<p className="text-sm text-stone-600 dark:text-stone-400">
+					<p className="vc-text-muted text-sm">
 						Each card previews a theme&rsquo;s fonts and default palette.
 						Click one to edit it. These values seed every new
 						visualization that picks the theme.
@@ -241,7 +241,7 @@ export const ThemesGalleryPage = () => {
 								{" "}
 								<Link
 									to="/settings/themes"
-									className="underline hover:text-stone-900 dark:hover:text-white"
+									className="vc-link-muted underline"
 								>
 									Show all themes
 								</Link>

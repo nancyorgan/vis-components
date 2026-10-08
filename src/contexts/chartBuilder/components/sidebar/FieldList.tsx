@@ -36,13 +36,13 @@ const TYPE_OPTIONS: ReadonlyArray<{ value: FieldType; label: FieldType }> = [
 
 const TYPE_BADGE_CLASSES: Record<FieldType, string> = {
 	quantitative:
-		"bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+		"vc-sidebar-type-badge-quantitative",
 	categorical:
-		"bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+		"vc-sidebar-type-badge-categorical",
 	temporal:
-		"bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+		"vc-tag-amber",
 	ordinal:
-		"bg-purple-100 text-brand-500 dark:bg-purple-900/30 dark:text-purple-300",
+		"vc-sidebar-type-badge-ordinal",
 }
 
 const TYPE_ABBR: Record<FieldType, string> = {
@@ -74,7 +74,7 @@ export const FieldList = () => {
 
 	if (!dataset) {
 		return (
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Upload a CSV to see its fields.
 			</p>
 		)
@@ -104,7 +104,7 @@ export const FieldList = () => {
 				return (
 					<li
 						key={field.name}
-						className="flex flex-col gap-1 rounded-md border border-stone-200 bg-white px-2 py-1.5 dark:border-stone-700 dark:bg-stone-800"
+						className="vc-panel flex flex-col gap-1 px-2 py-1.5"
 					>
 						<Disclosure>
 							{({ open }) => (
@@ -116,7 +116,7 @@ export const FieldList = () => {
 											<DerivedFieldName field={field} />
 										) : (
 											<span
-												className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
+												className="vc-text-soft min-w-0 flex-1 truncate text-sm"
 												title={field.name}
 											>
 												{field.name}
@@ -133,7 +133,7 @@ export const FieldList = () => {
 												}
 												aria-label={`Edit derived variable ${field.name}`}
 												title="Derived variable — click to edit the calculation"
-												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-brand-500 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+												className="vc-sidebar-derived-pill vc-sidebar-derived-pill-clickable inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded font-serif text-sm font-bold italic"
 											>
 												ƒ
 											</button>
@@ -141,7 +141,7 @@ export const FieldList = () => {
 											<span
 												aria-label="Derived variable"
 												title="Derived variable — computed from other variables"
-												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-brand-500 dark:bg-indigo-900/30 dark:text-indigo-300"
+												className="vc-sidebar-derived-pill inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded font-serif text-sm font-bold italic"
 											>
 												ƒ
 											</span>
@@ -167,7 +167,7 @@ export const FieldList = () => {
 										/>
 										{reorderable ? (
 											<Disclosure.Button
-												className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+												className="vc-icon-btn flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
 												aria-label={`Reorder levels of ${field.name}`}
 												title="Reorder levels"
 											>
@@ -275,7 +275,7 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 						: `${field.name} — click to rename`
 				}
 				aria-label={`Rename ${field.name}`}
-				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm text-stone-800 dark:text-stone-200"
+				className="vc-text-soft group flex min-w-0 flex-1 items-center gap-1 text-left text-sm"
 			>
 				<span className="min-w-0 truncate">{field.name}</span>
 				<svg
@@ -283,7 +283,7 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 					width={11}
 					height={11}
 					aria-hidden
-					className="flex-shrink-0 text-stone-400 opacity-0 group-hover:opacity-100 dark:text-stone-500"
+					className="vc-text-fainter flex-shrink-0 opacity-0 group-hover:opacity-100"
 				>
 					<path
 						d="M11.7 1.6l2.7 2.7-9.2 9.2-3.4.7.7-3.4 9.2-9.2z"
@@ -309,10 +309,10 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
 				autoFocus
 				onFocus={(e) => e.target.select()}
-				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-stone-800 outline-none dark:bg-stone-900 dark:text-stone-200"
+				className="vc-sidebar-rename-input min-w-0 px-1 py-0 text-sm outline-none"
 			/>
 			{error && (
-				<p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+				<p className="vc-text-danger text-xs">{error}</p>
 			)}
 		</div>
 	)
@@ -339,7 +339,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 		// plain non-interactive name.
 		return (
 			<span
-				className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200"
+				className="vc-text-soft min-w-0 flex-1 truncate text-sm"
 				title={field.name}
 			>
 				{field.name}
@@ -381,7 +381,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 				onClick={startEditing}
 				title={`${field.name} — click to rename`}
 				aria-label={`Rename ${field.name}`}
-				className="group flex min-w-0 flex-1 items-center gap-1 text-left text-sm text-stone-800 dark:text-stone-200"
+				className="vc-text-soft group flex min-w-0 flex-1 items-center gap-1 text-left text-sm"
 			>
 				<span className="min-w-0 truncate">{field.name}</span>
 				<svg
@@ -389,7 +389,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 					width={11}
 					height={11}
 					aria-hidden
-					className="flex-shrink-0 text-stone-400 opacity-0 group-hover:opacity-100 dark:text-stone-500"
+					className="vc-text-fainter flex-shrink-0 opacity-0 group-hover:opacity-100"
 				>
 					<path
 						d="M11.7 1.6l2.7 2.7-9.2 9.2-3.4.7.7-3.4 9.2-9.2z"
@@ -415,10 +415,10 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
 				autoFocus
 				onFocus={(e) => e.target.select()}
-				className="min-w-0 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-stone-800 outline-none dark:bg-stone-900 dark:text-stone-200"
+				className="vc-sidebar-rename-input min-w-0 px-1 py-0 text-sm outline-none"
 			/>
 			{error && (
-				<p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+				<p className="vc-text-danger text-xs">{error}</p>
 			)}
 		</div>
 	)
@@ -429,7 +429,7 @@ type EffectiveField = { name: string; type: FieldType }
 /** Fixed label column for the Order-by picker rows (the compact-panel
  * counterpart of LABEL_COL) so the "Order by" and "in" selects — and the
  * Decreasing checkbox via a matching spacer — share one vertical edge. */
-const ORDER_LABEL_COL = "w-14 text-xs text-stone-600 dark:text-stone-400"
+const ORDER_LABEL_COL = "w-14 text-xs vc-text-muted"
 
 /** Order-by select values are PREFIXED (`alpha` / `f:<name>`) so a dataset
  * field literally named "Alphabetical" can't collide with the standard
@@ -660,7 +660,7 @@ const LevelReorderPanel = ({
 			: null
 
 	return (
-		<div className="mt-1 rounded border border-stone-200 bg-stone-50 p-2 dark:border-stone-700 dark:bg-stone-900/50">
+		<div className="vc-box-muted mt-1 p-2">
 			{orderByCandidates.length > 0 && (
 				<div className="mb-2 flex flex-col gap-1">
 					<SelectInput
@@ -735,7 +735,7 @@ const LevelReorderPanel = ({
 					)}
 					{orderBy !== "" && (
 						<label className="flex items-center gap-2 text-xs">
-							<span className="w-14 shrink-0" aria-hidden />
+							<span className="w-14 flex-shrink-0" aria-hidden />
 							<input
 								type="checkbox"
 								checked={decreasing}
@@ -744,7 +744,7 @@ const LevelReorderPanel = ({
 								}}
 								className="h-3 w-3"
 							/>
-							<span className="text-stone-600 dark:text-stone-400">
+							<span className="vc-text-muted">
 								Decreasing
 							</span>
 						</label>
@@ -752,7 +752,7 @@ const LevelReorderPanel = ({
 				</div>
 			)}
 			<div className="mb-1 flex items-center justify-between gap-2">
-				<span className="text-xs text-stone-600 dark:text-stone-400">
+				<span className="vc-text-muted text-xs">
 					Levels ({ordered.length})
 				</span>
 				<div className="flex items-center gap-2 text-xs">
@@ -760,7 +760,7 @@ const LevelReorderPanel = ({
 						<button
 							type="button"
 							onClick={reverse}
-							className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							className="vc-link-muted underline"
 							title="Flip the current level order end to end"
 						>
 							reverse
@@ -770,7 +770,7 @@ const LevelReorderPanel = ({
 						<button
 							type="button"
 							onClick={reset}
-							className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+							className="vc-link-muted underline"
 							title="Drop the pinned order and use smart-sort"
 						>
 							reset
@@ -779,7 +779,7 @@ const LevelReorderPanel = ({
 					<button
 						type="button"
 						onClick={() => setCollapsed((c) => !c)}
-						className="text-stone-600 hover:text-stone-700 dark:hover:text-stone-200"
+						className="vc-link-muted-soft"
 					>
 						{collapsed ? "show" : "hide"}
 					</button>
@@ -816,19 +816,19 @@ const LevelReorderPanel = ({
 								endDrag()
 							}}
 							onDragEnd={endDrag}
-							className={`flex cursor-grab items-center gap-1 rounded border-y-2 bg-white px-1.5 py-0.5 text-xs text-stone-700 dark:bg-stone-800 dark:text-stone-200 ${
+							className={`vc-sidebar-level-row flex cursor-grab items-center gap-1 rounded border-y-2 px-1.5 py-0.5 text-xs ${
 								activeSlot === i
-									? "border-t-indigo-500"
-									: "border-t-transparent"
+									? "vc-sidebar-level-row-drop-above"
+									: ""
 							} ${
 								activeSlot === ordered.length && i === ordered.length - 1
-									? "border-b-indigo-500"
-									: "border-b-transparent"
+									? "vc-sidebar-level-row-drop-below"
+									: ""
 							} ${dragIndex === i ? "opacity-50" : ""}`}
 						>
 							<span
 								aria-hidden
-								className="flex-shrink-0 select-none leading-none text-stone-400 dark:text-stone-500"
+								className="vc-text-fainter flex-shrink-0 select-none leading-none"
 							>
 								⠿
 							</span>
@@ -840,7 +840,7 @@ const LevelReorderPanel = ({
 								onClick={() => move(i, -1)}
 								disabled={i === 0}
 								title="Move up"
-								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:text-stone-400 dark:hover:bg-stone-700"
+								className="vc-sidebar-level-move flex h-5 w-5 items-center justify-center rounded disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8"
 							>
 								↑
 							</button>
@@ -849,7 +849,7 @@ const LevelReorderPanel = ({
 								onClick={() => move(i, 1)}
 								disabled={i === ordered.length - 1}
 								title="Move down"
-								className="flex h-5 w-5 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:text-stone-400 dark:hover:bg-stone-700"
+								className="vc-sidebar-level-move flex h-5 w-5 items-center justify-center rounded disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8"
 							>
 								↓
 							</button>

@@ -44,11 +44,11 @@ const SortHeader = ({
 }) => {
 	const active = field === current
 	return (
-		<th className="border-b border-stone-200 px-3 py-2 text-left text-sm font-medium text-stone-600 dark:border-stone-700 dark:text-stone-300">
+		<th className="vc-rule-b vc-text-muted px-3 py-2 text-left text-sm font-medium">
 			<button
 				type="button"
 				onClick={onClick}
-				className="flex items-center gap-1 hover:text-stone-900 dark:hover:text-white"
+				className="vc-link-muted flex items-center gap-1"
 			>
 				{children}
 				{active && (
@@ -61,13 +61,10 @@ const SortHeader = ({
 	)
 }
 
-const BADGE_GREY =
-	"bg-stone-100 text-stone-700 dark:bg-stone-700 dark:text-stone-300"
-const BADGE_GREEN =
-	"bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200"
-const BADGE_BLUE = "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200"
-const BADGE_AMBER =
-	"bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200"
+const BADGE_GREY = "vc-library-pin-badge-none"
+const BADGE_GREEN = "vc-library-pin-badge-ok"
+const BADGE_BLUE = "vc-library-pin-badge-pinned"
+const BADGE_AMBER = "vc-library-pin-badge-warn"
 
 /** Pin State reflects PUBLISH reality, not just recorded intent. A row with
  *  no publish record shows "Not published" — that covers never-published
@@ -129,8 +126,8 @@ export const VisualsTable = ({
 }: Props) => {
 	if (rows.length === 0) {
 		return (
-			<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
-				<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
+			<div className="vc-library-empty flex flex-col items-center gap-4 px-8 py-20 text-center">
+				<p className="vc-text-muted max-w-md text-sm">
 					No visualizations match the current filters.
 				</p>
 			</div>
@@ -145,11 +142,11 @@ export const VisualsTable = ({
 	const someVisibleSelected =
 		selectedVisibleCount > 0 && !allVisibleSelected
 	return (
-		<div className="overflow-x-auto rounded-card border border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800">
+		<div className="vc-border vc-bg overflow-x-auto rounded-card">
 			<table className="min-w-full text-sm">
 				<thead>
 					<tr>
-						<th className="border-b border-stone-200 px-3 py-2 text-left dark:border-stone-700">
+						<th className="vc-rule-b px-3 py-2 text-left">
 							<input
 								type="checkbox"
 								checked={allVisibleSelected}
@@ -229,10 +226,10 @@ export const VisualsTable = ({
 						return (
 							<tr
 								key={key}
-								className={`border-b border-stone-100 last:border-b-0 dark:border-stone-800 ${
+								className={`vc-rule-b-faint last:border-b-0 ${
 									isSelected
-										? "bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/30"
-										: "hover:bg-stone-50 dark:hover:bg-stone-700/30"
+										? "vc-library-table-row-selected"
+										: "vc-library-table-row"
 								}`}
 							>
 								<td className="px-3 py-2">
@@ -248,37 +245,37 @@ export const VisualsTable = ({
 									<Link
 										to="/editor/$visualId"
 										params={{ visualId: row.visual.id }}
-										className="font-medium text-stone-900 hover:underline dark:text-white"
+										className="vc-library-name-link font-medium"
 									>
 										{row.visual.name}
 									</Link>
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="vc-text-2 px-3 py-2">
 									{row.dataset ? (
 										<>
 											{row.dataset.name}
 											{row.kind === "instance" && (
-												<span className="ml-1 text-stone-500 dark:text-stone-400">
+												<span className="vc-text-faint ml-1">
 													· {row.versionLabel}
 												</span>
 											)}
 										</>
 									) : (
-										<span className="text-stone-400 italic">—</span>
+										<span className="vc-text-fainter italic">—</span>
 									)}
 								</td>
 								<td className="px-3 py-2">
 									<PinStateBadge row={row} />
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="vc-text-2 px-3 py-2">
 									{formatDate(row.rowCreatedAt)}
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="vc-text-2 px-3 py-2">
 									{formatDate(row.visualUpdatedAt)}
 								</td>
-								<td className="px-3 py-2 text-stone-700 dark:text-stone-300">
+								<td className="vc-text-2 px-3 py-2">
 									{row.folderPath || (
-										<span className="text-stone-400 italic">Root</span>
+										<span className="vc-text-fainter italic">Root</span>
 									)}
 								</td>
 							</tr>

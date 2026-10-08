@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react"
 
 /** Below this the editor trades its side-by-side layout for an overlay
  *  sheet (see EditorLayout): phones and tablets in portrait. 1024px is
- *  Tailwind's `lg`, so an iPad in landscape keeps the desktop layout. */
+ *  the `lg:` breakpoint in src/styles/layout.css, so an iPad in landscape keeps the desktop layout. */
 export const NARROW_LAYOUT_QUERY = "(max-width: 1023px)"
 
 const canQuery = (): boolean =>

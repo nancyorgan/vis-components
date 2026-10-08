@@ -83,10 +83,10 @@ export const FontsPage = () => {
 
 	return (
 		<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
-			<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+			<h1 className="vc-text mb-1 text-xl font-semibold">
 				Fonts
 			</h1>
-			<p className="mb-8 text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted mb-8 text-sm">
 				Add fonts from{" "}
 				<a
 					href="https://fonts.google.com"
@@ -101,8 +101,8 @@ export const FontsPage = () => {
 				exports so they render correctly anywhere.
 			</p>
 
-			<div className="max-w-2xl rounded-lg border border-stone-200 p-5 dark:border-stone-700">
-				<h2 className="mb-2 text-sm font-semibold text-stone-900 dark:text-white">
+			<div className="vc-border max-w-2xl rounded-lg p-5">
+				<h2 className="vc-text mb-2 text-sm font-semibold">
 					Add a Google Font
 				</h2>
 				<form
@@ -118,7 +118,7 @@ export const FontsPage = () => {
 						onChange={(e) => setName(e.target.value)}
 						placeholder="Font name, e.g. Roboto Slab"
 						aria-label="Google Font name"
-						className="w-64 rounded border border-stone-300 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input w-64 px-2 py-1.5 text-sm"
 					/>
 					<Button
 						compact
@@ -130,14 +130,14 @@ export const FontsPage = () => {
 					</Button>
 				</form>
 				{error && (
-					<p className="mt-2 text-sm text-red-600 dark:text-red-400">
+					<p className="vc-text-danger-soft mt-2 text-sm">
 						{error}
 					</p>
 				)}
 			</div>
 
 			{fonts.length > 0 && (
-				<ul className="mt-6 max-w-2xl divide-y divide-stone-200 rounded-lg border border-stone-200 dark:divide-stone-700 dark:border-stone-700">
+				<ul className="vc-divide-y vc-border mt-6 max-w-2xl rounded-lg">
 					{fonts.map((font) => (
 						<li
 							key={font.id}
@@ -145,12 +145,12 @@ export const FontsPage = () => {
 						>
 							<div className="min-w-0 flex-1">
 								<div
-									className="truncate text-lg text-stone-900 dark:text-white"
+									className="vc-text truncate text-lg"
 									style={{ fontFamily: font.stack }}
 								>
 									{font.family}
 								</div>
-								<div className="text-xs text-stone-500 dark:text-stone-400">
+								<div className="vc-text-faint text-xs">
 									{fontMeta(font)}
 								</div>
 							</div>

@@ -13,7 +13,7 @@ import type { ThemeSectionProps } from "./types"
 import { Button } from "../../../../components/ui/Button"
 
 const paletteMoveButton =
-	"flex h-8 w-8 items-center justify-center rounded text-stone-600 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:bg-stone-700"
+	"vc-settings-palette-move flex h-8 w-8 items-center justify-center rounded disabled:cursor-not-allowed disabled:opacity-30"
 
 type PaletteCardProps = {
 	palette: SavedCategoricalPalette
@@ -80,7 +80,7 @@ const PaletteCard = ({
 
 	return (
 	<div
-		className={`flex flex-col gap-1.5 rounded-lg border border-stone-200 p-3 dark:border-stone-700 ${
+		className={`vc-border flex flex-col gap-1.5 rounded-lg p-3 ${
 			isDragging ? "opacity-50" : ""
 		}`}
 	>
@@ -100,7 +100,7 @@ const PaletteCard = ({
 					}
 					onGripDragStart(e)
 				}}
-				className={`select-none leading-none text-stone-400 dark:text-stone-500 ${
+				className={`vc-text-fainter select-none leading-none ${
 					isReadOnly ? "" : "cursor-grab"
 				}`}
 			>
@@ -134,7 +134,7 @@ const PaletteCard = ({
 				aria-label={isDefault ? "Default palette" : "Set as default"}
 				aria-pressed={isDefault}
 				onClick={onMakeDefault}
-				className={`text-lg leading-none ${isDefault ? "text-amber-500" : "text-stone-300 hover:text-amber-400 dark:text-stone-600"}`}
+				className={`text-lg leading-none ${isDefault ? "vc-settings-star-on" : "vc-settings-star-off"}`}
 			>
 				{isDefault ? "★" : "☆"}
 			</button>
@@ -145,13 +145,13 @@ const PaletteCard = ({
 				onChange={(e) => onUpdate({ name: e.target.value })}
 				// min-w-0 + flex-1: an input's intrinsic width would otherwise push
 				// the Delete button off a phone screen.
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 			/>
 			<button
 				type="button"
 				disabled={deleteDisabled}
 				onClick={onDelete}
-				className="ml-auto text-sm text-stone-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:text-red-400"
+				className="vc-settings-delete-link ml-auto text-sm disabled:cursor-not-allowed disabled:opacity-30"
 			>
 				Delete
 			</button>
@@ -208,14 +208,14 @@ const PaletteCard = ({
 						<span
 							aria-hidden
 							data-testid="palette-drop-indicator"
-							className="pointer-events-none absolute -inset-y-1 -left-[3px] w-0.5 rounded-full bg-indigo-500"
+							className="vc-settings-drop-indicator pointer-events-none absolute -inset-y-1 -left-[3px] w-0.5 rounded-full"
 						/>
 					)}
 					{activeSlot === palette.colors.length && i === lastIndex && (
 						<span
 							aria-hidden
 							data-testid="palette-drop-indicator"
-							className="pointer-events-none absolute -inset-y-1 -right-[3px] w-0.5 rounded-full bg-indigo-500"
+							className="vc-settings-drop-indicator pointer-events-none absolute -inset-y-1 -right-[3px] w-0.5 rounded-full"
 						/>
 					)}
 					<UiColorInput
@@ -246,7 +246,7 @@ const PaletteCard = ({
 						...(inks ? { patternInks: inks } : {}),
 					})
 				}}
-				className="flex h-6 w-10 items-center justify-center self-start rounded border border-dashed border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600 dark:border-stone-700"
+				className="vc-settings-add-swatch flex h-6 w-10 items-center justify-center self-start rounded border border-dashed"
 				title="Add color"
 				aria-label="Add color"
 			>
@@ -264,7 +264,7 @@ const PaletteCard = ({
 						...(inks ? { patternInks: inks } : {}),
 					})
 				}}
-				className="self-start text-sm text-stone-600 hover:text-stone-700 dark:text-stone-400 dark:hover:text-white"
+				className="vc-link-muted-soft self-start text-sm"
 			>
 				Remove last color
 			</button>
@@ -353,14 +353,14 @@ const PaletteList = ({
 						<span
 							aria-hidden
 							data-testid="palette-card-drop-indicator"
-							className="pointer-events-none absolute inset-x-0 -top-[5px] h-0.5 rounded-full bg-indigo-500"
+							className="vc-settings-drop-indicator pointer-events-none absolute inset-x-0 -top-[5px] h-0.5 rounded-full"
 						/>
 					)}
 					{activeSlot === lastIndex + 1 && i === lastIndex && (
 						<span
 							aria-hidden
 							data-testid="palette-card-drop-indicator"
-							className="pointer-events-none absolute inset-x-0 -bottom-[5px] h-0.5 rounded-full bg-indigo-500"
+							className="vc-settings-drop-indicator pointer-events-none absolute inset-x-0 -bottom-[5px] h-0.5 rounded-full"
 						/>
 					)}
 					<PaletteCard
@@ -474,7 +474,7 @@ export const PalettesSection = ({
 		<SectionGroup title="Color palettes" isReadOnly={isReadOnly}>
 			{/* Categorical palettes */}
 			<Section title="Categorical palettes">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Named color palettes assigned to categories when hue is mapped to
 					a categorical field. Mark one as the default for new
 					visualizations. Drag swatches to reorder colors, or drag the ⠿
@@ -500,14 +500,14 @@ export const PalettesSection = ({
 				>
 					Add palette
 				</Button>
-				<div className="flex flex-col gap-1 border-t border-stone-200 pt-3 dark:border-stone-700">
+				<div className="vc-rule-t flex flex-col gap-1 pt-3">
 					<label
 						htmlFor={textPaletteSelectId}
-						className="text-sm font-medium text-stone-700 dark:text-stone-300"
+						className="vc-text-2 text-sm font-medium"
 					>
 						Default text palette
 					</label>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="vc-text-faint text-xs">
 						Offered by text color pickers — per-category label colors and
 						per-facet title colors. Pick a palette of darker shades that
 						pair with your default categorical palette and stay legible as
@@ -523,7 +523,7 @@ export const PalettesSection = ({
 								e.target.value === "__none__" ? null : e.target.value
 							)
 						}
-						className="self-start rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input self-start px-1.5 py-1 text-sm"
 					>
 						<option value="__none__">
 							No palette (single fallback color)
@@ -542,7 +542,7 @@ export const PalettesSection = ({
 			 *  discrete fields. See spec §4.1 / §12. */}
 
 			<Section title="Ordinal palettes">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Discrete palettes used when hue is mapped to an ordinal field.
 					Use these for ordered categories (e.g., &quot;low / medium / high&quot;)
 					where a sequential ramp reads as ordered, instead of the

@@ -33,14 +33,14 @@ export const Toggle = ({
 				checked={checked}
 				onChange={(e) => onChange(e.target.checked)}
 				disabled={disabled}
-				className="cursor-pointer rounded border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700"
+				className="vc-border-color-strong cursor-pointer rounded disabled:cursor-not-allowed disabled:opacity-60"
 			/>
 			<label
 				htmlFor={inputId}
 				className={c(
-					"cursor-pointer text-stone-700 dark:text-stone-300",
+					"cursor-pointer vc-text-2",
 					disabled && "cursor-not-allowed opacity-60",
-					changed && "font-semibold !text-vc-section-header"
+					changed && "font-semibold vc-text-section"
 				)}
 			>
 				{label}

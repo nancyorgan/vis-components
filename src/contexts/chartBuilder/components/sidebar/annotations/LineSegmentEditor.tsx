@@ -118,7 +118,7 @@ export const LineSegmentEditor = ({
 						)}
 					</div>
 					<div className="flex items-start gap-2 text-sm">
-						<span className={`${LABEL_COL} shrink-0 pt-1.5`}>Dash</span>
+						<span className={`${LABEL_COL} flex-shrink-0 pt-1.5`}>Dash</span>
 						<DashStylePicker
 							pattern={line.lineDash}
 							customDasharray={line.lineDasharray ?? null}

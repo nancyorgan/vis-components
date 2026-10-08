@@ -106,14 +106,14 @@ const useFolderDropTarget = ({
 
 /** Highlight for a row the current drag may drop INTO (nest / move). */
 const DROP_HOVER_CLASS =
-	"vc-nav-active ring-1 ring-brand-400 dark:ring-brand-500"
+	"vc-nav-active vc-library-drop-inside"
 
 /** Insertion line for an "order it here" drop, drawn as an inset shadow on
  *  the row's leading / trailing edge so it can't shift the row's height the
  *  way a border would. Brand-500 purple reads on both themes, so it
  *  needs no dark variant. */
-const DROP_BEFORE_CLASS = "shadow-[inset_0_2px_0_0_var(--color-brand-500)]"
-const DROP_AFTER_CLASS = "shadow-[inset_0_-2px_0_0_var(--color-brand-500)]"
+const DROP_BEFORE_CLASS = "vc-library-drop-before"
+const DROP_AFTER_CLASS = "vc-library-drop-after"
 
 /** Row classes for a resolved drop zone (null = not a drop target now). */
 const dropZoneClass = (zone: FolderDropZone | null): string => {
@@ -175,7 +175,7 @@ const VisualTreeItem = ({
 		className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
 			isSelected
 				? "vc-nav-active"
-				: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+				: "vc-library-tree-row"
 		}`}
 		style={{ paddingLeft: `${depth * 16 + 4}px` }}
 		title={visual.name}
@@ -198,7 +198,7 @@ const VisualTreeItem = ({
 )
 
 const menuItem =
-	"block w-full px-3 py-1.5 text-left text-sm text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:py-2 dark:text-stone-300 dark:hover:bg-stone-700"
+	"vc-menu-item vc-text-2 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:py-2"
 
 /** The folder row's "⋯" menu: rename, step up/down among siblings, and move
  *  into another folder — every drag-and-drop outcome (plus the double-click
@@ -268,7 +268,7 @@ const FolderRowMenu = ({
 			<button
 				type="button"
 				onClick={() => (open ? close() : onOpenChange(true))}
-				className="rounded p-0.5 text-stone-400 hover:text-stone-700 pointer-coarse:p-1.5 dark:hover:text-white"
+				className="vc-link-fainter rounded p-0.5 pointer-coarse:p-1.5"
 				title="More actions"
 				aria-label={`Actions for ${folder.name}`}
 				aria-haspopup="menu"
@@ -283,11 +283,11 @@ const FolderRowMenu = ({
 			{open && (
 				<div
 					role="menu"
-					className="absolute top-full right-0 z-20 mt-1 max-h-64 w-48 overflow-y-auto rounded border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800"
+					className="vc-popover-soft absolute top-full right-0 z-20 mt-1 max-h-64 w-48 overflow-y-auto py-1"
 				>
 					{picking ? (
 						<>
-							<div className="px-3 py-1 text-xs font-medium tracking-wider text-stone-500 uppercase dark:text-stone-400">
+							<div className="vc-text-faint px-3 py-1 text-xs font-medium tracking-wider uppercase">
 								Move to
 							</div>
 							{folder.parentId !== null && (
@@ -319,7 +319,7 @@ const FolderRowMenu = ({
 								</button>
 							))}
 							{targets.length === 0 && folder.parentId === null && (
-								<div className="px-3 py-1.5 text-sm text-stone-500 italic dark:text-stone-400">
+								<div className="vc-text-faint px-3 py-1.5 text-sm italic">
 									No other folder to move into
 								</div>
 							)}
@@ -466,7 +466,7 @@ const FolderTreeItem = ({
 				className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
 					isSelected
 						? "vc-nav-active"
-						: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+						: "vc-library-tree-row"
 				} ${dropZoneClass(rowDropZone)}`}
 				data-drop-zone={rowDropZone ?? undefined}
 				style={{ paddingLeft: `${depth * 16 + 4}px` }}
@@ -502,7 +502,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onToggleExpanded(folder.id)
 						}}
-						className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-vc-brand-text pointer-coarse:h-7 dark:text-th-electric-indigo-300"
+						className="vc-text-brand flex h-4 w-4 flex-shrink-0 items-center justify-center pointer-coarse:h-7"
 					>
 						<svg
 							viewBox="0 0 8 8"
@@ -532,11 +532,11 @@ const FolderTreeItem = ({
 						onClick={(e) => e.stopPropagation()}
 						// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
 						autoFocus
-						className="min-w-0 flex-1 rounded border border-blue-400 bg-white px-1 py-0 text-sm outline-none dark:bg-stone-900"
+						className="vc-library-rename-input min-w-0 flex-1 px-1 py-0 text-sm outline-none"
 					/>
 				) : (
 					<span
-						className="min-w-0 flex-1 truncate font-bold text-vc-brand-text dark:text-th-electric-indigo-300"
+						className="vc-text-brand min-w-0 flex-1 truncate font-bold"
 						onDoubleClick={(e) => {
 							e.stopPropagation()
 							setEditing(true)
@@ -559,7 +559,7 @@ const FolderTreeItem = ({
 							e.stopPropagation()
 							onCreateChild(folder.id)
 						}}
-						className="rounded p-0.5 text-stone-400 hover:text-stone-700 pointer-coarse:p-1.5 dark:hover:text-white"
+						className="vc-link-fainter rounded p-0.5 pointer-coarse:p-1.5"
 						title="New subfolder"
 					>
 						<svg viewBox="0 0 12 12" width={10} height={10}>
@@ -578,7 +578,7 @@ const FolderTreeItem = ({
 								e.stopPropagation()
 								onDelete(folder.id)
 							}}
-							className="rounded p-0.5 text-stone-400 hover:text-red-600 pointer-coarse:p-1.5 dark:hover:text-red-400"
+							className="vc-library-folder-delete rounded p-0.5 pointer-coarse:p-1.5"
 							title="Delete folder"
 						>
 							<svg viewBox="0 0 12 12" width={10} height={10}>
@@ -932,15 +932,15 @@ export const FolderTree = ({
 	// Width comes from the parent (LibraryPage sizes and resizes the panel);
 	// the resize handle next to it carries the divider border.
 	return (
-		<div className="flex h-full w-full flex-col bg-white dark:bg-stone-900">
-			<div className="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-stone-700">
-				<span className="text-sm font-medium tracking-wider text-stone-600 uppercase dark:text-stone-400">
+		<div className="vc-bg flex h-full w-full flex-col">
+			<div className="vc-rule-b flex items-center justify-between px-3 py-2">
+				<span className="vc-text-muted text-sm font-medium tracking-wider uppercase">
 					Folders
 				</span>
 				<button
 					type="button"
 					onClick={() => createFolder(null)}
-					className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700 pointer-coarse:p-2 dark:hover:bg-stone-800 dark:hover:text-white"
+					className="vc-library-new-folder rounded p-1 pointer-coarse:p-2"
 					title="New folder"
 				>
 					<svg viewBox="0 0 12 12" width={12} height={12}>
@@ -974,7 +974,7 @@ export const FolderTree = ({
 					className={`flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-sm select-none pointer-coarse:py-1.5 ${
 						selectedFolderId === null
 							? "vc-nav-active"
-							: "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+							: "vc-library-tree-row"
 					} ${dropZoneClass(rootDrop.dropZone ?? rootContents.dropZone)}`}
 					{...rootDrop.dropHandlers}
 					onClick={() => onSelect(null)}

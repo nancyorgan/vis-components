@@ -136,8 +136,8 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 				onClick={() => setOpen((v) => !v)}
 				className={`flex items-center gap-2 rounded-control border px-2 py-1 text-sm transition-colors ${
 					view.isLatest
-						? "border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-						: "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+						? "vc-version-pill-latest"
+						: "vc-version-pill-old"
 				}`}
 				title="Data set versions"
 			>
@@ -147,14 +147,14 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 				<span className="text-sm whitespace-nowrap">{badgeLabel}</span>
 			</button>
 			{open && (
-				<div className="absolute top-full right-0 z-20 mt-1 w-80 rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800">
-					<div className="border-b border-stone-200 px-3 py-2 dark:border-stone-700">
-						<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+				<div className="vc-menu absolute top-full right-0 z-20 mt-1 w-80">
+					<div className="vc-rule-b px-3 py-2">
+						<div className="vc-text truncate text-sm font-medium">
 							{view.name}
 						</div>
 					</div>
 					{mutateError && (
-						<div className="border-b border-stone-200 px-3 py-2 text-sm text-red-700 dark:border-stone-700 dark:text-red-300">
+						<div className="vc-rule-b vc-text-danger px-3 py-2 text-sm">
 							{mutateError}
 						</div>
 					)}
@@ -165,7 +165,7 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 								setPreviewVersionId(null)
 								setOpen(false)
 							}}
-							className="block w-full border-b border-stone-200 px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50 dark:border-stone-700 dark:text-blue-300 dark:hover:bg-blue-900/30"
+							className="vc-version-restore vc-rule-b block w-full px-3 py-2 text-left text-sm"
 						>
 							← Back to latest
 						</button>
@@ -227,8 +227,8 @@ const VersionList = ({
 							key={v.id}
 							className={`group/v px-3 py-2 text-sm transition-colors ${
 								isActive
-									? "bg-blue-50 dark:bg-blue-900/20"
-									: "hover:bg-stone-100 dark:hover:bg-stone-700/50"
+									? "vc-version-row-active"
+									: "vc-version-row-hover"
 							}`}
 						>
 							<div className="flex items-center justify-between gap-2">
@@ -238,16 +238,16 @@ const VersionList = ({
 									className="min-w-0 flex-1 text-left"
 								>
 									<div className="flex items-center gap-2">
-										<span className="font-medium text-stone-900 dark:text-stone-100">
+										<span className="font-medium vc-text">
 											v{versionNumber}
 										</span>
 										{isLatest && (
-											<span className="text-sm text-stone-500 dark:text-stone-400">
+											<span className="text-sm vc-text-faint">
 												latest
 											</span>
 										)}
 									</div>
-									<div className="text-sm text-stone-500 dark:text-stone-400">
+									<div className="text-sm vc-text-faint">
 										{formatTime(v.createdAt)} · {v.filename}
 									</div>
 								</button>
@@ -260,7 +260,7 @@ const VersionList = ({
 											)
 											if (ok) onDelete(v.id)
 										}}
-										className="text-sm text-stone-400 opacity-0 transition-opacity group-hover/v:opacity-100 hover:text-red-600"
+										className="vc-version-delete text-sm opacity-0 transition-opacity group-hover/v:opacity-100"
 										title="Delete version"
 									>
 										Delete
@@ -293,7 +293,7 @@ const VersionList = ({
 										setNoteDraft(v.note ?? "")
 										setEditingNoteId(v.id)
 									}}
-									className="mt-1 w-full text-left text-sm text-stone-500 italic hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+									className="vc-link-faint mt-1 w-full text-left text-sm italic"
 								>
 									{v.note || "Add a note…"}
 								</button>

@@ -56,13 +56,13 @@ export const CollapsibleSubsection = ({
 					type="button"
 					onClick={() => setOpen((o) => !o)}
 					aria-expanded={open}
-					className="font-heading text-vc-section-header flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wider uppercase hover:opacity-80"
+					className="vc-text-section vc-hover-dim font-heading flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wider uppercase"
 				>
 					<SectionChevron open={open} />
 					{title}
 					{changed && (
 						<span
-							className="ml-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-stone-900 dark:bg-white"
+							className="vc-bg-ink ml-1 h-1.5 w-1.5 flex-shrink-0 rounded-full"
 							aria-hidden="true"
 						/>
 					)}
@@ -71,7 +71,7 @@ export const CollapsibleSubsection = ({
 			</div>
 			{open &&
 				(boxed ? (
-					<div className="flex flex-col gap-2 rounded-md bg-white p-2 dark:bg-stone-900">
+					<div className="vc-bg flex flex-col gap-2 rounded-md p-2">
 						{children}
 					</div>
 				) : (

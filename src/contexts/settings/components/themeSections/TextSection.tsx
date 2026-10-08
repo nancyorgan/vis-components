@@ -19,7 +19,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 	return (
 	<SectionGroup title="Text" isReadOnly={isReadOnly}>
 		<Section title="Main title">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Family, color, and style also set the baseline every other
 				title tier (subtitle, axis / facet titles, legend titles)
 				falls back to.
@@ -101,7 +101,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 		</Section>
 
 		<Section title="Axis title">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Also styles facet titles. Family, color, and style fall back
 				to the Main title font.
 			</p>
@@ -143,7 +143,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 		</Section>
 
 		<Section title="Axis text">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Axis tick labels. Legend labels follow these settings unless
 				overridden in Legend text below.
 			</p>
@@ -188,7 +188,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 		</Section>
 
 		<Section title="Legend text">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Legend section titles and entry labels. Titles fall back to
 				the Main title font (size follows the Axis title size);
 				labels fall back to the Axis text font.
@@ -264,7 +264,7 @@ export const TextSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 
 		{/* Data label defaults */}
 		<Section title="Data labels">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Initial font for the Data Labels layer, applied when a chart is
 				created or re-themed.
 			</p>

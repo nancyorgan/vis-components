@@ -332,7 +332,7 @@ const FillOpacityControls = ({
 						setConfigs((prev) => ({ ...prev, defaultOpacity }))
 					}
 				/>
-				<div className="text-sm text-stone-600">
+				<div className="text-sm vc-text-muted">
 					Your default: {theme.defaultOpacity}
 				</div>
 			</div>
@@ -652,7 +652,7 @@ const CategoricalOpacityList = ({
 			return (
 				<div key={v} className="flex items-center gap-2 text-sm">
 					<span
-						className="w-24 flex-shrink-0 truncate text-stone-700 dark:text-stone-300"
+						className="w-24 flex-shrink-0 truncate vc-text-2"
 						title={labels?.[i] ?? v}
 					>
 						{labels?.[i] ?? v}

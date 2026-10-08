@@ -1,0 +1,403 @@
+/* Shared vocabulary: the reusable looks the whole app is built from. Each class says what a
+ * thing IS (muted text, an input, a card, a menu) and this file says how that looks. To change
+ * how every input looks, edit .vc-input here and nothing else needs to change.
+ *
+ * Structural utilities (flex, gap-2, w-full, text-sm, rounded, border…) live in layout.css and
+ * sit next to these in markup: <input class="vc-input w-full text-sm">. Looks that only one
+ * screen uses live in editor.css / library.css / settings.css. */
+
+/* ======== Inputs ======== */
+/* Text boxes, selects, textareas. Size and padding come from layout classes at the call site
+ * (e.g. "vc-input px-2 py-1 text-sm"); this owns the frame. */
+.vc-input {
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-white);
+}
+.vc-input-control { /* rounder variant: caption box, export fields */
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-control);
+	background-color: var(--color-white);
+}
+.vc-placeholder-ghost::placeholder { color: var(--color-stone-300); }
+.vc-placeholder-fainter::placeholder { color: var(--color-stone-400); }
+
+/* ======== Buttons (see components/ui/Button.tsx) ======== */
+.vc-btn {
+	display: inline-block;
+	font-weight: var(--font-weight-medium);
+	letter-spacing: var(--tracking-wider);
+	font-size: var(--text-sm);
+	line-height: var(--text-sm--line-height);
+	border-radius: var(--radius-control);
+	padding: 0.5rem 1.5rem;
+	box-shadow: var(--shadow);
+	transition: all var(--duration) var(--ease);
+}
+.vc-btn-compact { padding: 0.375rem 0.75rem; }
+.vc-btn:hover { box-shadow: var(--shadow-lg); }
+.vc-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+/* Filled brand purple: every ordinary action button. The top/bottom edges are lighter and
+ * darker brand so the button reads as a bevel. */
+.vc-btn-primary {
+	border-top: 1px solid var(--color-brand-400);
+	border-bottom: 1px solid var(--color-brand-600);
+	background-color: var(--color-brand-500);
+	color: var(--color-white);
+}
+.vc-btn-primary:hover:not(:disabled) {
+	background-color: color-mix(in srgb, var(--color-brand-500), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-brand-400), black 10%);
+}
+.vc-btn-primary:active:not(:disabled) {
+	background-color: color-mix(in srgb, var(--color-brand-500), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-brand-400), black 20%);
+}
+/* Destructive: same shape in red. */
+.vc-btn-danger {
+	border-top: 1px solid var(--color-red-500);
+	border-bottom: 1px solid var(--color-red-700);
+	background-color: var(--color-red-600);
+	color: var(--color-white);
+}
+.vc-btn-danger:hover:not(:disabled) {
+	background-color: color-mix(in srgb, var(--color-red-600), black 10%);
+	border-top-color: color-mix(in srgb, var(--color-red-500), black 10%);
+}
+.vc-btn-danger:active:not(:disabled) {
+	background-color: color-mix(in srgb, var(--color-red-600), black 20%);
+	border-top-color: color-mix(in srgb, var(--color-red-500), black 20%);
+}
+.vc-btn-primary:disabled,
+.vc-btn-primary[aria-disabled],
+.vc-btn-danger:disabled,
+.vc-btn-danger[aria-disabled] {
+	filter: saturate(0.35);
+	box-shadow: none;
+}
+
+/* ======== Icon buttons: small square/round buttons holding an icon ======== */
+.vc-icon-btn { color: var(--color-stone-600); }
+.vc-icon-btn:hover { background-color: var(--color-stone-200); color: var(--color-stone-900); }
+.vc-icon-btn-soft { color: var(--color-stone-600); }
+.vc-icon-btn-soft:hover { background-color: var(--color-stone-200); color: var(--color-stone-800); }
+.vc-icon-btn-quiet { color: var(--color-stone-500); }
+.vc-icon-btn-quiet:hover { background-color: var(--color-stone-100); color: var(--color-stone-900); }
+.vc-icon-btn-quiet-soft { color: var(--color-stone-500); }
+.vc-icon-btn-quiet-soft:hover { background-color: var(--color-stone-100); color: var(--color-stone-800); }
+.vc-icon-btn-light { color: var(--color-stone-600); }
+.vc-icon-btn-light:hover { background-color: var(--color-stone-100); color: var(--color-stone-900); }
+
+/* ======== Containers ======== */
+.vc-card { /* library / settings cards */
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-card);
+	background-color: var(--color-white);
+	box-shadow: var(--shadow-sm);
+}
+.vc-card-muted {
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-card);
+	background-color: var(--color-stone-50);
+}
+.vc-panel { /* white box with a soft edge inside the sidebar / modals */
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-md);
+	background-color: var(--color-white);
+}
+.vc-box-muted {
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-stone-50);
+}
+.vc-menu { /* dropdown menus */
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-md);
+	background-color: var(--color-white);
+	box-shadow: var(--shadow-lg);
+}
+.vc-menu-item {
+	display: block;
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	text-align: left;
+	font-size: var(--text-sm);
+	line-height: var(--text-sm--line-height);
+}
+.vc-menu-item:hover { background-color: var(--color-stone-100); }
+.vc-popover { /* floating pickers (palette picker) */
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-white);
+	box-shadow: var(--shadow-lg);
+}
+.vc-popover-soft {
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-white);
+	box-shadow: var(--shadow-lg);
+}
+.vc-paper { background-color: var(--color-white); box-shadow: var(--shadow-md); } /* fixed-size canvas sheet */
+.vc-sheet { border-right: 1px solid var(--color-stone-200); box-shadow: var(--shadow-xl); } /* phone menu */
+.vc-shadow-sm { box-shadow: var(--shadow-sm); }
+.vc-hover-lift:hover { box-shadow: var(--shadow-md); } /* cards that rise on hover */
+
+/* ======== Badges, tags & alerts ======== */
+.vc-badge { /* the version badge in the header */
+	border-radius: var(--radius-sm);
+	padding: 0.125rem 0.375rem;
+	font-size: 11px;
+	font-weight: var(--font-weight-medium);
+	background-color: var(--color-stone-100);
+	color: var(--color-stone-500);
+}
+.vc-tag-amber { background-color: var(--color-amber-100); color: var(--color-amber-800); }
+.vc-tag-brand { background-color: var(--color-brand-100); color: var(--color-brand-800); }
+.vc-tag-stone { background-color: var(--color-stone-100); color: var(--color-stone-600); }
+.vc-alert-error { border-radius: var(--radius-sm); background-color: var(--color-red-50); color: var(--color-red-800); }
+.vc-alert-error-bordered {
+	border: 1px solid var(--color-red-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-red-50);
+	color: var(--color-red-900);
+}
+.vc-alert-warn {
+	border: 1px solid var(--color-amber-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-amber-50);
+	color: var(--color-amber-900);
+}
+.vc-alert-warn-plain { /* same frame, body-colored text */
+	border: 1px solid var(--color-amber-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-amber-50);
+}
+.vc-alert-success {
+	border: 1px solid var(--color-emerald-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-emerald-50);
+	color: var(--color-emerald-900);
+}
+
+/* ======== Swatch / glyph pickers (shape, dash, pattern chips) ======== */
+/* Colors only; call sites keep "rounded border". Nancy asked for these to stay exactly as
+ * they were (2026-09-15): white chips, stone border, stone-900 ring when selected. */
+.vc-swatch { border-color: var(--color-stone-300); background-color: var(--color-white); color: var(--color-stone-600); }
+.vc-swatch:hover { border-color: var(--color-stone-500); }
+.vc-swatch-selected { border-color: var(--color-stone-900); background-color: var(--color-white); color: var(--color-stone-900); }
+
+/* ======== Sidebar pieces ======== */
+/* Shaded background behind every per-encoding option group (Hue, Opacity, Axis, …). Change
+ * --color-vc-option-panel in tokens.css to restyle all of them at once. Every panel is a
+ * vertical stack of control rows with one rhythm, baked in here so panels can't drift. */
+.vc-option-panel {
+	border-radius: var(--radius-md);
+	padding: 0.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	background-color: var(--color-vc-option-panel);
+}
+/* Helper prose inside sidebar panels. Indigo, not stone, so it passes AA on the purple panel. */
+.vc-help {
+	font-size: 0.75rem;
+	line-height: 1rem;
+	color: var(--color-vc-brand-text);
+}
+/* Inline group header: titles a run of related control rows inside a panel. */
+.vc-group-header {
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+	font-weight: 600;
+	color: var(--color-vc-section-header);
+}
+/* On/off state controls (segmented groups), NOT action buttons and NOT the glyph pickers:
+ *   .vc-toggle-off  light purple fill, brand-purple text + border
+ *   .vc-toggle-on   brand-500 fill, white text
+ * Colors only; call sites keep border + rounding + spacing. */
+.vc-toggle-off {
+	background-color: var(--color-vc-option-panel);
+	border-color: var(--color-vc-brand-text);
+	color: var(--color-vc-brand-text);
+	transition-property: background-color, color;
+	transition-duration: 150ms;
+}
+.vc-toggle-off:hover:not(:disabled) {
+	background-color: color-mix(in srgb, var(--color-vc-option-panel), var(--color-vc-brand-text) 12%);
+}
+.vc-toggle-on {
+	background-color: var(--color-brand-500);
+	border-color: var(--color-brand-500);
+	color: #ffffff;
+}
+/* Selected row in a settings/side nav (e.g. the active theme in the Themes sub-nav). */
+.vc-nav-active {
+	background-color: var(--color-vc-option-panel);
+	color: var(--color-vc-brand-text);
+}
+/* Legend swatch cell: the fixed-width column a legend entry's graphic sits in. */
+.vc-swatch-cell {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: var(--vc-legend-swatch-col, auto);
+}
+
+/* ======== Page shells ======== */
+/* Editor shell: exactly fills the viewport below the sticky header; the editor scrolls inside
+ * (sidebar, chart viewport) so the window never scrolls there. Library and Settings instead
+ * flow as ordinary documents with a .vc-sticky-rail side nav. */
+.vc-page-fill {
+	height: calc(100vh - var(--vc-header-h));
+	height: calc(100dvh - var(--vc-header-h)); /* wins where supported: mobile address bars */
+}
+.vc-sticky-rail {
+	position: sticky;
+	top: var(--vc-header-h);
+	height: calc(100vh - var(--vc-header-h));
+	height: calc(100dvh - var(--vc-header-h));
+	align-self: flex-start;
+}
+/* Fixed-width legend ("Legend width" in the Legend panel): labels wrap instead of truncating. */
+.vc-legend-fixed-width .truncate,
+.vc-legend-fixed-width .vc-legend-label {
+	overflow: visible;
+	text-overflow: clip;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	min-width: 0;
+}
+.vc-legend-fixed-width .vc-legend-hentry {
+	flex-shrink: 1;
+	min-width: 0;
+}
+
+/* ======== Form fields (components/ui: Input, Select, NumberInput, ColorInput) ======== */
+.vc-field {
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-control);
+	background-color: var(--color-white);
+	color: var(--color-stone-900);
+	outline-style: none;
+	transition: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
+	transition-timing-function: var(--ease);
+	transition-duration: var(--duration);
+}
+.vc-field:hover { border-color: var(--color-stone-400); }
+.vc-field:focus { border-color: var(--color-stone-500); }
+.vc-field:disabled { cursor: not-allowed; opacity: 0.6; }
+.vc-field-invalid { border-color: var(--color-amber-400); } /* e.g. a hex color that doesn't parse */
+.vc-field-invalid:focus { border-color: var(--color-amber-500); }
+
+/* ======== Modal (components/ui/Modal.tsx) ======== */
+.vc-modal {
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-md);
+	background-color: var(--color-white);
+	box-shadow: var(--shadow-xl);
+}
+/* Thick colored frame for a warning modal: the whole panel and its title bar. */
+.vc-modal-danger { border-width: 2px; border-color: var(--color-red-500); }
+.vc-modal-danger > div:first-child { border-color: var(--color-red-300); }
+.vc-modal-brand { border-width: 2px; border-color: var(--color-brand-500); }
+.vc-modal-brand > div:first-child { border-color: var(--color-brand-300); }
+
+/* ======== Odds and ends ======== */
+/* Drag strip between a side column and the page (editor sidebar, library folder rail) and the
+ * short pill that shows inside it on hover (markup keeps the "group" marker). */
+.vc-resize-handle { border-right: 1px solid var(--color-stone-200); background-color: var(--color-stone-50); }
+.vc-resize-handle:hover { background-color: var(--color-stone-200); }
+.vc-resize-grip { background-color: var(--color-stone-300); }
+/* The small pull tab on the editor's sidebar edge (components/ui/RailTab.tsx). */
+.vc-rail-tab { border-color: var(--color-stone-200); background-color: var(--color-white); color: var(--color-stone-400); box-shadow: var(--shadow-sm); }
+.vc-rail-tab:hover { background-color: var(--color-stone-100); color: var(--color-stone-700); }
+/* The sticky top bar. */
+.vc-header {
+	background-color: var(--color-white);
+	box-shadow: 0 2px 4px 0 color-mix(in oklab, var(--color-stone-200) 60%, transparent),
+		0 0 2px 0 color-mix(in oklab, var(--color-stone-200) 60%, transparent);
+}
+.vc-icon-btn-plain { color: var(--color-stone-600); } /* tints on hover, text color stays */
+.vc-icon-btn-plain:hover { background-color: var(--color-stone-100); }
+.vc-ring-ink { box-shadow: 0 0 0 1px var(--color-stone-900); } /* 1px ring: the current swatch */
+.vc-hover-dim:hover { opacity: 0.8; } /* section headers that dim slightly on hover */
+.vc-bg-ink { background-color: var(--color-stone-900); } /* the "changed" dot */
+.vc-code-box { /* monospace dump, e.g. an error stack */
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-stone-50);
+	color: var(--color-stone-700);
+}
+/* ---------------------------------------------------------------------------------------------
+ * Single-purpose roles come LAST on purpose: "vc-field vc-text-brand" must show brand text, so a
+ * role listed below wins over the color a compound class above set on the same element.
+ * Inside the text roles, .vc-text-section is after the stone roles so a "changed" label wins.
+ * ------------------------------------------------------------------------------------------- */
+
+/* ======== Text roles ======== */
+/* Ordered LIGHTEST to DARKEST on purpose: an element that carries two stone roles (a shared
+ * label column class plus a row-specific one) renders the darker, exactly as the old utilities
+ * did. The brand/section/danger/warn roles come after the stone roles so they win over them. */
+.vc-text-fainter { color: var(--color-stone-400); }
+.vc-text-faint { color: var(--color-stone-500); }
+.vc-text-muted { color: var(--color-stone-600); } /* helper text, captions (the most common) */
+.vc-text-2 { color: var(--color-stone-700); } /* secondary: row labels, table cells */
+.vc-text-soft { color: var(--color-stone-800); }
+.vc-text { color: var(--color-stone-900); } /* primary text */
+.vc-text-brand { color: var(--color-vc-brand-text); }
+.vc-text-brand-500 { color: var(--color-brand-500); }
+.vc-text-section { color: var(--color-vc-section-header); } /* section headers, "changed" labels */
+.vc-text-danger-soft { color: var(--color-red-600); }
+.vc-text-danger { color: var(--color-red-700); }
+.vc-text-warn-soft { color: var(--color-amber-600); }
+.vc-text-warn-mid { color: var(--color-amber-700); }
+.vc-text-warn { color: var(--color-amber-800); }
+
+/* ======== Links: text that reacts to hover (add .underline for an underlined one) ======== */
+.vc-link-muted { color: var(--color-stone-600); }
+.vc-link-muted:hover { color: var(--color-stone-900); }
+.vc-link-muted-soft { color: var(--color-stone-600); }
+.vc-link-muted-soft:hover { color: var(--color-stone-700); }
+.vc-link-faint { color: var(--color-stone-500); }
+.vc-link-faint:hover { color: var(--color-stone-700); }
+.vc-link-fainter { color: var(--color-stone-400); }
+.vc-link-fainter:hover { color: var(--color-stone-700); }
+.vc-link-brand { color: var(--color-vc-brand-text); }
+.vc-link-brand:hover { opacity: 0.8; }
+.vc-link-brand-500 { color: var(--color-brand-500); }
+.vc-link-brand-500:hover { color: var(--color-brand-700); }
+.vc-link-info { color: var(--color-blue-600); } /* small "learn more"-style links */
+.vc-link-info:hover { text-decoration-line: underline; }
+.vc-link-info-strong { color: var(--color-blue-700); }
+.vc-link-info-strong:hover { color: var(--color-blue-900); }
+.vc-link-danger { color: var(--color-stone-500); } /* quiet until hovered, then red */
+.vc-link-danger:hover { color: var(--color-red-700); }
+
+/* ======== Surfaces ======== */
+.vc-bg { background-color: var(--color-white); }
+.vc-bg-muted { background-color: var(--color-stone-50); }
+.vc-bg-strong { background-color: var(--color-stone-200); }
+.vc-bg-sidebar { background-color: var(--color-vc-sidebar); }
+.vc-app-shell { background-color: var(--color-white); color: var(--color-stone-900); }
+/* Dimmed backdrop behind modals, and the lighter one behind the phone menu sheet. */
+.vc-scrim { background-color: color-mix(in oklab, var(--color-stone-900) 40%, transparent); }
+.vc-scrim-light { background-color: color-mix(in oklab, var(--color-stone-900) 30%, transparent); }
+
+/* ======== Rules & borders (color + 1px; the side is in the name) ======== */
+.vc-border { border: 1px solid var(--color-stone-200); }
+.vc-border-strong { border: 1px solid var(--color-stone-300); }
+.vc-border-brand { border: 1px solid var(--color-vc-brand-text); }
+.vc-rule-t { border-top: 1px solid var(--color-stone-200); }
+.vc-rule-b { border-bottom: 1px solid var(--color-stone-200); }
+.vc-rule-l { border-left: 1px solid var(--color-stone-200); }
+.vc-rule-r { border-right: 1px solid var(--color-stone-200); }
+.vc-rule-t-strong { border-top: 1px solid var(--color-stone-300); }
+.vc-rule-l-strong { border-left: 1px solid var(--color-stone-300); }
+.vc-rule-b-faint { border-bottom: 1px solid var(--color-stone-100); }
+.vc-hr { border-color: var(--color-stone-200); } /* <hr>: the browser draws the 1px top line */
+/* Color-only versions, for elements whose border width/side is set by a layout class. */
+.vc-border-color-strong { border-color: var(--color-stone-300); }
+/* A 1px line between stacked children. */
+:where(.vc-divide-y > :not(:last-child)) { border-bottom: 1px solid var(--color-stone-200); }
+

@@ -1,0 +1,50 @@
+/* Chart editor only: sidebar, option panels, encoding shelf, data drawer, canvas, export modal.
+ * Looks that only this screen uses. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-editor-<thing>. */
+
+/* ======== Editor shell (EditorLayout.tsx) ======== */
+/* .vc-resize-handle / .vc-resize-grip live in components.css: the library's folder rail uses them too. */
+/* Purple inset frame around the chart viewport while the open visual is published (an inset
+ * shadow, not a border: the export defaults measure this element's size). */
+.vc-published-frame { box-shadow: inset 0 0 0 4px var(--color-brand-500); }
+
+/* ======== Save bar (SaveBar.tsx) ======== */
+/* The visual's title: looks like plain text until hovered or focused. */
+.vc-title-input {
+	border: 1px solid transparent;
+	border-radius: var(--radius-control);
+	background-color: transparent;
+	color: var(--color-stone-900);
+	outline-style: none;
+	transition: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
+	transition-timing-function: var(--ease);
+	transition-duration: var(--duration);
+}
+.vc-title-input:hover { border-color: var(--color-stone-200); }
+.vc-title-input:focus { border-color: var(--color-stone-400); }
+.vc-title-input-taken { border-color: var(--color-red-400); } /* name already used */
+
+/* ======== Version badge / history menu (VersionBadge.tsx) ======== */
+.vc-version-pill-latest { border-color: var(--color-stone-200); background-color: var(--color-white); color: var(--color-stone-700); }
+.vc-version-pill-latest:hover { background-color: var(--color-stone-50); }
+.vc-version-pill-old { border-color: var(--color-amber-300); background-color: var(--color-amber-50); color: var(--color-amber-900); }
+.vc-version-pill-old:hover { background-color: var(--color-amber-100); }
+.vc-version-restore { color: var(--color-blue-700); }
+.vc-version-restore:hover { background-color: var(--color-blue-50); }
+.vc-version-row-active { background-color: var(--color-blue-50); }
+.vc-version-row-hover:hover { background-color: var(--color-stone-100); }
+.vc-version-delete { color: var(--color-stone-400); }
+.vc-version-delete:hover { color: var(--color-red-600); }
+
+/* ======== Export modal (ExportModal.tsx) ======== */
+/* Tab buttons on the Embed / Export image row. Only the active tab draws the 2px underline
+ * (the inactive tab has no bottom border at all), and the active tab keeps its ink color on
+ * hover, so the :hover rule is written to lose to the modifier. */
+.vc-export-tab { color: var(--color-stone-500); }
+.vc-export-tab:hover { color: var(--color-stone-800); }
+.vc-export-tab-active,
+.vc-export-tab-active:hover {
+	border-bottom: 2px solid var(--color-stone-900);
+	color: var(--color-stone-900);
+}

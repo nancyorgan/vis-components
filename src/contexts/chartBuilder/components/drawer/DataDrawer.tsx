@@ -109,7 +109,7 @@ export const DataDrawer = () => {
 
 	return (
 		<div
-			className="relative flex flex-shrink-0 flex-col border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900"
+			className="vc-rule-t vc-bg relative flex flex-shrink-0 flex-col"
 			// Collapsed, the tray is exactly its handle + header strip (no
 			// fixed height: a pinned 36px used to be 5px short of that and
 			// spilled past the page bottom). Open, it's the dragged height.
@@ -125,24 +125,24 @@ export const DataDrawer = () => {
 			 *  dragged, on touch. Same on the sidebar / rail resize handles. */}
 			<div
 				onPointerDown={onPointerDown}
-				className="group flex h-2 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center bg-stone-100 hover:bg-stone-200 pointer-coarse:h-4 dark:bg-stone-800 dark:hover:bg-stone-700"
+				className="vc-drawer-handle group flex h-2 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center pointer-coarse:h-4"
 				role="separator"
 				aria-orientation="horizontal"
 				aria-label="Resize data table drawer"
 			>
-				<div className="h-0.5 w-10 rounded-full bg-stone-400 group-hover:bg-stone-600 dark:bg-stone-600 dark:group-hover:bg-stone-400" />
+				<div className="vc-drawer-grip h-0.5 w-10 rounded-full" />
 			</div>
-			<div className="flex items-center justify-between border-b border-stone-200 bg-stone-50 px-4 py-1.5 dark:border-stone-800 dark:bg-stone-900/50">
-				<span className="font-heading text-vc-section-header text-sm font-semibold tracking-wider uppercase">
+			<div className="vc-rule-b vc-bg-muted flex items-center justify-between px-4 py-1.5">
+				<span className="vc-text-section font-heading text-sm font-semibold tracking-wider uppercase">
 					Data table
 				</span>
 				<div className="flex items-center gap-3">
 					{dropError && (
-						<span className="text-sm text-red-700 dark:text-red-300">
+						<span className="vc-text-danger text-sm">
 							{dropError}
 						</span>
 					)}
-					<span className="hidden text-sm text-stone-500 sm:inline dark:text-stone-500">
+					<span className="vc-text-faint hidden text-sm sm:inline">
 						Drop a CSV to upload
 					</span>
 					{dataset && (
@@ -166,8 +166,8 @@ export const DataDrawer = () => {
 							}}
 							className={
 								reshapeApplied
-									? "text-sm font-medium text-vc-brand-text hover:opacity-80 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-th-electric-indigo-300"
-									: "text-sm text-stone-600 transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-stone-400 dark:hover:text-white"
+									? "vc-link-brand text-sm font-medium pointer-coarse:px-2 pointer-coarse:py-1.5"
+									: "vc-link-muted text-sm transition-colors pointer-coarse:px-2 pointer-coarse:py-1.5"
 							}
 						>
 							{reshapeApplied ? "Reshape ✓" : "Reshape"}
@@ -176,7 +176,7 @@ export const DataDrawer = () => {
 					<button
 						type="button"
 						onClick={() => setOpen((v) => !v)}
-						className="text-sm text-stone-600 transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:text-stone-400 dark:hover:text-white"
+						className="vc-link-muted text-sm transition-colors pointer-coarse:px-2 pointer-coarse:py-1.5"
 					>
 						{open ? "Collapse" : "Expand"}
 					</button>
@@ -190,7 +190,7 @@ export const DataDrawer = () => {
 			{dragOver && (
 				<div
 					aria-hidden="true"
-					className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-blue-500 bg-blue-50/80 text-sm font-medium text-blue-800 dark:border-blue-400 dark:bg-blue-900/40 dark:text-blue-200"
+					className="vc-drawer-dropzone pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed text-sm font-medium"
 				>
 					Drop the CSV to upload
 				</div>

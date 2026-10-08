@@ -65,12 +65,12 @@ export const TrashButton = () => {
 				aria-label={
 					count === 0 ? "Open trash (empty)" : `Open trash, ${plural(count, "item")}`
 				}
-				className="bg-brand-text-aa fixed right-6 bottom-6 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all hover:shadow-xl"
+				className="vc-library-trash-fab vc-btn-primary fixed right-6 bottom-6 z-40 flex h-12 w-12 items-center justify-center rounded-full transition-all"
 			>
 				<TrashIcon size={20} />
 				{count > 0 && (
 					<span
-						className="absolute -top-1 -right-1 min-w-5 rounded-full bg-red-600 px-1.5 text-center text-[11px] leading-5 font-semibold text-white ring-2 ring-white dark:ring-stone-900"
+						className="vc-library-trash-count absolute -top-1 -right-1 min-w-5 rounded-full px-1.5 text-center text-[11px] leading-5 font-semibold"
 						aria-hidden="true"
 					>
 						{count}
@@ -85,15 +85,15 @@ export const TrashButton = () => {
 			>
 				<div className="flex flex-col gap-4">
 					{count === 0 ? (
-						<p className="text-sm text-stone-600 dark:text-stone-400">
+						<p className="vc-text-muted text-sm">
 							Nothing in the trash. Deleted visualizations wait here until you
 							restore them or empty the trash.
 						</p>
 					) : (
-						<ul className="flex flex-col divide-y divide-stone-200 dark:divide-stone-700">
+						<ul className="vc-divide-y flex flex-col">
 							{trashed.map((v) => (
 								<li key={v.id} className="flex items-center gap-3 py-2">
-									<div className="flex h-12 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+									<div className="vc-box-muted flex h-12 w-16 flex-shrink-0 items-center justify-center overflow-hidden">
 										{v.thumbnail ? (
 											<img
 												src={v.thumbnail}
@@ -101,14 +101,14 @@ export const TrashButton = () => {
 												className="h-full w-full object-contain"
 											/>
 										) : (
-											<span className="text-[10px] text-stone-400">No preview</span>
+											<span className="vc-text-fainter text-[10px]">No preview</span>
 										)}
 									</div>
 									<div className="min-w-0 flex-1">
-										<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+										<div className="vc-text truncate text-sm font-medium">
 											{v.name}
 										</div>
-										<div className="truncate text-xs text-stone-600 dark:text-stone-400">
+										<div className="vc-text-muted truncate text-xs">
 											{v.datasetId && datasets[v.datasetId]
 												? `Data set: ${datasets[v.datasetId].name} · `
 												: ""}
@@ -121,7 +121,7 @@ export const TrashButton = () => {
 									<button
 										type="button"
 										onClick={() => purgeVisuals([v.id])}
-										className="text-sm whitespace-nowrap text-stone-500 hover:text-red-700 dark:text-stone-400 dark:hover:text-red-300"
+										className="vc-link-danger text-sm whitespace-nowrap"
 										title="Delete this visualization permanently"
 									>
 										Delete forever
@@ -132,8 +132,8 @@ export const TrashButton = () => {
 					)}
 					{count > 0 &&
 						(confirmEmpty ? (
-							<div className="flex flex-col gap-3 rounded-card border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-900/20">
-								<p className="text-sm text-stone-700 dark:text-stone-300">
+							<div className="vc-library-trash-confirm flex flex-col gap-3 p-3">
+								<p className="vc-text-2 text-sm">
 									Permanently delete {plural(count, "visualization")}? This
 									can&rsquo;t be undone.
 									{publishedCount > 0

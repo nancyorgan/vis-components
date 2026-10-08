@@ -1,0 +1,83 @@
+/* Editor sidebar: the Data / Fields / Encodings shelves and the top-level panels (Labels, Legend, Maps, Theme, Aesthetics, Tooltip, Caption, Reshape, Quick-start bar).
+ * Looks that only these screens use. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-sidebar-<thing>. */
+
+/* ======== Sidebar shell (Sidebar.tsx) ======== */
+/* Nothing of its own: the column is .vc-bg-sidebar and the dividers are .vc-hr (components.css). */
+
+/* ======== Data (DataUpload.tsx) ======== */
+/* "download data" link in the data-set summary line: brand blue, one step darker on hover. */
+.vc-sidebar-data-link { color: var(--color-brand-500); }
+.vc-sidebar-data-link:hover { color: var(--color-brand-600); }
+
+/* ======== Caption (CaptionPanel.tsx) ======== */
+/* px / % unit dropdown beside an offset field: rounder frame, darker edge on hover only. */
+.vc-sidebar-unit-select {
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-control);
+	background-color: var(--color-white);
+	color: var(--color-stone-700);
+}
+.vc-sidebar-unit-select:hover { border-color: var(--color-stone-400); }
+
+/* ======== Fields (FieldList.tsx) ======== */
+/* Field-type badge (Q / C / O) beside each field name. Temporal (T) uses the shared
+ * .vc-tag-amber from components.css, which is the same amber-100 / amber-800 pair. */
+.vc-sidebar-type-badge-quantitative { background-color: var(--color-blue-100); color: var(--color-blue-800); }
+.vc-sidebar-type-badge-categorical { background-color: var(--color-emerald-100); color: var(--color-emerald-800); }
+.vc-sidebar-type-badge-ordinal { background-color: var(--color-purple-100); color: var(--color-brand-500); }
+/* "ƒ" pill marking a derived (computed) field; the clickable one (opens the editor) tints on hover. */
+.vc-sidebar-derived-pill { background-color: var(--color-indigo-100); color: var(--color-brand-500); }
+.vc-sidebar-derived-pill-clickable:hover { background-color: var(--color-indigo-200); }
+/* Inline rename box for a field: blue edge so it reads as "editing". */
+.vc-sidebar-rename-input {
+	border: 1px solid var(--color-blue-400);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-white);
+	color: var(--color-stone-800);
+}
+/* Reorder panel: one draggable level row. Its 2px top/bottom edges (border-y-2 at the call
+ * site) stay invisible until a drag hovers a drop slot; the edge nearest the slot turns indigo. */
+.vc-sidebar-level-row {
+	background-color: var(--color-white);
+	color: var(--color-stone-700);
+	border-top-color: transparent;
+	border-bottom-color: transparent;
+}
+.vc-sidebar-level-row-drop-above { border-top-color: var(--color-indigo-500); }
+.vc-sidebar-level-row-drop-below { border-bottom-color: var(--color-indigo-500); }
+/* ↑ / ↓ nudge buttons on a level row: tint on hover, text color stays. */
+.vc-sidebar-level-move { color: var(--color-stone-600); }
+.vc-sidebar-level-move:hover { background-color: var(--color-stone-200); }
+
+/* ======== Maps (MapsSection.tsx) ======== */
+/* One button of the "No map / Geographic" segmented control (.vc-toggle-on / -off supply the
+ * fill). The divider between segments is brand-text purple even on the active segment, so this
+ * must come after components.css, where .vc-toggle-on sets a brand-500 border. */
+.vc-sidebar-segment { border-color: var(--color-vc-brand-text); }
+
+/* ======== Axis labels & titles (LabelsPanel.tsx) ======== */
+/* Gray B / I / U and alignment buttons in the font editor (Nancy asked these to stay gray,
+ * not the purple toggles, 2026-09-15). Colors only; call sites keep "rounded border". */
+.vc-sidebar-style-btn-off { border-color: var(--color-stone-300); background-color: var(--color-white); color: var(--color-stone-600); }
+.vc-sidebar-style-btn-off:hover { background-color: var(--color-stone-100); }
+.vc-sidebar-style-btn-on { border-color: var(--color-stone-700); background-color: var(--color-stone-200); color: var(--color-stone-900); }
+
+/* ======== Quick-start bar (QuickStartIconBar.tsx) ======== */
+/* Chart-type icon button: grows a quarter on hover (while enabled); the call site's
+ * "transition" animates the scale. */
+.vc-sidebar-quickstart-btn {
+	border: 1px solid var(--color-stone-300);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-white);
+	color: var(--color-stone-700);
+}
+.vc-sidebar-quickstart-btn:hover:enabled { scale: 125% 125%; }
+.vc-sidebar-quickstart-icon { fill: currentColor; }
+/* Floating label under a hovered icon: white card, brand text, 1px stone ring + md shadow. */
+.vc-sidebar-quickstart-tooltip {
+	background-color: var(--color-white);
+	color: var(--color-vc-brand-text);
+	box-shadow: 0 0 0 1px var(--color-stone-200), var(--shadow-md);
+}

@@ -1,0 +1,70 @@
+/* Settings pages only: themes gallery, theme editor, fonts, sharing.
+ * Looks that only this screen uses. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-settings-<thing>. */
+
+/* ======== Settings rail & page nav (SettingsLayout.tsx) ======== */
+/* Page links (Themes / Fonts / Sharing) in the rail and in the narrow-layout header. */
+.vc-settings-nav-link { color: var(--color-brand-700); }
+.vc-settings-nav-link:hover { background-color: var(--color-stone-100); color: var(--color-brand-900); }
+/* The current page's link: the same tint as .vc-nav-active, but its text is brand-700 (one
+ * step darker than the brand text the theme rows under it use), as it was before. */
+.vc-settings-nav-link-active { background-color: var(--color-vc-option-panel); color: var(--color-brand-700); }
+/* The rail's "Settings" heading is a link back to the gallery: it inherits the heading's ink
+ * and turns brand on hover. */
+.vc-settings-rail-heading-link:hover { color: var(--color-brand-700); }
+
+/* ======== Themes sub-nav (ThemesSubNav.tsx) ======== */
+/* A folder header row (SYSTEM / MANAGED / CUSTOM); the selected folder uses .vc-nav-active. */
+.vc-settings-folder-btn { color: var(--color-stone-900); }
+.vc-settings-folder-btn:hover { background-color: var(--color-stone-100); }
+/* The fold / unfold chevron inside a folder header. */
+.vc-settings-folder-chevron:hover { background-color: var(--color-stone-200); }
+/* One theme in a folder; the open theme uses .vc-nav-active. */
+.vc-settings-theme-row { color: var(--color-stone-700); }
+.vc-settings-theme-row:hover { background-color: var(--color-stone-100); }
+/* Touch-only "move to the other folder" arrow on a theme row. */
+.vc-settings-theme-move { color: var(--color-stone-500); }
+.vc-settings-theme-move:hover { background-color: var(--color-stone-200); }
+
+/* ======== Themes gallery (ThemesGalleryPage.tsx) ======== */
+/* The Managed Themes folder's tinted box (System uses .vc-card-muted; Custom has no box). */
+.vc-settings-folder-box-managed {
+	border: 1px solid var(--color-brand-200);
+	border-radius: var(--radius-card);
+	background-color: color-mix(in oklab, var(--color-brand-50) 60%, transparent);
+}
+
+/* ======== Theme editor page (ThemesPage.tsx) ======== */
+/* "This custom theme still holds the default slot" notice: .vc-alert-warn with a lighter edge. */
+.vc-settings-default-notice {
+	border: 1px solid var(--color-amber-200);
+	border-radius: var(--radius-sm);
+	background-color: var(--color-amber-50);
+	color: var(--color-amber-900);
+}
+
+/* ======== Theme editor sections (themeSections/) ======== */
+/* B / I / U style toggles (controls.tsx). Colors only; the call site keeps "rounded border". */
+.vc-settings-style-toggle-on { border-color: var(--color-stone-700); background-color: var(--color-stone-200); color: var(--color-stone-900); }
+.vc-settings-style-toggle-off { border-color: var(--color-stone-300); background-color: var(--color-white); color: var(--color-stone-600); }
+.vc-settings-style-toggle-off:hover { background-color: var(--color-stone-100); }
+/* The ★ / ☆ "default palette" / "default gradient" star. */
+.vc-settings-star-on { color: var(--color-amber-500); }
+.vc-settings-star-off { color: var(--color-stone-300); }
+.vc-settings-star-off:hover { color: var(--color-amber-400); }
+/* "Delete" text button on a palette / gradient card: quiet until hovered, then red. */
+.vc-settings-delete-link { color: var(--color-stone-500); }
+.vc-settings-delete-link:hover { color: var(--color-red-600); }
+/* Touch-only ↑ / ↓ palette reorder buttons. */
+.vc-settings-palette-move { color: var(--color-stone-600); }
+.vc-settings-palette-move:hover { background-color: var(--color-stone-200); }
+/* The dashed "+" chip that appends a color to a palette; the call site keeps
+ * "rounded border border-dashed". */
+.vc-settings-add-swatch { border-color: var(--color-stone-300); color: var(--color-stone-400); }
+.vc-settings-add-swatch:hover { border-color: var(--color-stone-500); color: var(--color-stone-600); }
+/* Drag-to-reorder drop line between swatches / palette cards. */
+.vc-settings-drop-indicator { background-color: var(--color-indigo-500); }
+/* A per-hue pattern-ink picker holding an override gets a solid, darker edge; unset ones
+ * stay dashed (vc-border-color-strong border-dashed). */
+.vc-settings-ink-override { border-color: var(--color-stone-400); }

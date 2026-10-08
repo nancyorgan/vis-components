@@ -190,7 +190,7 @@ export const ThemePanel = () => {
 					<button
 						type="button"
 						onClick={() => setGateOpen(true)}
-						className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+						className="vc-link-muted self-start text-sm underline"
 					>
 						Make this the default theme
 					</button>

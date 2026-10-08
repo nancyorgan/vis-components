@@ -13,7 +13,7 @@ type ModalProps = {
 	onClose: () => void
 	title?: ReactNode
 	children: ReactNode
-	/** Tailwind width class for the panel. Defaults to max-w-md. */
+	/** Width class for the panel (a max-w-* from layout.css). Defaults to max-w-md. */
 	widthClass?: string
 	/** When false, clicking the backdrop does NOT close the modal — for
 	 * notices that must be acknowledged rather than clicked past. Escape and
@@ -91,7 +91,7 @@ export const Modal = ({
 				// instead of extending past the screen edges, where the title and
 				// buttons would be unreachable. Panels are expected to size
 				// themselves to fit; the scrollbar only appears when one doesn't.
-				"max-h-full overflow-y-auto rounded-md border border-stone-200 bg-white shadow-xl dark:border-stone-700 dark:bg-stone-900",
+				"vc-modal max-h-full overflow-y-auto",
 				fitWidth ? "w-fit max-w-full" : "w-full",
 				maxWidthPx === undefined && !fitWidth && widthClass,
 				panelClassName
@@ -106,7 +106,7 @@ export const Modal = ({
 			aria-modal="true"
 		>
 			{title && (
-				<div className="border-b border-stone-200 px-4 py-3 text-sm font-medium text-stone-900 dark:border-stone-700 dark:text-white">
+				<div className="vc-rule-b vc-text px-4 py-3 text-sm font-medium">
 					{title}
 				</div>
 			)}
@@ -117,7 +117,7 @@ export const Modal = ({
 	return createPortal(
 		<div
 			className={c(
-				"fixed inset-0 z-50 flex justify-center bg-stone-900/40 px-4 py-6 dark:bg-stone-950/60",
+				"vc-scrim fixed inset-0 z-50 flex justify-center px-4 py-6",
 				anchorTop ? "items-start" : "items-center"
 			)}
 			onMouseDown={(e) => {
@@ -191,22 +191,21 @@ export const ConfirmDialog = ({
 		onClose={onCancel}
 		title={
 			warning ? (
-				<span className="text-red-700 dark:text-red-300">{title}</span>
+				<span className="vc-text-danger">{title}</span>
 			) : (
 				title
 			)
 		}
-		// `!` because these fight the panel's own neutral border utilities,
-		// which Tailwind emits at the same specificity — source order in the
-		// class attribute wouldn't decide the winner.
+		// Thick red frame for a warning modal; see .vc-modal-danger in
+		// src/styles/components.css.
 		panelClassName={
 			warning
-				? "!border-2 !border-red-500 [&>div:first-child]:!border-red-300 dark:[&>div:first-child]:!border-red-800"
+				? "vc-modal-danger"
 				: undefined
 		}
 	>
 		<div className="flex flex-col gap-4">
-			<div className="text-sm text-stone-700 dark:text-stone-300">
+			<div className="text-sm vc-text-2">
 				{message}
 			</div>
 			<div className="flex justify-end gap-2">

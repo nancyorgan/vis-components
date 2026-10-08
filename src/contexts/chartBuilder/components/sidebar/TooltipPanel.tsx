@@ -129,14 +129,14 @@ export const TooltipPanel = () => {
 					onChange={(e) => update({ enabled: e.target.checked })}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">
+				<span className="vc-text-muted">
 					Show tooltips
 				</span>
 			</label>
 			{merged.enabled && mappedFieldNames.length > 0 && (
 				<>
-					<hr className="border-stone-200 dark:border-stone-700" />
-					<span className="text-sm text-stone-600 dark:text-stone-400">
+					<hr className="vc-hr" />
+					<span className="vc-text-muted text-sm">
 						Fields shown
 					</span>
 					<div className="flex flex-col gap-1">
@@ -149,7 +149,7 @@ export const TooltipPanel = () => {
 									className="h-3 w-3"
 								/>
 								<span
-									className="min-w-0 truncate text-stone-700 dark:text-stone-300"
+									className="vc-text-2 min-w-0 truncate"
 									title={name}
 								>
 									{name}
@@ -158,7 +158,7 @@ export const TooltipPanel = () => {
 						))}
 					</div>
 					{missingFromDataset.length > 0 && (
-						<p className="text-xs text-amber-600 dark:text-amber-400">
+						<p className="vc-text-warn-soft text-xs">
 							Not in the current dataset (won&apos;t appear in tooltip):{" "}
 							{missingFromDataset.join(", ")}
 						</p>
@@ -167,7 +167,7 @@ export const TooltipPanel = () => {
 			)}
 			{merged.enabled && (
 				<>
-					<hr className="border-stone-200 dark:border-stone-700" />
+					<hr className="vc-hr" />
 					<label className="flex items-center gap-2 text-sm">
 						<input
 							type="checkbox"
@@ -189,14 +189,14 @@ export const TooltipPanel = () => {
 							}}
 							className="h-3 w-3"
 						/>
-						<span className="text-stone-700 dark:text-stone-300">
+						<span className="vc-text-2">
 							Use custom HTML template
 						</span>
 					</label>
 					{merged.useCustomHtml && (
 					<>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							Custom HTML template
 						</span>
 						<textarea
@@ -204,7 +204,7 @@ export const TooltipPanel = () => {
 							onChange={(e) => update({ customHtml: e.target.value })}
 							placeholder="<strong>{{state}}</strong><br/>Sales: {{sales}}"
 							rows={6}
-							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="vc-input-control px-1.5 py-1 font-mono text-sm"
 						/>
 						<div className="flex items-start justify-between gap-2">
 							{merged.customHtml !== "" && merged.customHtml !== defaultHtml && (
@@ -215,7 +215,7 @@ export const TooltipPanel = () => {
 						</div>
 					</label>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							Custom CSS
 						</span>
 						<textarea
@@ -223,7 +223,7 @@ export const TooltipPanel = () => {
 							onChange={(e) => update({ customCss: e.target.value })}
 							placeholder="background: #111; color: #fff; border-radius: 8px;"
 							rows={6}
-							className="rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="vc-input-control px-1.5 py-1 font-mono text-sm"
 						/>
 						<div className="flex items-start justify-between gap-2">
 							{merged.customCss !== "" && merged.customCss !== DEFAULT_TOOLTIP_CSS && (
@@ -248,7 +248,7 @@ export const TooltipPanel = () => {
 							onChange={(e) => update({ hoverEnabled: e.target.checked })}
 							className="h-3 w-3"
 						/>
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							Show hover
 						</span>
 					</label>
@@ -263,7 +263,7 @@ export const TooltipPanel = () => {
 									}
 									className="mt-0.5 h-3 w-3 flex-shrink-0"
 								/>
-								<span className="text-stone-700 dark:text-stone-300">
+								<span className="vc-text-2">
 									Hover over legend to highlight visual elements
 								</span>
 							</label>
@@ -276,7 +276,7 @@ export const TooltipPanel = () => {
 									}
 									className="mt-0.5 h-3 w-3 flex-shrink-0"
 								/>
-								<span className="text-stone-700 dark:text-stone-300">
+								<span className="vc-text-2">
 									Recolor hovered elements
 								</span>
 							</label>
@@ -299,7 +299,7 @@ export const TooltipPanel = () => {
 									}
 									className="mt-0.5 h-3 w-3 flex-shrink-0"
 								/>
-								<span className="text-stone-700 dark:text-stone-300">
+								<span className="vc-text-2">
 									Outline hovered elements
 								</span>
 							</label>
@@ -333,7 +333,7 @@ export const TooltipPanel = () => {
 									onChange={(e) => update({ hoverFade: e.target.checked })}
 									className="mt-0.5 h-3 w-3 flex-shrink-0"
 								/>
-								<span className="text-stone-700 dark:text-stone-300">
+								<span className="vc-text-2">
 									Fade other elements
 								</span>
 							</label>

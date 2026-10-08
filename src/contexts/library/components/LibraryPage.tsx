@@ -386,9 +386,9 @@ export const LibraryPage = () => {
 								type="button"
 								aria-label="Close folders"
 								onClick={() => setRailSheetOpen(false)}
-								className="fixed inset-x-0 top-(--vc-header-h) bottom-0 z-20 bg-stone-900/30"
+								className="vc-scrim-light fixed inset-x-0 top-(--vc-header-h) bottom-0 z-20"
 							/>
-							<div className="fixed top-(--vc-header-h) bottom-0 left-0 z-30 w-[calc(100%-1.5rem)] border-r border-stone-200 shadow-xl sm:w-[360px] dark:border-stone-700">
+							<div className="vc-sheet fixed top-(--vc-header-h) bottom-0 left-0 z-30 w-[calc(100%-1.5rem)] sm:w-[360px]">
 								<FolderTree
 									selectedFolderId={selectedFolderId}
 									onSelect={(id) => {
@@ -431,9 +431,9 @@ export const LibraryPage = () => {
 						role="separator"
 						aria-orientation="vertical"
 						onPointerDown={onSidebarResizeStart}
-						className="group relative flex w-1.5 flex-shrink-0 cursor-ew-resize touch-none items-center justify-center border-r border-stone-200 bg-stone-50 hover:bg-stone-200 pointer-coarse:w-3 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-700"
+						className="vc-resize-handle group relative flex w-1.5 flex-shrink-0 cursor-ew-resize touch-none items-center justify-center pointer-coarse:w-3"
 					>
-						<div className="h-8 w-0.5 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-stone-500" />
+						<div className="vc-resize-grip h-8 w-0.5 rounded-full opacity-0 transition-opacity group-hover:opacity-100" />
 						<RailTab
 							collapsed={false}
 							label="folders"
@@ -448,7 +448,7 @@ export const LibraryPage = () => {
 				 *  title keeps clear of it. */}
 				<div className="mx-auto max-w-6xl px-4 py-6 pl-10 sm:px-6 sm:py-10 sm:pl-10">
 					<div className="mb-6 flex flex-wrap items-center gap-3">
-						<h1 className="mr-auto text-xl font-semibold text-stone-900 dark:text-white">
+						<h1 className="vc-text mr-auto text-xl font-semibold">
 							{selectedFolderName}
 						</h1>
 						<Input
@@ -490,13 +490,13 @@ export const LibraryPage = () => {
 						<ViewToggle view={view} onChange={setView} />
 					</div>
 					{backfillNote && (
-						<p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
+						<p className="vc-text-muted mb-4 text-sm">
 							{backfillNote}
 						</p>
 					)}
 					{selectedCount > 0 && (
-						<div className="mb-4 flex flex-wrap items-center gap-2 rounded-card border border-brand-200 bg-brand-50 px-3 py-2 dark:border-brand-800 dark:bg-brand-900/20">
-							<span className="text-sm font-medium text-brand-900 dark:text-brand-200">
+						<div className="vc-library-selection-bar mb-4 flex flex-wrap items-center gap-2 px-3 py-2">
+							<span className="vc-library-selection-count text-sm font-medium">
 								{selectedCount} selected
 							</span>
 							<div className="ml-auto flex flex-wrap items-center gap-2">
@@ -530,8 +530,8 @@ export const LibraryPage = () => {
 							onToggleAllVisible={toggleAllVisible}
 						/>
 					) : gridRows.length === 0 ? (
-						<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
-							<p className="max-w-md text-sm text-stone-600 dark:text-stone-400">
+						<div className="vc-library-empty flex flex-col items-center gap-4 px-8 py-20 text-center">
+							<p className="vc-text-muted max-w-md text-sm">
 								{query
 									? `No visualizations match "${query}".`
 									: selectedFolderId === UNFILED_FOLDER_ID
@@ -573,14 +573,14 @@ export const LibraryPage = () => {
 										// start from those and carry the browser's own
 										// uri-list payload instead of the card's.
 										draggable={false}
-										className={`block overflow-hidden rounded-card border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-stone-800 ${
+										className={`vc-card vc-hover-lift block overflow-hidden transition-shadow ${
 											isSelected
-												? "border-brand-500 ring-2 ring-brand-400 dark:border-brand-400 dark:ring-brand-500"
-												: "border-stone-200 dark:border-stone-700"
+												? "vc-library-card-selected"
+												: ""
 										}`}
 									>
 										<div
-											className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-stone-50 dark:bg-stone-900"
+											className="vc-bg-muted flex aspect-[4/3] items-center justify-center overflow-hidden"
 											style={
 												d.visual.channelConfigs?.backgroundColor
 													? {
@@ -598,28 +598,28 @@ export const LibraryPage = () => {
 													className="h-full w-full object-contain"
 												/>
 											) : (
-												<div className="text-sm text-stone-600 dark:text-stone-400">
+												<div className="vc-text-muted text-sm">
 													No preview
 												</div>
 											)}
 										</div>
-										<div className="border-t border-stone-200 px-3 py-2 dark:border-stone-700">
-											<div className="truncate text-sm font-medium text-stone-900 dark:text-white">
+										<div className="vc-rule-t px-3 py-2">
+											<div className="vc-text truncate text-sm font-medium">
 												{d.visual.name}
 											</div>
-											<div className="truncate text-sm text-stone-600 dark:text-stone-400">
+											<div className="vc-text-muted truncate text-sm">
 												{d.datasetName
 													? `Data set: ${d.datasetName}`
 													: "No data set"}
 											</div>
-											<div className="text-sm text-stone-500 dark:text-stone-400">
+											<div className="vc-text-faint text-sm">
 												Updated {formatTimestamp(d.visual.updatedAt)}
 											</div>
 										</div>
 									</Link>
 									{/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- click here only stops propagation so checkbox clicks don't reach the card; the checkbox inside is the real (keyboard-accessible) interaction */}
 									<label
-										className={`absolute top-2 left-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded bg-white/90 shadow-sm ring-1 ring-stone-200 transition-opacity dark:bg-stone-800/90 dark:ring-stone-700 ${
+										className={`vc-library-tile-chip absolute top-2 left-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-opacity ${
 											isSelected
 												? "opacity-100"
 												: "opacity-0 group-hover/card:opacity-100 pointer-coarse:opacity-100"
@@ -688,14 +688,14 @@ const ViewToggle = ({
 	view: "grid" | "table"
 	onChange: (next: "grid" | "table") => void
 }) => (
-	<div className="inline-flex overflow-hidden rounded-control border border-stone-300 dark:border-stone-700">
+	<div className="vc-border-strong inline-flex overflow-hidden rounded-control">
 		<button
 			type="button"
 			onClick={() => onChange("grid")}
 			className={`px-3 py-1 text-sm transition-colors ${
 				view === "grid"
-					? "bg-vc-section-header text-white"
-					: "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800"
+					? "vc-library-view-toggle-on"
+					: "vc-library-view-toggle-off"
 			}`}
 			title="Grid view"
 			aria-pressed={view === "grid"}
@@ -705,10 +705,10 @@ const ViewToggle = ({
 		<button
 			type="button"
 			onClick={() => onChange("table")}
-			className={`border-l border-stone-300 px-3 py-1 text-sm transition-colors dark:border-stone-700 ${
+			className={`vc-rule-l-strong px-3 py-1 text-sm transition-colors ${
 				view === "table"
-					? "bg-vc-section-header text-white"
-					: "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800"
+					? "vc-library-view-toggle-on"
+					: "vc-library-view-toggle-off"
 			}`}
 			title="Table view"
 			aria-pressed={view === "table"}

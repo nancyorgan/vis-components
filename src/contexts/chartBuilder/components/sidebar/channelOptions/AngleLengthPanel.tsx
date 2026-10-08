@@ -240,7 +240,7 @@ const PieDonutControls = ({
 				<div
 					role="group"
 					aria-label="Chart type"
-					className="inline-flex overflow-hidden rounded border border-vc-brand-text"
+					className="inline-flex overflow-hidden rounded vc-border-brand"
 				>
 					<button
 						type="button"
@@ -330,7 +330,7 @@ const RadarSpokesSection = ({
 			    ranges). The color row is dropped — spoke color lives in the Color
 			    menu's "Radar Spine" slot — and the per-line "changed" dots stay
 			    off; the section header carries the dot instead. */}
-			<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+			<div className="flex flex-col gap-2 vc-rule-t pt-2">
 				<p className="vc-help">
 					Set spoke color under the <strong>Color</strong> menu →{" "}
 					<strong>Radar Spine</strong>.
@@ -412,7 +412,7 @@ const RadarSpokeLabelsSection = ({
 					onChange={(tickLabelEvery) => updateCfg({ tickLabelEvery })}
 					inputClassName="w-20"
 				/>
-				<span className="text-sm text-stone-600">
+				<span className="text-sm vc-text-muted">
 					{labelEvery > 1 ? `${ordinalSuffix(labelEvery)} spoke` : "spoke"}
 				</span>
 				{labelEvery !== defaultEvery && (
@@ -610,7 +610,7 @@ export const LengthOptionsPanel = () => {
 						/>
 					)}
 				</div>
-				<div className="text-sm text-stone-600">
+				<div className="text-sm vc-text-muted">
 					Defaults: {DEFAULT_LENGTH_CONFIG.minLength}px –{" "}
 					{DEFAULT_LENGTH_CONFIG.maxLength}px
 				</div>

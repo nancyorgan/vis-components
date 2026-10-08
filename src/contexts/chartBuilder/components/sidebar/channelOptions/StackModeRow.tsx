@@ -82,13 +82,13 @@ export const StackModeRow = ({
 		<div
 			className={`flex items-center gap-2 text-sm${className ? ` ${className}` : ""}`}
 		>
-			<span className={`shrink-0 ${LABEL_COL}`}>
+			<span className={`flex-shrink-0 ${LABEL_COL}`}>
 				{rowLabel}
 			</span>
 			<div
 				role="group"
 				aria-label={rowLabel}
-				className="flex flex-1 overflow-hidden rounded border border-vc-brand-text"
+				className="flex flex-1 overflow-hidden rounded vc-border-brand"
 			>
 				{options.map((opt) => {
 					const active = opt.id === value

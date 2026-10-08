@@ -66,7 +66,7 @@ export const NumberInput = ({
 	disabled?: boolean
 	className?: string
 	inputClassName?: string
-	/** Tailwind classes applied to the `<label>` element — used to pin a
+	/** Class names applied to the `<label>` element — used to pin a
 	 *  width / color so multiple rows in the same panel line up. */
 	labelClassName?: string
 	inline?: boolean
@@ -253,7 +253,7 @@ export const NumberInput = ({
 			disabled={disabled}
 			tabIndex={-1}
 			aria-label={dir === 1 ? "Increment" : "Decrement"}
-			className="flex flex-1 items-center justify-center px-1 text-[7px] leading-none text-stone-500 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-100"
+			className="vc-icon-btn-quiet-soft flex flex-1 items-center justify-center px-1 text-[7px] leading-none disabled:cursor-not-allowed disabled:opacity-60"
 		>
 			{dir === 1 ? "▲" : "▼"}
 		</button>
@@ -283,18 +283,18 @@ export const NumberInput = ({
 						className={c(
 							// `pr-5` reserves room for the spinner column so the
 							// value text doesn't slide under the ▲▼ buttons.
-							"w-20 rounded-control border border-stone-300 bg-white py-1 pr-5 pl-1.5 text-sm text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
+							"vc-field w-20 py-1 pr-5 pl-1.5 text-sm",
 							inputClassName
 						)}
 					/>
-					<div className="absolute inset-y-0 right-0 flex w-4 flex-col overflow-hidden rounded-r-control border-l border-stone-300 dark:border-stone-700">
+					<div className="absolute inset-y-0 right-0 flex w-4 flex-col overflow-hidden rounded-r-control vc-rule-l-strong">
 						{spinnerButton(1)}
-						<div className="border-t border-stone-300 dark:border-stone-700" />
+						<div className="vc-rule-t-strong" />
 						{spinnerButton(-1)}
 					</div>
 				</div>
 				{suffix !== undefined && (
-					<span className="text-sm text-stone-500 dark:text-stone-400">
+					<span className="text-sm vc-text-faint">
 						{suffix}
 					</span>
 				)}

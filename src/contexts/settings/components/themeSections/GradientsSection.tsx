@@ -48,7 +48,7 @@ const GradientCard = ({
 	onRename: (name: string) => void
 	onDelete: () => void
 }) => (
-	<div className="flex flex-col gap-1.5 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+	<div className="vc-border flex flex-col gap-1.5 rounded-lg p-3">
 		<div className="flex items-center gap-2">
 			<button
 				type="button"
@@ -56,7 +56,7 @@ const GradientCard = ({
 				aria-label={isDefault ? "Default gradient" : "Set as default gradient"}
 				aria-pressed={isDefault}
 				onClick={onMakeDefault}
-				className={`text-lg leading-none ${isDefault ? "text-amber-500" : "text-stone-300 hover:text-amber-400 dark:text-stone-600"}`}
+				className={`text-lg leading-none ${isDefault ? "vc-settings-star-on" : "vc-settings-star-off"}`}
 			>
 				{isDefault ? "★" : "☆"}
 			</button>
@@ -67,12 +67,12 @@ const GradientCard = ({
 				onChange={(e) => onRename(e.target.value)}
 				// min-w-0 + flex-1: an input's intrinsic width would otherwise hold
 				// the card wider than a phone screen.
-				className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 			/>
 			<button
 				type="button"
 				onClick={onDelete}
-				className="ml-auto text-sm text-stone-500 hover:text-red-600 dark:text-stone-400 dark:hover:text-red-400"
+				className="vc-settings-delete-link ml-auto text-sm"
 			>
 				Delete
 			</button>
@@ -93,9 +93,9 @@ const GradientCard = ({
 						type="color"
 						value={stop.value}
 						onChange={(e) => stop.onChange(e.target.value)}
-						className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+						className="vc-border-color-strong h-6 w-10 flex-shrink-0 cursor-pointer rounded border"
 					/>
-					<span className="text-sm text-stone-600 dark:text-stone-400">
+					<span className="vc-text-muted text-sm">
 						{stop.label}
 					</span>
 				</label>
@@ -192,7 +192,7 @@ export const GradientsSection = ({
 
 			{/* Linear gradients */}
 			<Section title="Linear gradients">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Two-stop gradients for quantitative fields.
 				</p>
 				{theme.linearGradients.map((gradient) => (
@@ -229,7 +229,7 @@ export const GradientsSection = ({
 
 			{/* Diverging gradients */}
 			<Section title="Diverging gradients">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Three-stop gradients for data with a meaningful midpoint.
 				</p>
 				{theme.divergingGradients.map((gradient) => (

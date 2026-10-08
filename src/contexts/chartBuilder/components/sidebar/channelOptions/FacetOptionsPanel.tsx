@@ -393,7 +393,7 @@ export const FacetOptionsPanel = () => {
 			{isPolar && !isPie && (
 				<CollapsibleSubsection title="R axis">
 					<div className="flex items-start gap-2 text-sm">
-						<span className={`shrink-0 pt-1 ${LABEL_COL}`}>
+						<span className={`flex-shrink-0 pt-1 ${LABEL_COL}`}>
 							Share R axis
 						</span>
 						<div>
@@ -505,7 +505,7 @@ export const FacetOptionsPanel = () => {
 			{isPolar && (
 				<CollapsibleSubsection title="Angle axis">
 					<div className="flex items-start gap-2 text-sm">
-						<span className={`shrink-0 pt-1 ${LABEL_COL}`}>
+						<span className={`flex-shrink-0 pt-1 ${LABEL_COL}`}>
 							Share angle axis
 						</span>
 						<div>

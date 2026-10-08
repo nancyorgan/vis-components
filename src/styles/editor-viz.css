@@ -1,0 +1,21 @@
+/* The chart itself and what floats over it: legend, tooltips, canvas chrome, export modal.
+ * Looks that only these screens use. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-viz-<thing>. */
+
+/* ======== Axis text (viz/Axes.tsx, viz/plotCanvas/SharedText.tsx) ======== */
+/* Fallback fills when the user's theme names no color for the slot. The <text> gets a
+ * `fill` attribute instead whenever the theme does, so these only show on fresh charts. */
+.vc-viz-tick-text { fill: var(--color-stone-600); } /* axis tick labels */
+.vc-viz-title-text { fill: var(--color-stone-700); } /* axis titles, shared axis titles, facet row/column headers, captions (TITLE_FILL_FALLBACK) */
+
+/* ======== Hover tooltip (viz/HoverTooltip.tsx) ======== */
+/* The default look. `.vc-tooltip` on the same element is a hook, not a look: tests query it
+ * and the user's custom tooltip CSS is injected as `.vc-tooltip { … }` in a <style> inside
+ * the portal, which sits later in the document and so wins ties against this rule. */
+.vc-viz-tooltip {
+	border: 1px solid var(--color-stone-200);
+	border-radius: var(--radius-md);
+	background-color: var(--color-white);
+	box-shadow: var(--shadow-lg);
+}

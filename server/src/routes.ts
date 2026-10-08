@@ -78,7 +78,11 @@ export const createHandler =
 			}
 			if (path === "/api/config" || path === "/api/config/") {
 				if (method !== "GET") return sendError(res, 405, "Method not allowed")
-				return sendJson(res, 200, JSON.stringify({ v: 1, baseUrl: config.baseUrl }))
+				return sendJson(
+					res,
+					200,
+					JSON.stringify({ v: 1, baseUrl: config.baseUrl, accountUrl: config.accountUrl })
+				)
 			}
 			if (path.startsWith("/api/")) return await handleApi(req, res, { config, db, distDir })
 			if (method !== "GET") return sendError(res, 405, "Method not allowed")

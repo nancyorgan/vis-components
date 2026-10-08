@@ -602,7 +602,7 @@ export const Axis = ({
 										textDecoration={tickDecoration}
 										fill={tickFill}
 										className={
-											tickFill ? undefined : "fill-stone-600 dark:fill-stone-400"
+											tickFill ? undefined : "vc-viz-tick-text"
 										}
 									>
 										{/* Wrapped labels render as stacked tspans, honoring
@@ -656,7 +656,7 @@ export const Axis = ({
 											className={
 												titleFill
 													? undefined
-													: "fill-stone-700 dark:fill-stone-300"
+													: "vc-viz-title-text"
 											}
 										>
 											{renderMultilineTspans(label, titleX)}
@@ -741,7 +741,7 @@ export const Axis = ({
 											className={
 												titleFill
 													? undefined
-													: "fill-stone-700 dark:fill-stone-300"
+													: "vc-viz-title-text"
 											}
 										>
 											{/* `verticallyCentered` pairs with the "middle"
@@ -766,7 +766,7 @@ export const Axis = ({
 										fill={titleFill}
 										fontFamily={titleFamily}
 										className={
-											titleFill ? undefined : "fill-stone-700 dark:fill-stone-300"
+											titleFill ? undefined : "vc-viz-title-text"
 										}
 									>
 										{renderMultilineTspans(label, 0)}

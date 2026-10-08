@@ -65,7 +65,7 @@ export const TextPropertiesPanel = ({
 			)}
 		</div>
 		<div className="flex items-center gap-1.5">
-			<span className={`${LABEL_COL} shrink-0 text-sm`}>
+			<span className={`${LABEL_COL} flex-shrink-0 text-sm`}>
 				Style
 			</span>
 			<StyleButton

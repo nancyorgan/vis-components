@@ -45,7 +45,7 @@ export const ShareAxisPicker = ({
 		<div
 			role="group"
 			aria-label={ariaLabel}
-			className="inline-flex overflow-hidden rounded border border-vc-brand-text"
+			className="inline-flex overflow-hidden rounded vc-border-brand"
 		>
 			<button
 				type="button"
@@ -104,7 +104,7 @@ export const PolarShareAxisPicker = ({
 		<div
 			role="group"
 			aria-label={ariaLabel}
-			className="inline-flex overflow-hidden rounded border border-vc-brand-text"
+			className="inline-flex overflow-hidden rounded vc-border-brand"
 		>
 			<button
 				type="button"
@@ -156,7 +156,7 @@ const cls = (base: string, extra?: string) =>
 	extra ? `${base} ${extra}` : base
 
 const boundInputClass =
-	"w-16 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+	"vc-input w-16 px-2 py-1 text-sm vc-text-2"
 
 /** "Share ___" label + segmented picker row. `label` is the visible
  *  copy (the standalone panels lowercase the axis name, the wrap panel
@@ -168,11 +168,11 @@ export const ShareAxisRow = ({
 }: ShareAxisPickerProps & { label: string; className?: string }) => (
 	<div
 		className={cls(
-			"flex items-start gap-2 text-sm text-stone-700 dark:text-stone-300",
+			"flex items-start gap-2 text-sm vc-text-2",
 			className,
 		)}
 	>
-		<span className={`shrink-0 pt-1 ${LABEL_COL}`}>
+		<span className={`flex-shrink-0 pt-1 ${LABEL_COL}`}>
 			{label}
 		</span>
 		<div>
@@ -182,7 +182,7 @@ export const ShareAxisRow = ({
 )
 
 /** Secondary checkbox row ("Size rows by …", "Size panels by unit").
- *  Aligns to the control column via a `w-24 shrink-0` spacer — NOT the
+ *  Aligns to the control column via a `LabelSpacer` (w-24 wide) — NOT the
  *  label edge ([[sidebar-control-alignment]]). */
 export const SizeByCheckboxRow = ({
 	label,
@@ -197,7 +197,7 @@ export const SizeByCheckboxRow = ({
 }) => (
 	<div className={cls("mt-2 flex items-center gap-2 text-sm", className)}>
 		<LabelSpacer />
-		<label className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
+		<label className="flex items-center gap-2 vc-text-2">
 			<input
 				type="checkbox"
 				checked={checked}
@@ -237,11 +237,11 @@ export const AxisRangeSection = ({
 }) => (
 	<div
 		className={cls(
-			"mt-2 flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700",
+			"mt-2 flex flex-col gap-1 vc-rule-t pt-2",
 			className,
 		)}
 	>
-		<div className="text-sm text-stone-700 dark:text-stone-300">
+		<div className="text-sm vc-text-2">
 			{title}
 		</div>
 		<div className="vc-help">{help}</div>
@@ -250,7 +250,7 @@ export const AxisRangeSection = ({
 				<div key={entry.key} className="flex flex-col gap-1 text-sm">
 					{entry.label !== undefined && (
 						<span
-							className="truncate text-stone-700 dark:text-stone-300"
+							className="truncate vc-text-2"
 							title={entry.label}
 						>
 							{entry.label}

@@ -275,8 +275,8 @@ const ScaleByRow = () => {
 			<span
 				className={
 					sizeBy === "diameter"
-						? "text-sm font-semibold !text-vc-section-header"
-						: "text-sm text-stone-600 dark:text-stone-400"
+						? "text-sm font-semibold vc-text-section"
+						: "text-sm vc-text-muted"
 				}
 			>
 				Scale by
@@ -296,7 +296,7 @@ const ScaleByRow = () => {
 						onChange={() => setSizeBy(value)}
 						className="h-3 w-3"
 					/>
-					<span className="text-stone-600 dark:text-stone-400">{label}</span>
+					<span className="vc-text-muted">{label}</span>
 				</label>
 			))}
 			<p className="vc-help">
@@ -796,7 +796,7 @@ const ModulationDefaultPanel = ({
 					}
 					className="flex-1 disabled:opacity-50"
 				/>
-				<span className="w-10 text-right font-mono text-sm text-stone-600">
+				<span className="w-10 text-right font-mono text-sm vc-text-muted">
 					{enabled ? currentValue.toFixed(2) : "—"}
 				</span>
 			</label>
@@ -828,7 +828,7 @@ const ModulationDefaultPanel = ({
 						[configKey]: enabled ? null : MODULATION_ANCHOR,
 					}))
 				}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="self-start text-sm vc-link-muted underline"
 			>
 				{enabled ? "Turn off override" : "Enable override"}
 			</button>

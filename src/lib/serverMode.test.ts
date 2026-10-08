@@ -20,6 +20,18 @@ describe("parseServerModeConfig", () => {
 		})
 	})
 
+	it("keeps a same-origin accountUrl and drops anything else", () => {
+		expect(
+			parseServerModeConfig({ v: 1, baseUrl: "https://x", accountUrl: "/account" })
+		).toEqual({ v: 1, baseUrl: "https://x", accountUrl: "/account" })
+		for (const accountUrl of ["//evil.example", "https://evil.example", "javascript:alert(1)", "/\\evil", 7]) {
+			expect(parseServerModeConfig({ v: 1, baseUrl: "https://x", accountUrl })).toEqual({
+				v: 1,
+				baseUrl: "https://x",
+			})
+		}
+	})
+
 	it("rejects anything else", () => {
 		expect(parseServerModeConfig(null)).toBeNull()
 		expect(parseServerModeConfig("html")).toBeNull()

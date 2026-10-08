@@ -32,7 +32,7 @@ export const ValuePanel = ({
 	const toggleField = (name: string, on: boolean) =>
 		onFieldsChange(on ? [...fields, name] : fields.filter((f) => f !== name))
 	const textInputClass =
-		"w-full rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+		"vc-input w-full px-1.5 py-1 text-sm"
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -68,7 +68,7 @@ export const ValuePanel = ({
 			{effectiveLabelPoints(cfg) === "first-last" ? (
 				(["firstLabel", "lastLabel"] as const).map((key) => (
 					<label key={key} className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							{key === "firstLabel" ? "First label text" : "Last label text"}
 						</span>
 						<input
@@ -92,7 +92,7 @@ export const ValuePanel = ({
 				))
 			) : (
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="text-stone-600 dark:text-stone-400">Label text</span>
+					<span className="vc-text-muted">Label text</span>
 					<input
 						type="text"
 						value={cfg.labelTemplate ?? ""}

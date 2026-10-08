@@ -155,13 +155,13 @@ const AddThemeDialog = ({
 		<Modal open={open} onClose={onCancel} title="Add a new theme">
 			<div className="flex flex-col gap-4">
 				<div className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
+					<span className="vc-text-soft text-sm font-medium">
 						Base on an existing theme
 					</span>
 					<select
 						value={selectedId}
 						onChange={(e) => setSelectedId(e.target.value)}
-						className="rounded border border-stone-300 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input px-2 py-1.5 text-sm"
 					>
 						<option value="">Pick a theme to copy…</option>
 						{themes.map((t) => (
@@ -171,7 +171,7 @@ const AddThemeDialog = ({
 							</option>
 						))}
 					</select>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="vc-text-faint text-xs">
 						The copy is added to <strong>Custom Themes</strong> — copying a
 						managed theme never changes the original.
 					</p>
@@ -185,12 +185,12 @@ const AddThemeDialog = ({
 						</Button>
 					</div>
 				</div>
-				<hr className="border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr" />
 				<div className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-stone-800 dark:text-stone-200">
+					<span className="vc-text-soft text-sm font-medium">
 						Import a JSON theme
 					</span>
-					<p className="text-xs text-stone-500 dark:text-stone-400">
+					<p className="vc-text-faint text-xs">
 						Loads a previously-exported theme file. The imported theme is added
 						as a new entry — your other themes are untouched.
 					</p>
@@ -200,7 +200,7 @@ const AddThemeDialog = ({
 						</Button>
 					</div>
 				</div>
-				<div className="flex justify-end border-t border-stone-200 pt-3 dark:border-stone-700">
+				<div className="vc-rule-t flex justify-end pt-3">
 					<Button compact onClick={onCancel}>
 						Cancel
 					</Button>

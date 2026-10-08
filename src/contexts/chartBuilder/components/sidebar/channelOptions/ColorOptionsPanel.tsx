@@ -161,7 +161,7 @@ export const CategoricalSwatchList = ({
 					 *  the dropdowns above) so the hex input + swatch line up with
 					 *  the dropdown controls. Long names truncate with a tooltip. */}
 					<span
-						className="w-24 flex-shrink-0 truncate text-stone-700 dark:text-stone-300"
+						className="w-24 flex-shrink-0 truncate vc-text-2"
 						title={v}
 					>
 						{v}
@@ -894,7 +894,7 @@ export const AreaRadarOutlinePanel = () => {
 							pickerLabel={`Pick palette line color for ${v}`}
 						/>
 						<span
-							className="min-w-0 flex-1 truncate text-stone-700 dark:text-stone-300"
+							className="min-w-0 flex-1 truncate vc-text-2"
 							title={v}
 						>
 							{v}
@@ -1168,7 +1168,7 @@ export const QuantitativePanel = ({
 				<select
 					value={activeGradientId}
 					onChange={(e) => onPaletteChange(e.target.value)}
-					className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 				>
 					<optgroup label="Linear presets">
 						{LINEAR_PRESETS.map((p) => (
@@ -1223,7 +1223,7 @@ export const QuantitativePanel = ({
 								interpolation: e.target.value as GradientInterpolation,
 							})
 						}
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 					>
 						{GRADIENT_INTERPOLATIONS.map((o) => (
 							<option key={o.id} value={o.id}>
@@ -1556,7 +1556,7 @@ const CustomStopsList = ({
 							<button
 								type="button"
 								onClick={() => removeAt(i)}
-								className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+								className="text-sm vc-link-muted"
 							>
 								remove
 							</button>
@@ -1567,7 +1567,7 @@ const CustomStopsList = ({
 			<button
 				type="button"
 				onClick={addStop}
-				className="self-start text-sm text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+				className="self-start text-sm vc-link-muted underline"
 			>
 				+ Add a new step
 			</button>
@@ -1643,7 +1643,7 @@ const CustomStopRow = ({
 				}}
 				placeholder={placeholder ?? "auto"}
 				aria-label={`${label} stop value`}
-				className="no-spinner w-12 min-w-0 flex-shrink rounded border border-stone-300 bg-white px-0.5 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="vc-input no-spinner w-12 min-w-0 flex-shrink px-0.5 py-0.5 text-center text-xs"
 			/>
 			{trailing}
 		</div>

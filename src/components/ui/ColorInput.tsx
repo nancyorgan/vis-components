@@ -40,7 +40,7 @@ export const ColorInput = ({
 	onChange: (hex: string) => void
 	disabled?: boolean
 	className?: string
-	/** Tailwind classes for the `<label>` element. Used to pin a fixed
+	/** Class names for the `<label>` element. Used to pin a fixed
 	 *  width when the caller wants multiple rows in a panel to align. */
 	labelClassName?: string
 	inline?: boolean
@@ -121,9 +121,9 @@ export const ColorInput = ({
 						// palette picker, so the row goes swatch-only there: tapping the
 						// swatch still opens the native picker.
 						className={c(
-							"hidden w-24 min-w-18 rounded-control border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500 min-[360px]:block",
+							"hidden w-24 min-w-18 vc-field px-1.5 py-1 font-mono text-xs min-[360px]:block",
 							!HEX_PATTERN.test(textValue) &&
-								"border-amber-400 focus:border-amber-500"
+								"vc-field-invalid"
 						)}
 					/>
 				)}
@@ -133,7 +133,7 @@ export const ColorInput = ({
 					value={value}
 					onChange={handleSwatchChange}
 					disabled={disabled}
-					className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700"
+					className="vc-border-strong h-6 w-10 shrink-0 cursor-pointer rounded disabled:cursor-not-allowed disabled:opacity-60"
 				/>
 				{/* Every swatch in the app carries the on-palette shortcut — the
 				 *  native picker is open-ended, so without this each row is one

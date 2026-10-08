@@ -172,7 +172,7 @@ export const DataTable = () => {
 
 	if (!dataset) {
 		return (
-			<div className="flex h-full items-center justify-center p-4 text-sm text-stone-600 dark:text-stone-400">
+			<div className="vc-text-muted flex h-full items-center justify-center p-4 text-sm">
 				No data set loaded. Upload a CSV from the sidebar.
 			</div>
 		)
@@ -198,7 +198,7 @@ export const DataTable = () => {
 				className="min-w-full text-left text-sm"
 				style={{ tableLayout: "auto" }}
 			>
-				<thead className="sticky top-0 z-[1] bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+				<thead className="vc-drawer-head sticky top-0 z-[1]">
 					<tr>
 						{dataset.fields.map((f) => {
 							const alignment = alignmentByField.get(f.name) ?? "default"
@@ -218,7 +218,7 @@ export const DataTable = () => {
 												}
 											: { overflow: "hidden" }
 									}
-									className={`relative border-r border-b border-stone-200 px-3 py-2 font-medium whitespace-nowrap dark:border-stone-700 ${alignmentClasses(
+									className={`vc-drawer-header-cell relative px-3 py-2 font-medium whitespace-nowrap ${alignmentClasses(
 										alignment
 									)}`}
 								>
@@ -238,7 +238,7 @@ export const DataTable = () => {
 												}}
 												title={`Edit the derived variable ${f.name}`}
 												aria-label={`Edit derived variable ${f.name}`}
-												className="flex-shrink-0 font-serif text-xs italic text-brand-500 hover:text-brand-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+												className="vc-link-brand-500 flex-shrink-0 font-serif text-xs italic"
 											>
 												ƒ
 											</button>
@@ -246,7 +246,7 @@ export const DataTable = () => {
 										<button
 											type="button"
 											onClick={() => onHeaderClick(f.name)}
-											className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden hover:text-stone-900 dark:hover:text-white"
+											className="vc-link-muted flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
 											title={f.name}
 										>
 											<span className="min-w-0 flex-1 truncate text-left">
@@ -286,7 +286,7 @@ export const DataTable = () => {
 												return rest
 											})
 										}}
-										className="absolute top-0 right-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent select-none hover:bg-blue-400/40"
+										className="vc-drawer-col-handle absolute top-0 right-0 z-10 h-full w-1.5 cursor-col-resize select-none"
 									/>
 								</th>
 							)
@@ -300,14 +300,14 @@ export const DataTable = () => {
 						<th
 							scope="col"
 							style={{ width: 32, minWidth: 32 }}
-							className="border-b border-stone-200 px-0 py-2 text-center dark:border-stone-700"
+							className="vc-rule-b px-0 py-2 text-center"
 						>
 							<button
 								type="button"
 								onClick={() => setDerivedEditor({ mode: "new" })}
 								title="New derived variable"
 								aria-label="New derived variable"
-								className="w-full text-base leading-none font-medium text-stone-500 hover:text-brand-500 dark:text-stone-400 dark:hover:text-indigo-400"
+								className="vc-drawer-add-col w-full text-base leading-none font-medium"
 							>
 								+
 							</button>
@@ -319,7 +319,7 @@ export const DataTable = () => {
 						<tr
 							// eslint-disable-next-line react/no-array-index-key -- rows are static snapshots of CSV
 							key={i}
-							className="odd:bg-white even:bg-stone-50 dark:odd:bg-stone-900 dark:even:bg-stone-900/50"
+							className="vc-drawer-row"
 						>
 							{dataset.fields.map((f) => {
 								const alignment = alignmentByField.get(f.name) ?? "default"
@@ -338,7 +338,7 @@ export const DataTable = () => {
 													}
 												: undefined
 										}
-										className={`border-r border-b border-stone-100 px-3 py-1.5 whitespace-nowrap text-stone-700 dark:border-stone-800 dark:text-stone-200 ${alignmentClasses(
+										className={`vc-drawer-cell px-3 py-1.5 whitespace-nowrap ${alignmentClasses(
 											alignment
 										)}`}
 									>
@@ -348,13 +348,13 @@ export const DataTable = () => {
 							})}
 							{/* Filler cell under the "+" header so row borders and
 							 * striping stay clean across the full table width. */}
-							<td className="border-b border-stone-100 dark:border-stone-800" />
+							<td className="vc-rule-b-faint" />
 						</tr>
 					))}
 				</tbody>
 			</table>
 			{truncated && (
-				<div className="border-t border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-400">
+				<div className="vc-rule-t vc-bg-muted vc-text-muted px-3 py-2 text-sm">
 					Showing first {MAX_ROWS_RENDERED} of {sortedRows.length} rows.
 				</div>
 			)}

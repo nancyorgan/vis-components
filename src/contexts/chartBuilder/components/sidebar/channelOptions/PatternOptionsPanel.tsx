@@ -270,7 +270,7 @@ export const PatternOptionsPanel = () => {
 		return (
 			<div key={args.key} className="flex items-center gap-2 text-sm">
 				<span
-					className="w-24 flex-shrink-0 truncate text-stone-600 dark:text-stone-400"
+					className="w-24 flex-shrink-0 truncate vc-text-muted"
 					title={args.label}
 				>
 					{args.label}
@@ -285,14 +285,14 @@ export const PatternOptionsPanel = () => {
 					aria-label={aria}
 					// Shrinks to min-w-18 when the row is tight and hides below 360px
 					// viewports — same rule as ColorInput's hex box.
-					className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm placeholder:text-stone-300 min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:placeholder:text-stone-600"
+					className="vc-input vc-placeholder-ghost hidden w-24 min-w-18 px-1 py-0.5 font-mono text-sm min-[360px]:block"
 				/>
 				<input
 					type="color"
 					value={args.override ?? args.fallback}
 					onChange={(e) => args.onChange(e.target.value)}
 					aria-label={`${aria} swatch`}
-					className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+					className="h-6 w-10 flex-shrink-0 cursor-pointer rounded vc-border-strong"
 				/>
 				{/* Hand-rolled rather than a `ColorInput` because this row's
 				 *  empty text box means "use the paired/default ink", which
@@ -351,7 +351,7 @@ export const PatternOptionsPanel = () => {
 					onChange={(e) => setGapFill(e.target.checked)}
 					className="h-3 w-3"
 				/>
-				<span className="text-stone-600 dark:text-stone-400">
+				<span className="vc-text-muted">
 					Fill dash gaps
 				</span>
 			</label>
@@ -523,7 +523,7 @@ export const PatternOptionsPanel = () => {
 		) => (
 			<div className="flex flex-col gap-1 text-sm">
 				{label && (
-					<span className="text-stone-600 dark:text-stone-400">{label}</span>
+					<span className="vc-text-muted">{label}</span>
 				)}
 				<div className="flex flex-wrap gap-1">
 					{showNone && (
@@ -533,8 +533,8 @@ export const PatternOptionsPanel = () => {
 							aria-pressed={target.activeIdx === null}
 							className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
 								target.activeIdx === null
-									? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-									: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+									? "vc-swatch-selected"
+									: "vc-swatch"
 							}`}
 						>
 							None
@@ -552,8 +552,8 @@ export const PatternOptionsPanel = () => {
 								aria-label={`${target.ariaName} ${idx + 1}`}
 								className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 									selected
-										? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-										: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+										? "vc-swatch-selected"
+										: "vc-swatch"
 								}`}
 							>
 								<Glyph
@@ -579,8 +579,8 @@ export const PatternOptionsPanel = () => {
 		const dashSwatchClass = (selected: boolean) =>
 			`flex h-7 items-center justify-center rounded border transition-colors ${
 				selected
-					? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-					: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+					? "vc-swatch-selected"
+					: "vc-swatch"
 			}`
 		// None / a dash swatch / Custom are a single mutually-exclusive choice
 		// (same row the per-category and regression pickers render). A custom
@@ -600,7 +600,7 @@ export const PatternOptionsPanel = () => {
 			return (
 				<div className="flex flex-col gap-1 text-sm">
 					{label && (
-						<span className="text-stone-600 dark:text-stone-400">{label}</span>
+						<span className="vc-text-muted">{label}</span>
 					)}
 					<div className="flex flex-wrap gap-1">
 						<button
@@ -974,8 +974,8 @@ export const PatternOptionsPanel = () => {
 					aria-label={`No ${kind} for ${v}`}
 					className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
 						args.isNone && !customActive
-							? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-							: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+							? "vc-swatch-selected"
+							: "vc-swatch"
 					}`}
 				>
 					None
@@ -993,8 +993,8 @@ export const PatternOptionsPanel = () => {
 							aria-label={`${optionName} ${idx + 1}`}
 							className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 								selected
-									? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-									: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+									? "vc-swatch-selected"
+									: "vc-swatch"
 							}`}
 						>
 							<Glyph
@@ -1014,8 +1014,8 @@ export const PatternOptionsPanel = () => {
 						aria-label={`Custom dash for ${v}`}
 						className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
 							customActive
-								? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-								: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+								? "vc-swatch-selected"
+								: "vc-swatch"
 						}`}
 					>
 						Custom
@@ -1039,7 +1039,7 @@ export const PatternOptionsPanel = () => {
 	) => (
 		<div className="flex items-center gap-2">
 			<label className="flex min-w-0 items-center gap-2">
-				<span className="text-sm text-stone-600 dark:text-stone-400">Color</span>
+				<span className="text-sm vc-text-muted">Color</span>
 				<input
 					type="text"
 					value={hasInk ? ink : ""}
@@ -1048,14 +1048,14 @@ export const PatternOptionsPanel = () => {
 						else target.set(v, e.target.value)
 					}}
 					placeholder={ink}
-					className="hidden w-24 min-w-18 rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-sm min-[360px]:block dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="vc-input hidden w-24 min-w-18 px-1 py-0.5 font-mono text-sm min-[360px]:block"
 				/>
 			</label>
 			<input
 				type="color"
 				value={ink}
 				onChange={(e) => target.set(v, e.target.value)}
-				className="h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-300 dark:border-stone-700"
+				className="h-6 w-10 flex-shrink-0 cursor-pointer rounded vc-border-strong"
 				aria-label={`${target.ariaKind} color for ${v}`}
 			/>
 			{/* Hand-rolled rather than a `ColorInput` because this row's empty
@@ -1082,7 +1082,7 @@ export const PatternOptionsPanel = () => {
 	) => (
 		<div className="flex items-center justify-between gap-2">
 			<span
-				className="min-w-0 flex-1 truncate text-stone-700 dark:text-stone-300"
+				className="min-w-0 flex-1 truncate vc-text-2"
 				title={display ?? v}
 			>
 				{display ?? v}
@@ -1310,7 +1310,7 @@ export const PatternOptionsPanel = () => {
 					// per-category list — there's only one kind of control, so a
 					// subsection header would be redundant.
 					<>
-						<hr className="border-stone-200 dark:border-stone-700" />
+						<hr className="vc-hr" />
 						<div className="flex flex-col gap-4 px-2">
 							{orderedLevels(
 								fieldValues.values,

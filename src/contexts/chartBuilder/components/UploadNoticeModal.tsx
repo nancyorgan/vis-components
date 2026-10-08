@@ -20,7 +20,7 @@ export const UploadNoticeModal = () => {
 			dismissOnBackdrop={false}
 		>
 			<div className="flex flex-col gap-4">
-				<div className="text-sm text-stone-700 dark:text-stone-300">
+				<div className="text-sm vc-text-2">
 					{notice}
 				</div>
 				<div className="flex justify-end">

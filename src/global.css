@@ -1,9 +1,25 @@
-/* Tailwind entry — provides @theme tokens, base resets, and the utility set.
- * Originally lived in @th/react-app; vendored here so vis-components has no
- * cross-package CSS dependency. */
-@import "./styles/tailwind/tailwind.css";
-
-/* Project-local styles (tokens, base overrides, components, utilities).
- * Imported AFTER Tailwind so project tokens extend the theme and project
- * components/utilities layer cleanly. */
-@import "./styles/vis-components.css";
+/* Stylesheet entry. Order matters: when two rules hit the same element, the later file wins.
+ *
+ *   tokens.css      named colors, fonts, corner radii, shadows (edit values here)
+ *   reset.css       browser reset (Tailwind's preflight, kept verbatim)
+ *   base.css        element defaults: body weight, headings, default border color
+ *   components.css  shared vocabulary: text roles, inputs, buttons, cards, menus, alerts…
+ *   editor.css      chart editor shell: layout, save bar, version menu
+ *   editor-sidebar.css / editor-options.css / editor-panels.css / editor-viz.css
+ *                   the sidebar shelves, per-channel option panels, data-labels +
+ *                   annotations + data drawer, and the chart/legend/export modal
+ *   library.css     library page only
+ *   settings.css    settings pages only
+ *   layout.css      structural utilities (flex, gap-2, w-full, text-sm…); last, so they win */
+@import "./styles/tokens.css";
+@import "./styles/reset.css";
+@import "./styles/base.css";
+@import "./styles/components.css";
+@import "./styles/editor.css";
+@import "./styles/editor-sidebar.css";
+@import "./styles/editor-options.css";
+@import "./styles/editor-panels.css";
+@import "./styles/editor-viz.css";
+@import "./styles/library.css";
+@import "./styles/settings.css";
+@import "./styles/layout.css";

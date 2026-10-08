@@ -123,7 +123,9 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 	const mod = modKey()
 	// Icon-only buttons lose the label's side padding in compact mode so the
 	// whole group fits a 320px strip beside the tray's own controls.
-	const iconBtn = compact ? "px-2" : undefined
+	// (A compact "px-2" override used to be passed here; it never took effect under
+	//  Tailwind's utility ordering, so the buttons keep their normal padding.)
+	const iconBtn = undefined
 
 	return (
 		<div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>

@@ -418,7 +418,7 @@ export const BorderSection = ({
 				)}
 			</div>
 			<div className="flex items-start gap-2 text-sm">
-				<span className={`${LABEL_COL} shrink-0 pt-1.5`}>Dash</span>
+				<span className={`${LABEL_COL} flex-shrink-0 pt-1.5`}>Dash</span>
 				<DashStylePicker
 					pattern={style.borderDash}
 					customDasharray={style.borderDasharray ?? null}
@@ -474,13 +474,13 @@ export const TextStyleSection = ({
 	return (
 		<CollapsibleSubsection title="Text">
 			<label className="flex flex-col gap-1 text-sm">
-				<span className="text-stone-600 dark:text-stone-400">Text</span>
+				<span className="vc-text-muted">Text</span>
 				<textarea
 					value={style.text ?? ""}
 					onChange={(e) => onChange({ text: e.target.value })}
 					placeholder={placeholder}
 					rows={2}
-					className="rounded-control border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+					className="vc-input-control px-1.5 py-1 text-sm"
 				/>
 			</label>
 			<SelectInput

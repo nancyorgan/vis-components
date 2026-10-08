@@ -1,7 +1,7 @@
 import { forwardRef } from "react"
 import { combine as c } from "../../lib/cls"
 
-// Generic text input with the same Tailwind treatment used across the app
+// Generic text input. Its look is .vc-field in src/styles/components.css
 // (folder rename, save bar). Keeps form styling consistent.
 
 export type InputProps = Omit<JSX.IntrinsicElements["input"], "ref">
@@ -15,7 +15,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 			ref={ref}
 			type={type}
 			className={c(
-				"min-w-0 rounded-control border border-stone-300 bg-white px-2 py-1 text-sm text-stone-900 transition-colors outline-none placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:placeholder:text-stone-500 dark:hover:border-stone-600 dark:focus:border-stone-500",
+				"vc-field vc-placeholder-fainter min-w-0 px-2 py-1 text-sm",
 				className
 			)}
 			{...p}

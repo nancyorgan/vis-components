@@ -224,7 +224,7 @@ const OutlineColorRulesRow = ({
 							value={rule.condition}
 							onChange={(e) => setRule(i, { condition: e.target.value })}
 							placeholder="> 0"
-							className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="vc-input w-20 px-1.5 py-1 text-sm"
 						/>
 						<ColorInput
 							label={`Outline color for rule ${i + 1}`}
@@ -237,7 +237,7 @@ const OutlineColorRulesRow = ({
 							<button
 								type="button"
 								onClick={() => removeRule(i)}
-								className="rounded px-1 text-stone-600 hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+								className="rounded px-1 vc-icon-btn-soft"
 								aria-label={`Remove rule ${i + 1}`}
 							>
 								×
@@ -248,7 +248,7 @@ const OutlineColorRulesRow = ({
 				<button
 					type="button"
 					onClick={addRule}
-					className="self-start text-xs text-blue-600 hover:underline dark:text-blue-400"
+					className="self-start text-xs vc-link-info"
 				>
 					+ Add rule
 				</button>

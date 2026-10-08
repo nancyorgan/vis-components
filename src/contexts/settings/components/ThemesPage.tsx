@@ -39,10 +39,10 @@ import { ThemeSamplerPreview } from "./ThemeSamplerPreview"
  *  every edit below redraws them at once. */
 const EditorPreviews = ({ theme, name }: { theme: Theme; name: string }) => (
 	<div className="mb-6 grid gap-4 sm:grid-cols-2">
-		<div className="min-w-0 overflow-hidden rounded-card border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+		<div className="vc-card-muted min-w-0 overflow-hidden">
 			<ThemePreview theme={theme} name={name} className="block aspect-[4/3] w-full" />
 		</div>
-		<div className="min-w-0 overflow-hidden rounded-card border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+		<div className="vc-card-muted min-w-0 overflow-hidden">
 			<ThemeSamplerPreview
 				theme={theme}
 				name={name}
@@ -262,10 +262,10 @@ export const ThemesPage = ({
 		return (
 			<div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 				{backLink && <div className="mb-4">{backLink}</div>}
-				<h1 className="mb-1 text-xl font-semibold text-stone-900 dark:text-white">
+				<h1 className="vc-text mb-1 text-xl font-semibold">
 					Theme not found
 				</h1>
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					There is no theme with this id in your library. It may have been
 					deleted.
 				</p>
@@ -283,11 +283,11 @@ export const ThemesPage = ({
 				<div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 					<div className="min-w-0 flex-1">
 						{isSystem ? (
-							<span className="mb-1 inline-block rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+							<span className="vc-tag-stone mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
 								System
 							</span>
 						) : isManaged ? (
-							<span className="mb-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+							<span className="vc-tag-amber mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
 								Managed
 							</span>
 						) : null}
@@ -297,9 +297,9 @@ export const ThemesPage = ({
 							onChange={(e) => renameTheme(e.target.value)}
 							disabled={isReadOnly}
 							aria-label="Theme name"
-							className="w-full rounded border border-stone-300 bg-white px-2 py-1 text-xl font-semibold text-stone-900 disabled:cursor-not-allowed disabled:opacity-70 dark:border-stone-700 dark:bg-stone-900 dark:text-white"
+							className="vc-input vc-text w-full px-2 py-1 text-xl font-semibold disabled:cursor-not-allowed disabled:opacity-70"
 						/>
-						<p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+						<p className="vc-text-muted mt-1 text-sm">
 							{isSystem ? (
 								"System themes are read-only. Copy this one from + Add a new theme to customize it."
 							) : isReadOnly ? (
@@ -310,7 +310,7 @@ export const ThemesPage = ({
 									<button
 										type="button"
 										onClick={() => setGateOpen(true)}
-										className="underline hover:text-stone-900 dark:hover:text-white"
+										className="vc-link-muted underline"
 									>
 										unlock it to edit
 									</button>
@@ -358,14 +358,14 @@ export const ThemesPage = ({
 				 *  default is what every new visualization on this server starts
 				 *  from, so it isn't one person's custom theme to assign. */}
 				{isManaged && (
-					<label className="mb-6 flex items-center gap-2 rounded border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-900/50">
+					<label className="vc-box-muted mb-6 flex items-center gap-2 px-3 py-2 text-sm">
 						<input
 							type="checkbox"
 							checked={isDefault}
 							disabled={isReadOnly && !isSystem}
 							onChange={(e) => requestSetDefault(e.target.checked)}
 						/>
-						<span className="text-stone-700 dark:text-stone-300">
+						<span className="vc-text-2">
 							Make this the default theme for all new visualizations?
 						</span>
 					</label>
@@ -375,7 +375,7 @@ export const ThemesPage = ({
 				 *  going silent — otherwise the theme everyone's charts start
 				 *  from has no indication anywhere that it's the default. */}
 				{!isManaged && isDefault && (
-					<p className="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+					<p className="vc-settings-default-notice mb-6 px-3 py-2 text-sm">
 						This is currently the default theme for new visualizations. Only
 						managed themes can be set as the default — move this into{" "}
 						<strong>Managed Themes</strong> to keep it, or pick a managed
@@ -407,7 +407,7 @@ export const ThemesPage = ({
 				 *  way out never lands on it. Suppressed for a locked managed
 				 *  theme, and for the two bundled themes, which the bootstrap
 				 *  re-adds. */}
-				<div className="mt-10 flex items-center justify-between gap-3 border-t border-stone-200 pt-4 dark:border-stone-700">
+				<div className="vc-rule-t mt-10 flex items-center justify-between gap-3 pt-4">
 					<div>
 						{canDelete && (
 							<Button compact danger onClick={requestDelete}>
@@ -436,7 +436,7 @@ export const ThemesPage = ({
 				message={
 					<>
 						Delete the theme{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
+						<span className="vc-text font-medium">
 							&ldquo;{editingTheme.name}&rdquo;
 						</span>
 						? This cannot be undone.
@@ -453,7 +453,7 @@ export const ThemesPage = ({
 				message={
 					<>
 						This theme will replace{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
+						<span className="vc-text font-medium">
 							&ldquo;{previousDefaultName}&rdquo;
 						</span>{" "}
 						as the default for all new visualizations. Continue?
@@ -469,7 +469,7 @@ export const ThemesPage = ({
 				message={
 					<>
 						Importing will overwrite the contents of{" "}
-						<span className="font-medium text-stone-900 dark:text-white">
+						<span className="vc-text font-medium">
 							&ldquo;{editingTheme.name}&rdquo;
 						</span>
 						. The theme&rsquo;s name stays the same. To import as a new theme

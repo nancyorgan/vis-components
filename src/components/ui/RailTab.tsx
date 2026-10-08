@@ -26,7 +26,7 @@ export const RailTab = ({
 			onPointerDown={(e) => e.stopPropagation()}
 			title={title}
 			aria-label={title}
-			className="absolute top-3 left-full z-10 flex h-10 w-4 items-center justify-center rounded-r border border-l-0 border-stone-200 bg-white text-stone-400 shadow-sm hover:bg-stone-100 hover:text-stone-700 pointer-coarse:h-12 pointer-coarse:w-6 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800 dark:hover:text-white"
+			className="vc-rail-tab absolute top-3 left-full z-10 flex h-10 w-4 items-center justify-center rounded-r border border-l-0 pointer-coarse:h-12 pointer-coarse:w-6"
 		>
 			<RailChevron direction={collapsed ? "right" : "left"} />
 		</button>

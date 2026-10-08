@@ -299,9 +299,52 @@ function buildNotices() {
 		out.push(section.body)
 		out.push('```')
 	}
+	// Source files copied into this repository (not pulled in as packages).
+	out.push('')
+	out.push('---')
+	out.push('')
+	out.push('## Vendored source files')
+	out.push('')
+	for (const v of VENDORED) {
+		out.push(`- ${v.notice} (${v.name}, copied as \`${v.file}\`)`)
+	}
+	out.push('')
+	out.push('```')
+	out.push(VENDORED_MIT)
+	out.push('```')
 	out.push('')
 	return out.join('\n')
 }
+
+// Files copied verbatim from a package rather than installed from it, so the
+// dependency walk above never sees them.
+const VENDORED = [
+	{
+		name: 'tailwindcss v4.1 (preflight.css)',
+		file: 'src/styles/reset.css',
+		notice: 'Copyright (c) Tailwind Labs, Inc.',
+	},
+]
+const VENDORED_MIT = `MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`
+
 
 fs.writeFileSync(outFile, buildNotices())
 process.stdout.write(`wrote ${path.relative(repoRoot, outFile)}\n`)

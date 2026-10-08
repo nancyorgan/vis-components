@@ -18,7 +18,7 @@ export const Section = ({
 	children: React.ReactNode
 }) => (
 	<div className="flex flex-col gap-3">
-		<h3 className="text-sm font-semibold text-stone-900 dark:text-white">
+		<h3 className="vc-text text-sm font-semibold">
 			{title}
 		</h3>
 		{/* Rows inset past the subheader so section titles overhang their
@@ -58,7 +58,7 @@ export const SectionGroup = ({
 /** Fixed-width label column used by every settings row on this page so the
  *  controls line up vertically. Passed to the shared primitives via
  *  `labelClassName` (the established pattern for pinning width + color). */
-export const THEME_LABEL_CLASS = "w-32 text-stone-600 dark:text-stone-400"
+export const THEME_LABEL_CLASS = "vc-text-muted w-32"
 
 /** Thin page-local wrappers around the shared UI primitives — they only
  *  pin the page's label column so the ~45 call sites below stay terse. */
@@ -139,7 +139,7 @@ export const FontFamilyRow = ({
 				onChange={(e) =>
 					e.target.value === "" ? onDefault?.() : onChange(e.target.value)
 				}
-				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="vc-input px-1.5 py-1 text-sm"
 			>
 				{onDefault && <option value="">(default)</option>}
 				{familyOptions.map((opt) => (
@@ -205,7 +205,7 @@ export const FontWeightRow = ({
 						? onDefault?.()
 						: onChange(Number(e.target.value))
 				}
-				className="rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="vc-input px-1.5 py-1 text-sm"
 			>
 				{onDefault && <option value="">(default)</option>}
 				{weightOptions.map((opt) => (
@@ -242,8 +242,8 @@ const StyleToggleBtn = ({
 		aria-pressed={on}
 		className={`h-7 w-7 rounded border text-sm ${className} ${
 			on
-				? "border-stone-700 bg-stone-200 text-stone-900 dark:border-stone-300 dark:bg-stone-700 dark:text-white"
-				: "border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+				? "vc-settings-style-toggle-on"
+				: "vc-settings-style-toggle-off"
 		}`}
 	>
 		{label}
@@ -272,7 +272,7 @@ export const StyleToggleRow = ({
 		   gap-2) so the buttons line up with the inputs; the tighter gap-1.5
 		   between the buttons themselves lives on the inner group. */
 		<div className="flex items-center gap-2 text-sm">
-			<span className={`${THEME_LABEL_CLASS} shrink-0`}>
+			<span className={`${THEME_LABEL_CLASS} flex-shrink-0`}>
 				Style
 			</span>
 			<div className="flex items-center gap-1.5">

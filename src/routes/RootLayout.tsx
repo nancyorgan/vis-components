@@ -57,7 +57,7 @@ export const RootLayout = () => {
 	useGlobalFileDropGuard()
 	useUserFontRegistration()
 	return (
-		<div className="flex min-h-screen flex-col bg-white text-stone-900 dark:bg-stone-900 dark:text-stone-100">
+		<div className="vc-app-shell flex min-h-screen flex-col">
 			{!isEmbed && <Header />}
 			<main className="flex-1">
 				<Outlet />

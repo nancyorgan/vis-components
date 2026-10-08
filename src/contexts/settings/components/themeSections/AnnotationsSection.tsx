@@ -33,7 +33,7 @@ export const AnnotationsSection = ({
 	return (
 		<SectionGroup title="Annotations" isReadOnly={isReadOnly}>
 			<Section title="Rectangles &amp; circles">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Initial fill and border for newly added rectangle and circle
 					annotations. Existing annotations keep their styling.
 				</p>
@@ -73,7 +73,7 @@ export const AnnotationsSection = ({
 					step={0.05}
 				/>
 				<div className="flex items-start gap-2 text-sm">
-					<span className={`${THEME_LABEL_CLASS} shrink-0 pt-1.5`}>
+					<span className={`${THEME_LABEL_CLASS} flex-shrink-0 pt-1.5`}>
 						Border dash
 					</span>
 					<DashStylePicker
@@ -89,7 +89,7 @@ export const AnnotationsSection = ({
 			</Section>
 
 			<Section title="Annotation text">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Initial font for annotation text — both the label drawn inside a
 					rectangle and free-standing text annotations.
 				</p>
@@ -136,7 +136,7 @@ export const AnnotationsSection = ({
 			</Section>
 
 			<Section title="Text annotations">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Initial background box behind newly added text annotations. Kept
 					separate from the shape fill above so text can default to no box;
 					raise the fill opacity to give it one.
@@ -177,7 +177,7 @@ export const AnnotationsSection = ({
 					step={0.05}
 				/>
 				<div className="flex items-start gap-2 text-sm">
-					<span className={`${THEME_LABEL_CLASS} shrink-0 pt-1.5`}>
+					<span className={`${THEME_LABEL_CLASS} flex-shrink-0 pt-1.5`}>
 						Border dash
 					</span>
 					<DashStylePicker
@@ -202,7 +202,7 @@ export const AnnotationsSection = ({
 			</Section>
 
 			<Section title="Lines">
-				<p className="text-sm text-stone-600 dark:text-stone-400">
+				<p className="vc-text-muted text-sm">
 					Initial stroke for newly added line annotations.
 				</p>
 				<ColorInput
@@ -228,7 +228,7 @@ export const AnnotationsSection = ({
 					step={0.05}
 				/>
 				<div className="flex items-start gap-2 text-sm">
-					<span className={`${THEME_LABEL_CLASS} shrink-0 pt-1.5`}>
+					<span className={`${THEME_LABEL_CLASS} flex-shrink-0 pt-1.5`}>
 						Dash
 					</span>
 					<DashStylePicker

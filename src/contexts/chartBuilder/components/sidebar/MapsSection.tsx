@@ -142,7 +142,7 @@ const CoordSystemToggle = ({
 		{ key: "geographic", label: "Geographic" },
 	]
 	const segBase =
-		"px-2 py-1 text-sm border-l first:border-l-0 border-vc-brand-text"
+		"vc-sidebar-segment px-2 py-1 text-sm border-l first:border-l-0"
 	const segClass = (active: boolean) =>
 		active
 			? `${segBase} vc-toggle-on`
@@ -151,7 +151,7 @@ const CoordSystemToggle = ({
 		<div
 			role="radiogroup"
 			aria-label="Coordinate system"
-			className="inline-flex self-start overflow-hidden rounded border border-vc-brand-text"
+			className="vc-border-brand inline-flex self-start overflow-hidden rounded"
 		>
 			{segments.map((s) => (
 				<button
@@ -171,7 +171,7 @@ const CoordSystemToggle = ({
 
 /** Read-only join summary: "{matched} of {total} matched" plus an optional
  *  "{n} unmatched (show)" disclosure that reveals the unmatched values. Helper
- *  prose on the light-purple panel uses `text-vc-brand-text` (the base
+ *  prose on the light-purple panel uses `vc-help` (brand text; the base
  *  500 fails AA against the panel background). */
 const MatchStatus = () => {
 	const { matchedCount, unmatched, total, loading } = useGeoResolution()
@@ -202,7 +202,7 @@ const MatchStatus = () => {
 						<button
 							type="button"
 							onClick={() => setShowList((s) => !s)}
-							className="underline hover:opacity-80"
+							className="vc-hover-dim underline"
 						>
 							({showList ? "hide" : "show"})
 						</button>
@@ -417,7 +417,7 @@ export const MapsSection = () => {
 								<button
 									type="button"
 									onClick={resetCustomView}
-									className="underline hover:opacity-80"
+									className="vc-hover-dim underline"
 								>
 									Reset view
 								</button>
@@ -520,7 +520,7 @@ export const MapsSection = () => {
 						)}
 						{showNoDataFillColor && (
 							<div className="flex items-start gap-2">
-								<span className={`${LABEL_COL} shrink-0 pt-1 text-sm`}>
+								<span className={`${LABEL_COL} flex-shrink-0 pt-1 text-sm`}>
 									No-data pattern
 								</span>
 								<div className="flex flex-wrap gap-1">
@@ -530,8 +530,8 @@ export const MapsSection = () => {
 										aria-pressed={mapConfig.noDataPattern === null}
 										className={`flex h-7 items-center justify-center rounded border px-2 text-sm transition-colors ${
 											mapConfig.noDataPattern === null
-												? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-												: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+												? "vc-swatch-selected"
+												: "vc-swatch"
 										}`}
 									>
 										None
@@ -548,8 +548,8 @@ export const MapsSection = () => {
 												aria-label={`No-data pattern option ${idx + 1}`}
 												className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 													selected
-														? "border-stone-900 bg-white dark:border-white dark:bg-stone-800"
-														: "border-stone-300 bg-white hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900"
+														? "vc-swatch-selected"
+														: "vc-swatch"
 												}`}
 											>
 												<NoDataPatternChip

@@ -729,7 +729,7 @@ export const DataLabelsPanel = () => {
 						<ResetLink onClick={() => updateCfg({ textAngle: 0 })} />
 					)}
 				</div>
-				<hr className="border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr" />
 				<Toggle
 					label="Wrap text"
 					checked={merged.wrapText === true}
@@ -771,7 +771,7 @@ export const DataLabelsPanel = () => {
 						</p>
 					</>
 				)}
-				<hr className="border-stone-200 dark:border-stone-700" />
+				<hr className="vc-hr" />
 				<span className="vc-group-header">Adjust position</span>
 				{/* Angle / R are polar-only — they only make sense around a pie,
 				 *  so they're hidden for cartesian charts. The X/Y pixel nudge
@@ -781,7 +781,7 @@ export const DataLabelsPanel = () => {
 						<div className="flex items-center gap-2 text-sm">
 							<NumberInput
 								label="Angle"
-								labelClassName="w-12 text-stone-600 dark:text-stone-400"
+								labelClassName="w-12 vc-text-muted"
 								value={merged.polarLabelAngle ?? 0}
 								step={5}
 								onChange={(polarLabelAngle) => updateCfg({ polarLabelAngle })}
@@ -790,7 +790,7 @@ export const DataLabelsPanel = () => {
 							/>
 							<NumberInput
 								label="R"
-								labelClassName="w-8 text-stone-600 dark:text-stone-400"
+								labelClassName="w-8 vc-text-muted"
 								value={merged.polarLabelRadius ?? 100}
 								min={0}
 								max={200}
@@ -847,7 +847,7 @@ export const DataLabelsPanel = () => {
 					<>
 						{/* First/Last offset pairs — effective values shown, writes
 						 *  land in the endpoint override blocks. */}
-						<span className="text-sm text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted text-sm">
 							First label
 						</span>
 						<div className="ml-6 flex flex-col gap-2 text-sm">
@@ -870,7 +870,7 @@ export const DataLabelsPanel = () => {
 								suffix="px"
 							/>
 						</div>
-						<span className="text-sm text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted text-sm">
 							Last label
 						</span>
 						<div className="ml-6 flex flex-col gap-2 text-sm">

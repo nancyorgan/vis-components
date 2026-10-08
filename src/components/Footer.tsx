@@ -7,7 +7,7 @@
 export const Footer = () => {
 	return (
 		<footer
-			className="flex-shrink-0 border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900"
+			className="vc-rule-t vc-bg flex-shrink-0"
 			style={{ height: "var(--vc-footer-h)" }}
 		/>
 	)

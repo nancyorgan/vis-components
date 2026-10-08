@@ -26,8 +26,8 @@ import { Button } from "../../../../../components/ui/Button"
 const chipClass = (selected: boolean) =>
 	`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 		selected
-			? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-			: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+			? "vc-swatch-selected"
+			: "vc-swatch"
 	}`
 
 /** Chip preview for a custom glyph. Text tints like the built-in glyphs;
@@ -92,7 +92,7 @@ export const CustomGlyphChips = ({
 						type="button"
 						aria-label="Delete custom shape"
 						onClick={() => onDelete(slot)}
-						className="absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-stone-500 text-[9px] leading-none text-white group-hover:flex dark:bg-stone-400 dark:text-stone-900"
+						className="vc-options-glyph-delete absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] leading-none group-hover:flex"
 					>
 						×
 					</button>
@@ -125,14 +125,14 @@ const NudgePreview = ({ glyph }: { glyph: CustomGlyph }) => {
 			height={s}
 			viewBox={`${-s / 2} ${-s / 2} ${s} ${s}`}
 			aria-hidden="true"
-			className="flex-shrink-0 rounded border border-stone-200 dark:border-stone-700"
+			className="flex-shrink-0 rounded vc-border"
 		>
 			<line
 				x1={0}
 				y1={-s / 2}
 				x2={0}
 				y2={s / 2}
-				className="stroke-stone-300 dark:stroke-stone-600"
+				className="vc-options-nudge-hairline"
 				strokeWidth={1}
 			/>
 			<line
@@ -140,7 +140,7 @@ const NudgePreview = ({ glyph }: { glyph: CustomGlyph }) => {
 				y1={0}
 				x2={s / 2}
 				y2={0}
-				className="stroke-stone-300 dark:stroke-stone-600"
+				className="vc-options-nudge-hairline"
 				strokeWidth={1}
 			/>
 			<GlyphMark glyph={glyph} r={8} fill={CHIP_INK} fillOpacity={0.9} />
@@ -210,7 +210,7 @@ export const CustomGlyphEditor = ({
 					}}
 					placeholder="Aa ★ 🔥"
 					aria-label="Custom shape text"
-					className="w-20 rounded border border-stone-300 bg-white px-2 py-1 dark:border-stone-700 dark:bg-stone-900"
+					className="vc-input w-20 px-2 py-1"
 				/>
 				<Button compact
 					onClick={submitText}
@@ -218,8 +218,8 @@ export const CustomGlyphEditor = ({
 				>
 					Add
 				</Button>
-				<span className="text-stone-500 dark:text-stone-400">or</span>
-				<label className="cursor-pointer text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white">
+				<span className="vc-text-faint">or</span>
+				<label className="cursor-pointer vc-link-muted underline">
 					upload image
 					<input
 						type="file"
@@ -247,13 +247,13 @@ export const CustomGlyphEditor = ({
 				<button
 					type="button"
 					onClick={onClose}
-					className="text-stone-600 underline hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+					className="vc-link-muted underline"
 				>
 					cancel
 				</button>
 			</div>
 			{tooLong ? (
-				<span className="text-red-600 dark:text-red-400">
+				<span className="vc-text-danger-soft">
 					Up to {MAX_TEXT_GLYPH_CHARS} characters — shorten to add.
 				</span>
 			) : (
@@ -264,13 +264,13 @@ export const CustomGlyphEditor = ({
 				</span>
 			)}
 			{error && (
-				<span className="text-red-600 dark:text-red-400">{error}</span>
+				<span className="vc-text-danger-soft">{error}</span>
 			)}
 			{/* Create-only position nudge — appears once there's a typed glyph
 			 *  to place, and never again after Add (there's no post-hoc glyph
 			 *  edit; delete and re-add to change it). Image uploads bypass it. */}
 			{count > 0 && !tooLong && (
-				<div className="mt-1 flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+				<div className="mt-1 flex flex-col gap-2 vc-rule-t pt-2">
 					<span className="vc-group-header">Adjust position</span>
 					<div className="flex flex-wrap items-center gap-2">
 						<div className="flex flex-col gap-2">

@@ -99,7 +99,7 @@ export const PalettePickerButton = ({
 						title={c}
 						className={`h-5 w-5 flex-shrink-0 rounded ${
 							isCurrent
-								? "ring-1 ring-stone-900 dark:ring-white"
+								? "vc-ring-ink"
 								: ""
 						}`}
 						style={{ backgroundColor: c }}
@@ -120,7 +120,7 @@ export const PalettePickerButton = ({
 				aria-haspopup="true"
 				aria-expanded={open}
 				title="Pick a palette color"
-				className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+				className="vc-icon-btn flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
 			>
 				<svg
 					viewBox="0 0 24 24"
@@ -151,7 +151,7 @@ export const PalettePickerButton = ({
 				 *  whitespace separating one palette's swatch group from the
 				 *  next. Anchored to the button's right edge so it stays inside
 				 *  the sidebar. */
-				<div className="absolute right-0 top-full z-20 mt-1 flex w-max max-w-[10rem] flex-col gap-2 rounded border border-stone-300 bg-white p-1.5 shadow-lg dark:border-stone-600 dark:bg-stone-800">
+				<div className="vc-popover absolute right-0 top-full z-20 mt-1 flex w-max max-w-[10rem] flex-col gap-2 p-1.5">
 					{swatchGroup(palette)}
 					{showOthers &&
 						otherPalettes.map((p) => (
@@ -174,7 +174,7 @@ export const PalettePickerButton = ({
 									? "Hide other theme palettes"
 									: "Show other theme palettes"
 							}
-							className="-my-0.5 flex h-4 w-full flex-shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="vc-icon-btn-quiet -my-0.5 flex h-4 w-full flex-shrink-0 items-center justify-center rounded"
 						>
 							<DisclosureChevron open={showOthers} />
 						</button>

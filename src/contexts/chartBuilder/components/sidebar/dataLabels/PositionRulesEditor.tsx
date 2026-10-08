@@ -58,12 +58,12 @@ export const PositionRulesEditor = ({
 							onChange={(e) => setRule(i, { condition: e.target.value })}
 							placeholder="< 0"
 							aria-label={`Condition for position rule ${i + 1}`}
-							className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+							className="vc-input w-24 px-1.5 py-1 text-sm"
 						/>
 						<button
 							type="button"
 							onClick={() => removeRule(i)}
-							className="rounded px-1 text-stone-600 hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+							className="vc-icon-btn-soft rounded px-1"
 							aria-label={`Remove position rule ${i + 1}`}
 						>
 							×
@@ -92,7 +92,7 @@ export const PositionRulesEditor = ({
 			<button
 				type="button"
 				onClick={addRule}
-				className="self-start text-xs text-blue-600 hover:underline dark:text-blue-400"
+				className="vc-link-info self-start text-xs"
 			>
 				+ Add rule
 			</button>

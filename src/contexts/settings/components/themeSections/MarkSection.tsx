@@ -36,7 +36,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				step={0.05}
 			/>
 			<div className="flex items-center gap-2 text-sm">
-				<span className="w-32 text-stone-600 dark:text-stone-400">
+				<span className="vc-text-muted w-32">
 					Default shape
 				</span>
 				<div className="flex gap-1" role="group" aria-label="Default shape">
@@ -52,8 +52,8 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 								aria-pressed={selected}
 								className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 									selected
-										? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-										: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900"
+										? "vc-swatch-selected"
+										: "vc-swatch"
 								}`}
 							>
 								<ShapeGlyph idx={idx} selected={selected} />
@@ -80,7 +80,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 
 		{/* Connection (line) defaults */}
 		<Section title="Connection (line) defaults">
-			<p className="text-sm text-stone-600 dark:text-stone-400">
+			<p className="vc-text-muted text-sm">
 				Defaults applied when a connection (line / lollipop stem) is first
 				mapped on a scatter plot.
 			</p>

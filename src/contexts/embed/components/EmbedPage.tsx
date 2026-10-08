@@ -95,7 +95,7 @@ export const EmbedPage = () => {
 
 	if (state.status === "loading") {
 		return (
-			<div className="flex h-screen items-center justify-center text-sm text-stone-500">
+			<div className="flex h-screen items-center justify-center text-sm vc-text-faint">
 				Loading…
 			</div>
 		)
@@ -103,20 +103,20 @@ export const EmbedPage = () => {
 	if (state.status === "missing-visual") {
 		return (
 			<div className="flex h-screen flex-col items-center justify-center gap-2 px-6 text-center">
-				<p className="text-sm text-stone-700 dark:text-stone-300">
+				<p className="text-sm vc-text-2">
 					This embed could not be loaded.
 				</p>
-				<p className="text-sm text-stone-500">Visualization not found.</p>
+				<p className="text-sm vc-text-faint">Visualization not found.</p>
 			</div>
 		)
 	}
 	if (state.status === "missing-version") {
 		return (
 			<div className="flex h-screen flex-col items-center justify-center gap-2 px-6 text-center">
-				<p className="text-sm text-stone-700 dark:text-stone-300">
+				<p className="text-sm vc-text-2">
 					This embed is pinned to a version that no longer exists.
 				</p>
-				<p className="text-sm text-stone-500">
+				<p className="text-sm vc-text-faint">
 					Pinned version: <code>{state.requestedVersionId}</code>
 				</p>
 			</div>

@@ -178,9 +178,9 @@ export const ShapeOptionsPanel = () => {
 			 *  subheader) — only outline WIDTH remains here. */}
 			{!fieldMapped && !glyphsInert && (
 				<>
-					<hr className="border-stone-200 dark:border-stone-700" />
+					<hr className="vc-hr" />
 					<div className="flex flex-col gap-1 text-sm">
-						<span className="text-stone-600 dark:text-stone-400">
+						<span className="vc-text-muted">
 							Default shape
 						</span>
 						<div className="flex flex-wrap gap-1">
@@ -200,8 +200,8 @@ export const ShapeOptionsPanel = () => {
 										aria-pressed={selected}
 										className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 											selected
-												? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-												: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+												? "vc-swatch-selected"
+												: "vc-swatch"
 										}`}
 									>
 										<ShapeGlyph idx={idx} selected={selected} />
@@ -226,7 +226,7 @@ export const ShapeOptionsPanel = () => {
 			)}
 			{fieldMapped && fieldValues && fieldValues.values.length > 0 && (
 				<>
-					<hr className="border-stone-200 dark:border-stone-700" />
+					<hr className="vc-hr" />
 					{/* Shape choice per category only. Per-category FILL / OUTLINE
 					 *  color lives in the unified Color menu (Fill / Outline
 					 *  subheaders → "Vary by" the shape field) — see the note above.

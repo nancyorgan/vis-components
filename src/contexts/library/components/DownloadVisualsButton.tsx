@@ -36,7 +36,7 @@ export const DownloadVisualsButton = ({
 	return (
 		<>
 			{error !== null && (
-				<span className="text-sm text-red-700 dark:text-red-300">{error}</span>
+				<span className="vc-text-danger text-sm">{error}</span>
 			)}
 			<Button
 				compact

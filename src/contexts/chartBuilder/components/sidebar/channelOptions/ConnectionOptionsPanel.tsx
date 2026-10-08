@@ -347,7 +347,7 @@ export const ConnectionOptionsPanel = () => {
 						return (
 							<div key={v} className="flex items-center gap-2 text-sm">
 								<span
-									className="w-24 shrink-0 truncate text-stone-700 dark:text-stone-300"
+									className="w-24 flex-shrink-0 truncate vc-text-2"
 									title={v}
 								>
 									{v}
@@ -432,8 +432,8 @@ export const ConnectionOptionsPanel = () => {
 							<span
 								className={
 									ch.hierarchyLayout
-										? "text-sm font-semibold !text-vc-section-header"
-										: "text-sm text-stone-600 dark:text-stone-400"
+										? "text-sm font-semibold vc-text-section"
+										: "text-sm vc-text-muted"
 								}
 							>
 								Layout
@@ -456,7 +456,7 @@ export const ConnectionOptionsPanel = () => {
 										onChange={() => updateCfg({ hierarchyLayout: value })}
 										className="h-3 w-3"
 									/>
-									<span className="text-stone-600 dark:text-stone-400">
+									<span className="vc-text-muted">
 										{label}
 									</span>
 								</label>
@@ -469,8 +469,8 @@ export const ConnectionOptionsPanel = () => {
 										htmlFor={hierarchyIdSelectId}
 										className={
 											ch.hierarchyId
-												? "w-24 shrink-0 font-semibold !text-vc-section-header"
-												: "w-24 shrink-0 text-stone-600 dark:text-stone-400"
+												? "w-24 flex-shrink-0 font-semibold vc-text-section"
+												: "w-24 flex-shrink-0 vc-text-muted"
 										}
 									>
 										ID column
@@ -487,7 +487,7 @@ export const ConnectionOptionsPanel = () => {
 										// sidebar is narrow instead of overflowing the panel
 										// (long option labels like "Auto — using Child" clip
 										// natively inside the select).
-										className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+										className="vc-input min-w-0 flex-1 px-2 py-1 text-sm vc-text-2"
 									>
 										<option value="">
 											{inferredIdField
@@ -527,8 +527,8 @@ export const ConnectionOptionsPanel = () => {
 										htmlFor={flowTargetSelectId}
 										className={
 											ch.flowTarget
-												? "w-24 shrink-0 font-semibold !text-vc-section-header"
-												: "w-24 shrink-0 text-stone-600 dark:text-stone-400"
+												? "w-24 flex-shrink-0 font-semibold vc-text-section"
+												: "w-24 flex-shrink-0 vc-text-muted"
 										}
 									>
 										Flow to
@@ -542,7 +542,7 @@ export const ConnectionOptionsPanel = () => {
 										}
 										// min-w-0 + flex-1: shrink inside the flex row when the
 										// sidebar is narrow instead of overflowing the panel.
-										className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+										className="vc-input min-w-0 flex-1 px-2 py-1 text-sm vc-text-2"
 									>
 										<option value="">
 											{inferredTargetField
@@ -572,7 +572,7 @@ export const ConnectionOptionsPanel = () => {
 												? undefined
 												: "No target column resolved — pick one above first"
 										}
-										className="text-sm text-stone-600 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-stone-600 dark:text-stone-400 dark:hover:text-white dark:disabled:hover:text-stone-400"
+										className="vc-options-flow-swap text-sm disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										⇄ Swap direction
 									</button>
@@ -682,7 +682,7 @@ export const ConnectionOptionsPanel = () => {
 										inputClassName="w-20"
 										changed={axisCh.labelEvery}
 									/>
-									<span className="text-sm text-stone-600">
+									<span className="text-sm vc-text-muted">
 										{axis.labelEvery > 1
 											? `${ordinalSuffix(axis.labelEvery)} tick`
 											: "tick"}
@@ -745,8 +745,8 @@ export const ConnectionOptionsPanel = () => {
 							<span
 								className={
 									ch.fill
-										? "font-semibold !text-vc-section-header"
-										: "text-stone-600 dark:text-stone-400"
+										? "font-semibold vc-text-section"
+										: "vc-text-muted"
 								}
 							>
 								Fill polygon
@@ -784,8 +784,8 @@ export const ConnectionOptionsPanel = () => {
 							<span
 								className={
 									ch.smoothing
-										? "text-sm font-semibold !text-vc-section-header"
-										: "text-stone-600 dark:text-stone-400"
+										? "text-sm font-semibold vc-text-section"
+										: "vc-text-muted"
 								}
 							>
 								Smooth line
@@ -807,7 +807,7 @@ export const ConnectionOptionsPanel = () => {
 									}
 									className="min-w-0 flex-1"
 								/>
-								<span className="w-10 text-right text-sm text-stone-600">
+								<span className="w-10 text-right text-sm vc-text-muted">
 									{Math.round((cfg.smoothing ?? 0) * 100)}%
 								</span>
 							</label>
@@ -815,8 +815,8 @@ export const ConnectionOptionsPanel = () => {
 						<span
 							className={
 								ch.lineCap
-									? "text-sm font-semibold !text-vc-section-header"
-									: "text-sm text-stone-600 dark:text-stone-400"
+									? "text-sm font-semibold vc-text-section"
+									: "text-sm vc-text-muted"
 							}
 						>
 							Line cap
@@ -836,7 +836,7 @@ export const ConnectionOptionsPanel = () => {
 									onChange={() => updateCfg({ lineCap: value })}
 									className="h-3 w-3"
 								/>
-								<span className="text-stone-600 dark:text-stone-400">
+								<span className="vc-text-muted">
 									{label}
 								</span>
 							</label>
@@ -879,7 +879,7 @@ export const ConnectionOptionsPanel = () => {
 										}
 										className="h-3 w-3"
 									/>
-									<span className="text-stone-600 dark:text-stone-400">
+									<span className="vc-text-muted">
 										{label}
 									</span>
 								</label>
@@ -887,7 +887,7 @@ export const ConnectionOptionsPanel = () => {
 									<NumberInput
 										className="pl-5"
 										label="X ="
-										labelClassName="text-stone-600 dark:text-stone-400"
+										labelClassName="vc-text-muted"
 										value={cfg.axisStemCustomX ?? 0}
 										onChange={(n) => updateCfg({ axisStemCustomX: n })}
 									/>
@@ -896,7 +896,7 @@ export const ConnectionOptionsPanel = () => {
 									<NumberInput
 										className="pl-5"
 										label="Y ="
-										labelClassName="text-stone-600 dark:text-stone-400"
+										labelClassName="vc-text-muted"
 										value={cfg.axisStemCustomY ?? 0}
 										onChange={(n) => updateCfg({ axisStemCustomY: n })}
 									/>
@@ -904,7 +904,7 @@ export const ConnectionOptionsPanel = () => {
 							</div>
 						))}
 						{axisStem !== "none" && (
-							<p className="mt-1 border-t border-stone-200 pt-2 vc-help dark:border-stone-700">
+							<p className="mt-1 vc-rule-t pt-2 vc-help">
 								Set stem color under the <strong>Color</strong> menu →{" "}
 								<strong>Stem</strong>.
 							</p>
@@ -925,8 +925,8 @@ export const ConnectionOptionsPanel = () => {
 							<span
 								className={
 									ch.fill
-										? "font-semibold !text-vc-section-header"
-										: "text-stone-600 dark:text-stone-400"
+										? "font-semibold vc-text-section"
+										: "vc-text-muted"
 								}
 							>
 								Fill polygon
@@ -965,7 +965,7 @@ export const ConnectionOptionsPanel = () => {
 									onChange={() => updateCfg({ pointSampling: value })}
 									className="h-3 w-3"
 								/>
-								<span className="text-stone-600 dark:text-stone-400">
+								<span className="vc-text-muted">
 									{label}
 								</span>
 							</label>
@@ -973,7 +973,7 @@ export const ConnectionOptionsPanel = () => {
 						{cfg.pointSampling === "every-n" && (
 							<NumberInput
 								label="N"
-								labelClassName="text-stone-600 dark:text-stone-400"
+								labelClassName="vc-text-muted"
 								value={cfg.pointEveryN}
 								min={1}
 								step={1}
@@ -1035,7 +1035,7 @@ const StackingRow = ({
 			<div
 				role="group"
 				aria-label="Stacking"
-				className="inline-flex overflow-hidden rounded border border-vc-brand-text"
+				className="inline-flex overflow-hidden rounded vc-border-brand"
 			>
 				<button
 					type="button"

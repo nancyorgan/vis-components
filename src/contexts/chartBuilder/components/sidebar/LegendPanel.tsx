@@ -181,7 +181,7 @@ const QuantLegendChannelControls = ({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="text-xs text-stone-600 dark:text-stone-400">
+			<span className="vc-text-muted text-xs">
 				{sectionLabel}
 				{dataHint && ` · ${dataHint}`}
 			</span>
@@ -199,7 +199,7 @@ const QuantLegendChannelControls = ({
 							const spec = formatPresetSelection(e.target.value)
 							if (spec !== null) onChange({ ...cfg, format: spec })
 						}}
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input min-w-0 flex-1 px-1.5 py-1 text-sm"
 					>
 						<FormatPresetOptions />
 					</select>
@@ -212,7 +212,7 @@ const QuantLegendChannelControls = ({
 						onChange={(e) => onChange({ ...cfg, format: e.target.value })}
 						placeholder="Auto"
 						aria-label="Custom label format string"
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input min-w-0 flex-1 px-1.5 py-1 font-mono text-sm"
 					/>
 				</div>
 				<div className="flex items-center gap-2 text-sm">
@@ -242,7 +242,7 @@ const QuantLegendChannelControls = ({
 							}
 						}}
 						placeholder="e.g. 0, 50, 100, 150, 200"
-						className="min-w-0 flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+						className="vc-input min-w-0 flex-1 px-1.5 py-1 font-mono text-sm"
 					/>
 				</label>
 				<div className="flex gap-2">
@@ -773,7 +773,7 @@ export const LegendPanel = () => {
 					 *  section + one title, instead of a legend per channel. Only
 					 *  offered when there's actually a shared field to combine. */}
 					{sharedVariableExists && (
-						<div className="flex flex-col gap-1 border-t border-stone-200 pt-2 dark:border-stone-700">
+						<div className="vc-rule-t flex flex-col gap-1 pt-2">
 							<Toggle
 								label="Combine legends with same variables"
 								checked={combineLegendSections}
@@ -853,7 +853,7 @@ export const LegendPanel = () => {
 					{/* Legend width group — a fixed box width (px truth, shown in
 					 *  px / in / cm) between Position and Orientation. Blank = auto.
 					 *  Labels that stop fitting wrap onto extra lines in the render. */}
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-rule-t flex flex-col gap-2 pt-2">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend width"
@@ -872,7 +872,7 @@ export const LegendPanel = () => {
 								onChange={(e) =>
 									update({ widthUnit: e.target.value as DisplayUnit })
 								}
-								className="rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+								className="vc-input vc-text-2 px-2 py-1 text-sm"
 							>
 								{UNIT_OPTIONS.map((u) => (
 									<option key={u} value={u}>
@@ -892,7 +892,7 @@ export const LegendPanel = () => {
 						</p>
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-rule-t flex flex-col gap-2 pt-2">
 						<RadioGroup
 							legend="Orientation"
 							value={merged.orientation}
@@ -905,7 +905,7 @@ export const LegendPanel = () => {
 						</p>
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-rule-t flex flex-col gap-2 pt-2">
 						<Toggle
 							label="Border box"
 							checked={merged.showBorder}
@@ -953,7 +953,7 @@ export const LegendPanel = () => {
 						)}
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-rule-t flex flex-col gap-2 pt-2">
 						<RadioGroup
 							legend="Background"
 							value={bgKind}
@@ -964,7 +964,7 @@ export const LegendPanel = () => {
 									label: "Theme default",
 									trailing: theme.legendBackgroundColor ? (
 										<span
-											className="ml-1 inline-block h-6 w-10 rounded border border-stone-300 dark:border-stone-700"
+											className="vc-border-strong ml-1 inline-block h-6 w-10 rounded"
 											style={{ backgroundColor: theme.legendBackgroundColor }}
 										/>
 									) : null,
@@ -993,7 +993,7 @@ export const LegendPanel = () => {
 						/>
 					</div>
 
-					<div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-700">
+					<div className="vc-rule-t flex flex-col gap-2 pt-2">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend columns"
@@ -1386,7 +1386,7 @@ export const LegendPanel = () => {
 								changed={sectionChanged}
 							>
 							<div className="flex flex-col gap-1 text-sm">
-								<span className="text-stone-600 dark:text-stone-400">
+								<span className="vc-text-muted">
 									Swatch shape
 								</span>
 								<div className="flex flex-wrap gap-1">
@@ -1412,8 +1412,8 @@ export const LegendPanel = () => {
 												}
 												className={`flex h-7 w-7 items-center justify-center rounded border transition-colors ${
 													selected
-														? "border-stone-900 bg-white text-stone-900 dark:border-white dark:bg-stone-800 dark:text-white"
-														: "border-stone-300 bg-white text-stone-600 hover:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+														? "vc-swatch-selected"
+														: "vc-swatch"
 												}`}
 											>
 												<SwatchShapeGlyph idx={opt} selected={selected} />

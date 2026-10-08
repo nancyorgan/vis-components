@@ -1,0 +1,23 @@
+/* Per-channel option panels (sidebar/channelOptions: Axis, Hue, Facet, Pattern, Shape, Size, Outline, Connection…).
+ * Looks that only these screens use. Shared looks (text roles, inputs, buttons, cards…) live
+ * in components.css; structural utilities (flex, gap-2, w-full…) in layout.css.
+ * Naming: .vc-options-<thing>. */
+
+/* ======== Segmented pickers (AxisOptionsPanel: Distribution type, Regression type / position) ======== */
+/* One segment of a radiogroup sitting inside a .vc-border-brand frame: a 1px brand divider on
+ * its left edge, none on the first. This file loads after components.css, so the divider color
+ * wins over the border-color .vc-toggle-on sets on the same button (as the utility did). */
+.vc-options-seg { border-left: 1px solid var(--color-vc-brand-text); }
+.vc-options-seg:first-child { border-left-width: 0; }
+
+/* ======== Flow section (ConnectionOptionsPanel) ======== */
+/* "Swap direction" text button: muted, darkens on hover, stays muted while disabled. */
+.vc-options-flow-swap { color: var(--color-stone-600); }
+.vc-options-flow-swap:hover { color: var(--color-stone-900); }
+.vc-options-flow-swap:disabled:hover { color: var(--color-stone-600); }
+
+/* ======== Custom glyph chips & editor (customGlyphEditor) ======== */
+/* The round × badge that appears over a custom-glyph chip on hover to delete it. */
+.vc-options-glyph-delete { background-color: var(--color-stone-500); color: var(--color-white); }
+/* Center hairlines behind the glyph in the "Adjust position" nudge preview. */
+.vc-options-nudge-hairline { stroke: var(--color-stone-300); }

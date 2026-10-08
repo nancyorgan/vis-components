@@ -180,7 +180,7 @@ export const CircleEditor = ({
 							<div
 								role="group"
 								aria-label="Radius axis"
-								className="inline-flex overflow-hidden rounded border border-vc-brand-text"
+								className="vc-border-brand inline-flex overflow-hidden rounded"
 							>
 								<button
 									type="button"

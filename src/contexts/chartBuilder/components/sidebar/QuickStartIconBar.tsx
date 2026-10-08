@@ -526,9 +526,9 @@ export const QuickStartIconBar = () => {
 							}}
 							onMouseLeave={() => setHovered(null)}
 							aria-label={LABELS[chartType]}
-							className="flex h-8 w-full items-center justify-center rounded border border-stone-300 bg-white text-stone-700 transition hover:enabled:scale-125 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+							className="vc-sidebar-quickstart-btn flex h-8 w-full items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-40"
 						>
-							<Icon className="h-6 w-6 fill-current" />
+							<Icon className="vc-sidebar-quickstart-icon h-6 w-6" />
 						</button>
 					)
 				})}
@@ -548,14 +548,14 @@ export const QuickStartIconBar = () => {
 						if (dx !== 0)
 							el.style.transform = `translateX(calc(-50% + ${dx}px))`
 					}}
-					className="pointer-events-none fixed z-50 max-w-56 -translate-x-1/2 rounded-md bg-white px-2 py-1 text-center text-xs font-medium text-vc-brand-text shadow-md ring-1 ring-stone-200"
+					className="vc-sidebar-quickstart-tooltip pointer-events-none fixed z-50 max-w-56 -translate-x-1/2 rounded-md px-2 py-1 text-center text-xs font-medium"
 					style={{ left: hovered.x, top: hovered.y + 6 }}
 				>
 					{hovered.label}
 				</div>
 			)}
 			{pending && (
-				<div className="flex flex-col gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-stone-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-stone-200">
+				<div className="vc-alert-warn-plain vc-text-2 flex flex-col gap-2 p-2 text-sm">
 					<div>
 						Replace the current encoding with a{" "}
 						<span className="font-medium">{LABELS[pending.chartType]}</span>{" "}

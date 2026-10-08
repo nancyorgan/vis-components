@@ -1,7 +1,7 @@
 import { forwardRef } from "react"
 import { combine as c } from "../../lib/cls"
 
-// Generic select dropdown with the same Tailwind treatment as inline selects
+// Generic select dropdown. Its look is .vc-field in src/styles/components.css
 // elsewhere in the app. Pass <option>s as children.
 
 export type SelectProps = Omit<JSX.IntrinsicElements["select"], "ref">
@@ -12,7 +12,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 			<select
 				ref={ref}
 				className={c(
-					"min-w-0 rounded-control border border-stone-300 bg-white px-2 py-1 text-sm text-stone-900 transition-colors outline-none hover:border-stone-400 focus:border-stone-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:hover:border-stone-600 dark:focus:border-stone-500",
+					"vc-field min-w-0 px-2 py-1 text-sm",
 					className
 				)}
 				{...p}

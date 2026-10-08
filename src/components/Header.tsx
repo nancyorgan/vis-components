@@ -7,6 +7,7 @@ import {
 	currentDatasetIdAtom,
 	datasetIndexAtom,
 } from "../contexts/chartBuilder/store/atoms"
+import { getAccountUrl } from "../lib/accountUrl"
 import { Button } from "./ui/Button"
 
 export const Header = () => {
@@ -16,11 +17,11 @@ export const Header = () => {
 		select: (st) => st.location.pathname.startsWith("/settings"),
 	})
 	return (
-		<header className="sticky top-0 z-10 flex h-(--vc-header-h) items-center justify-between bg-white px-4 shadow-md shadow-stone-200/60 dark:bg-stone-900 dark:shadow-stone-950/40">
+		<header className="vc-header sticky top-0 z-10 flex h-(--vc-header-h) items-center justify-between px-4">
 			<div className="flex items-center gap-6">
 				<Link
 					to="/"
-					className="font-brand flex items-center gap-2 text-lg font-bold text-stone-900 dark:text-white"
+					className="vc-text font-brand flex items-center gap-2 text-lg font-bold"
 				>
 					<svg viewBox="0 0 32 32" width={28} height={28} aria-hidden="true">
 						{/* Abstract gemstone: a dot lattice in the classic crown-over-pavilion profile (4/6/5/3/2/1), lit from top-left so it ramps pale blue → violet. One hero dot on the girdle plus three medium dots give it a size hierarchy; the rest stay small so nothing overlaps. Same drawing as the favicon in index.html. */}
@@ -52,7 +53,7 @@ export const Header = () => {
 				 *  editor's page-fill height assumes `--vc-header-h`), and the
 				 *  badge is the first thing to give. */}
 				<span
-					className="-ml-4 hidden rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-stone-500 sm:inline dark:bg-stone-800 dark:text-stone-400"
+					className="vc-badge -ml-4 hidden tabular-nums sm:inline"
 					title={`Built ${new Date(__BUILD_DATE__).toLocaleString(undefined, {
 						dateStyle: "medium",
 						timeStyle: "short",
@@ -66,7 +67,7 @@ export const Header = () => {
 				<EditorOnlyBlackAndWhiteToggle />
 				<Link
 					to="/settings"
-					className="flex h-8 w-8 items-center justify-center rounded-full text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
+					className="vc-icon-btn-light flex h-8 w-8 items-center justify-center rounded-full transition-colors pointer-coarse:h-10 pointer-coarse:w-10"
 					title="Settings"
 				>
 					<svg
@@ -83,8 +84,39 @@ export const Header = () => {
 						/>
 					</svg>
 				</Link>
+				<AccountLink />
 			</div>
 		</header>
+	)
+}
+
+/** Link to the host's account page (log out etc.), only when the server
+ *  advertised one. A plain anchor, not a router Link: the page belongs to
+ *  the host, not this SPA. */
+const AccountLink = () => {
+	const href = getAccountUrl()
+	if (!href) return null
+	return (
+		<a
+			href={href}
+			className="vc-icon-btn-light flex h-8 w-8 items-center justify-center rounded-full transition-colors pointer-coarse:h-10 pointer-coarse:w-10"
+			title="Account and log out"
+			aria-label="Account and log out"
+		>
+			<svg
+				viewBox="0 0 20 20"
+				width={18}
+				height={18}
+				aria-hidden="true"
+				fill="currentColor"
+			>
+				<path
+					fillRule="evenodd"
+					d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z"
+					clipRule="evenodd"
+				/>
+			</svg>
+		</a>
 	)
 }
 
@@ -176,19 +208,19 @@ const NewVisualizationButton = () => {
 			</Button>
 			{open && (
 				<div
-					className="absolute top-full right-0 z-20 mt-1 w-64 overflow-hidden rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800"
+					className="vc-menu absolute top-full right-0 z-20 mt-1 w-64 overflow-hidden"
 					role="menu"
 				>
 					<button
 						type="button"
 						role="menuitem"
 						onClick={onKeepDataset}
-						className="block w-full px-3 py-2 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700"
+						className="vc-menu-item"
 					>
-						<div className="font-medium text-stone-900 dark:text-white">
+						<div className="font-medium vc-text">
 							With this data set
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
+						<div className="text-sm vc-text-muted">
 							Keep {currentDataset.name}; clear encodings and styling.
 						</div>
 					</button>
@@ -196,12 +228,12 @@ const NewVisualizationButton = () => {
 						type="button"
 						role="menuitem"
 						onClick={onFreshDataset}
-						className="block w-full border-t border-stone-200 px-3 py-2 text-left text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-700"
+						className="vc-menu-item vc-rule-t"
 					>
-						<div className="font-medium text-stone-900 dark:text-white">
+						<div className="font-medium vc-text">
 							With a new data set
 						</div>
-						<div className="text-sm text-stone-600 dark:text-stone-400">
+						<div className="text-sm vc-text-muted">
 							Totally clean slate — upload a CSV to start.
 						</div>
 					</button>
@@ -237,7 +269,7 @@ const BlackAndWhiteToggle = () => {
 			className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
 				active
 					? "vc-toggle-on"
-					: "text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-white"
+					: "vc-icon-btn-light"
 			}`}
 		>
 			<svg

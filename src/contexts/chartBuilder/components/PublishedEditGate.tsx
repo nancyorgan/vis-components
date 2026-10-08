@@ -41,18 +41,16 @@ export const PublishedEditGate = () => {
 			onClose={acknowledge}
 			dismissOnBackdrop={false}
 			title={
-				<span className="text-brand-500 dark:text-brand-300">
+				<span className="vc-text-brand-500">
 					Already embedded
 				</span>
 			}
-			// `!` because these fight the panel's own neutral border utilities,
-			// which Tailwind emits at the same specificity — source order in the
-			// class attribute wouldn't decide the winner. Purple, matching the
-			// frame the editor viewport now carries.
-			panelClassName="!border-2 !border-brand-500 [&>div:first-child]:!border-brand-300 dark:[&>div:first-child]:!border-brand-800"
+			// Thick purple frame (.vc-modal-brand in src/styles/components.css),
+			// matching the frame the editor viewport now carries.
+			panelClassName="vc-modal-brand"
 		>
 			<div className="flex flex-col gap-4">
-				<div className="text-sm text-stone-700 dark:text-stone-300">
+				<div className="text-sm vc-text-2">
 					This visual is already embedded. Edits you make here will affect
 					published content.
 				</div>

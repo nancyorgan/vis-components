@@ -71,7 +71,7 @@ export const RegeneratePreviewButton = ({ visualId, visualName }: Props) => {
 			disabled={busy}
 			title={busy ? "Regenerating preview…" : "Regenerate preview"}
 			aria-label={`Regenerate preview for ${visualName}`}
-			className="flex h-6 w-6 items-center justify-center rounded bg-white/90 text-stone-500 shadow-sm ring-1 ring-stone-200 hover:bg-stone-100 hover:text-stone-700 disabled:cursor-wait dark:bg-stone-800/90 dark:text-stone-400 dark:ring-stone-700 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+			className="vc-library-tile-btn flex h-6 w-6 items-center justify-center rounded disabled:cursor-wait"
 		>
 			<span className={busy ? "animate-spin" : undefined}>
 				<RefreshIcon />
