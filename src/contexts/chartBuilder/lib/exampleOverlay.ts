@@ -28,8 +28,13 @@
  *     because a row the user really is persisting points at it — see
  *     {@link promoteSeedReferences}.
  *
- *  Never installed in server mode: a hosted library seeds through the storage
- *  adapter and persists in SQL like any other work (see `exampleSeed.ts`). */
+ *  Server mode gets the same sandbox: the HTTP storage adapter applies the
+ *  `overlay*` reads and `stripSeed*` writes at its own seams, and adopts on
+ *  the way in whatever seed ids the server already holds, so a library that
+ *  received the examples under the older persist-once behaviour keeps its
+ *  copies, un-duplicated and never stripped (see {@link adoptPersistedSeedIds}).
+ *  A PRIVATE seed override still persists once there, as everywhere (see
+ *  `exampleSeed.ts`). */
 
 import { datasetIndexFrom } from "./datasetMeta"
 import type { Dataset, DatasetMeta, Folder, SavedTheme, Visual } from "./types"
@@ -67,24 +72,48 @@ export const installExampleOverlay = (
 	const folderIds = new Set(content.folders.map((f) => f.id))
 	const datasetIds = new Set(Object.keys(content.datasets))
 	const themeIds = new Set(content.themes.map((t) => t.id))
-	const adopted = new Set<string>()
-	for (const id of alreadyPersisted) {
+	registry = {
+		content,
+		visualIds,
+		folderIds,
+		datasetIds,
+		themeIds,
+		adopted: new Set<string>(),
+	}
+	adoptPersistedSeedIds(alreadyPersisted)
+}
+
+/** Adopt the seed ids among `ids`: rows durable storage turns out to hold.
+ *  The server-mode counterpart of `installExampleOverlay`'s
+ *  `alreadyPersisted` — there the durable ids aren't known at install time
+ *  (reading every collection before first paint is the very cost the lazy
+ *  loads exist to avoid), so each collection load reports what it found
+ *  instead. Sound because every save diffs against a baseline that load set,
+ *  so no collection is ever written before it has been read. No-op without
+ *  an overlay. */
+export const adoptPersistedSeedIds = (ids: Iterable<string>): void => {
+	const reg = registry
+	if (reg === null) return
+	for (const id of ids) {
 		if (
-			visualIds.has(id) ||
-			folderIds.has(id) ||
-			datasetIds.has(id) ||
-			themeIds.has(id)
+			reg.visualIds.has(id) ||
+			reg.folderIds.has(id) ||
+			reg.datasetIds.has(id) ||
+			reg.themeIds.has(id)
 		) {
-			adopted.add(id)
+			reg.adopted.add(id)
 		}
 	}
-	registry = { content, visualIds, folderIds, datasetIds, themeIds, adopted }
 }
 
 /** Uninstall the overlay (tests; nothing in the app does this). */
 export const clearExampleOverlay = (): void => {
 	registry = null
 }
+
+/** Whether an overlay is installed at all — lets seams that only matter
+ *  with one (the HTTP adapter's adoption reads) skip their work otherwise. */
+export const exampleOverlayInstalled = (): boolean => registry !== null
 
 /** Is this id a seed row the user has NOT adopted, i.e. session-only? */
 export const isEphemeralSeedId = (id: string | null | undefined): boolean => {

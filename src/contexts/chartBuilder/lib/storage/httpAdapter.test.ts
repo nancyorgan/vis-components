@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetContentHash } from "../datasetDedupe"
+import { clearExampleOverlay, installExampleOverlay } from "../exampleOverlay"
 import { createHttpStorageAdapter } from "./httpAdapter"
 import { CONTENT_MIGRATIONS } from "./migrations"
 
@@ -676,5 +677,198 @@ describe("the migration gate on lazy reads", () => {
 			c.startsWith("PUT /api/content-versions/datasets")
 		)
 		expect(stamps).toHaveLength(1)
+	})
+})
+
+describe("the example sandbox in server mode", () => {
+	const seedDs = {
+		id: "ds-seed",
+		name: "Seed data",
+		fields: [],
+		versions: [{ id: "dv-seed", filename: "seed.csv", createdAt: 0, rows: [{ a: "1" }] }],
+	}
+	const seedDsMeta = {
+		id: "ds-seed",
+		name: "Seed data",
+		fields: [],
+		versions: [{ id: "dv-seed", filename: "seed.csv", createdAt: 0, rowCount: 1 }],
+	}
+	const seedVisual = {
+		id: "seed-1",
+		name: "Example",
+		datasetId: "ds-seed",
+		themeId: "th-seed",
+		folderId: "f-seed",
+		thumbnail: "data:image/png;base64,AAA",
+	}
+	const seedTheme = { id: "th-seed", name: "Seed theme", isSystem: false }
+	const seedFolder = { id: "f-seed", name: "Examples", parentId: null, createdAt: 0 }
+
+	/** As main.tsx installs it in server mode: nothing adopted up front. */
+	const installSandbox = () =>
+		installExampleOverlay(
+			{
+				visuals: [seedVisual],
+				folders: [seedFolder],
+				datasets: { "ds-seed": seedDs },
+				themes: [seedTheme],
+				userDefaultThemeId: "th-seed",
+			} as never,
+			[]
+		)
+
+	/** A server holding the given rows; everything else answers empty. */
+	const server = (held: {
+		visuals?: unknown[]
+		folders?: unknown[]
+		themes?: unknown[]
+		index?: Record<string, unknown>
+		bodies?: Record<string, unknown>
+	}) =>
+		stubFetch((path) => {
+			if (path === "/api/visuals") return okJson(held.visuals ?? [])
+			if (path === "/api/folders") return okJson(held.folders ?? [])
+			if (path === "/api/themes") return okJson(held.themes ?? [])
+			if (path === "/api/datasets?view=index") return okJson(held.index ?? {})
+			const body = /^\/api\/datasets\/([^/?]+)$/.exec(path)
+			if (body && held.bodies?.[body[1]!]) return okJson(held.bodies[body[1]!])
+			return okEmpty()
+		})
+
+	/** What the atoms do at boot: the four collection loads. */
+	const boot = async (adapter: ReturnType<typeof createHttpStorageAdapter>) => {
+		await adapter.loadVisuals()
+		await adapter.loadFolders()
+		await adapter.loadThemes()
+		await adapter.loadDatasetIndex()
+	}
+
+	afterEach(() => {
+		clearExampleOverlay()
+	})
+
+	it("merges the examples into every load, and serves their rows from memory", async () => {
+		installSandbox()
+		const own = { id: "v1", name: "Mine", thumbnail: null }
+		const mock = server({ visuals: [own] })
+		const adapter = createHttpStorageAdapter()
+		expect((await adapter.loadVisuals()).map((v) => v.id)).toEqual(["v1", "seed-1"])
+		expect((await adapter.loadFolders()).map((f) => f.id)).toEqual(["f-seed"])
+		expect(await adapter.loadThemes()).toBeNull()
+		expect(Object.keys(await adapter.loadDatasetIndex())).toEqual(["ds-seed"])
+		// The server has never heard of a seed dataset: no request for one.
+		mock.mockClear()
+		expect(await adapter.loadDataset("ds-seed")).toEqual(seedDs)
+		expect(await adapter.loadDatasetVersion("ds-seed", "dv-seed")).toEqual([{ a: "1" }])
+		expect(calls(mock)).toEqual([])
+	})
+
+	it("never writes an edited or deleted example to the server", async () => {
+		installSandbox()
+		const mock = server({})
+		const adapter = createHttpStorageAdapter()
+		await boot(adapter)
+		mock.mockClear()
+		await adapter.saveVisuals([{ ...seedVisual, name: "Edited" }] as never)
+		await adapter.saveVisuals([] as never)
+		await adapter.saveFolders([{ ...seedFolder, name: "Edited" }] as never)
+		await adapter.saveDatasets({ "ds-seed": { ...seedDs, name: "Edited" } } as never)
+		await adapter.deleteDatasets(["ds-seed"])
+		await adapter.saveThemes([{ ...seedTheme, name: "Edited" }] as never)
+		expect(calls(mock)).toEqual([])
+	})
+
+	it("persists a copy of an example together with the seed rows it points at", async () => {
+		installSandbox()
+		const mock = server({})
+		const adapter = createHttpStorageAdapter()
+		await boot(adapter)
+		mock.mockClear()
+		const copy = { ...seedVisual, id: "v-copy", name: "Example (copy)" }
+		await adapter.saveVisuals([seedVisual, copy] as never)
+		const made = calls(mock)
+		expect(made).toContain("PUT /api/visuals/v-copy")
+		expect(made).not.toContain("PUT /api/visuals/seed-1")
+		// The dataset goes up as the usual triplet, plus the theme and folder.
+		expect(made).toContain("PUT /api/datasets/ds-seed")
+		expect(made).toContain("PUT /api/datasets/ds-seed/versions/dv-seed")
+		expect(made).toContain("PUT /api/datasets/ds-seed/meta")
+		expect(made).toContain("PUT /api/themes/th-seed")
+		expect(made).toContain("PUT /api/folders/f-seed")
+
+		// Promoted rows are the user's now: unchanged, they are not re-sent;
+		// edited, they sync like anything else.
+		mock.mockClear()
+		await adapter.saveThemes([seedTheme] as never)
+		await adapter.saveFolders([seedFolder] as never)
+		expect(calls(mock)).toEqual([])
+		await adapter.saveThemes([{ ...seedTheme, name: "Renamed" }] as never)
+		expect(calls(mock)).toEqual(["PUT /api/themes/th-seed"])
+	})
+
+	it("adopts examples a library already holds from the old persist-once seeding", async () => {
+		installSandbox()
+		const persisted = { ...seedVisual, name: "Mine now" }
+		const mock = server({
+			visuals: [persisted],
+			folders: [seedFolder],
+			themes: [seedTheme],
+			index: { "ds-seed": seedDsMeta },
+		})
+		const adapter = createHttpStorageAdapter()
+		const loaded = await adapter.loadVisuals()
+		// One copy — the server's — not a second from the bundle.
+		expect(loaded.map((v) => v.id)).toEqual(["seed-1"])
+		expect(loaded[0]!.name).toBe("Mine now")
+		await adapter.loadFolders()
+		await adapter.loadThemes()
+		await adapter.loadDatasetIndex()
+		mock.mockClear()
+		// Theirs to edit and to delete, like any other row.
+		await adapter.saveVisuals([{ ...persisted, name: "Edited" }] as never)
+		expect(calls(mock)).toEqual(["PUT /api/visuals/seed-1"])
+		mock.mockClear()
+		await adapter.saveVisuals([] as never)
+		expect(calls(mock)).toEqual(["DELETE /api/visuals/seed-1"])
+	})
+
+	it("learns what the server holds before promoting, even ahead of the boot loads", async () => {
+		installSandbox()
+		const mock = server({
+			folders: [seedFolder],
+			themes: [seedTheme],
+			index: { "ds-seed": seedDsMeta },
+		})
+		const adapter = createHttpStorageAdapter()
+		// Only the visuals have loaded when the copy is saved.
+		await adapter.loadVisuals()
+		mock.mockClear()
+		const copy = { ...seedVisual, id: "v-copy", name: "Example (copy)" }
+		await adapter.saveVisuals([seedVisual, copy] as never)
+		const made = calls(mock)
+		expect(made).toContain("GET /api/folders")
+		expect(made).toContain("GET /api/themes")
+		expect(made).toContain("GET /api/datasets?view=index")
+		expect(made).toContain("PUT /api/visuals/v-copy")
+		// The library's own copies of the seed rows are NOT overwritten.
+		expect(made.filter((c) => c.startsWith("PUT "))).toEqual(["PUT /api/visuals/v-copy"])
+	})
+
+	it("reads a seed dataset from the server when the library holds its own copy", async () => {
+		installSandbox()
+		const theirs = { ...seedDs, name: "Seed data, edited" }
+		server({ index: { "ds-seed": seedDsMeta }, bodies: { "ds-seed": theirs } })
+		const adapter = createHttpStorageAdapter()
+		await adapter.loadVisuals()
+		// No index load yet — the adapter must find out rather than assume.
+		expect(await adapter.loadDataset("ds-seed")).toEqual(theirs)
+	})
+
+	it("joins an in-flight index load instead of issuing a second one", async () => {
+		installSandbox()
+		const mock = server({})
+		const adapter = createHttpStorageAdapter()
+		await Promise.all([adapter.loadDatasetIndex(), adapter.loadDatasetIndex()])
+		expect(calls(mock).filter((c) => c === "GET /api/datasets?view=index")).toHaveLength(1)
 	})
 })

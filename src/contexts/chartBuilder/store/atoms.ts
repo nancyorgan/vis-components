@@ -1010,11 +1010,14 @@ export const themesAtom = contentAtom<SavedTheme[]>(
 	// the system-theme guarantee apply to BOTH paths — remote lists can be
 	// just as sparse as local ones (they're the same JSON, synced) — and the
 	// `_v` content migrations are handled a layer down, in httpAdapter.
+	// Server mode joins the overlay's themes the same way, for the same
+	// reason: the adapter keeps its null-for-empty answer so a hosted first
+	// run still initializes.
 	async (adapter) => {
 		const stored = await adapter.loadThemes()
-		return stored
-			? withSystemThemes(normalizeSavedThemes(stored))
-			: buildInitialThemes()
+		return overlayThemes(
+			stored ? withSystemThemes(normalizeSavedThemes(stored)) : buildInitialThemes()
+		)
 	},
 	(adapter, themes) => adapter.saveThemes(themes)
 )
@@ -1039,7 +1042,10 @@ export const userDefaultThemeIdAtom = contentAtom<string | null>(
 	// the sandbox opens looking the way it shipped); failing that, system light.
 	() =>
 		loadUserDefaultThemeId() ?? seedUserDefaultThemeId() ?? SYSTEM_LIGHT_THEME.id,
-	async (adapter) => (await adapter.loadUserDefaultThemeId()) ?? SYSTEM_LIGHT_THEME.id,
+	async (adapter) =>
+		(await adapter.loadUserDefaultThemeId()) ??
+		seedUserDefaultThemeId() ??
+		SYSTEM_LIGHT_THEME.id,
 	(adapter, id) => adapter.saveUserDefaultThemeId(id)
 )
 

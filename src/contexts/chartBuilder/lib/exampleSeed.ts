@@ -135,9 +135,10 @@ const seedVisualsAtCurrentFontUnit = (seed: SeedBundle): Visual[] => {
 }
 
 /** Serve the bundled examples from memory for this session only — the public
- *  seed in the browser-local build. Nothing is written: the examples show up
- *  in the library, open, edit, move and delete like real work, and the next
- *  reload brings the shipped originals back untouched.
+ *  seed, in the browser-local build and in server mode alike. Nothing is
+ *  written: the examples show up in the library, open, edit, move and delete
+ *  like real work, and the next reload brings the shipped originals back
+ *  untouched.
  *
  *  Libraries that already hold this seed durably (they received it under the
  *  older persist-once behaviour) keep exactly one copy: any bundled row whose
@@ -147,14 +148,18 @@ const seedVisualsAtCurrentFontUnit = (seed: SeedBundle): Visual[] => {
  *  Must never throw: a broken seed logs and first paint proceeds without the
  *  examples. */
 export const installEphemeralExamples = async (
-	seed: SeedBundle
+	seed: SeedBundle,
+	persistedIds?: Iterable<string>
 ): Promise<void> => {
 	try {
 		if (seed.visuals.length === 0 || seed.exportedAt === null) return
 
 		// Read the durable ids BEFORE installing — these loads are themselves
-		// overlaid once the registry is live.
-		const persistedIds = [
+		// overlaid once the registry is live. Server mode passes its own list
+		// (an empty one: the HTTP adapter adopts seed ids as each collection
+		// loads, see `adoptPersistedSeedIds`) rather than reading the
+		// browser-local store, which isn't the library there.
+		persistedIds ??= [
 			...loadVisuals().map((v) => v.id),
 			...loadFolders().map((f) => f.id),
 			...(loadThemes() ?? []).map((t) => t.id),

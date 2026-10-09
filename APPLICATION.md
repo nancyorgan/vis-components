@@ -3155,9 +3155,11 @@ The same file also ships **bundled examples**: renamed to
 builds) and rebuilt, it puts a populated library in front of a
 first-run user. How it lands depends on which seed and which mode:
 
-- **Public seed, browser-local — an ephemeral sandbox.** The examples
-  are overlaid in memory at boot and never written to storage
-  (`lib/exampleOverlay.ts`). They appear in the library, open, edit,
+- **Public seed — an ephemeral sandbox, browser-local and server mode
+  alike.** The examples are overlaid in memory at boot and never
+  written to storage (`lib/exampleOverlay.ts`; in server mode the HTTP
+  storage adapter is the seam, so every account on a server sees them
+  and none can save over the shipped ones). They appear in the library, open, edit,
   re-theme, move between folders and delete exactly like real work —
   and every bit of that is session-only: a reload brings the shipped
   examples back precisely as shipped. Seed rows are recognized by an
@@ -3179,9 +3181,15 @@ first-run user. How it lands depends on which seed and which mode:
     bundled row whose id is already in storage is adopted at install:
     never overlaid, never stripped, simply the user's. Under the new
     semantics examples someone deleted long ago do come back — the
-    sandbox is permanent — but never as a second copy.
-- **Private override, or server mode — persisted once.** Writes go
-  through the storage adapter, so a self-hosted library gets the
+    sandbox is permanent — but never as a second copy. In server mode
+    the server's rows aren't known before first paint, so adoption
+    happens as each collection loads, and every write that consults
+    the adopted set (and every read of a seed dataset) first waits for
+    the folders, themes and dataset-index loads — a copy made in the
+    first second must never PUT pristine bundle rows over a library's
+    own, possibly edited, copies.
+- **Private override — persisted once.** Writes go through the storage
+  adapter, so in server mode a self-hosted library gets the private
   examples in SQL and backed up with everything else. A library that
   already has visuals is never touched, and a recipient who deletes
   the examples stays clean (an applied-seed marker keyed on the

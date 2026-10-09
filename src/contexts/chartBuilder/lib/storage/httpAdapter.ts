@@ -27,11 +27,35 @@
  *  lets an app update reshape visuals that are already sitting on a server.
  *  Two refusals are deliberate: data stamped NEWER than this build, and a
  *  migration that throws, both fail the load rather than write something
- *  half-migrated over the user's work. */
+ *  half-migrated over the user's work.
+ *
+ *  THE EXAMPLE SANDBOX. When the ephemeral example overlay is installed (the
+ *  public seed; see ../exampleOverlay.ts) this adapter is its server-mode
+ *  seam: every load merges the bundled rows in on top of the server's, every
+ *  save strips them out again, and seed ids the server turns out to hold are
+ *  adopted on load so an older persist-once library keeps its copies. A
+ *  user's own visual that points at a seed dataset, theme or folder promotes
+ *  those rows to the server first (`persistSeedPromotions`). */
 
 import { isEmbedDocument } from "../../../../lib/embedPath"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetMetaFrom, isDatasetMeta } from "../datasetMeta"
+import {
+	adoptPersistedSeedIds,
+	exampleOverlayInstalled,
+	isEphemeralSeedId,
+	overlayDatasetIndex,
+	overlayDatasets,
+	overlayFolders,
+	overlayVisuals,
+	promoteSeedReferences,
+	seedDataset,
+	stripSeedDatasets,
+	stripSeedFolders,
+	stripSeedThemes,
+	stripSeedVisuals,
+	type SeedPromotions,
+} from "../exampleOverlay"
 import type { UserFont } from "../fontLibrary"
 import type {
 	Dataset,
@@ -534,11 +558,76 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		return next
 	}
 
+	/** Join an in-flight call rather than start a second one. The boot loads
+	 *  the atoms issue and the ones `ensureSeedAdoptionsKnown` may issue must
+	 *  not double up — the index load can hydrate bodies and the themes load
+	 *  can write a migration back. */
+	const shared = <T>(load: () => Promise<T>): (() => Promise<T>) => {
+		let inFlight: Promise<T> | null = null
+		return () => {
+			inFlight ??= load().finally(() => {
+				inFlight = null
+			})
+			return inFlight
+		}
+	}
+
+	/** Which of the three adoption-bearing loads have completed. */
+	const loaded = { folders: false, themes: false, datasets: false }
+
+	/** Before anything consults the overlay's adopted set on a write path
+	 *  (or reads a seed dataset), make sure the server's own rows are known:
+	 *  a library seeded under the older persist-once behaviour holds its own,
+	 *  possibly edited, copies of the seed dataset / theme / folders, and
+	 *  only the loads reveal that. Without this, a copy of an example made
+	 *  before those boot loads land would PUT the pristine bundle rows over
+	 *  them, and opening an example would draw the bundle's data instead of
+	 *  the library's. The atoms load all three at boot, so this normally
+	 *  resolves at once; in a cold tab it performs (or joins) those reads.
+	 *  Nothing to do without an overlay. */
+	const ensureSeedAdoptionsKnown = async (): Promise<void> => {
+		if (!exampleOverlayInstalled()) return
+		await Promise.all([
+			loaded.folders ? undefined : adapter.loadFolders(),
+			loaded.themes ? undefined : adapter.loadThemes(),
+			loaded.datasets ? undefined : adapter.loadDatasetIndex(),
+		])
+	}
+
+	/** Make promoted seed rows durable (see `promoteSeedReferences`): the
+	 *  dataset, theme and folder rows a user's own new visual points at in
+	 *  the example overlay. Written through the same paths a normal save
+	 *  uses and entered into the baselines, so the next diff sees them as
+	 *  already on the server. No-op when nothing was promoted. */
+	const persistSeedPromotions = async (
+		promotions: SeedPromotions | null
+	): Promise<void> => {
+		if (!promotions) return
+		const { datasets, themes, folders } = promotions
+		await Promise.all([
+			...Object.values(datasets).map(async (dataset) => {
+				const serialized = serializeCached(dataset)
+				await putDatasetTriplet(dataset, serialized)
+				baselines.datasets.set(dataset.id, serialized)
+			}),
+			...themes.map(async (theme) => {
+				const serialized = serializeCached(theme)
+				await putJson("themes")(theme.id, serialized)
+				baselines.themes.set(theme.id, serialized)
+			}),
+			...folders.map(async (folder) => {
+				const serialized = serializeCached(folder)
+				await putJson("folders")(folder.id, serialized)
+				baselines.folders.set(folder.id, serialized)
+			}),
+		])
+	}
+
 	const adapter: StorageContentAdapter = {
 		capabilities: { remoteLoad: true },
 
-		loadVisuals: async () =>
-			upgraded({
+		loadVisuals: async () => {
+			const visuals = await upgraded({
 				collection: "visuals",
 				raw: await loadCollection<Visual[]>(
 					wantsThumbnails() ? "visuals" : "visuals?thumbnails=0"
@@ -547,33 +636,50 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				entries: toMap,
 				putOne: putJson("visuals"),
 				deleteOne: deleteFrom("visuals"),
-			}),
+			})
+			adoptPersistedSeedIds(visuals.map((v) => v.id))
+			return overlayVisuals(visuals)
+		},
 		// Server-mode visuals arrive with thumbnails inline (loadVisuals), and
 		// the atoms skip the local IndexedDB thumbnail merge under remoteLoad —
 		// this read exists only to satisfy the interface.
 		loadThumbnails: async () => ({}),
-		saveVisuals: (visuals) =>
-			syncCollection(
+		// Ephemeral seed examples never reach the server: an edited one is
+		// dropped here (memory only, back pristine on the next load), while a
+		// COPY of one is the user's own and goes up — after whatever it still
+		// points at in the overlay has been made durable, or it would dangle.
+		saveVisuals: async (visuals) => {
+			await ensureSeedAdoptionsKnown()
+			const own = stripSeedVisuals(visuals)
+			await persistSeedPromotions(promoteSeedReferences({ visuals: own }))
+			await syncCollection(
 				baselines.visuals,
-				toMap(visuals),
+				toMap(own),
 				putJson("visuals"),
 				deleteFrom("visuals")
-			),
+			)
+		},
 
 		// Folders are the one collection the frontend never versioned (see
 		// CONTENT_MIGRATIONS) — nothing to migrate, so no upgrade pass.
-		loadFolders: async () => {
+		loadFolders: shared(async () => {
 			const folders = await loadCollection<Folder[]>("folders")
 			setBaseline(baselines.folders, toMap(folders))
-			return folders
-		},
-		saveFolders: (folders) =>
-			syncCollection(
+			adoptPersistedSeedIds(folders.map((f) => f.id))
+			loaded.folders = true
+			return overlayFolders(folders)
+		}),
+		saveFolders: async (folders) => {
+			await ensureSeedAdoptionsKnown()
+			const own = stripSeedFolders(folders)
+			await persistSeedPromotions(promoteSeedReferences({ folders: own }))
+			await syncCollection(
 				baselines.folders,
-				toMap(folders),
+				toMap(own),
 				putJson("folders"),
 				deleteFrom("folders")
-			),
+			)
+		},
 
 		// The boot read. `?view=index` is a pure SQLite lookup on the server —
 		// no dataset file is opened, so this stays fast however much row data
@@ -587,7 +693,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		// every load after it is cheap. Sequential on purpose: these are the
 		// full-size bodies, and inflating all of them at once is the very
 		// thing this change exists to stop.
-		loadDatasetIndex: async () => {
+		loadDatasetIndex: shared(async () => {
 			await ensureDatasetsCurrent()
 			const raw = await loadCollection<Record<string, unknown>>(
 				"datasets?view=index"
@@ -634,14 +740,25 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 					)
 				}
 			}
-			return index
-		},
+			adoptPersistedSeedIds(Object.keys(index))
+			loaded.datasets = true
+			return overlayDatasetIndex(index)
+		}),
 
 		// A 404 here means this version has no stored body of its own — every
 		// version of every dataset written before the split. That is the
 		// signal to fall back to the whole dataset and split it as we go, so
 		// the next open of the same dataset costs one version.
 		loadDatasetVersion: async (id, versionId) => {
+			// Seed rows live only in memory; the server has never heard of them
+			// — unless this library holds its own copy from the older seeding,
+			// which only the index load reveals.
+			if (isEphemeralSeedId(id)) await ensureSeedAdoptionsKnown()
+			if (isEphemeralSeedId(id)) {
+				return (
+					seedDataset(id)?.versions.find((v) => v.id === versionId)?.rows ?? null
+				)
+			}
 			await ensureDatasetsCurrent()
 			const response = await fetch(
 				`/api/datasets/${encodeURIComponent(id)}/versions/${encodeURIComponent(versionId)}`
@@ -679,6 +796,8 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		},
 
 		loadDataset: async (id) => {
+			if (isEphemeralSeedId(id)) await ensureSeedAdoptionsKnown()
+			if (isEphemeralSeedId(id)) return seedDataset(id)
 			await ensureDatasetsCurrent()
 			return loadWholeDataset(id)
 		},
@@ -690,7 +809,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 			// string back through JSON.parse (three full passes per dataset,
 			// over the whole corpus, on the first post-deploy boot).
 			let migrated: Record<string, Dataset> = {}
-			return upgraded({
+			const datasets = await upgraded({
 				collection: "datasets",
 				raw: await loadCollection<Record<string, Dataset>>("datasets"),
 				baseline: baselines.datasets,
@@ -705,6 +824,9 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 					),
 				deleteOne: deleteFrom("datasets"),
 			})
+			adoptPersistedSeedIds(Object.keys(datasets))
+			loaded.datasets = true
+			return overlayDatasets(datasets)
 		},
 		// Per changed dataset, the shared triplet: whole body, then the
 		// per-version sync — only the VERSIONS whose rows actually changed
@@ -713,20 +835,28 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		// — and last the metadata (see `putDatasetTriplet` for why the order
 		// is load-bearing). No `deleteOne`: bodies load on demand, so this map
 		// is a subset of the store and deletion is explicit (`deleteDatasets`).
-		saveDatasets: (datasets) =>
-			syncCollection(
+		saveDatasets: async (datasets) => {
+			await ensureSeedAdoptionsKnown()
+			// An edited seed dataset stays in memory; an adopted one is the
+			// user's own and syncs like any other.
+			const own = stripSeedDatasets(datasets)
+			await syncCollection(
 				baselines.datasets,
-				recordToMap(datasets),
+				recordToMap(own),
 				async (id, serialized) => {
-					const dataset = datasets[id]
+					const dataset = own[id]
 					if (!dataset) return
 					await putDatasetTriplet(dataset, serialized)
 				}
-			),
+			)
+		},
 
 		deleteDatasets: async (ids) => {
+			await ensureSeedAdoptionsKnown()
 			await Promise.all(
-				ids.map((id) =>
+				// A seed dataset was never on the server; "deleting" one only
+				// changes memory, and the overlay restores it on the next load.
+				ids.filter((id) => !isEphemeralSeedId(id)).map((id) =>
 					deleteFrom("datasets")(id).then(() => {
 						for (const versionId of knownVersionIds.get(id) ?? []) {
 							writtenVersions.delete(`${id}:${versionId}`)
@@ -762,7 +892,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 
 		// An empty server means "no themes saved yet", which the themes atom
 		// maps to its local first-run seeding — mirroring loadThemes()'s null.
-		loadThemes: async () => {
+		loadThemes: shared(async () => {
 			const themes = await upgraded({
 				collection: "themes",
 				raw: await loadCollection<SavedTheme[]>("themes"),
@@ -771,15 +901,21 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				putOne: putJson("themes"),
 				deleteOne: deleteFrom("themes"),
 			})
+			adoptPersistedSeedIds(themes.map((t) => t.id))
+			loaded.themes = true
+			// The overlay's themes join in the themes atom, not here: a hosted
+			// first run must still read as empty (see themesAtom).
 			return themes.length === 0 ? null : themes
-		},
-		saveThemes: (themes) =>
-			syncCollection(
+		}),
+		saveThemes: async (themes) => {
+			await ensureSeedAdoptionsKnown()
+			await syncCollection(
 				baselines.themes,
-				toMap(themes),
+				toMap(stripSeedThemes(themes)),
 				putJson("themes"),
 				deleteFrom("themes")
-			),
+			)
+		},
 
 		loadUserFonts: async () =>
 			upgraded({

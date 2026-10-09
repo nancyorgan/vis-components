@@ -38,7 +38,7 @@ vi.mock("./storage/idb", () => ({
 	idbDelete: idb.idbDelete,
 }))
 
-import { clearExampleOverlay } from "./exampleOverlay"
+import { clearExampleOverlay, isEphemeralSeedId } from "./exampleOverlay"
 import {
 	applyExampleSeed,
 	buildSeedBundle,
@@ -349,6 +349,15 @@ describe("installEphemeralExamples", () => {
 			(loadVisuals()[0] as unknown as { dataLabelsConfig: { fontSize: number } })
 				.dataLabelsConfig.fontSize
 		).toBe(11)
+	})
+
+	it("takes the persisted ids from the caller (server mode) instead of reading the browser", async () => {
+		// A leftover browser-local copy of an example is not "already
+		// persisted" on a server; the HTTP adapter adopts on load instead.
+		await applyExampleSeed(makeSeed())
+		clearExampleOverlay()
+		await installEphemeralExamples(makeSeed(), [])
+		expect(isEphemeralSeedId("seed-1")).toBe(true)
 	})
 
 	it("does not duplicate examples a library already holds from the old seeding", async () => {

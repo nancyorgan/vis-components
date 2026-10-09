@@ -49,11 +49,15 @@ if (!root) throw new Error("Root element #root not found")
 //     server or fully browser-local; /api/config answering with the expected
 //     shape is the difference). In server mode, install the HTTP storage
 //     adapter — this must precede render, atoms capture the adapter on mount —
-//     and the server-supplied base URL for outward-facing links. Then seed
-//     through that adapter: a hosted library gets the examples written into
-//     SQL and backed up like any other work, sandbox or not. The dataset
-//     cleanup is skipped — it only touches browser-local storage, which
-//     server mode doesn't read.
+//     and the server-supplied base URL for outward-facing links. Then the
+//     examples: the PUBLIC seed is the same in-memory sandbox as in local
+//     mode (the HTTP adapter overlays it on every read and strips it from
+//     every write — see lib/exampleOverlay.ts), so every account on the
+//     server sees the examples and none can save over the shipped ones
+//     without duplicating first; a private override persists once through
+//     the adapter, into SQL, like any other work. The dataset cleanup is
+//     skipped — it only touches browser-local storage, which server mode
+//     doesn't read.
 //  2. Local mode: the library must be settled before the root mounts, because
 //     every persisted atom bootstraps lazily on its first read. `finally` (and
 //     the swallow-all inside both seed paths) guarantees a bad seed — or a
@@ -77,7 +81,8 @@ const bootstrapStorage = async (): Promise<void> => {
 		setAppOrigin(serverConfig.baseUrl)
 		if (serverConfig.signOutUrl) setSignOutUrl(serverConfig.signOutUrl)
 		setStorageAdapter(createHttpStorageAdapter())
-		await applyExampleSeed(seed)
+		if (seedIsPublic) await installEphemeralExamples(seed, [])
+		else await applyExampleSeed(seed)
 		return
 	}
 	if (seedIsPublic) {
