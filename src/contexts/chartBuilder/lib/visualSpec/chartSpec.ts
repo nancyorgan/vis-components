@@ -100,6 +100,23 @@ export type AnnotationSpec =
 			color?: string
 	  }
 
+/** A wide-to-long reshape, as the Reshape panel stores it. */
+export type ReshapeSpec = {
+	idFields?: string[]
+	meltFields: string[]
+	variableName?: string
+	valueName?: string
+}
+
+/** A derived variable, as the Fields panel stores it, without its id. */
+export type DerivedVariableSpec = {
+	name: string
+	kind: "math" | "concat" | "rules"
+	math?: { formula: string }
+	concat?: { template: string }
+	rules?: { rules: Array<{ condition: string; output: string }>; fallback: string }
+}
+
 export type ChartSpec = {
 	datasetId: string
 	/** The version whose rows the spec is checked against; absent = latest. */
@@ -131,6 +148,11 @@ export type ChartSpec = {
 	colorThreshold?: ColorThresholdSpec
 	stems?: StemsSpec
 	annotations?: AnnotationSpec[]
+	/** In an edit, null turns the reshape off. */
+	reshape?: ReshapeSpec | null
+	/** Added after the chart's own; in an edit, one with the same name
+	 *  replaces it. */
+	derivedVariables?: DerivedVariableSpec[]
 }
 
 /** A change to an existing chart: any spec key but `datasetId`. A channel
@@ -181,6 +203,8 @@ const TOP_LEVEL_KEYS = [
 	"colorThreshold",
 	"stems",
 	"annotations",
+	"reshape",
+	"derivedVariables",
 ] as const
 
 const TOP_LEVEL_HINTS: Record<string, string> = {
@@ -619,6 +643,9 @@ export const readChartSpec = (
 	return { draft, errors }
 }
 
+const RESHAPE_KEYS = ["idFields", "meltFields", "variableName", "valueName"] as const
+const DERIVED_KEYS = ["name", "kind", "math", "concat", "rules"] as const
+const DERIVED_KINDS = ["math", "concat", "rules"] as const
 const SORT_KEYS = ["by", "decreasing"] as const
 const THRESHOLD_KEYS = ["field", "at", "below", "above"] as const
 const STEM_KEYS = ["axis", "at"] as const
@@ -737,6 +764,91 @@ const readExtras = (
 			} else {
 				draft.stems = { axis: raw.axis, ...(raw.at !== undefined ? { at: raw.at as number } : {}) }
 			}
+		}
+	}
+
+	const stringList = (path: string, v: unknown, nonEmpty: boolean): string[] | undefined => {
+		if (Array.isArray(v) && v.every((x): x is string => typeof x === "string" && x !== "") && (!nonEmpty || v.length > 0))
+			return v
+		problem(path, `"${path.split(".").at(-1)}" must be a ${nonEmpty ? "non-empty " : ""}list of field names`)
+		return undefined
+	}
+
+	if (input.reshape !== undefined) {
+		const raw = input.reshape
+		if (raw === null) {
+			draft.reshape = null
+		} else if (!isRecord(raw)) {
+			problem("reshape", `"reshape" must be an object { idFields, meltFields, variableName, valueName }`)
+		} else {
+			unknownKeys(raw, RESHAPE_KEYS, (k) => pathOf("reshape", k), "reshape", problem, hint)
+			const before = count()
+			const meltFields = stringList("reshape.meltFields", raw.meltFields, true)
+			const idFields = raw.idFields === undefined ? [] : stringList("reshape.idFields", raw.idFields, false)
+			for (const k of ["variableName", "valueName"] as const) {
+				if (raw[k] !== undefined && (typeof raw[k] !== "string" || raw[k].trim() === ""))
+					problem(pathOf("reshape", k), `"${k}" must be a non-empty string`)
+			}
+			if (meltFields && idFields && count() === before) {
+				draft.reshape = {
+					idFields,
+					meltFields,
+					...(raw.variableName !== undefined ? { variableName: raw.variableName as string } : {}),
+					...(raw.valueName !== undefined ? { valueName: raw.valueName as string } : {}),
+				}
+			}
+		}
+	}
+
+	if (input.derivedVariables !== undefined) {
+		const list = input.derivedVariables
+		if (!Array.isArray(list) || list.length === 0) {
+			problem("derivedVariables", `"derivedVariables" must be a non-empty list`)
+		} else {
+			const out: DerivedVariableSpec[] = []
+			const names = new Set<string>()
+			list.forEach((raw, i) => {
+				const at = (k?: string) => (k ? `derivedVariables[${i}].${k}` : `derivedVariables[${i}]`)
+				if (!isRecord(raw)) {
+					problem(at(), "a derived variable must be an object")
+					return
+				}
+				unknownKeys(raw, DERIVED_KEYS, (k) => at(k), "derived variable", problem, hint)
+				const before = count()
+				if (typeof raw.name !== "string" || raw.name.trim() === "") problem(at("name"), `"name" must be a non-empty string`)
+				else if (names.has(raw.name.trim())) problem(at("name"), `"${raw.name}" is named twice`)
+				else names.add(raw.name.trim())
+				if (!isOneOf(DERIVED_KINDS, raw.kind)) {
+					problem(at("kind"), `"kind" must be one of ${quoted(DERIVED_KINDS)}`)
+					return
+				}
+				const kind = raw.kind
+				if (kind === "math") {
+					if (!isRecord(raw.math) || typeof raw.math.formula !== "string")
+						problem(at("math"), `a math variable needs "math": { "formula": "{A} + {B}" }`)
+				} else if (kind === "concat") {
+					if (!isRecord(raw.concat) || typeof raw.concat.template !== "string")
+						problem(at("concat"), `a concat variable needs "concat": { "template": "CPT {code}" }`)
+				} else {
+					const r = raw.rules
+					const ok =
+						isRecord(r) &&
+						Array.isArray(r.rules) &&
+						r.rules.every((x) => isRecord(x) && typeof x.condition === "string" && typeof x.output === "string") &&
+						typeof r.fallback === "string"
+					if (!ok)
+						problem(at("rules"), `a rules variable needs "rules": { "rules": [{ "condition": "{A} == 1", "output": "One" }], "fallback": "Other" }`)
+				}
+				if (count() !== before) return
+				out.push({
+					name: (raw.name as string).trim(),
+					kind,
+					...(kind === "math" ? { math: { formula: (raw.math as { formula: string }).formula } } : {}),
+					...(kind === "concat" ? { concat: { template: (raw.concat as { template: string }).template } } : {}),
+					...(kind === "rules" ? { rules: raw.rules as DerivedVariableSpec["rules"] } : {}),
+				})
+			})
+			draft.derivedVariables = out
 		}
 	}
 

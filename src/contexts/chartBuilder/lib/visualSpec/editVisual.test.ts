@@ -490,3 +490,102 @@ describe("Nancy's encoding names", () => {
 		expect(typo.ok ? "" : typo.errors[0]?.message).toMatch(/did you mean/)
 	})
 })
+
+describe("reshape and derived variables", () => {
+	const WIDE = "ds-cafe"
+	it("melts wide columns and charts the result", () => {
+		const v = ok(
+			composeChartSpec(
+				{
+					datasetId: WIDE,
+					folderId: null,
+					reshape: { idFields: ["month", "flavor"], meltFields: ["muffins", "coffees"], variableName: "item", valueName: "sold" },
+					encodings: { x: "month", length: "sold", hue: "item" },
+				},
+				ctx(CAFE.id)
+			)
+		)
+		expect(v.reshapeConfig).toEqual({ idFields: ["month", "flavor"], meltFields: ["muffins", "coffees"], variableName: "item", valueName: "sold" })
+		expect(v.encodings.hue).toEqual({ field: "item" })
+	})
+
+	it("builds a custom legend from a rules variable (Ford's Long Type)", () => {
+		const v = ok(
+			composeChartSpec(
+				{
+					datasetId: CAFE.id,
+					folderId: null,
+					derivedVariables: [
+						{
+							name: "Long Flavor",
+							kind: "rules",
+							rules: {
+								rules: [
+									{ condition: '{flavor} == "Bran"', output: "Bran (high fiber)" },
+									{ condition: '{flavor} == "Lemon"', output: "Lemon poppy seed" },
+								],
+								fallback: "{flavor}",
+							},
+						},
+						{ name: "Total", kind: "math", math: { formula: "{muffins} + {coffees}" } },
+					],
+					encodings: { x: "month", length: "Total", hue: "Long Flavor" },
+					colors: { "Bran (high fiber)": "#123456" },
+				},
+				ctx(CAFE.id)
+			)
+		)
+		expect(v.derivedVariablesConfig?.variables.map((d) => d.name)).toEqual(["Long Flavor", "Total"])
+		const hue = v.channelConfigs.hue
+		expect(hue?.kind === "categorical" ? hue.colors["Bran (high fiber)"] : null).toBe("#123456")
+	})
+
+	it("reports the editor's own problems with a derived variable", () => {
+		const r = composeChartSpec(
+			{
+				datasetId: CAFE.id,
+				folderId: null,
+				derivedVariables: [
+					{ name: "Bad", kind: "math", math: { formula: "{muffins} + {nope}" } },
+					{ name: "Text math", kind: "math", math: { formula: "{flavor} * 2" } },
+					{ name: "Odd", kind: "rules", rules: { rules: [{ condition: "{flavor} ==", output: "x" }], fallback: "" } },
+				],
+				encodings: { x: "month", length: "muffins" },
+			},
+			ctx(CAFE.id)
+		)
+		const paths = errorsOf(r).map((e) => e.path)
+		expect(paths).toEqual(expect.arrayContaining(["derivedVariables[0]", "derivedVariables[1]", "derivedVariables[2]"]))
+	})
+
+	it("refuses a melt of a field that isn't there", () => {
+		const r = composeChartSpec(
+			{ datasetId: CAFE.id, folderId: null, reshape: { meltFields: ["mufins"] }, encodings: { x: "month" } },
+			ctx(CAFE.id)
+		)
+		expect(errorsOf(r)[0]).toMatchObject({ path: "reshape.meltFields" })
+		expect(errorsOf(r)[0]?.message).toMatch(/did you mean "muffins"/)
+	})
+
+	it("an edit replaces a derived variable by name, and turns a reshape off", () => {
+		const v0 = ok(
+			composeChartSpec(
+				{
+					datasetId: CAFE.id,
+					folderId: null,
+					reshape: { idFields: ["month"], meltFields: ["muffins", "coffees"] },
+					derivedVariables: [{ name: "Label", kind: "concat", concat: { template: "{month}!" } }],
+					encodings: { x: "month", length: "value", hue: "category" },
+				},
+				ctx(CAFE.id)
+			)
+		)
+		const v1 = ok(edit(v0, { derivedVariables: [{ name: "Label", kind: "concat", concat: { template: "{month}?" } }] }))
+		expect(v1.derivedVariablesConfig?.variables).toHaveLength(1)
+		expect(v1.derivedVariablesConfig?.variables[0]?.concat?.template).toBe("{month}?")
+		expect(v1.derivedVariablesConfig?.variables[0]?.id).toBe(v0.derivedVariablesConfig?.variables[0]?.id)
+		const off = edit(v1, { reshape: null })
+		expect(errorsOf(off).map((e) => e.message).join(" ")).toMatch(/no longer has|value|category/)
+		ok(edit(v1, { reshape: null, encodings: { length: "muffins", hue: null } }))
+	})
+})

@@ -327,8 +327,8 @@ describe("composeChartSpec — rejected specs", () => {
 		expect(paths(cafe({ axes: { x: { min: 0 } } }))).toEqual(["axes.x.min"])
 	})
 
-	it("rejects a format on a categorical axis", () => {
-		expect(paths(cafe({ axes: { x: { format: ".0f" } } }))).toEqual(["axes.x.format"])
+	it("takes a format on any axis, as the Tick labels box does", () => {
+		expect(composed(cafe({ axes: { x: { format: ".0f" } } })).channelConfigs.x?.customFormat).toBe(".0f")
 	})
 
 	it("rejects a field type override no value in the column can satisfy", () => {

@@ -28,7 +28,17 @@ import {
 	rectangleStyleFromTheme,
 	textAnnotationStyleFromTheme,
 } from "../themeConfig"
-import { applyDerivedVariablesToView } from "../derivedVariables"
+import { parseExpression } from "../derivedExpression"
+import {
+	applyDerivedVariablesToView,
+	DEFAULT_DERIVED_VARIABLES_CONFIG,
+	derivedMathTypeIssues,
+	derivedVariableIssues,
+	effectiveDerivedName,
+	makeNonNumericLookup,
+	type DerivedVariable,
+	type DerivedVariablesConfig,
+} from "../derivedVariables"
 import { applyDollarConversionToView } from "../dollarCells"
 import { effectiveType } from "../fieldType"
 import { applyPercentConversionToView } from "../percentCells"
@@ -43,7 +53,12 @@ import {
 	type QuickStartChartType,
 	type QuickStartVariation,
 } from "../quickStartVariations"
-import { applyReshapeToView } from "../reshape"
+import {
+	applyReshapeToView,
+	DEFAULT_RESHAPE_CONFIG,
+	reshapeIssues,
+	type ReshapeConfig,
+} from "../reshape"
 import { resolveDatasetViewFromMeta } from "../resolveDatasetVersion"
 import { parseNumericCell, parseValue } from "../scales"
 import {
@@ -66,6 +81,7 @@ import {
 	readChartSpec,
 	type AnnotationSpec,
 	type ChartEdit,
+	type DerivedVariableSpec,
 	type ChartSpec,
 	type ChartSpecDraft,
 	type SpecChannel,
@@ -222,17 +238,57 @@ const compose = (
 	// The data as the editor shows it for this visual: its reshape, the
 	// percent and dollar conversions an override switches on, then its
 	// derived variables.
-	const converted = applyDollarConversionToView(
-		applyPercentConversionToView(
-			hydrated ? applyReshapeToView(raw, hydrated.reshapeConfig) : raw,
-			overrides
-		),
-		overrides
+	const rawNames = raw.fields.map((f) => f.name)
+	const reshapeConfig: ReshapeConfig =
+		spec.reshape === null
+			? { ...DEFAULT_RESHAPE_CONFIG }
+			: spec.reshape
+				? { ...DEFAULT_RESHAPE_CONFIG, ...spec.reshape, idFields: spec.reshape.idFields ?? [] }
+				: (hydrated?.reshapeConfig ?? { ...DEFAULT_RESHAPE_CONFIG })
+	if (spec.reshape) {
+		for (const key of ["idFields", "meltFields"] as const) {
+			for (const field of reshapeConfig[key]) {
+				if (rawNames.includes(field)) continue
+				problem(
+					pathOf("reshape", key),
+					`no field "${named(field)}" in dataset "${raw.name}"${hint(field, rawNames)}`
+				)
+			}
+		}
+		for (const issue of reshapeIssues(raw.fields, reshapeConfig)) problem("reshape", issue)
+	}
+	const shaped = applyReshapeToView(raw, reshapeConfig) ?? raw
+	const converted =
+		applyDollarConversionToView(applyPercentConversionToView(shaped, overrides), overrides) ??
+		shaped
+
+	const derivedConfig: DerivedVariablesConfig = mergeDerived(
+		hydrated?.derivedVariablesConfig ?? DEFAULT_DERIVED_VARIABLES_CONFIG,
+		spec.derivedVariables ?? [],
+		ctx.now
 	)
-	const view =
-		(hydrated
-			? applyDerivedVariablesToView(converted, hydrated.derivedVariablesConfig)
-			: converted) ?? raw
+	if (spec.derivedVariables) {
+		const available = new Set(converted.fields.map((f) => f.name))
+		const numeric = makeNonNumericLookup(converted.rows)
+		const fromSpec = new Set(spec.derivedVariables.map((d) => d.name))
+		derivedConfig.variables.forEach((variable, index) => {
+			const name = effectiveDerivedName(variable, index)
+			if (fromSpec.has(variable.name)) {
+				const at = `derivedVariables[${spec.derivedVariables?.findIndex((d) => d.name === variable.name)}]`
+				const issues = [
+					...derivedVariableIssues(variable, index, available),
+					...derivedMathTypeIssues(variable, available, numeric),
+					...(variable.rules?.rules ?? []).flatMap((r) => {
+						const parsed = parseExpression(r.condition)
+						return parsed.ok ? [] : [`condition "${named(r.condition)}": ${parsed.error}`]
+					}),
+				]
+				for (const issue of issues) problem(at, issue)
+			}
+			available.add(name)
+		})
+	}
+	const view = applyDerivedVariablesToView(converted, derivedConfig) ?? converted
 
 	const fieldNames = view.fields.map((f) => f.name)
 	const hasField = (name: string) => fieldNames.includes(name)
@@ -507,18 +563,6 @@ const compose = (
 			const continuous = type
 				? type === "quantitative"
 				: mode.canvas.measureAxis === axis
-			if (
-				spec.axes?.[axis]?.format !== undefined &&
-				!continuous &&
-				type !== "temporal"
-			) {
-				problem(
-					pathOf("axes", axis, "format"),
-					field
-						? `the ${axis} axis shows "${field}" (${type}); "format" applies only to a quantitative or temporal axis`
-						: `the ${axis} axis has no field and isn't this chart's measure axis`
-				)
-			}
 			if (continuous) continue
 			for (const bound of ["min", "max"] as const) {
 				if (spec.axes?.[axis]?.[bound] === undefined) continue
@@ -736,6 +780,8 @@ const compose = (
 
 	const visual: Visual = {
 		...start,
+		reshapeConfig,
+		derivedVariablesConfig: derivedConfig,
 		name,
 		folderId: spec.folderId !== undefined ? spec.folderId : start.folderId,
 		fieldTypeOverrides: { ...overrides },
@@ -817,6 +863,26 @@ const knobsOf = (
 		delete knobs.hueMeasureSource
 	}
 	return knobs
+}
+
+/** The chart's derived variables with the spec's merged in: same name
+ *  replaces in place, new names append. */
+const mergeDerived = (
+	current: DerivedVariablesConfig,
+	specs: readonly DerivedVariableSpec[],
+	now: number
+): DerivedVariablesConfig => {
+	const variables = [...current.variables]
+	specs.forEach((d, i) => {
+		const made: DerivedVariable = {
+			id: `dvr-${now.toString(36)}-${i.toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+			...d,
+		}
+		const at = variables.findIndex((v) => v.name === d.name)
+		if (at >= 0) variables[at] = { ...made, id: variables[at]?.id ?? made.id }
+		else variables.push(made)
+	})
+	return { variables }
 }
 
 /** Id for an annotation made from a spec; same shape as the panel's. */

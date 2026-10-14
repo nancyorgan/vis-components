@@ -107,7 +107,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
 | `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines, a map goes geographic), except the stack mode, which only `stack` sets. Encodings that fill none of its variations are an error naming what is missing. |
 | `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
-| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis; `format` is what the axis Format box takes. |
+| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis; `format` is what the axis Format box takes, on any axis. |
 | `colors` | Optional hue level → `#rgb`/`#rrggbb`. Needs a categorical or ordinal `hue`, and every level must be in the data. |
 | `fill` | Optional mark color while `hue` is unmapped. |
 | `stack` | Optional `"stack"`, `"group"` or `"overlay"`; needs `hue`. |
@@ -118,6 +118,8 @@ curl -X POST https://charts.example.com/api/visuals \
 | `colorThreshold` | Optional `{field, at, below, above}`: color each hue level by which side of `at` its `field` value falls. Pinned as per-level colors; a level with values on both sides is an error. `colors` given with it wins for the levels it names. |
 | `stems` | Optional `{axis, at}`: a line from each point along `axis` to `at` on it (lollipops), or to the other axis's line without `at`. Scatter charts. |
 | `annotations` | Optional list, each in data values: `{kind: "band", x: [from, to], y: [from, to], color, opacity, label, front}`, `{kind: "line", x, y, color, thickness, dash, front}` or `{kind: "text", x, y, text, color}`. Numbers on a quantitative axis, level names on a categorical one. At most 20. |
+| `reshape` | Optional wide-to-long reshape, as the Reshape panel stores it: `{idFields, meltFields, variableName, valueName}`. Encodings, colors and orders may then name the new columns. In an edit, `null` turns it off. |
+| `derivedVariables` | Optional list of derived variables, as the Fields panel stores them, without ids: `{name, kind: "math", math: {formula}}`, `{name, kind: "concat", concat: {template}}` or `{name, kind: "rules", rules: {rules: [{condition, output}], fallback}}`. Checked with the panel's own rules; other spec keys may name them. In an edit, one with the same name replaces it. |
 
 The body is the spec as JSON, at most 64 KB (`SPEC_BODY_CAP_BYTES` in
 `server/src/limits.ts`). `?dryRun=1` or `?dryRun=true` runs every check and

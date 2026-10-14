@@ -15,6 +15,7 @@ import {
 } from "../contexts/chartBuilder/lib/visualSpec/composeVisual"
 import {
 	ALL_DATASETS,
+	CAFE,
 	contextFor,
 	RATIOS,
 	THEME,
@@ -148,5 +149,49 @@ describe("an edited chart renders", () => {
 		expect(fills).toContain("#ff8a00")
 		expect(fills).toContain("#8e81ee")
 		expect(fills).toContain("#eeeeee")
+	})
+})
+
+describe("a reshaped chart with a derived legend renders", () => {
+	it("draws its bars with the derived labels", async () => {
+		installInMemoryLocalStorage()
+		const result = composeVisual(
+			{
+				datasetId: CAFE.id,
+				folderId: null,
+				reshape: { idFields: ["month", "flavor"], meltFields: ["muffins", "coffees"], variableName: "item", valueName: "sold" },
+				derivedVariables: [
+					{
+						name: "Item label",
+						kind: "rules",
+						rules: { rules: [{ condition: '{item} == "muffins"', output: "Muffins sold" }], fallback: "Coffees sold" },
+					},
+				],
+				encodings: { x: "month", length: "sold", hue: "Item label" },
+			},
+			contextFor(ALL_DATASETS, CAFE.id)
+		)
+		if (!result.ok) throw new Error(result.errors.map((e) => `${e.path}: ${e.message}`).join("; "))
+		const store = bootEmbedRuntime({ visual: result.visual, dataset: CAFE, theme: THEME, fonts: [] })
+		const caught: Error[] = []
+		const { container } = render(
+			<ErrorBoundary
+				fallback={(error) => {
+					caught.push(error)
+					return <div data-testid="crashed" />
+				}}
+			>
+				<Provider store={store}>
+					<div style={{ width: 800, height: 600 }}>
+						<EmbedRoot part="full" visualId={result.visual.id} />
+					</div>
+				</Provider>
+			</ErrorBoundary>
+		)
+		await waitFor(() => {
+			expect(markRects(container).length).toBeGreaterThan(0)
+		})
+		expect(caught).toEqual([])
+		expect(container.textContent).toContain("Muffins sold")
 	})
 })
