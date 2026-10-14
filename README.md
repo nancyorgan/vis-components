@@ -120,6 +120,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `annotations` | Optional list, each in data values: `{kind: "band", x: [from, to], y: [from, to], color, opacity, label, front}`, `{kind: "line", x, y, color, thickness, dash, front}` or `{kind: "text", x, y, text, color}`. Numbers on a quantitative axis, level names on a categorical one. At most 20. |
 | `reshape` | Optional wide-to-long reshape, as the Reshape panel stores it: `{idFields, meltFields, variableName, valueName}`. Encodings, colors and orders may then name the new columns. In an edit, `null` turns it off. |
 | `derivedVariables` | Optional list of derived variables, as the Fields panel stores them, without ids: `{name, kind: "math", math: {formula}}`, `{name, kind: "concat", concat: {template}}` or `{name, kind: "rules", rules: {rules: [{condition, output}], fallback}}`. Checked with the panel's own rules; other spec keys may name them. In an edit, one with the same name replaces it. |
+| `settings` | Optional. Any other setting, by the name the editor stores it under, e.g. `{"channelConfigs": {"connection": {"strokeColor": "#ffffff"}}}` or `{"legendConfig": {"position": "top"}}`. Deep-merged last, into `channelConfigs`, `labelsConfig`, `legendConfig`, `tooltipConfig`, `dataLabelsConfig`, `captionConfig` and `mapConfig`. Every name must already exist on the chart (the maps a chart starts empty, such as per-level colors, take any key) and every value must keep its type. |
 
 The body is the spec as JSON, at most 64 KB (`SPEC_BODY_CAP_BYTES` in
 `server/src/limits.ts`). `?dryRun=1` or `?dryRun=true` runs every check and
@@ -190,6 +191,11 @@ the channels it can't be mapped with), the field types, and the chart
 families with the channels each quick-start variation fills. It is read from
 the same tables the editor uses, so a chart name that isn't listed isn't one
 the app knows.
+
+`GET /api/chart-spec/settings` lists every setting a `settings` patch can name,
+as `{path, type, value}`: a new chart's defaults, or with `?visualId=` that
+chart's own values. `?q=` keeps the paths containing each of its words, e.g.
+`?q=connection stroke`.
 
 ## Verifying changes
 

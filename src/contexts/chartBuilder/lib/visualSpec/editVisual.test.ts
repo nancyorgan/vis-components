@@ -607,3 +607,58 @@ describe("temporal axis bounds", () => {
 		expect(errorsOf(bad).map((e) => e.path)).toContain("axes.y.max")
 	})
 })
+
+describe("settings by their stored names", () => {
+	it("changes a setting the spec has no key for, and nothing else", () => {
+		const v0 = scatter()
+		const v1 = ok(edit(v0, { settings: { legendConfig: { position: "top" }, channelConfigs: { x: { tickCount: 7 } } } }))
+		expect(v1.legendConfig?.position).toBe("top")
+		expect(v1.channelConfigs.x?.tickCount).toBe(7)
+		expect({ ...v1.channelConfigs.x, tickCount: v0.channelConfigs.x?.tickCount }).toEqual(v0.channelConfigs.x)
+		expect(without(v1, "legendConfig", "channelConfigs")).toEqual(without(v0, "legendConfig", "channelConfigs"))
+	})
+
+	it("makes the lines between stacked areas white (Ford's case)", () => {
+		const areas = ok(
+			composeChartSpec(
+				{ datasetId: CAFE.id, folderId: null, family: "area", encodings: { x: "month", length: "muffins", hue: "flavor", connection: "flavor" } },
+				ctx(CAFE.id)
+			)
+		)
+		const v1 = ok(edit(areas, { settings: { channelConfigs: { connection: { strokeColor: "#ffffff", thickness: 2 } } } }))
+		expect(v1.channelConfigs.connection?.strokeColor).toBe("#ffffff")
+		expect(v1.channelConfigs.connection?.thickness).toBe(2)
+	})
+
+	it("refuses unknown names with a suggestion, and wrong types", () => {
+		const errors = errorsOf(
+			edit(scatter(), {
+				settings: {
+					legendConfig: { postion: "top" },
+					channelConfigs: { x: { tickCount: "7" } },
+					encodings: { x: { field: "Ratio" } },
+				},
+			})
+		)
+		const byPath = Object.fromEntries(errors.map((e) => [e.path, e.message]))
+		expect(byPath["settings.legendConfig.postion"]).toMatch(/did you mean "position"/)
+		expect(byPath["settings.channelConfigs.x.tickCount"]).toMatch(/number, not a string/)
+		expect(byPath["settings.encodings"]).toMatch(/isn't a settings slice/)
+	})
+
+	it("adds keys to the data-keyed maps a chart starts with empty", () => {
+		const v1 = ok(edit(scatter(), { settings: { dataLabelsConfig: { fieldFormats: { Ratio: ".2f" } } } }))
+		expect(v1.dataLabelsConfig?.fieldFormats?.Ratio).toBe(".2f")
+	})
+
+	it("works in a create, applied after the spec's own keys", () => {
+		const v = ok(
+			composeChartSpec(
+				{ datasetId: RATIOS.id, folderId: null, encodings: { x: "Ratio", y: "Country" }, title: "T", settings: { labelsConfig: { title: "Settings win" } } },
+				ctx(RATIOS.id)
+			)
+		)
+		expect(v.labelsConfig.title).toBe("Settings win")
+		expect(hydrateVisual(v)).toEqual(v)
+	})
+})

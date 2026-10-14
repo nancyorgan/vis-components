@@ -154,6 +154,8 @@ export type ChartSpec = {
 	/** Added after the chart's own; in an edit, one with the same name
 	 *  replaces it. */
 	derivedVariables?: DerivedVariableSpec[]
+	/** Settings by their stored names, deep-merged last (see settings.ts). */
+	settings?: Record<string, unknown>
 }
 
 /** A change to an existing chart: any spec key but `datasetId`. A channel
@@ -206,6 +208,7 @@ const TOP_LEVEL_KEYS = [
 	"annotations",
 	"reshape",
 	"derivedVariables",
+	"settings",
 ] as const
 
 const TOP_LEVEL_HINTS: Record<string, string> = {
@@ -780,6 +783,11 @@ const readExtras = (
 			return v
 		problem(path, `"${path.split(".").at(-1)}" must be a ${nonEmpty ? "non-empty " : ""}list of field names`)
 		return undefined
+	}
+
+	if (input.settings !== undefined) {
+		if (isRecord(input.settings) && Object.keys(input.settings).length > 0) draft.settings = input.settings
+		else problem("settings", `"settings" must be a non-empty object, e.g. {"legendConfig": {"position": "top"}}`)
 	}
 
 	if (input.reshape !== undefined) {

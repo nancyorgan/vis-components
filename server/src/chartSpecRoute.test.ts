@@ -439,3 +439,19 @@ describe("GET /api/chart-spec", () => {
 		expect((await fetch(`${base}/api/chart-spec`, { method: "POST" })).status).toBe(405)
 	})
 })
+
+describe("GET /api/chart-spec/settings", () => {
+	it("lists default settings, filters by words, and reads one visual's values", async () => {
+		const base = await start()
+		const all = (await (await fetch(`${base}/api/chart-spec/settings`)).json()) as { count: number; settings: Array<{ path: string; type: string }> }
+		expect(all.count).toBeGreaterThan(100)
+		expect(all.settings.every((s) => !s.path.startsWith("encodings"))).toBe(true)
+		const lines = (await (await fetch(`${base}/api/chart-spec/settings?q=connection%20stroke`)).json()) as { settings: Array<{ path: string }> }
+		expect(lines.settings.map((s) => s.path)).toContain("channelConfigs.connection.strokeColor")
+		const v0 = await created(base)
+		await patch(base, v0.id, { settings: { legendConfig: { position: "top" } } })
+		const mine = (await (await fetch(`${base}/api/chart-spec/settings?visualId=${v0.id}&q=legendConfig.position`)).json()) as { settings: Array<{ path: string; value: unknown }> }
+		expect(mine.settings.find((s) => s.path === "legendConfig.position")?.value).toBe("top")
+		expect((await fetch(`${base}/api/chart-spec/settings?visualId=vs-none`)).status).toBe(404)
+	})
+})

@@ -10,7 +10,7 @@ import { Readable } from "node:stream"
 import { createGunzip, createGzip, gunzipSync, gzipSync } from "node:zlib"
 
 import { chartVocabulary } from "../../src/contexts/chartBuilder/lib/visualSpec/vocabulary"
-import { createVisualFromSpec, editVisualFromSpec } from "./chartSpecRoute.js"
+import { createVisualFromSpec, editVisualFromSpec, listSettings } from "./chartSpecRoute.js"
 import type { ServerConfig } from "./config.js"
 import {
 	clearDatasetVersionRows,
@@ -255,6 +255,10 @@ const handleApi = async (
 	}
 
 	// What a chart spec can say: channels, field types, chart families.
+	if (collection === "chart-spec" && id === "settings") {
+		if (method !== "GET") throw new HttpError(405, "Method not allowed")
+		return listSettings(res, db, new URLSearchParams(rawQuery ?? ""))
+	}
 	if (collection === "chart-spec" && !id) {
 		if (method !== "GET") throw new HttpError(405, "Method not allowed")
 		return sendJson(res, 200, JSON.stringify(chartVocabulary()))

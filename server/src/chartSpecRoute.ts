@@ -31,7 +31,12 @@ import type {
 	SavedTheme,
 	Visual,
 } from "../../src/contexts/chartBuilder/lib/types"
-import { newVisualId } from "../../src/contexts/chartBuilder/lib/visualDefaults"
+import {
+	hydrateVisual,
+	newVisualDraft,
+	newVisualId,
+} from "../../src/contexts/chartBuilder/lib/visualDefaults"
+import { flattenSettings } from "../../src/contexts/chartBuilder/lib/visualSpec/settings"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/visualSpec/chartSpec"
 import {
 	composeChartEdit,
@@ -252,6 +257,34 @@ export const editVisualFromSpec = async (
 			editorUrl: `${config.baseUrl}/editor/${id}`,
 		})
 	)
+}
+
+/** GET /api/chart-spec/settings: every setting a `settings` patch can
+ *  name, as `{path, type, value}`: a new visual's defaults under the
+ *  server's default theme, or with `?visualId=` that visual's own values.
+ *  `?q=` keeps the paths containing each of its words (case-insensitive). */
+export const listSettings = (
+	res: ServerResponse,
+	db: DatabaseSync,
+	query: URLSearchParams
+): void => {
+	const visualId = query.get("visualId")
+	let visual: Visual
+	if (visualId !== null) {
+		const stored = isSafeId(visualId) ? readVisualBody(db, visualId) : undefined
+		const parsed = stored === undefined ? undefined : (parseJson(stored) as Visual | undefined)
+		if (!parsed) throw new HttpError(404, "Not found")
+		visual = hydrateVisual(parsed)
+	} else {
+		const themes = loadThemes(db)
+		const saved = themes.find((t) => t.id === defaultThemeId(db)) ?? SYSTEM_LIGHT_THEME
+		visual = newVisualDraft(themeOf(saved)) as Visual
+	}
+	const words = (query.get("q") ?? "").toLowerCase().split(/\s+/).filter(Boolean)
+	const rows = flattenSettings(visual).filter((r) =>
+		words.every((w) => r.path.toLowerCase().includes(w))
+	)
+	return sendJson(res, 200, JSON.stringify({ count: rows.length, settings: rows }))
 }
 
 export const createVisualFromSpec = async (

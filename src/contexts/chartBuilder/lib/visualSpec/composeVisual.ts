@@ -87,6 +87,7 @@ import {
 	type SpecChannel,
 	type SpecProblem,
 } from "./chartSpec"
+import { applySettings, settingsProblems, type SettingsPatch } from "./settings"
 import { didYouMean } from "./suggest"
 
 /** What a spec is composed against. The caller looks up the spec's dataset
@@ -809,6 +810,11 @@ const compose = (
 		for (const [channel, field] of changed) {
 			if (field === null) visual.encodings[channel] = { field: null }
 		}
+	}
+	if (spec.settings) {
+		const problems = settingsProblems(spec.settings, visual)
+		if (problems.length > 0) return { ok: false, errors: capProblems(problems) }
+		return { ok: true, visual: applySettings(visual, spec.settings as SettingsPatch), warnings }
 	}
 	return { ok: true, visual, warnings }
 }
