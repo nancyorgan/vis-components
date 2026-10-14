@@ -29,16 +29,25 @@ import type {
 	DatasetMeta,
 	Folder,
 	SavedTheme,
+	Visual,
 } from "../../src/contexts/chartBuilder/lib/types"
 import { newVisualId } from "../../src/contexts/chartBuilder/lib/visualDefaults"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/visualSpec/chartSpec"
 import {
+	composeChartEdit,
 	composeChartSpec,
 	type ComposeContext,
 } from "../../src/contexts/chartBuilder/lib/visualSpec/composeVisual"
 import type { ServerConfig } from "./config.js"
 import { readDatasetFile, readDatasetVersionFile, isSafeId } from "./datasetFiles.js"
-import { insertVisual, listContentVersions, listRows, readDatasetMeta } from "./db.js"
+import {
+	insertVisual,
+	listContentVersions,
+	listRows,
+	readDatasetMeta,
+	readVisualBody,
+	replaceVisualIfUnchanged,
+} from "./db.js"
 import { HttpError, readBody, sendJson } from "./http.js"
 import { SPEC_BODY_CAP_BYTES } from "./limits.js"
 
@@ -150,6 +159,94 @@ const DRY_RUN_VALUES: Record<string, boolean> = {
 	false: false,
 }
 
+/** The `?dryRun` flag, or a 400 already sent (undefined). */
+const readDryRun = (res: ServerResponse, query: URLSearchParams): boolean | undefined => {
+	const raw = query.get("dryRun")
+	if (raw !== null && !Object.hasOwn(DRY_RUN_VALUES, raw)) {
+		specErrors(res, [
+			{ path: "?dryRun", message: `"dryRun" must be "1", "true", "0" or "false"` },
+		])
+		return undefined
+	}
+	return raw !== null && DRY_RUN_VALUES[raw] === true
+}
+
+const loadFolders = (db: DatabaseSync): Folder[] =>
+	listRows(db, "folders")
+		.map(({ body }) => parseJson(body) as Folder | undefined)
+		.filter((f): f is Folder => typeof f?.id === "string")
+
+/** PATCH /api/visuals/<id>: apply a chart edit (the spec keys it names,
+ *  nothing else) to a stored visual, checked like a create. `If-Match`
+ *  carries the `updatedAt` the caller last read; a visual changed since, or
+ *  changed while this request ran, answers 409 and is left alone. A
+ *  trashed visual answers 409. `?dryRun=1` answers with the edited visual
+ *  and writes nothing. */
+export const editVisualFromSpec = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	db: DatabaseSync,
+	config: ServerConfig,
+	id: string,
+	query: URLSearchParams
+): Promise<void> => {
+	const dryRun = readDryRun(res, query)
+	if (dryRun === undefined) return
+	const text = (await readBody(req, SPEC_BODY_CAP_BYTES)).toString("utf-8")
+	const input = parseJson(text)
+	if (input === undefined) {
+		return specErrors(res, [{ path: "", message: "the body must be valid JSON" }])
+	}
+	assertStampsCurrent(db)
+
+	const stored = readVisualBody(db, id)
+	if (stored === undefined) throw new HttpError(404, "Not found")
+	const visual = parseJson(stored) as Visual | undefined
+	if (!visual || typeof visual !== "object" || visual.id !== id) {
+		throw new HttpError(500, "The stored visual isn't readable")
+	}
+	if (visual.deletedAt) {
+		throw new HttpError(409, "This visual is in the trash; restore it before editing")
+	}
+	const ifMatch = req.headers["if-match"]
+	if (ifMatch !== undefined) {
+		const wanted = String(ifMatch).replace(/^W\//, "").replace(/"/g, "").trim()
+		if (wanted !== String(visual.updatedAt)) {
+			throw new HttpError(
+				409,
+				`This visual changed since it was read (updatedAt ${String(visual.updatedAt)}, expected ${wanted}); read it again`
+			)
+		}
+	}
+
+	const themes = loadThemes(db)
+	const saved =
+		themes.find((t) => t.id === (visual.themeId ?? defaultThemeId(db))) ?? SYSTEM_LIGHT_THEME
+	const result = composeChartEdit(visual, input, {
+		dataset: await loadDataset(db, config.dataDir, visual.datasetId, undefined),
+		folders: loadFolders(db),
+		theme: themeOf(saved),
+		themeId: visual.themeId ?? null,
+		now: Math.max(Date.now(), (visual.updatedAt ?? 0) + 1),
+	})
+	if (!result.ok) return specErrors(res, result.errors)
+	const { warnings, visual: edited } = result
+	if (dryRun) return sendJson(res, 200, JSON.stringify({ visual: edited, warnings }))
+	if (!replaceVisualIfUnchanged(db, id, stored, JSON.stringify({ ...edited, thumbnail: null }))) {
+		throw new HttpError(409, "This visual changed while the edit ran; read it again")
+	}
+	return sendJson(
+		res,
+		200,
+		JSON.stringify({
+			id,
+			visual: edited,
+			warnings,
+			editorUrl: `${config.baseUrl}/editor/${id}`,
+		})
+	)
+}
+
 export const createVisualFromSpec = async (
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -158,13 +255,8 @@ export const createVisualFromSpec = async (
 	query: URLSearchParams,
 	mintId: () => string = newVisualId
 ): Promise<void> => {
-	const rawDryRun = query.get("dryRun")
-	if (rawDryRun !== null && !Object.hasOwn(DRY_RUN_VALUES, rawDryRun)) {
-		return specErrors(res, [
-			{ path: "?dryRun", message: `"dryRun" must be "1", "true", "0" or "false"` },
-		])
-	}
-	const dryRun = rawDryRun !== null && DRY_RUN_VALUES[rawDryRun] === true
+	const dryRun = readDryRun(res, query)
+	if (dryRun === undefined) return
 	const text = (await readBody(req, SPEC_BODY_CAP_BYTES)).toString("utf-8")
 	const input = parseJson(text)
 	if (input === undefined) {
@@ -183,9 +275,7 @@ export const createVisualFromSpec = async (
 	const saved =
 		themes.find((t) => t.id === wantedThemeId) ??
 		(typeof spec.themeId === "string" ? undefined : SYSTEM_LIGHT_THEME)
-	const folders = listRows(db, "folders")
-		.map(({ body }) => parseJson(body) as Folder | undefined)
-		.filter((f): f is Folder => typeof f?.id === "string")
+	const folders = loadFolders(db)
 
 	const id = mintId()
 	const result = composeChartSpec(input, {

@@ -283,6 +283,33 @@ export const insertVisual = (
 	return result.changes > 0
 }
 
+/** One visual's stored body, without its thumbnail; undefined if absent. */
+export const readVisualBody = (db: DatabaseSync, id: string): string | undefined =>
+	(
+		db.prepare(`SELECT body FROM ${JSON_TABLES.visuals} WHERE id = ?`).get(id) as
+			| { body: string }
+			| undefined
+	)?.body
+
+/** Replace a visual's body only if it still equals `expected`, clearing its
+ *  thumbnail, which no longer shows the chart. False when someone else
+ *  wrote it first. */
+export const replaceVisualIfUnchanged = (
+	db: DatabaseSync,
+	id: string,
+	expected: string,
+	body: string
+): boolean => {
+	const { stripped } = splitThumbnail(body)
+	const result = db
+		.prepare(
+			`UPDATE ${JSON_TABLES.visuals} SET body = ?, thumbnail = NULL, updated_at = ?
+			 WHERE id = ? AND body = ?`
+		)
+		.run(stripped, new Date().toISOString(), id, expected)
+	return result.changes > 0
+}
+
 /** Delete one item. Idempotent — deleting a missing id is a no-op. */
 export const deleteBody = (
 	db: DatabaseSync,

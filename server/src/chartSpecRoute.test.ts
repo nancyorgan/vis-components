@@ -291,3 +291,134 @@ describe("PUT /api/visuals/:id is unchanged", () => {
 		)
 	})
 })
+
+const patch = (base: string, id: string, edit: unknown, headers: Record<string, string> = {}, query = "") =>
+	fetch(`${base}/api/visuals/${id}${query}`, {
+		method: "PATCH",
+		headers,
+		body: typeof edit === "string" ? edit : JSON.stringify(edit),
+	})
+
+/** A created chart, as GET returns it. */
+const created = async (base: string): Promise<Visual> => {
+	await seedDataset(base, CAFE)
+	const res = await post(base, cafe({ title: "Muffins" }))
+	expect(res.status).toBe(201)
+	return ((await res.json()) as { visual: Visual }).visual
+}
+
+describe("PATCH /api/visuals/<id>", () => {
+	it("applies an edit that GET then returns", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, { title: "More muffins" }, { "if-match": String(v0.updatedAt) })
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { id: string; visual: Visual; editorUrl: string }
+		expect(body.visual.labelsConfig.title).toBe("More muffins")
+		expect(body.visual.updatedAt).toBeGreaterThan(v0.updatedAt)
+		expect(body.editorUrl).toBe(`https://charts.example.com/editor/${v0.id}`)
+		const [stored] = await visuals(base)
+		expect(stored).toEqual({ ...body.visual, thumbnail: null })
+		expect(hydrateVisual(stored as Visual)).toEqual(stored)
+	})
+
+	it("refuses when the chart changed since it was read", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, { title: "x" }, { "if-match": String(v0.updatedAt - 1) })
+		expect(res.status).toBe(409)
+		expect(((await res.json()) as { error: string }).error).toMatch(/changed since it was read/)
+		expect((await visuals(base))[0]?.labelsConfig.title).toBe("Muffins")
+	})
+
+	it("accepts a quoted If-Match", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, { title: "q" }, { "if-match": `"${v0.updatedAt}"` })
+		expect(res.status).toBe(200)
+	})
+
+	it("checks without saving on ?dryRun=1", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, { title: "dry" }, {}, "?dryRun=1")
+		expect(res.status).toBe(200)
+		expect(((await res.json()) as { visual: Visual }).visual.labelsConfig.title).toBe("dry")
+		expect((await visuals(base))[0]).toEqual(v0)
+	})
+
+	it("reports every problem with its path and saves nothing", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, { encodings: { x: "nope" }, colors: { Mint: "#000" }, wat: 1 })
+		expect(res.status).toBe(400)
+		const { errors } = (await res.json()) as { errors: Array<{ path: string }> }
+		expect(errors.map((e) => e.path).sort()).toEqual(["colors.Mint", "encodings.x", "wat"])
+		expect((await visuals(base))[0]).toEqual(v0)
+	})
+
+	it("answers 404 for an unknown visual and 400 for a bad id", async () => {
+		const base = await start()
+		await created(base)
+		expect((await patch(base, "vs-missing", { title: "x" })).status).toBe(404)
+		expect((await patch(base, "..%2Fx", { title: "x" })).status).toBe(400)
+	})
+
+	it("refuses a trashed visual", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		await put(base, `/api/visuals/${v0.id}`, { ...v0, deletedAt: 1 })
+		const res = await patch(base, v0.id, { title: "x" })
+		expect(res.status).toBe(409)
+	})
+
+	it("refuses invalid JSON and an over-cap body", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		expect((await patch(base, v0.id, "{")).status).toBe(400)
+		const big = JSON.stringify({ title: "x".repeat(SPEC_BODY_CAP_BYTES) })
+		const outcome = await patch(base, v0.id, big).then(
+			(r) => r.status,
+			() => "closed"
+		)
+		expect([413, "closed"]).toContain(outcome)
+		expect((await visuals(base))[0]).toEqual(v0)
+	})
+
+	it("clears the stale thumbnail and keeps the chart otherwise", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		await put(base, `/api/visuals/${v0.id}`, { ...v0, thumbnail: "data:image/png;base64,AAAA" })
+		const [withThumb] = await visuals(base)
+		expect(withThumb?.thumbnail).toBe("data:image/png;base64,AAAA")
+		const res = await patch(base, v0.id, { subtitle: "s" })
+		expect(res.status).toBe(200)
+		expect((await visuals(base))[0]?.thumbnail).toBeNull()
+	})
+
+	it("does not take POST-only or PATCH on other collections", async () => {
+		const base = await start()
+		expect((await fetch(`${base}/api/folders/fl-x`, { method: "PATCH", body: "{}" })).status).toBe(405)
+	})
+})
+
+describe("GET /api/chart-spec", () => {
+	it("lists channels and the families of the quick-start decision tree", async () => {
+		const base = await start()
+		const res = await fetch(`${base}/api/chart-spec`)
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as {
+			channels: Array<{ channel: string; conflictsWith: string[] }>
+			families: Array<{ family: string; variations: Array<{ name: string; sameFieldAs?: object }> }>
+		}
+		expect(body.channels.map((c) => c.channel)).toContain("hue")
+		expect(body.channels.map((c) => c.channel)).not.toContain("text")
+		expect(body.channels.find((c) => c.channel === "r")?.conflictsWith).toEqual(
+			expect.arrayContaining(["x", "y", "length"])
+		)
+		const dumbbell = body.families.find((f) => f.family === "dumbbell")
+		expect(dumbbell?.variations[0]).toMatchObject({ name: "Dumbbell", sameFieldAs: { connection: "y" } })
+		expect(body.families.map((f) => f.family)).not.toContain("lollipop")
+		expect((await fetch(`${base}/api/chart-spec`, { method: "POST" })).status).toBe(405)
+	})
+})
