@@ -27,6 +27,7 @@ import {
 	rectangleStyleFromTheme,
 	textAnnotationStyleFromTheme,
 } from "../themeConfig"
+import { applyDerivedVariablesToView } from "../derivedVariables"
 import { applyDollarConversionToView } from "../dollarCells"
 import { effectiveType } from "../fieldType"
 import { applyPercentConversionToView } from "../percentCells"
@@ -36,6 +37,7 @@ import {
 	type QuickStartChartType,
 	type QuickStartVariation,
 } from "../quickStartVariations"
+import { applyReshapeToView } from "../reshape"
 import { resolveDatasetViewFromMeta } from "../resolveDatasetVersion"
 import { parseNumericCell, parseValue } from "../scales"
 import {
@@ -192,10 +194,36 @@ const compose = (
 			`dataset "${dataset.meta.name}" has no version "${spec.datasetVersionId}"`
 		)
 	}
-	const view: DatasetView | undefined = dataset
+	const raw: DatasetView | undefined = dataset
 		? resolveDatasetViewFromMeta(dataset.meta, dataset.rows, spec.datasetVersionId)
 		: undefined
-	if (!view) return { ok: false, errors: capProblems(errors) }
+	if (!raw) return { ok: false, errors: capProblems(errors) }
+	const hydrated = base ? hydrateVisual(base) : undefined
+
+	// No prototype, so a field named "constructor" or "toString" reads as
+	// unset rather than as an Object.prototype member.
+	const overrides: Record<string, FieldType> = Object.create(null)
+	for (const [field, type] of Object.entries(base?.fieldTypeOverrides ?? {})) {
+		overrides[field] = type
+	}
+	for (const [field, type] of Object.entries(spec.fieldTypes ?? {})) {
+		overrides[field] = type
+	}
+
+	// The data as the editor shows it for this visual: its reshape, the
+	// percent and dollar conversions an override switches on, then its
+	// derived variables.
+	const converted = applyDollarConversionToView(
+		applyPercentConversionToView(
+			hydrated ? applyReshapeToView(raw, hydrated.reshapeConfig) : raw,
+			overrides
+		),
+		overrides
+	)
+	const view =
+		(hydrated
+			? applyDerivedVariablesToView(converted, hydrated.derivedVariablesConfig)
+			: converted) ?? raw
 
 	const fieldNames = view.fields.map((f) => f.name)
 	const hasField = (name: string) => fieldNames.includes(name)
@@ -205,29 +233,20 @@ const compose = (
 			`no field "${named(name)}" in dataset "${view.name}"${hint(name, fieldNames)}`
 		)
 
-	// No prototype, so a field named "constructor" or "toString" reads as
-	// unset rather than as an Object.prototype member.
-	const overrides: Record<string, FieldType> = Object.create(null)
-	for (const [field, type] of Object.entries(base?.fieldTypeOverrides ?? {})) {
-		overrides[field] = type
-	}
-	for (const [field, type] of Object.entries(spec.fieldTypes ?? {})) {
-		if (hasField(field)) overrides[field] = type
-		else missingField(pathOf("fieldTypes", field), field)
+	for (const field of Object.keys(spec.fieldTypes ?? {})) {
+		if (hasField(field)) continue
+		missingField(pathOf("fieldTypes", field), field)
+		if (base?.fieldTypeOverrides?.[field] !== undefined) {
+			overrides[field] = base.fieldTypeOverrides[field]
+		} else {
+			delete overrides[field]
+		}
 	}
 	const typeOf = (field: string): FieldType => effectiveType(view, field, overrides)
 
-	// The cells as the renderer reads them, after the percent and dollar
-	// conversions an override can switch on.
-	const converted = applyDollarConversionToView(
-		applyPercentConversionToView(view, overrides),
-		overrides
-	)
 	for (const [field, type] of Object.entries(spec.fieldTypes ?? {})) {
 		if (!hasField(field) || (type !== "quantitative" && type !== "temporal")) continue
-		const parses = (converted?.rows ?? []).some(
-			(r) => parseValue(r[field], type) !== null
-		)
+		const parses = view.rows.some((r) => parseValue(r[field], type) !== null)
 		if (!parses) {
 			problem(
 				pathOf("fieldTypes", field),
@@ -307,7 +326,7 @@ const compose = (
 		)
 		encodingsOk = false
 	}
-	if (base && active.length === 0) {
+	if (base && active.length === 0 && changed.some(([, f]) => f === null)) {
 		problem("encodings", "an edit can't unmap every channel")
 	}
 
@@ -356,7 +375,7 @@ const compose = (
 			problem("colorThreshold.field", `"${t.field}" is ${typeOf(t.field)}; the threshold needs a quantitative field`)
 		} else {
 			const sides = new Map<string, Set<"below" | "above">>()
-			for (const row of converted?.rows ?? view.rows) {
+			for (const row of view.rows) {
 				const level = row[hueField] ?? ""
 				const n = parseNumericCell(row[t.field])
 				if (n === null) continue
@@ -439,7 +458,7 @@ const compose = (
 		}
 		sorted[field] = {
 			levels: orderLevelsByField(
-				converted?.rows ?? view.rows,
+				view.rows,
 				field,
 				type,
 				want.by,
@@ -555,8 +574,8 @@ const compose = (
 	let start: Visual & VisualDraft
 	let channelConfigs: ChannelConfigs
 	let dataLabelsEncodings: DataLabelsEncodings
-	if (base) {
-		start = hydrateVisual(base)
+	if (hydrated) {
+		start = hydrated
 		channelConfigs = { ...start.channelConfigs }
 		dataLabelsEncodings = { ...start.dataLabelsEncodings }
 		if (spec.encodings.length === null) channelConfigs.defaultLength = null
@@ -592,8 +611,8 @@ const compose = (
 			id: ctx.id,
 			name: "",
 			folderId: null,
-			datasetId: view.id,
-			createdAtVersionId: view.versionId,
+			datasetId: raw.id,
+			createdAtVersionId: raw.versionId,
 			fieldTypeOverrides: {},
 			encodings: scaffold.encodings,
 			thumbnail: null,
