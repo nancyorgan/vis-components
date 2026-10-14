@@ -598,7 +598,7 @@ describe("temporal axis bounds", () => {
 				ctx(DATES.id)
 			)
 		)
-		expect(v.channelConfigs.x?.min).toBe(Date.parse("2026-01-01"))
+		expect(v.channelConfigs.x?.min).toBe(new Date(2026, 0, 1).getTime())
 		expect(v.channelConfigs.x?.max).toBe(1767484800000)
 		const bad = composeChartSpec(
 			{ datasetId: DATES.id, folderId: null, encodings: { x: "day", y: "n" }, axes: { y: { max: "2026-01-01" } } },
@@ -660,5 +660,104 @@ describe("settings by their stored names", () => {
 		)
 		expect(v.labelsConfig.title).toBe("Settings win")
 		expect(hydrateVisual(v)).toEqual(v)
+	})
+})
+
+describe("settings review findings", () => {
+	const labelled = () =>
+		ok(
+			composeChartSpec(
+				{ datasetId: CAFE.id, folderId: null, encodings: { x: "month", length: "muffins", hue: "flavor" }, dataLabels: true },
+				ctx(CAFE.id)
+			)
+		)
+
+	it("refuses a wrong-typed value in a data-keyed map", () => {
+		const errors = errorsOf(edit(labelled(), { settings: { dataLabelsConfig: { fieldFormats: { muffins: 5 } } } }))
+		expect(errors[0]).toMatchObject({ path: "settings.dataLabelsConfig.fieldFormats.muffins" })
+		const colors = errorsOf(edit(labelled(), { settings: { channelConfigs: { hue: { colors: { Bran: 5, Lemon: { x: 1 } } } } } }))
+		expect(colors.map((e) => e.path)).toEqual(
+			expect.arrayContaining(["settings.channelConfigs.hue.colors.Bran", "settings.channelConfigs.hue.colors.Lemon"])
+		)
+		expect(errorsOf(edit(labelled(), { settings: { legendConfig: { hidden: { hue: "yes" } } } }))[0]?.message).toMatch(/boolean/)
+	})
+
+	it("adds keys to a data-keyed map that already has entries", () => {
+		const v1 = ok(edit(labelled(), { settings: { legendConfig: { hidden: { hue: true } } } }))
+		const v2 = ok(edit(v1, { settings: { legendConfig: { hidden: { shape: true } }, dataLabelsConfig: { fieldFormats: { muffins: ".0f" } } } }))
+		const v3 = ok(edit(v2, { settings: { dataLabelsConfig: { fieldFormats: { coffees: ".1f" } } } }))
+		expect(v3.legendConfig?.hidden).toEqual({ hue: true, shape: true })
+		expect(v3.dataLabelsConfig?.fieldFormats).toEqual({ muffins: ".0f", coffees: ".1f" })
+	})
+
+	it("reports settings problems together with the others in an edit", () => {
+		const errors = errorsOf(edit(labelled(), { title: 5, settings: { legendConfig: { postion: "top" } } } as never))
+		expect(errors.map((e) => e.path)).toEqual(expect.arrayContaining(["title", "settings.legendConfig.postion"]))
+	})
+
+	it("points axis bounds at the axes key", () => {
+		expect(errorsOf(edit(labelled(), { settings: { channelConfigs: { y: { min: 0 } } } }))[0]?.message).toMatch(/"axes"/)
+	})
+
+	it("refuses an empty slice, and constructor as a key", () => {
+		expect(errorsOf(edit(labelled(), { settings: { legendConfig: {} } }))[0]?.path).toBe("settings.legendConfig")
+		expect(errorsOf(edit(labelled(), { settings: { channelConfigs: { hue: { colors: { constructor: "#fff" } } } } }))[0]?.message).toMatch(/can't be used/)
+	})
+
+	it("sets hue colors through settings in a create", () => {
+		const v = ok(
+			composeChartSpec(
+				{ datasetId: CAFE.id, folderId: null, encodings: { x: "month", length: "muffins", hue: "flavor" }, settings: { channelConfigs: { hue: { colors: { Bran: "#123456" } } } } },
+				ctx(CAFE.id)
+			)
+		)
+		const hue = v.channelConfigs.hue
+		expect(hue?.kind === "categorical" ? hue.colors.Bran : null).toBe("#123456")
+	})
+})
+
+describe("temporal and removal review findings", () => {
+	const line = () => ok(composeChartSpec({ datasetId: DATES.id, folderId: null, encodings: { x: "day", y: "n" } }, ctx(DATES.id)))
+
+	it("reads dates as local midnight, a year as Jan 1, and refuses impossible days", () => {
+		const v = ok(edit(line(), { axes: { x: { min: "2026", max: "2026-02" } } }))
+		expect(v.channelConfigs.x?.min).toBe(new Date(2026, 0, 1).getTime())
+		expect(v.channelConfigs.x?.max).toBe(new Date(2026, 1, 1).getTime())
+		expect(errorsOf(edit(line(), { axes: { x: { max: "2026-02-30" } } }))[0]?.path).toBe("axes.x.max")
+	})
+
+	it("refuses a year given as a number on a temporal axis", () => {
+		expect(errorsOf(edit(line(), { axes: { x: { min: 2020 } } }))[0]?.message).toMatch(/epoch milliseconds/)
+	})
+
+	it("refuses bounds on a bar chart's banded date axis", () => {
+		const bars = ok(composeChartSpec({ datasetId: DATES.id, folderId: null, encodings: { x: "day", length: "n" } }, ctx(DATES.id)))
+		expect(errorsOf(edit(bars, { axes: { x: { min: "2026-01-02" } } }))[0]?.message).toMatch(/one band per value/)
+	})
+
+	it("clears a bound with null in an edit", () => {
+		const v1 = ok(edit(line(), { axes: { y: { min: 0, max: 9 } } }))
+		const v2 = ok(edit(v1, { axes: { y: { max: null } } }))
+		expect(v2.channelConfigs.y?.min).toBe(0)
+		expect(v2.channelConfigs.y && "max" in v2.channelConfigs.y).toBe(false)
+	})
+
+	it("refuses a rule naming a field that isn't there", () => {
+		const r = edit(scatter(), {
+			derivedVariables: [{ name: "Big", kind: "rules", rules: { rules: [{ condition: "{Nope} > 1", output: "yes" }], fallback: "no" } }],
+		})
+		expect(errorsOf(r)[0]?.message).toMatch(/\{Nope\} isn't a variable/)
+	})
+
+	it("removes a derived variable by name", () => {
+		const v1 = ok(edit(scatter(), { derivedVariables: [{ name: "Twice", kind: "math", math: { formula: "{Ratio} * 2" } }] }))
+		const v2 = ok(edit(v1, { removeDerivedVariables: ["Twice"] }))
+		expect(v2.derivedVariablesConfig?.variables).toEqual([])
+		expect(errorsOf(edit(v2, { removeDerivedVariables: ["Twice"] }))[0]?.path).toBe("removeDerivedVariables")
+	})
+
+	it("hints at channels whatever the case", () => {
+		const r = composeChartSpec({ datasetId: CAFE.id, folderId: null, encodings: { x: "month", Size: "muffins" } }, ctx(CAFE.id))
+		expect(errorsOf(r)[0]?.message).toMatch(/"area" or "length"/)
 	})
 })

@@ -25,6 +25,7 @@ import {
 	type FieldType,
 } from "../types"
 import { CHANNELS } from "../channels"
+import { parseLocalDate } from "../localDate"
 import { didYouMean } from "./suggest"
 
 /** Every channel except the legacy `text`, which data labels replaced. */
@@ -37,8 +38,8 @@ export type AxisSpec = {
 	title?: string
 	/** Domain bounds, quantitative or measure axes only. */
 	/** A number, or on a temporal axis a date ("2020-01-01") or epoch ms. */
-	min?: number | string
-	max?: number | string
+	min?: number | string | null
+	max?: number | string | null
 	/** Tick format, in the Format box's grammar (d3-format and affixes). */
 	format?: string
 }
@@ -165,6 +166,8 @@ export type ChartEdit = Partial<Omit<ChartSpec, "datasetId" | "encodings">> & {
 	/** Annotation kinds to remove, every one of that kind, before any
 	 *  `annotations` are added. */
 	removeAnnotations?: AnnotationSpec["kind"][]
+	/** Derived variables to delete, by name. */
+	removeDerivedVariables?: string[]
 }
 
 /** One problem with a spec: where (`encodings.x`, `colors["U.S."]`; "" for
@@ -183,6 +186,8 @@ export type ChartSpecDraft = Omit<ChartSpec, "datasetId" | "folderId" | "encodin
 	/** null only in an edit: unmap the channel. */
 	encodings: Partial<Record<SpecChannel, string | null>>
 	removeAnnotations?: AnnotationSpec["kind"][]
+	/** Derived variables to delete, by name. */
+	removeDerivedVariables?: string[]
 }
 
 const TOP_LEVEL_KEYS = [
@@ -261,6 +266,18 @@ const BAR_LABEL_POSITIONS: readonly BarLabelPosition[] = [
 
 /** 2020, 2020-03, 2020-03-01, optionally with a time. */
 const ISO_DATE = /^\d{4}(-\d{2}(-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/
+
+/** A spec date as epoch ms the way the editor's date boxes read it: a
+ *  bare year or month is its first day, a date is local midnight, an
+ *  impossible day (2024-02-31) is NaN. */
+export const specDateMs = (raw: string): number => {
+	if (!ISO_DATE.test(raw)) return Number.NaN
+	const day = /^\d{4}$/.test(raw) ? `${raw}-01-01` : /^\d{4}-\d{2}$/.test(raw) ? `${raw}-01` : raw
+	return parseLocalDate(day)
+}
+
+/** Below this a number on a temporal axis is surely a year, not epoch ms. */
+export const MIN_EPOCH_MS = 1e11
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
 
@@ -369,7 +386,7 @@ export const readChartSpec = (
 			continue
 		}
 		if ((TOP_LEVEL_KEYS as readonly string[]).includes(key)) continue
-		if (edit && key === "removeAnnotations") continue
+		if (edit && (key === "removeAnnotations" || key === "removeDerivedVariables")) continue
 		problem(
 			pathOf(key),
 			`unknown key "${named(key)}"${ownHint(TOP_LEVEL_HINTS, key) ?? hint(key, TOP_LEVEL_KEYS)}`
@@ -441,7 +458,7 @@ export const readChartSpec = (
 			if (!channel) {
 				problem(
 					path,
-					`unknown channel "${named(name)}"${ownHint(CHANNEL_HINTS, name) ?? hint(name, [...SPEC_CHANNELS, ...SPEC_CHANNELS.map((c) => CHANNELS[c].label)])}`
+					`unknown channel "${named(name)}"${ownHint(CHANNEL_HINTS, name.toLowerCase()) ?? hint(name, [...SPEC_CHANNELS, ...SPEC_CHANNELS.map((c) => CHANNELS[c].label)])}`
 				)
 			} else if (twin !== undefined) {
 				problem(path, `"${name}" and "${twin}" are the same channel ("${channel}")`)
@@ -510,10 +527,12 @@ export const readChartSpec = (
 					const v = raw[bound]
 					if (v === undefined) continue
 					if (typeof v === "number" && Number.isFinite(v)) spec[bound] = v
-					else if (typeof v === "string" && ISO_DATE.test(v) && !Number.isNaN(Date.parse(v))) spec[bound] = v
+					else if (typeof v === "string" && !Number.isNaN(specDateMs(v))) spec[bound] = v
+					else if (edit && v === null) spec[bound] = null
 					else problem(pathOf("axes", axis, bound), `"${bound}" must be a finite number, or a date like "2020-01-01" on a temporal axis`)
 				}
-				const asNumber = (b: number | string | undefined) => (typeof b === "string" ? Date.parse(b) : b)
+				const asNumber = (b: number | string | null | undefined) =>
+					typeof b === "string" ? specDateMs(b) : b === null ? undefined : b
 				const lo = asNumber(spec.min)
 				const hi = asNumber(spec.max)
 				if (lo !== undefined && hi !== undefined && lo >= hi) {
@@ -634,6 +653,13 @@ export const readChartSpec = (
 	}
 
 	readExtras(input, draft, problem, hint, () => errors.length)
+
+	if (edit && input.removeDerivedVariables !== undefined) {
+		const names = input.removeDerivedVariables
+		if (Array.isArray(names) && names.length > 0 && names.every((n) => typeof n === "string" && n !== ""))
+			draft.removeDerivedVariables = [...new Set(names as string[])]
+		else problem("removeDerivedVariables", `"removeDerivedVariables" must be a list of variable names`)
+	}
 
 	if (edit && input.removeAnnotations !== undefined) {
 		const kinds = input.removeAnnotations

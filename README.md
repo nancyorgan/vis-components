@@ -107,7 +107,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
 | `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines, a map goes geographic), except the stack mode, which only `stack` sets. Encodings that fill none of its variations are an error naming what is missing. |
 | `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
-| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis (numbers) or a temporal axis (dates like `"2020-01-01"`, or epoch ms); `format` is what the axis Format box takes, on any axis. |
+| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis (numbers) or a temporal axis (dates like `"2020"`, `"2020-03"` or `"2020-01-01"`, read as local midnight as the editor's date boxes do, or epoch ms; a bar chart's banded date axis takes none); in an edit, `null` clears a bound; `format` is what the axis Format box takes, on any axis. |
 | `colors` | Optional hue level → `#rgb`/`#rrggbb`. Needs a categorical or ordinal `hue`, and every level must be in the data. |
 | `fill` | Optional mark color while `hue` is unmapped. |
 | `stack` | Optional `"stack"`, `"group"` or `"overlay"`; needs `hue`. |
@@ -120,7 +120,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `annotations` | Optional list, each in data values: `{kind: "band", x: [from, to], y: [from, to], color, opacity, label, front}`, `{kind: "line", x, y, color, thickness, dash, front}` or `{kind: "text", x, y, text, color}`. Numbers on a quantitative axis, level names on a categorical one. At most 20. |
 | `reshape` | Optional wide-to-long reshape, as the Reshape panel stores it: `{idFields, meltFields, variableName, valueName}`. Encodings, colors and orders may then name the new columns. In an edit, `null` turns it off. |
 | `derivedVariables` | Optional list of derived variables, as the Fields panel stores them, without ids: `{name, kind: "math", math: {formula}}`, `{name, kind: "concat", concat: {template}}` or `{name, kind: "rules", rules: {rules: [{condition, output}], fallback}}`. Checked with the panel's own rules; other spec keys may name them. In an edit, one with the same name replaces it. |
-| `settings` | Optional. Any other setting, by the name the editor stores it under, e.g. `{"channelConfigs": {"connection": {"strokeColor": "#ffffff"}}}` or `{"legendConfig": {"position": "top"}}`. Deep-merged last, into `channelConfigs`, `labelsConfig`, `legendConfig`, `tooltipConfig`, `dataLabelsConfig`, `captionConfig` and `mapConfig`. Every name must already exist on the chart (the maps a chart starts empty, such as per-level colors, take any key) and every value must keep its type. |
+| `settings` | Optional. Any other setting, by the name the editor stores it under, e.g. `{"channelConfigs": {"connection": {"strokeColor": "#ffffff"}}}` or `{"legendConfig": {"position": "top"}}`. Deep-merged last, into `channelConfigs`, `labelsConfig`, `legendConfig`, `tooltipConfig`, `dataLabelsConfig`, `captionConfig` and `mapConfig`. Every name must already exist on the chart, and every value must keep its type. Maps keyed by data (per-level colors, per-field formats, legend visibility per channel) take any key, with values of the map's type. |
 
 The body is the spec as JSON, at most 64 KB (`SPEC_BODY_CAP_BYTES` in
 `server/src/limits.ts`). `?dryRun=1` or `?dryRun=true` runs every check and
@@ -162,7 +162,8 @@ setting, including ones made by hand in the editor, stays as it was. The keys
 are the create keys except `datasetId`, `datasetVersionId` and `themeId`; a
 channel set to `null` is unmapped, and `annotations` are added to the
 visual's own. `removeAnnotations` (edits only) lists kinds (`"band"`,
-`"line"`, `"text"`) to remove first, every annotation of that kind. Edits are
+`"line"`, `"text"`) to remove first, every annotation of that kind, and
+`removeDerivedVariables` lists derived variables to delete by name. Edits are
 checked like a create, against the visual's data as the editor shows it
 (reshape and derived variables included). An edit that names nothing is
 refused.

@@ -56,6 +56,7 @@ import {
 import {
 	applyReshapeToView,
 	DEFAULT_RESHAPE_CONFIG,
+	presentMeltFields,
 	reshapeIssues,
 	type ReshapeConfig,
 } from "../reshape"
@@ -78,7 +79,9 @@ import {
 	MAX_PROBLEMS,
 	named,
 	pathOf,
+	MIN_EPOCH_MS,
 	readChartSpec,
+	specDateMs,
 	type AnnotationSpec,
 	type ChartEdit,
 	type DerivedVariableSpec,
@@ -257,14 +260,26 @@ const compose = (
 			}
 		}
 		for (const issue of reshapeIssues(raw.fields, reshapeConfig)) problem("reshape", issue)
+		if (presentMeltFields(raw.fields, reshapeConfig).length === 0 && reshapeConfig.meltFields.every((f) => rawNames.includes(f))) {
+			problem("reshape.meltFields", "every melt field is also an ID field, so nothing would be reshaped")
+		}
 	}
 	const shaped = applyReshapeToView(raw, reshapeConfig) ?? raw
 	const converted =
 		applyDollarConversionToView(applyPercentConversionToView(shaped, overrides), overrides) ??
 		shaped
 
+	const currentDerived = hydrated?.derivedVariablesConfig ?? DEFAULT_DERIVED_VARIABLES_CONFIG
+	for (const name of spec.removeDerivedVariables ?? []) {
+		if (!currentDerived.variables.some((v) => v.name === name)) {
+			problem(
+				"removeDerivedVariables",
+				`no derived variable "${named(name)}"${hint(name, currentDerived.variables.map((v) => v.name))}`
+			)
+		}
+	}
 	const derivedConfig: DerivedVariablesConfig = mergeDerived(
-		hydrated?.derivedVariablesConfig ?? DEFAULT_DERIVED_VARIABLES_CONFIG,
+		{ variables: currentDerived.variables.filter((v) => !(spec.removeDerivedVariables ?? []).includes(v.name)) },
 		spec.derivedVariables ?? [],
 		ctx.now
 	)
@@ -281,7 +296,10 @@ const compose = (
 					...derivedMathTypeIssues(variable, available, numeric),
 					...(variable.rules?.rules ?? []).flatMap((r) => {
 						const parsed = parseExpression(r.condition)
-						return parsed.ok ? [] : [`condition "${named(r.condition)}": ${parsed.error}`]
+						if (!parsed.ok) return [`condition "${named(r.condition)}": ${parsed.error}`]
+						return parsed.fields
+							.filter((f) => !available.has(f))
+							.map((f) => `condition "${named(r.condition)}": {${f}} isn't a variable in the data.`)
 					}),
 				]
 				for (const issue of issues) problem(at, issue)
@@ -549,7 +567,8 @@ const compose = (
 	const axisField = (axis: "x" | "y"): string | undefined =>
 		fields[axis] ?? (mode.canvas.measureAxis === axis ? fields.length : undefined)
 
-	const bounds: Record<"x" | "y", { min?: number; max?: number }> = { x: {}, y: {} }
+	/** null clears a bound. */
+	const bounds: Record<"x" | "y", { min?: number | null; max?: number | null }> = { x: {}, y: {} }
 	let labels: LabelPlacement | null = null
 	if (encodingsOk) {
 		if (spec.family && base && !(FAMILY_MODES[spec.family] as readonly string[]).includes(mode.id)) {
@@ -568,8 +587,23 @@ const compose = (
 			for (const bound of ["min", "max"] as const) {
 				const v = spec.axes?.[axis]?.[bound]
 				if (v === undefined) continue
-				if (type === "temporal") {
-					bounds[axis][bound] = typeof v === "string" ? Date.parse(v) : v
+				if (v === null) {
+					bounds[axis][bound] = null
+				} else if (type === "temporal") {
+					const banded = isBarModeId(mode.id) && mode.canvas.measureAxis !== axis
+					if (banded) {
+						problem(
+							pathOf("axes", axis, bound),
+							`a bar chart draws "${field}" as one band per value, so bounds don't apply; filter the data, or use a line chart`
+						)
+					} else if (typeof v === "number" && Math.abs(v) < MIN_EPOCH_MS) {
+						problem(
+							pathOf("axes", axis, bound),
+							`a number on a temporal axis is epoch milliseconds; for a year or date write it as text, e.g. "${v}" or "2020-01-01"`
+						)
+					} else {
+						bounds[axis][bound] = typeof v === "string" ? specDateMs(v) : v
+					}
 				} else if (!continuous) {
 					problem(
 						pathOf("axes", axis, bound),
@@ -641,6 +675,11 @@ const compose = (
 				}
 			}
 		}
+	}
+
+	const settingsDraft = newVisualDraft(ctx.theme) as Visual
+	if (spec.settings && hydrated) {
+		errors.push(...settingsProblems(spec.settings, hydrated, settingsDraft))
 	}
 
 	if (errors.length > 0) return { ok: false, errors: capProblems(errors) }
@@ -724,8 +763,11 @@ const compose = (
 		const current = channelConfigs[axis] ?? DEFAULT_AXIS_CONFIG
 		if (!want) continue
 		const next: AxisConfig = { ...current }
-		if (bounds[axis].min !== undefined) next.min = bounds[axis].min
-		if (bounds[axis].max !== undefined) next.max = bounds[axis].max
+		for (const bound of ["min", "max"] as const) {
+			const b = bounds[axis][bound]
+			if (b === null) delete next[bound]
+			else if (b !== undefined) next[bound] = b
+		}
 		if (want.format !== undefined) next.customFormat = want.format
 		channelConfigs[axis] = next
 	}
@@ -812,7 +854,7 @@ const compose = (
 		}
 	}
 	if (spec.settings) {
-		const problems = settingsProblems(spec.settings, visual)
+		const problems = settingsProblems(spec.settings, visual, settingsDraft)
 		if (problems.length > 0) return { ok: false, errors: capProblems(problems) }
 		return { ok: true, visual: applySettings(visual, spec.settings as SettingsPatch), warnings }
 	}
