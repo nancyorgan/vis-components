@@ -80,6 +80,73 @@ above 25 MB and are rejected above 100 MB (browser performance is the real
 constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
 startup; it's expected.
 
+### Creating a visual from a chart spec
+
+`POST /api/visuals` creates one visual from a short chart spec, instead of
+the full saved-visual JSON the editor writes. The server fills in everything
+the spec leaves out exactly as the editor does for a new visual (theme
+palettes, fonts, axis and label defaults), checks the spec against the stored
+data, and saves the result to the shared library. It only ever creates: the
+server picks the new visual's id, so a spec can't overwrite anything.
+
+```
+curl -X POST https://charts.example.com/api/visuals \
+  -H 'content-type: application/json' \
+  -d '{"datasetId":"ds-…","folderId":null,
+       "encodings":{"x":"month","length":"sales","hue":"region"},
+       "title":"Sales by month","stack":"group",
+       "dataLabels":{"format":",.0f","position":"outside-end"}}'
+```
+
+| Field | Meaning |
+|---|---|
+| `datasetId` | Required. The data set to chart. |
+| `datasetVersionId` | Optional. The version the spec is checked against; the latest by default. |
+| `folderId` | Required. A folder id, or `null` for the library root. |
+| `encodings` | Required. Channel → field name, e.g. `{"y":"country","length":"rate"}`. Channels are the shelf's (`x`, `y`, `length`, `hue`, `facet`, …); the chart type follows from them as it does on the shelves. |
+| `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
+| `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. |
+| `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
+| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis; `format` is what the axis Format box takes. |
+| `colors` | Optional hue level → `#rgb`/`#rrggbb`. Needs a categorical or ordinal `hue`, and every level must be in the data. |
+| `fill` | Optional mark color while `hue` is unmapped. |
+| `stack` | Optional `"stack"`, `"group"` or `"overlay"`; needs `hue`. |
+| `order` | Optional field → its levels in display order (every level, once). |
+| `dataLabels` | Optional `true`, or `{format, position, color}`. Bar, area and scatter charts; `position` is for bars. |
+| `themeId` | Optional theme; the server's default theme otherwise. |
+
+The body is the spec as JSON, at most 64 KB (`SPEC_BODY_CAP_BYTES` in
+`server/src/limits.ts`). `?dryRun=1` or `?dryRun=true` runs every check and
+answers with the visual it would save, writing nothing; `0`, `false` or no
+`dryRun` saves.
+
+Responses:
+
+- **201** `{id, visual, warnings}` plus `editorUrl`: saved. `warnings` is a
+  list of `{path, message}` for settings that were accepted but have no
+  effect.
+- **200** `{visual, warnings}`: a dry run; nothing written.
+- **400** `{errors: [{path, message}, …]}`: the spec has problems, and
+  nothing was written. Every problem is listed, not just the first, each
+  with where it is (`encodings.x`, `colors["U.S."]`, `?dryRun`, or `""` for
+  the whole body) and what is wrong, with a suggestion when a name is close
+  to a real one. Past 30 problems the list stops, and a last entry says how
+  many more there were.
+- Any other failure answers in the server's usual `{error}` shape:
+  **409** when the stored visuals, themes or data sets are at a different
+  content version than this server (open the app once if they are older,
+  update the server if newer, then retry); **405** for any method but
+  `POST` on `/api/visuals`; **500** for a server fault. A body over the cap
+  is refused with **413**, and the connection is closed, so a client still
+  sending may see the connection drop instead.
+
+The visual it saves is an ordinary one: it shows up in the library, opens in
+the editor, and can be edited, exported and embedded like any other. It is
+saved without a preview image, so its library card reads "No preview" until
+it is saved from the editor or the library's "Regenerate previews" button
+renders one. `PUT /api/visuals/<id>` is unchanged and still stores whatever
+the editor sends.
+
 ## Verifying changes
 
 ```

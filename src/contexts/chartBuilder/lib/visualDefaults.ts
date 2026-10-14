@@ -26,6 +26,10 @@ import {
 	type Visual,
 } from "./types"
 
+/** A fresh visual id: `vs-<epoch ms, base 36>-<6 random base-36 chars>`. */
+export const newVisualId = (): string =>
+	`vs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+
 /** Every per-visual slice the editor holds, each one present. */
 export type VisualDraft = Pick<
 	Visual,

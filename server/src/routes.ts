@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http"
 import { Readable } from "node:stream"
 import { createGunzip, createGzip, gunzipSync, gzipSync } from "node:zlib"
 
+import { createVisualFromSpec } from "./chartSpecRoute.js"
 import type { ServerConfig } from "./config.js"
 import {
 	clearDatasetVersionRows,
@@ -62,10 +63,12 @@ export type HandlerDeps = {
 	config: ServerConfig
 	db: DatabaseSync
 	distDir: string
+	/** Visual id minting for POST /api/visuals; tests inject collisions. */
+	mintVisualId?: () => string
 }
 
 export const createHandler =
-	({ config, db, distDir }: HandlerDeps) =>
+	({ config, db, distDir, mintVisualId }: HandlerDeps) =>
 	async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
 		const method = req.method ?? "GET"
 		const path = (req.url ?? "/").split("?")[0]
@@ -84,7 +87,9 @@ export const createHandler =
 					JSON.stringify({ v: 1, baseUrl: config.baseUrl, signOutUrl: config.signOutUrl })
 				)
 			}
-			if (path.startsWith("/api/")) return await handleApi(req, res, { config, db, distDir })
+			if (path.startsWith("/api/")) {
+				return await handleApi(req, res, { config, db, distDir, mintVisualId })
+			}
 			if (method !== "GET") return sendError(res, 405, "Method not allowed")
 			return await serveStatic(distDir, path, res)
 		} catch (error) {
@@ -101,7 +106,7 @@ export const createHandler =
 const handleApi = async (
 	req: IncomingMessage,
 	res: ServerResponse,
-	{ config, db, distDir }: HandlerDeps
+	{ config, db, distDir, mintVisualId }: HandlerDeps
 ): Promise<void> => {
 	const method = req.method ?? "GET"
 	const [rawPath, rawQuery] = (req.url ?? "/").split("?")
@@ -251,6 +256,16 @@ const handleApi = async (
 	if (!isJsonCollection(collection)) throw new HttpError(404, "Not found")
 
 	if (!id) {
+		if (method === "POST" && collection === "visuals") {
+			return await createVisualFromSpec(
+				req,
+				res,
+				db,
+				config,
+				new URLSearchParams(rawQuery ?? ""),
+				mintVisualId
+			)
+		}
 		if (method !== "GET") throw new HttpError(405, "Method not allowed")
 		const thumbnails =
 			new URLSearchParams(rawQuery ?? "").get("thumbnails") !== "0"
