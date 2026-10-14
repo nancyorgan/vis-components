@@ -41,7 +41,8 @@ The repo also ships a small self-host server for running the app as a shared
 deployment: same UI, but visuals, folders, datasets, embed instances, and
 themes are stored centrally (SQLite + a dataset directory) and shared by
 everyone who uses that URL. It has zero runtime dependencies beyond Node
-itself.
+itself: `pnpm build` bundles it, with the few modules it shares with the
+editor, into the single file `server/dist/main.js`.
 
 ```
 corepack enable
