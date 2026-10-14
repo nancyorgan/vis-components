@@ -9,7 +9,11 @@
 
 import { formatSpecifier } from "d3-format"
 
-import type { DataLabelsConfig, StackMode } from "../channelConfig"
+import type {
+	DataLabelsConfig,
+	LineDashPattern,
+	StackMode,
+} from "../channelConfig"
 import { LITERAL_FORMAT, parseFormatSpec } from "../formatTick"
 import {
 	QUICK_START_CHART_TYPES,
@@ -45,6 +49,56 @@ export type DataLabelsSpec = {
 	color?: string
 }
 
+/** Order a field's levels by another field's total (or by name). */
+export type SortSpec = {
+	/** A quantitative or temporal field, or "alphabetical". */
+	by: string
+	decreasing?: boolean
+}
+
+/** Color each hue level by which side of `at` its `field` values fall. */
+export type ColorThresholdSpec = {
+	field: string
+	at: number
+	below: string
+	above: string
+}
+
+/** Lines from each point along `axis` (lollipops), ending at `at` on that
+ *  axis, or at the other axis's line when `at` is absent. */
+export type StemsSpec = { axis: "x" | "y"; at?: number }
+
+/** A position along an axis, in data values: a number on a quantitative
+ *  axis, a level name on a categorical one. */
+export type AxisValue = number | string
+
+export type AnnotationSpec =
+	| {
+			kind: "band"
+			x: [AxisValue, AxisValue]
+			y: [AxisValue, AxisValue]
+			color?: string
+			opacity?: number
+			label?: string
+			front?: boolean
+	  }
+	| {
+			kind: "line"
+			x: [AxisValue, AxisValue]
+			y: [AxisValue, AxisValue]
+			color?: string
+			thickness?: number
+			dash?: LineDashPattern
+			front?: boolean
+	  }
+	| {
+			kind: "text"
+			x: AxisValue
+			y: AxisValue
+			text: string
+			color?: string
+	  }
+
 export type ChartSpec = {
 	datasetId: string
 	/** The version whose rows the spec is checked against; absent = latest. */
@@ -70,6 +124,18 @@ export type ChartSpec = {
 	order?: Record<string, string[]>
 	dataLabels?: true | DataLabelsSpec
 	themeId?: string
+	/** Field → how to order its levels; computed once, like the Fields
+	 *  panel's "Order by". */
+	sort?: Record<string, SortSpec>
+	colorThreshold?: ColorThresholdSpec
+	stems?: StemsSpec
+	annotations?: AnnotationSpec[]
+}
+
+/** A change to an existing chart: any spec key but `datasetId`. A channel
+ *  set to null is unmapped; `annotations` are added to the chart's own. */
+export type ChartEdit = Partial<Omit<ChartSpec, "datasetId" | "encodings">> & {
+	encodings?: Partial<Record<SpecChannel, string | null>>
 }
 
 /** One problem with a spec: where (`encodings.x`, `colors["U.S."]`; "" for
@@ -82,9 +148,11 @@ export type ParseChartSpecResult =
 
 /** What survived the shape checks: valid parts kept, invalid ones dropped
  *  (and reported), so the data checks can still run over the rest. */
-export type ChartSpecDraft = Omit<ChartSpec, "datasetId" | "folderId"> & {
+export type ChartSpecDraft = Omit<ChartSpec, "datasetId" | "folderId" | "encodings"> & {
 	datasetId?: string
 	folderId?: string | null
+	/** null only in an edit: unmap the channel. */
+	encodings: Partial<Record<SpecChannel, string | null>>
 }
 
 const TOP_LEVEL_KEYS = [
@@ -104,6 +172,10 @@ const TOP_LEVEL_KEYS = [
 	"order",
 	"dataLabels",
 	"themeId",
+	"sort",
+	"colorThreshold",
+	"stems",
+	"annotations",
 ] as const
 
 const TOP_LEVEL_HINTS: Record<string, string> = {
@@ -210,8 +282,10 @@ export const formatProblem = (raw: string): string | null => {
 /** Read a spec, keeping what is well-formed and reporting the rest. `draft`
  *  is null only when the body isn't an object at all. */
 export const readChartSpec = (
-	input: unknown
+	input: unknown,
+	mode: "create" | "edit" = "create"
 ): { draft: ChartSpecDraft | null; errors: SpecProblem[] } => {
+	const edit = mode === "edit"
 	const errors: SpecProblem[] = []
 	const problem = (path: string, message: string) => {
 		errors.push({ path, message })
@@ -223,11 +297,24 @@ export const readChartSpec = (
 	const reservedKey = (parent: string) =>
 		problem(pathOf(parent, "__proto__"), `"__proto__" can't be used as a key`)
 	if (!isRecord(input)) {
-		problem("", "a chart spec must be a JSON object")
+		problem("", edit ? "a chart edit must be a JSON object" : "a chart spec must be a JSON object")
 		return { draft: null, errors }
 	}
 
 	for (const key of Object.keys(input)) {
+		if (edit && key === "datasetId") {
+			problem("datasetId", "an edit can't change the dataset; create a new chart instead")
+			continue
+		}
+		if (edit && (key === "themeId" || key === "datasetVersionId")) {
+			problem(
+				key,
+				key === "themeId"
+					? "an edit can't change the theme; change it in the editor"
+					: "an edit is checked against the dataset's latest version"
+			)
+			continue
+		}
 		if ((TOP_LEVEL_KEYS as readonly string[]).includes(key)) continue
 		problem(
 			pathOf(key),
@@ -244,7 +331,9 @@ export const readChartSpec = (
 		else problem(key, `"${key}" must be a string`)
 	}
 
-	if (input.datasetId === undefined) {
+	if (edit) {
+		// The chart's own dataset.
+	} else if (input.datasetId === undefined) {
 		problem("datasetId", `"datasetId" is required`)
 	} else if (typeof input.datasetId !== "string" || input.datasetId === "") {
 		problem("datasetId", `"datasetId" must be a non-empty string`)
@@ -253,7 +342,7 @@ export const readChartSpec = (
 	}
 
 	if (input.folderId === undefined) {
-		problem("folderId", `"folderId" is required (null for the library root)`)
+		if (!edit) problem("folderId", `"folderId" is required (null for the library root)`)
 	} else if (
 		input.folderId !== null &&
 		(typeof input.folderId !== "string" || input.folderId.trim() === "")
@@ -282,11 +371,11 @@ export const readChartSpec = (
 
 	const encodings = input.encodings
 	if (encodings === undefined) {
-		problem("encodings", `"encodings" is required: channel → field name`)
+		if (!edit) problem("encodings", `"encodings" is required: channel → field name`)
 	} else if (!isRecord(encodings)) {
 		problem("encodings", `"encodings" must be an object of channel → field name`)
 	} else {
-		if (Object.keys(encodings).length === 0) {
+		if (!edit && Object.keys(encodings).length === 0) {
 			problem("encodings", "map at least one channel")
 		}
 		for (const [channel, field] of Object.entries(encodings)) {
@@ -296,8 +385,15 @@ export const readChartSpec = (
 					path,
 					`unknown channel "${named(channel)}"${ownHint(CHANNEL_HINTS, channel) ?? hint(channel, SPEC_CHANNELS)}`
 				)
+			} else if (edit && field === null) {
+				draft.encodings[channel] = null
 			} else if (typeof field !== "string" || field === "") {
-				problem(path, `"${channel}" must name a field, as a string`)
+				problem(
+					path,
+					edit
+						? `"${channel}" must name a field, or be null to unmap it`
+						: `"${channel}" must name a field, as a string`
+				)
 			} else {
 				draft.encodings[channel] = field
 			}
@@ -473,7 +569,223 @@ export const readChartSpec = (
 		}
 	}
 
+	readExtras(input, draft, problem, hint, () => errors.length)
+
 	return { draft, errors }
+}
+
+const SORT_KEYS = ["by", "decreasing"] as const
+const THRESHOLD_KEYS = ["field", "at", "below", "above"] as const
+const STEM_KEYS = ["axis", "at"] as const
+const ANNOTATION_KINDS = ["band", "line", "text"] as const
+const ANNOTATION_KEYS: Record<(typeof ANNOTATION_KINDS)[number], readonly string[]> = {
+	band: ["kind", "x", "y", "color", "opacity", "label", "front"],
+	line: ["kind", "x", "y", "color", "thickness", "dash", "front"],
+	text: ["kind", "x", "y", "text", "color"],
+}
+const DASHES: readonly LineDashPattern[] = ["solid", "dashed", "dotted", "dash-dot"]
+/** More than this many annotations from one spec is a drawing, not a chart. */
+export const MAX_SPEC_ANNOTATIONS = 20
+
+const isFiniteNumber = (v: unknown): v is number =>
+	typeof v === "number" && Number.isFinite(v)
+
+const isAxisValue = (v: unknown): v is AxisValue =>
+	isFiniteNumber(v) || (typeof v === "string" && v !== "")
+
+/** Reports keys of `raw` outside `allowed`. */
+const unknownKeys = (
+	raw: Record<string, unknown>,
+	allowed: readonly string[],
+	path: (key: string) => string,
+	what: string,
+	problem: (path: string, message: string) => void,
+	hint: (name: string, candidates: readonly string[]) => string
+) => {
+	for (const key of Object.keys(raw)) {
+		if (allowed.includes(key)) continue
+		problem(path(key), `unknown ${what} key "${named(key)}"${hint(key, allowed)}`)
+	}
+}
+
+const readExtras = (
+	input: Record<string, unknown>,
+	draft: ChartSpecDraft,
+	problem: (path: string, message: string) => void,
+	hint: (name: string, candidates: readonly string[]) => string,
+	count: () => number
+) => {
+	const color = (path: string, v: unknown): string | undefined => {
+		if (typeof v === "string" && HEX_COLOR.test(v)) return v
+		problem(path, `${shown(v)} isn't a color; use #rgb or #rrggbb`)
+		return undefined
+	}
+
+	if (input.sort !== undefined) {
+		if (!isRecord(input.sort)) {
+			problem("sort", `"sort" must be an object of field → { by, decreasing }`)
+		} else {
+			const sort: Record<string, SortSpec> = {}
+			for (const [field, raw] of Object.entries(input.sort)) {
+				const path = pathOf("sort", field)
+				if (field === "__proto__") {
+					problem(pathOf("sort", "__proto__"), `"__proto__" can't be used as a key`)
+					continue
+				}
+				if (!isRecord(raw)) {
+					problem(path, `a sort must be an object like { "by": "<field>", "decreasing": true }`)
+					continue
+				}
+				unknownKeys(raw, SORT_KEYS, (k) => pathOf("sort", field, k), "sort", problem, hint)
+				if (typeof raw.by !== "string" || raw.by === "") {
+					problem(pathOf("sort", field, "by"), `"by" must name a field, or be "alphabetical"`)
+					continue
+				}
+				if (raw.decreasing !== undefined && typeof raw.decreasing !== "boolean") {
+					problem(pathOf("sort", field, "decreasing"), `"decreasing" must be true or false`)
+					continue
+				}
+				sort[field] = { by: raw.by, ...(raw.decreasing ? { decreasing: true } : {}) }
+			}
+			draft.sort = sort
+		}
+	}
+
+	if (input.colorThreshold !== undefined) {
+		const raw = input.colorThreshold
+		if (!isRecord(raw)) {
+			problem("colorThreshold", `"colorThreshold" must be an object { field, at, below, above }`)
+		} else {
+			unknownKeys(raw, THRESHOLD_KEYS, (k) => pathOf("colorThreshold", k), "colorThreshold", problem, hint)
+			let ok = true
+			if (typeof raw.field !== "string" || raw.field === "") {
+				problem("colorThreshold.field", `"field" must name a quantitative field`)
+				ok = false
+			}
+			if (!isFiniteNumber(raw.at)) {
+				problem("colorThreshold.at", `"at" must be a finite number`)
+				ok = false
+			}
+			const below = color("colorThreshold.below", raw.below)
+			const above = color("colorThreshold.above", raw.above)
+			if (ok && below && above) {
+				draft.colorThreshold = {
+					field: raw.field as string,
+					at: raw.at as number,
+					below,
+					above,
+				}
+			}
+		}
+	}
+
+	if (input.stems !== undefined) {
+		const raw = input.stems
+		if (!isRecord(raw)) {
+			problem("stems", `"stems" must be an object { axis, at? }`)
+		} else {
+			unknownKeys(raw, STEM_KEYS, (k) => pathOf("stems", k), "stems", problem, hint)
+			if (raw.axis !== "x" && raw.axis !== "y") {
+				problem("stems.axis", `"axis" must be "x" or "y": the axis the stems run along`)
+			} else if (raw.at !== undefined && !isFiniteNumber(raw.at)) {
+				problem("stems.at", `"at" must be a finite number`)
+			} else {
+				draft.stems = { axis: raw.axis, ...(raw.at !== undefined ? { at: raw.at as number } : {}) }
+			}
+		}
+	}
+
+	if (input.annotations !== undefined) {
+		const list = input.annotations
+		if (!Array.isArray(list)) {
+			problem("annotations", `"annotations" must be a list`)
+		} else if (list.length > MAX_SPEC_ANNOTATIONS) {
+			problem("annotations", `at most ${MAX_SPEC_ANNOTATIONS} annotations at a time`)
+		} else {
+			const out: AnnotationSpec[] = []
+			list.forEach((raw, i) => {
+				const at = (k?: string) => (k ? `annotations[${i}].${k}` : `annotations[${i}]`)
+				if (!isRecord(raw)) {
+					problem(at(), "an annotation must be an object")
+					return
+				}
+				if (!isOneOf(ANNOTATION_KINDS, raw.kind)) {
+					problem(at("kind"), `"kind" must be one of ${quoted(ANNOTATION_KINDS)}`)
+					return
+				}
+				const kind = raw.kind
+				unknownKeys(raw, ANNOTATION_KEYS[kind], (k) => at(k), `${kind} annotation`, problem, hint)
+				const before = count()
+				const pair = (k: "x" | "y"): [AxisValue, AxisValue] | undefined => {
+					const v = raw[k]
+					if (Array.isArray(v) && v.length === 2 && v.every(isAxisValue)) {
+						return [v[0] as AxisValue, v[1] as AxisValue]
+					}
+					problem(at(k), `"${k}" must be [from, to]: numbers on a quantitative axis, level names on a categorical one`)
+					return undefined
+				}
+				const single = (k: "x" | "y"): AxisValue | undefined => {
+					if (isAxisValue(raw[k])) return raw[k] as AxisValue
+					problem(at(k), `"${k}" must be a number, or a level name on a categorical axis`)
+					return undefined
+				}
+				const optColor = raw.color === undefined ? undefined : color(at("color"), raw.color)
+				const front = raw.front
+				if (front !== undefined && typeof front !== "boolean") problem(at("front"), `"front" must be true or false`)
+				if (kind === "band") {
+					const x = pair("x")
+					const y = pair("y")
+					const opacity = raw.opacity
+					if (opacity !== undefined && !(isFiniteNumber(opacity) && opacity >= 0 && opacity <= 1)) {
+						problem(at("opacity"), `"opacity" must be a number from 0 to 1`)
+					}
+					if (raw.label !== undefined && typeof raw.label !== "string") problem(at("label"), `"label" must be a string`)
+					if (x && y && count() === before) {
+						out.push({
+							kind,
+							x,
+							y,
+							...(optColor ? { color: optColor } : {}),
+							...(opacity !== undefined ? { opacity: opacity as number } : {}),
+							...(typeof raw.label === "string" ? { label: raw.label } : {}),
+							...(front ? { front: true } : {}),
+						})
+					}
+				} else if (kind === "line") {
+					const x = pair("x")
+					const y = pair("y")
+					const thickness = raw.thickness
+					if (thickness !== undefined && !(isFiniteNumber(thickness) && thickness > 0 && thickness <= 20)) {
+						problem(at("thickness"), `"thickness" must be a number above 0, up to 20`)
+					}
+					if (raw.dash !== undefined && !isOneOf(DASHES, raw.dash)) {
+						problem(at("dash"), `"dash" must be one of ${quoted(DASHES)}`)
+					}
+					if (x && y && count() === before) {
+						out.push({
+							kind,
+							x,
+							y,
+							...(optColor ? { color: optColor } : {}),
+							...(thickness !== undefined ? { thickness: thickness as number } : {}),
+							...(raw.dash !== undefined ? { dash: raw.dash as LineDashPattern } : {}),
+							...(front ? { front: true } : {}),
+						})
+					}
+				} else {
+					const x = single("x")
+					const y = single("y")
+					if (typeof raw.text !== "string" || raw.text.trim() === "") {
+						problem(at("text"), `"text" must be a non-empty string`)
+					}
+					if (x !== undefined && y !== undefined && count() === before) {
+						out.push({ kind, x, y, text: raw.text as string, ...(optColor ? { color: optColor } : {}) })
+					}
+				}
+			})
+			draft.annotations = out
+		}
+	}
 }
 
 /** Check a spec's shape. Every problem is collected, not just the first, so
@@ -485,5 +797,19 @@ export const parseChartSpec = (input: unknown): ParseChartSpecResult => {
 	if (datasetId === undefined || folderId === undefined) {
 		return { ok: false, errors: capProblems(errors) }
 	}
-	return { ok: true, spec: { ...draft, datasetId, folderId } }
+	// Create mode never reads a null channel.
+	const encodings = draft.encodings as ChartSpec["encodings"]
+	return { ok: true, spec: { ...draft, datasetId, folderId, encodings } }
+}
+
+export type ParseChartEditResult =
+	| { ok: true; edit: ChartEdit }
+	| { ok: false; errors: SpecProblem[] }
+
+/** Check an edit's shape. */
+export const parseChartEdit = (input: unknown): ParseChartEditResult => {
+	const { draft, errors } = readChartSpec(input, "edit")
+	if (!draft || errors.length > 0) return { ok: false, errors: capProblems(errors) }
+	const { datasetId: _datasetId, ...edit } = draft
+	return { ok: true, edit }
 }

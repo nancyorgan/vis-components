@@ -7,33 +7,57 @@
 import { channelAccepts, channelsConflict } from "../channels"
 import { getChartModeDef, type ChartMode } from "../chartMode"
 import { isBarModeId } from "../chartModes/families"
-import type { AxisConfig } from "../channelConfig"
+import {
+	DEFAULT_ANNOTATIONS_CONFIG,
+	newLineSegment,
+	newRectangle,
+	newTextAnnotation,
+	type AnnotationsConfig,
+} from "../annotationsConfig"
+import {
+	DEFAULT_CATEGORICAL_HUE_CONFIG,
+	DEFAULT_CONNECTION_CONFIG,
+	type AxisConfig,
+	type ChannelConfigs,
+} from "../channelConfig"
+import { buildQuantHueConfigFromTheme } from "../hueDefaults"
+import { alphabeticalLevelOrder, orderLevelsByField } from "../orderLevelsByField"
+import {
+	lineAnnotationStyleFromTheme,
+	rectangleStyleFromTheme,
+	textAnnotationStyleFromTheme,
+} from "../themeConfig"
 import { applyDollarConversionToView } from "../dollarCells"
 import { effectiveType } from "../fieldType"
 import { applyPercentConversionToView } from "../percentCells"
 import { scaffoldVariation, type ChannelAssignment } from "../quickStart"
-import type {
-	QuickStartChartType,
-	QuickStartVariation,
+import {
+	QUICK_START_VARIATIONS,
+	type QuickStartChartType,
+	type QuickStartVariation,
 } from "../quickStartVariations"
 import { resolveDatasetViewFromMeta } from "../resolveDatasetVersion"
-import { parseValue } from "../scales"
+import { parseNumericCell, parseValue } from "../scales"
 import {
 	emptyEncodings,
+	type DataLabelsEncodings,
 	type DatasetMeta,
+	type FieldLevelOrderSpec,
 	type DatasetView,
 	type FieldType,
 	type Folder,
 	type Theme,
 	type Visual,
 } from "../types"
-import { newVisualDraft } from "../visualDefaults"
+import { hydrateVisual, newVisualDraft, type VisualDraft } from "../visualDefaults"
 import {
 	capProblems,
 	MAX_PROBLEMS,
 	named,
 	pathOf,
 	readChartSpec,
+	type AnnotationSpec,
+	type ChartEdit,
 	type ChartSpec,
 	type ChartSpecDraft,
 	type SpecChannel,
@@ -67,7 +91,7 @@ export type ComposeVisualResult =
 	| { ok: false; errors: SpecProblem[] }
 
 /** The chart modes each quick-start family draws. */
-const FAMILY_MODES: Record<QuickStartChartType, readonly ChartMode[]> = {
+export const FAMILY_MODES: Record<QuickStartChartType, readonly ChartMode[]> = {
 	bar: ["bars-x", "bars-y"],
 	scatter: ["scatter"],
 	hexbin: ["hexbin"],
@@ -127,7 +151,8 @@ const resolveLabelPlacement = (
 const compose = (
 	spec: ChartSpecDraft,
 	prior: SpecProblem[],
-	ctx: ComposeContext
+	ctx: ComposeContext,
+	base?: Visual
 ): ComposeVisualResult => {
 	const errors = [...prior]
 	const warnings: SpecProblem[] = []
@@ -148,12 +173,14 @@ const compose = (
 		problem("themeId", `no theme with id "${spec.themeId}"`)
 	}
 
+	const datasetId = base ? base.datasetId : spec.datasetId
 	const dataset =
-		spec.datasetId !== undefined && ctx.dataset?.meta.id === spec.datasetId
-			? ctx.dataset
-			: null
-	if (spec.datasetId !== undefined && !dataset) {
-		problem("datasetId", `no dataset with id "${spec.datasetId}"`)
+		datasetId != null && ctx.dataset?.meta.id === datasetId ? ctx.dataset : null
+	if (datasetId != null && !dataset) {
+		problem(base ? "" : "datasetId", `no dataset with id "${datasetId}"`)
+	}
+	if (base && datasetId == null) {
+		problem("", "this chart has no dataset to check the edit against")
 	}
 	if (
 		dataset &&
@@ -181,6 +208,9 @@ const compose = (
 	// No prototype, so a field named "constructor" or "toString" reads as
 	// unset rather than as an Object.prototype member.
 	const overrides: Record<string, FieldType> = Object.create(null)
+	for (const [field, type] of Object.entries(base?.fieldTypeOverrides ?? {})) {
+		overrides[field] = type
+	}
 	for (const [field, type] of Object.entries(spec.fieldTypes ?? {})) {
 		if (hasField(field)) overrides[field] = type
 		else missingField(pathOf("fieldTypes", field), field)
@@ -193,8 +223,8 @@ const compose = (
 		applyPercentConversionToView(view, overrides),
 		overrides
 	)
-	for (const [field, type] of Object.entries(overrides)) {
-		if (type !== "quantitative" && type !== "temporal") continue
+	for (const [field, type] of Object.entries(spec.fieldTypes ?? {})) {
+		if (!hasField(field) || (type !== "quantitative" && type !== "temporal")) continue
 		const parses = (converted?.rows ?? []).some(
 			(r) => parseValue(r[field], type) !== null
 		)
@@ -206,10 +236,36 @@ const compose = (
 		}
 	}
 
+	// The chart's channels after the spec: an edit starts from the chart's
+	// own, and a null unmaps one.
+	const fields: Partial<Record<SpecChannel, string>> = {}
+	const derivedChannels: SpecChannel[] = []
+	for (const [channel, enc] of Object.entries(base?.encodings ?? {})) {
+		if (channel === "text" || !enc) continue
+		if (enc.field) fields[channel as SpecChannel] = enc.field
+		else if (enc.measureSource) derivedChannels.push(channel as SpecChannel)
+	}
+	const changed = Object.entries(spec.encodings) as Array<[SpecChannel, string | null]>
+	for (const [channel, field] of changed) {
+		if (field === null) {
+			delete fields[channel]
+			const i = derivedChannels.indexOf(channel)
+			if (i >= 0) derivedChannels.splice(i, 1)
+		} else {
+			fields[channel] = field
+			const i = derivedChannels.indexOf(channel)
+			if (i >= 0) derivedChannels.splice(i, 1)
+		}
+	}
+	const mapped = Object.entries(fields) as Array<[SpecChannel, string]>
+
 	let encodingsOk = true
-	const mapped = Object.entries(spec.encodings) as Array<[SpecChannel, string]>
-	for (const [channel, field] of mapped) {
+	for (const [channel, field] of changed) {
 		const path = pathOf("encodings", channel)
+		if (field === null) {
+			if (!base) problem(path, `"${channel}" must name a field, as a string`)
+			continue
+		}
 		if (!hasField(field)) {
 			missingField(path, field)
 			encodingsOk = false
@@ -221,33 +277,60 @@ const compose = (
 			encodingsOk = false
 		}
 	}
-	mapped.forEach(([channel], i) => {
-		const earlier = mapped.slice(0, i).find(([other]) => channelsConflict(channel, other))
-		if (earlier) {
-			problem(
-				pathOf("encodings", channel),
-				`"${channel}" can't be mapped together with "${earlier[0]}"`
-			)
-			encodingsOk = false
+	if (base) {
+		for (const [, field] of mapped) {
+			if (!hasField(field)) encodingsOk = false
+		}
+		if (!encodingsOk && errors.length === 0) {
+			problem("encodings", "this chart maps a field its dataset no longer has; fix it in the editor")
+		}
+	}
+	const active = [...mapped.map(([c]) => c), ...derivedChannels]
+	/** Channel → the channels it can't be mapped with, blaming the one the
+	 *  spec names when only one of a pair is new. */
+	const clashes = new Map<SpecChannel, SpecChannel[]>()
+	active.forEach((channel, i) => {
+		for (const other of active.slice(0, i)) {
+			if (!channelsConflict(channel, other)) continue
+			const blamed = spec.encodings[channel] !== undefined ? channel : other
+			const kept = blamed === channel ? other : channel
+			clashes.set(blamed, [...(clashes.get(blamed) ?? []), kept])
 		}
 	})
+	for (const [blamed, others] of clashes) {
+		const names = list(others).replace(/, ([^,]*)$/, " and $1")
+		problem(
+			pathOf("encodings", blamed),
+			base
+				? `"${blamed}" can't be mapped together with ${names}; set ${names} to null to unmap ${others.length > 1 ? "them" : "it"}`
+				: `"${blamed}" can't be mapped together with ${names}`
+		)
+		encodingsOk = false
+	}
+	if (base && active.length === 0) {
+		problem("encodings", "an edit can't unmap every channel")
+	}
 
 	const encodings = emptyEncodings()
 	for (const [channel, field] of mapped) encodings[channel] = { field }
+	if (base) {
+		for (const channel of derivedChannels) encodings[channel] = { ...base.encodings[channel] }
+	}
 	const mode = getChartModeDef(encodings, typeOf)
 
-	const hueField = spec.encodings.hue
+	const hueField = fields.hue
 	const hueType = hueField && hasField(hueField) ? typeOf(hueField) : null
+	const hueDiscrete = !!hueType && DISCRETE.includes(hueType)
+	const hueLevels = hueField && hueDiscrete ? levelsOf(view.rows, hueField) : []
 	if (spec.colors) {
-		if (!hueField || !hueType || !DISCRETE.includes(hueType)) {
+		if (!hueDiscrete) {
 			problem("colors", `"colors" needs encodings.hue mapped to a categorical or ordinal field`)
 		} else {
-			const levels = levelsOf(view.rows, hueField)
 			for (const level of Object.keys(spec.colors)) {
-				if (levels.includes(level)) continue
+				if (hueLevels.includes(level)) continue
 				problem(
 					pathOf("colors", level),
-					`"${hueField}" has no level "${named(level)}"${hint(level, levels)}`
+					`"${hueField}" has no level "${named(level)}"${hint(level, hueLevels)}`
 				)
 			}
 		}
@@ -259,10 +342,51 @@ const compose = (
 		warnings.push({ path: "fill", message: `"fill" is unused while encodings.hue colors the marks` })
 	}
 
+	let thresholdColors: Record<string, string> | null = null
+	if (spec.colorThreshold) {
+		const t = spec.colorThreshold
+		if (!hueDiscrete || !hueField) {
+			problem(
+				"colorThreshold",
+				`"colorThreshold" colors the hue levels, so it needs encodings.hue mapped to a categorical or ordinal field`
+			)
+		} else if (!hasField(t.field)) {
+			missingField("colorThreshold.field", t.field)
+		} else if (typeOf(t.field) !== "quantitative") {
+			problem("colorThreshold.field", `"${t.field}" is ${typeOf(t.field)}; the threshold needs a quantitative field`)
+		} else {
+			const sides = new Map<string, Set<"below" | "above">>()
+			for (const row of converted?.rows ?? view.rows) {
+				const level = row[hueField] ?? ""
+				const n = parseNumericCell(row[t.field])
+				if (n === null) continue
+				const set = sides.get(level) ?? new Set()
+				set.add(n < t.at ? "below" : "above")
+				sides.set(level, set)
+			}
+			const mixed = [...sides].filter(([, set]) => set.size > 1).map(([l]) => l)
+			if (mixed.length > 0) {
+				problem(
+					"colorThreshold",
+					`"${hueField}" levels ${list(mixed.slice(0, 5))}${mixed.length > 5 ? " and more" : ""} have "${t.field}" values on both sides of ${t.at}; color by a field with one value per level`
+				)
+			} else {
+				thresholdColors = {}
+				for (const [level, set] of sides) {
+					thresholdColors[level] = set.has("below") ? t.below : t.above
+				}
+			}
+		}
+	}
+
 	for (const [field, wanted] of Object.entries(spec.order ?? {})) {
 		const path = pathOf("order", field)
 		if (!hasField(field)) {
 			missingField(path, field)
+			continue
+		}
+		if (spec.sort?.[field]) {
+			problem(path, `"${field}" has both an "order" and a "sort"; keep one`)
 			continue
 		}
 		const levels = levelsOf(view.rows, field)
@@ -282,6 +406,54 @@ const compose = (
 		}
 	}
 
+	const sorted: Record<string, { levels: string[]; spec: FieldLevelOrderSpec }> = {}
+	for (const [field, want] of Object.entries(spec.sort ?? {})) {
+		const path = pathOf("sort", field)
+		if (!hasField(field)) {
+			missingField(path, field)
+			continue
+		}
+		const type = typeOf(field)
+		if (!DISCRETE.includes(type)) {
+			problem(path, `"${field}" is ${type}; only categorical or ordinal fields have levels to sort`)
+			continue
+		}
+		if (want.by === "alphabetical") {
+			sorted[field] = {
+				levels: alphabeticalLevelOrder(levelsOf(view.rows, field), !!want.decreasing),
+				spec: { by: "alphabetical", ...(want.decreasing ? { decreasing: true } : {}) },
+			}
+			continue
+		}
+		if (!hasField(want.by)) {
+			missingField(pathOf("sort", field, "by"), want.by)
+			continue
+		}
+		const byType = typeOf(want.by)
+		if (byType !== "quantitative" && byType !== "temporal") {
+			problem(
+				pathOf("sort", field, "by"),
+				`"${want.by}" is ${byType}; sort by a quantitative or temporal field, or "alphabetical"`
+			)
+			continue
+		}
+		sorted[field] = {
+			levels: orderLevelsByField(
+				converted?.rows ?? view.rows,
+				field,
+				type,
+				want.by,
+				byType,
+				!!want.decreasing
+			),
+			spec: { by: "field", byField: want.by, ...(want.decreasing ? { decreasing: true } : {}) },
+		}
+	}
+
+	/** The field drawn along an axis: its own channel, else the measure. */
+	const axisField = (axis: "x" | "y"): string | undefined =>
+		fields[axis] ?? (mode.canvas.measureAxis === axis ? fields.length : undefined)
+
 	let labels: LabelPlacement | null = null
 	if (encodingsOk) {
 		const familyModes: readonly string[] = spec.family ? FAMILY_MODES[spec.family] : []
@@ -293,7 +465,7 @@ const compose = (
 		}
 
 		for (const axis of ["x", "y"] as const) {
-			const field = spec.encodings[axis]
+			const field = fields[axis]
 			const type = field ? typeOf(field) : null
 			const continuous = type
 				? type === "quantitative"
@@ -323,7 +495,7 @@ const compose = (
 		}
 
 		if (spec.dataLabels) {
-			labels = resolveLabelPlacement(mode, spec.encodings, typeOf)
+			labels = resolveLabelPlacement(mode, fields, typeOf)
 			if (!labels) {
 				problem(
 					"dataLabels",
@@ -337,81 +509,291 @@ const compose = (
 				problem("dataLabels.position", `"position" applies only to bar charts`)
 			}
 		}
+
+		if (spec.stems) {
+			const field = fields[spec.stems.axis]
+			if (mode.id !== "scatter") {
+				problem("stems", `stems draw from points, so they need a scatter chart; these encodings make a "${mode.id}" chart`)
+			} else if (spec.stems.at !== undefined && (!field || typeOf(field) !== "quantitative")) {
+				problem(
+					"stems.at",
+					`"at" is a value on the ${spec.stems.axis} axis, which needs a quantitative field${field ? `; "${field}" is ${typeOf(field)}` : ""}`
+				)
+			}
+		}
+
+		;(spec.annotations ?? []).forEach((a, i) => {
+			for (const axis of ["x", "y"] as const) {
+				const field = axisField(axis)
+				const path = `annotations[${i}].${axis}`
+				const values = a.kind === "text" ? [a[axis]] : a[axis]
+				if (!field) {
+					problem(path, `the ${axis} axis has no field to place an annotation against`)
+					continue
+				}
+				const type = typeOf(field)
+				if (DISCRETE.includes(type)) {
+					const levels = levelsOf(view.rows, field)
+					for (const v of values) {
+						if (typeof v === "string" && levels.includes(v)) continue
+						problem(
+							path,
+							`the ${axis} axis shows "${field}" (${type}); use its level names${typeof v === "string" ? `, not "${named(v)}"${hint(v, levels)}` : ""}`
+						)
+					}
+				} else if (type === "quantitative") {
+					if (values.some((v) => typeof v !== "number")) {
+						problem(path, `the ${axis} axis shows "${field}" (quantitative); use numbers`)
+					}
+				}
+			}
+		})
 	}
 
 	if (errors.length > 0) return { ok: false, errors: capProblems(errors) }
 
-	const draft = newVisualDraft(ctx.theme)
-	const assignments: ChannelAssignment[] = mapped.map(([channel, field]) => ({
-		channel,
-		field: { name: field, inferredType: typeOf(field) },
-	}))
-	const variation: QuickStartVariation = {
-		name: spec.family ?? "spec",
-		channels: Object.fromEntries(
-			assignments.map((a) => [a.channel, [a.field.inferredType]])
-		),
-		...(spec.stack ? { stackMode: spec.stack } : {}),
+	let start: Visual & VisualDraft
+	let channelConfigs: ChannelConfigs
+	let dataLabelsEncodings: DataLabelsEncodings
+	if (base) {
+		start = hydrateVisual(base)
+		channelConfigs = { ...start.channelConfigs }
+		dataLabelsEncodings = { ...start.dataLabelsEncodings }
+		if (spec.encodings.length === null) channelConfigs.defaultLength = null
+		if (spec.encodings.hue !== undefined && hueField) {
+			const quant = hueType === "quantitative" || hueType === "temporal"
+			const hue = channelConfigs.hue
+			if (quant && hue?.kind !== "quantitative") {
+				channelConfigs.hue = channelConfigs.hueQuantStash ?? buildQuantHueConfigFromTheme(ctx.theme)
+				if (hue?.kind === "categorical") channelConfigs.hueCategoricalStash = hue
+			} else if (!quant && hue?.kind !== "categorical") {
+				channelConfigs.hue = channelConfigs.hueCategoricalStash ?? { ...DEFAULT_CATEGORICAL_HUE_CONFIG }
+				if (hue?.kind === "quantitative") channelConfigs.hueQuantStash = hue
+			}
+		}
+	} else {
+		const draft = newVisualDraft(ctx.theme)
+		const assignments: ChannelAssignment[] = mapped.map(([channel, field]) => ({
+			channel,
+			field: { name: field, inferredType: typeOf(field) },
+		}))
+		const variant = spec.family ? matchVariation(spec.family, fields, typeOf) : undefined
+		const variation: QuickStartVariation = {
+			...(variant ? knobsOf(variant, fields) : {}),
+			name: spec.family ?? "spec",
+			channels: Object.fromEntries(
+				assignments.map((a) => [a.channel, [a.field.inferredType]])
+			),
+			...(spec.stack ? { stackMode: spec.stack } : {}),
+		}
+		const scaffold = scaffoldVariation(variation, assignments, draft.channelConfigs, ctx.theme)
+		start = {
+			...draft,
+			id: ctx.id,
+			name: "",
+			folderId: null,
+			datasetId: view.id,
+			createdAtVersionId: view.versionId,
+			fieldTypeOverrides: {},
+			encodings: scaffold.encodings,
+			thumbnail: null,
+			createdAt: ctx.now,
+			updatedAt: ctx.now,
+		} as Visual & VisualDraft
+		channelConfigs = scaffold.configs
+		dataLabelsEncodings = { ...scaffold.dataLabels }
 	}
-	const scaffold = scaffoldVariation(variation, assignments, draft.channelConfigs, ctx.theme)
-	const channelConfigs = scaffold.configs
 
 	const hue = channelConfigs.hue
-	if (spec.colors && hue?.kind === "categorical") {
-		channelConfigs.hue = { ...hue, colors: { ...spec.colors } }
+	if (hue?.kind === "categorical" && (spec.colors || thresholdColors || (base && spec.stack))) {
+		channelConfigs.hue = {
+			...hue,
+			colors: { ...hue.colors, ...thresholdColors, ...spec.colors },
+			...(base && spec.stack ? { stackMode: spec.stack } : {}),
+		}
 	}
 	if (spec.fill) channelConfigs.defaultFill = spec.fill
 	for (const axis of ["x", "y"] as const) {
 		const want = spec.axes?.[axis]
-		const base = channelConfigs[axis]
-		if (!want || !base) continue
-		const next: AxisConfig = { ...base }
+		const current = channelConfigs[axis]
+		if (!want || !current) continue
+		const next: AxisConfig = { ...current }
 		if (want.min !== undefined) next.min = want.min
 		if (want.max !== undefined) next.max = want.max
 		if (want.format !== undefined) next.customFormat = want.format
 		channelConfigs[axis] = next
 	}
+	if (spec.stems) {
+		const { axis, at } = spec.stems
+		channelConfigs.connection = {
+			...DEFAULT_CONNECTION_CONFIG,
+			...channelConfigs.connection,
+			axisStem: at === undefined ? (axis === "x" ? "y-axis" : "x-axis") : axis === "x" ? "custom-x" : "custom-y",
+			...(at !== undefined ? (axis === "x" ? { axisStemCustomX: at } : { axisStemCustomY: at }) : {}),
+		}
+	}
 
-	const labelsConfig = { ...draft.labelsConfig }
+	const labelsConfig = { ...start.labelsConfig }
 	if (spec.title !== undefined) labelsConfig.title = spec.title
 	if (spec.subtitle !== undefined) labelsConfig.subtitle = spec.subtitle
 	if (spec.axes?.x?.title !== undefined) labelsConfig.xAxisTitle = spec.axes.x.title
 	if (spec.axes?.y?.title !== undefined) labelsConfig.yAxisTitle = spec.axes.y.title
 
-	const dataLabelsEncodings = { ...scaffold.dataLabels }
-	const dataLabelsConfig = { ...draft.dataLabelsConfig }
+	const dataLabelsConfig = { ...start.dataLabelsConfig }
 	if (labels) {
 		dataLabelsEncodings.x = { field: labels.x }
 		dataLabelsEncodings.y = { field: labels.y }
 		dataLabelsEncodings.value = { field: labels.value }
 		const look = typeof spec.dataLabels === "object" ? spec.dataLabels : {}
 		if (look.format !== undefined) {
-			dataLabelsConfig.fieldFormats = { [labels.value]: look.format }
+			dataLabelsConfig.fieldFormats = {
+				...(base ? dataLabelsConfig.fieldFormats : {}),
+				[labels.value]: look.format,
+			}
 		}
 		if (look.position !== undefined) dataLabelsConfig.barLabelPosition = look.position
 		if (look.color !== undefined) dataLabelsConfig.color = look.color
 	}
 
+	const fieldLevelOrders = { ...(base ? start.fieldLevelOrders : {}), ...spec.order }
+	const fieldLevelOrderSpecs = { ...(base ? start.fieldLevelOrderSpecs : {}) }
+	for (const field of Object.keys(spec.order ?? {})) delete fieldLevelOrderSpecs[field]
+	for (const [field, s] of Object.entries(sorted)) {
+		fieldLevelOrders[field] = s.levels
+		fieldLevelOrderSpecs[field] = s.spec
+	}
+
+	const annotationsConfig = addAnnotations(
+		base ? start.annotationsConfig : DEFAULT_ANNOTATIONS_CONFIG,
+		spec.annotations ?? [],
+		ctx
+	)
+
+	const name =
+		spec.name?.trim() ||
+		(base ? start.name : undefined) ||
+		spec.title?.trim() ||
+		"Untitled"
+
 	const visual: Visual = {
-		...draft,
-		id: ctx.id,
-		name: spec.name?.trim() || spec.title?.trim() || "Untitled",
-		folderId: spec.folderId ?? null,
-		datasetId: view.id,
-		createdAtVersionId: view.versionId,
+		...start,
+		name,
+		folderId: spec.folderId !== undefined ? spec.folderId : start.folderId,
 		fieldTypeOverrides: { ...overrides },
-		encodings: scaffold.encodings,
+		encodings: base ? { ...start.encodings, ...encodings } : start.encodings,
 		channelConfigs,
 		labelsConfig,
 		dataLabelsEncodings,
 		dataLabelsConfig,
-		fieldLevelOrders: { ...spec.order },
-		...(ctx.themeId !== null ? { themeId: ctx.themeId } : {}),
-		thumbnail: null,
-		createdAt: ctx.now,
+		fieldLevelOrders,
+		fieldLevelOrderSpecs,
+		annotationsConfig,
+		...(ctx.themeId !== null && !base ? { themeId: ctx.themeId } : {}),
 		updatedAt: ctx.now,
 	}
+	if (base) {
+		for (const [channel, field] of changed) {
+			if (field === null) visual.encodings[channel] = { field: null }
+		}
+	}
 	return { ok: true, visual, warnings }
+}
+
+/** The family's quick-start variation these channels fill best: every
+ *  channel it lists is mapped to a field of a type it takes. Ties go to
+ *  the one listed first, as on the quick-start bar. */
+export const matchVariation = (
+	family: QuickStartChartType,
+	fields: Partial<Record<SpecChannel, string>>,
+	typeOf: (field: string) => FieldType
+): QuickStartVariation | undefined => {
+	let best: QuickStartVariation | undefined
+	let bestSize = -1
+	for (const v of QUICK_START_VARIATIONS[family]) {
+		const wanted = Object.entries(v.channels) as Array<[SpecChannel, readonly FieldType[]]>
+		const fits = wanted.every(([channel, types]) => {
+			const field = fields[channel]
+			return field !== undefined && types.includes(typeOf(field))
+		})
+		if (fits && wanted.length > bestSize) {
+			best = v
+			bestSize = wanted.length
+		}
+	}
+	return best
+}
+
+/** A variation's settings, minus the field choices the spec already made. */
+const knobsOf = (
+	v: QuickStartVariation,
+	fields: Partial<Record<SpecChannel, string>>
+): Omit<QuickStartVariation, "name" | "channels"> => {
+	const { name: _name, channels: _channels, allowOpportunisticHue: _hue, ...knobs } = v
+	if (fields.connection !== undefined) delete knobs.connectionFrom
+	if (fields.hue !== undefined) {
+		delete knobs.hueFrom
+		delete knobs.hueMeasureSource
+	}
+	return knobs
+}
+
+/** Id for an annotation made from a spec; same shape as the panel's. */
+const annotationId = (prefix: string, now: number, i: number): string =>
+	`${prefix}-${now.toString(36)}-${i.toString(36)}${Math.random().toString(36).slice(2, 5)}`
+
+const addAnnotations = (
+	current: AnnotationsConfig,
+	specs: readonly AnnotationSpec[],
+	ctx: ComposeContext
+): AnnotationsConfig => {
+	const next: AnnotationsConfig = {
+		rectangles: [...(current.rectangles ?? [])],
+		circles: [...(current.circles ?? [])],
+		lineSegments: [...(current.lineSegments ?? [])],
+		texts: [...(current.texts ?? [])],
+	}
+	specs.forEach((a, i) => {
+		if (a.kind === "band") {
+			const r = newRectangle(annotationId("rect", ctx.now, i), rectangleStyleFromTheme(ctx.theme))
+			next.rectangles.push({
+				...r,
+				xMin: a.x[0],
+				xMax: a.x[1],
+				yMin: a.y[0],
+				yMax: a.y[1],
+				coordSystem: "values",
+				zOrder: a.front ? "front" : "behind",
+				...(a.color ? { backgroundColor: a.color, borderColor: a.color } : {}),
+				...(a.opacity !== undefined ? { backgroundOpacity: a.opacity } : {}),
+				...(a.label !== undefined ? { text: a.label } : {}),
+			})
+		} else if (a.kind === "line") {
+			const l = newLineSegment(annotationId("line", ctx.now, i), lineAnnotationStyleFromTheme(ctx.theme))
+			next.lineSegments.push({
+				...l,
+				xMin: a.x[0],
+				xMax: a.x[1],
+				yMin: a.y[0],
+				yMax: a.y[1],
+				coordSystem: "values",
+				zOrder: a.front ? "front" : "behind",
+				...(a.color ? { lineColor: a.color } : {}),
+				...(a.thickness !== undefined ? { lineThickness: a.thickness } : {}),
+				...(a.dash ? { lineDash: a.dash } : {}),
+			})
+		} else {
+			const t = newTextAnnotation(annotationId("text", ctx.now, i), textAnnotationStyleFromTheme(ctx.theme))
+			next.texts.push({
+				...t,
+				x: a.x,
+				y: a.y,
+				coordSystem: "values",
+				text: a.text,
+				...(a.color ? { textColor: a.color } : {}),
+			})
+		}
+	})
+	return next
 }
 
 /** Compose a parsed spec into a visual, checking it against the data:
@@ -433,4 +815,24 @@ export const composeChartSpec = (
 	const { draft, errors } = readChartSpec(input)
 	if (!draft) return { ok: false, errors: capProblems(errors) }
 	return compose(draft, errors, ctx)
+}
+
+/** Apply a parsed edit to an existing visual, with the same checks as a
+ *  create. Only what the edit names changes; `ctx.dataset` must be the
+ *  visual's own. */
+export const editVisual = (
+	visual: Visual,
+	edit: ChartEdit,
+	ctx: Omit<ComposeContext, "id">
+): ComposeVisualResult => compose({ ...edit, encodings: edit.encodings ?? {} }, [], { ...ctx, id: visual.id }, visual)
+
+/** Parse and apply an edit in one pass. */
+export const composeChartEdit = (
+	visual: Visual,
+	input: unknown,
+	ctx: Omit<ComposeContext, "id">
+): ComposeVisualResult => {
+	const { draft, errors } = readChartSpec(input, "edit")
+	if (!draft) return { ok: false, errors: capProblems(errors) }
+	return compose(draft, errors, { ...ctx, id: visual.id }, visual)
 }

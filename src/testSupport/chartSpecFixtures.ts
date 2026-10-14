@@ -358,6 +358,36 @@ export const CAFE = table(
 	)
 )
 
+/** Specialists per primary care physician by country: the lollipop chart
+ *  in the 10-14 walkthrough. One row per country, ascending. */
+export const RATIOS = table(
+	"ds-ratios",
+	[
+		["Country", "categorical"],
+		["Ratio", "quantitative"],
+	],
+	[
+		["Colombia", 0.520969],
+		["Ireland", 0.839772],
+		["Portugal", 0.928591],
+		["Chile", 1.030715],
+		["Canada", 1.139471],
+		["France", 1.352448],
+		["Mexico", 1.775568],
+		["Norway", 2.018978],
+		["Switzerland", 2.396358],
+		["OECD Average", 2.674538875],
+		["Denmark", 2.912904],
+		["Spain", 3.021148],
+		["United Kingdom", 3.075031],
+		["Slovenia", 3.831418],
+		["Iceland", 4.071661],
+		["Italy", 4.349717],
+		["United States", 7.77605],
+		["Greece", 11.40251],
+	]
+)
+
 export const THEME = SYSTEM_LIGHT_THEME
 
 /** The context a caller hands `composeVisual`: the spec's dataset (when it
@@ -383,4 +413,4 @@ export const contextFor = (
 	}
 }
 
-export const ALL_DATASETS: Dataset[] = [...TRENDS.map((t) => t.dataset), CAFE]
+export const ALL_DATASETS: Dataset[] = [...TRENDS.map((t) => t.dataset), CAFE, RATIOS]
