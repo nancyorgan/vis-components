@@ -422,7 +422,7 @@ describe("composeChartSpec — rejected specs", () => {
 			paths({
 				datasetId: CAFE.id,
 				folderId: "fl-nope",
-				encodings: { x: "Month", color: "flavor", length: "muffins" },
+				encodings: { x: "Month", colour: "flavor", length: "muffins" },
 				title: 3,
 				colors: { Lemon: "#GGG", Pistachio: "#00ff00" },
 				family: "bars",
@@ -432,7 +432,7 @@ describe("composeChartSpec — rejected specs", () => {
 			[
 				"colors",
 				"colors.Lemon",
-				"encodings.color",
+				"encodings.colour",
 				"encodings.x",
 				"family",
 				"folderId",

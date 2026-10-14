@@ -201,14 +201,14 @@ describe("POST /api/visuals", () => {
 		const res = await post(base, {
 			datasetId: CAFE.id,
 			folderId: "fl-nope",
-			encodings: { x: "Month", color: "flavor", length: "muffins" },
+			encodings: { x: "Month", colour: "flavor", length: "muffins" },
 			title: 3,
 			family: "bars",
 		})
 		expect(res.status).toBe(400)
 		const { errors } = (await res.json()) as { errors: { path: string }[] }
 		expect(errors.map((e) => e.path).sort()).toEqual(
-			["encodings.color", "encodings.x", "family", "folderId", "title"].sort()
+			["encodings.colour", "encodings.x", "family", "folderId", "title"].sort()
 		)
 		expect(await visuals(base)).toEqual([])
 	})

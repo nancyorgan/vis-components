@@ -103,7 +103,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `datasetId` | Required. The data set to chart. |
 | `datasetVersionId` | Optional. The version the spec is checked against; the latest by default. The chart still draws the latest version. |
 | `folderId` | Required. A folder id, or `null` for the library root. |
-| `encodings` | Required. Channel → field name, e.g. `{"y":"country","length":"rate"}`. Channels are the shelf's (`x`, `y`, `length`, `hue`, `facet`, …); the chart type follows from them as it does on the shelves. |
+| `encodings` | Required. Channel → field name, e.g. `{"y":"country","length":"rate"}`. Channels are the shelf's (`x`, `y`, `length`, `hue`, `facet`, …), named by id or by the shelf's label (`"X position"`, `"Color"`, `"Facet (wrap)"`; case, spaces and punctuation ignored); the chart type follows from them as it does on the shelves. |
 | `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
 | `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines, a map goes geographic), except the stack mode, which only `stack` sets. Encodings that fill none of its variations are an error naming what is missing. |
 | `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |

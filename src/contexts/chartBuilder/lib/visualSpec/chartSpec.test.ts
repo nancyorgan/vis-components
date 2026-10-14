@@ -65,13 +65,13 @@ describe("parseChartSpec", () => {
 		expect(errors.map((e) => e.path)).toEqual(["encodings.x"])
 	})
 
-	it("rejects a `color` channel and suggests hue (the color-channel toy)", () => {
+	it("rejects a `colour` channel and suggests hue (the color-channel toy)", () => {
 		const errors = errorsOf({
 			...valid(),
-			encodings: { x: "month", length: "muffins", color: "flavor" },
+			encodings: { x: "month", length: "muffins", colour: "flavor" },
 		})
 		expect(errors).toHaveLength(1)
-		expect(errors[0].path).toBe("encodings.color")
+		expect(errors[0].path).toBe("encodings.colour")
 		expect(errors[0].message).toMatch(/hue/)
 	})
 
@@ -209,7 +209,7 @@ describe("parseChartSpec", () => {
 		const errors = errorsOf({
 			datasetId: 7,
 			folderId: null,
-			encodings: { x: "month", color: "flavor", length: 3 },
+			encodings: { x: "month", colour: "flavor", length: 3 },
 			title: ["Muffins"],
 			colors: { Lemon: "#GGG" },
 			family: "histogram",
@@ -224,7 +224,7 @@ describe("parseChartSpec", () => {
 				"colors.Lemon",
 				"dataLabels.position",
 				"datasetId",
-				"encodings.color",
+				"encodings.colour",
 				"encodings.length",
 				"family",
 				"theme",

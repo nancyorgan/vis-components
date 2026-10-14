@@ -24,6 +24,7 @@ import {
 	type EncodingChannel,
 	type FieldType,
 } from "../types"
+import { CHANNELS } from "../channels"
 import { didYouMean } from "./suggest"
 
 /** Every channel except the legacy `text`, which data labels replaced. */
@@ -192,9 +193,23 @@ export const SPEC_CHANNELS: readonly SpecChannel[] = ALL_ENCODING_CHANNELS.filte
 	(c): c is SpecChannel => c !== "text"
 )
 
+/** A channel name folded for matching: lowercase letters and digits only. */
+const fold = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+/** Channel by its id or its label in the editor ("X position", "Color",
+ *  "Facet (wrap)"), matched ignoring case, spaces and punctuation. */
+const CHANNEL_BY_NAME: ReadonlyMap<string, SpecChannel> = new Map(
+	SPEC_CHANNELS.flatMap((c) => [
+		[fold(c), c],
+		[fold(CHANNELS[c].label), c],
+	])
+)
+
+export const channelFromName = (name: string): SpecChannel | undefined =>
+	CHANNEL_BY_NAME.get(fold(name))
+
 const CHANNEL_HINTS: Record<string, string> = {
-	color: `; did you mean "hue"?`,
-	colour: `; did you mean "hue"?`,
+	colour: `; did you mean "hue" (Color)?`,
 	fill: `; did you mean "hue"?`,
 	size: `; did you mean "area" or "length"?`,
 	text: `; label values with "dataLabels" instead`,
@@ -386,13 +401,19 @@ export const readChartSpec = (
 		if (!edit && Object.keys(encodings).length === 0) {
 			problem("encodings", "map at least one channel")
 		}
-		for (const [channel, field] of Object.entries(encodings)) {
-			const path = pathOf("encodings", channel)
-			if (!isOneOf(SPEC_CHANNELS, channel)) {
+		const seen = new Map<SpecChannel, string>()
+		for (const [name, field] of Object.entries(encodings)) {
+			const path = pathOf("encodings", name)
+			const channel = channelFromName(name)
+			const twin = channel ? seen.get(channel) : undefined
+			if (channel) seen.set(channel, name)
+			if (!channel) {
 				problem(
 					path,
-					`unknown channel "${named(channel)}"${ownHint(CHANNEL_HINTS, channel) ?? hint(channel, SPEC_CHANNELS)}`
+					`unknown channel "${named(name)}"${ownHint(CHANNEL_HINTS, name) ?? hint(name, [...SPEC_CHANNELS, ...SPEC_CHANNELS.map((c) => CHANNELS[c].label)])}`
 				)
+			} else if (twin !== undefined) {
+				problem(path, `"${name}" and "${twin}" are the same channel ("${channel}")`)
 			} else if (edit && field === null) {
 				draft.encodings[channel] = null
 			} else if (typeof field !== "string" || field === "") {

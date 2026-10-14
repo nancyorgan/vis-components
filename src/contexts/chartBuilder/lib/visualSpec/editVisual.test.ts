@@ -451,3 +451,42 @@ describe("removing annotations", () => {
 		expect(r.ok).toBe(false)
 	})
 })
+
+describe("Nancy's encoding names", () => {
+	it("accepts the editor's labels as channel names", () => {
+		const v = ok(
+			composeChartSpec(
+				{
+					datasetId: CAFE.id,
+					folderId: null,
+					encodings: { "X position": "month", Length: "muffins", Color: "flavor", "facet (wrap)": "month" },
+				},
+				ctx(CAFE.id)
+			)
+		)
+		expect(v.encodings.x).toEqual({ field: "month" })
+		expect(v.encodings.length).toEqual({ field: "muffins" })
+		expect(v.encodings.hue).toEqual({ field: "flavor" })
+		expect(v.encodings.facet).toEqual({ field: "month" })
+	})
+
+	it("takes labels in an edit, null included", () => {
+		const v1 = ok(edit(scatter(), { encodings: { color: null } }))
+		expect(v1.encodings.hue).toEqual({ field: null })
+		const v2 = ok(edit(v1, { encodings: { "Outline color": "Country" } }))
+		expect(v2.encodings.outlineHue).toEqual({ field: "Country" })
+	})
+
+	it("refuses two names for one channel, and suggests labels", () => {
+		const r = composeChartSpec(
+			{ datasetId: CAFE.id, folderId: null, encodings: { x: "month", "X Position": "flavor", length: "muffins" } },
+			ctx(CAFE.id)
+		)
+		expect(r.ok ? [] : r.errors.map((e) => e.message)).toContainEqual(expect.stringMatching(/same channel/))
+		const typo = composeChartSpec(
+			{ datasetId: CAFE.id, folderId: null, encodings: { x: "month", Lenght: "muffins" } },
+			ctx(CAFE.id)
+		)
+		expect(typo.ok ? "" : typo.errors[0]?.message).toMatch(/did you mean/)
+	})
+})
