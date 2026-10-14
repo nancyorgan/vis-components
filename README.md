@@ -101,11 +101,11 @@ curl -X POST https://charts.example.com/api/visuals \
 | Field | Meaning |
 |---|---|
 | `datasetId` | Required. The data set to chart. |
-| `datasetVersionId` | Optional. The version the spec is checked against; the latest by default. |
+| `datasetVersionId` | Optional. The version the spec is checked against; the latest by default. The chart still draws the latest version. |
 | `folderId` | Required. A folder id, or `null` for the library root. |
 | `encodings` | Required. Channel → field name, e.g. `{"y":"country","length":"rate"}`. Channels are the shelf's (`x`, `y`, `length`, `hue`, `facet`, …); the chart type follows from them as it does on the shelves. |
 | `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
-| `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines). |
+| `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines, a map goes geographic), except the stack mode, which only `stack` sets. Encodings that fill none of its variations are an error naming what is missing. |
 | `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
 | `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis; `format` is what the axis Format box takes. |
 | `colors` | Optional hue level → `#rgb`/`#rrggbb`. Needs a categorical or ordinal `hue`, and every level must be in the data. |
@@ -115,7 +115,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `dataLabels` | Optional `true`, or `{format, position, color}`. Bar, area and scatter charts; `position` is for bars. |
 | `themeId` | Optional theme; the server's default theme otherwise. |
 | `sort` | Optional field → `{by, decreasing}`: order a categorical field's levels by another field's total, or `"alphabetical"`. Computed once, like the Fields panel's "Order by". |
-| `colorThreshold` | Optional `{field, at, below, above}`: color each hue level by which side of `at` its `field` value falls. Pinned as per-level colors; a level with values on both sides is an error. |
+| `colorThreshold` | Optional `{field, at, below, above}`: color each hue level by which side of `at` its `field` value falls. Pinned as per-level colors; a level with values on both sides is an error. `colors` given with it wins for the levels it names. |
 | `stems` | Optional `{axis, at}`: a line from each point along `axis` to `at` on it (lollipops), or to the other axis's line without `at`. Scatter charts. |
 | `annotations` | Optional list, each in data values: `{kind: "band", x: [from, to], y: [from, to], color, opacity, label, front}`, `{kind: "line", x, y, color, thickness, dash, front}` or `{kind: "text", x, y, text, color}`. Numbers on a quantitative axis, level names on a categorical one. At most 20. |
 
@@ -158,7 +158,11 @@ names and nothing else: `{"title": "…"}` changes the title, and every other
 setting, including ones made by hand in the editor, stays as it was. The keys
 are the create keys except `datasetId`, `datasetVersionId` and `themeId`; a
 channel set to `null` is unmapped, and `annotations` are added to the
-visual's own. Edits are checked like a create, against the visual's dataset.
+visual's own. `removeAnnotations` (edits only) lists kinds (`"band"`,
+`"line"`, `"text"`) to remove first, every annotation of that kind. Edits are
+checked like a create, against the visual's data as the editor shows it
+(reshape and derived variables included). An edit that names nothing is
+refused.
 
 ```
 curl -X PATCH https://charts.example.com/api/visuals/vs-… \
@@ -166,8 +170,9 @@ curl -X PATCH https://charts.example.com/api/visuals/vs-… \
   -d '{"sort":{"country":{"by":"rate","decreasing":true}}}'
 ```
 
-`If-Match` carries the `updatedAt` the caller last read; when the visual has
-changed since, the edit answers **409** and changes nothing. A visual changed
+`If-Match` is required and carries the `updatedAt` the caller last read
+(`*` skips the check); without it the edit answers **428**, and when the
+visual has changed since, **409**, changing nothing. A visual changed
 by another write while the edit runs also answers **409**. Responses are the
 create route's, with **200** `{id, visual, warnings, editorUrl}` for a saved
 edit, **404** for an unknown visual and **409** for one in the trash. The

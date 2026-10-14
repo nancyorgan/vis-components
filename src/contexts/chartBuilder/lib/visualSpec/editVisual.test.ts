@@ -2,14 +2,22 @@ import { describe, expect, it } from "vitest"
 
 import {
 	ALL_DATASETS,
+	BLANKS,
 	CAFE,
 	contextFor,
+	DATES,
 	RATIOS,
+	STATES,
 } from "../../../../testSupport/chartSpecFixtures"
 import type { Visual } from "../types"
 import { hydrateVisual } from "../visualDefaults"
 import { parseChartEdit } from "./chartSpec"
-import { composeChartEdit, composeVisual, type ComposeVisualResult } from "./composeVisual"
+import {
+	composeChartEdit,
+	composeChartSpec,
+	composeVisual,
+	type ComposeVisualResult,
+} from "./composeVisual"
 
 const ctx = (datasetId: string, now = 1_700_000_000_000) => ({
 	...contextFor(ALL_DATASETS, datasetId),
@@ -335,5 +343,111 @@ describe("a named family uses its quick-start variation", () => {
 			)
 		)
 		expect(v.encodings.x).toEqual({ field: "Ratio" })
+	})
+})
+
+describe("review findings", () => {
+	const create = (spec: Record<string, unknown>, datasetId = CAFE.id) =>
+		composeVisual({ datasetId, folderId: null, ...spec } as never, ctx(datasetId))
+
+	it.each([
+		["hexbin", { x: "muffins", y: "coffees" }],
+		["circles", { area: "muffins", connection: "flavor" }],
+		["treemap", { area: "muffins", connection: "flavor" }],
+		["sunburst", { area: "muffins", connection: "flavor" }],
+		["sankey", { area: "muffins", connection: "flavor" }],
+		["chord", { area: "muffins", connection: "flavor" }],
+	])("family %s is reachable", (family, encodings) => {
+		const r = create({ family, encodings })
+		expect(r.ok ? "ok" : r.errors.map((e) => e.message).join("; ")).toBe("ok")
+	})
+
+	it("a map family gets a geographic map config", () => {
+		const v = ok(create({ family: "map", encodings: { connection: "State", hue: "Value" } }, STATES.id))
+		expect(v.mapConfig?.coordSystem).toBe("geographic")
+	})
+
+	it("naming a family never changes the stack default", () => {
+		const hue = (spec: Record<string, unknown>) => {
+			const h = ok(create(spec)).channelConfigs.hue
+			return h?.kind === "categorical" ? h.stackMode : undefined
+		}
+		const enc = { x: "month", length: "muffins", hue: "flavor" }
+		expect(hue({ family: "bar", encodings: enc })).toBe(hue({ encodings: enc }))
+		expect(hue({ family: "bar", encodings: { y: "month", length: "muffins", hue: "flavor" } })).toBe(hue({ encodings: enc }))
+	})
+
+	it("a family missing a channel says which", () => {
+		const errors = errorsOf(create({ family: "line", encodings: { x: "month", y: "muffins" } }))
+		expect(errors[0]?.path).toBe("family")
+		expect(errors[0]?.message).toMatch(/"connection"/)
+	})
+
+	it("blank cells are not levels", () => {
+		const v = ok(
+			create(
+				{ encodings: { y: "region", length: "n", hue: "region" }, order: { region: ["South", "North"] } },
+				BLANKS.id
+			)
+		)
+		expect(v.fieldLevelOrders?.region).toEqual(["South", "North"])
+		const s = ok(create({ encodings: { y: "region", length: "n" }, sort: { region: { by: "alphabetical" } } }, BLANKS.id))
+		expect(s.fieldLevelOrders?.region).toEqual(["North", "South"])
+	})
+
+	it("an edit keeps a legacy text encoding", () => {
+		const v0 = ok(create({ encodings: { x: "month", y: "flavor", hue: "muffins" } }))
+		const legacy = { ...v0, encodings: { ...v0.encodings, text: { field: "coffees" } } }
+		const v1 = ok(edit(legacy, { title: "t" }))
+		expect(v1.encodings.text).toEqual({ field: "coffees" })
+	})
+
+	it("axis bounds apply when the stored chart has no axis config", () => {
+		const v0 = ok(create({ encodings: { y: "flavor", length: "muffins" } }))
+		const bare = { ...v0, channelConfigs: { ...v0.channelConfigs, x: undefined } } as unknown as Visual
+		const v1 = ok(edit(bare, { axes: { x: { max: 50 } } }))
+		expect(v1.channelConfigs.x?.max).toBe(50)
+	})
+
+	it("refuses stack on a gradient hue and junk on a temporal axis", () => {
+		const v0 = ok(create({ encodings: { x: "muffins", y: "coffees", hue: "muffins" } }))
+		expect(errorsOf(edit(v0, { stack: "group" })).map((e) => e.path)).toContain("stack")
+		const dated = ok(create({ encodings: { x: "day", y: "n" } }, DATES.id))
+		const r = edit(dated, { annotations: [{ kind: "line", x: ["yesterday", "tomorrow"], y: [0, 3] }] })
+		expect(errorsOf(r).map((e) => e.path)).toContain("annotations[0].x")
+		ok(edit(dated, { annotations: [{ kind: "line", x: ["2026-01-02", "2026-01-03"], y: [0, 3] }] }))
+	})
+
+	it("refuses an empty edit", () => {
+		expect(errorsOf(edit(scatter(), {}))[0]?.message).toMatch(/at least one setting/)
+	})
+})
+
+describe("removing annotations", () => {
+	it("removes every annotation of the named kinds, then adds", () => {
+		const v1 = ok(
+			edit(scatter(), {
+				annotations: [
+					{ kind: "band", x: [0, 1], y: ["Chile", "Greece"] },
+					{ kind: "line", x: [1, 1], y: ["Chile", "Greece"] },
+				],
+			})
+		)
+		const v2 = ok(edit(v1, { removeAnnotations: ["band"] }))
+		expect(v2.annotationsConfig?.rectangles).toEqual([])
+		expect(v2.annotationsConfig?.lineSegments).toHaveLength(1)
+		const v3 = ok(
+			edit(v2, { removeAnnotations: ["line"], annotations: [{ kind: "line", x: [2, 2], y: ["Chile", "Greece"] }] })
+		)
+		expect(v3.annotationsConfig?.lineSegments.map((l) => l.xMin)).toEqual([2])
+	})
+
+	it("refuses unknown kinds, and the key in a create", () => {
+		expect(errorsOf(edit(scatter(), { removeAnnotations: ["circle"] })).map((e) => e.path)).toContain("removeAnnotations")
+		const r = composeChartSpec(
+			{ datasetId: RATIOS.id, folderId: null, encodings: { x: "Ratio" }, removeAnnotations: ["band"] },
+			ctx(RATIOS.id)
+		)
+		expect(r.ok).toBe(false)
 	})
 })

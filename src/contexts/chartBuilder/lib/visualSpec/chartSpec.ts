@@ -136,6 +136,9 @@ export type ChartSpec = {
  *  set to null is unmapped; `annotations` are added to the chart's own. */
 export type ChartEdit = Partial<Omit<ChartSpec, "datasetId" | "encodings">> & {
 	encodings?: Partial<Record<SpecChannel, string | null>>
+	/** Annotation kinds to remove, every one of that kind, before any
+	 *  `annotations` are added. */
+	removeAnnotations?: AnnotationSpec["kind"][]
 }
 
 /** One problem with a spec: where (`encodings.x`, `colors["U.S."]`; "" for
@@ -153,6 +156,7 @@ export type ChartSpecDraft = Omit<ChartSpec, "datasetId" | "folderId" | "encodin
 	folderId?: string | null
 	/** null only in an edit: unmap the channel. */
 	encodings: Partial<Record<SpecChannel, string | null>>
+	removeAnnotations?: AnnotationSpec["kind"][]
 }
 
 const TOP_LEVEL_KEYS = [
@@ -301,6 +305,9 @@ export const readChartSpec = (
 		return { draft: null, errors }
 	}
 
+	if (edit && Object.keys(input).length === 0) {
+		problem("", "an edit must name at least one setting to change")
+	}
 	for (const key of Object.keys(input)) {
 		if (edit && key === "datasetId") {
 			problem("datasetId", "an edit can't change the dataset; create a new chart instead")
@@ -316,6 +323,7 @@ export const readChartSpec = (
 			continue
 		}
 		if ((TOP_LEVEL_KEYS as readonly string[]).includes(key)) continue
+		if (edit && key === "removeAnnotations") continue
 		problem(
 			pathOf(key),
 			`unknown key "${named(key)}"${ownHint(TOP_LEVEL_HINTS, key) ?? hint(key, TOP_LEVEL_KEYS)}`
@@ -570,6 +578,22 @@ export const readChartSpec = (
 	}
 
 	readExtras(input, draft, problem, hint, () => errors.length)
+
+	if (edit && input.removeAnnotations !== undefined) {
+		const kinds = input.removeAnnotations
+		if (
+			Array.isArray(kinds) &&
+			kinds.length > 0 &&
+			kinds.every((k) => isOneOf(ANNOTATION_KINDS, k))
+		) {
+			draft.removeAnnotations = [...new Set(kinds)] as AnnotationSpec["kind"][]
+		} else {
+			problem(
+				"removeAnnotations",
+				`"removeAnnotations" must be a list of kinds: ${quoted(ANNOTATION_KINDS)}`
+			)
+		}
+	}
 
 	return { draft, errors }
 }

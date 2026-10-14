@@ -15,6 +15,7 @@ import {
 	type AnnotationsConfig,
 } from "../annotationsConfig"
 import {
+	DEFAULT_AXIS_CONFIG,
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	type AxisConfig,
@@ -31,7 +32,12 @@ import { applyDerivedVariablesToView } from "../derivedVariables"
 import { applyDollarConversionToView } from "../dollarCells"
 import { effectiveType } from "../fieldType"
 import { applyPercentConversionToView } from "../percentCells"
-import { scaffoldVariation, type ChannelAssignment } from "../quickStart"
+import { detectGeoFields } from "../geo/detectGeoFields"
+import {
+	mapConfigForVariation,
+	scaffoldVariation,
+	type ChannelAssignment,
+} from "../quickStart"
 import {
 	QUICK_START_VARIATIONS,
 	type QuickStartChartType,
@@ -118,11 +124,14 @@ const DISCRETE: readonly FieldType[] = ["categorical", "ordinal"]
 const list = (items: readonly string[]): string =>
 	items.map((s) => `"${s}"`).join(", ")
 
-/** Distinct values of `field` across `rows`, in first-seen order. */
+/** Distinct non-blank values of `field` across `rows`, in first-seen
+ *  order: the levels the Fields panel lists. */
 const levelsOf = (
 	rows: ReadonlyArray<Record<string, string>>,
 	field: string
-): string[] => [...new Set(rows.map((r) => r[field] ?? ""))]
+): string[] => [
+	...new Set(rows.map((r) => r[field] ?? "").filter((v) => String(v) !== "")),
+]
 
 /** The data-label mapping a chart's marks can carry: where each label sits
  *  (x / y) and what it prints (value). */
@@ -334,8 +343,16 @@ const compose = (
 	for (const [channel, field] of mapped) encodings[channel] = { field }
 	if (base) {
 		for (const channel of derivedChannels) encodings[channel] = { ...base.encodings[channel] }
+		if (base.encodings.text) encodings.text = { ...base.encodings.text }
 	}
-	const mode = getChartModeDef(encodings, typeOf)
+	const mode = getChartModeDef(
+		encodings,
+		typeOf,
+		hydrated?.channelConfigs,
+		hydrated?.mapConfig
+	)
+	const variant =
+		!base && spec.family ? matchVariation(spec.family, fields, typeOf) : undefined
 
 	const hueField = fields.hue
 	const hueType = hueField && hasField(hueField) ? typeOf(hueField) : null
@@ -356,6 +373,8 @@ const compose = (
 	}
 	if (spec.stack && !hueField) {
 		problem("stack", `"stack" needs encodings.hue: it stacks or groups the hue levels`)
+	} else if (spec.stack && hueType && !hueDiscrete) {
+		problem("stack", `"stack" needs a categorical or ordinal hue; "${hueField}" is ${hueType}`)
 	}
 	if (spec.fill && hueField) {
 		warnings.push({ path: "fill", message: `"fill" is unused while encodings.hue colors the marks` })
@@ -378,7 +397,7 @@ const compose = (
 			for (const row of view.rows) {
 				const level = row[hueField] ?? ""
 				const n = parseNumericCell(row[t.field])
-				if (n === null) continue
+				if (n === null || String(level) === "") continue
 				const set = sides.get(level) ?? new Set()
 				set.add(n < t.at ? "below" : "above")
 				sides.set(level, set)
@@ -475,12 +494,11 @@ const compose = (
 
 	let labels: LabelPlacement | null = null
 	if (encodingsOk) {
-		const familyModes: readonly string[] = spec.family ? FAMILY_MODES[spec.family] : []
-		if (spec.family && !familyModes.includes(mode.id)) {
-			problem(
-				"family",
-				`a "${spec.family}" chart is ${list(FAMILY_MODES[spec.family])}; these encodings make a "${mode.id}" chart`
-			)
+		if (spec.family && base && !(FAMILY_MODES[spec.family] as readonly string[]).includes(mode.id)) {
+			problem("family", familyMismatch(spec.family, mode.id))
+		}
+		if (spec.family && !base && !variant) {
+			problem("family", `${familyNeeds(spec.family, fields, typeOf)}; these encodings make a "${mode.id}" chart`)
 		}
 
 		for (const axis of ["x", "y"] as const) {
@@ -541,7 +559,7 @@ const compose = (
 			}
 		}
 
-		;(spec.annotations ?? []).forEach((a, i) => {
+		for (const [i, a] of (spec.annotations ?? []).entries()) {
 			for (const axis of ["x", "y"] as const) {
 				const field = axisField(axis)
 				const path = `annotations[${i}].${axis}`
@@ -564,9 +582,11 @@ const compose = (
 					if (values.some((v) => typeof v !== "number")) {
 						problem(path, `the ${axis} axis shows "${field}" (quantitative); use numbers`)
 					}
+				} else if (values.some((v) => parseValue(String(v), "temporal") === null)) {
+					problem(path, `the ${axis} axis shows "${field}" (temporal); use dates like its values`)
 				}
 			}
-		})
+		}
 	}
 
 	if (errors.length > 0) return { ok: false, errors: capProblems(errors) }
@@ -606,8 +626,21 @@ const compose = (
 			...(spec.stack ? { stackMode: spec.stack } : {}),
 		}
 		const scaffold = scaffoldVariation(variation, assignments, draft.channelConfigs, ctx.theme)
+		const mapConfig = variant?.geo
+			? mapConfigForVariation(
+					variation,
+					assignments,
+					detectGeoFields(view.fields, view.rows, overrides),
+					draft.mapConfig
+				)
+			: draft.mapConfig
+		const made = getChartModeDef(scaffold.encodings, typeOf, scaffold.configs, mapConfig)
+		if (spec.family && !(FAMILY_MODES[spec.family] as readonly string[]).includes(made.id)) {
+			return { ok: false, errors: [{ path: "family", message: familyMismatch(spec.family, made.id) }] }
+		}
 		start = {
 			...draft,
+			mapConfig,
 			id: ctx.id,
 			name: "",
 			folderId: null,
@@ -634,8 +667,8 @@ const compose = (
 	if (spec.fill) channelConfigs.defaultFill = spec.fill
 	for (const axis of ["x", "y"] as const) {
 		const want = spec.axes?.[axis]
-		const current = channelConfigs[axis]
-		if (!want || !current) continue
+		const current = channelConfigs[axis] ?? DEFAULT_AXIS_CONFIG
+		if (!want) continue
 		const next: AxisConfig = { ...current }
 		if (want.min !== undefined) next.min = want.min
 		if (want.max !== undefined) next.max = want.max
@@ -682,8 +715,15 @@ const compose = (
 		fieldLevelOrderSpecs[field] = s.spec
 	}
 
+	const kept = base ? start.annotationsConfig : DEFAULT_ANNOTATIONS_CONFIG
+	const removing = new Set(spec.removeAnnotations ?? [])
 	const annotationsConfig = addAnnotations(
-		base ? start.annotationsConfig : DEFAULT_ANNOTATIONS_CONFIG,
+		{
+			...kept,
+			rectangles: removing.has("band") ? [] : kept.rectangles,
+			lineSegments: removing.has("line") ? [] : kept.lineSegments,
+			texts: removing.has("text") ? [] : kept.texts,
+		},
 		spec.annotations ?? [],
 		ctx
 	)
@@ -742,12 +782,35 @@ export const matchVariation = (
 	return best
 }
 
-/** A variation's settings, minus the field choices the spec already made. */
+const familyMismatch = (family: QuickStartChartType, made: string): string =>
+	`a "${family}" chart is ${list(FAMILY_MODES[family])}; these encodings make a "${made}" chart`
+
+/** What the closest variation of `family` still needs. */
+const familyNeeds = (
+	family: QuickStartChartType,
+	fields: Partial<Record<SpecChannel, string>>,
+	typeOf: (field: string) => FieldType
+): string => {
+	const needs = QUICK_START_VARIATIONS[family].map((v) =>
+		(Object.entries(v.channels) as Array<[SpecChannel, readonly FieldType[]]>)
+			.filter(([channel, types]) => {
+				const field = fields[channel]
+				return field === undefined || !types.includes(typeOf(field))
+			})
+			.map(([channel, types]) => `"${channel}" (${types.join(" or ")})`)
+	)
+	const fewest = needs.reduce((a, b) => (b.length < a.length ? b : a))
+	return `a "${family}" chart needs ${fewest.join(", ")} (GET /api/chart-spec lists its variations)`
+}
+
+/** A variation's settings, minus the field choices the spec already made
+ *  and the stack mode, which only the spec sets. */
 const knobsOf = (
 	v: QuickStartVariation,
 	fields: Partial<Record<SpecChannel, string>>
 ): Omit<QuickStartVariation, "name" | "channels"> => {
 	const { name: _name, channels: _channels, allowOpportunisticHue: _hue, ...knobs } = v
+	delete knobs.stackMode
 	if (fields.connection !== undefined) delete knobs.connectionFrom
 	if (fields.hue !== undefined) {
 		delete knobs.hueFrom

@@ -388,6 +388,49 @@ export const RATIOS = table(
 	]
 )
 
+/** Values by U.S. state name, for a choropleth. */
+export const STATES = table(
+	"ds-states",
+	[
+		["State", "categorical"],
+		["Value", "quantitative"],
+	],
+	[
+		["Texas", 3],
+		["Ohio", 5],
+		["Maine", 2],
+		["Oregon", 7],
+	]
+)
+
+/** A region column with a blank cell. */
+export const BLANKS = table(
+	"ds-blanks",
+	[
+		["region", "categorical"],
+		["n", "quantitative"],
+	],
+	[
+		["North", 1],
+		["", 2],
+		["South", 3],
+	]
+)
+
+/** Counts by day. */
+export const DATES = table(
+	"ds-dates",
+	[
+		["day", "temporal"],
+		["n", "quantitative"],
+	],
+	[
+		["2026-01-01", 1],
+		["2026-01-02", 3],
+		["2026-01-04", 2],
+	]
+)
+
 export const THEME = SYSTEM_LIGHT_THEME
 
 /** The context a caller hands `composeVisual`: the spec's dataset (when it
@@ -413,4 +456,4 @@ export const contextFor = (
 	}
 }
 
-export const ALL_DATASETS: Dataset[] = [...TRENDS.map((t) => t.dataset), CAFE, RATIOS]
+export const ALL_DATASETS: Dataset[] = [...TRENDS.map((t) => t.dataset), CAFE, RATIOS, STATES, BLANKS, DATES]

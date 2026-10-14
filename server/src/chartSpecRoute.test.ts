@@ -292,7 +292,7 @@ describe("PUT /api/visuals/:id is unchanged", () => {
 	})
 })
 
-const patch = (base: string, id: string, edit: unknown, headers: Record<string, string> = {}, query = "") =>
+const patch = (base: string, id: string, edit: unknown, headers: Record<string, string> = { "if-match": "*" }, query = "") =>
 	fetch(`${base}/api/visuals/${id}${query}`, {
 		method: "PATCH",
 		headers,
@@ -331,6 +331,23 @@ describe("PATCH /api/visuals/<id>", () => {
 		expect((await visuals(base))[0]?.labelsConfig.title).toBe("Muffins")
 	})
 
+	it("requires If-Match, and takes * as any version", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, { title: "x" }, {})
+		expect(res.status).toBe(428)
+		expect((await visuals(base))[0]).toEqual(v0)
+		expect((await patch(base, v0.id, { title: "y" }, { "if-match": "*" })).status).toBe(200)
+	})
+
+	it("refuses an edit that names nothing", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const res = await patch(base, v0.id, {})
+		expect(res.status).toBe(400)
+		expect((await visuals(base))[0]).toEqual(v0)
+	})
+
 	it("accepts a quoted If-Match", async () => {
 		const base = await start()
 		const v0 = await created(base)
@@ -341,7 +358,7 @@ describe("PATCH /api/visuals/<id>", () => {
 	it("checks without saving on ?dryRun=1", async () => {
 		const base = await start()
 		const v0 = await created(base)
-		const res = await patch(base, v0.id, { title: "dry" }, {}, "?dryRun=1")
+		const res = await patch(base, v0.id, { title: "dry" }, undefined, "?dryRun=1")
 		expect(res.status).toBe(200)
 		expect(((await res.json()) as { visual: Visual }).visual.labelsConfig.title).toBe("dry")
 		expect((await visuals(base))[0]).toEqual(v0)

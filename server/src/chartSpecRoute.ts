@@ -178,8 +178,9 @@ const loadFolders = (db: DatabaseSync): Folder[] =>
 
 /** PATCH /api/visuals/<id>: apply a chart edit (the spec keys it names,
  *  nothing else) to a stored visual, checked like a create. `If-Match`
- *  carries the `updatedAt` the caller last read; a visual changed since, or
- *  changed while this request ran, answers 409 and is left alone. A
+ *  (required; `*` skips the check) carries the `updatedAt` the caller last
+ *  read; a visual changed since, or changed while this request ran, answers
+ *  409 and is left alone. A
  *  trashed visual answers 409. `?dryRun=1` answers with the edited visual
  *  and writes nothing. */
 export const editVisualFromSpec = async (
@@ -209,8 +210,14 @@ export const editVisualFromSpec = async (
 		throw new HttpError(409, "This visual is in the trash; restore it before editing")
 	}
 	const ifMatch = req.headers["if-match"]
-	if (ifMatch !== undefined) {
-		const wanted = String(ifMatch).replace(/^W\//, "").replace(/"/g, "").trim()
+	if (ifMatch === undefined) {
+		throw new HttpError(
+			428,
+			"Send If-Match with the visual's updatedAt as last read, so an edit can't replace newer work"
+		)
+	}
+	const wanted = String(ifMatch).replace(/^W\//, "").replace(/"/g, "").trim()
+	if (wanted !== "*") {
 		if (wanted !== String(visual.updatedAt)) {
 			throw new HttpError(
 				409,
