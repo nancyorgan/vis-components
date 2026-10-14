@@ -589,3 +589,21 @@ describe("reshape and derived variables", () => {
 		ok(edit(v1, { reshape: null, encodings: { length: "muffins", hue: null } }))
 	})
 })
+
+describe("temporal axis bounds", () => {
+	it("takes dates or epoch ms on a temporal axis, numbers only on a quantitative one", () => {
+		const v = ok(
+			composeChartSpec(
+				{ datasetId: DATES.id, folderId: null, encodings: { x: "day", y: "n" }, axes: { x: { min: "2026-01-01", max: 1767484800000 }, y: { max: 5 } } },
+				ctx(DATES.id)
+			)
+		)
+		expect(v.channelConfigs.x?.min).toBe(Date.parse("2026-01-01"))
+		expect(v.channelConfigs.x?.max).toBe(1767484800000)
+		const bad = composeChartSpec(
+			{ datasetId: DATES.id, folderId: null, encodings: { x: "day", y: "n" }, axes: { y: { max: "2026-01-01" } } },
+			ctx(DATES.id)
+		)
+		expect(errorsOf(bad).map((e) => e.path)).toContain("axes.y.max")
+	})
+})

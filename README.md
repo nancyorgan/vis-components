@@ -107,7 +107,7 @@ curl -X POST https://charts.example.com/api/visuals \
 | `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
 | `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines, a map goes geographic), except the stack mode, which only `stack` sets. Encodings that fill none of its variations are an error naming what is missing. |
 | `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
-| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis; `format` is what the axis Format box takes, on any axis. |
+| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis (numbers) or a temporal axis (dates like `"2020-01-01"`, or epoch ms); `format` is what the axis Format box takes, on any axis. |
 | `colors` | Optional hue level → `#rgb`/`#rrggbb`. Needs a categorical or ordinal `hue`, and every level must be in the data. |
 | `fill` | Optional mark color while `hue` is unmapped. |
 | `stack` | Optional `"stack"`, `"group"` or `"overlay"`; needs `hue`. |

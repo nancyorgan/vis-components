@@ -36,8 +36,9 @@ export type AxisSpec = {
 	/** Axis title; absent falls back to the field name, "" is blank. */
 	title?: string
 	/** Domain bounds, quantitative or measure axes only. */
-	min?: number
-	max?: number
+	/** A number, or on a temporal axis a date ("2020-01-01") or epoch ms. */
+	min?: number | string
+	max?: number | string
 	/** Tick format, in the Format box's grammar (d3-format and affixes). */
 	format?: string
 }
@@ -254,6 +255,9 @@ const BAR_LABEL_POSITIONS: readonly BarLabelPosition[] = [
 	"inside-end",
 	"outside-end",
 ]
+
+/** 2020, 2020-03, 2020-03-01, optionally with a time. */
+const ISO_DATE = /^\d{4}(-\d{2}(-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
 
@@ -503,9 +507,13 @@ export const readChartSpec = (
 					const v = raw[bound]
 					if (v === undefined) continue
 					if (typeof v === "number" && Number.isFinite(v)) spec[bound] = v
-					else problem(pathOf("axes", axis, bound), `"${bound}" must be a finite number`)
+					else if (typeof v === "string" && ISO_DATE.test(v) && !Number.isNaN(Date.parse(v))) spec[bound] = v
+					else problem(pathOf("axes", axis, bound), `"${bound}" must be a finite number, or a date like "2020-01-01" on a temporal axis`)
 				}
-				if (spec.min !== undefined && spec.max !== undefined && spec.min >= spec.max) {
+				const asNumber = (b: number | string | undefined) => (typeof b === "string" ? Date.parse(b) : b)
+				const lo = asNumber(spec.min)
+				const hi = asNumber(spec.max)
+				if (lo !== undefined && hi !== undefined && lo >= hi) {
 					problem(path, `"min" (${spec.min}) must be below "max" (${spec.max})`)
 				}
 				if (raw.format !== undefined) {

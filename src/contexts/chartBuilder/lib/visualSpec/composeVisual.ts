@@ -548,6 +548,7 @@ const compose = (
 	const axisField = (axis: "x" | "y"): string | undefined =>
 		fields[axis] ?? (mode.canvas.measureAxis === axis ? fields.length : undefined)
 
+	const bounds: Record<"x" | "y", { min?: number; max?: number }> = { x: {}, y: {} }
 	let labels: LabelPlacement | null = null
 	if (encodingsOk) {
 		if (spec.family && base && !(FAMILY_MODES[spec.family] as readonly string[]).includes(mode.id)) {
@@ -563,15 +564,23 @@ const compose = (
 			const continuous = type
 				? type === "quantitative"
 				: mode.canvas.measureAxis === axis
-			if (continuous) continue
 			for (const bound of ["min", "max"] as const) {
-				if (spec.axes?.[axis]?.[bound] === undefined) continue
-				problem(
-					pathOf("axes", axis, bound),
-					field
-						? `the ${axis} axis shows "${field}" (${typeOf(field)}); "${bound}" applies only to a quantitative axis`
-						: `the ${axis} axis has no field and isn't this chart's measure axis`
-				)
+				const v = spec.axes?.[axis]?.[bound]
+				if (v === undefined) continue
+				if (type === "temporal") {
+					bounds[axis][bound] = typeof v === "string" ? Date.parse(v) : v
+				} else if (!continuous) {
+					problem(
+						pathOf("axes", axis, bound),
+						field
+							? `the ${axis} axis shows "${field}" (${typeOf(field)}); "${bound}" applies only to a quantitative or temporal axis`
+							: `the ${axis} axis has no field and isn't this chart's measure axis`
+					)
+				} else if (typeof v === "string") {
+					problem(pathOf("axes", axis, bound), `the ${axis} axis is quantitative; "${bound}" must be a number`)
+				} else {
+					bounds[axis][bound] = v
+				}
 			}
 		}
 
@@ -714,8 +723,8 @@ const compose = (
 		const current = channelConfigs[axis] ?? DEFAULT_AXIS_CONFIG
 		if (!want) continue
 		const next: AxisConfig = { ...current }
-		if (want.min !== undefined) next.min = want.min
-		if (want.max !== undefined) next.max = want.max
+		if (bounds[axis].min !== undefined) next.min = bounds[axis].min
+		if (bounds[axis].max !== undefined) next.max = bounds[axis].max
 		if (want.format !== undefined) next.customFormat = want.format
 		channelConfigs[axis] = next
 	}
