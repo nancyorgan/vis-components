@@ -34,6 +34,7 @@ describe("searchSettings", () => {
 		expect(margin.count).toBeGreaterThan(0)
 		expect(margin.settings[0]?.matchedVia).toEqual([expect.stringMatching(/^margin → (pad|offset|gap|inset)$/)])
 		expect(paths("spacing")).toContain("captionConfig.padding")
+		expect(searchSettings(rows, "spacing").settings[0]?.matchedVia).toEqual(["spacing → pad"])
 		expect(paths("make the lines between the areas white")).toContain("channelConfigs.connection.strokeColor")
 		expect(paths("grid")).toContain("channelConfigs.x.gridlines.enabled")
 	})

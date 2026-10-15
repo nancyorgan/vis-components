@@ -13,10 +13,10 @@ import type { SettingRow } from "./settings"
 import { nearestName } from "./suggest"
 import SETTING_DOCS from "./settingDocs.json"
 
-const SPACE = ["pad", "offset", "gap", "inset"]
+const SPACE = ["pad", "offset", "inset", "gap"]
 const COLOR = ["color"]
 
-/** Everyday words and the setting-name words they stand for. */
+/** Everyday words and the setting-name words they stand for, likeliest first. */
 export const CONCEPTS: Readonly<Record<string, readonly string[]>> = {
 	margin: SPACE,
 	margins: SPACE,
@@ -82,8 +82,10 @@ const matchWord = (word: string, path: string, tokens: readonly string[], doc: s
 	if (tokens.includes(word)) return { score: 3 }
 	if (tokens.some((t) => t.startsWith(word))) return { score: 2 }
 	if (lower.includes(word)) return { score: 1.5 }
-	for (const alias of CONCEPTS[word] ?? []) {
-		if (tokens.some((t) => t.startsWith(alias)) || lower.includes(alias)) return { score: 1.25, via: `${word} → ${alias}` }
+	for (const [rank, alias] of (CONCEPTS[word] ?? []).entries()) {
+		if (tokens.some((t) => t.startsWith(alias)) || lower.includes(alias)) {
+			return { score: 1.25 - rank * 0.05, via: `${word} → ${alias}` }
+		}
 	}
 	if (doc !== undefined && new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(doc)) {
 		return { score: 0.5, via: `${word} → description` }
