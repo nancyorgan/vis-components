@@ -443,9 +443,18 @@ describe("GET /api/chart-spec", () => {
 describe("GET /api/chart-spec/settings", () => {
 	it("lists default settings, filters by words, and reads one visual's values", async () => {
 		const base = await start()
-		const all = (await (await fetch(`${base}/api/chart-spec/settings`)).json()) as { count: number; settings: Array<{ path: string; type: string }> }
+		const all = (await (await fetch(`${base}/api/chart-spec/settings`)).json()) as { scope: string; count: number; settings: unknown[]; groups: Array<{ group: string; count: number }> }
+		expect(all.scope).toBe("census")
 		expect(all.count).toBeGreaterThan(100)
-		expect(all.settings.every((s) => !s.path.startsWith("encodings"))).toBe(true)
+		expect(all.settings).toEqual([])
+		expect(all.groups.every((g) => !g.group.startsWith("encodings"))).toBe(true)
+		const spacing = (await (await fetch(`${base}/api/chart-spec/settings?q=spacing&include_descriptions=true&limit=2`)).json()) as { scope: string; count: number; returned: number; truncated: boolean; nextOffset: number; settings: Array<{ matchedVia?: string[] }> }
+		expect(spacing.scope).toBe("rows")
+		expect(spacing.returned).toBe(2)
+		expect(spacing.truncated).toBe(true)
+		expect(spacing.nextOffset).toBe(2)
+		expect(spacing.settings[0]?.matchedVia?.[0]).toMatch(/^spacing → /)
+		expect((await fetch(`${base}/api/chart-spec/settings?q=x&offset=-1`)).status).toBe(400)
 		const lines = (await (await fetch(`${base}/api/chart-spec/settings?q=connection%20stroke`)).json()) as { settings: Array<{ path: string }> }
 		expect(lines.settings.map((s) => s.path)).toContain("channelConfigs.connection.strokeColor")
 		const v0 = await created(base)

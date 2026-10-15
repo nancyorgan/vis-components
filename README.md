@@ -195,8 +195,16 @@ the app knows.
 
 `GET /api/chart-spec/settings` lists every setting a `settings` patch can name,
 as `{path, type, value}`: a new chart's defaults, or with `?visualId=` that
-chart's own values. `?q=` keeps the paths containing each of its words, e.g.
-`?q=connection stroke`.
+chart's own values. `?q=` finds settings by words: each word must match the
+path (a substring or a camelCase word), a concept word standing for one
+(`margin` and `spacing` for padding, offset, gap and inset; color names for
+color), or the setting's doc comment, and `matchedVia` says which. With no
+words, or none that match, it returns a census of settings per group and the
+closest setting words. `include_descriptions=true` adds each setting's doc
+comment; results are capped near 40,000 characters, and `offset` and `limit`
+page through the rest (`truncated`, `nextOffset`). The doc comments come from
+the config types into `settingDocs.json` by `pnpm setting-docs`; a test fails
+while that file is stale.
 
 ## Verifying changes
 

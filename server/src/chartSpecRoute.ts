@@ -37,6 +37,7 @@ import {
 	newVisualId,
 } from "../../src/contexts/chartBuilder/lib/visualDefaults"
 import { flattenSettings } from "../../src/contexts/chartBuilder/lib/visualSpec/settings"
+import { searchSettings } from "../../src/contexts/chartBuilder/lib/visualSpec/settingSearch"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/visualSpec/chartSpec"
 import {
 	composeChartEdit,
@@ -259,10 +260,12 @@ export const editVisualFromSpec = async (
 	)
 }
 
-/** GET /api/chart-spec/settings: every setting a `settings` patch can
+/** GET /api/chart-spec/settings: the settings a `settings` patch can
  *  name, as `{path, type, value}`: a new visual's defaults under the
  *  server's default theme, or with `?visualId=` that visual's own values.
- *  `?q=` keeps the paths containing each of its words (case-insensitive). */
+ *  `?q=` finds them by words (settingSearch.ts); no words, or none that
+ *  match, gives a census by group. `include_descriptions`, `offset` and
+ *  `limit` as in searchSettings. */
 export const listSettings = (
 	res: ServerResponse,
 	db: DatabaseSync,
@@ -280,11 +283,20 @@ export const listSettings = (
 		const saved = themes.find((t) => t.id === defaultThemeId(db)) ?? SYSTEM_LIGHT_THEME
 		visual = newVisualDraft(themeOf(saved)) as Visual
 	}
-	const words = (query.get("q") ?? "").toLowerCase().split(/\s+/).filter(Boolean)
-	const rows = flattenSettings(visual).filter((r) =>
-		words.every((w) => r.path.toLowerCase().includes(w))
-	)
-	return sendJson(res, 200, JSON.stringify({ count: rows.length, settings: rows }))
+	const count = (name: string): number | undefined => {
+		const raw = query.get(name)
+		if (raw === null || raw === "") return undefined
+		const n = Number(raw)
+		if (!Number.isInteger(n) || n < 0) throw new HttpError(400, `"${name}" must be a whole number`)
+		return n
+	}
+	const flag = query.get("include_descriptions")
+	const result = searchSettings(flattenSettings(visual), query.get("q") ?? "", {
+		includeDescriptions: flag === "true" || flag === "1",
+		offset: count("offset"),
+		limit: count("limit"),
+	})
+	return sendJson(res, 200, JSON.stringify(result))
 }
 
 export const createVisualFromSpec = async (
