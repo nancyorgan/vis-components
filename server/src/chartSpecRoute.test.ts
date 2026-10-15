@@ -454,7 +454,12 @@ describe("GET /api/chart-spec/settings", () => {
 		expect(spacing.truncated).toBe(true)
 		expect(spacing.nextOffset).toBe(2)
 		expect(spacing.settings[0]?.matchedVia?.[0]).toMatch(/^spacing → /)
-		expect((await fetch(`${base}/api/chart-spec/settings?q=x&offset=-1`)).status).toBe(400)
+		for (const bad of ["offset=-1", "offset=1.5", "offset=0x10", "offset=1e9", "offset=%20", "limit=0", "limit=", "include_descriptions=yes", "include_descriptions=TRUE"]) {
+			expect((await fetch(`${base}/api/chart-spec/settings?q=x&${bad}`)).status, bad).toBe(400)
+		}
+		for (const q of ["constructor", "__proto__"]) {
+			expect((await fetch(`${base}/api/chart-spec/settings?q=${q}`)).status, q).toBe(200)
+		}
 		const lines = (await (await fetch(`${base}/api/chart-spec/settings?q=connection%20stroke`)).json()) as { settings: Array<{ path: string }> }
 		expect(lines.settings.map((s) => s.path)).toContain("channelConfigs.connection.strokeColor")
 		const v0 = await created(base)

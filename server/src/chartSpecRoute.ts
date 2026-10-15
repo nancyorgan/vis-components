@@ -283,18 +283,21 @@ export const listSettings = (
 		const saved = themes.find((t) => t.id === defaultThemeId(db)) ?? SYSTEM_LIGHT_THEME
 		visual = newVisualDraft(themeOf(saved)) as Visual
 	}
-	const count = (name: string): number | undefined => {
+	const count = (name: string, min: number): number | undefined => {
 		const raw = query.get(name)
-		if (raw === null || raw === "") return undefined
-		const n = Number(raw)
-		if (!Number.isInteger(n) || n < 0) throw new HttpError(400, `"${name}" must be a whole number`)
+		if (raw === null) return undefined
+		const n = /^\d{1,6}$/.test(raw) ? Number(raw) : Number.NaN
+		if (!(n >= min)) throw new HttpError(400, `"${name}" must be a whole number from ${min} to 999999`)
 		return n
 	}
 	const flag = query.get("include_descriptions")
+	if (flag !== null && !Object.hasOwn(DRY_RUN_VALUES, flag)) {
+		throw new HttpError(400, `"include_descriptions" must be "1", "true", "0" or "false"`)
+	}
 	const result = searchSettings(flattenSettings(visual), query.get("q") ?? "", {
-		includeDescriptions: flag === "true" || flag === "1",
-		offset: count("offset"),
-		limit: count("limit"),
+		includeDescriptions: flag !== null && DRY_RUN_VALUES[flag] === true,
+		offset: count("offset", 0),
+		limit: count("limit", 1),
 	})
 	return sendJson(res, 200, JSON.stringify(result))
 }

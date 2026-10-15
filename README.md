@@ -195,16 +195,22 @@ the app knows.
 
 `GET /api/chart-spec/settings` lists every setting a `settings` patch can name,
 as `{path, type, value}`: a new chart's defaults, or with `?visualId=` that
-chart's own values. `?q=` finds settings by words: each word must match the
-path (a substring or a camelCase word), a concept word standing for one
-(`margin` and `spacing` for padding, offset, gap and inset; color names for
-color), or the setting's doc comment, and `matchedVia` says which. With no
-words, or none that match, it returns a census of settings per group and the
-closest setting words. `include_descriptions=true` adds each setting's doc
-comment; results are capped near 40,000 characters, and `offset` and `limit`
-page through the rest (`truncated`, `nextOffset`). The doc comments come from
-the config types into `settingDocs.json` by `pnpm setting-docs`; a test fails
-while that file is stale.
+chart's own values. `?q=` finds settings by words. Each word is tried against
+the path's words (split from dots and camelCase, whole word before prefix), a
+concept word standing for some (`margin` and `spacing` for padding, offset,
+gap and inset; `axis` for the x, y and r channels; color names for color), its
+singular, and last the setting's doc comment; `matchedVia` says when a concept
+or doc comment matched. A word never matches inside another word ("round" in
+"background"). Toggle words (`off`, `remove`, `hide`, `no`) only rank. When no
+setting matches every word, the ones matching the most come back with
+`missed` and `unmatched`. With no words, or none that match, it returns a
+census of settings per group and the closest setting words.
+`include_descriptions=true` adds each setting's doc comment; results are
+capped near 40,000 characters, and `offset` and `limit` (whole numbers,
+`limit` at least 1) page through the rest (`truncated`, `nextOffset`). Empty
+objects are left out, since a patch cannot add keys to them. The doc comments
+come from the config types into `settingDocs.json` by `pnpm setting-docs`; a
+test fails while that file is stale.
 
 ## Verifying changes
 
