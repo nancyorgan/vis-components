@@ -9,6 +9,8 @@ import type { IncomingMessage, ServerResponse } from "node:http"
 import { Readable } from "node:stream"
 import { createGunzip, createGzip, gunzipSync, gzipSync } from "node:zlib"
 
+import { chartVocabulary } from "../../src/contexts/chartBuilder/lib/visualSpec/vocabulary"
+import { createVisualFromSpec, editVisualFromSpec, listSettings } from "./chartSpecRoute.js"
 import type { ServerConfig } from "./config.js"
 import {
 	clearDatasetVersionRows,
@@ -62,10 +64,12 @@ export type HandlerDeps = {
 	config: ServerConfig
 	db: DatabaseSync
 	distDir: string
+	/** Visual id minting for POST /api/visuals; tests inject collisions. */
+	mintVisualId?: () => string
 }
 
 export const createHandler =
-	({ config, db, distDir }: HandlerDeps) =>
+	({ config, db, distDir, mintVisualId }: HandlerDeps) =>
 	async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
 		const method = req.method ?? "GET"
 		const path = (req.url ?? "/").split("?")[0]
@@ -84,7 +88,9 @@ export const createHandler =
 					JSON.stringify({ v: 1, baseUrl: config.baseUrl, signOutUrl: config.signOutUrl })
 				)
 			}
-			if (path.startsWith("/api/")) return await handleApi(req, res, { config, db, distDir })
+			if (path.startsWith("/api/")) {
+				return await handleApi(req, res, { config, db, distDir, mintVisualId })
+			}
 			if (method !== "GET") return sendError(res, 405, "Method not allowed")
 			return await serveStatic(distDir, path, res)
 		} catch (error) {
@@ -101,7 +107,7 @@ export const createHandler =
 const handleApi = async (
 	req: IncomingMessage,
 	res: ServerResponse,
-	{ config, db, distDir }: HandlerDeps
+	{ config, db, distDir, mintVisualId }: HandlerDeps
 ): Promise<void> => {
 	const method = req.method ?? "GET"
 	const [rawPath, rawQuery] = (req.url ?? "/").split("?")
@@ -248,15 +254,45 @@ const handleApi = async (
 		return sendEmpty(res, 204)
 	}
 
+	// What a chart spec can say: channels, field types, chart families.
+	if (collection === "chart-spec" && id === "settings") {
+		if (method !== "GET") throw new HttpError(405, "Method not allowed")
+		return listSettings(res, db, new URLSearchParams(rawQuery ?? ""))
+	}
+	if (collection === "chart-spec" && !id) {
+		if (method !== "GET") throw new HttpError(405, "Method not allowed")
+		return sendJson(res, 200, JSON.stringify(chartVocabulary()))
+	}
+
 	if (!isJsonCollection(collection)) throw new HttpError(404, "Not found")
 
 	if (!id) {
+		if (method === "POST" && collection === "visuals") {
+			return await createVisualFromSpec(
+				req,
+				res,
+				db,
+				config,
+				new URLSearchParams(rawQuery ?? ""),
+				mintVisualId
+			)
+		}
 		if (method !== "GET") throw new HttpError(405, "Method not allowed")
 		const thumbnails =
 			new URLSearchParams(rawQuery ?? "").get("thumbnails") !== "0"
 		return sendJson(res, 200, composeCollection(collection, db, thumbnails))
 	}
 	if (!isSafeId(id)) throw new HttpError(400, "Invalid id")
+	if (method === "PATCH" && collection === "visuals") {
+		return await editVisualFromSpec(
+			req,
+			res,
+			db,
+			config,
+			id,
+			new URLSearchParams(rawQuery ?? "")
+		)
+	}
 	if (method === "PUT") {
 		const body = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
 		assertItemJson(body, id)
