@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url"
 
 import { defineConfig } from "vite"
 
+import { settingCatalog } from "./tooling/setting-catalog.js"
+
 /** The self-host server build: one ESM file, `server/dist/main.js`, run
  *  with plain `node`. The server shares pure modules with the frontend
  *  (chart-spec composition under src/contexts/chartBuilder/lib), whose
@@ -11,6 +13,7 @@ import { defineConfig } from "vite"
  *  which keeps the output free of runtime dependencies; only Node's own
  *  modules stay external. */
 export default defineConfig({
+	plugins: [settingCatalog()],
 	// public/ holds frontend assets; the server serves them from dist/.
 	publicDir: false,
 	build: {

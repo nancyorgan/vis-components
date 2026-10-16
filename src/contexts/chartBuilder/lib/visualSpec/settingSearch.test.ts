@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { stringifyJsonDangerous } from "../../../../lib/json"
-import { extractSettingDocs, OUT, renderSettingDocs } from "../../../../../tooling/extract-setting-docs.js"
 import { SYSTEM_LIGHT_THEME, themeOf } from "../systemThemes"
 import type { Visual } from "../types"
 import { CHANNELS } from "../channels"
 import { newVisualDraft } from "../visualDefaults"
 import { pathTokens, searchSettings, settingDoc, settingGroup } from "./settingSearch"
+import { SETTING_CATALOG } from "./settingCatalog"
 import { flattenSettings } from "./settings"
 
 const rows = flattenSettings(newVisualDraft(themeOf(SYSTEM_LIGHT_THEME)) as Visual)
@@ -157,10 +156,11 @@ describe("searchSettings on everyday requests", () => {
 	})
 })
 
-describe("settingDocs.json", () => {
-	it("matches the doc comments in the config types (pnpm setting-docs)", () => {
-		expect(readFileSync(OUT, "utf8")).toBe(renderSettingDocs(extractSettingDocs()))
-	}, 60_000)
+describe("the setting catalog", () => {
+	it("declares a type for every default setting outside data-keyed maps", () => {
+		const untyped = rows.filter((r) => r.type !== "map" && SETTING_CATALOG.types[r.path.replace(/\[[^\]]*\]/g, "")] === undefined)
+		expect(untyped.map((r) => r.path)).toEqual([])
+	})
 
 	it("describes most default settings", () => {
 		const described = rows.filter((r) => settingDoc(r.path) !== undefined).length

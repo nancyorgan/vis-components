@@ -18,7 +18,6 @@
 		"typecheck": "tsc --noEmit && tsc -p server/tsconfig.check.json",
 		"lint": "eslint .",
 		"notices": "node tooling/generate-third-party-notices.js",
-		"setting-docs": "node tooling/extract-setting-docs.js",
 		"zcta": "node tooling/build-zcta-topology.js",
 		"build": "npm run typecheck && vite build && vite build -c vite.embed.config.ts && vite build -c vite.server.config.ts",
 		"build:static": "npm run typecheck && vite build",

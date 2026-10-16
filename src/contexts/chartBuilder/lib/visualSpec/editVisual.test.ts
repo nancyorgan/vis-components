@@ -690,6 +690,54 @@ describe("settings review findings", () => {
 		expect(v3.dataLabelsConfig?.fieldFormats).toEqual({ muffins: ".0f", coffees: ".1f" })
 	})
 
+	it("checks a setting stored as null against its declared type", () => {
+		expect(errorsOf(edit(labelled(), { settings: { channelConfigs: { x: { tickLabelAngle: { deg: 45 } } } } }))[0]).toMatchObject({
+			path: "settings.channelConfigs.x.tickLabelAngle",
+			message: expect.stringMatching(/null or number, not an object/),
+		})
+		expect(ok(edit(labelled(), { settings: { channelConfigs: { x: { tickLabelAngle: 45 } } } })).channelConfigs?.x?.tickLabelAngle).toBe(45)
+		const back = ok(edit(labelled(), { settings: { channelConfigs: { x: { tickLabelAngle: 45 } } } }))
+		expect(ok(edit(back, { settings: { channelConfigs: { x: { tickLabelAngle: null } } } })).channelConfigs?.x?.tickLabelAngle).toBeNull()
+	})
+
+	it("checks a setting's allowed words", () => {
+		expect(errorsOf(edit(labelled(), { settings: { legendConfig: { position: "topp" } } }))[0]?.message).toMatch(/must be one of .*did you mean "top"/)
+	})
+
+	it("checks the elements of a list setting", () => {
+		const errors = errorsOf(edit(labelled(), { settings: { channelConfigs: { categoricalPalette: ["#123456", 7, { c: 1 }] } } }))
+		expect(errors.map((e) => e.path)).toEqual([
+			"settings.channelConfigs.categoricalPalette[1]",
+			"settings.channelConfigs.categoricalPalette[2]",
+		])
+		const stops = errorsOf(edit(labelled(), { settings: { channelConfigs: { hue: { customStops: [{ value: 0, color: "#fff", colr: "x" }] } } } }))
+		expect(stops[0]).toMatchObject({ path: "settings.channelConfigs.hue.customStops[0].colr", message: expect.stringMatching(/did you mean "color"/) })
+	})
+
+	it("keeps counts, sizes and opacities in range", () => {
+		const paths = (settings: unknown) => errorsOf(edit(labelled(), { settings } as never)).map((e) => e.path)
+		expect(paths({ channelConfigs: { y: { tickCount: 1e8 } } })).toEqual(["settings.channelConfigs.y.tickCount"])
+		expect(paths({ channelConfigs: { y: { tickCount: 2.5 } } })).toEqual(["settings.channelConfigs.y.tickCount"])
+		expect(paths({ channelConfigs: { connection: { thickness: -1 } } })).toEqual(["settings.channelConfigs.connection.thickness"])
+		expect(ok(edit(labelled(), { settings: { channelConfigs: { y: { tickCount: 6 } } } })).channelConfigs?.y?.tickCount).toBe(6)
+	})
+
+	it("checks colors and field names", () => {
+		const errors = errorsOf(edit(labelled(), { settings: { channelConfigs: { hue: { colors: { Bran: "notacolor" } } } } }))
+		expect(errors[0]).toMatchObject({ path: "settings.channelConfigs.hue.colors.Bran", message: expect.stringMatching(/isn't a color/) })
+		const field = errorsOf(edit(labelled(), { settings: { channelConfigs: { connection: { thicknessField: "mufins" } } } }))
+		expect(field[0]?.message).toMatch(/no field "mufins" in the data; did you mean "muffins"/)
+		expect(ok(edit(labelled(), { settings: { channelConfigs: { connection: { thicknessField: "muffins" } } } })).channelConfigs?.connection?.thicknessField).toBe("muffins")
+	})
+
+	it("reports settings problems together with the others in a create", () => {
+		const r = composeChartSpec(
+			{ datasetId: CAFE.id, folderId: null, encodings: { x: "nope", length: "muffins" }, settings: { legendConfig: { position: "topp" } } },
+			ctx(CAFE.id)
+		)
+		expect(errorsOf(r).map((e) => e.path)).toEqual(expect.arrayContaining(["encodings.x", "settings.legendConfig.position"]))
+	})
+
 	it("reports settings problems together with the others in an edit", () => {
 		const errors = errorsOf(edit(labelled(), { title: 5, settings: { legendConfig: { postion: "top" } } } as never))
 		expect(errors.map((e) => e.path)).toEqual(expect.arrayContaining(["title", "settings.legendConfig.postion"]))

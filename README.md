@@ -208,9 +208,9 @@ census of settings per group and the closest setting words.
 `include_descriptions=true` adds each setting's doc comment; results are
 capped near 40,000 characters, and `offset` and `limit` (whole numbers,
 `limit` at least 1) page through the rest (`truncated`, `nextOffset`). Empty
-objects are left out, since a patch cannot add keys to them. The doc comments
-come from the config types into `settingDocs.json` by `pnpm setting-docs`; a
-test fails while that file is stale.
+objects are left out, since a patch cannot add keys to them. The doc comments,
+and the types a settings patch is checked against, are read from the config
+types at build and test time (`tooling/setting-catalog.js`).
 
 ## Verifying changes
 

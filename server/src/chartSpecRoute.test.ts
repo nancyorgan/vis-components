@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { datasetMetaFrom } from "../../src/contexts/chartBuilder/lib/datasetMeta"
 import { VISUALS_VERSION } from "../../src/contexts/chartBuilder/lib/storage/migrations"
@@ -14,6 +14,7 @@ import { hydrateVisual } from "../../src/contexts/chartBuilder/lib/visualDefault
 import { MAX_PROBLEMS } from "../../src/contexts/chartBuilder/lib/visualSpec/chartSpec"
 import { CAFE, TRENDS } from "../../src/testSupport/chartSpecFixtures"
 import { openDb } from "./db.js"
+import * as dbModule from "./db.js"
 import { SPEC_BODY_CAP_BYTES } from "./limits.js"
 import { createHandler } from "./routes.js"
 
@@ -292,10 +293,11 @@ describe("PUT /api/visuals/:id is unchanged", () => {
 	})
 })
 
-const patch = (base: string, id: string, edit: unknown, headers: Record<string, string> = { "if-match": "*" }, query = "") =>
+/** A PATCH; If-Match defaults to the visual's current updatedAt. */
+const patch = async (base: string, id: string, edit: unknown, headers?: Record<string, string>, query = "") =>
 	fetch(`${base}/api/visuals/${id}${query}`, {
 		method: "PATCH",
-		headers,
+		headers: headers ?? { "if-match": String((await visuals(base)).find((v) => v.id === id)?.updatedAt ?? 0) },
 		body: typeof edit === "string" ? edit : JSON.stringify(edit),
 	})
 
@@ -326,18 +328,41 @@ describe("PATCH /api/visuals/<id>", () => {
 		const base = await start()
 		const v0 = await created(base)
 		const res = await patch(base, v0.id, { title: "x" }, { "if-match": String(v0.updatedAt - 1) })
-		expect(res.status).toBe(409)
+		expect(res.status).toBe(412)
 		expect(((await res.json()) as { error: string }).error).toMatch(/changed since it was read/)
 		expect((await visuals(base))[0]?.labelsConfig.title).toBe("Muffins")
 	})
 
-	it("requires If-Match, and takes * as any version", async () => {
+	it("requires If-Match with a version, not *", async () => {
 		const base = await start()
 		const v0 = await created(base)
-		const res = await patch(base, v0.id, { title: "x" }, {})
-		expect(res.status).toBe(428)
+		expect((await patch(base, v0.id, { title: "x" }, {})).status).toBe(428)
+		expect((await patch(base, v0.id, { title: "y" }, { "if-match": "*" })).status).toBe(400)
 		expect((await visuals(base))[0]).toEqual(v0)
-		expect((await patch(base, v0.id, { title: "y" }, { "if-match": "*" })).status).toBe(200)
+	})
+
+	it("refuses when the chart changes while the edit runs", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		const spy = vi.spyOn(dbModule, "replaceVisualIfUnchanged").mockReturnValueOnce(false)
+		try {
+			const res = await patch(base, v0.id, { title: "x" })
+			expect(res.status).toBe(412)
+			expect(((await res.json()) as { error: string }).error).toMatch(/while the edit ran/)
+		} finally {
+			spy.mockRestore()
+		}
+		expect((await visuals(base))[0]).toEqual(v0)
+	})
+
+	it("refuses with 409 when stored visuals are at another content version", async () => {
+		const base = await start()
+		const v0 = await created(base)
+		for (const v of [VISUALS_VERSION - 1, VISUALS_VERSION + 1]) {
+			await put(base, "/api/content-versions/visuals", { v })
+			expect((await patch(base, v0.id, { title: "x" })).status).toBe(409)
+		}
+		expect((await visuals(base))[0]).toEqual(v0)
 	})
 
 	it("refuses an edit that names nothing", async () => {
@@ -441,6 +466,12 @@ describe("GET /api/chart-spec", () => {
 })
 
 describe("GET /api/chart-spec/settings", () => {
+	it("finds settings a new chart doesn't store yet, marked unset", async () => {
+		const base = await start()
+		const r = (await (await fetch(`${base}/api/chart-spec/settings?q=variable%20thickness`)).json()) as { settings: Array<{ path: string; unset?: boolean; value: unknown }> }
+		expect(r.settings).toContainEqual(expect.objectContaining({ path: "channelConfigs.connection.thicknessField", unset: true, value: null }))
+	})
+
 	it("lists default settings, filters by words, and reads one visual's values", async () => {
 		const base = await start()
 		const all = (await (await fetch(`${base}/api/chart-spec/settings`)).json()) as { scope: string; count: number; settings: unknown[]; groups: Array<{ group: string; count: number }> }

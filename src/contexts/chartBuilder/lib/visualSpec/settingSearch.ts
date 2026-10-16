@@ -10,7 +10,7 @@
  *  returned with the words they missed. No query, or no match, returns a
  *  census: how many settings each group holds, and how to narrow.
  *
- *  Docs come from settingDocs.json (tooling/extract-setting-docs.js). A
+ *  Docs come from the setting catalog (settingCatalog.ts). A
  *  setting without its own doc comment is searched by its nearest
  *  documented ancestor's; entries of data-keyed maps have none. */
 
@@ -18,7 +18,7 @@ import { stringifyJsonDangerous } from "../../../../lib/json"
 import { CHANNELS } from "../channels"
 import type { SettingRow } from "./settings"
 import { nearestName } from "./suggest"
-import SETTING_DOCS from "./settingDocs.json"
+import { SETTING_CATALOG } from "./settingCatalog"
 
 const SPACE = ["pad", "offset", "inset", "gap"]
 const COLOR = ["color"]
@@ -71,9 +71,9 @@ const CHANNEL_NAMES: ReadonlySet<string> = new Set(Object.keys(CHANNELS))
 /** Rows past this many characters of JSON are left for the next page. */
 export const SETTINGS_BUDGET = 40_000
 
-const docs = SETTING_DOCS as Record<string, string>
+const docs = SETTING_CATALOG.docs
 
-/** The path without bracketed map keys, as settingDocs.json keys it. */
+/** The path without bracketed map keys, as the catalog keys it. */
 const plainPath = (path: string): string => path.replace(/\[[^\]]*\]/g, "")
 
 /** The setting's own doc comment. */

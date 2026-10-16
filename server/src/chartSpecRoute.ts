@@ -36,7 +36,7 @@ import {
 	newVisualDraft,
 	newVisualId,
 } from "../../src/contexts/chartBuilder/lib/visualDefaults"
-import { flattenSettings } from "../../src/contexts/chartBuilder/lib/visualSpec/settings"
+import { flattenSettings, unsetSettings } from "../../src/contexts/chartBuilder/lib/visualSpec/settings"
 import { searchSettings } from "../../src/contexts/chartBuilder/lib/visualSpec/settingSearch"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/visualSpec/chartSpec"
 import {
@@ -184,11 +184,10 @@ const loadFolders = (db: DatabaseSync): Folder[] =>
 
 /** PATCH /api/visuals/<id>: apply a chart edit (the spec keys it names,
  *  nothing else) to a stored visual, checked like a create. `If-Match`
- *  (required; `*` skips the check) carries the `updatedAt` the caller last
- *  read; a visual changed since, or changed while this request ran, answers
- *  409 and is left alone. A
- *  trashed visual answers 409. `?dryRun=1` answers with the edited visual
- *  and writes nothing. */
+ *  (required) carries the `updatedAt` the caller last read; a visual
+ *  changed since, or changed while this request ran, answers 412 and is
+ *  left alone. A trashed visual answers 409. `?dryRun=1` answers with the
+ *  edited visual and writes nothing. */
 export const editVisualFromSpec = async (
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -223,13 +222,14 @@ export const editVisualFromSpec = async (
 		)
 	}
 	const wanted = String(ifMatch).replace(/^W\//, "").replace(/"/g, "").trim()
-	if (wanted !== "*") {
-		if (wanted !== String(visual.updatedAt)) {
-			throw new HttpError(
-				409,
-				`This visual changed since it was read (updatedAt ${String(visual.updatedAt)}, expected ${wanted}); read it again`
-			)
-		}
+	if (wanted === "*") {
+		throw new HttpError(400, "If-Match must be the visual's updatedAt as last read, not *")
+	}
+	if (wanted !== String(visual.updatedAt)) {
+		throw new HttpError(
+			412,
+			`This visual changed since it was read (updatedAt ${String(visual.updatedAt)}, expected ${wanted}); read it again`
+		)
 	}
 
 	const themes = loadThemes(db)
@@ -246,7 +246,7 @@ export const editVisualFromSpec = async (
 	const { warnings, visual: edited } = result
 	if (dryRun) return sendJson(res, 200, JSON.stringify({ visual: edited, warnings }))
 	if (!replaceVisualIfUnchanged(db, id, stored, JSON.stringify({ ...edited, thumbnail: null }))) {
-		throw new HttpError(409, "This visual changed while the edit ran; read it again")
+		throw new HttpError(412, "This visual changed while the edit ran; read it again")
 	}
 	return sendJson(
 		res,
@@ -294,7 +294,7 @@ export const listSettings = (
 	if (flag !== null && !Object.hasOwn(DRY_RUN_VALUES, flag)) {
 		throw new HttpError(400, `"include_descriptions" must be "1", "true", "0" or "false"`)
 	}
-	const result = searchSettings(flattenSettings(visual), query.get("q") ?? "", {
+	const result = searchSettings([...flattenSettings(visual), ...unsetSettings(visual)], query.get("q") ?? "", {
 		includeDescriptions: flag !== null && DRY_RUN_VALUES[flag] === true,
 		offset: count("offset", 0),
 		limit: count("limit", 1),

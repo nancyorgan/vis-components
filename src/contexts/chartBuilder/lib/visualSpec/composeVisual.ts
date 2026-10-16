@@ -679,7 +679,9 @@ const compose = (
 
 	const settingsDraft = newVisualDraft(ctx.theme) as Visual
 	if (spec.settings && hydrated) {
-		errors.push(...settingsProblems(spec.settings, hydrated, settingsDraft))
+		errors.push(...settingsProblems(spec.settings, hydrated, settingsDraft, fieldNames))
+	} else if (spec.settings && errors.length > 0) {
+		errors.push(...settingsProblems(spec.settings, settingsDraft, undefined, fieldNames))
 	}
 
 	if (errors.length > 0) return { ok: false, errors: capProblems(errors) }
@@ -854,7 +856,7 @@ const compose = (
 		}
 	}
 	if (spec.settings) {
-		const problems = settingsProblems(spec.settings, visual, settingsDraft)
+		const problems = settingsProblems(spec.settings, visual, settingsDraft, fieldNames)
 		if (problems.length > 0) return { ok: false, errors: capProblems(problems) }
 		return { ok: true, visual: applySettings(visual, spec.settings as SettingsPatch), warnings }
 	}
