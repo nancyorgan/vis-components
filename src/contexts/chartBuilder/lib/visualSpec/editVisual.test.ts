@@ -726,6 +726,12 @@ describe("settings review findings", () => {
 		expect(ok(edit(labelled(), { settings: { channelConfigs: { y: { tickCount: 6 } } } })).channelConfigs?.y?.tickCount).toBe(6)
 	})
 
+	it("colors the lines by a field through the line color slot", () => {
+		const v = ok(edit(labelled(), { settings: { channelConfigs: { colorSlots: { line: { field: "flavor" } } } } }))
+		expect(v.channelConfigs?.colorSlots?.line).toMatchObject({ field: "flavor", hue: { kind: "categorical" }, palette: v.channelConfigs?.categoricalPalette })
+		expect(errorsOf(edit(labelled(), { settings: { channelConfigs: { colorSlots: { line: { field: "flavr" } } } } }))[0]?.message).toMatch(/did you mean "flavor"/)
+	})
+
 	it("checks colors and field names", () => {
 		const errors = errorsOf(edit(labelled(), { settings: { channelConfigs: { hue: { colors: { Bran: "notacolor" } } } } }))
 		expect(errors[0]).toMatchObject({ path: "settings.channelConfigs.hue.colors.Bran", message: expect.stringMatching(/isn't a color/) })

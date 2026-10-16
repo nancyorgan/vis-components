@@ -22,6 +22,9 @@ import {
 	type ChannelConfigs,
 } from "../channelConfig"
 import { buildQuantHueConfigFromTheme } from "../hueDefaults"
+import type { ColorSlotConfig, ColorSlotKey } from "../channelConfig"
+import { COLOR_SLOT_DEFS } from "../colorSlots"
+import { seedColorSlot } from "../seedColorSlot"
 import { alphabeticalLevelOrder, orderLevelsByField } from "../orderLevelsByField"
 import {
 	lineAnnotationStyleFromTheme,
@@ -867,7 +870,8 @@ const compose = (
 	if (spec.settings) {
 		const problems = settingsProblems(spec.settings, visual, settingsDraft, fieldNames)
 		if (problems.length > 0) return { ok: false, errors: capProblems(problems) }
-		return { ok: true, visual: applySettings(visual, spec.settings as SettingsPatch), warnings }
+		const patched = applySettings(visual, spec.settings as SettingsPatch)
+		return { ok: true, visual: seedPickedSlots(patched, spec.settings as SettingsPatch, typeOf, ctx.theme), warnings }
 	}
 	return { ok: true, visual, warnings }
 }
@@ -894,6 +898,32 @@ export const matchVariation = (
 		}
 	}
 	return best
+}
+
+/** A color slot a settings patch gives a field, and no colors, gets the
+ *  colors the Color panel gives it when that field is picked there. */
+const seedPickedSlots = (
+	visual: Visual,
+	patch: SettingsPatch,
+	typeOf: (field: string) => FieldType,
+	theme: Theme
+): Visual => {
+	const slots = (patch.channelConfigs as { colorSlots?: Record<string, unknown> } | undefined)?.colorSlots
+	if (!slots || !visual.channelConfigs) return visual
+	const colorSlots = { ...visual.channelConfigs.colorSlots }
+	for (const [key, slot] of Object.entries(slots)) {
+		if (typeof slot !== "object" || slot === null) continue
+		const given = slot as Record<string, unknown>
+		if (typeof given.field !== "string" || "hue" in given || "palette" in given || "paletteId" in given) continue
+		const k = key as ColorSlotKey
+		const current = colorSlots[k]
+		colorSlots[k] = {
+			singleColor: current?.singleColor ?? COLOR_SLOT_DEFS[k].themeColor(theme),
+			...current,
+			...seedColorSlot(given.field, typeOf(given.field), theme),
+		} as ColorSlotConfig
+	}
+	return { ...visual, channelConfigs: { ...visual.channelConfigs, colorSlots } }
 }
 
 /** The family's variation called `name` (case-insensitive), or why it

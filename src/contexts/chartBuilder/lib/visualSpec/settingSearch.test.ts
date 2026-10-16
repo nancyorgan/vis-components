@@ -6,7 +6,7 @@ import { CHANNELS } from "../channels"
 import { newVisualDraft } from "../visualDefaults"
 import { pathTokens, searchSettings, settingDoc, settingGroup } from "./settingSearch"
 import { SETTING_CATALOG } from "./settingCatalog"
-import { flattenSettings } from "./settings"
+import { flattenSettings, unsetSettings } from "./settings"
 
 const rows = flattenSettings(newVisualDraft(themeOf(SYSTEM_LIGHT_THEME)) as Visual)
 const paths = (q: string) => searchSettings(rows, q).settings.map((s) => s.path)
@@ -89,6 +89,13 @@ describe("searchSettings on everyday requests", () => {
 		for (const q of ["turn off the legend", "legend off", "remove legend", "no legend", "hide legend"]) {
 			expect(top3(q), q).toContain("legendConfig.hidden")
 			expect(top3(q), q).not.toContain("legendConfig.enabled")
+		}
+	})
+
+	it("finds the line color slot's field for coloring lines by a field", () => {
+		const all = [...rows, ...unsetSettings(newVisualDraft(themeOf(SYSTEM_LIGHT_THEME)) as Visual)]
+		for (const q of ["line color by payer", "color the lines by region"]) {
+			expect(searchSettings(all, q, { limit: 3 }).settings.map((r) => r.path), q).toContain("channelConfigs.colorSlots.line.field")
 		}
 	})
 

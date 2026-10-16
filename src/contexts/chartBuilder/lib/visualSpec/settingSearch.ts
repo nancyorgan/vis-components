@@ -40,14 +40,15 @@ export const CONCEPTS: ReadonlyMap<string, readonly string[]> = new Map([
 	["thicker", ["thickness", "width"]],
 	["thinner", ["thickness", "width"]],
 	["colour", COLOR],
-	["line", ["stroke", "line", "connection"]],
-	["lines", ["stroke", "line", "connection"]],
+	["line", ["line", "stroke", "connection"]],
+	["lines", ["line", "stroke", "connection"]],
 	["grid", ["gridlines"]],
 	["round", RADIUS],
 	["rounded", RADIUS],
 	["corner", RADIUS],
 	["corners", RADIUS],
 	["bold", ["weight"]],
+	["by", ["field"]],
 	...TOGGLE_WORDS.map((w): [string, readonly string[]] => [w, TOGGLE]),
 	...["white", "black", "gray", "grey", "red", "orange", "yellow", "green", "blue", "purple", "pink", "brown"].map(
 		(c): [string, readonly string[]] => [c, COLOR]
@@ -55,11 +56,11 @@ export const CONCEPTS: ReadonlyMap<string, readonly string[]> = new Map([
 ])
 
 /** Words that only rank: a setting need not match them. */
-const OPTIONAL: ReadonlySet<string> = new Set(TOGGLE_WORDS)
+const OPTIONAL: ReadonlySet<string> = new Set([...TOGGLE_WORDS, "by"])
 
 /** Words a request carries that name no setting. */
 const STOPWORDS = new Set(
-	"a an the to of in for and or my this that it its make set change put turn between from by with be is are all each every".split(" ")
+	"a an the to of in for and or my this that it its make set change put turn between from with be is are all each every".split(" ")
 )
 
 /** Words naming the x, y and r axes as a group. */

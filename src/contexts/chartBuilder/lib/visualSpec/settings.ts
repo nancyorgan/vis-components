@@ -103,7 +103,7 @@ const valueProblem = (value: unknown, name: string, fields: readonly string[] | 
 	}
 	if (typeof value === "string" && value !== "") {
 		if (COLOR_NAME.test(name) && !CSS_COLOR.test(value.trim())) return `"${named(value)}" isn't a color; use a hex color like "#1f77b4"`
-		if (/Field$/.test(name) && fields && !fields.includes(value)) {
+		if (/(^field|Field)$/.test(name) && fields && !fields.includes(value)) {
 			return `no field "${named(value)}" in the data${didYouMean(value, fields)}`
 		}
 	}

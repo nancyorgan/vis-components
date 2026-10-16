@@ -109,9 +109,7 @@ export const extractSettingCatalog = () => {
 				const at = `${path}.${prop.name}`
 				const doc = ts.displayPartsToString(prop.getDocumentationComment(checker))
 				if (doc.trim() && !docs[at]) docs[at] = tidy(doc)
-				const decl = prop.valueDeclaration ?? prop.declarations?.[0]
-				if (!decl) continue
-				const propType = checker.getTypeOfSymbolAtLocation(prop, decl)
+				const propType = checker.getTypeOfSymbol(prop)
 				const described = describe(propType)
 				types[at] = Object.hasOwn(types, at) ? merge(types[at], described) : described
 				walk(propType, at, depth + 1)
@@ -125,10 +123,8 @@ export const extractSettingCatalog = () => {
 		if (depth > MAX_DEPTH || !type) return
 		for (const part of objectParts(type)) {
 			for (const prop of checker.getPropertiesOfType(part)) {
-				const decl = prop.valueDeclaration ?? prop.declarations?.[0]
-				if (!decl) continue
 				const at = `${path}.${prop.name}`
-				const described = describe(checker.getTypeOfSymbolAtLocation(prop, decl))
+				const described = describe(checker.getTypeOfSymbol(prop))
 				types[at] = Object.hasOwn(types, at) ? merge(types[at], described) : described
 			}
 		}
