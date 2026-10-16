@@ -56,6 +56,11 @@ const OPEN_MAPS: ReadonlyArray<[RegExp, "string" | "number" | "boolean" | readon
 	[/^legendConfig\.hidden$/, "boolean"],
 ]
 
+/** Settings the renderer no longer reads, with what to use instead. */
+const IGNORED: Readonly<Record<string, string>> = {
+	"legendConfig.enabled": `the legend ignores this; hide it per encoding with {"legendConfig": {"hidden": {"hue": true}}}`,
+}
+
 const openMapType = (path: string) => OPEN_MAPS.find(([re]) => re.test(path))?.[1]
 
 const TYPES = SETTING_CATALOG.types
@@ -178,6 +183,10 @@ export const settingsProblems = (
 	}
 	const walk = (value: unknown, ref: unknown, alt: unknown, path: string, bare: string) => {
 		const known = ref !== undefined ? ref : alt
+		if (Object.hasOwn(IGNORED, bare)) {
+			problems.push({ path, message: IGNORED[bare] ?? "" })
+			return
+		}
 		const declared = TYPES[bare]
 		if (declared !== undefined) {
 			const found = typeProblems(value, declared, path, bare.slice(bare.lastIndexOf(".") + 1), fields)
@@ -274,7 +283,7 @@ export type SettingRow = { path: string; type: string; value: unknown; unset?: t
 export const flattenSettings = (visual: Visual): SettingRow[] => {
 	const rows: SettingRow[] = []
 	const walk = (value: unknown, path: string) => {
-		if (value === undefined) return
+		if (value === undefined || Object.hasOwn(IGNORED, path)) return
 		if (isRecord(value) && Object.keys(value).length > 0 && !openMapType(path)) {
 			for (const [k, v] of Object.entries(value)) walk(v, join(path, k))
 			return
@@ -295,6 +304,6 @@ export const unsetSettings = (visual: Visual): SettingRow[] => {
 	const parents = new Set(paths.map((p) => p.slice(0, p.lastIndexOf("."))))
 	return paths
 		.filter((p) => !parents.has(p) || openMapType(p) !== undefined)
-		.filter((p) => !has(p) && !covered(p))
+		.filter((p) => !has(p) && !covered(p) && !Object.hasOwn(IGNORED, p))
 		.map((p) => ({ path: p, type: openMapType(p) ? "map" : (TYPES[p]?.kinds.filter((k) => k !== "null").join(" or ") ?? ""), value: null, unset: true as const }))
 }

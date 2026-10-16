@@ -714,6 +714,10 @@ describe("settings review findings", () => {
 		expect(stops[0]).toMatchObject({ path: "settings.channelConfigs.hue.customStops[0].colr", message: expect.stringMatching(/did you mean "color"/) })
 	})
 
+	it("refuses the legend toggle the renderer ignores, pointing at hidden", () => {
+		expect(errorsOf(edit(labelled(), { settings: { legendConfig: { enabled: false } } }))[0]?.message).toMatch(/"hidden"/)
+	})
+
 	it("keeps counts, sizes and opacities in range", () => {
 		const paths = (settings: unknown) => errorsOf(edit(labelled(), { settings } as never)).map((e) => e.path)
 		expect(paths({ channelConfigs: { y: { tickCount: 1e8 } } })).toEqual(["settings.channelConfigs.y.tickCount"])
@@ -807,5 +811,25 @@ describe("temporal and removal review findings", () => {
 	it("hints at channels whatever the case", () => {
 		const r = composeChartSpec({ datasetId: CAFE.id, folderId: null, encodings: { x: "month", Size: "muffins" } }, ctx(CAFE.id))
 		expect(errorsOf(r)[0]?.message).toMatch(/"area" or "length"/)
+	})
+})
+
+describe("choosing a variation", () => {
+	const spec = (extra: Record<string, unknown>) => ({ datasetId: CAFE.id, folderId: null, encodings: { x: "flavor", y: "muffins" }, family: "violin", ...extra })
+
+	it("makes the named variation instead of the first that fits", () => {
+		const overlay = (extra: Record<string, unknown>) => ok(composeChartSpec(spec(extra), ctx(CAFE.id))).channelConfigs?.y?.distributionOverlay
+		expect(overlay({})).toMatchObject({ showDensityViolin: true, showBoxPlot: false })
+		expect(overlay({ variation: "box plot (vertical)" })).toMatchObject({ showDensityViolin: false, showBoxPlot: true })
+	})
+
+	it("refuses an unknown variation, one the encodings don't fill, and one in an edit", () => {
+		expect(errorsOf(composeChartSpec(spec({ variation: "Box plot" }), ctx(CAFE.id)))[0]).toMatchObject({
+			path: "variation",
+			message: expect.stringMatching(/no "Box plot" variation of "violin".*Box plot \(vertical\)/),
+		})
+		expect(errorsOf(composeChartSpec(spec({ variation: "Violin (horizontal)" }), ctx(CAFE.id)))[0]?.message).toMatch(/needs "y" \(/)
+		const made = ok(composeChartSpec(spec({}), ctx(CAFE.id)))
+		expect(errorsOf(edit(made, { variation: "Box plot (vertical)" }))[0]?.path).toBe("variation")
 	})
 })

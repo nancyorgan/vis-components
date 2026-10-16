@@ -426,8 +426,16 @@ const compose = (
 		hydrated?.channelConfigs,
 		hydrated?.mapConfig
 	)
+	const chosen = !base && spec.family && spec.variation ? namedVariation(spec.family, spec.variation, fields, typeOf) : undefined
+	if (typeof chosen === "string") problem("variation", chosen)
 	const variant =
-		!base && spec.family ? matchVariation(spec.family, fields, typeOf) : undefined
+		!base && spec.family
+			? typeof chosen === "object"
+				? chosen
+				: spec.variation
+					? undefined
+					: matchVariation(spec.family, fields, typeOf)
+			: undefined
 
 	const hueField = fields.hue
 	const hueType = hueField && hasField(hueField) ? typeOf(hueField) : null
@@ -574,7 +582,7 @@ const compose = (
 		if (spec.family && base && !(FAMILY_MODES[spec.family] as readonly string[]).includes(mode.id)) {
 			problem("family", familyMismatch(spec.family, mode.id))
 		}
-		if (spec.family && !base && !variant) {
+		if (spec.family && !base && !variant && !spec.variation) {
 			problem("family", `${familyNeeds(spec.family, fields, typeOf)}; these encodings make a "${mode.id}" chart`)
 		}
 
@@ -711,7 +719,8 @@ const compose = (
 			channel,
 			field: { name: field, inferredType: typeOf(field) },
 		}))
-		const variant = spec.family ? matchVariation(spec.family, fields, typeOf) : undefined
+		const picked = spec.family && spec.variation ? namedVariation(spec.family, spec.variation, fields, typeOf) : undefined
+		const variant = typeof picked === "object" ? picked : spec.family ? matchVariation(spec.family, fields, typeOf) : undefined
 		const variation: QuickStartVariation = {
 			...(variant ? knobsOf(variant, fields) : {}),
 			name: spec.family ?? "spec",
@@ -885,6 +894,27 @@ export const matchVariation = (
 		}
 	}
 	return best
+}
+
+/** The family's variation called `name` (case-insensitive), or why it
+ *  can't be used: no such variation, or the encodings don't fill it. */
+export const namedVariation = (
+	family: QuickStartChartType,
+	name: string,
+	fields: Partial<Record<SpecChannel, string>>,
+	typeOf: (field: string) => FieldType
+): QuickStartVariation | string => {
+	const all = QUICK_START_VARIATIONS[family]
+	const v = all.find((x) => x.name.toLowerCase() === name.trim().toLowerCase())
+	const names = all.map((x) => x.name)
+	if (!v) return `no "${name}" variation of "${family}"${didYouMean(name, names)} (variations: ${names.map((n) => `"${n}"`).join(", ")})`
+	const missing = (Object.entries(v.channels) as Array<[SpecChannel, readonly FieldType[]]>)
+		.filter(([channel, types]) => {
+			const field = fields[channel]
+			return field === undefined || !types.includes(typeOf(field))
+		})
+		.map(([channel, types]) => `"${channel}" (${types.join(" or ")})`)
+	return missing.length > 0 ? `"${v.name}" needs ${missing.join(", ")}` : v
 }
 
 const familyMismatch = (family: QuickStartChartType, made: string): string =>

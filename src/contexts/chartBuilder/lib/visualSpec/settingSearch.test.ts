@@ -85,9 +85,10 @@ describe("searchSettings on everyday requests", () => {
 		}
 	})
 
-	it("finds the legend toggle however it is switched off", () => {
+	it("finds the legend's hide map however it is switched off, not the ignored toggle", () => {
 		for (const q of ["turn off the legend", "legend off", "remove legend", "no legend", "hide legend"]) {
-			expect(top3(q), q).toContain("legendConfig.enabled")
+			expect(top3(q), q).toContain("legendConfig.hidden")
+			expect(top3(q), q).not.toContain("legendConfig.enabled")
 		}
 	})
 

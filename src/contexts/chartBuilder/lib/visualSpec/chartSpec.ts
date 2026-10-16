@@ -128,6 +128,9 @@ export type ChartSpec = {
 	name?: string
 	/** The chart family the encodings are expected to make. */
 	family?: QuickStartChartType
+	/** One of the family's variations by name ("Box plot (vertical)"),
+	 *  when several fit the encodings; a new chart only. */
+	variation?: string
 	/** Channel → field name. */
 	encodings: Partial<Record<SpecChannel, string>>
 	/** Field type overrides, as the Fields panel sets them. */
@@ -196,6 +199,7 @@ const TOP_LEVEL_KEYS = [
 	"folderId",
 	"name",
 	"family",
+	"variation",
 	"encodings",
 	"fieldTypes",
 	"title",
@@ -425,6 +429,12 @@ export const readChartSpec = (
 
 	text("datasetVersionId")
 	text("name")
+	if (input.variation !== undefined) {
+		if (edit) problem("variation", `"variation" applies to a new chart; change encodings or settings instead`)
+		else if (typeof input.variation !== "string") problem("variation", `"variation" must be a string`)
+		else if (input.family === undefined) problem("variation", `"variation" needs "family"`)
+		else draft.variation = input.variation
+	}
 	text("title")
 	text("subtitle")
 	text("themeId")
