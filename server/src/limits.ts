@@ -32,3 +32,8 @@ export const THUMBNAIL_BODY_CAP_BYTES = 2 * 1024 * 1024
  *  (bounded by the dataset rule above) plus font binaries and, for ZCTA
  *  maps, an inlined topology — hence dataset parity with headroom. */
 export const EMBED_BODY_CAP_BYTES = 640 * 1024 * 1024
+
+/** Cap on a chart-spec body (POST /api/visuals). A spec names fields and a
+ *  few settings, so even a long one is a few KB; the cap keeps a malformed
+ *  or hostile body from costing the shared server seconds of checking. */
+export const SPEC_BODY_CAP_BYTES = 64 * 1024
