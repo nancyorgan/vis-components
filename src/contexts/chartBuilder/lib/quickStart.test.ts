@@ -6,6 +6,7 @@ import {
 	type ChannelConfigs,
 } from "./channelConfig"
 import type { GeoFieldDetection } from "./geo/detectGeoFields"
+import { buildQuantHueConfigFromTheme } from "./hueDefaults"
 import { DEFAULT_MAP_CONFIG } from "./mapConfig"
 import {
 	applyVariation,
@@ -14,8 +15,10 @@ import {
 	mapConfigForVariation,
 	nextVariationIndex,
 	satisfiableVariationIndices,
+	scaffoldVariation,
 } from "./quickStart"
 import { QUICK_START_VARIATIONS } from "./quickStartVariations"
+import { SYSTEM_DARK_THEME, themeOf } from "./systemThemes"
 import type { Field, FieldType } from "./types"
 
 const field = (name: string, inferredType: FieldType): Field => ({
@@ -1152,5 +1155,32 @@ describe("hexbin variation", () => {
 		expect(encodings.x.field).not.toBe(encodings.y.field)
 		expect(encodings.hue.field).toBeNull()
 		expect(encodings.hue.measureSource).toBe("hexCount")
+	})
+})
+
+describe("scaffoldVariation", () => {
+	const theme = themeOf(SYSTEM_DARK_THEME)
+	const variation = {
+		name: "tile",
+		channels: {
+			x: ["categorical"] as readonly FieldType[],
+			y: ["categorical"] as readonly FieldType[],
+			hue: ["quantitative", "categorical"] as readonly FieldType[],
+		},
+	}
+	const assign = (hueType: FieldType) => [
+		{ channel: "x" as const, field: field("a", "categorical") },
+		{ channel: "y" as const, field: field("b", "categorical") },
+		{ channel: "hue" as const, field: field("c", hueType) },
+	]
+
+	it("seeds a quantitative hue from the theme gradient", () => {
+		const { configs } = scaffoldVariation(variation, assign("quantitative"), {}, theme)
+		expect(configs.hue).toEqual(buildQuantHueConfigFromTheme(theme))
+	})
+
+	it("keeps applyVariation's categorical hue for a categorical field", () => {
+		const { configs } = scaffoldVariation(variation, assign("categorical"), {}, theme)
+		expect(configs.hue).toEqual(applyVariation(variation, assign("categorical"), {}).configs.hue)
 	})
 })

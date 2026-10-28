@@ -2,8 +2,9 @@
 // dependency tree. Run via `pnpm notices` after dependency changes.
 //
 // Node built-ins only (dependency policy). The walk starts from the root
-// package.json `dependencies` (the server bundles nothing: server/src uses
-// node:* built-ins exclusively) and follows each package's `dependencies` +
+// package.json `dependencies` (the server bundle inlines only code from
+// that same tree, e.g. d3-format via the shared chart-spec modules, so one
+// walk covers both builds) and follows each package's `dependencies` +
 // `optionalDependencies` through node_modules, resolving pnpm's symlinked
 // layout with realpath. Output is deterministic: stable sorts throughout,
 // so reruns produce no diff when nothing changed.

@@ -15,8 +15,8 @@ import {
 } from "../../../lib/colorSlots"
 import { isAreaModeId } from "../../../lib/chartModes/families"
 import { effectiveType } from "../../../lib/fieldType"
-import { buildQuantHueConfigFromTheme } from "../../../lib/hueDefaults"
 import { CATEGORICAL_HUE_PALETTE } from "../../../lib/scales"
+import { seedColorSlot } from "../../../lib/seedColorSlot"
 import type { FieldType } from "../../../lib/types"
 import { uniqueFieldValues } from "../../../lib/uniqueFieldValues"
 import {
@@ -35,7 +35,6 @@ import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
 import {
 	axisConfigFromTheme,
 	explainChannelCustomization,
-	resolveTextPalettePick,
 	valueChanged,
 } from "../../../lib/themeConfig"
 
@@ -290,44 +289,7 @@ export const ColorSlotControls = ({
 			updateSlot({ field: null })
 			return
 		}
-		const t = effectiveType(dataset, fieldName, overrides)
-		const isQuantField = t === "quantitative" || t === "temporal"
-		if (isQuantField) {
-			updateSlot({ field: fieldName, hue: buildQuantHueConfigFromTheme(theme) })
-		} else if (t === "ordinal") {
-			const pal = theme.ordinalPalettes.find(
-				(p) => p.id === theme.defaultOrdinalPaletteId
-			)
-			updateSlot({
-				field: fieldName,
-				hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG, colors: {} },
-				paletteId: pal?.id ?? null,
-				palette: [...(pal?.colors ?? CATEGORICAL_HUE_PALETTE)],
-			})
-		} else {
-			// A slot that colors TEXT leads with the theme's designated TEXT
-			// palette — typically darker shades of the mark palette, chosen to
-			// stay legible at text sizes, which the mark palette often isn't.
-			// Ordinal fields above keep their ordered ramp: the order carries
-			// meaning the text palette doesn't encode. Either way this is the
-			// seeded DEFAULT — the Palette dropdown below re-picks.
-			const markPal = theme.categoricalPalettes.find(
-				(p) => p.id === theme.defaultCategoricalPaletteId
-			)
-			const pal =
-				paletteKind === "text"
-					? resolveTextPalettePick(theme)
-					: {
-							id: markPal?.id ?? null,
-							colors: [...(markPal?.colors ?? CATEGORICAL_HUE_PALETTE)],
-						}
-			updateSlot({
-				field: fieldName,
-				hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG, colors: {} },
-				paletteId: pal.id,
-				palette: pal.colors,
-			})
-		}
+		updateSlot(seedColorSlot(fieldName, effectiveType(dataset, fieldName, overrides), theme, paletteKind))
 	}
 
 	const fieldType = dataset && field ? effectiveType(dataset, field, overrides) : null

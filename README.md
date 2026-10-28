@@ -41,7 +41,8 @@ The repo also ships a small self-host server for running the app as a shared
 deployment: same UI, but visuals, folders, datasets, embed instances, and
 themes are stored centrally (SQLite + a dataset directory) and shared by
 everyone who uses that URL. It has zero runtime dependencies beyond Node
-itself.
+itself: `pnpm build` bundles it, with the few modules it shares with the
+editor, into the single file `server/dist/main.js`.
 
 ```
 corepack enable
@@ -82,6 +83,174 @@ standalone server has no accounts and leaves this off. Dataset uploads warn
 above 25 MB and are rejected above 100 MB (browser performance is the real
 constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
 startup; it's expected.
+
+### Creating a visual from a chart spec
+
+`POST /api/visuals` creates one visual from a short chart spec, instead of
+the full saved-visual JSON the editor writes. The server fills in everything
+the spec leaves out exactly as the editor does for a new visual (theme
+palettes, fonts, axis and label defaults), checks the spec against the stored
+data, and saves the result to the shared library. It only ever creates: the
+server picks the new visual's id, so a spec can't overwrite anything.
+
+```
+curl -X POST https://charts.example.com/api/visuals \
+  -H 'content-type: application/json' \
+  -d '{"datasetId":"ds-…","folderId":null,
+       "encodings":{"x":"month","length":"sales","hue":"region"},
+       "title":"Sales by month","stack":"group",
+       "dataLabels":{"format":",.0f","position":"outside-end"}}'
+```
+
+| Field | Meaning |
+|---|---|
+| `datasetId` | Required. The data set to chart. |
+| `datasetVersionId` | Optional. The version the spec is checked against; the latest by default. The chart still draws the latest version. |
+| `folderId` | Required. A folder id, or `null` for the library root. |
+| `encodings` | Required. Channel → field name, e.g. `{"y":"country","length":"rate"}`. Channels are the shelf's (`x`, `y`, `length`, `hue`, `facet`, …), named by id or by the shelf's label (`"X position"`, `"Color"`, `"Facet (wrap)"`; case, spaces and punctuation ignored); the chart type follows from them as it does on the shelves. |
+| `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
+| `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error. The family's quick-start variation that the encodings fill best supplies its settings, as the quick-start bar does (a dumbbell connects each category's points, a line chart draws lines, a map goes geographic), except the stack mode, which only `stack` sets. Encodings that fill none of its variations are an error naming what is missing. |
+| `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
+| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis (numbers) or a temporal axis (dates like `"2020"`, `"2020-03"` or `"2020-01-01"`, read as local midnight as the editor's date boxes do, or epoch ms; a bar chart's banded date axis takes none); in an edit, `null` clears a bound; `format` is what the axis Format box takes, on any axis. |
+| `colors` | Optional hue level → `#rgb`/`#rrggbb`. Needs a categorical or ordinal `hue`, and every level must be in the data. |
+| `fill` | Optional mark color while `hue` is unmapped. |
+| `stack` | Optional `"stack"`, `"group"` or `"overlay"`; needs `hue`. |
+| `order` | Optional field → its levels in display order (every level, once). |
+| `dataLabels` | Optional `true`, or `{format, position, color}`. Bar, area and scatter charts; `position` is for bars. |
+| `themeId` | Optional theme, by id or by name (any case); the server's default theme otherwise. |
+| `sort` | Optional field → `{by, decreasing}`: order a categorical field's levels by another field's total, or `"alphabetical"`. Computed once, like the Fields panel's "Order by". |
+| `colorThreshold` | Optional `{field, at, below, above}`: color each hue level by which side of `at` its `field` value falls. Pinned as per-level colors; a level with values on both sides is an error. `colors` given with it wins for the levels it names. |
+| `stems` | Optional `{axis, at}`: a line from each point along `axis` to `at` on it (lollipops), or to the other axis's line without `at`. Scatter charts. |
+| `annotations` | Optional list, each in data values: `{kind: "band", x: [from, to], y: [from, to], color, opacity, label, front}`, `{kind: "line", x, y, color, thickness, dash, front}` or `{kind: "text", x, y, text, color}`. Numbers on a quantitative axis, level names on a categorical one. At most 20. |
+| `reshape` | Optional wide-to-long reshape, as the Reshape panel stores it: `{idFields, meltFields, variableName, valueName}`. Encodings, colors and orders may then name the new columns. In an edit, `null` turns it off. |
+| `derivedVariables` | Optional list of derived variables, as the Fields panel stores them, without ids: `{name, kind: "math", math: {formula}}`, `{name, kind: "concat", concat: {template}}` or `{name, kind: "rules", rules: {rules: [{condition, output}], fallback}}`. Checked with the panel's own rules; other spec keys may name them. In an edit, one with the same name replaces it. |
+| `settings` | Optional. Any other setting, by the name the editor stores it under, e.g. `{"channelConfigs": {"connection": {"strokeColor": "#ffffff"}}}` or `{"legendConfig": {"position": "top"}}`. Deep-merged last, into `channelConfigs`, `labelsConfig`, `legendConfig`, `tooltipConfig`, `dataLabelsConfig`, `captionConfig` and `mapConfig`. Every name must already exist on the chart, and every value must keep its type. Maps keyed by data (per-level colors, per-field formats, legend visibility per channel) take any key, with values of the map's type. |
+
+The body is the spec as JSON, at most 64 KB (`SPEC_BODY_CAP_BYTES` in
+`server/src/limits.ts`). `?dryRun=1` or `?dryRun=true` runs every check and
+answers with the visual it would save, writing nothing; `0`, `false` or no
+`dryRun` saves.
+
+Responses:
+
+- **201** `{id, visual, warnings}` plus `editorUrl`: saved. `warnings` is a
+  list of `{path, message}` for settings that were accepted but have no
+  effect.
+- **200** `{visual, warnings}`: a dry run; nothing written.
+- **400** `{errors: [{path, message}, …]}`: the spec has problems, and
+  nothing was written. Every problem is listed, not just the first, each
+  with where it is (`encodings.x`, `colors["U.S."]`, `?dryRun`, or `""` for
+  the whole body) and what is wrong, with a suggestion when a name is close
+  to a real one. Past 30 problems the list stops, and a last entry says how
+  many more there were.
+- Any other failure answers in the server's usual `{error}` shape:
+  **409** when the stored visuals, themes or data sets are at a different
+  content version than this server (open the app once if they are older,
+  update the server if newer, then retry); **405** for any method but
+  `POST` on `/api/visuals`; **500** for a server fault. A body over the cap
+  is refused with **413**, and the connection is closed, so a client still
+  sending may see the connection drop instead.
+
+The visual it saves is an ordinary one: it shows up in the library, opens in
+the editor, and can be edited, exported and embedded like any other. It is
+saved without a preview image, so its library card reads "No preview" until
+it is saved from the editor or the library's "Regenerate previews" button
+renders one. `PUT /api/visuals/<id>` is unchanged and still stores whatever
+the editor sends.
+
+### Editing a visual with a chart spec
+
+`PATCH /api/visuals/<id>` changes a stored visual by the spec keys the body
+names and nothing else: `{"title": "…"}` changes the title, and every other
+setting, including ones made by hand in the editor, stays as it was. The keys
+are the create keys except `datasetId`, `datasetVersionId` and `themeId`; a
+channel set to `null` is unmapped, and `annotations` are added to the
+visual's own. `removeAnnotations` (edits only) lists kinds (`"band"`,
+`"line"`, `"text"`) to remove first, every annotation of that kind, and
+`removeDerivedVariables` lists derived variables to delete by name. Edits are
+checked like a create, against the visual's data as the editor shows it
+(reshape and derived variables included). An edit that names nothing is
+refused.
+
+```
+curl -X PATCH https://charts.example.com/api/visuals/vs-… \
+  -H 'content-type: application/json' -H 'if-match: 1760000000000' \
+  -d '{"sort":{"country":{"by":"rate","decreasing":true}}}'
+```
+
+`If-Match` is required and carries the `updatedAt` the caller last read;
+without it the edit answers **428**, `*` answers **400**, and when the
+visual has changed since, **412**, changing nothing. A visual changed
+by another write while the edit runs also answers **412**. Responses are the
+create route's, with **200** `{id, visual, warnings, editorUrl, undo}` for a saved
+edit, **404** for an unknown visual and **409** for one in the trash. The
+saved visual's preview image is cleared, since it no longer shows the chart.
+
+An editor tab already open on the visual still holds the old version, and
+its next save replaces the edit.
+
+### Undoing an edit
+
+`undo` in a saved edit's answer is the visual as it was, with the content
+version it was stored at. `POST /api/visuals/<id>/restore` with that `undo` as
+the body, unchanged, puts it back, with `If-Match` carrying the `updatedAt`
+the edit answered:
+
+```
+curl -X POST https://charts.example.com/api/visuals/vs-…/restore \
+  -H 'content-type: application/json' -H 'if-match: 1760000000001' \
+  -d @undo.json
+```
+
+It answers **200** `{id, updatedAt, editorUrl}`; **412** when the visual
+changed after the edit, changing nothing; **409** for a visual in the trash or
+an `undo` from another content version; **428** without `If-Match`; **400**
+for a body that isn't a whole `undo` for this visual. The preview image is cleared.
+
+### Creating a dataset from rows
+
+`POST /api/datasets` with `{name, rows, types?}` stores rows as a new dataset,
+the same shape an upload makes. Values are kept as text; each column's type is
+inferred as an upload infers it unless `types` names it (`quantitative`,
+`categorical`, `temporal`, `ordinal`).
+
+```
+curl -X POST https://charts.example.com/api/datasets \
+  -H 'content-type: application/json' \
+  -d '{"name":"Muffins","rows":[{"month":"Jan","muffins":3},{"month":"Feb","muffins":5}]}'
+```
+
+It answers **201** `{id, name, rowCount, fields}`; **400** `{errors}` with every
+problem and its path; **409** when a dataset of that name exists; **413** past
+the upload size limit. The library lists the dataset only once all of it is
+stored.
+
+### What a spec can say
+
+`GET /api/chart-spec` lists the channels (with the field types each takes and
+the channels it can't be mapped with), the field types, the chart families
+with the channels each quick-start variation fills, and the library's themes
+as `{id, name, default}`. Channels and families are read from the same tables
+the editor uses, so a chart name that isn't listed isn't one the app knows.
+
+`GET /api/chart-spec/settings` lists every setting a `settings` patch can name,
+as `{path, type, value}`: a new chart's defaults, or with `?visualId=` that
+chart's own values. `?q=` finds settings by words. Each word is tried against
+the path's words (split from dots and camelCase, whole word before prefix), a
+concept word standing for some (`margin` and `spacing` for padding, offset,
+gap and inset; `axis` for the x, y and r channels; color names for color), its
+singular, and last the setting's doc comment; `matchedVia` says when a concept
+or doc comment matched. A word never matches inside another word ("round" in
+"background"). Toggle words (`off`, `remove`, `hide`, `no`) only rank. When no
+setting matches every word, the ones matching the most come back with
+`missed` and `unmatched`. With no words, or none that match, it returns a
+census of settings per group and the closest setting words.
+`include_descriptions=true` adds each setting's doc comment; results are
+capped near 40,000 characters, and `offset` and `limit` (whole numbers,
+`limit` at least 1) page through the rest (`truncated`, `nextOffset`). Empty
+objects are left out, since a patch cannot add keys to them. The doc comments,
+and the types a settings patch is checked against, are read from the config
+types at build and test time (`tooling/setting-catalog.js`).
 
 ## Verifying changes
 
