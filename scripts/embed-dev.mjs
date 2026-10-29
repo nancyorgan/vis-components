@@ -6,7 +6,7 @@
 // scratch storage that never touches a real server, and stops it all on
 // Ctrl-C:
 //
-//   - `tsc -p server` once, so server/dist is current
+//   - `vite build -c vite.server.config.ts` once, so server/dist is current
 //   - `vite build -c vite.embed.config.ts --watch` — rebuilds the embed
 //     runtime template as its sources change (the server reads it fresh
 //     on every publish, so a Republish picks the rebuild up)
@@ -118,11 +118,14 @@ const serveStatic = () =>
 		server.listen(staticPort, () => done(server))
 	})
 
-console.log("[embed-dev] building the self-host server (tsc -p server)…")
-const tsc = spawnSync(bin("tsc"), ["-p", "server"], { cwd: root, stdio: "inherit" })
-if (tsc.status !== 0) {
+console.log("[embed-dev] building the self-host server (vite build -c vite.server.config.ts)…")
+const serverBuild = spawnSync(bin("vite"), ["build", "-c", "vite.server.config.ts"], {
+	cwd: root,
+	stdio: "inherit",
+})
+if (serverBuild.status !== 0) {
 	console.error("[embed-dev] server build failed")
-	process.exit(tsc.status ?? 1)
+	process.exit(serverBuild.status ?? 1)
 }
 
 process.on("SIGINT", () => stop(0))

@@ -10,6 +10,8 @@ import {
 	listDatasetMeta,
 	listRows,
 	openDb,
+	readVisualBody,
+	replaceVisualIfUnchanged,
 	setContentVersion,
 	upsertBody,
 	upsertDatasetMeta,
@@ -154,6 +156,20 @@ describe("JSON collections", () => {
 		upsertBody(db, "visuals", "v2", `{"id":"v2","thumbnail":null}`)
 		const [row] = listRows(db, "visuals")
 		expect(JSON.parse(row.body).thumbnail).toBeNull()
+	})
+})
+
+describe("replaceVisualIfUnchanged", () => {
+	it("replaces only a body that still equals the one read", () => {
+		const db = openTracked(freshDir())
+		upsertBody(db, "visuals", "vs-a", JSON.stringify({ id: "vs-a", v: 1 }))
+		const read = readVisualBody(db, "vs-a") ?? ""
+		upsertBody(db, "visuals", "vs-a", JSON.stringify({ id: "vs-a", v: 2 }))
+		expect(replaceVisualIfUnchanged(db, "vs-a", read, JSON.stringify({ id: "vs-a", v: 3 }))).toBe(false)
+		const now = readVisualBody(db, "vs-a") ?? ""
+		expect(JSON.parse(now)).toEqual({ id: "vs-a", v: 2 })
+		expect(replaceVisualIfUnchanged(db, "vs-a", now, JSON.stringify({ id: "vs-a", v: 3 }))).toBe(true)
+		expect(JSON.parse(readVisualBody(db, "vs-a") ?? "")).toEqual({ id: "vs-a", v: 3 })
 	})
 })
 
