@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { DEFAULT_QUANTITATIVE_HUE_CONFIG } from "./channelConfig"
+import { DEFAULT_CATEGORICAL_HUE_CONFIG, DEFAULT_QUANTITATIVE_HUE_CONFIG } from "./channelConfig"
 import {
 	buildQuantHueConfigFromTheme,
 	resolveGradientToConfig,
+	seedOutlineHue,
 } from "./hueDefaults"
 import type { Theme } from "./types"
 
@@ -201,5 +202,29 @@ describe("buildQuantHueConfigFromTheme", () => {
 			defaultGradientPalette: "viridis",
 		})
 		expect(cfg.palette).toBe("viridis")
+	})
+})
+
+describe("seedOutlineHue", () => {
+	const theme: Theme = {
+		...baseTheme,
+		defaultGradientPalette: "blue-fade",
+		linearGradients: [{ id: "blue-fade", name: "Blue", low: "#abc", high: "#def" }],
+	}
+
+	it("seeds the theme gradient for a continuous field and keeps one already there", () => {
+		for (const type of ["quantitative", "temporal"] as const) {
+			const seeded = seedOutlineHue(undefined, type, theme)
+			expect(seeded).toEqual(buildQuantHueConfigFromTheme(theme))
+			expect(seedOutlineHue(seeded, type, theme)).toBe(seeded)
+		}
+	})
+
+	it("keeps a categorical config for a discrete field and drops a quantitative one", () => {
+		const quant = buildQuantHueConfigFromTheme(theme)
+		expect(seedOutlineHue(quant, "categorical", theme)).toBeUndefined()
+		expect(seedOutlineHue(DEFAULT_CATEGORICAL_HUE_CONFIG, "ordinal", theme)).toBe(
+			DEFAULT_CATEGORICAL_HUE_CONFIG
+		)
 	})
 })

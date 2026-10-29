@@ -5,13 +5,12 @@ import {
 	detectGeoFields,
 	EMPTY_GEO_DETECTION,
 } from "../../lib/geo/detectGeoFields"
-import { buildQuantHueConfigFromTheme } from "../../lib/hueDefaults"
 import {
-	applyVariation,
 	assignFields,
 	mapConfigForVariation,
 	nextVariationIndex,
 	satisfiableVariationIndices,
+	scaffoldVariation,
 } from "../../lib/quickStart"
 import type { QuickStartChartType } from "../../lib/quickStartVariations"
 import {
@@ -485,24 +484,7 @@ export const QuickStartIconBar = () => {
 			encodings: nextEncodings,
 			configs: nextConfigs,
 			dataLabels: nextDataLabels,
-		} = applyVariation(variation, assignments, configs)
-		// `applyVariation` always stamps a categorical hue config because most
-		// variations target a categorical hue field. When the variation maps a
-		// quantitative/temporal field to hue (e.g. tile heatmaps), we have to
-		// override that with a quant config seeded from the user's theme
-		// gradient — otherwise `makeHueScale` falls back to viridis until the
-		// user expands the Hue panel and triggers its lazy init.
-		// The hexbin scaffold's derived "Point count" hue is quantitative too
-		// (the shelf seeds the same theme gradient when the user picks it).
-		const hueAssign = assignments.find((a) => a.channel === "hue")
-		if (
-			(hueAssign &&
-				(hueAssign.field.inferredType === "quantitative" ||
-					hueAssign.field.inferredType === "temporal")) ||
-			variation.hueMeasureSource === "hexCount"
-		) {
-			nextConfigs.hue = buildQuantHueConfigFromTheme(theme)
-		}
+		} = scaffoldVariation(variation, assignments, configs, theme)
 		setEncodings(nextEncodings)
 		setConfigs(nextConfigs)
 		// Data-labels encodings reset alongside the main encodings — empty
