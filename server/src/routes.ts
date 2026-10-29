@@ -14,6 +14,7 @@ import type { IncomingMessage, ServerResponse } from "node:http"
 import { Readable } from "node:stream"
 import { createGunzip, createGzip, gunzipSync, gzipSync } from "node:zlib"
 
+import { handleChartSpec } from "./chartSpecRoute.js"
 import type { ServerConfig } from "./config.js"
 import {
 	clearDatasetVersionRows,
@@ -83,6 +84,8 @@ export type HandlerDeps = {
 	 *  who is in which editor, and a visual's `updatedBy` is stamped from it.
 	 *  Without it (the standalone server) all three stay off. */
 	identify?: IdentifyUser
+	/** Visual id minting for POST /api/visuals; tests inject collisions. */
+	mintVisualId?: () => string
 }
 
 type ApiDeps = HandlerDeps & { presence: PresenceTracker }
@@ -132,7 +135,7 @@ export const createHandler = (deps: HandlerDeps) => {
 const handleApi = async (
 	req: IncomingMessage,
 	res: ServerResponse,
-	{ config, db, distDir, identify, presence }: ApiDeps
+	{ config, db, distDir, identify, presence, mintVisualId }: ApiDeps
 ): Promise<void> => {
 	const method = req.method ?? "GET"
 	const [rawPath, rawQuery] = (req.url ?? "/").split("?")
@@ -147,6 +150,8 @@ const handleApi = async (
 			assertClientCurrent(db, req, guarded)
 		}
 	}
+	const spec = { method, collection, id, query: rawQuery ?? "" }
+	if (await handleChartSpec(req, res, { config, db, mintVisualId, identify }, spec)) return
 	// Sub-resources: the datasets collection has several, visuals exactly
 	// one (the thumbnail upload); every other collection keeps the original
 	// flat shape.

@@ -46,7 +46,8 @@ The repo also ships a small self-host server for running the app as a shared
 deployment: same UI, but visuals, folders, datasets, embed instances, and
 themes are stored centrally (SQLite + a dataset directory) and shared by
 everyone who uses that URL. It has zero runtime dependencies beyond Node
-itself.
+itself: `pnpm build` bundles it, with the few modules it shares with the
+editor, into the single file `server/dist/main.js`.
 
 ```
 corepack enable
@@ -87,6 +88,64 @@ standalone server has no accounts and leaves this off. Dataset uploads warn
 above 25 MB and are rejected above 100 MB (browser performance is the real
 constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
 startup; it's expected.
+
+### Creating a visual from a chart spec
+
+`POST /api/visuals` creates one visual from a short chart spec instead of
+the full saved-visual JSON the editor writes. The server fills in everything
+the spec leaves out exactly as the editor does for a new visual (theme
+palettes, fonts, axis and label defaults), checks the spec against the stored
+data, and saves the result. It only ever creates: the server picks the id,
+so a spec can't overwrite anything.
+
+```
+curl -X POST https://charts.example.com/api/visuals \
+  -H 'content-type: application/json' \
+  -d '{"datasetId":"ds-…","folderId":null,
+       "encodings":{"x":"month","length":"sales","hue":"region"},
+       "title":"Sales by month","stack":"group"}'
+```
+
+| Field | Meaning |
+|---|---|
+| `datasetId` | Required. The data set to chart; the spec is checked against its latest version. |
+| `folderId` | Required. A folder id, or `null` for the library root. |
+| `encodings` | Required. Channel → field name, e.g. `{"y":"country","length":"rate"}`. Channels are the shelf's (`x`, `y`, `length`, `hue`, `facet`, …), by id or by the shelf's label (`"X position"`, `"Color"`; case, spaces and punctuation ignored). The chart type follows from them as it does on the shelves. |
+| `name`, `title`, `subtitle` | Optional text. `name` falls back to `title`, then "Untitled". |
+| `family` | Optional quick-start family (`"bar"`, `"scatter"`, …) the encodings are expected to make; a mismatch is an error naming what is missing. The variation the encodings fill best supplies its settings, as the quick-start bar does. Map, sankey and chord charts are made in the editor for now. |
+| `variation` | Optional. One of the family's variations by name, when several fit. |
+| `fieldTypes` | Optional field → type overrides, as the Fields panel sets them. |
+| `axes` | Optional `{x, y}`, each `{title, min, max, format}`. Bounds apply to a quantitative or measure axis (numbers) or a temporal axis (`"2020"`, `"2020-03"` or `"2020-01-01"`, read as local midnight as the date boxes do, or epoch ms); `format` is what the axis Format box takes. |
+| `stack` | Optional `"stack"`, `"group"` or `"overlay"`; needs a categorical `hue`. |
+| `themeId` | Optional theme, by id or by name (case, spaces and punctuation ignored); the server's default theme otherwise. |
+
+The body is at most 64 KB (`SPEC_BODY_CAP_BYTES`). `?dryRun=1` (or `true`)
+runs every check and answers with the visual it would save, writing nothing.
+
+- **201** `{id, visual, warnings, editorUrl}`: saved. With the host's
+  `identify` hook, `updatedBy` names the requester, as an editor save does.
+- **200** `{visual, warnings}`: a dry run.
+- **400** `{errors: [{path, message}, …]}`: nothing written. Every problem is
+  listed with where it is (`encodings.x`, `axes.y.min`, or `""` for the whole
+  body) and a suggestion when a name is close to a real one, up to 30.
+- **409** when stored visuals, themes or data sets are at another content
+  version than this server; **413** past the body cap.
+- **415** for a body not sent as `content-type: application/json`, and
+  **403** for a request whose `Origin` is another site, so a page elsewhere
+  can't create charts with a visitor's session. A request with no `Origin`
+  (a script, the MCP) is accepted.
+
+The saved visual is an ordinary one: it opens in the editor and can be
+edited, exported and embedded like any other. It has no preview image until
+it is saved from the editor or "Regenerate previews" renders one.
+`PUT /api/visuals/<id>` is unchanged.
+
+`GET /api/chart-spec` lists what a spec can say: the channels (with the field
+types each takes and the channels it can't be mapped with), the field types,
+the families with the channels each variation fills, and the themes as
+`{id, name, default}`, the keys a spec takes (`spec`, each with what it says),
+and the `features` this server serves. All of it is read from the tables the
+editor uses.
 
 ## Verifying changes
 
