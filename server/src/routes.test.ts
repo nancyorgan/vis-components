@@ -68,6 +68,7 @@ describe("liveness and config", () => {
 		expect(await res.json()).toEqual({
 			v: 1,
 			baseUrl: "https://charts.example.com",
+			exportPage: true,
 		})
 	})
 })
@@ -1110,14 +1111,15 @@ describe("identity from the host: config user, presence, saver stamps", () => {
 		expect(await signedIn.json()).toEqual({
 			v: 1,
 			baseUrl: "https://charts.example.com",
+			exportPage: true,
 			user: JANE,
 		})
 		const anonymous = await fetch(`${base}/api/config`)
-		expect(await anonymous.json()).toEqual({ v: 1, baseUrl: "https://charts.example.com" })
+		expect(await anonymous.json()).toEqual({ v: 1, baseUrl: "https://charts.example.com", exportPage: true })
 		// A hook that throws is anonymous, not a failed boot probe.
 		const broken = await fetch(`${base}/api/config`, { headers: { "x-test-user": "throw" } })
 		expect(broken.status).toBe(200)
-		expect(await broken.json()).toEqual({ v: 1, baseUrl: "https://charts.example.com" })
+		expect(await broken.json()).toEqual({ v: 1, baseUrl: "https://charts.example.com", exportPage: true })
 	})
 
 	const beat = (tabId: string, visualId: string, user: typeof JANE | null) =>

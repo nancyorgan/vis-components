@@ -110,6 +110,8 @@ export const createHandler = (deps: HandlerDeps) => {
 						v: 1,
 						baseUrl: config.baseUrl,
 						signOutUrl: config.signOutUrl,
+						// /export/<id> renders a chart to a file; tools ask before opening it.
+						exportPage: true,
 						...(user ? { user } : {}),
 					})
 				)

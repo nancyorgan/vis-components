@@ -5274,6 +5274,18 @@ it as **PNG**, **JPEG**, **SVG**, or **PDF**:
   frame would serialize a fallback-font layout whose spacing differs
   from the settled editor render.
 
+**`/export/<visualId>`** runs the same pipeline (`lib/exportImage.ts`,
+`renderExport`, which the Save button also calls) with no one at the
+dialog, for a script or headless browser. Query: `format=png|jpeg|svg|pdf`
+(default png), `v=<versionId>` to pin a version, and `width` / `height`
+(px) / `ratio` (the multiplier) to override the size. Without them a
+fixed canvas size exports as the dialog seeds it, and any other visual
+at the dialog's size when it can't measure the editor (650 × 400), both
+at the dialog's default 4× (`exportSizeFor`). The file lands base64 in
+`<pre id="export-result">` with `data-mime`, `data-bytes`, `data-width`,
+`data-height`, `data-pixel-ratio` and `data-ms`; a failure lands in
+`<pre id="export-error">`. Nothing is saved or uploaded.
+
 This is the other half of the points convention in §7: physical export
 sizing + DPI stamping is what makes a size-12 label land as true 12pt
 in the destination document.

@@ -9,6 +9,7 @@ import {
 	editorVisualRoute,
 } from "../contexts/chartBuilder/routes"
 import { embedRoute } from "../contexts/embed/routes"
+import { exportRoute } from "../contexts/export/routes"
 import { libraryRoute } from "../contexts/library/routes"
 import {
 	settingsAccessibilityRoute,
@@ -33,6 +34,7 @@ const routeTree = rootRoute.addChildren([
 	editorNewRoute,
 	editorVisualRoute,
 	embedRoute,
+	exportRoute,
 	settingsRoute.addChildren([
 		settingsIndexRoute,
 		settingsThemesRoute,
