@@ -295,6 +295,50 @@ export const setVisualThumbnail = (
 	return Number(result.changes) > 0
 }
 
+/** Insert one NEW visual, stored the way `upsertBody` stores it. Returns
+ *  false, writing nothing, when the id is already taken. */
+export const insertVisual = (
+	db: DatabaseSync,
+	id: string,
+	body: string
+): boolean => {
+	const { stripped, thumbnail } = splitThumbnail(body)
+	const result = db
+		.prepare(
+			`INSERT INTO ${JSON_TABLES.visuals} (id, body, thumbnail, updated_at)
+			 VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`
+		)
+		.run(id, stripped, thumbnail, new Date().toISOString())
+	return result.changes > 0
+}
+
+/** One visual's stored body, without its thumbnail; undefined if absent. */
+export const readVisualBody = (db: DatabaseSync, id: string): string | undefined =>
+	(
+		db.prepare(`SELECT body FROM ${JSON_TABLES.visuals} WHERE id = ?`).get(id) as
+			| { body: string }
+			| undefined
+	)?.body
+
+/** Replace a visual's body only if it still equals `expected`, clearing its
+ *  thumbnail, which no longer shows the chart. False when someone else
+ *  wrote it first. */
+export const replaceVisualIfUnchanged = (
+	db: DatabaseSync,
+	id: string,
+	expected: string,
+	body: string
+): boolean => {
+	const { stripped } = splitThumbnail(body)
+	const result = db
+		.prepare(
+			`UPDATE ${JSON_TABLES.visuals} SET body = ?, thumbnail = NULL, updated_at = ?
+			 WHERE id = ? AND body = ?`
+		)
+		.run(stripped, new Date().toISOString(), id, expected)
+	return result.changes > 0
+}
+
 /** Delete one item. Idempotent — deleting a missing id is a no-op. */
 export const deleteBody = (
 	db: DatabaseSync,
@@ -348,6 +392,18 @@ export type DatasetMetaRow = { id: string; meta: string | null }
  *  been hydrated yet. Never touches the data dir. */
 export const listDatasetMeta = (db: DatabaseSync): DatasetMetaRow[] =>
 	db.prepare("SELECT id, meta FROM datasets").all() as DatasetMetaRow[]
+
+/** One dataset's stored metadata JSON: `undefined` when the dataset isn't
+ *  indexed, `null` when it is but no client has hydrated its meta yet. */
+export const readDatasetMeta = (
+	db: DatabaseSync,
+	id: string
+): string | null | undefined =>
+	(
+		db.prepare("SELECT meta FROM datasets WHERE id = ?").get(id) as
+			| { meta: string | null }
+			| undefined
+	)?.meta
 
 /** Remove a dataset's index row AND every one of its version rows. Callers
  *  must delete the corresponding files; this only clears the index. */
