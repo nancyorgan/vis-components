@@ -162,21 +162,6 @@ export const convertRadiusUnit = (
 export const nameSuggestion = (base: string, index: number): string =>
 	`${base} ${index + 1}`
 
-/** The default name for a NEW annotation of one kind: "<Kind> N" where N
- *  starts at one past the kind's current count and skips any number already
- *  taken (so removing "Circle 1" and adding again doesn't mint a second
- *  "Circle 3"). Stored on the annotation at creation, so names stay put when
- *  earlier siblings are removed. */
-export const nextAnnotationName = (
-	base: string,
-	existing: ReadonlyArray<{ name: string }>
-): string => {
-	const taken = new Set(existing.map((a) => a.name.trim().toLowerCase()))
-	let n = existing.length + 1
-	while (taken.has(`${base} ${n}`.toLowerCase())) n += 1
-	return `${base} ${n}`
-}
-
 /** The rendered plot rect's size, from `currentRenderedPanelInnerDimsAtom`.
  *  Null before the first layout pass — pixel conversions then leave the
  *  stored number alone rather than guess an extent. */

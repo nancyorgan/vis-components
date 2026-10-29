@@ -498,3 +498,23 @@ export const newTextAnnotation = (
 	...DEFAULT_TEXT_ANNOTATION_STYLE,
 	...style,
 })
+
+/** A fresh id for a new annotation of one kind, as the Annotations
+ *  panel's Add buttons make them: unique enough for a per-visual list. */
+export const newAnnotationId = (kind: "rect" | "circle" | "line" | "text"): string =>
+	`${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+
+/** The default name for a NEW annotation of one kind: "<Kind> N" where N
+ *  starts at one past the kind's current count and skips any number already
+ *  taken (so removing "Circle 1" and adding again doesn't mint a second
+ *  "Circle 3"). Stored on the annotation at creation, so names stay put when
+ *  earlier siblings are removed. */
+export const nextAnnotationName = (
+	base: string,
+	existing: ReadonlyArray<{ name: string }>
+): string => {
+	const taken = new Set(existing.map((a) => a.name.trim().toLowerCase()))
+	let n = existing.length + 1
+	while (taken.has(`${base} ${n}`.toLowerCase())) n += 1
+	return `${base} ${n}`
+}

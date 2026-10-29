@@ -3,7 +3,7 @@ import {
 	type HueConfig,
 	type PaletteName,
 } from "./channelConfig"
-import type { Theme } from "./types"
+import type { FieldType, Theme } from "./types"
 
 /** Resolve a gradient ID (preset name OR saved gradient ID) into a
  * quantitative HueConfig. Used wherever the editor needs to seed a hue
@@ -51,3 +51,17 @@ export const buildQuantHueConfigFromTheme = (
 	theme: Theme
 ): Extract<HueConfig, { kind: "quantitative" }> =>
 	resolveGradientToConfig(theme.defaultGradientPalette, theme)
+
+/** An outline color config once a field of `type` is mapped to `outlineHue`:
+ *  a quantitative config (the theme gradient) kept or seeded for a continuous
+ *  field; a categorical one kept, or none, for any other. */
+export const seedOutlineHue = (
+	current: HueConfig | undefined,
+	type: FieldType,
+	theme: Theme
+): HueConfig | undefined => {
+	if (type === "quantitative" || type === "temporal") {
+		return current?.kind === "quantitative" ? current : buildQuantHueConfigFromTheme(theme)
+	}
+	return current?.kind === "categorical" ? current : undefined
+}

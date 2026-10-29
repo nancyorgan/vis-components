@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import {
+	newAnnotationId,
 	newCircle,
 	newLineSegment,
 	newRectangle,
 	newTextAnnotation,
+	nextAnnotationName,
 	type AnnotationsConfig,
 	type CircleAnnotation,
 	type LineSegmentAnnotation,
@@ -36,7 +38,7 @@ import {
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
-import { nameSuggestion, nextAnnotationName, type AxisInfo } from "./axisInfo"
+import { nameSuggestion, type AxisInfo } from "./axisInfo"
 import { CircleEditor } from "./CircleEditor"
 import { FacetScopeControl } from "../FacetScopeControl"
 import { LineSegmentEditor } from "./LineSegmentEditor"
@@ -173,9 +175,7 @@ export const AnnotationsPanel = () => {
 	const texts = cfg.texts ?? []
 
 	const addRectangle = () => {
-		const id = `rect-${Date.now().toString(36)}-${Math.random()
-			.toString(36)
-			.slice(2, 6)}`
+		const id = newAnnotationId("rect")
 		update({
 			...cfg,
 			rectangles: [
@@ -204,9 +204,7 @@ export const AnnotationsPanel = () => {
 	}
 
 	const addCircle = () => {
-		const id = `circle-${Date.now().toString(36)}-${Math.random()
-			.toString(36)
-			.slice(2, 6)}`
+		const id = newAnnotationId("circle")
 		update({
 			...cfg,
 			circles: [
@@ -233,9 +231,7 @@ export const AnnotationsPanel = () => {
 	}
 
 	const addLineSegment = () => {
-		const id = `line-${Date.now().toString(36)}-${Math.random()
-			.toString(36)
-			.slice(2, 6)}`
+		const id = newAnnotationId("line")
 		update({
 			...cfg,
 			lineSegments: [
@@ -264,9 +260,7 @@ export const AnnotationsPanel = () => {
 	}
 
 	const addText = () => {
-		const id = `text-${Date.now().toString(36)}-${Math.random()
-			.toString(36)
-			.slice(2, 6)}`
+		const id = newAnnotationId("text")
 		update({
 			...cfg,
 			texts: [
