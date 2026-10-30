@@ -55,10 +55,10 @@ export const groupRowsByShareGroup = (
 		const { rowKey, colKey } = panelGroupKeys(panelData, k, i)
 		const rs = panelData.rowsByValue.get(k) ?? []
 		const colRows = colRowsByColKey.get(colKey)
-		if (colRows) colRows.push(...rs)
+		if (colRows) for (const r of rs) colRows.push(r)
 		else colRowsByColKey.set(colKey, [...rs])
 		const rowRows = rowRowsByRowKey.get(rowKey)
-		if (rowRows) rowRows.push(...rs)
+		if (rowRows) for (const r of rs) rowRows.push(r)
 		else rowRowsByRowKey.set(rowKey, [...rs])
 	})
 	return { colRowsByColKey, rowRowsByRowKey }
@@ -154,7 +154,7 @@ const panelMeasureBound = (
 		)
 	}
 	if (perLeaf.size === 0) return 0
-	return sign > 0
-		? Math.max(0, ...perLeaf.values())
-		: Math.min(0, ...perLeaf.values())
+	let out = 0
+	for (const v of perLeaf.values()) out = sign > 0 ? Math.max(out, v) : Math.min(out, v)
+	return out
 }

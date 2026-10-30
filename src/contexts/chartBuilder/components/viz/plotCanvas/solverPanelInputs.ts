@@ -1,3 +1,4 @@
+import { extent } from "d3-array"
 import { format as d3Format } from "d3-format"
 import { scaleLinear, scaleTime } from "d3-scale"
 import { autoLabelAngleFor } from "../../../lib/autoLabelAngle"
@@ -170,7 +171,8 @@ export const buildSolverPanelInputs = ({
 			if (Number.isFinite(n)) nums.push(n)
 		}
 		if (nums.length === 0) return null
-		return { min: Math.min(...nums), max: Math.max(...nums) }
+		const [min, max] = extent(nums) as [number, number]
+		return { min, max }
 	}
 	/** The measure axis's data extent as the bar / area renderer builds its
 	 *  scale: per-category stack totals (`computePanelMeasureMax`, the same
@@ -406,7 +408,8 @@ export const buildSolverPanelInputs = ({
 			if (Number.isFinite(n)) nums.push(n)
 		}
 		if (nums.length < 2) return null
-		return { min: Math.min(...nums), max: Math.max(...nums) }
+		const [min, max] = extent(nums) as [number, number]
+		return { min, max }
 	}
 	// The measure axis of bars / areas weighs by the extent its scale is
 	// built from (zero baseline, stack totals, histogram counts) — not the

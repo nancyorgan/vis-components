@@ -10,6 +10,7 @@ import {
 	flowLabelFieldNames,
 	flowLabelNodeOptions,
 	flowNodeLabeled,
+	flowNodeSourceRows,
 	flowNodeTotals,
 } from "./flowNodeLabels"
 
@@ -184,5 +185,14 @@ describe("flowRedundantLabelFields", () => {
 		expect(
 			[...flowRedundantLabelFields({ targetField: null, valueField: null }, [])]
 		).toEqual([])
+	})
+})
+
+describe("flowNodeSourceRows", () => {
+	it("collects an edge with more rows than a call takes arguments", () => {
+		const rows = Array.from({ length: 300_000 }, () => ({ Amount: "1" }))
+		const byNode = flowNodeSourceRows(["A", "B"], [edge("A", "B", rows)])
+		expect(byNode.get("A")).toHaveLength(300_000)
+		expect(byNode.get("B")).toHaveLength(300_000)
 	})
 })

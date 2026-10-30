@@ -116,7 +116,10 @@ export const fitPolynomial = (
 		coefficients: uncenterCoefficients(coefT, meanX, sdX),
 		predict,
 		ciAt,
-		xExtent: [Math.min(...xs), Math.max(...xs)],
+		xExtent: [
+			xs.reduce((a, b) => Math.min(a, b), Infinity),
+			xs.reduce((a, b) => Math.max(a, b), -Infinity),
+		],
 		n,
 	}
 }

@@ -6,6 +6,7 @@
 // no React, no atoms — so both consumers resolve identically and the
 // pieces unit-test without a renderer.
 
+import { extent } from "d3-array"
 import {
 	DATA_LABELS_SINGLE_COLOR_ID,
 	type ChannelConfigs,
@@ -189,8 +190,7 @@ export const resolveLabelSize = (
 	const n = typeof raw === "number" ? raw : Number(raw)
 	if (!Number.isFinite(n)) return ptToPx(cfg.fontSize)
 	if (allValues.length === 0) return ptToPx(cfg.fontSize)
-	const lo = Math.min(...allValues)
-	const hi = Math.max(...allValues)
+	const [lo, hi] = extent(allValues) as [number, number]
 	if (lo === hi) return ptToPx((cfg.sizeMin + cfg.sizeMax) / 2)
 	const t = (n - lo) / (hi - lo)
 	return ptToPx(cfg.sizeMin + t * (cfg.sizeMax - cfg.sizeMin))

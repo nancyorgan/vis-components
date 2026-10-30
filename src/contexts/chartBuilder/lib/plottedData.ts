@@ -711,7 +711,7 @@ const hierarchyData = (input: PlottedDataInput): PlottedData => {
 				valueField,
 			}).root
 		)
-	const maxDepth = Math.max(1, ...built(view.rows as Row[]).map((n) => n.depth))
+	const maxDepth = built(view.rows as Row[]).reduce((m, n) => Math.max(m, n.depth), 1)
 	const levelCols: PlottedColumn[] = Array.from({ length: maxDepth }, (_, i) => ({
 		name: `Level ${i + 1}`,
 		type: "categorical",

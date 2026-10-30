@@ -693,7 +693,7 @@ const buildWedges = ({
 		const bandCenter = bandPos + bandSize / 2
 		const cx = aggregation.isVertical ? bandCenter : perpCenter
 		const cy = aggregation.isVertical ? perpCenter : bandCenter
-		wedges.push(...renderWedgesForStack(stack, cx, cy, deps, onSliceHover))
+		for (const w of renderWedgesForStack(stack, cx, cy, deps, onSliceHover)) wedges.push(w)
 	})
 	return wedges
 }
@@ -733,7 +733,7 @@ const buildSinglePieWedges = ({
 	)
 	const wedges: React.ReactNode[] = []
 	stacks.forEach((stack) => {
-		wedges.push(...renderWedgesForStack(stack, cx, cy, deps, onSliceHover))
+		for (const w of renderWedgesForStack(stack, cx, cy, deps, onSliceHover)) wedges.push(w)
 	})
 	return wedges
 }

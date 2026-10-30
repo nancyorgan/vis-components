@@ -1012,7 +1012,7 @@ const buildAreas = ({
 				drawOrderLevels
 			)
 			layerKeys.length = 0
-			layerKeys.push(...ordered)
+			for (const k of ordered) layerKeys.push(k)
 		} else {
 			// Default: sort by peak value descending — largest layers go behind,
 			// smallest on top — so every layer stays visible (smaller ones sit
@@ -1388,9 +1388,9 @@ const buildAreas = ({
 				]
 			})
 			if (effectiveStackMode === "overlay") {
-				interleaved.push(...lineEls, ...pointEls)
+				for (const el of [...lineEls, ...pointEls]) interleaved.push(el)
 			} else {
-				fills.push(...lineEls, ...pointEls)
+				for (const el of [...lineEls, ...pointEls]) fills.push(el)
 			}
 			return
 		}
@@ -1692,10 +1692,13 @@ export const computeAreaMeasureMax = (
 	stackMode: StackMode
 ): number => {
 	if (stackMode === "stack") {
-		return Math.max(
-			1,
-			...stacks.map((s) => s.slices.reduce((acc, sl) => acc + sl.value, 0))
+		return stacks.reduce(
+			(m, s) => Math.max(m, s.slices.reduce((acc, sl) => acc + sl.value, 0)),
+			1
 		)
 	}
-	return Math.max(1, ...stacks.flatMap((s) => s.slices.map((sl) => sl.value)))
+	return stacks.reduce(
+		(m, s) => s.slices.reduce((mm, sl) => Math.max(mm, sl.value), m),
+		1
+	)
 }

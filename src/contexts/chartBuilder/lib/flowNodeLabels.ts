@@ -180,10 +180,10 @@ export const flowNodeSourceRows = (
 	const inRows = new Map<string, Record<string, unknown>[]>()
 	for (const e of edges) {
 		const o = outRows.get(e.source) ?? []
-		o.push(...e.rows)
+		for (const r of e.rows) o.push(r)
 		outRows.set(e.source, o)
 		const i = inRows.get(e.target) ?? []
-		i.push(...e.rows)
+		for (const r of e.rows) i.push(r)
 		inRows.set(e.target, i)
 	}
 	const out = new Map<string, Record<string, unknown>[]>()

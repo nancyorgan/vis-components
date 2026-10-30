@@ -576,3 +576,38 @@ describe("buildSolverPanelInputs — temporal axes", () => {
 		expect(inputs[0].xLabels.every((l) => /^'\d{2}$/.test(l))).toBe(true)
 	})
 })
+
+describe("buildSolverPanelInputs on large datasets", () => {
+	// A browser takes about 120k arguments per call, so the extent of a
+	// larger dataset cannot be spread into Math.min.
+	const LARGE = 300_000
+
+	it("measures a quantitative axis over more rows than a call takes arguments", () => {
+		const rows = Array.from({ length: LARGE }, (_, i) => ({
+			cat: "a",
+			val: String(i % 1000),
+			g: "g1",
+		}))
+		const inputs = build({ rows, encodings: xyEncodings("val", "cat") })
+		expect(inputs[0].xAxisContinuous).toBe(true)
+	})
+
+	it("weighs 'unit' sizing over panels larger than a call takes arguments", () => {
+		const rows = Array.from({ length: LARGE }, (_, i) => ({
+			cat: i % 2 ? "a" : "b",
+			val: String(i % 2 ? i % 11 : i % 6),
+			g: i < LARGE / 2 ? "g1" : "g2",
+		}))
+		const inputs = build({
+			rows,
+			encodings: xyEncodings("cat", "val", "g"),
+			isFaceted: true,
+			facetCfg: {
+				...DEFAULT_FACET_CONFIG,
+				shareY: "none",
+				proportionalSizingY: "unit",
+			},
+		})
+		expect(inputs.map((p) => p.yWeight)).toEqual([10, 10])
+	})
+})

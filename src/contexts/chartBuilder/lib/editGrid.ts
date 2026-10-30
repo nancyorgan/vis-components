@@ -325,7 +325,7 @@ export const pasteBlock = (
 	const height = single ? rect.bottom - rect.top + 1 : block.length
 	const width = single
 		? rect.right - rect.left + 1
-		: Math.max(0, ...block.map((line) => line.length))
+		: block.reduce((m, line) => Math.max(m, line.length), 0)
 	const bottom = rect.top + height - 1
 	const right = Math.min(grid.columns.length - 1, rect.left + width - 1)
 

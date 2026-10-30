@@ -1,3 +1,4 @@
+import { extent } from "d3-array"
 import { useMemo, useState } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import {
@@ -140,8 +141,9 @@ export const AnnotationsPanel = () => {
 				if (Number.isFinite(n)) nums.push(n)
 			}
 			if (nums.length > 0) {
-				dataMin = Math.min(...nums)
-				dataMax = Math.max(...nums)
+				const [lo, hi] = extent(nums) as [number, number]
+				dataMin = lo
+				dataMax = hi
 			}
 		}
 		return { field, type, categories, dataMin, dataMax }

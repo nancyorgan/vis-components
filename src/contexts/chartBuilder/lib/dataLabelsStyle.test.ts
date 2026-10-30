@@ -7,9 +7,12 @@ import {
 	formatField,
 	formatSingleLabel,
 	resolveFieldBackground,
+	resolveLabelSize,
 	resolveLayerBackground,
 	sameBackground,
 } from "./dataLabelsStyle"
+import { DEFAULT_DATA_LABELS_CONFIG } from "./channelConfig"
+import { ptToPx } from "./fontUnit"
 import type { DataLabelsEncodings } from "./types"
 
 type Cfg = Parameters<typeof buildLabelText>[2]
@@ -283,5 +286,13 @@ describe("text-background border", () => {
 		expect(b).toMatchObject({ borderColor: "#123456", borderWidth: 0.5 })
 		// Different borders split the shared box.
 		expect(sameBackground(a, b)).toBe(false)
+	})
+})
+
+describe("resolveLabelSize", () => {
+	it("sizes against more values than a call takes arguments", () => {
+		const c = { ...DEFAULT_DATA_LABELS_CONFIG, sizeMin: 8, sizeMax: 16 }
+		const all = Array.from({ length: 300_000 }, (_, i) => i)
+		expect(resolveLabelSize(299_999, c, all)).toBe(ptToPx(16))
 	})
 })

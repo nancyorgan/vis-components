@@ -8,6 +8,15 @@ import {
 } from "./regression"
 
 describe("fitPolynomial", () => {
+	it("fits more points than a call takes arguments", () => {
+		const pts: Array<[number, number]> = Array.from(
+			{ length: 300_000 },
+			(_, i) => [i, 3 + 2 * i],
+		)
+		const fit = fitPolynomial(pts, 1)
+		expect(fit!.xExtent).toEqual([0, 299_999])
+	})
+
 	it("recovers an exact linear relationship", () => {
 		const pts: Array<[number, number]> = [1, 2, 3, 4, 5].map((x) => [
 			x,

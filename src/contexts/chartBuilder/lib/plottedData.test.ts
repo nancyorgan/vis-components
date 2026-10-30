@@ -393,6 +393,20 @@ describe("plottedRows — trees", () => {
 		])
 	})
 
+	it("tabulates more nodes than a call takes arguments", () => {
+		const cfg = {
+			...EMPTY_CHANNEL_CONFIGS,
+			connection: { hierarchyLayout: "treemap" },
+		} as ChannelConfigs
+		const many = Array.from({ length: 150_000 }, (_, i) => ({
+			parent: "Root",
+			child: `c${i}`,
+			value: "1",
+		}))
+		const t = agg(plotted(many, types, enc({ connection: "parent", area: "value" }), cfg).data)
+		expect(t.header).toEqual(["Level 1", "Level 2", "value (sum)"])
+	})
+
 	it("node totals equal d3's hierarchy sums (what the layouts draw)", () => {
 		const { root } = buildHierarchyFromEdges(rows, {
 			parentField: "parent",
