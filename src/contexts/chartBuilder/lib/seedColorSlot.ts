@@ -6,18 +6,25 @@ import {
 import { buildQuantHueConfigFromTheme } from "./hueDefaults"
 import { CATEGORICAL_HUE_PALETTE } from "./scales"
 import { preserveStackMode } from "./stackMode"
-import { resolveTextPalettePick } from "./themeConfig"
+import { resolveFillPalettePick, resolveTextPalettePick } from "./themeConfig"
 import type { FieldType, Theme } from "./types"
+
+/** Which theme palette a categorical slot seeds from: the default
+ * categorical (mark) palette, the TEXT palette (slots that color text), or
+ * the FILL palette (filled bodies that pair with the marks — violin / box,
+ * density-curve fill). */
+export type SlotPaletteKind = "categorical" | "text" | "fill"
 
 /** The slot update a field pick makes: a continuous field seeds the theme
  * gradient, an ordinal one the theme's ordinal ramp, anything else the
  * theme's categorical palette (its TEXT palette when `paletteKind` is
- * `"text"`). `type` is the field's effective type. */
+ * `"text"`, its FILL palette when `"fill"`). `type` is the field's
+ * effective type. */
 export const seedColorSlot = (
 	fieldName: string,
 	type: FieldType,
 	theme: Theme,
-	paletteKind: "categorical" | "text" = "categorical"
+	paletteKind: SlotPaletteKind = "categorical"
 ): Partial<ColorSlotConfig> => {
 	if (type === "quantitative" || type === "temporal") {
 		return { field: fieldName, hue: buildQuantHueConfigFromTheme(theme) }
@@ -45,10 +52,12 @@ export const seedColorSlot = (
 	const pal =
 		paletteKind === "text"
 			? resolveTextPalettePick(theme)
-			: {
-					id: markPal?.id ?? null,
-					colors: [...(markPal?.colors ?? CATEGORICAL_HUE_PALETTE)],
-				}
+			: paletteKind === "fill"
+				? resolveFillPalettePick(theme)
+				: {
+						id: markPal?.id ?? null,
+						colors: [...(markPal?.colors ?? CATEGORICAL_HUE_PALETTE)],
+					}
 	return {
 		field: fieldName,
 		hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG, colors: {} },

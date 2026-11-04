@@ -226,11 +226,16 @@ describe("colorSlotEdited", () => {
 		)
 	})
 
-	it("an inherit-capable slot (violin/box, regression) counts ANY stored config as an edit — its untouched state is Automatic (no config)", () => {
+	it("an inherit-capable slot (regression) counts ANY stored config as an edit — its untouched state is Automatic (no config)", () => {
 		// Even at the slot's default color: "Single color" was explicitly chosen
 		// over Automatic, and picking Automatic deletes the config again.
 		const atDefault: ColorSlotConfig = { field: null, singleColor: "#dddddd" }
-		expect(colorSlotEdited("violinFill", atDefault, {}, theme)).toBe(true)
+		expect(colorSlotEdited("regressionStroke", atDefault, {}, theme)).toBe(true)
+	})
+
+	it("the violin / box slots have no Auto option (their untouched default is a real Vary by)", () => {
+		expect(COLOR_SLOT_DEFS.violinFill.inherit).toBeUndefined()
+		expect(COLOR_SLOT_DEFS.violinStroke.inherit).toBeUndefined()
 	})
 })
 

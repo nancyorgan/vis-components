@@ -1719,6 +1719,40 @@ histogram or density display to be on). Resolution is
 (e.g. `connection.strokeColor`, `histogram.rugColor`), so saved
 visuals keep their colors unchanged until the user touches the slot.
 
+**Color-following slots** — Violin / box fill, Violin / box outline and
+Density curve fill have no "Auto" option. Untouched, each one varies by
+the Color variable: its "Vary by" shows that variable and its Palette
+shows what it draws. The fills use the theme's **Default fill palette**
+(Settings → Theme → Palettes; typically lighter tints of the default
+categorical palette, so a body reads as a pale version of its marks),
+else the default categorical palette. The outline uses Color's own
+palette, so it draws in the marks' colors. A per-value Color pick
+carries over by palette position, as for every secondary encoding. The
+default applies only when Color maps a discrete variable the body can
+key by:
+- violin / box: the overlay's category variable (a body is one
+  category; any other variable could vary inside it). Otherwise it
+  draws its single color.
+- density-curve fill: any discrete Color variable, while "Fill under
+  curve" is on. Varying by it splits the curve into one filled KDE per
+  value, with its own Density curve legend.
+
+With NO Color variable, the marks draw their single default color. When
+that color is an entry of the categorical palette (the visual's, else
+the theme default) and the theme sets a fill palette, the violin / box
+fill and density-curve fill take the fill palette's entry at the SAME
+position, the analogous pale tint. Otherwise they keep the theme's
+distribution fill color. The outline never changes here.
+
+The default is derived at render time (`lib/colorSlotDefaults.ts`,
+`withColorSlotDefaults`), never stored, so it keeps tracking the Color
+variable and the theme. Any explicit pick stores the slot and wins:
+"— none —", another variable, a palette, a swatch or a single color.
+Re-picking the Color variable clears the stored slot and returns to the
+live default, as does any edit that lands back on the default (a Reset,
+a swatch put back). The single-color Reset returns to the analogous
+tint when that's the default.
+
 **Color rules** — Fill, Outline, and Line each end in a right-aligned
 **"+ Add color rule"** link (no standing subsection: the swatches
 above are the primary control, the rules the exception path). Each
@@ -1789,6 +1823,14 @@ It is a seeded default, so the Palette dropdown below re-picks freely
 overwritten by a later re-mapping, and ordinal fields keep their
 ordered ramp (the order carries meaning the text palette doesn't
 encode).
+
+The theme's **Default fill palette** (Settings → Theme → Palettes,
+`Theme.defaultFillPaletteId`, unset = the default categorical palette)
+plays the same role for FILLED bodies that pair with the marks. It
+seeds the violin / box fill and density-curve fill when they vary by a
+categorical variable (their untouched Color-following default
+included, see Color slots), and their single-color swatch's popover
+leads with it.
 
 Aggregate shapes (violin / box) resolve a mapped slot field against a
 representative row — the first data row of the shape's category (or of
@@ -1925,8 +1967,9 @@ Behavior depends on chart context:
   `defaultViolinScale`); a variable → per-level swatches + ink + scale
   (`pattern.violinOverrides` / `violinInkColors` / `violinScales`),
   defaulting to "None" until picked. The tile sits on
-  the body's own resolved fill (per-category override, hue inheritance,
-  the Violin / box fill color slot); the ink pairs on that fill before
+  the body's own resolved fill (the Violin / box fill color slot,
+  untouched = its Color-following default, else a legacy per-category
+  override); the ink pairs on that fill before
   the Violin / box fill sat/bri slots modulate it. With a pattern variable mapped,
   each body's category reads off the same representative row its color
   slots resolve against (the first row of its category). Hidden while

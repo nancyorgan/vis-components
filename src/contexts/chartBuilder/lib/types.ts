@@ -718,6 +718,12 @@ export type Theme = {
 	 * "no palette" — text falls back to the single color in `textEncodingColor`.
 	 * Otherwise one of the `categoricalPalettes` IDs. */
 	defaultTextPaletteId: string | null
+	/** Default palette for FILLED secondary bodies that follow the Color
+	 * variable — the violin / box body and the density-curve fill. Typically
+	 * lighter tints of the default categorical palette, so a body reads as a
+	 * pale version of its marks. Unset (absent / `null`) = those bodies use
+	 * the default categorical palette. One of the `categoricalPalettes` IDs. */
+	defaultFillPaletteId?: string | null
 	defaultGradientPalette: string // preset name, or ID of a saved linear/diverging
 	// Legacy single-palette field (kept for back-compat on load, mapped to
 	// `categoricalPalettes`). The old custom gradient fields are migrated in

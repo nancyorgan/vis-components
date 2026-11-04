@@ -19,7 +19,6 @@ import {
 } from "../../../lib/resolveLayerColor"
 import { OPACITY_SLOT_DEFS } from "../../../lib/opacitySlots"
 import {
-	applyHueScale,
 	applyPositionScale,
 	modulateColor,
 	type PositionScale,
@@ -81,16 +80,11 @@ export const overlayStyler = (args: {
 	aestheticScales: AestheticScales
 }): ((category: string) => OverlayStyle) => {
 	const { rowsForChart, categoryField, overlay, channelConfigs } = args
-	const { hue: hueScale, colorSlots, opacitySlots } = args.aestheticScales
-	// Inherit per-category colors from the hue encoding when it's mapped to
-	// the same field as the strip's category axis. Any hue field is selectable
-	// while the overlay is on, so a mismatched hue falls back to the global
-	// stroke/fill instead of mis-keying colors (to vary by a different field,
-	// map it on the Violin / Box Fill or Outline color slot).
-	const inheritFromHue =
-		hueScale &&
-		hueScale.field.name === categoryField &&
-		hueScale.scale.kind === "categorical"
+	const { colorSlots, opacitySlots } = args.aestheticScales
+	// Following the Color variable is NOT done here: an untouched Violin /
+	// box fill or outline slot arrives already varying by it (the render-side
+	// `withColorSlotDefaults`, fill in the theme's fill palette), so the slot
+	// branch below draws it like any explicit "Vary by".
 	// A violin/box is an aggregate, but color/opacity slots resolve per-row —
 	// so resolve each shape against a representative row: the first data row
 	// of its category. This lets a slot vary by any field that's constant
@@ -125,17 +119,10 @@ export const overlayStyler = (args: {
 		args.aestheticScales
 	)
 	return (category) => {
-		const inheritedColor = inheritFromHue
-			? (applyHueScale(hueScale.scale, category, "categorical") ?? null)
-			: null
-		// Resolution order for stroke/fill (highest priority first):
-		//   1. per-category override
-		//   2. hue inheritance when applicable
-		//   3. single fallback color / fillColor
-		const legacyStroke =
-			overlay.colorOverrides[category] ?? inheritedColor ?? overlay.color
-		const legacyFill =
-			overlay.fillColorOverrides[category] ?? inheritedColor ?? overlay.fillColor
+		// Legacy resolution (visuals saved before the color slots): the
+		// per-category override, else the single color / fillColor.
+		const legacyStroke = overlay.colorOverrides[category] ?? overlay.color
+		const legacyFill = overlay.fillColorOverrides[category] ?? overlay.fillColor
 		// The violinStroke / violinFill color slots, when configured, own
 		// the color (independent field mapping or single color). Absent
 		// slots fall through to the legacy resolution above (back-compat).

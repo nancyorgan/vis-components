@@ -9,10 +9,15 @@ import {
 	type HintedFormats,
 } from "../lib/formatHintDefaults"
 import { resolveDataLabelPositions } from "../lib/dataLabelsPosition"
+import { withColorSlotDefaults } from "../lib/colorSlotDefaults"
 import { effectiveType } from "../lib/fieldType"
 import { linkColorConfigs } from "../lib/linkedHueColors"
 import type { LegendConfig } from "../lib/labelsConfig"
-import { emptyDataLabelsEncodings, type DataLabelsEncodings } from "../lib/types"
+import {
+	emptyDataLabelsEncodings,
+	type DataLabelsEncodings,
+	type Theme,
+} from "../lib/types"
 import {
 	tooltipFieldFormats,
 	type TooltipFormats,
@@ -25,6 +30,9 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
+	currentThemeIdAtom,
+	themeAtom,
+	themesAtom,
 } from "./atoms"
 import { currentDatasetViewAtom } from "./useCurrentDatasetView"
 
@@ -35,11 +43,20 @@ const hintedFormatsAtom = atom(
 	(get): HintedFormats => hintedFormats(get(currentDatasetViewAtom)),
 )
 
+/** The theme the current visual is on — the atom form of `useCurrentTheme`
+ * (the LIVE `themesAtom` entry, else the legacy snapshot). */
+export const currentThemeAtom = atom((get): Theme => {
+	const id = get(currentThemeIdAtom)
+	return get(themesAtom).find((t) => t.id === id) ?? get(themeAtom)
+})
+
 /** RENDER-side channel configs: the stored configs with the format-hint
  * defaults folded in — an axis mapped to a dollar- or percent-hinted field
  * whose Format is still "Auto" renders as "$1,234.56" / "14%" without any
  * config write — and with every secondary color encoding varying by the
- * Color variable seeded from Color's palette positions (`linkColorConfigs`).
+ * Color variable seeded from Color's palette positions (`linkColorConfigs`),
+ * after the untouched violin / box and density-curve fill slots take their
+ * Color-following default (`withColorSlotDefaults`).
  *
  * Read these from the chart / legend / solver render path ONLY. The sidebar
  * panels and the persistence layer (save/autosave) must keep reading
@@ -55,11 +72,16 @@ export const renderChannelConfigsAtom = atom((get): ChannelConfigs => {
 	)
 	const hueField = encodings.hue?.field ?? null
 	const dataset = get(currentDatasetViewAtom)
-	if (!hueField || !dataset) return hinted
+	if (!dataset) return hinted
+	const theme = get(currentThemeAtom)
+	// With no Color variable the fills still default — to the fill-palette
+	// color analogous to the marks' single color.
+	if (!hueField) return withColorSlotDefaults(hinted, encodings, null, theme)
+	const hueType = effectiveType(dataset, hueField, get(currentFieldOverridesAtom))
 	return linkColorConfigs(
-		hinted,
+		withColorSlotDefaults(hinted, encodings, hueType, theme),
 		encodings,
-		effectiveType(dataset, hueField, get(currentFieldOverridesAtom)),
+		hueType,
 	)
 })
 

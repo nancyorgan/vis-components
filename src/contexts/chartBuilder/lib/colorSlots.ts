@@ -27,7 +27,7 @@ export type ColorSlotDef = {
 	 * dropdown (e.g. the radar spine). */
 	acceptsFieldMapping: boolean
 	/** Present when an UNCONFIGURED slot does NOT render the default single
-	 * color but follows the main Color (hue) encoding (violin/box, regression).
+	 * color but follows the main Color (hue) encoding (regression, combo points).
 	 * The panel then leads the Vary-by list with this "Automatic" option —
 	 * which clears the stored slot — so the untouched state displays
 	 * truthfully, and "Single color" is an explicit stored choice that really
@@ -142,11 +142,9 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		themeColor: (t) => t.distributionOverlayFill,
 		acceptsFieldMapping: true,
-		// Unconfigured, the renderer inherits per-category colors from the hue
-		// encoding when it's mapped to the category-axis field (see
-		// renderDistributionOverlays) — so the default must not claim "Single
-		// color".
-		inherit: { label: "Auto" },
+		// Unconfigured, it varies by the Color variable (when that's the
+		// category-axis variable) in the theme's fill palette — a real
+		// "Vary by" default, see `defaultColorSlot` (lib/colorSlotDefaults).
 	},
 	{
 		key: "violinStroke",
@@ -155,7 +153,8 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => overlayOn(configs),
 		themeColor: (t) => t.distributionOverlayStroke,
 		acceptsFieldMapping: true,
-		inherit: { label: "Auto" },
+		// Unconfigured, it varies by the Color variable in Color's own
+		// palette — see `defaultColorSlot`.
 	},
 	{
 		key: "densityCurveFill",
@@ -168,7 +167,9 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => densityCurveFillOn(configs),
 		themeColor: (t) => t.distributionOverlayFill,
 		// "Vary by" a field splits the curve into one KDE per category, each
-		// filled with its category color.
+		// filled with its category color. Unconfigured, it varies by a
+		// discrete Color variable in the theme's fill palette — see
+		// `defaultColorSlot`.
 		acceptsFieldMapping: true,
 	},
 	{

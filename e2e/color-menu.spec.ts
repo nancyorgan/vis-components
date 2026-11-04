@@ -48,7 +48,7 @@ test("legacy rug color renders without a color slot", async ({ page }) => {
 })
 
 // The unified Color menu shows the per-target subheaders for the chart type.
-test("Color menu shows Fill + Outline + violin/box subheaders", async ({ page }) => {
+test("Color menu shows Point fill + Point outline + violin/box subheaders", async ({ page }) => {
 	const fx: SeedFixture = {
 		visualId: "cm-violin",
 		datasetId: "ds-cm-violin",
@@ -71,7 +71,13 @@ test("Color menu shows Fill + Outline + violin/box subheaders", async ({ page })
 	await page.getByRole("button", { name: /Toggle options for Color/i }).click()
 	await page.waitForTimeout(300)
 	await page.screenshot({ path: "/tmp/color-menu.png", fullPage: true })
-	for (const label of ["Fill", "Outline", "Violin / box fill", "Violin / box outline"]) {
+	// Beside the Violin / box subheaders the marks' subsections read "Point …".
+	for (const label of [
+		"Point fill",
+		"Point outline",
+		"Violin / box fill",
+		"Violin / box outline",
+	]) {
 		await expect(page.getByText(label, { exact: true })).toBeVisible()
 	}
 })

@@ -53,6 +53,7 @@ import {
 	currentThemeIdAtom,
 	themesAtom,
 } from "../../../store/atoms"
+import { renderChannelConfigsAtom } from "../../../store/renderConfigs"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
@@ -289,15 +290,17 @@ export const PatternOptionsPanel = () => {
 	const violinFieldMapped =
 		violinVaryBy === undefined ? patternFieldMapped : violinLevels !== null
 	// What the body's chips preview on: the renderer tiles a body over its own
-	// fill (the Violin / box fill slot's color, else the overlay's legacy fill,
-	// else the theme's). A field-mapped slot or hue inheritance varies per
-	// category; the chips show the single base color.
+	// fill (the Violin / box fill slot's color — its render-side default
+	// included, e.g. the fill-palette color analogous to the marks' — else
+	// the overlay's legacy fill, else the theme's). A field-mapped slot
+	// varies per category; the chips show the single base color.
+	const renderViolinFill = useAtomValue(renderChannelConfigsAtom).colorSlots?.violinFill
 	const violinTile = (() => {
 		const activeOverlay = [configs.x, configs.y]
 			.map((c) => c?.distributionOverlay)
 			.find((o) => o && (o.showBoxPlot || o.showDensityViolin))
 		const fill =
-			configs.colorSlots?.violinFill?.singleColor ??
+			renderViolinFill?.singleColor ??
 			activeOverlay?.fillColor ??
 			theme.distributionOverlayFill
 		return fill

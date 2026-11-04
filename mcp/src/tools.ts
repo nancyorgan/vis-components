@@ -276,6 +276,7 @@ export const createHandlers = (api: Api) => {
 						categorical: list(theme.categoricalPalettes),
 						ordinal: list(theme.ordinalPalettes),
 						text: theme.defaultTextPaletteId,
+						fill: theme.defaultFillPaletteId ?? null,
 					}
 				}
 				return ok({

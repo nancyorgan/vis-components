@@ -91,6 +91,7 @@ import {
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
+import { renderChannelConfigsAtom } from "../../store/renderConfigs"
 import { SwatchShapePicker } from "./SwatchShapePicker"
 import { RadioGroup } from "../../../../components/ui/RadioGroup"
 import { Segmented } from "../../../../components/ui/Segmented"
@@ -250,6 +251,10 @@ export const LegendPanel = () => {
 	const dataset = useCurrentDatasetView()
 	const theme = useCurrentTheme()
 	const configs = useAtomValue(currentChannelConfigsAtom)
+	// What the Legend actually plans from: an untouched density-curve fill
+	// varies by the Color variable there (`withColorSlotDefaults`), so the
+	// curve's legend section exists without a stored slot.
+	const renderConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(currentLabelsAtom)
 	const merged: LegendConfig = { ...DEFAULT_LEGEND_CONFIG, ...cfg }
 	// The config a fresh chart on this theme is seeded with — the baseline
@@ -454,7 +459,7 @@ export const LegendPanel = () => {
 	// A density curve grouped by a field gets its own "Density Curve" legend
 	// (its categories), with a hide toggle — same pattern as the rug.
 	const densityCurveLegendMapped =
-		!!densityCurveGroupField(configs) && densityCurveOn(configs)
+		!!densityCurveGroupField(renderConfigs) && densityCurveOn(configs)
 
 	// Slot legends the renderer folds into another legend on their field (a
 	// rug / density curve colored exactly like the Color legend — see the
@@ -466,7 +471,7 @@ export const LegendPanel = () => {
 		dataset && (rugLegendMapped || densityCurveLegendMapped)
 			? (planLegendSections({
 					encodings,
-					configs,
+					configs: renderConfigs,
 					dataset,
 					overrides,
 					labels,
@@ -774,7 +779,7 @@ export const LegendPanel = () => {
 		}
 		if (rugLegendMapped && !effHidden.rug) count(configs.colorSlots?.rug?.field)
 		if (densityCurveLegendMapped && !effHidden.densityCurve) {
-			count(densityCurveGroupField(configs))
+			count(densityCurveGroupField(renderConfigs))
 		}
 		for (const n of byField.values()) if (n >= 2) return true
 		return false

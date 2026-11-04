@@ -15,10 +15,11 @@ import {
 	overlayOn,
 } from "../../../lib/colorSlots"
 import { isAreaModeId } from "../../../lib/chartModes/families"
+import { defaultColorSlot, isDefaultColorSlot } from "../../../lib/colorSlotDefaults"
 import { effectiveType } from "../../../lib/fieldType"
 import { CATEGORICAL_HUE_PALETTE } from "../../../lib/scales"
 import { pickSlotPalette } from "../../../lib/paletteEdits"
-import { seedColorSlot } from "../../../lib/seedColorSlot"
+import { seedColorSlot, type SlotPaletteKind } from "../../../lib/seedColorSlot"
 import type { FieldType } from "../../../lib/types"
 import { uniqueFieldValues } from "../../../lib/uniqueFieldValues"
 import {
@@ -37,6 +38,7 @@ import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
 import {
 	axisConfigFromTheme,
 	explainChannelCustomization,
+	resolveFillPalettePick,
 	valueChanged,
 } from "../../../lib/themeConfig"
 
@@ -257,6 +259,7 @@ export const ColorSlotControls = ({
 	inheritLabel,
 	inheritHelp,
 	clearSlot,
+	defaultField,
 	paletteKind = "categorical",
 	updateSlot,
 }: {
@@ -268,10 +271,15 @@ export const ColorSlotControls = ({
 	/** Help prose shown while inheriting; nothing is shown when omitted. */
 	inheritHelp?: React.ReactNode
 	clearSlot?: () => void
-	/** Which theme palette the single-color swatch's picker leads with.
-	 *  Data-label slots color TEXT, so they pass `"text"`; mark slots keep
-	 *  the default categorical palette. */
-	paletteKind?: "categorical" | "text"
+	/** The variable the UNTOUCHED slot already varies by (a Color-following
+	 *  slot's default, see `defaultColorSlot`). Picking it again calls
+	 *  `clearSlot`, returning to that live default instead of storing a copy. */
+	defaultField?: string | null
+	/** Which theme palette the slot seeds and its single-color swatch's
+	 *  picker leads with. Data-label slots color TEXT, so they pass `"text"`;
+	 *  filled bodies (violin / box, density-curve fill) pass `"fill"`; mark
+	 *  slots keep the default categorical palette. */
+	paletteKind?: SlotPaletteKind
 	updateSlot: (partial: Partial<ColorSlotConfig>) => void
 }) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -293,7 +301,10 @@ export const ColorSlotControls = ({
 	]
 
 	const setField = (fieldName: string) => {
-		if (fieldName === SLOT_INHERIT_VALUE) {
+		if (
+			fieldName === SLOT_INHERIT_VALUE ||
+			(defaultField && fieldName === defaultField && clearSlot)
+		) {
 			clearSlot?.()
 			return
 		}
@@ -340,11 +351,13 @@ export const ColorSlotControls = ({
 						palette={
 							paletteKind === "text"
 								? undefined
-								: (theme.categoricalPalettes.find(
-										(p) => p.id === theme.defaultCategoricalPaletteId,
-									)?.colors ?? CATEGORICAL_HUE_PALETTE)
+								: paletteKind === "fill"
+									? resolveFillPalettePick(theme).colors
+									: (theme.categoricalPalettes.find(
+											(p) => p.id === theme.defaultCategoricalPaletteId,
+										)?.colors ?? CATEGORICAL_HUE_PALETTE)
 						}
-						paletteKind={paletteKind}
+						paletteKind={paletteKind === "text" ? "text" : "categorical"}
 						pickerLabel={`Pick palette color for ${labelPrefix}`}
 					/>
 					{singleColor !== defaultColor && (
@@ -387,30 +400,61 @@ const ColorSlotSubsection = ({
 }) => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
+	const encodings = useAtomValue(currentEncodingsAtom)
+	const overrides = useAtomValue(currentFieldOverridesAtom)
+	const dataset = useCurrentDatasetView()
 
-	const slotCfg = configs.colorSlots?.[def.key]
-	// The single-color default for this slot: the legacy value it superseded,
-	// else the theme default for this target. `reset` returns to this.
-	const defaultColor = legacySlotColor(def.key, configs) ?? def.themeColor(theme)
+	const storedCfg = configs.colorSlots?.[def.key]
+	// An untouched Color-following slot (violin / box, density-curve fill)
+	// varies by the Color variable — shown as exactly that, the same config
+	// the renderer derives (`withColorSlotDefaults`), never persisted.
+	const hueField = encodings.hue?.field ?? null
+	const hueType =
+		dataset && hueField ? effectiveType(dataset, hueField, overrides) : null
+	const dflt = defaultColorSlot(def.key, encodings, configs, hueType, theme)
+	const derivedCfg = storedCfg ? undefined : dflt
+	const slotCfg = storedCfg ?? derivedCfg
+	// The variable the untouched slot varies by, touched or not: re-picking
+	// it returns to the live default.
+	const defaultField = dflt?.field ?? null
+	// The single-color default for this slot: a Color-following fill's
+	// single-color default (the fill-palette color analogous to the marks'),
+	// else the legacy value it superseded, else the theme default for this
+	// target. `reset` returns to this.
+	const defaultColor =
+		(dflt && dflt.field === null ? dflt.singleColor : undefined) ??
+		legacySlotColor(def.key, configs) ??
+		def.themeColor(theme)
 	const singleColor = slotCfg?.singleColor ?? defaultColor
 
 	// Merge a partial slot update, always carrying a concrete `singleColor` and
 	// `field` so the stored slot is well-formed once created.
 	const updateSlot = (partial: Partial<ColorSlotConfig>) =>
 		setConfigs((prev) => {
-			const existing = prev.colorSlots?.[def.key]
+			// The first edit of an untouched Color-following slot starts from
+			// the default it displays (field + palette), so a swatch tweak
+			// doesn't drop the Vary by.
+			const existing = prev.colorSlots?.[def.key] ?? derivedCfg
 			const base: ColorSlotConfig = {
 				field: existing?.field ?? null,
 				singleColor: existing?.singleColor ?? singleColor,
 				...existing,
 			}
+			const next = { ...base, ...partial }
+			// An edit that lands back on the Color-following default (a Reset,
+			// "— none —" with no Color variable) stores nothing, so the slot
+			// keeps tracking the live default.
+			if (isDefaultColorSlot(next, dflt)) {
+				const { [def.key]: _removed, ...rest } = prev.colorSlots ?? {}
+				return { ...prev, colorSlots: rest }
+			}
 			return {
 				...prev,
-				colorSlots: { ...prev.colorSlots, [def.key]: { ...base, ...partial } },
+				colorSlots: { ...prev.colorSlots, [def.key]: next },
 			}
 		})
 
-	// Inherit-capable slots (violin/box, regression) render the Color mapping's
+	// Inherit-capable slots (regression, combo points) render the Color mapping's
 	// colors while UNCONFIGURED, so they lead with an explicit "Automatic"
 	// option; picking it deletes the stored slot, returning to that state.
 	const clearSlot = () =>
@@ -423,7 +467,7 @@ const ColorSlotSubsection = ({
 	// This slot deviates when it has a field mapped, a picked palette, or a
 	// single color moved off the slot's default — shared with the top-level
 	// Color dot so they can't drift.
-	const slotChanged = colorSlotEdited(def.key, slotCfg, configs, theme)
+	const slotChanged = colorSlotEdited(def.key, storedCfg, configs, theme)
 
 	return (
 		<CollapsibleSubsection
@@ -438,7 +482,13 @@ const ColorSlotSubsection = ({
 				acceptsFieldMapping={def.acceptsFieldMapping}
 				inheritLabel={def.inherit?.label}
 				inheritHelp={def.inherit?.help}
-				clearSlot={def.inherit ? clearSlot : undefined}
+				clearSlot={def.inherit || defaultField ? clearSlot : undefined}
+				defaultField={defaultField}
+				paletteKind={
+					def.key === "violinFill" || def.key === "densityCurveFill"
+						? "fill"
+						: "categorical"
+				}
 				updateSlot={updateSlot}
 			/>
 			{/* Conditional line-color rules — the same "+ Add color rule" editor

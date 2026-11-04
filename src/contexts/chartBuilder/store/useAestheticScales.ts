@@ -1,10 +1,12 @@
 import { useMemo } from "react"
 import { useAtomValue } from "jotai"
 import type {
+	ChannelConfigs,
 	ColorSlotKey,
 	ModulationSlotKey,
 	OpacitySlotKey,
 } from "../lib/channelConfig"
+import { withColorSlotDefaults } from "../lib/colorSlotDefaults"
 import { COLOR_SLOT_REGISTRY } from "../lib/colorSlots"
 import { MODULATION_SLOT_REGISTRY } from "../lib/modulationSlots"
 import { OPACITY_SLOT_REGISTRY } from "../lib/opacitySlots"
@@ -35,6 +37,7 @@ import {
 	currentLegendConfigAtom,
 } from "./atoms"
 import { useCurrentDatasetView } from "./useCurrentDatasetView"
+import { useCurrentTheme } from "./useCurrentTheme"
 import { useThemeInkFallback } from "./useThemeInkFallback"
 
 export type AestheticFieldInfo = {
@@ -136,6 +139,7 @@ export const useAestheticScales = (): AestheticScales => {
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()
 	const themeInkFallback = useThemeInkFallback()
+	const theme = useCurrentTheme()
 
 	return useMemo<AestheticScales>(() => {
 		if (!dataset) return NULL_SCALES
@@ -162,8 +166,8 @@ export const useAestheticScales = (): AestheticScales => {
 		// Color slots store their field INSIDE the slot config (not in
 		// `encodings`), so build them from `channelConfigs.colorSlots` rather
 		// than `build()`. Same full-dataset invariant: read `rows` directly.
-		const buildSlot = (key: ColorSlotKey) => {
-			const field = channelConfigs.colorSlots?.[key]?.field ?? null
+		const buildSlot = (key: ColorSlotKey, slots: ChannelConfigs["colorSlots"]) => {
+			const field = slots?.[key]?.field ?? null
 			if (!field) return null
 			const type = effectiveType(dataset, field, overrides)
 			return {
@@ -230,14 +234,20 @@ export const useAestheticScales = (): AestheticScales => {
 		// Secondary color encodings varying by the Color variable inherit its
 		// per-value palette positions — the same seeding the render configs
 		// apply (`linkColorConfigs`).
+		// An untouched violin / box or density-curve fill slot varies by the
+		// Color variable (`withColorSlotDefaults`) — the same render-side
+		// default `renderChannelConfigsAtom` applies.
+		const slotConfigs = hue
+			? withColorSlotDefaults(channelConfigs, encodings, hue.field.type, theme)
+			: channelConfigs
 		const linked = hue
-			? linkColorConfigs(channelConfigs, encodings, hue.field.type)
+			? linkColorConfigs(slotConfigs, encodings, hue.field.type)
 			: channelConfigs
 		const colorSlots: AestheticScales["colorSlots"] = {}
 		for (const def of COLOR_SLOT_REGISTRY) {
-			const built = buildSlot(def.key)
+			const built = buildSlot(def.key, slotConfigs.colorSlots)
 			if (!built) continue
-			const slotCfg = channelConfigs.colorSlots?.[def.key]
+			const slotCfg = slotConfigs.colorSlots?.[def.key]
 			// Only some slots are legend candidates (line/rug/violin*); the cast
 			// tolerates non-candidate keys (stem/spine), which simply have no
 			// per-channel break config.
@@ -439,5 +449,6 @@ export const useAestheticScales = (): AestheticScales => {
 		legendCfg,
 		levelOrders,
 		themeInkFallback,
+		theme,
 	])
 }

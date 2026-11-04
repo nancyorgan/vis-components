@@ -466,6 +466,7 @@ export const PalettesSection = ({
 	// (the label and control are separated by a description paragraph, so a
 	// wrapping <label> would drag the prose into the accessible name).
 	const textPaletteSelectId = useId()
+	const fillPaletteSelectId = useId()
 
 	// --- Categorical palette helpers ---
 	const updateCatPalette = (
@@ -583,6 +584,41 @@ export const PalettesSection = ({
 					>
 						<option value="__none__">
 							No palette (single fallback color)
+						</option>
+						{theme.categoricalPalettes.map((p) => (
+							<option key={p.id} value={p.id}>
+								{p.name}
+							</option>
+						))}
+					</Select>
+				</div>
+				<div className="vc-divider-group">
+					<label
+						htmlFor={fillPaletteSelectId}
+						className="text-sm font-medium vc-text"
+					>
+						Default fill palette
+					</label>
+					<p className="text-xs vc-muted">
+						Fills box plots, violins and density curves that vary by the
+						Color variable. Pick a palette of lighter tints that pair with
+						your default categorical palette, so a body reads as a pale
+						version of its marks. Without one, they fill with the default
+						categorical palette.
+					</p>
+					<Select
+						id={fillPaletteSelectId}
+						value={theme.defaultFillPaletteId ?? "__none__"}
+						onChange={(e) =>
+							set(
+								"defaultFillPaletteId",
+								e.target.value === "__none__" ? null : e.target.value
+							)
+						}
+						className="self-start"
+					>
+						<option value="__none__">
+							Default categorical palette
 						</option>
 						{theme.categoricalPalettes.map((p) => (
 							<option key={p.id} value={p.id}>
