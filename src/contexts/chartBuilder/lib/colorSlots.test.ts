@@ -49,9 +49,6 @@ describe("legacySlotColor", () => {
 				x: { distributionOverlay: { fillColor: "#654321" } } as never,
 			})
 		).toBe("#654321")
-		expect(legacySlotColor("spine", { angle: { spine: { color: "#0a0b0c" } } as never })).toBe(
-			"#0a0b0c"
-		)
 	})
 })
 
@@ -77,12 +74,9 @@ describe("applicableColorSlots", () => {
 		).not.toContain("rug")
 	})
 
-	it("offers the spine slot only in radar mode", () => {
+	it("offers no spine slot on a radar — the spokes are styled under R position → Spine", () => {
 		expect(
-			applicableColorSlots("radar", {} as never, {}).map((s) => s.key)
-		).toContain("spine")
-		expect(
-			applicableColorSlots("scatter", {} as never, {}).map((s) => s.key)
+			applicableColorSlots("radar", {} as never, {}).map((s) => s.key as string)
 		).not.toContain("spine")
 	})
 

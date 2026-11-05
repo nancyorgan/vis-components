@@ -47,6 +47,8 @@ export const rethemeChannelConfigs = (prev: ChannelConfigs, theme: Theme): Chann
 		// reads the theme as its baseline, so this also keeps its "changed"
 		// dot honest).
 		backgroundColor: fromTheme.backgroundColor,
+		// The panel border is a theme look too (like the background).
+		panelBorder: fromTheme.panelBorder,
 		// Nested configs merge so user overrides survive.
 		shape: prev.shape
 			? {

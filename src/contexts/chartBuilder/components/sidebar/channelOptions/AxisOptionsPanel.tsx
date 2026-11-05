@@ -18,7 +18,12 @@ import {
 } from "../../../lib/channelConfig"
 import { distributionTypeOf, distributionTypePatch, type DistributionType } from "../../../lib/distributionType"
 import { naturalWrapAlignFor } from "../../../lib/tickLabelWrap"
-import { axisConfigFromTheme, spineThemeFor, valueChanged } from "../../../lib/themeConfig"
+import {
+	angleConfigFromTheme,
+	axisConfigFromTheme,
+	spineThemeFor,
+	valueChanged,
+} from "../../../lib/themeConfig"
 import type { FontConfig, LabelAlignment } from "../../../lib/labelsConfig"
 import { maxMeaningfulTicks } from "../../../lib/scales"
 import { effectiveType as fieldTypeOf } from "../../../lib/fieldType"
@@ -748,6 +753,13 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				/>
 			</Section>
 
+			{/* Radar: the spine is the spokes, one along each angle category —
+			 *  each spoke is an R axis line, so they're styled here. Stored on
+			 *  the ANGLE config's spine (the renderer's source). */}
+			{channel === "r" && modeDef.canvas.polarAxes?.angle === true && (
+				<RadarSpineSection />
+			)}
+
 			{channel !== "r" && (
 				<Section title="Spine" changed={sectionChanged.Spine}>
 					<SpineControls
@@ -862,15 +874,56 @@ const Section = ({
 	title,
 	children,
 	changed,
+	jumpId,
 }: {
 	title: string
 	children: React.ReactNode
 	changed?: boolean
+	/** Target for sidebar jump links (`channelJump(channel, jumpId)`). */
+	jumpId?: string
 }) => (
-	<CollapsibleSubsection title={title} changed={changed}>
+	<CollapsibleSubsection title={title} changed={changed} jumpId={jumpId}>
 		{children}
 	</CollapsibleSubsection>
 )
+
+/** R position → Spine on a radar: the spokes' color, thickness and opacity.
+ *  Writes `configs.angle.spine`, seeding untouched angle fields from the
+ *  theme exactly as the Angle panel does, so the stored slice keeps matching
+ *  the changed-dot baseline. Opacity is sparse — 1 strips the key. */
+const RadarSpineSection = () => {
+	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
+	const theme = useCurrentTheme()
+	const themeSpine = angleConfigFromTheme(theme).spine ?? DEFAULT_SPINE_CONFIG
+	const spine: SpineConfig = { ...themeSpine, ...configs.angle?.spine }
+	const setSpine = (next: SpineConfig) =>
+		setConfigs((prev) => {
+			const { opacity, ...rest } = next
+			return {
+				...prev,
+				angle: {
+					...angleConfigFromTheme(theme),
+					...prev.angle,
+					spine: opacity == null || opacity === 1 ? rest : { ...rest, opacity },
+				},
+			}
+		})
+	return (
+		<Section
+			title="Spine"
+			changed={valueChanged(configs.angle?.spine, themeSpine)}
+			jumpId="r:spine"
+		>
+			<SpineControls
+				spine={spine}
+				onChange={setSpine}
+				theme={theme}
+				axis="polar"
+				showOpacity
+			/>
+		</Section>
+	)
+}
 
 /** "Adjust position" X/Y nudge (data-labels style) that moves the TICK LABELS
  *  only — the spine, tick marks, title, and gridlines all stay where they
@@ -1270,6 +1323,7 @@ export const SpineControls = ({
 	axis,
 	hideColorRow = false,
 	showChanged = true,
+	showOpacity = false,
 }: {
 	spine: SpineConfig
 	onChange: (s: SpineConfig) => void
@@ -1280,9 +1334,11 @@ export const SpineControls = ({
 	/** Drop the Color row. Radar spokes take their color from the Color menu's
 	 *  "Radar Spine" slot, so the radar panel points at that instead. */
 	hideColorRow?: boolean
-	/** Show the per-line "changed" dots (differs-from-theme). Off for radar,
-	 *  whose Spokes section has never lit dots. */
+	/** Show the per-line "changed" dots (differs-from-theme). */
 	showChanged?: boolean
+	/** Add an Opacity row (`spine.opacity`, absent = 1). Only the radar
+	 *  spokes read it. */
+	showOpacity?: boolean
 }) => {
 	const set = (next: Partial<SpineConfig>) => onChange({ ...spine, ...next })
 	const themeSpine = spineThemeFor(theme, axis)
@@ -1328,6 +1384,25 @@ export const SpineControls = ({
 					<ResetLink onClick={() => set({ thickness: resetThickness })} underline />
 				)}
 			</div>
+			{showOpacity && (
+				<div className="flex items-center gap-2">
+					<NumberInput
+						label="Opacity"
+						labelClassName={LABEL_COL}
+						value={spine.opacity ?? 1}
+						min={0}
+						max={1}
+						step={0.05}
+						clamp
+						onChange={(opacity) => set({ opacity })}
+						inputClassName="w-16"
+						changed={showChanged ? (spine.opacity ?? 1) !== 1 : undefined}
+					/>
+					{(spine.opacity ?? 1) !== 1 && (
+						<ResetLink onClick={() => set({ opacity: undefined })} underline />
+					)}
+				</div>
+			)}
 		</div>
 	)
 }

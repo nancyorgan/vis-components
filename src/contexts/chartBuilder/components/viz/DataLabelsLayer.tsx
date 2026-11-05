@@ -154,6 +154,11 @@ export type DataLabelAnchor = {
 	 * `label` wherever any composed label is shown. Bars and pies set it;
 	 * area / tile anchors don't yet. */
 	row?: Record<string, unknown>
+	/** Multi-field, layout renderers only: the composed labels (ids) THIS
+	 * anchor draws — the layout already dropped the ones with nothing to
+	 * say for the node and stacked the rest (`fieldPlacements`). Absent =
+	 * every label. */
+	labelKeys?: readonly string[]
 	/** The dataset rows behind the anchor's mark (a bar slice's, an area
 	 * layer cell's, a wedge's, a map shape's) — what `{Variable}` position /
 	 * text-color rules test, passing only when every row does. Absent → such
@@ -1334,7 +1339,12 @@ export const DataLabelsLayer = ({
 			// combination).
 			const composes = multi && a.row !== undefined
 			if (!composes && a.label === null) return []
-			return (composes ? ownKeys : [null]).flatMap((own) => {
+			const anchorKeys = composes
+				? a.labelKeys
+					? ownKeys.filter((k) => k !== null && !!a.labelKeys?.includes(k))
+					: ownKeys
+				: [null]
+			return anchorKeys.flatMap((own) => {
 			const hueColor =
 				hueScale && a.hueValue !== undefined
 					? (applyHueScale(hueScale, a.hueValue, hueFieldType) ?? null)

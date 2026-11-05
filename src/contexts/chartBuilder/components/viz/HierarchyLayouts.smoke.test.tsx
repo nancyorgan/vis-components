@@ -257,7 +257,7 @@ describe("Data Labels value field (shared labelStyle — see the packed suite fo
 		expect(texts).not.toContain("Lemon")
 	})
 
-	it("sunburst leaves show values while CONTAINER arcs keep their names", () => {
+	it("sunburst: a picked value field replaces the names on every arc", () => {
 		const container = mountLayout("sunburst", {
 			dataLabelsValueField: "Value",
 		})
@@ -266,8 +266,8 @@ describe("Data Labels value field (shared labelStyle — see the packed suite fo
 		)
 		expect(texts).toContain("8")
 		expect(texts).not.toContain("Lemon")
-		// Melon is an implicit container ring — its name stays.
-		expect(texts).toContain("Melon")
+		// Melon is an implicit container ring — no Value, so no label.
+		expect(texts).not.toContain("Melon")
 	})
 })
 

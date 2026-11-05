@@ -1,12 +1,9 @@
 import { useMemo, useState } from "react"
 import { useAtomValue } from "jotai"
 import {
-	DEFAULT_ANGLE_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_SHAPE,
 	DEFAULT_SHAPE_CONFIG,
-	DEFAULT_SPINE_CONFIG,
-	type AngleConfig,
 	type ChannelConfigs,
 	type ConnectionConfig,
 } from "../../lib/channelConfig"
@@ -22,10 +19,13 @@ import type { PatternDefSpec } from "../../lib/patternDefs"
 import {
 	resolvePatternDefForItem,
 	resolvePolygonPatternDef,
+	slotModulationResolver,
 	slotOpacityResolver,
-	type PatternDefItem,
 } from "../../lib/resolveLayerColor"
+import { polygonBodyResolver } from "../../lib/radarPolygonFill"
 import { resolveMarkAesthetics } from "../../lib/resolveMarkAesthetics"
+import { applyHueScale } from "../../lib/scales"
+import { resolveRuleColor } from "../../lib/textColorRules"
 import { dashArrayFor, sanitizeCustomDasharray } from "../../lib/dashPatterns"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
@@ -145,20 +145,23 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			(!!patternField ||
 				(channelConfigs.pattern?.defaultPolygonPattern ?? null) !== null)
 		if (!wantsPointPattern && !wantsPolygonPattern) return []
+		// The polygon body's own color (the Polygon fill slots) — the same
+		// resolver `buildPolygons` tiles the pattern over, run on every row
+		// since any row may be its series' representative.
+		const polygonBody = polygonBodyResolver(channelConfigs, aestheticScales)
 		const defs = new Map<string, PatternDefSpec>()
 		for (const row of rowsForChart) {
-			const { fill, preModulationHue, satUnit, briUnit } =
-				resolveMarkAesthetics(row, aestheticScales, channelConfigs)
-			const item: PatternDefItem = {
-				patternValue: patternField ? row[patternField] : undefined,
-				fill,
-				preModulationHue,
-				satUnit,
-				briUnit,
-			}
+			const aes = resolveMarkAesthetics(row, aestheticScales, channelConfigs)
+			const patternValue = patternField ? row[patternField] : undefined
 			if (wantsPointPattern) {
 				const d = resolvePatternDefForItem(
-					item,
+					{
+						patternValue,
+						fill: aes.fill,
+						preModulationHue: aes.preModulationHue,
+						satUnit: aes.satUnit,
+						briUnit: aes.briUnit,
+					},
 					aestheticScales,
 					channelConfigs,
 					patternBgOverride,
@@ -168,7 +171,7 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			}
 			if (wantsPolygonPattern) {
 				const d = resolvePolygonPatternDef(
-					item,
+					{ patternValue, ...polygonBody({ ...aes, row }) },
 					aestheticScales,
 					channelConfigs,
 					patternBgOverride
@@ -325,32 +328,12 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			rMaxOverride: props.rMaxOverride,
 			angleConfig: channelConfigs.angle,
 		})
-		// The radar-spine color + opacity slots (single value only) override the
-		// angle axis's spine styling when configured; otherwise the angle
-		// config's own values are used (back-compat).
-		const spineSlot = channelConfigs.colorSlots?.spine
-		const spineOpacity = slotOpacityResolver(
-			"spine",
-			channelConfigs,
-			aestheticScales
-		)({})
-		const angleAxisConfig: AngleConfig | undefined =
-			spineSlot || channelConfigs.opacitySlots?.spine
-				? {
-						...DEFAULT_ANGLE_CONFIG,
-						...channelConfigs.angle,
-						spine: {
-							...DEFAULT_SPINE_CONFIG,
-							...channelConfigs.angle?.spine,
-							...(spineSlot ? { color: spineSlot.singleColor } : {}),
-							opacity: spineOpacity,
-						},
-					}
-				: channelConfigs.angle
+		// Spoke color / thickness / opacity come from the angle axis's
+		// spine — the R position menu's Spine section writes it.
 		return radial({
 			scales: radarScales,
 			rAxisConfig: channelConfigs.r,
-			angleAxisConfig,
+			angleAxisConfig: channelConfigs.angle,
 			tickFont,
 			rAxisTitleFont,
 			rLabel: labels.xAxisTitle ?? rField,
@@ -405,6 +388,17 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 		const patternField = aestheticScales.pattern?.field.name ?? null
 		const wantsPointPattern =
 			!!patternField || channelConfigs.defaultPattern != null
+		// Point OUTLINE color: the `outlineHue` variable's scale, a matching
+		// outline rule, then the universal outline color — the scatter chain
+		// (`resolveShapeColors`) — shaded by the Point outline saturation /
+		// brightness slots (identity when neither is set).
+		const outlineHue = aestheticScales.outlineHue?.field ?? null
+		const outlineHueScale = aestheticScales.outlineHue?.scale ?? null
+		const modulateOutline = slotModulationResolver(
+			"outline",
+			channelConfigs,
+			aestheticScales
+		)
 		rowsForChart.forEach((row, i) => {
 			const a = angleScale(row[angleField])
 			const r = rScale(row[rField])
@@ -438,14 +432,28 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			const shapeKey = shapeAes
 				? String(row[shapeAes.field.name] ?? "")
 				: null
-			const { fill: shapeFill, stroke: shapeStroke } = resolveShapeColors({
+			const outlineScaleColor =
+				outlineHueScale && outlineHue
+					? applyHueScale(outlineHueScale, row[outlineHue.name], outlineHue.type)
+					: null
+			// An implicit rule tests the mapped outline variable's value; a
+			// `{Variable}` rule tests the row and fires either way.
+			const outlineRuleColor = resolveRuleColor(
+				channelConfigs.shape?.outlineColorRules,
+				outlineHue ? row[outlineHue.name] : undefined,
+				[row]
+			)
+			const { fill: shapeFill, stroke: baseStroke } = resolveShapeColors({
 				hueFill: fill,
 				shapeCategoryValue: shapeKey,
 				shapeConfig: channelConfigs.shape,
 				hueMapped: !!aestheticScales.hue,
 				fallbackOutline:
 					channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
+				outlineScaleColor,
+				outlineRuleColor,
 			})
+			const shapeStroke = modulateOutline(baseStroke, row)
 			points.push({
 				i,
 				cx: px,
@@ -504,12 +512,21 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 			: null
 
 		const outlineWidth = channelConfigs.shape?.outlineWidth ?? 1
-		// Per-point border (stroke) opacity from the Border slot.
+		// Per-point outline (stroke) opacity from the Border slot — the POINTS'
+		// outline only; the polygon outline reads the Line slot (buildPolygons).
 		const pointBorderOpacity = slotOpacityResolver(
 			"border",
 			channelConfigs,
 			aestheticScales
 		)
+		// Pattern → Point outline: one dash for every glyph ring. A parsed
+		// custom dasharray wins over the swatch pick; solid sets no attribute.
+		const pointOutlineDasharray =
+			(channelConfigs.pattern?.customPointOutlineDash
+				? sanitizeCustomDasharray(channelConfigs.pattern.customPointOutlineDash)
+				: null) ??
+			dashArrayFor(channelConfigs.pattern?.pointOutlineDash ?? "solid") ??
+			undefined
 
 		// Value-mode circle annotations. Percent-mode circles (and all
 		// rectangles) still render in PlotCanvas's annotation layer against
@@ -590,6 +607,7 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 							strokeOpacity={
 								mh.outline ? 1 : pointBorderOpacity(p.row) * mh.opacityMul
 							}
+							strokeDasharray={pointOutlineDasharray}
 							onMouseEnter={(e) => {
 								setHovered({
 									clientX: e.clientX,
@@ -662,15 +680,18 @@ type LocalPoint = {
  *
  *  Fill is gated on `channelConfigs.connection.fillPolygon` — the toggle
  *  the Connection panel exposes only in radar mode. When fill is on, the
- *  polygon body uses each group's hue-resolved color (so the per-category
- *  fill palette in the Hue panel drives it) — or the group's POLYGON FILL
- *  pattern (`resolvePolygonPatternDef`, the Pattern menu's "Polygon fill"
- *  pick, separate from the points' fill pattern) tiled over that color —
- *  and the OUTLINE color resolves via the same chain area mode uses:
+ *  polygon body takes the Polygon fill slots' color (`polygonBodyResolver`:
+ *  the series' point color unless the body has a color / shading of its
+ *  own) — or the group's POLYGON FILL pattern (`resolvePolygonPatternDef`,
+ *  the Pattern menu's "Polygon fill" pick, separate from the points' fill
+ *  pattern) tiled over that color — and the OUTLINE (the "Connection line")
+ *  color resolves via the same chain area mode uses:
  *    1. `connection.lineColors[groupValue]` — per-value override
  *    2. `connection.linePalette[idx]` — separate outline palette
  *    3. `connection.strokeColor` — global override
- *    4. The fill color — outline matches fill by default. */
+ *    4. The body's fill color — outline matches fill by default,
+ *  shaded by the Line saturation / brightness slots and drawn at the Line
+ *  opacity slot's level (the Border slot is the POINTS' outline). */
 type RadarSeries<P extends LocalPoint> = {
 	key: string
 	/** The closed polygon (null for a group with fewer than 2 points —
@@ -728,22 +749,28 @@ const buildPolygons = <P extends LocalPoint>(
 	)
 	const fillEnabled = cfg.fillPolygon === true
 	const patternField = aestheticScales.pattern?.field.name ?? null
-	// Border (polygon outline) opacity = the Border slot. Polygons are
-	// aggregated per group, so a field-mapped border resolves to the slot's
-	// level. The fill uses each group's overall opacity (absolute) times the
-	// Polygon fill slot below.
-	const borderOpacity = slotOpacityResolver(
-		"border",
+	// The polygon's parts resolve off its REPRESENTATIVE row (first by angle),
+	// the convention the line color slot and per-series thickness use — so a
+	// field mapped on any of them works per series.
+	// Outline ("Connection line") opacity = the Line slot; the Border slot is
+	// the POINTS' outline.
+	const lineOpacity = slotOpacityResolver("line", channelConfigs, aestheticScales)
+	// Line saturation / brightness, applied to the resolved outline color.
+	const modulateLine = slotModulationResolver(
+		"line",
 		channelConfigs,
 		aestheticScales
-	)({})
-	// Polygon fill slot — a level-only MULTIPLIER on each group's overall
-	// opacity (default 1 = unchanged), the "watercolor" knob for filled radars.
+	)
+	// Polygon fill opacity slot — a MULTIPLIER on each group's overall opacity
+	// (default 1 = unchanged), the "watercolor" knob for filled radars.
 	const polygonFillOpacity = slotOpacityResolver(
 		"polygonFill",
 		channelConfigs,
 		aestheticScales
-	)({})
+	)
+	// Polygon body color (the Polygon fill color + sat / bri slots) — the
+	// same resolver the upfront pattern-defs pass ran.
+	const polygonBody = polygonBodyResolver(channelConfigs, aestheticScales)
 	const series: RadarSeries<P>[] = []
 	for (const [key, groupPoints] of orderedGroups) {
 		if (groupPoints.length < 2) {
@@ -753,22 +780,22 @@ const buildPolygons = <P extends LocalPoint>(
 		const groupIdx = paletteIdxByKey.get(key) ?? 0
 		const sorted = [...groupPoints].sort((a, b) => a.angle - b.angle)
 		const pts = sorted.map((p) => `${p.cx},${p.cy}`).join(" ")
-		// Fill color = the group's hue-resolved color (driven by Hue
-		// panel's per-category overrides via `aestheticScales.hue`).
-		const fillColor = sorted[0]?.fill ?? "#888"
-		// Polygon-fill pattern (separate from the points' pattern). Resolved
-		// from the same representative row the fill color comes from, with
-		// the same item the upfront defs memo emitted for it.
+		// The representative point: the first by angle (sorted has ≥ 2).
 		const rep = sorted[0]
+		const repRow = rep?.row ?? { [connectionField]: key }
+		// Body color: the Polygon fill slots' color when the body is filled
+		// (the series' point color unless it has its own); on an unfilled
+		// polygon — for the outline's "match fill" fallback — the point color.
+		const body = fillEnabled && rep ? polygonBody(rep) : null
+		const fillColor = body?.fill ?? rep?.fill ?? "#888"
+		// Polygon-fill pattern (separate from the points' pattern), tiled over
+		// the body color — the same item the upfront defs memo emitted for it.
 		const polygonPattern =
-			fillEnabled && rep
+			body && rep
 				? resolvePolygonPatternDef(
 						{
 							patternValue: patternField ? rep.row[patternField] : undefined,
-							fill: fillColor,
-							preModulationHue: rep.preModulationHue,
-							satUnit: rep.satUnit,
-							briUnit: rep.briUnit,
+							...body,
 						},
 						aestheticScales,
 						channelConfigs,
@@ -782,23 +809,23 @@ const buildPolygons = <P extends LocalPoint>(
 		// layer strokes use). The group's representative row exposes every
 		// field, so the line color slot can map to any field (commonly the
 		// connection field).
-		const stroke = resolveConnectionStroke({
-			groupKey: key,
-			lineColors: cfg.lineColors,
-			linePalette: cfg.linePalette ?? null,
-			paletteIdx: groupIdx,
-			strokeColor: cfg.strokeColor ?? null,
-			fallback: fillColor,
-			lineSlotCfg: channelConfigs.colorSlots?.line,
-			lineSlot,
-			slotRow: sorted[0]?.row ?? { [connectionField]: key },
-			// `{Variable}` line-color rules test every row of the polygon.
-			slotRows: sorted.map((p) => p.row),
-		})
-		const mh = rowHighlight(
-			highlight,
-			sorted[0]?.row ?? { [connectionField]: key }
+		const stroke = modulateLine(
+			resolveConnectionStroke({
+				groupKey: key,
+				lineColors: cfg.lineColors,
+				linePalette: cfg.linePalette ?? null,
+				paletteIdx: groupIdx,
+				strokeColor: cfg.strokeColor ?? null,
+				fallback: fillColor,
+				lineSlotCfg: channelConfigs.colorSlots?.line,
+				lineSlot,
+				slotRow: repRow,
+				// `{Variable}` line-color rules test every row of the polygon.
+				slotRows: sorted.map((p) => p.row),
+			}),
+			repRow
 		)
+		const mh = rowHighlight(highlight, repRow)
 		// Per-series polygon thickness — a per-category override (keyed by the
 		// Vary-by field's value off the representative row, else by the
 		// series/connection value) when set, else the single `cfg.thickness`.
@@ -807,7 +834,7 @@ const buildPolygons = <P extends LocalPoint>(
 			thickness: cfg.thickness,
 			byValue: cfg.thicknessByValue,
 			field: cfg.thicknessField ?? null,
-			row: sorted[0]?.row ?? { [connectionField]: key },
+			row: repRow,
 		})
 		series.push({
 			key,
@@ -818,11 +845,11 @@ const buildPolygons = <P extends LocalPoint>(
 				points={pts}
 				fill={fillEnabled ? (mh.fill ?? bodyFill) : "none"}
 				fillOpacity={
-					(fillEnabled ? (sorted[0]?.opacity ?? 1) * polygonFillOpacity : 0) *
+					(fillEnabled ? (rep?.opacity ?? 1) * polygonFillOpacity(repRow) : 0) *
 					mh.opacityMul
 				}
 				stroke={mh.outline ?? mh.fill ?? stroke}
-				strokeOpacity={mh.outline ? 1 : borderOpacity * mh.opacityMul}
+				strokeOpacity={mh.outline ? 1 : lineOpacity(repRow) * mh.opacityMul}
 				strokeWidth={
 					mh.outline
 						? Math.max(lineThickness, mh.outlineWidth)

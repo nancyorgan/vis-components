@@ -143,26 +143,49 @@ export const SunburstPlot = (props: SunburstPlotProps = {}) => {
 			// horizontal by default (per-arc rotation hurts legibility; the
 			// Data Labels Angle control rotates every label uniformly); tight
 			// arcs simply go unlabeled. Text / color / size come from the
-			// Data Labels section (leaves show the value field when mapped;
-			// containers keep their names); the layer below applies the
-			// placement fine-tuning.
+			// Data Labels section (the node's name by default, else the Value
+			// mapping — one stacked line per composed label); the layer below
+			// composes and styles each line and applies the fine-tuning.
 			const innerR = node.y0
 			const outerR = Math.max(node.y0, node.y1 - RING_GAP)
 			const labelRadius = innerR + (outerR - innerR) * ringPct
 			const arcLength = (node.x1 - node.x0) * labelRadius
-			const arcText = labelStyle.textFor(node, isLeaf)
+			const arcLines = labelStyle.linesFor(node)
+			const arcText =
+				arcLines.length > 0 ? arcLines.map((l) => l.text).join(" ") : null
 			const arcFontSize = labelStyle.sizeFor(node)
 			if (
 				arcText &&
 				labelRadius > 0 &&
-				fitLines(arcText).every((line) =>
-					hierarchyLabelFits(line, arcFontSize, arcLength * 0.9)
+				arcLines.every((l) =>
+					fitLines(l.text).every((line) =>
+						hierarchyLabelFits(line, arcFontSize, arcLength * 0.9)
+					)
 				)
 			) {
 				const midAngle = (node.x0 + node.x1) / 2 + labelAngleOffset
+				const ax = cx + Math.sin(midAngle) * labelRadius
+				const ay = cy - Math.cos(midAngle) * labelRadius
+				// Several composed labels stack as lines centered on the anchor.
+				const multi = arcLines.some((l) => l.key !== null)
+				const pitch = arcFontSize * 1.2
+				const lineY = (i: number) =>
+					ay + (i - (arcLines.length - 1) / 2) * pitch
 				arcLabels.push({
-					cx: cx + Math.sin(midAngle) * labelRadius,
-					cy: cy - Math.cos(midAngle) * labelRadius,
+					cx: ax,
+					cy: multi ? lineY(0) : ay,
+					...(multi
+						? {
+								row: labelStyle.rowFor(node),
+								labelKeys: arcLines.map((l) => l.key as string),
+								fieldPlacements: Object.fromEntries(
+									arcLines.map((l, i) => [
+										l.key as string,
+										{ cx: ax, cy: lineY(i) },
+									])
+								),
+							}
+						: {}),
 					// Which way the "outward" Alignment hangs at this arc.
 					outwardAlign: outwardAlignmentFor(midAngle),
 					key: `lbl-${d.key}`,

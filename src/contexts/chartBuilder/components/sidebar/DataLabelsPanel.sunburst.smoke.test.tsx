@@ -141,14 +141,39 @@ describe("DataLabelsPanel — sunburst fine-tuning", () => {
 		).toHaveLength(1)
 	})
 
-	it("treemap and packed circles keep the fine-tuning hidden (self-drawn labels)", () => {
-		for (const layout of ["treemap", "pack"] as const) {
-			const c = mountPanel(layout)
-			expect(sectionHeader(c, "Box")).toBeNull()
-			expect(sectionHeader(c, "Position and alignment")).toBeNull()
-			expect(sectionHeader(c, "Label selection")).toBeNull()
-			expect(sectionHeader(c, "Text")).not.toBeNull()
-			cleanup()
-		}
+	it("the treemap keeps the fine-tuning hidden (self-drawn labels)", () => {
+		const c = mountPanel("treemap")
+		expect(sectionHeader(c, "Box")).toBeNull()
+		expect(sectionHeader(c, "Position and alignment")).toBeNull()
+		expect(sectionHeader(c, "Label selection")).toBeNull()
+		expect(sectionHeader(c, "Text")).not.toBeNull()
+	})
+
+	it("packed circles show the Box and position fine-tuning (shared layer)", () => {
+		const c = mountPanel("pack")
+		expect(sectionHeader(c, "Box")).not.toBeNull()
+		expect(sectionHeader(c, "Position and alignment")).not.toBeNull()
+	})
+})
+
+describe("DataLabelsPanel — tree layouts label by name by default", () => {
+	afterEach(() => cleanup())
+	const selectFor = (container: HTMLElement, label: string) => {
+		const lbl = [...container.querySelectorAll("label")].find(
+			(l) => l.textContent?.trim() === label
+		)
+		const id = lbl?.getAttribute("for")
+		return id
+			? container.querySelector<HTMLSelectElement>(`select[id="${CSS.escape(id)}"]`)
+			: null
+	}
+
+	it("an unset Value shows the name column selected; — none — sticks", () => {
+		const c = mountPanel("pack")
+		// No Child value reappears as a Parent, so the tree groups one level
+		// by Parent — the column that names its nodes.
+		expect(selectFor(c, "Value")?.value).toBe("Parent")
+		fireEvent.change(selectFor(c, "Value")!, { target: { value: "" } })
+		expect(selectFor(c, "Value")?.value).toBe("")
 	})
 })

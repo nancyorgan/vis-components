@@ -9,7 +9,7 @@ import type { Encodings, Theme } from "./types"
 /** Static description of one color-slot target: its label, which chart modes
  * surface it, an extra applicability gate (e.g. the violin/box overlay must be
  * on), the theme color it defaults to, and whether it supports mapping a
- * variable (the radar spine is a single line, so it's single-color only). */
+ * variable (the spine-like single lines are single-color only). */
 export type ColorSlotDef = {
 	key: ColorSlotKey
 	label: string
@@ -24,7 +24,7 @@ export type ColorSlotDef = {
 	/** Default single ("None") color, sourced from the theme. */
 	themeColor: (theme: Theme) => string
 	/** When false, the slot offers a single color only — no "vary by" field
-	 * dropdown (e.g. the radar spine). */
+	 * dropdown. */
 	acceptsFieldMapping: boolean
 	/** Present when an UNCONFIGURED slot does NOT render the default single
 	 * color but follows the main Color (hue) encoding (regression, combo points).
@@ -83,9 +83,10 @@ export const densityCurveFillOn = (configs: ChannelConfigs): boolean => {
 }
 
 /** True when the chart is a radar whose series polygons are FILLED — the
- * Color and Opacity panels then link the outline to the series (one layer =
- * one value) exactly as the area modes do. Shared so the two panels can't
- * drift. */
+ * gate for the polygon BODY's own targets (the Polygon fill color / opacity /
+ * saturation / brightness slots and the Pattern menu's "Polygon fill"
+ * section): an unfilled polygon has no body to style. Shared so the
+ * registries and panels can't drift. */
 export const filledRadarOn = (mode: ChartMode, configs: ChannelConfigs): boolean =>
 	mode === "radar" && configs.connection?.fillPolygon === true
 
@@ -114,11 +115,13 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	{
 		key: "line",
 		label: "Line",
-		// Scatter connection lines, and the combo modes' marks-layer lines
-		// (ScatterPlot's line builder over the bars). Area/radar line + outline
-		// color is still handled by the Fill panel's split-palette editor (it
-		// owns `connection.lineColors`), so the slot would duplicate it there.
-		modes: m("scatter", "combo-x", "combo-y"),
+		// Scatter connection lines, the combo modes' marks-layer lines
+		// (ScatterPlot's line builder over the bars), and the radar polygon
+		// OUTLINE — the Color menu's "Connection line", where the untouched
+		// slot matches each polygon's fill (see `RADAR_LINE_INHERIT`). The
+		// area modes' layer outline is still the split-palette editor (it owns
+		// `connection.lineColors`), so the slot would duplicate it there.
+		modes: m("scatter", "combo-x", "combo-y", "radar"),
 		isApplicable: (encodings) => !!encodings.connection?.field,
 		themeColor: (t) => t.connectionColor,
 		acceptsFieldMapping: true,
@@ -210,14 +213,25 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		acceptsFieldMapping: true,
 	},
 	{
-		key: "spine",
-		label: "Radar spine",
+		key: "polygonFill",
+		label: "Polygon fill",
+		// Filled radar: the series polygon's BODY, a target of its own beside
+		// the points (Point fill), their outlines (Point outline) and the
+		// polygon outline (Connection line). Unconfigured, each body fills
+		// with its series' point color — the Color mapping, shaded by the
+		// Point fill's saturation / brightness — so the panel leads with an
+		// explicit "Match point fill" option. "Vary by" / a single color
+		// recolor the bodies on their own (resolved off each series'
+		// representative row, like the Line slot); the Polygon fill
+		// saturation / brightness slots then shade THAT color.
 		modes: m("radar"),
-		isApplicable: () => true,
-		// Per-axis polar spine field first, legacy shared field as fallback —
-		// the same resolution `spineThemeFor(t, "polar")` applies.
-		themeColor: (t) => t.polarSpineColor ?? t.spineColor,
-		acceptsFieldMapping: false,
+		isApplicable: (_encodings, configs, mode) => filledRadarOn(mode, configs),
+		themeColor: (t) => t.defaultFill,
+		acceptsFieldMapping: true,
+		inherit: {
+			label: "Match point fill",
+			help: "Each polygon fills with its series' point color.",
+		},
 	},
 	{
 		key: "comboPointFill",
@@ -286,13 +300,12 @@ export const legacySlotColor = (
 		case "densityCurveStroke":
 		case "stem":
 		case "comboPointFill":
+		case "polygonFill":
 			// No legacy per-feature color field to seed from; the slot's
 			// theme-seeded singleColor is the source of truth.
 			return undefined
 		case "line":
 			return connection?.strokeColor ?? undefined
-		case "spine":
-			return configs.angle?.spine?.color
 		case "regressionStroke":
 			return configs.x?.regression?.color
 		case "regressionCiFill":

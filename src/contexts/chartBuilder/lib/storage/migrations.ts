@@ -28,9 +28,9 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 12
+export const VISUALS_VERSION = 13
 export const DATASETS_VERSION = 1
-export const CHANNEL_CONFIGS_VERSION = 6
+export const CHANNEL_CONFIGS_VERSION = 7
 export const LABELS_VERSION = 1
 export const LEGEND_VERSION = 2
 export const TOOLTIP_VERSION = 1
@@ -438,7 +438,74 @@ export const visualsMigrations: Migration[] = [
 		if (!Array.isArray(raw)) return raw
 		return raw.map((v) => followMarkFillForLegacyPatternDefaultsInVisual(v))
 	},
+	// v12 -> v13: the radar spine's Color / Opacity slots fold into the
+	// angle axis's spine (R position → Spine) — see `foldRadarSpineSlots`.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		return raw.map((v) => foldRadarSpineSlotsInVisual(v))
+	},
 ]
+
+/** One `ChannelConfigs` record, v6 → v7 of the draft slice (the visuals
+ *  v12→v13 step). The radar spokes were styled from three places — thickness
+ *  on `angle.spine`, color in the Color menu's "Radar spine" slot
+ *  (`colorSlots.spine`, which overrode `angle.spine.color` at render time)
+ *  and opacity in the Opacity menu's (`opacitySlots.spine`). They are now
+ *  one control, R position → Spine, writing `angle.spine` alone; so a
+ *  stored slot's color / level moves onto `angle.spine` (what it rendered
+ *  as) and the slot is dropped. A level of 1 is the default and stays
+ *  absent. Idempotent: a record with no spine slot comes back as-is (same
+ *  reference). Bundle imports and seeds run it too (they carry no storage
+ *  version). */
+export const foldRadarSpineSlots = (raw: unknown): unknown => {
+	if (typeof raw !== "object" || !raw) return raw
+	const cc = raw as Record<string, unknown>
+	const asRecord = (v: unknown): Record<string, unknown> | null =>
+		typeof v === "object" && v !== null && !Array.isArray(v)
+			? (v as Record<string, unknown>)
+			: null
+	const colorSlots = asRecord(cc.colorSlots)
+	const opacitySlots = asRecord(cc.opacitySlots)
+	const colorSlot = colorSlots ? asRecord(colorSlots.spine) : null
+	const opacitySlot = opacitySlots ? asRecord(opacitySlots.spine) : null
+	const hasColor = !!colorSlots && "spine" in colorSlots
+	const hasOpacity = !!opacitySlots && "spine" in opacitySlots
+	if (!hasColor && !hasOpacity) return raw
+	const next: Record<string, unknown> = { ...cc }
+	const spine: Record<string, unknown> = {
+		...asRecord(asRecord(cc.angle)?.spine),
+	}
+	if (colorSlot && typeof colorSlot.singleColor === "string") {
+		spine.color = colorSlot.singleColor
+	}
+	const level = opacitySlot?.level
+	if (typeof level === "number" && Number.isFinite(level) && level !== 1) {
+		spine.opacity = level
+	}
+	if (Object.keys(spine).length > 0) {
+		next.angle = { ...asRecord(cc.angle), spine }
+	}
+	if (hasColor) {
+		const { spine: _dropped, ...rest } = colorSlots
+		next.colorSlots = rest
+	}
+	if (hasOpacity) {
+		const { spine: _dropped, ...rest } = opacitySlots
+		next.opacitySlots = rest
+	}
+	return next
+}
+
+/** The same step over a whole visual (its `channelConfigs`). Returns the
+ *  input reference when nothing changed. */
+export const foldRadarSpineSlotsInVisual = <T>(visual: T): T => {
+	if (typeof visual !== "object" || !visual) return visual
+	const vis = visual as Record<string, unknown>
+	const cc = vis.channelConfigs
+	if (typeof cc !== "object" || !cc) return visual
+	const next = foldRadarSpineSlots(cc)
+	return next === cc ? visual : ({ ...vis, channelConfigs: next } as T)
+}
 
 /** One data-table config, v2 → v3. Max rows defaulted to null (every
  *  row) and every save stored that default, so a stored null is the
@@ -795,6 +862,9 @@ export const channelConfigsMigrations: Migration[] = [
 	// v5 -> v6: legacy pattern tile color / default ink → follow the mark
 	// (the visuals v11→v12 step, for the draft slice).
 	(raw) => followMarkFillForLegacyPatternDefaults(raw),
+	// v6 -> v7: radar spine Color / Opacity slots fold into `angle.spine`
+	// (the visuals v12→v13 step, for the draft slice).
+	(raw) => foldRadarSpineSlots(raw),
 ]
 /** mapConfig v0 (pre-versioning) shape matched the original `MapConfig`, so
  *  the v0→v1 promotion is the identity. v1→v2 backfills `showNoDataRegions`

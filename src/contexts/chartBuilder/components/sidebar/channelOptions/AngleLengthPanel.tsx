@@ -5,7 +5,6 @@ import {
 	DEFAULT_DONUT_HOLE_RADIUS,
 	DEFAULT_LENGTH_CONFIG,
 	DEFAULT_SEGMENT_THICKNESS,
-	DEFAULT_SPINE_CONFIG,
 	type AngleConfig,
 	type LengthConfig,
 } from "../../../lib/channelConfig"
@@ -26,7 +25,7 @@ import {
 } from "../../../store/atoms"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
-import type { FieldType, Theme } from "../../../lib/types"
+import type { FieldType } from "../../../lib/types"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
@@ -36,7 +35,7 @@ import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Segmented } from "../../../../../components/ui/Segmented"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 import { combine as c } from "../../../../../lib/cls"
-import { SpineControls, TickFormatControl, ordinalSuffix } from "./AxisOptionsPanel"
+import { TickFormatControl, ordinalSuffix } from "./AxisOptionsPanel"
 
 // ---------------------------------------------------------------------------
 // Angle
@@ -121,7 +120,6 @@ export const AngleOptionsPanel = () => {
 							cfg={cfg}
 							themeAngle={themeAngle}
 							updateCfg={updateCfg}
-							theme={theme}
 						/>
 						<RadarSpokeLabelsSection
 							cfg={cfg}
@@ -288,26 +286,22 @@ const PieDonutControls = ({
 	)
 }
 
-/** Radar "Spokes" subsection — number of spokes (quantitative / temporal
- *  angle only) and spoke thickness / style via the shared Spine control.
- *  Only mounted when the active mode resolves to radar AND a field is
- *  mapped to angle. */
+/** Radar "Spokes" subsection — the number of spokes (quantitative /
+ *  temporal angle only). Their line styling (color, thickness, opacity) is
+ *  the R position menu's Spine section. Only mounted when the active mode
+ *  resolves to radar AND a field is mapped to angle. */
 const RadarSpokesSection = ({
 	cfg,
 	themeAngle,
 	updateCfg,
-	theme,
 }: {
 	cfg: AngleConfig
 	themeAngle: AngleConfig
 	updateCfg: (next: Partial<AngleConfig>) => void
-	theme: Theme
 }) => {
 	const defaultTickCount = themeAngle.tickCount ?? DEFAULT_ANGLE_CONFIG.tickCount ?? 6
 	const tickCount = cfg.tickCount ?? defaultTickCount
-	const changed =
-		valueChanged(cfg.tickCount, themeAngle.tickCount) ||
-		valueChanged(cfg.spine, themeAngle.spine)
+	const changed = valueChanged(cfg.tickCount, themeAngle.tickCount)
 
 	return (
 		<CollapsibleSubsection title="Spokes" changed={changed}>
@@ -330,24 +324,10 @@ const RadarSpokesSection = ({
 					/>
 				)}
 			</div>
-			{/* Spoke styling reuses the x/y axis Spine control (same labels, same
-			    ranges). The color row is dropped — spoke color lives in the Color
-			    menu's "Radar Spine" slot — and the per-line "changed" dots stay
-			    off; the section header carries the dot instead. */}
-			<div className="vc-divider-group">
-				<p className="vc-help">
-					Set spoke color under{" "}
-					<SidebarJumpText target={channelJump("hue", "color:spine")}>Color → Radar spine</SidebarJumpText>.
-				</p>
-				<SpineControls
-					spine={cfg.spine ?? DEFAULT_SPINE_CONFIG}
-					onChange={(s) => updateCfg({ spine: s })}
-					theme={theme}
-					axis="polar"
-					hideColorRow
-					showChanged={false}
-				/>
-			</div>
+			<p className="vc-help">
+				Style the spokes under{" "}
+				<SidebarJumpText target={channelJump("r", "r:spine")}>R position → Spine</SidebarJumpText>.
+			</p>
 		</CollapsibleSubsection>
 	)
 }

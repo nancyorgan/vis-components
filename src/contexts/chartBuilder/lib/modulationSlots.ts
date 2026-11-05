@@ -4,7 +4,7 @@ import type {
 	ModulationSlotKey,
 } from "./channelConfig"
 import type { ChartMode } from "./chartMode"
-import { overlayOn } from "./colorSlots"
+import { filledRadarOn, overlayOn } from "./colorSlots"
 import type { Encodings } from "./types"
 
 /** The two color modulations that split by mark part. */
@@ -30,21 +30,24 @@ const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
 
 /** Registry of every modulation slot, in display order. Fill is NOT here — it
  * reuses the overall `saturation` / `brightness` encoding. Only the scatter
- * renderer (points, connection lines, the violin / box overlay) reads these
- * parts today, so the gates keep the menu from offering a control that would
- * do nothing elsewhere. The violin / box pair mirrors the Color and Opacity
- * menus' slots of the same names (`overlayOn` gate). */
+ * and radar renderers (points, connection lines / polygon outlines, the
+ * violin / box overlay, the polygon body) read these parts today, so the
+ * gates keep the menu from offering a control that would do nothing
+ * elsewhere. The violin / box pair mirrors the Color and Opacity menus' slots
+ * of the same names (`overlayOn` gate); the polygon body likewise
+ * (`filledRadarOn`). In polygon mode the menus title Outline / Line "Point
+ * outline" / "Connection line" (see `markPartTitles`). */
 export const MODULATION_SLOT_REGISTRY: readonly ModulationSlotDef[] = [
 	{
 		key: "outline",
 		label: "Outline",
-		modes: m("scatter"),
+		modes: m("scatter", "radar"),
 		isApplicable: () => true,
 	},
 	{
 		key: "line",
 		label: "Line",
-		modes: m("scatter"),
+		modes: m("scatter", "radar"),
 		isApplicable: (encodings) => !!encodings.connection?.field,
 	},
 	{
@@ -58,6 +61,15 @@ export const MODULATION_SLOT_REGISTRY: readonly ModulationSlotDef[] = [
 		label: "Violin / box outline",
 		modes: m("scatter"),
 		isApplicable: (_encodings, configs) => overlayOn(configs),
+	},
+	{
+		// The filled radar polygon's BODY. Untouched, the body inherits the
+		// Point fill's shading along with its color; a level / field here
+		// shades the body on its own instead (see `polygonBodyResolver`).
+		key: "polygonFill",
+		label: "Polygon fill",
+		modes: m("radar"),
+		isApplicable: (_encodings, configs) => filledRadarOn("radar", configs),
 	},
 ]
 

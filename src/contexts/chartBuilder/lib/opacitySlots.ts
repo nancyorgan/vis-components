@@ -17,7 +17,8 @@ import type { Encodings } from "./types"
 /** Static description of one opacity-slot target: its label, which chart modes
  * surface it (`null` = every mode, for the universal border), an extra
  * applicability gate, the good-looking default opacity, and whether it supports
- * mapping a variable (the radar spine is level-only). Mirrors `ColorSlotDef`. */
+ * mapping a variable (flow nodes / ribbons are level-only). Mirrors
+ * `ColorSlotDef`. */
 export type OpacitySlotDef = {
 	key: OpacitySlotKey
 	label: string
@@ -33,7 +34,7 @@ export type OpacitySlotDef = {
 	 * fill) keep a sensible default rather than snapping to 1. */
 	defaultLevel: number
 	/** When false, the slot offers a single level only — no "vary by" field
-	 * dropdown (e.g. the radar spine). */
+	 * dropdown (e.g. flow nodes / ribbons). */
 	acceptsFieldMapping: boolean
 }
 
@@ -68,7 +69,11 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	{
 		key: "line",
 		label: "Line",
-		modes: m("scatter", "combo-x", "combo-y"),
+		// Scatter / combo connection lines, and the radar polygon OUTLINE (the
+		// "Connection line" — the Opacity menu titles it so in polygon mode,
+		// beside the points' "Point outline" = the Border slot). A polygon is
+		// one series, so a mapped field resolves off its representative row.
+		modes: m("scatter", "combo-x", "combo-y", "radar"),
 		isApplicable: (encodings) => !!encodings.connection?.field,
 		defaultLevel: 1,
 		acceptsFieldMapping: true,
@@ -141,25 +146,18 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 		acceptsFieldMapping: true,
 	},
 	{
-		key: "spine",
-		label: "Radar spine",
-		modes: m("radar"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: false,
-	},
-	{
 		// Filled-radar polygon interiors. Multiplies each series' own opacity
-		// (the Fill section) rather than replacing it, so the default of 1
-		// leaves filled radars unchanged; the "Filled radar" quick start sets
-		// 0.25 for the watercolor look. Polygons aggregate a whole series, so
-		// level only (like the spine).
+		// (the Point fill section) rather than replacing it, so the default of
+		// 1 leaves filled radars unchanged; the "Filled radar" quick start
+		// sets 0.25 for the watercolor look. A mapped field resolves off each
+		// series' representative row (one polygon = one series), like the
+		// Polygon fill color slot.
 		key: "polygonFill",
 		label: "Polygon fill",
 		modes: m("radar"),
 		isApplicable: (_encodings, configs) => !!configs.connection?.fillPolygon,
 		defaultLevel: 1,
-		acceptsFieldMapping: false,
+		acceptsFieldMapping: true,
 	},
 	// Flow diagrams (chord / sankey) split opacity by mark part: node arcs /
 	// rects anchor the eye at full opacity while ribbons / links read as

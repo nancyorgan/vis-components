@@ -31,6 +31,7 @@ import {
 	gridlineThemeFor,
 	labelsFromTheme,
 	lineAnnotationStyleFromTheme,
+	panelBorderFromTheme,
 	rectangleStyleFromTheme,
 	resolveCategoricalPalette,
 	resolveGradientColors,
@@ -70,6 +71,8 @@ export type ThemePreviewModel = {
 	yGridline: { color: string; thickness: number }
 	xSpine: { color: string; thickness: number }
 	ySpine: { color: string; thickness: number }
+	/** The panel border, or null when the theme leaves it off. */
+	panelBorder: { color: string; width: number } | null
 	outline: { color: string; width: number }
 	defaultFill: string
 	defaultOpacity: number
@@ -146,6 +149,10 @@ export const buildThemePreviewModel = (theme: Theme): ThemePreviewModel => {
 		yGridline: gridlineThemeFor(theme, "y"),
 		xSpine: spineThemeFor(theme, "x"),
 		ySpine: spineThemeFor(theme, "y"),
+		panelBorder: (() => {
+			const b = panelBorderFromTheme(theme)
+			return b.enabled && b.width > 0 ? { color: b.color, width: b.width } : null
+		})(),
 		outline: { color: theme.outlineColor, width: theme.outlineWidth },
 		defaultFill: theme.defaultFill,
 		defaultOpacity: theme.defaultOpacity,

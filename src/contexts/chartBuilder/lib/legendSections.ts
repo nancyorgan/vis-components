@@ -372,6 +372,12 @@ export const planLegendSections = ({
 }: PlanLegendSectionsInput): LegendPlan | null => {
 	const hideLength = modeDef.legend.hideLengthInThisMode
 	const hideAngle = modeDef.legend.hideAngleInThisMode
+	// A Shape mapping only draws where marks are point glyphs (`shapeRole`
+	// "glyph" — scatter, radar, combo points; same rule as the
+	// accessibility check's `shapeDrawsGlyphs`). Everywhere else (bubbles,
+	// wedges, cells, packed circles…) the field changes nothing on the
+	// canvas, so a legend of glyphs would describe marks that don't exist.
+	const hideShape = modeDef.canvas.shapeRole !== "glyph"
 
 	// Flow modes (chord / sankey): hue OR pattern on EITHER endpoint column
 	// means "style by node", and the renderers build those categorical
@@ -407,6 +413,7 @@ export const planLegendSections = ({
 	for (const ch of GROUP_CHANNELS) {
 		if (ch === "length" && hideLength) continue
 		if (ch === "angle" && hideAngle) continue
+		if (ch === "shape" && hideShape) continue
 		const f = encodings[ch]?.field
 		if (!f) continue
 		const list = groupsByField.get(f) ?? []
@@ -428,6 +435,7 @@ export const planLegendSections = ({
 		// override if a legend really is redundant.
 		if (ch === "length" && hideLength) continue
 		if (ch === "angle" && hideAngle) continue
+		if (ch === "shape" && hideShape) continue
 		// User-driven per-channel hide toggle from the Legend sidebar section.
 		if (legendCfg.hidden[ch as LegendChannel]) continue
 

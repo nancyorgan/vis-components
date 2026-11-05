@@ -44,9 +44,15 @@ export const PackedCirclesMode: ChartModeDef = {
 		polarValueCoords: false,
 	},
 	labels: {
-		placement: "layout",
+		// The layout places each label (leaf centers, container rims) and
+		// hands the anchors to the shared label layer, so the fine-tuning
+		// (nudges, alignment, box, overlap) applies as on any mark. Only the
+		// arc-wrapped rim labels stay self-drawn.
+		placement: "mark",
 		positionLockedToAxes: false,
-		seriesEndpoints: true,
+		// No series to have ends: the layer treats tree anchors as
+		// seriesless, so the "Which labels" ends stay hidden.
+		seriesEndpoints: false,
 		containerRimLabels: true,
 	},
 	canvas: {

@@ -628,9 +628,9 @@ describe("sidebar traits (connection / shape / area / overlays / labels)", () =>
 
 	it("label traits are coherent: rim labels are layout-placed, locked positions have two axes to lock to", () => {
 		for (const mode of MODE_REGISTRY) {
-			// Rim labels are a layout-placed concept.
+			// Rim labels are a tree-layout concept (containers to sit on).
 			if (mode.labels.containerRimLabels)
-				expect(mode.labels.placement, mode.id).toBe("layout")
+				expect(isStructureModeId(mode.id), mode.id).toBe(true)
 			// Locked positions need both chart axes to lock to.
 			if (mode.labels.positionLockedToAxes)
 				expect(mode.canvas.cartesianAxes, mode.id).toEqual({ x: true, y: true })

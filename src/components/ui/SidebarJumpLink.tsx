@@ -80,7 +80,7 @@ export const SidebarJumpLink = ({
 }
 
 /** The inline form of `SidebarJumpLink`, for helper prose that names another
- *  spot in the sidebar ("Set spoke color under Color → Radar spine."): the
+ *  spot in the sidebar ("Style the spokes under R position → Spine."): the
  *  named path itself becomes the link. Semibold so it keeps the weight the
  *  `<strong>` path names had. */
 export const SidebarJumpText = ({

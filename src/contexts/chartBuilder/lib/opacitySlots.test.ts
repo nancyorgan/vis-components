@@ -100,14 +100,9 @@ describe("applicableOpacitySlots", () => {
 		expect(node?.acceptsFieldMapping).toBe(false)
 	})
 
-	it("spine is level-only and radar-scoped", () => {
-		const spine = OPACITY_SLOT_REGISTRY.find((d) => d.key === "spine")
-		expect(spine?.acceptsFieldMapping).toBe(false)
+	it("offers no spine slot on a radar — the spokes are styled under R position → Spine", () => {
 		expect(
-			applicableOpacitySlots("radar", {} as never, {}).map((d) => d.key)
-		).toContain("spine")
-		expect(
-			applicableOpacitySlots("scatter", {} as never, {}).map((d) => d.key)
+			applicableOpacitySlots("radar", {} as never, {}).map((d) => d.key as string)
 		).not.toContain("spine")
 	})
 

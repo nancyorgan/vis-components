@@ -38,7 +38,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import type { ModulationSlotConfig } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
-import { overlayOn } from "../../../lib/colorSlots"
+import { markPartTitles } from "../../../lib/markPartTitles"
 import type { ChartMode } from "../../../lib/chartMode"
 import {
 	MODULATION_SLOTS_KEY,
@@ -321,12 +321,16 @@ const ModulationPartsPanel = ({
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
-	const mode = useChartModeDef().id as ChartMode
+	const modeDef = useChartModeDef()
+	const mode = modeDef.id as ChartMode
 	// Pure density curve: the points (and so their outlines) aren't drawn.
 	const pureDensityCurve = usePureDensityCurve()
 	const slots = applicableModulationSlots(mode, encodings, configs).filter(
 		(d) => !(pureDensityCurve && d.key === "outline")
 	)
+	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
+	// where a second body sits beside the marks (radar polygon, violin / box).
+	const titles = markPartTitles(modeDef, configs)
 
 	// Fill dot — the SAME change data the encoding-row dot uses (so the two
 	// can't disagree), minus the part slots, which dot their own subsections.
@@ -340,9 +344,7 @@ const ModulationPartsPanel = ({
 	return (
 		<div className="vc-option-panel">
 			<CollapsibleSubsection
-				// Beside the Violin / box subheaders the marks' fill is the POINT
-				// fill — named so, as the Pattern menu names it.
-				title={overlayOn(configs) ? "Point fill" : "Fill"}
+				title={titles.fill}
 				defaultOpen
 				changed={fillChanged}
 			>
@@ -353,12 +355,14 @@ const ModulationPartsPanel = ({
 				<ModulationSlotSubsection
 					key={def.key}
 					channel={channel}
-					// Beside "Violin / box outline" the marks' outline is the POINT
-					// outline — titled so, like the Point fill above.
+					// The Outline slot is the marks' outline and the Line slot the
+					// connection line — titled per mode, like the Fill above.
 					def={
-						def.key === "outline" && overlayOn(configs)
-							? { ...def, label: "Point outline" }
-							: def
+						def.key === "outline"
+							? { ...def, label: titles.outline }
+							: def.key === "line"
+								? { ...def, label: titles.line }
+								: def
 					}
 				/>
 			))}

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { cleanup, fireEvent, render } from "@testing-library/react"
+import { act, cleanup, fireEvent, render } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ColorInput } from "./ColorInput"
@@ -232,5 +232,43 @@ describe("ColorPickerPopover", () => {
 		)
 		fireEvent.click(swatchOf(container))
 		expect(dialog()).toBeNull()
+	})
+
+	it("hides the eyedropper where the browser has no EyeDropper", () => {
+		const { container } = render(<Host initial="#FF0000" />)
+		fireEvent.click(swatchOf(container))
+		expect(
+			document.body.querySelector('[aria-label="Pick a color from the screen"]')
+		).toBeNull()
+	})
+
+	it("the eyedropper commits the picked color and stays open while picking", async () => {
+		let resolve!: (r: { sRGBHex: string }) => void
+		const w = window as unknown as { EyeDropper?: unknown }
+		w.EyeDropper = class {
+			open() {
+				return new Promise<{ sRGBHex: string }>((r) => (resolve = r))
+			}
+		}
+		try {
+			const onChange = vi.fn()
+			const { container, getByText } = render(
+				<Host initial="#FF0000" onChange={onChange} />
+			)
+			fireEvent.click(swatchOf(container))
+			const dropper = document.body.querySelector<HTMLButtonElement>(
+				'[aria-label="Pick a color from the screen"]'
+			)!
+			fireEvent.click(dropper)
+			// The dropper's own click-away / focus loss mustn't close us.
+			fireEvent.pointerDown(getByText("elsewhere"))
+			fireEvent.blur(dropper, { relatedTarget: null })
+			expect(dialog()).not.toBeNull()
+			await act(async () => resolve({ sRGBHex: "#1a2b3c" }))
+			expect(onChange).toHaveBeenLastCalledWith("#1A2B3C")
+			expect(hexField().value).toBe("#1A2B3C")
+		} finally {
+			delete w.EyeDropper
+		}
 	})
 })

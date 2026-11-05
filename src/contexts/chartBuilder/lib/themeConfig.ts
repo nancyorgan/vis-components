@@ -8,6 +8,7 @@ import {
 	DEFAULT_DASH_RANGE,
 	DEFAULT_DATA_LABELS_CONFIG,
 	DEFAULT_OPACITY_QUANTITATIVE,
+	DEFAULT_PANEL_BORDER,
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_QUANTITATIVE_HUE_CONFIG,
 	DEFAULT_REGRESSION_CONFIG,
@@ -25,6 +26,7 @@ import {
 	type HueConfig,
 	type OpacityConfig,
 	type OpacitySlotKey,
+	type PanelBorderConfig,
 	type PatternConfig,
 	type ShapeConfig,
 	type CanvasMargins,
@@ -509,9 +511,16 @@ export const angleConfigFromTheme = (t: Theme): AngleConfig => ({
 	// POLAR spine so new radars follow the theme like the chord ring does
 	// (spokes used to stay at DEFAULT_SPINE_CONFIG regardless of theme).
 	// EXISTING visuals keep their stored spine — only the dot baseline and
-	// new-visual seeding move. The Radar Spine color slot overrides the color
-	// at render time when configured.
+	// new-visual seeding move. Edited under R position → Spine.
 	spine: spineThemeFor(t, "polar"),
+})
+
+/** The theme's panel border defaults. An unset color falls back to the
+ * theme's x spine color, so the frame matches the axis line it extends. */
+export const panelBorderFromTheme = (t: Theme): PanelBorderConfig => ({
+	enabled: t.panelBorderEnabled ?? DEFAULT_PANEL_BORDER.enabled,
+	width: t.panelBorderWidth ?? DEFAULT_PANEL_BORDER.width,
+	color: t.panelBorderColor ?? spineThemeFor(t, "x").color,
 })
 
 /** Build initial channelConfigs from the user's theme so new visualizations
@@ -550,6 +559,7 @@ export const configsFromTheme = (t: Theme): ChannelConfigs => ({
 	brightness: { min: t.brightnessMin, max: t.brightnessMax },
 	connection: connectionConfigFromTheme(t),
 	backgroundColor: t.chartBackgroundColor,
+	panelBorder: panelBorderFromTheme(t),
 	x: axisConfigFromTheme(t, "x"),
 	y: axisConfigFromTheme(t, "y"),
 	r: axisConfigFromTheme(t, "r"),
@@ -787,6 +797,13 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 	],
 	r: ({ configs, theme }) => [
 		{ label: "axis", changed: differs(configs.r, axisConfigFromTheme(theme, "r")) },
+		// The radar spokes' styling is stored on the ANGLE config (the
+		// renderer's source) but edited under R position → Spine, so it dots
+		// here, not on Angle.
+		{
+			label: "radar spine",
+			changed: differs(configs.angle?.spine, angleConfigFromTheme(theme).spine),
+		},
 	],
 	hue: ({ configs, theme, fieldMapped }) => [
 		{ label: "default fill", changed: differs(configs.defaultFill, theme.defaultFill) },
@@ -964,7 +981,14 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 		},
 	],
 	angle: ({ configs, theme }) => [
-		{ label: "angle config", changed: differs(configs.angle, angleConfigFromTheme(theme)) },
+		{
+			label: "angle config",
+			// Minus the spine, which dots R position (see `r` above).
+			changed: differs(
+				configs.angle && { ...configs.angle, spine: undefined },
+				{ ...angleConfigFromTheme(theme), spine: undefined }
+			),
+		},
 		{ label: "default angle", changed: differs(configs.defaultAngle, DEFAULT_ANGLE) },
 	],
 	saturation: ({ configs, theme, fieldMapped }) => [

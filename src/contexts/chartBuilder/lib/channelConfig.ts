@@ -48,8 +48,9 @@ export const DEFAULT_TICKMARK_CONFIG: TickmarkConfig = {
 export type SpineConfig = {
 	color: string
 	thickness: number // px
-	/** Stroke opacity [0,1]. Only the radar spoke spine reads this (driven by
-	 * the Spine opacity slot); cartesian axis spines leave it unset → 1. */
+	/** Stroke opacity [0,1]. Only the radar spoke spine reads this (the R
+	 * position menu's Spine section); cartesian axis spines leave it unset.
+	 * Sparse: absent = 1. */
 	opacity?: number
 }
 
@@ -279,6 +280,26 @@ export type AspectRatioConfig = {
 	length: number
 	/** Horizontal proportion — the "Width" input. Default 1. */
 	width: number
+}
+
+/** Aesthetics → Chart background → "Draw panel border": a closed
+ * rectangle stroked around every panel's inner plot rect (each facet panel
+ * gets its own), drawn with the front axis layer so it follows "Draw axes
+ * behind marks". Independent of the axis spines, which stay as configured —
+ * the border is the connected frame people ask for when spines alone leave
+ * the top / right edges open. Seeded from the theme (`panelBorderFromTheme`);
+ * absent = off. */
+export type PanelBorderConfig = {
+	enabled: boolean
+	/** Stroke width in px. */
+	width: number
+	color: string
+}
+
+export const DEFAULT_PANEL_BORDER: PanelBorderConfig = {
+	enabled: false,
+	width: 1,
+	color: "#0A1E33",
 }
 
 /** Fixed drawing surface (Aesthetics → Canvas size → "Set canvas size").
@@ -730,12 +751,12 @@ export type ColorSlotKey =
 	| "densityCurveFill" // density curve area fill
 	| "densityCurveStroke" // density curve line
 	| "stem" // lollipop stems
-	| "spine" // radar angular spokes (single color only)
 	| "geoPointFill" // bubble / symbol map point FILL (independent of region colors)
 	| "geoPointStroke" // bubble / symbol map point OUTLINE
 	| "regressionStroke" // scatter regression line
 	| "regressionCiFill" // scatter regression confidence band
 	| "comboPointFill" // bar + marks combo: the marks-layer point FILL (unconfigured = the line color)
+	| "polygonFill" // filled radar: the series polygon BODY (unconfigured = the series' point color)
 
 /** One color target's full state. Mirrors how `hue`/`outlineHue` work: an
  * optional field mapping with a palette + per-level overrides, or — when
@@ -775,7 +796,6 @@ export type OpacitySlotKey =
 	| "densityCurveFill"
 	| "densityCurveStroke"
 	| "stem"
-	| "spine"
 	| "polygonFill"
 	| "node"
 	| "ribbon"
@@ -803,6 +823,7 @@ export type ModulationSlotKey =
 	| "line"
 	| "violinFill"
 	| "violinStroke"
+	| "polygonFill" // filled radar: the series polygon body
 
 /** One saturation / brightness target's state. Levels are anchored like
  * `SaturationConfig` (0.5 = the part's color untouched). `level: null` = off
@@ -991,6 +1012,16 @@ export type PatternConfig = {
 	 * whatever the points vary by. A name = that variable's levels drive the
 	 * per-level picks, independent of the points. */
 	violinField?: string | null
+	/** POINT OUTLINE DASH (polygon mode / radar): the dash the point glyphs'
+	 * outline ring draws with — the Pattern menu's "Point outline"
+	 * subsection, the fourth radar target beside Point fill, Connection
+	 * line and Polygon fill. One pick for every point (a glyph's ring is too
+	 * short to carry per-category dashes legibly). Sparse: absent = solid.
+	 * `customPointOutlineDash` is the user-typed dasharray of the picker's
+	 * "Custom" option and wins over the swatch pick when it parses
+	 * (`sanitizeCustomDasharray`). */
+	pointOutlineDash?: LineDashPattern
+	customPointOutlineDash?: string | null
 	/** How Pattern paints a scatter LINE SEGMENT (Length / Angle marks).
 	 * `"fill"` strokes the segment with the pattern tile, as a bar would be
 	 * filled; `"dash"` makes Pattern the segment's dash style (the same
@@ -1892,6 +1923,9 @@ export type ChannelConfigs = Partial<{
 	/** Aesthetics → Canvas size (see CanvasSizeConfig). Absent = off:
 	 * the chart fills the editor viewport as before. */
 	canvasSize: CanvasSizeConfig
+	/** Aesthetics → Chart background → panel border (see PanelBorderConfig).
+	 * Absent = off. */
+	panelBorder: PanelBorderConfig
 	/** Generic color targets beyond fill (`hue`) and outline (`outlineHue`):
 	 * line, rug, violin/box stroke + fill, lollipop stem, radar spine. Each is
 	 * an independent optional color encoding surfaced as a subheader in the

@@ -130,7 +130,7 @@ describe("ColorPanel — area outline organization", () => {
 		expect(getByText("Match fill")).toBeTruthy()
 	})
 
-	it("Outline palette offers 'Single color', which exposes one uniform swatch", () => {
+	it("Outline palette offers '— none —' (single color), which exposes one uniform swatch", () => {
 		const { container, getByLabelText, queryByLabelText } = mount()
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
@@ -144,7 +144,7 @@ describe("ColorPanel — area outline organization", () => {
 		expect(select).toBeTruthy()
 		expect(
 			[...select.options].find((o) => o.value === "__single__")?.textContent
-		).toBe("Single color")
+		).toBe("— none —")
 		expect(select.value).toBe("")
 		expect(queryByLabelText("Color")).toBeNull()
 

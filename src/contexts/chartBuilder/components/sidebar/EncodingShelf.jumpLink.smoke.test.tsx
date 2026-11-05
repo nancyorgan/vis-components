@@ -12,7 +12,7 @@ import { sidebarCollapsedAtom, sidebarJumpTargetAtom } from "../../store/atoms"
 
 import { EncodingShelf } from "./EncodingShelf"
 
-/** Helper-note jump links ("Set spoke color under Color → Radar spine"):
+/** Helper-note jump links ("Style the spokes under R position → Spine"):
  *  clicking the inline path targets an encoding row, which opens its options
  *  disclosure and leaves any named subsection for the panel to consume. */
 

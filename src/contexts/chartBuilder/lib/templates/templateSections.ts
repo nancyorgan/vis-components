@@ -151,6 +151,7 @@ export const CHANNEL_CONFIG_SECTIONS: Required<
 	axesBehindMarks: "aesthetics",
 	aspectRatio: "aesthetics",
 	canvasSize: "aesthetics",
+	panelBorder: "aesthetics",
 	colorSlots: "color",
 	opacitySlots: "modulation",
 	saturationSlots: "modulation",

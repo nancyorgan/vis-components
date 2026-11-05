@@ -966,7 +966,7 @@
 			]
 		},
 		"channelConfigs.angle.spine.opacity": {
-			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (driven by the Spine opacity slot); cartesian axis spines leave it unset → 1.",
+			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (the R position menu's Spine section); cartesian axis spines leave it unset. Sparse: absent = 1.",
 			"kinds": [
 				"number"
 			]
@@ -1215,6 +1215,60 @@
 			]
 		},
 		"channelConfigs.brightnessSlots.outline.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.polygonFill.range.stackMode": {
 			"kinds": [
 				"string"
 			],
@@ -2596,6 +2650,201 @@
 				"string"
 			]
 		},
+		"channelConfigs.colorSlots.polygonFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.colorRules": {
+			"doc": "Conditional color rules (the Color menu's \"+ Add color rule\" rows; the Line slot is the one that surfaces them). An implicit rule (`> 0`) tests the slot's mapped variable's value; a `{Variable}` rule tests that variable in the mark's rows.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.colorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.colorRules[].condition": {
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.field": {
+			"doc": "Dataset column driving this slot's color, or null = single color.",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue": {
+			"doc": "Reuses the hue union (categorical {colors} | quantitative gradient). NOTE: `stackMode` inside this union is inert for slots — never feed a slot's stackMode to `resolveStackMode`; only `hue`/`pattern` own layout.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.colors": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.colors.*": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.customStops": {
+			"doc": "N-stop user-defined custom gradient — read only when palette is `\"custom\"`. The first/last stops anchor the gradient; any number of additional middle stops are allowed. The legacy `lowColor`/`midColor`/`highColor` fields stay for backwards compatibility with saved charts that pre-date this field.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.customStops[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.customStops[].value": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.highColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.highValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.interpolation": {
+			"doc": "Color space used to blend between gradient stops — \"rgb\" (matches CSS gradients), \"hsb\", or \"oklch\" (perceptually uniform). Read only by the custom-gradient paths (customLinear / customDiverging / manual stops); presets are fully-specified ramps with nothing left to blend.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"hsb",
+				"oklch",
+				"rgb"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.lowColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.lowValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.midColor": {
+			"color": true,
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.midValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.palette": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"BrBG",
+				"PRGn",
+				"PiYG",
+				"PuOr",
+				"RdBu",
+				"RdYlBu",
+				"Spectral",
+				"blues",
+				"custom",
+				"customDiverging",
+				"customLinear",
+				"inferno",
+				"magma",
+				"plasma",
+				"viridis"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.sourcePaletteId": {
+			"doc": "Records the dropdown selection that originated this config — a preset name (`\"viridis\"`), a saved gradient ID, `\"custom\"`, etc. Survives color edits so a \"Reset colors\" action can re-resolve to the originating palette's defaults instead of switching the whole palette type.",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.hue.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.palette": {
+			"color": true,
+			"items": {
+				"kinds": [
+					"string"
+				]
+			},
+			"kinds": [
+				"list",
+				"null"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.paletteId": {
+			"doc": "Categorical palette selection (mirrors `categoricalPaletteId`).",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.polygonFill.singleColor": {
+			"color": true,
+			"doc": "The \"None\" single color, theme-seeded per slot.",
+			"kinds": [
+				"string"
+			]
+		},
 		"channelConfigs.colorSlots.regressionCiFill": {
 			"kinds": [
 				"object"
@@ -3175,201 +3424,6 @@
 			]
 		},
 		"channelConfigs.colorSlots.rug.singleColor": {
-			"color": true,
-			"doc": "The \"None\" single color, theme-seeded per slot.",
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine": {
-			"kinds": [
-				"object"
-			]
-		},
-		"channelConfigs.colorSlots.spine.colorRules": {
-			"doc": "Conditional color rules (the Color menu's \"+ Add color rule\" rows; the Line slot is the one that surfaces them). An implicit rule (`> 0`) tests the slot's mapped variable's value; a `{Variable}` rule tests that variable in the mark's rows.",
-			"items": {
-				"kinds": [
-					"object"
-				]
-			},
-			"kinds": [
-				"list"
-			]
-		},
-		"channelConfigs.colorSlots.spine.colorRules[].color": {
-			"color": true,
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.colorRules[].condition": {
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.field": {
-			"doc": "Dataset column driving this slot's color, or null = single color.",
-			"kinds": [
-				"null",
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue": {
-			"doc": "Reuses the hue union (categorical {colors} | quantitative gradient). NOTE: `stackMode` inside this union is inert for slots — never feed a slot's stackMode to `resolveStackMode`; only `hue`/`pattern` own layout.",
-			"kinds": [
-				"object"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.colors": {
-			"kinds": [
-				"object"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.colors.*": {
-			"color": true,
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.customStops": {
-			"doc": "N-stop user-defined custom gradient — read only when palette is `\"custom\"`. The first/last stops anchor the gradient; any number of additional middle stops are allowed. The legacy `lowColor`/`midColor`/`highColor` fields stay for backwards compatibility with saved charts that pre-date this field.",
-			"items": {
-				"kinds": [
-					"object"
-				]
-			},
-			"kinds": [
-				"list"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.customStops[].color": {
-			"color": true,
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.customStops[].value": {
-			"kinds": [
-				"null",
-				"number"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.highColor": {
-			"color": true,
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.highValue": {
-			"kinds": [
-				"null",
-				"number"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.interpolation": {
-			"doc": "Color space used to blend between gradient stops — \"rgb\" (matches CSS gradients), \"hsb\", or \"oklch\" (perceptually uniform). Read only by the custom-gradient paths (customLinear / customDiverging / manual stops); presets are fully-specified ramps with nothing left to blend.",
-			"kinds": [
-				"string"
-			],
-			"values": [
-				"hsb",
-				"oklch",
-				"rgb"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.kind": {
-			"kinds": [
-				"string"
-			],
-			"values": [
-				"categorical",
-				"quantitative"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.lowColor": {
-			"color": true,
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.lowValue": {
-			"kinds": [
-				"null",
-				"number"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.midColor": {
-			"color": true,
-			"kinds": [
-				"null",
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.midValue": {
-			"kinds": [
-				"null",
-				"number"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.palette": {
-			"kinds": [
-				"string"
-			],
-			"values": [
-				"BrBG",
-				"PRGn",
-				"PiYG",
-				"PuOr",
-				"RdBu",
-				"RdYlBu",
-				"Spectral",
-				"blues",
-				"custom",
-				"customDiverging",
-				"customLinear",
-				"inferno",
-				"magma",
-				"plasma",
-				"viridis"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.sourcePaletteId": {
-			"doc": "Records the dropdown selection that originated this config — a preset name (`\"viridis\"`), a saved gradient ID, `\"custom\"`, etc. Survives color edits so a \"Reset colors\" action can re-resolve to the originating palette's defaults instead of switching the whole palette type.",
-			"kinds": [
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.hue.stackMode": {
-			"kinds": [
-				"string"
-			],
-			"values": [
-				"group",
-				"overlay",
-				"stack"
-			]
-		},
-		"channelConfigs.colorSlots.spine.palette": {
-			"color": true,
-			"items": {
-				"kinds": [
-					"string"
-				]
-			},
-			"kinds": [
-				"list",
-				"null"
-			]
-		},
-		"channelConfigs.colorSlots.spine.paletteId": {
-			"doc": "Categorical palette selection (mirrors `categoricalPaletteId`).",
-			"kinds": [
-				"null",
-				"string"
-			]
-		},
-		"channelConfigs.colorSlots.spine.singleColor": {
 			"color": true,
 			"doc": "The \"None\" single color, theme-seeded per slot.",
 			"kinds": [
@@ -4029,7 +4083,7 @@
 			]
 		},
 		"channelConfigs.connection.chordAxis.spine.opacity": {
-			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (driven by the Spine opacity slot); cartesian axis spines leave it unset → 1.",
+			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (the R position menu's Spine section); cartesian axis spines leave it unset. Sparse: absent = 1.",
 			"kinds": [
 				"number"
 			]
@@ -5963,66 +6017,6 @@
 				"stack"
 			]
 		},
-		"channelConfigs.opacitySlots.spine": {
-			"kinds": [
-				"object"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.field": {
-			"kinds": [
-				"null",
-				"string"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.level": {
-			"kinds": [
-				"number"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity": {
-			"kinds": [
-				"object"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity.kind": {
-			"kinds": [
-				"string"
-			],
-			"values": [
-				"categorical",
-				"quantitative"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity.max": {
-			"kinds": [
-				"number"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity.min": {
-			"kinds": [
-				"number"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity.overrides": {
-			"kinds": [
-				"object"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity.overrides.*": {
-			"kinds": [
-				"number"
-			]
-		},
-		"channelConfigs.opacitySlots.spine.opacity.stackMode": {
-			"kinds": [
-				"string"
-			],
-			"values": [
-				"group",
-				"overlay",
-				"stack"
-			]
-		},
 		"channelConfigs.opacitySlots.stem": {
 			"kinds": [
 				"object"
@@ -6399,6 +6393,29 @@
 				"string"
 			]
 		},
+		"channelConfigs.panelBorder": {
+			"doc": "Aesthetics → Chart background → panel border (see PanelBorderConfig). Absent = off.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.panelBorder.color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.panelBorder.enabled": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"channelConfigs.panelBorder.width": {
+			"doc": "Stroke width in px.",
+			"kinds": [
+				"number"
+			]
+		},
 		"channelConfigs.pattern": {
 			"kinds": [
 				"object"
@@ -6420,6 +6437,12 @@
 		},
 		"channelConfigs.pattern.customDashOverrides.*": {
 			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.pattern.customPointOutlineDash": {
+			"kinds": [
+				"null",
 				"string"
 			]
 		},
@@ -6508,6 +6531,19 @@
 			],
 			"values": [
 				"none"
+			]
+		},
+		"channelConfigs.pattern.pointOutlineDash": {
+			"doc": "POINT OUTLINE DASH (polygon mode / radar): the dash the point glyphs' outline ring draws with — the Pattern menu's \"Point outline\" subsection, the fourth radar target beside Point fill, Connection line and Polygon fill.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"blank",
+				"dash-dot",
+				"dashed",
+				"dotted",
+				"solid"
 			]
 		},
 		"channelConfigs.pattern.polygonInkColors": {
@@ -7093,7 +7129,7 @@
 			]
 		},
 		"channelConfigs.r.spine.opacity": {
-			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (driven by the Spine opacity slot); cartesian axis spines leave it unset → 1.",
+			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (the R position menu's Spine section); cartesian axis spines leave it unset. Sparse: absent = 1.",
 			"kinds": [
 				"number"
 			]
@@ -7352,6 +7388,60 @@
 			]
 		},
 		"channelConfigs.saturationSlots.outline.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.polygonFill.range.stackMode": {
 			"kinds": [
 				"string"
 			],
@@ -8125,7 +8215,7 @@
 			]
 		},
 		"channelConfigs.x.spine.opacity": {
-			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (driven by the Spine opacity slot); cartesian axis spines leave it unset → 1.",
+			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (the R position menu's Spine section); cartesian axis spines leave it unset. Sparse: absent = 1.",
 			"kinds": [
 				"number"
 			]
@@ -8706,7 +8796,7 @@
 			]
 		},
 		"channelConfigs.y.spine.opacity": {
-			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (driven by the Spine opacity slot); cartesian axis spines leave it unset → 1.",
+			"doc": "Stroke opacity [0,1]. Only the radar spoke spine reads this (the R position menu's Spine section); cartesian axis spines leave it unset. Sparse: absent = 1.",
 			"kinds": [
 				"number"
 			]

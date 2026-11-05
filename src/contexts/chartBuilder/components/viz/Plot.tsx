@@ -55,15 +55,34 @@ export const Plot = ({
 	tooltip,
 	patternDefs,
 }: PlotProps) => {
-	const axesBehindMarks =
-		useAtomValue(renderChannelConfigsAtom).axesBehindMarks ?? false
+	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
+	const axesBehindMarks = channelConfigs.axesBehindMarks ?? false
+	const panelBorder = channelConfigs.panelBorder
 	const resolvedInner = inner ?? DEFAULT_RENDERER_INNER
 	const resolvedCoord = coord(resolvedInner)
 	const ctx: PlotContext = { inner: resolvedInner, coord: resolvedCoord }
 	// The two axis passes keep their relative order (gridlines, then spine
 	// + ticks + labels) either way; the setting only decides whether the
-	// front pass paints before or after the marks.
-	const frontAxes = resolvedCoord.renderAxes("front", resolvedInner)
+	// front pass paints before or after the marks. The panel border rides
+	// with the front pass, painted after it so it caps the spines.
+	const frontAxes = (
+		<>
+			{resolvedCoord.renderAxes("front", resolvedInner)}
+			{panelBorder?.enabled && panelBorder.width > 0 && (
+				<rect
+					data-panel-border=""
+					x={resolvedInner.x0}
+					y={resolvedInner.y0}
+					width={Math.max(0, resolvedInner.x1 - resolvedInner.x0)}
+					height={Math.max(0, resolvedInner.y1 - resolvedInner.y0)}
+					fill="none"
+					stroke={panelBorder.color}
+					strokeWidth={panelBorder.width}
+					pointerEvents="none"
+				/>
+			)}
+		</>
+	)
 	return (
 		<>
 			{patternDefs && patternDefs.length > 0 && (

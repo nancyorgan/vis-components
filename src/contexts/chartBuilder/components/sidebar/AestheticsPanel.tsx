@@ -11,7 +11,9 @@ import {
 	type AspectRatioConfig,
 	type CanvasSide,
 	type CanvasSizeConfig,
+	type PanelBorderConfig,
 } from "../../lib/channelConfig"
+import { panelBorderFromTheme } from "../../lib/themeConfig"
 import {
 	pxToUnit,
 	unitToPx,
@@ -50,6 +52,15 @@ export const AestheticsPanel = () => {
 	const dataset = useCurrentDatasetView()
 	const current = configs.backgroundColor ?? null
 	const themeDefault = theme.chartBackgroundColor ?? null
+	// The theme's panel border is the baseline: charts saved before the
+	// setting existed read as the theme's (off by default) until edited.
+	const themePanelBorder = panelBorderFromTheme(theme)
+	const panelBorder = configs.panelBorder ?? themePanelBorder
+	const setPanelBorder = (patch: Partial<PanelBorderConfig>) =>
+		setConfigs((prev) => ({
+			...prev,
+			panelBorder: { ...(prev.panelBorder ?? themePanelBorder), ...patch },
+		}))
 	const scrollMode = configs.scrollMode ?? "fit"
 	const drawOrder = configs.drawOrder ?? null
 	const fields = dataset?.fields ?? []
@@ -97,7 +108,11 @@ export const AestheticsPanel = () => {
 	// baseline; the rest have fixed defaults (fit / no ratio / dataset order).
 	// Aspect length/width are gated behind the enable toggle, so the toggle
 	// alone decides that dot.
-	const backgroundChanged = current !== themeDefault
+	const backgroundChanged =
+		current !== themeDefault ||
+		panelBorder.enabled !== themePanelBorder.enabled ||
+		panelBorder.width !== themePanelBorder.width ||
+		panelBorder.color.toLowerCase() !== themePanelBorder.color.toLowerCase()
 	// Canvas-size width/height are gated behind the enable toggle (like
 	// aspect ratio's inputs), so the toggle alone decides its half of the dot.
 	const canvasChanged = scrollMode !== "fit" || canvasSize?.enabled === true
@@ -145,6 +160,32 @@ export const AestheticsPanel = () => {
 							value={current}
 							onChange={setBg}
 						/>
+					)}
+					<Checkbox
+						label="Draw panel border"
+						checked={panelBorder.enabled}
+						onChange={(enabled) => setPanelBorder({ enabled })}
+					/>
+					{panelBorder.enabled && (
+						<>
+							<NumberInput
+								label="Line width"
+								labelClassName={LABEL_COL}
+								value={panelBorder.width}
+								onChange={(width) => setPanelBorder({ width })}
+								min={0}
+								max={20}
+								step={0.5}
+								clamp
+								suffix="px"
+							/>
+							<ColorInput
+								label="Line color"
+								labelClassName={LABEL_COL}
+								value={panelBorder.color}
+								onChange={(color) => setPanelBorder({ color })}
+							/>
+						</>
 					)}
 				</div>
 			</CollapsibleSubsection>

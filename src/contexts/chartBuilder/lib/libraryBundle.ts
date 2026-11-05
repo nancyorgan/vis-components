@@ -27,6 +27,7 @@ import { structureVisualKeys } from "./savedKeyStructure"
 import {
 	clearLegacyAutoTickLabelAngle,
 	followMarkFillForLegacyPatternDefaultsInVisual,
+	foldRadarSpineSlotsInVisual,
 	followMarkFillForLegacyThemePatternBackground,
 	measureFacetGapsFromPlotEdges,
 	rebaseCustomGlyphRefs,
@@ -735,16 +736,19 @@ export const mergeBundleIntoLibrary = (
 		// cell-edge facet gaps, a pre-v9 one custom-glyph shape indices at
 		// the old base, a pre-v12 one the theme-seeded gray pattern tile /
 		// ink in place of "follow the mark", and a flow chart from before
-		// 2026-10-19 its Node-titles styling. All six steps are idempotent;
+		// 2026-10-19 its Node-titles styling, and a pre-v13 one the radar
+		// spine's Color / Opacity slots. All seven steps are idempotent;
 		// apply them to every import.
 		const { templateId: _incomingTemplateId, ...incoming } = v
 		imported.push({
 			...foldFlowNodeTitles(
 				structureVisualKeys(
-					followMarkFillForLegacyPatternDefaultsInVisual(
-						rebaseCustomGlyphRefs(
-							measureFacetGapsFromPlotEdges(
-								clearLegacyAutoTickLabelAngle(incoming)
+					foldRadarSpineSlotsInVisual(
+						followMarkFillForLegacyPatternDefaultsInVisual(
+							rebaseCustomGlyphRefs(
+								measureFacetGapsFromPlotEdges(
+									clearLegacyAutoTickLabelAngle(incoming)
+								)
 							)
 						)
 					)

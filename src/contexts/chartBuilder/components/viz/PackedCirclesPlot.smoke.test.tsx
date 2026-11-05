@@ -537,7 +537,7 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 			(t) => t.textContent === text
 		)
 
-	it("value field swaps LEAF text to the row value; containers keep their names", () => {
+	it("a picked value field replaces the names everywhere (containers too)", () => {
 		const { container } = mountPacked({
 			withConnection: true,
 			dataLabelsEncodings: { value: { field: "Value" } },
@@ -546,9 +546,97 @@ describe("PackedCirclesPlot — Data Labels drive label text / color / size", ()
 		// Leaves show Value numbers (Lemon's 8, Mini's 1)…
 		expect(texts).toContain("8")
 		expect(texts).toContain("1")
-		// …names move off the leaves but containers keep theirs.
+		// …and the names are gone: the implicit containers have no Value.
 		expect(texts).not.toContain("Lemon")
+		expect(texts).not.toContain("Pome")
+	})
+
+	it("an unset Value labels every node with its name", () => {
+		const texts = labelTexts(mountPacked({ withConnection: true }).container)
+		expect(texts).toContain("Lemon")
 		expect(texts).toContain("Pome")
+	})
+
+	it("— none — turns the name labels off", () => {
+		const { container } = mountPacked({
+			withConnection: true,
+			dataLabelsEncodings: { value: { field: null, none: true } },
+		})
+		expect(labelTexts(container)).toEqual([])
+	})
+
+	it("multiple variables draw one line per label, name and value alike", () => {
+		const { container } = mountPacked({
+			withConnection: true,
+			dataLabelsEncodings: {
+				value: { field: null, multiField: true, fields: ["Child", "Value"] },
+			},
+			dataLabelsConfig: {
+				composedLabels: [
+					{ id: "Child", template: "{Child}" },
+					{ id: "Value", template: "{Value}" },
+				],
+				fieldFormats: { Value: ".1f" },
+			},
+		})
+		const lemon = labelByText(container, "Lemon")
+		const value = labelByText(container, "8.0")
+		expect(lemon).toBeDefined()
+		expect(value).toBeDefined()
+		// Stacked: the name line sits above the value line.
+		expect(Number(lemon?.getAttribute("y"))).toBeLessThan(
+			Number(value?.getAttribute("y"))
+		)
+	})
+
+	it("a wrapped one-row group draws its name once — on the arc", () => {
+		const { container } = mountPacked({
+			withConnection: true,
+			hierarchyIdField: HIERARCHY_ID_NONE,
+			dataLabelsConfig: { arcWrapLevels: [1] },
+		})
+		const citrus = [...container.querySelectorAll("text")].filter(
+			(t) => t.textContent === "Citrus"
+		)
+		expect(citrus).toHaveLength(1)
+		expect(citrus[0]?.querySelector("textPath")).not.toBeNull()
+	})
+
+	it("a wrapped one-row group: the arc takes the first label, the rest stay inside", () => {
+		const { container } = mountPacked({
+			withConnection: true,
+			hierarchyIdField: HIERARCHY_ID_NONE,
+			dataLabelsEncodings: {
+				value: { field: null, multiField: true, fields: ["Parent", "Value"] },
+			},
+			dataLabelsConfig: {
+				arcWrapLevels: [1],
+				composedLabels: [
+					{ id: "Parent", template: "{Parent}" },
+					{ id: "Value", template: "{Value}" },
+				],
+			},
+		})
+		const texts = [...container.querySelectorAll("text")]
+		const citrus = texts.filter((t) => t.textContent === "Citrus")
+		expect(citrus).toHaveLength(1)
+		expect(citrus[0]?.querySelector("textPath")).not.toBeNull()
+		// Lemon's 8 sits inside its circle (not on the arc).
+		const eight = texts.find((t) => t.textContent === "8")
+		expect(eight?.querySelector("textPath")).toBeNull()
+	})
+
+	it("a group of one anonymous row labels as one circle (its leaf takes the name)", () => {
+		// One grouping level: Citrus holds only Lemon's row, which has no
+		// name of its own here — the two draw as a single circle.
+		const { container } = mountPacked({
+			withConnection: true,
+			hierarchyIdField: HIERARCHY_ID_NONE,
+		})
+		const citrus = [...container.querySelectorAll("text")].filter(
+			(t) => t.textContent === "Citrus"
+		)
+		expect(citrus).toHaveLength(1)
 	})
 
 	it("decimals formatting applies to the value text", () => {

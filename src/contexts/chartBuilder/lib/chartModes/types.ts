@@ -126,12 +126,13 @@ export type ChartModeLabelTraits = {
 	/** How the mode positions its labels, which decides which fine-tuning
 	 * controls apply:
 	 *  - `"mark"`: the shared label layer anchors each label on its mark
-	 *    (cartesian nudges, bar / area placements, polar nudges on pies).
+	 *    (cartesian nudges, bar / area placements, polar nudges on pies;
+	 *    packed circles hand it their layout-placed anchors).
 	 *  - `"ring"`: the layout hands arc anchors to the shared layer — the
 	 *    Angle nudge applies and R is RING-relative (sunburst).
 	 *  - `"layout"`: the renderer draws its own labels where the layout
 	 *    puts them (leaf centers, container rims) — the position / overlap
-	 *    / background fine-tuning stands down (packed circles, treemap). */
+	 *    / background fine-tuning stands down (treemap). */
 	placement: "mark" | "ring" | "layout"
 	/** True when the label position rows are locked to the chart's own x / y
 	 * fields: every mark is keyed by exactly those two (a heatmap cell), so
@@ -147,7 +148,7 @@ export type ChartModeLabelTraits = {
 	seriesEndpoints: boolean
 	/** True when the mode draws container (group) labels that can sit inside
 	 * the rim or wrap around the outside, per nesting level — the packed
-	 * circles' "Text position" subsection. */
+	 * circles' "Wrap label around" options (under Position and alignment). */
 	containerRimLabels: boolean
 }
 
@@ -198,12 +199,13 @@ export type ChartModeCanvasTraits = {
 	 *  - `"cell"`: marks are axis-gridded cells — bars, heatmap tiles, hex
 	 *    cells — that read only `shape.outlineWidth`, as the cell border.
 	 *    Nothing composes a glyph from `defaultShape` (the cell modes'
-	 *    legends are swatches / gradient bars), so the picker is inert.
+	 *    legends are swatches / gradient bars), so the picker is hidden.
 	 *  - `"outline"`: marks are shapes of their own (wedges, regions,
 	 *    bubbles, nested circles / rects / arcs, ribbons) stroked by
-	 *    `shape.outlineWidth`; no glyph is drawn on the canvas, but the Size
-	 *    / combined legend swatches still compose from `defaultShape`, so the
-	 *    picker stays live.
+	 *    `shape.outlineWidth`; no glyph is drawn on the canvas, so the
+	 *    Shape panel hides the glyph pickers, the legend drops any Shape
+	 *    section, and fallback legend swatches are circles (not
+	 *    `defaultShape`).
 	 *  - `"none"`: the renderer never reads the shape config (areas). */
 	shapeRole: "glyph" | "cell" | "outline" | "none"
 	/** What the `area` channel means here — the gate for the Area (size)

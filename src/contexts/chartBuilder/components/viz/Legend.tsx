@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useAtomValue, useSetAtom } from "jotai"
-import { DEFAULT_OPACITY } from "../../lib/channelConfig"
+import { DEFAULT_OPACITY, DEFAULT_SHAPE } from "../../lib/channelConfig"
 import { isFlowModeId } from "../../lib/packedMeasure"
 import { resolveStackMode } from "../../lib/stackMode"
 import { useChartModeDef } from "../../store/useChartModeDef"
@@ -106,7 +106,21 @@ export const Legend = ({
 }: LegendOuterProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
-	const configs = useAtomValue(renderChannelConfigsAtom)
+	const renderConfigs = useAtomValue(renderChannelConfigsAtom)
+	const modeDef = useChartModeDef()
+	// The Default shape only draws on marks in glyph modes (scatter, radar,
+	// combo points) — elsewhere the Shape panel hides its picker, so a
+	// stored choice (say, a star picked back when this was a scatter) must
+	// not resurface in the Size / combined swatches. Those modes' fallback
+	// glyph is the circle; the Legend panel's swatch-shape picker still
+	// overrides it per section.
+	const configs = useMemo(
+		() =>
+			modeDef.canvas.shapeRole === "glyph"
+				? renderConfigs
+				: { ...renderConfigs, defaultShape: DEFAULT_SHAPE },
+		[renderConfigs, modeDef.canvas.shapeRole]
+	)
 	const labels = useAtomValue(renderedLabelsAtom)
 	// Legend-hover highlighting is on only when BOTH the "Show hover" master
 	// toggle and its "highlight visual elements" sub-option are enabled (both
@@ -205,7 +219,6 @@ export const Legend = ({
 	// lands short and the last glyph clips. Subscribing to the fonts version
 	// re-renders (and so re-plans) once the real face is in.
 	useFontsVersion()
-	const modeDef = useChartModeDef()
 	// Fold the mode's default-hidden channels (e.g. the Size legend starts
 	// off in flow / hierarchy modes) into the effective map so every
 	// `legendCfg.hidden` read below is mode-aware. An explicit user toggle

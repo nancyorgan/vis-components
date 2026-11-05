@@ -31,7 +31,7 @@ import {
 	isFlowModeId,
 	isHierarchyModeId,
 } from "../../../lib/chartModes/families"
-import { filledRadarOn, overlayOn } from "../../../lib/colorSlots"
+import { markPartTitles } from "../../../lib/markPartTitles"
 import { valueChanged } from "../../../lib/themeConfig"
 import { makeOpacityScale } from "../../../lib/scales"
 import { preserveStackMode } from "../../../lib/stackMode"
@@ -64,7 +64,8 @@ import { StackModeRow } from "./StackModeRow"
 export const OpacityOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const configs = useAtomValue(currentChannelConfigsAtom)
-	const mode = useChartModeDef().id as ChartMode
+	const modeDef = useChartModeDef()
+	const mode = modeDef.id as ChartMode
 	// PURE density curve (standalone "Density" display): the renderer suppresses
 	// the scatter marks, so the overall Fill opacity and the mark Outline
 	// (border) slot have nothing to act on — hidden, mirroring the Color menu.
@@ -73,13 +74,16 @@ export const OpacityOptionsPanel = () => {
 	const slots = applicableOpacitySlots(mode, encodings, configs).filter(
 		(d) => !(pureDensityCurve && d.key === "border")
 	)
-	// Area / filled-radar link the fill and outline to the series (one layer =
-	// one value), mirroring the Color menu: the in-panel "Vary by" duplicates
-	// the shelf's Opacity row, and the outline (Border) opacity is per-layer
+	// The area modes link the fill and outline to the series (one layer = one
+	// value), mirroring the Color menu: the in-panel "Vary by" duplicates the
+	// shelf's Opacity row, and the outline (Border) opacity is per-layer
 	// aggregated so a per-row field mapping is a no-op — drop both selectors.
-	const isAreaMode = isAreaModeId(mode)
-	const isRadarFilled = filledRadarOn(mode, configs)
-	const linkedOutline = isAreaMode || isRadarFilled
+	// (Radar polygons are series too, but their parts resolve a mapped field
+	// off the series' representative row, so the selectors stay.)
+	const linkedOutline = isAreaModeId(mode)
+	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
+	// where a second body sits beside the marks (radar polygon, violin / box).
+	const titles = markPartTitles(modeDef, configs)
 
 	const theme = useCurrentTheme()
 	// Fill subsection changed = no-field default opacity moved, or the mapped
@@ -110,9 +114,7 @@ export const OpacityOptionsPanel = () => {
 		<div className="vc-option-panel">
 			{!hideFill && (
 				<CollapsibleSubsection
-					// Beside the Violin / box subheaders the marks' fill is the
-					// POINT fill — named so, as the Pattern menu names it.
-					title={overlayOn(configs) ? "Point fill" : "Fill"}
+					title={titles.fill}
 					defaultOpen
 					changed={fillChanged}
 				>
@@ -127,12 +129,14 @@ export const OpacityOptionsPanel = () => {
 			{slots.map((def) => (
 				<OpacitySlotSubsection
 					key={def.key}
-					// Beside "Violin / box outline" the marks' outline is the POINT
-					// outline — titled so, like the Point fill above.
+					// The Border slot is the marks' outline and the Line slot the
+					// connection line — titled per mode, like the Fill above.
 					def={
-						def.key === "border" && overlayOn(configs)
-							? { ...def, label: "Point outline" }
-							: def
+						def.key === "border"
+							? { ...def, label: titles.outline }
+							: def.key === "line"
+								? { ...def, label: titles.line }
+								: def
 					}
 					hideVaryBy={linkedOutline}
 				/>

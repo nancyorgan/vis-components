@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_ANGLE_CONFIG,
 	DEFAULT_AXIS_CONFIG,
+	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_DATA_LABELS_CONFIG,
 	DEFAULT_PATTERN_CONFIG,
@@ -13,7 +14,9 @@ import {
 	type ChannelConfigs,
 	type ConnectionConfig,
 } from "../../lib/channelConfig"
+import { dashArrayFor } from "../../lib/dashPatterns"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+import { modulateColor } from "../../lib/scales"
 import {
 	emptyDataLabelsEncodings,
 	emptyEncodings,
@@ -563,5 +566,183 @@ describe("RadarPlot — Angle panel Spoke Labels (label every / distance)", () =
 		// inside the disc it anchors "end" (reads toward the center).
 		expect(labelB(base).getAttribute("text-anchor")).toBe("start")
 		expect(labelB(inward).getAttribute("text-anchor")).toBe("end")
+	})
+})
+
+/** The radar's four styling targets — the points, their outlines, the
+ *  connection line (polygon outline) and the polygon fill — each read their
+ *  OWN color / opacity / shading / dash state, so one can change without
+ *  the others. */
+describe("RadarPlot — per-part targets", () => {
+	const filled = { withConnection: true, connectionCfg: { fillPolygon: true } }
+	const polygonsOf = (c: HTMLElement) => [...c.querySelectorAll("polygon")]
+	// The series' dots (axis paths sit outside the series groups).
+	const dotsOf = (c: HTMLElement) => [
+		...c.querySelectorAll("[data-radar-series] path"),
+	]
+
+	it("the Polygon fill color slot recolors the bodies; the points keep their color and a 'match fill' outline follows the body", () => {
+		const c = mount({
+			...filled,
+			extraConfigs: {
+				colorSlots: { polygonFill: { field: null, singleColor: "#abcdef" } },
+			},
+		})
+		const polygons = polygonsOf(c)
+		expect(polygons.length).toBe(2)
+		for (const p of polygons) {
+			expect(p.getAttribute("fill")).toBe("#abcdef")
+			expect(p.getAttribute("stroke")).toBe("#abcdef")
+		}
+		const dots = dotsOf(c)
+		expect(dots.length).toBe(8)
+		for (const d of dots) expect(d.getAttribute("fill")).not.toBe("#abcdef")
+	})
+
+	it("the Polygon fill color slot varies by a field, one color per series", () => {
+		const c = mount({
+			...filled,
+			extraConfigs: {
+				colorSlots: {
+					polygonFill: {
+						field: "team",
+						singleColor: "#000000",
+						hue: DEFAULT_CATEGORICAL_HUE_CONFIG,
+						palette: ["#111111", "#222222"],
+					},
+				},
+			},
+		})
+		const fills = polygonsOf(c)
+			.map((p) => p.getAttribute("fill"))
+			.sort()
+		expect(fills).toEqual(["#111111", "#222222"])
+	})
+
+	it("the Line color slot varies the polygon outline by a field, one color per series; the body keeps its fill", () => {
+		const c = mount({
+			...filled,
+			extraConfigs: {
+				colorSlots: {
+					line: {
+						field: "team",
+						singleColor: "#000000",
+						hue: DEFAULT_CATEGORICAL_HUE_CONFIG,
+						palette: ["#aa1111", "#11aa11"],
+					},
+				},
+			},
+		})
+		const polygons = polygonsOf(c)
+		expect(polygons.map((p) => p.getAttribute("stroke")).sort()).toEqual([
+			"#11aa11",
+			"#aa1111",
+		])
+		for (const p of polygons) {
+			expect(p.getAttribute("fill")).not.toBe(p.getAttribute("stroke"))
+		}
+	})
+
+	it("the Line opacity slot fades the polygon outline only; the Border slot fades the point outlines only", () => {
+		const c = mount({
+			...filled,
+			extraConfigs: {
+				opacitySlots: {
+					line: { field: null, level: 0.3 },
+					border: { field: null, level: 0.6 },
+				},
+			},
+		})
+		for (const p of polygonsOf(c)) {
+			expect(p.getAttribute("stroke-opacity")).toBe("0.3")
+		}
+		for (const d of dotsOf(c)) {
+			expect(d.getAttribute("stroke-opacity")).toBe("0.6")
+		}
+	})
+
+	it("a Brightness slot on Polygon fill shades the body on its own; the points stay as they were", () => {
+		const base = mount(filled)
+		const baseFill = polygonsOf(base)[0]!.getAttribute("fill")!
+		const baseDotFill = dotsOf(base)[0]!.getAttribute("fill")
+		const c = mount({
+			...filled,
+			extraConfigs: {
+				brightnessSlots: { polygonFill: { field: null, level: 0.9 } },
+			},
+		})
+		const fill = polygonsOf(c)[0]!.getAttribute("fill")!
+		expect(fill).toBe(modulateColor(baseFill, null, 0.9))
+		expect(fill).not.toBe(baseFill)
+		expect(dotsOf(c)[0]!.getAttribute("fill")).toBe(baseDotFill)
+	})
+
+	it("Saturation on the Line slot shades the polygon outline; Brightness on the Outline slot shades the point outlines", () => {
+		const base = mount(filled)
+		const baseStroke = polygonsOf(base)[0]!.getAttribute("stroke")!
+		const baseDotStroke = dotsOf(base)[0]!.getAttribute("stroke")!
+		const c = mount({
+			...filled,
+			extraConfigs: {
+				saturationSlots: { line: { field: null, level: 0 } },
+				brightnessSlots: { outline: { field: null, level: 0.1 } },
+			},
+		})
+		const stroke = polygonsOf(c)[0]!.getAttribute("stroke")!
+		expect(stroke).toBe(modulateColor(baseStroke, 0, null))
+		expect(stroke).not.toBe(baseStroke)
+		const dotStroke = dotsOf(c)[0]!.getAttribute("stroke")!
+		expect(dotStroke).toBe(modulateColor(baseDotStroke, null, 0.1))
+		expect(dotStroke).not.toBe(baseDotStroke)
+		// The polygon body is untouched by either.
+		expect(polygonsOf(c)[0]!.getAttribute("fill")).toBe(
+			polygonsOf(base)[0]!.getAttribute("fill")
+		)
+	})
+
+	it("an Outline variable colors the point outlines from its own palette, as in scatter", () => {
+		const c = mount({
+			withConnection: true,
+			extraEncodings: { outlineHue: { field: "team" } },
+			extraConfigs: {
+				outlineHue: DEFAULT_CATEGORICAL_HUE_CONFIG,
+				outlineCategoricalPalette: ["#aa0000", "#00aa00"],
+			},
+		})
+		const strokes = new Set(dotsOf(c).map((d) => d.getAttribute("stroke")))
+		expect(strokes).toEqual(new Set(["#aa0000", "#00aa00"]))
+	})
+
+	it("Pattern → Point outline dashes every point glyph's ring; the polygon outline stays solid", () => {
+		const c = mount({
+			withConnection: true,
+			extraConfigs: {
+				pattern: { ...DEFAULT_PATTERN_CONFIG, pointOutlineDash: "dashed" },
+			},
+		})
+		const dots = dotsOf(c)
+		expect(dots.length).toBe(8)
+		for (const d of dots) {
+			expect(d.getAttribute("stroke-dasharray")).toBe(dashArrayFor("dashed"))
+		}
+		for (const p of polygonsOf(c)) {
+			expect(p.getAttribute("stroke-dasharray")).toBeNull()
+		}
+	})
+
+	it("a custom Point outline dasharray wins over the swatch pick", () => {
+		const c = mount({
+			withConnection: true,
+			extraConfigs: {
+				pattern: {
+					...DEFAULT_PATTERN_CONFIG,
+					pointOutlineDash: "dashed",
+					customPointOutlineDash: "1,3",
+				},
+			},
+		})
+		for (const d of dotsOf(c)) {
+			expect(d.getAttribute("stroke-dasharray")).toBe("1,3")
+		}
 	})
 })

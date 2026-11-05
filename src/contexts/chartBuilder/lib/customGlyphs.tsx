@@ -156,6 +156,7 @@ export const GlyphMark = ({
 	stroke,
 	strokeWidth,
 	strokeOpacity,
+	strokeDasharray,
 	transform,
 	opacity,
 	onMouseEnter,
@@ -168,6 +169,9 @@ export const GlyphMark = ({
 	stroke?: string
 	strokeWidth?: number
 	strokeOpacity?: number
+	/** Dash for the outline ring (the Pattern menu's "Point outline" in
+	 *  polygon mode); omitted = solid. */
+	strokeDasharray?: string
 	transform?: string
 	opacity?: number
 	onMouseEnter?: MouseEventHandler<SVGElement>
@@ -205,6 +209,7 @@ export const GlyphMark = ({
 				stroke={strokeWidth ? stroke : undefined}
 				strokeWidth={strokeWidth || undefined}
 				strokeOpacity={strokeOpacity}
+				strokeDasharray={strokeDasharray}
 				opacity={opacity}
 				paintOrder="stroke"
 				// SVG collapses leading/trailing whitespace by default; keep it
@@ -226,6 +231,7 @@ export const GlyphMark = ({
 			stroke={stroke}
 			strokeWidth={strokeWidth}
 			strokeOpacity={strokeOpacity}
+			strokeDasharray={strokeDasharray}
 			opacity={opacity}
 			onMouseEnter={onMouseEnter}
 		/>

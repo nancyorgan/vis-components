@@ -1,3 +1,4 @@
+import { max } from "d3-array"
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy"
 
 import type { HierarchyNode } from "../../lib/buildHierarchy"
@@ -10,6 +11,9 @@ import {
 } from "../../lib/packArcLabels"
 import { ptToPx } from "../../lib/fontUnit"
 import { PatternDefs, type PatternDefSpec } from "../../lib/patternDefs"
+import type { HierarchyLabelLine } from "../../lib/hierarchyLabels"
+
+import { DataLabelsLayer, type DataLabelAnchor } from "./DataLabelsLayer"
 
 import { Plot, type PlotContext } from "./Plot"
 import {
@@ -24,6 +28,22 @@ type PackedCirclesPlotProps = ChartRendererBaseProps
 /** Whitespace (px) the layout keeps between tangent circles and inside
  * each parent's rim. */
 const PACK_PADDING = 3
+
+/** Line pitch of a node's stacked labels, in em of the label size. */
+const LABEL_LINE_EM = 1.2
+
+type PackNode = HierarchyCircularNode<HierarchyNode>
+
+/** A group whose ONLY child is an anonymous leaf (grouped mode with one row
+ * per group, e.g. connection = the row's own name): the two are a single
+ * drawn circle (no padding between them — see the pack call), so they label
+ * as one — the leaf takes the group's name and the group draws no label of
+ * its own. Returns that leaf, or null. */
+const soloAnonymousLeaf = (node: PackNode): PackNode | null => {
+	const only = node.children?.length === 1 ? node.children[0] : undefined
+	if (!only || (only.children && only.children.length > 0)) return null
+	return only.data.label === "" ? only : null
+}
 
 /**
  * Packed circles renderer. One circle per dataset row, area-proportional to
@@ -78,7 +98,18 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 				Math.max(w - 2 * labelGutter, 1),
 				Math.max(h - 2 * labelGutter, 1),
 			])
-			.padding(PACK_PADDING)(
+			// Padding separates siblings and keeps a container's rim visible
+			// around its contents. A container holding exactly ONE leaf has
+			// neither job — padding would only shrink the leaf and expose the
+			// container's wash as a ring the outline controls can't remove
+			// (e.g. connection = the row's own name, one row per group). Such
+			// a group lays its leaf out at full size; the container's rim
+			// label still draws on top.
+			.padding((n) =>
+				n.children?.length === 1 && !n.children[0].children
+					? 0
+					: PACK_PADDING
+			)(
 			hierarchy<HierarchyNode>(scaffold.root)
 				.sum((d) => (d.children.length === 0 ? packValue(d) : 0))
 				.sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
@@ -100,32 +131,37 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 		// label sits INSIDE its parent, where the parent's rim label lives —
 		// the parent is exempt from the disk checks, so its rim label needs
 		// its own obstacle box).
-		type PackNode = HierarchyCircularNode<HierarchyNode>
 		const rimLabels = new Map<
 			PackNode,
-			{ x: number; y: number; size: number; box: Rect }
+			{ x: number; top: number; size: number; lines: HierarchyLabelLine[]; box: Rect }
 		>()
 		for (const node of nodes) {
 			const isContainer = node.children !== undefined && node.children.length > 0
 			if (!isContainer || node.r <= 0) continue
 			if (wrapLevels.includes(node.depth)) continue
-			const label = node.data.label
+			if (soloAnonymousLeaf(node)) continue // its leaf carries the label
+			const lines = labelStyle.linesFor(node)
 			const size = labelStyle.sizeFor(node)
+			const blockH = lines.length * size * LABEL_LINE_EM
 			if (
-				!label ||
-				!hierarchyLabelFits(label, size, 2 * node.r * 0.9) ||
-				node.r <= size * 1.5
+				lines.length === 0 ||
+				!lines.every((l) => hierarchyLabelFits(l.text, size, 2 * node.r * 0.9)) ||
+				node.r <= size * 1.5 ||
+				blockH > node.r
 			) {
 				continue
 			}
 			const x = offX + node.x
-			const y = offY + node.y - node.r + size * 1.4
-			const w = hierarchyLabelWidth(label, size)
+			// The first line sits where the single rim label always has
+			// (baseline ~1.4em under the rim); more lines stack downward.
+			const top = offY + node.y - node.r + size * 0.45
+			const w = max(lines, (l) => hierarchyLabelWidth(l.text, size)) ?? 0
 			rimLabels.set(node, {
 				x,
-				y,
+				top,
 				size,
-				box: { x0: x - w / 2, y0: y - size, x1: x + w / 2, y1: y },
+				lines,
+				box: { x0: x - w / 2, y0: top, x1: x + w / 2, y1: top + blockH },
 			})
 		}
 		const rimBoxes = [...rimLabels.values()].map((r) => r.box)
@@ -133,7 +169,53 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 		const placedArcBands: ArcBand[] = []
 
 		const circles: React.ReactNode[] = []
+		// Arc-wrapped rim labels (<textPath>) draw here; every other label
+		// is an anchor for the shared label layer, which composes and styles
+		// it (per-variable color / size / font, backgrounds, nudges).
 		const circleLabels: React.ReactNode[] = []
+		const labelAnchors: DataLabelAnchor[] = []
+		/** One-row groups whose wrapped arc drew their leaf's first label
+		 * line — the leaf draws only the lines after it. (Parents come before
+		 * children in `descendants()`, so the arc is decided first.) */
+		const arcTakenLine = new Map<PackNode, HierarchyLabelLine>()
+		/** One node's label block: its lines stacked from `top`, one composed
+		 * label per line (a single-field label is one line). */
+		const pushLabelAnchor = (
+			node: PackNode,
+			lines: HierarchyLabelLine[],
+			x: number,
+			top: number,
+			size: number,
+			fadeMul: number | undefined,
+			nameFrom: PackNode = node
+		) => {
+			const pitch = size * LABEL_LINE_EM
+			const lineY = (i: number) => top + (i + 0.5) * pitch
+			const row = node.data.row
+			const multi = lines.some((l) => l.key !== null)
+			labelAnchors.push({
+				cx: x,
+				cy: lineY(0),
+				key: `lbl-${node.data.key}`,
+				label: lines.map((l) => l.text).join(" "),
+				labelValue: labelStyle.valueFor(node, undefined, nameFrom),
+				// `{Variable}` rules test the node's own row (none on an
+				// implicit container).
+				sourceRows: row ? [row] : undefined,
+				fill: labelStyle.fillFor(node),
+				fontSize: size,
+				opacityMul: fadeMul,
+				...(multi
+					? {
+							row: labelStyle.rowFor(node, nameFrom),
+							labelKeys: lines.map((l) => l.key as string),
+							fieldPlacements: Object.fromEntries(
+								lines.map((l, i) => [l.key as string, { cx: x, cy: lineY(i) }])
+							),
+						}
+					: {}),
+			})
+		}
 		for (const node of nodes) {
 			if (node.r <= 0) continue // zero-value
 			const cx = offX + node.x
@@ -183,12 +265,23 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 				//    every rim label; lower-half spots flip the path so the
 				//    text stays upright; no clear window → no label (the
 				//    fit-check convention).
-				// The text is always the group NAME (a container aggregates many
-				// rows, so the Data Labels value field doesn't apply), but
-				// color / size / font styling comes from Data Labels like
-				// every other label.
+				// The text follows the Data Labels Value mapping like every
+				// other label (the name by default); a wrapped label draws it
+				// as one run in the layer-wide style. A one-row group
+				// (`soloAnonymousLeaf`) is one circle with one set of labels:
+				// the arc takes its FIRST label and the rest stay inside, so
+				// each label draws once.
 				const containerSize = labelStyle.sizeFor(node)
-				if (wrapLevels.includes(node.depth) && d.label) {
+				const solo = soloAnonymousLeaf(node)
+				const soloFirst = solo
+					? labelStyle.linesFor(solo, node)[0]
+					: undefined
+				const arcText = !wrapLevels.includes(node.depth)
+					? null
+					: solo
+						? (soloFirst?.text ?? null)
+						: labelStyle.textFor(node)
+				if (arcText) {
 					// Obstacle disks: every circle that could touch the label's
 					// annular band. Ancestors are exempt (they CONTAIN the label
 					// by construction — a depth-2 label lives inside its parent);
@@ -212,7 +305,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 						cy,
 						r: node.r,
 						fontSize: containerSize,
-						textWidth: hierarchyLabelWidth(d.label, containerSize),
+						textWidth: hierarchyLabelWidth(arcText, containerSize),
 						preferredPhi:
 							Math.hypot(pdx, pdy) < 1 ? 0 : Math.atan2(pdx, -pdy),
 						obstacles: {
@@ -223,6 +316,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 					})
 					if (plan) {
 						placedArcBands.push(plan.band)
+						if (solo && soloFirst) arcTakenLine.set(solo, soloFirst)
 						// Ids resolve document-wide: key alone repeats across facet
 						// panels, so bake the panel-local center in. Non-id-safe
 						// key characters (spaces, "|") flatten to underscores.
@@ -253,7 +347,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 								pointerEvents="none"
 							>
 								<textPath href={`#${pathId}`} startOffset="50%">
-									{d.label}
+									{arcText}
 								</textPath>
 							</text>
 						)
@@ -262,23 +356,13 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 				}
 				const rim = rimLabels.get(node)
 				if (rim) {
-					circleLabels.push(
-						<text
-							key={`lbl-${d.key}`}
-							x={rim.x}
-							y={rim.y}
-							opacity={style && style.fadeMul < 1 ? style.fadeMul : undefined}
-							fill={labelStyle.fillFor(node)}
-							fontFamily={labelCfg.fontFamily}
-							fontSize={rim.size}
-							fontWeight={labelCfg.fontWeight}
-							fontStyle={labelCfg.italic ? "italic" : undefined}
-							textDecoration={labelCfg.underline ? "underline" : undefined}
-							textAnchor="middle"
-							pointerEvents="none"
-						>
-							{d.label}
-						</text>
+					pushLabelAnchor(
+						node,
+						rim.lines,
+						rim.x,
+						rim.top,
+						rim.size,
+						style && style.fadeMul < 1 ? style.fadeMul : undefined
 					)
 				}
 				continue
@@ -306,43 +390,51 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 					onMouseEnter={scaffold.hoverLeaf(row, node)}
 				/>
 			)
-			// Leaf label: the Data Labels value field's row value when mapped
-			// (this is what lets anonymous grouped-mode leaves get labels),
-			// defaulting to the node's name.
-			const leafText = labelStyle.textFor(node, true)
+			// Leaf label, centered: the Data Labels Value mapping over the
+			// leaf's row (the name by default). An anonymous only child
+			// speaks for its group (`soloAnonymousLeaf`) — same circle.
+			const nameFrom =
+				node.parent && soloAnonymousLeaf(node.parent) === node
+					? node.parent
+					: node
+			const taken = arcTakenLine.get(node)
+			const leafLines = labelStyle
+				.linesFor(node, nameFrom)
+				.slice(taken ? 1 : 0)
 			const leafSize = labelStyle.sizeFor(node)
+			const leafBlockH = leafLines.length * leafSize * LABEL_LINE_EM
 			if (
-				leafText &&
-				hierarchyLabelFits(leafText, leafSize, 2 * node.r * 0.9)
+				leafLines.length > 0 &&
+				leafLines.every((l) =>
+					hierarchyLabelFits(l.text, leafSize, 2 * node.r * 0.9)
+				) &&
+				leafBlockH <= 2 * node.r * 0.9
 			) {
-				circleLabels.push(
-					<text
-						key={`lbl-${d.key}`}
-						x={cx}
-						y={cy}
-						// Recedes with its own circle on legend hover.
-						opacity={style.fadeMul < 1 ? style.fadeMul : undefined}
-						fill={labelStyle.fillFor(node)}
-						fontFamily={labelCfg.fontFamily}
-						fontSize={leafSize}
-						fontWeight={labelCfg.fontWeight}
-						fontStyle={labelCfg.italic ? "italic" : undefined}
-						textDecoration={labelCfg.underline ? "underline" : undefined}
-						textAnchor="middle"
-						dominantBaseline="middle"
-						pointerEvents="none"
-					>
-						{leafText}
-					</text>
+				pushLabelAnchor(
+					node,
+					leafLines,
+					cx,
+					cy - leafBlockH / 2,
+					leafSize,
+					style.fadeMul < 1 ? style.fadeMul : undefined,
+					nameFrom
 				)
 			}
 		}
-
 		return (
 			<g onMouseLeave={scaffold.clearHover}>
 				<PatternDefs defs={patternDefs} />
 				{circles}
 				{circleLabels}
+				<DataLabelsLayer
+					rows={[]}
+					xScale={null}
+					yScale={null}
+					xType={null}
+					yType={null}
+					positionGate="layout"
+					anchors={labelAnchors}
+				/>
 			</g>
 		)
 	}

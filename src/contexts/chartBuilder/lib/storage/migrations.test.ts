@@ -893,3 +893,49 @@ describe("themes v2 -> v3: the former system pattern Background follows the mark
 		expect(upgrade("nope")).toBe("nope")
 	})
 })
+
+describe("radar spine slots fold into the angle spine (visuals v12 -> v13, channelConfigs v6 -> v7)", () => {
+	const LEGACY = {
+		angle: { minAngle: 0, spine: { color: "#cccccc", thickness: 2 } },
+		colorSlots: {
+			spine: { field: null, singleColor: "#ff0000" },
+			line: { field: null, singleColor: "#00ff00" },
+		},
+		opacitySlots: { spine: { field: null, level: 0.4 } },
+	}
+
+	it("moves the slot color / level onto angle.spine and drops the slots", () => {
+		const out = channelConfigsMigrations[6]!(LEGACY) as typeof LEGACY & {
+			angle: { spine: { opacity?: number } }
+		}
+		expect(out.angle).toEqual({
+			minAngle: 0,
+			spine: { color: "#ff0000", thickness: 2, opacity: 0.4 },
+		})
+		expect(out.colorSlots).toEqual({ line: { field: null, singleColor: "#00ff00" } })
+		expect(out.opacitySlots).toEqual({})
+	})
+
+	it("leaves an opacity level of 1 absent", () => {
+		const out = channelConfigsMigrations[6]!({
+			opacitySlots: { spine: { field: null, level: 1 } },
+		}) as Record<string, unknown>
+		expect(out.angle).toBeUndefined()
+		expect(out.opacitySlots).toEqual({})
+	})
+
+	it("is idempotent and returns the same reference when there's nothing to fold", () => {
+		const clean = { angle: { spine: { color: "#123456", thickness: 1 } } }
+		expect(channelConfigsMigrations[6]!(clean)).toBe(clean)
+		const once = channelConfigsMigrations[6]!(LEGACY)
+		expect(channelConfigsMigrations[6]!(once)).toBe(once)
+	})
+
+	it("runs over saved visuals", () => {
+		const [vis] = visualsMigrations[12]!([{ id: "v", channelConfigs: LEGACY }]) as Array<{
+			channelConfigs: { angle: { spine: { color: string } }; colorSlots: object }
+		}>
+		expect(vis!.channelConfigs.angle.spine.color).toBe("#ff0000")
+		expect(vis!.channelConfigs.colorSlots).not.toHaveProperty("spine")
+	})
+})

@@ -169,7 +169,8 @@ const CONVERTED_GATES: {
 	},
 	{
 		gate: "Data labels: fine-tuning stands down (layout draws its own labels)",
-		was: ["treemap", "packed-circles"],
+		// Packed circles moved onto the shared label layer 2026-11-05.
+		was: ["treemap"],
 		now: (m) => m.labels.placement === "layout",
 	},
 	{
@@ -182,6 +183,9 @@ const CONVERTED_GATES: {
 			// Added 2026-10-19: flows label nodes by flow direction instead.
 			"chord",
 			"sankey",
+			// Added 2026-11-05: packed labels now reach the label panel's
+			// selection block, and a pack has no series ends.
+			"packed-circles",
 		],
 		now: (m) => !m.labels.seriesEndpoints,
 	},

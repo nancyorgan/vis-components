@@ -48,12 +48,15 @@ export const ShapeOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.shape?.field
-	// Cell-mark modes (bars, heatmap tiles, hex cells) open this panel for
-	// the outline width (the cell border reads it) but draw no point glyphs
-	// and compose none in their legends — the Default shape picker would be
-	// inert there, so it's hidden. Declared per mode as `canvas.shapeRole`.
+	// Only glyph modes (scatter, radar, combo points) draw a shape on each
+	// mark. Everywhere else — cells (bars, tiles, hexbins) and outline
+	// modes (wedges, regions, packed / nested circles, ribbons) — the panel
+	// is just the outline width; the Default-shape and per-category
+	// pickers would be inert, so they're hidden. Declared per mode as
+	// `canvas.shapeRole`; the legend follows the same rule (no Shape
+	// section, circle fallback swatches — see Legend.tsx).
 	const modeDef = useChartModeDef()
-	const glyphsInert = modeDef.canvas.shapeRole === "cell"
+	const glyphsInert = modeDef.canvas.shapeRole !== "glyph"
 	// Same defensive merge: older visualizations may be missing outlineColor /
 	// outlineWidth / overrides when the config was first introduced.
 	const cfg: ShapeConfig = {
@@ -255,7 +258,7 @@ export const ShapeOptionsPanel = () => {
 					</div>
 				</>
 			)}
-			{fieldMapped && fieldValues && fieldValues.values.length > 0 && (
+			{fieldMapped && !glyphsInert && fieldValues && fieldValues.values.length > 0 && (
 				<>
 					<hr className="border-stone-200 dark:border-stone-700" />
 					{/* Shape choice per category only. Per-category FILL / OUTLINE

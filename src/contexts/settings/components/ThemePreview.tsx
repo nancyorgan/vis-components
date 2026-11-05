@@ -193,6 +193,17 @@ export const ThemePreview = ({
 					strokeWidth={m.ySpine.thickness}
 				/>
 			)}
+			{m.panelBorder && (
+				<rect
+					x={PLOT_X0}
+					y={PLOT_Y0}
+					width={PLOT_X1 - PLOT_X0}
+					height={PLOT_Y1 - PLOT_Y0}
+					fill="none"
+					stroke={m.panelBorder.color}
+					strokeWidth={m.panelBorder.width}
+				/>
+			)}
 
 			{/* Tick labels in the text font */}
 			{[0, 0.5, 1].map((f) => (

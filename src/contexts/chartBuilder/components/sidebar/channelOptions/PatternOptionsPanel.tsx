@@ -109,6 +109,8 @@ export const PatternOptionsPanel = () => {
 	// Same open-before-typed flag for the no-field default Line dash row's
 	// "Custom" option (writes `connection.customDashPattern`).
 	const [defaultCustomDashOpen, setDefaultCustomDashOpen] = useState(false)
+	// Same flag for the polygon mode's "Point outline" dash picker.
+	const [pointOutlineCustomOpen, setPointOutlineCustomOpen] = useState(false)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
@@ -272,10 +274,44 @@ export const PatternOptionsPanel = () => {
 	// so a hatched polygon can sit under plain dots. Shown in dashOnly too
 	// (hiding the points leaves the polygons). The polygon mode always maps
 	// connection, so this never coincides with the plain fill form.
+	const isPolygonMode = modeDef.canvas.connectionRole === "polygon"
 	const radarPolygonFilled =
-		modeDef.canvas.connectionRole === "polygon" &&
-		connectionMapped &&
-		configs.connection?.fillPolygon === true
+		isPolygonMode && connectionMapped && configs.connection?.fillPolygon === true
+	// Polygon mode names its targets as the other aesthetic menus do
+	// (`markPartTitles`): the line dash is the polygon outline — the
+	// "Connection line" — beside Point fill, Point outline and Polygon fill.
+	const lineDashTitle = isPolygonMode ? "Connection line" : "Line dash"
+	// POINT OUTLINE DASH (polygon mode): the glyphs' outline ring takes a dash
+	// of its own — one pick for every point, stored sparsely on the pattern
+	// config (`pointOutlineDash` / `customPointOutlineDash`; absent = solid).
+	// Offered in both panel forms (a mapped Pattern variable drives the
+	// per-category Point-fill and Connection-line picks; the ring stays one
+	// pick) while points draw at all.
+	const pointOutlineDash: LineDashPattern = cfg.pointOutlineDash ?? "solid"
+	const pointOutlineCustom = cfg.customPointOutlineDash ?? null
+	const pointOutlineChanged =
+		pointOutlineDash !== "solid" || pointOutlineCustom !== null
+	const setPointOutlineDash = (next: {
+		pattern: LineDashPattern
+		customDasharray: string | null
+	}) =>
+		setConfigs((prev) => {
+			const {
+				pointOutlineDash: _dash,
+				customPointOutlineDash: _custom,
+				...rest
+			} = { ...patternConfigFromTheme(theme), ...prev.pattern }
+			return {
+				...prev,
+				pattern: {
+					...rest,
+					...(next.pattern !== "solid" ? { pointOutlineDash: next.pattern } : {}),
+					...(next.customDasharray !== null
+						? { customPointOutlineDash: next.customDasharray }
+						: {}),
+				},
+			}
+		})
 	// Violin / box overlay: the body (what the Color panel's "Violin / box
 	// fill" slot colors) is its own pattern target, like the radar polygon —
 	// a "Violin / box fill" subsection with its own picks, so a hatched box
@@ -738,6 +774,7 @@ export const PatternOptionsPanel = () => {
 		fillSubsectionChanged ||
 		(patternMode !== "fill" && dashSubsectionChanged) ||
 		(radarPolygonFilled && polygonSubsectionChanged) ||
+		(isPolygonMode && pointOutlineChanged) ||
 		(violinFilled && violinSubsectionChanged) ||
 		segmentPatternSet
 	const defaultPatternIdx = configs.defaultPattern ?? null
@@ -950,6 +987,23 @@ export const PatternOptionsPanel = () => {
 			"polygon fill",
 			polygonSubsectionChanged
 		)
+	// The Point outline dash picker (polygon mode, while points draw).
+	const pointOutlineSubsection = isPolygonMode && !pointsHidden && (
+		<CollapsibleSubsection
+			title="Point outline"
+			defaultOpen
+			changed={pointOutlineChanged}
+		>
+			<DashStylePicker
+				pattern={pointOutlineDash}
+				customDasharray={pointOutlineCustom}
+				customOpen={pointOutlineCustomOpen}
+				onCustomOpenChange={setPointOutlineCustomOpen}
+				onChange={setPointOutlineDash}
+				ariaContext="point outline"
+			/>
+		</CollapsibleSubsection>
+	)
 
 	// Per-category derived state shared by the Line-dash and Point-fill
 	// renderers — read once so both subsections agree on what's overridden.
@@ -1435,50 +1489,65 @@ export const PatternOptionsPanel = () => {
 		</CollapsibleSubsection>
 	)
 
+	// Line-chart context (compound), no field: the default dash and the
+	// default point fill, each its own card. Polygon mode lists its targets in
+	// the other aesthetic menus' order — the points first, then the polygon —
+	// while line charts lead with the dash, their main effect.
+	const lineDashSubsection = (
+		<CollapsibleSubsection
+			title={lineDashTitle}
+			defaultOpen
+			changed={dashSubsectionChanged}
+		>
+			<div className="flex flex-col gap-3">
+				{/* Range rows directly under the dash row — the picker above
+				 *  chooses WHICH pattern, the range chooses WHERE it applies. */}
+				{renderDefaultDashRow(null)}
+				<ConnectionDashRangeRows />
+				{gapFillRow}
+			</div>
+		</CollapsibleSubsection>
+	)
+	const pointFillSubsection = (
+		<CollapsibleSubsection
+			title="Point fill"
+			defaultOpen
+			changed={fillSubsectionChanged}
+		>
+			<div className="flex flex-col gap-3">
+				{renderDefaultSwatchRow(null, PATTERN_PALETTE, PatternGlyph, true)}
+				{fillColorRows}
+			</div>
+		</CollapsibleSubsection>
+	)
+
 	// No field mapped — show default pattern picker + ink color + background
 	if (!patternFieldMapped) {
 		return (
 			<div className="vc-option-panel">
 				{patternMode === "compound" ? (
-					<>
-						<CollapsibleSubsection
-							title="Line dash"
-							defaultOpen
-							changed={dashSubsectionChanged}
-						>
-							<div className="flex flex-col gap-3">
-								{/* Range rows directly under the dash row — the picker
-								 *  above chooses WHICH pattern, the range chooses WHERE
-								 *  it applies. */}
-								{renderDefaultDashRow(null)}
-								<ConnectionDashRangeRows />
-								{gapFillRow}
-							</div>
-						</CollapsibleSubsection>
-						{polygonSubsection}
-						{violinSubsection}
-						<CollapsibleSubsection
-							title="Point fill"
-							defaultOpen
-							changed={fillSubsectionChanged}
-						>
-							<div className="flex flex-col gap-3">
-								{renderDefaultSwatchRow(
-									null,
-									PATTERN_PALETTE,
-									PatternGlyph,
-									true
-								)}
-								{fillColorRows}
-							</div>
-						</CollapsibleSubsection>
-					</>
+					isPolygonMode ? (
+						<>
+							{pointFillSubsection}
+							{pointOutlineSubsection}
+							{lineDashSubsection}
+							{polygonSubsection}
+							{violinSubsection}
+						</>
+					) : (
+						<>
+							{lineDashSubsection}
+							{polygonSubsection}
+							{violinSubsection}
+							{pointFillSubsection}
+						</>
+					)
 				) : patternMode === "dashOnly" ? (
 					<>
 						{/* Bare rows here sit beside the "Regression line" card when
 						 *  it renders — px-2 keeps their label/control columns on the
 						 *  card rows' shared column. */}
-						<div className="px-2">{renderDefaultDashRow("Line dash")}</div>
+						<div className="px-2">{renderDefaultDashRow(lineDashTitle)}</div>
 						<div className="px-2">
 							<ConnectionDashRangeRows />
 						</div>
@@ -1533,6 +1602,10 @@ export const PatternOptionsPanel = () => {
 						onClick={() => {
 							setDefaultCustomDashOpen(false)
 							resetSegmentPattern()
+							if (isPolygonMode) {
+								setPointOutlineCustomOpen(false)
+								setPointOutlineDash({ pattern: "solid", customDasharray: null })
+							}
 							setConfigs((prev) => ({
 								...prev,
 								defaultPattern: null,
@@ -1583,6 +1656,43 @@ export const PatternOptionsPanel = () => {
 		)
 	}
 
+	// Line-chart context (compound), a Pattern variable mapped: per-category
+	// dash and point-fill rows, each kind its own card.
+	const lineDashCategories = fieldValues && (
+		<CollapsibleSubsection
+			title={lineDashTitle}
+			defaultOpen
+			changed={dashSubsectionChanged}
+		>
+			<div className="flex flex-col gap-4">
+				{orderedLevels(
+					fieldValues.values,
+					fieldValues.type,
+					fieldValues.order
+				).map(({ value: v, index: i }) => renderDashCategory(v, i))}
+				{/* No "Apply pattern to range" here: with a pattern variable
+				 *  mapped, the variable itself says where each dash applies —
+				 *  the two would conflict, so the range is hidden and ignored. */}
+				{gapFillRow}
+			</div>
+		</CollapsibleSubsection>
+	)
+	const pointFillCategories = fieldValues && (
+		<CollapsibleSubsection
+			title="Point fill"
+			defaultOpen
+			changed={fillSubsectionChanged}
+		>
+			<div className="flex flex-col gap-4">
+				{orderedLevels(
+					fieldValues.values,
+					fieldValues.type,
+					fieldValues.order
+				).map(({ value: v, index: i }) => renderFillCategory(v, i))}
+			</div>
+		</CollapsibleSubsection>
+	)
+
 	return (
 		<div className="vc-option-panel">
 			<StackModeRow channel="pattern" className="px-2" />
@@ -1593,46 +1703,23 @@ export const PatternOptionsPanel = () => {
 					// Line chart context: Pattern drives both line dash and point
 					// fill. Split the two into separate subsections so each kind of
 					// control reads as its own group, with every category listed
-					// under it.
-					<>
-						<CollapsibleSubsection
-							title="Line dash"
-							defaultOpen
-							changed={dashSubsectionChanged}
-						>
-							<div className="flex flex-col gap-4">
-								{orderedLevels(
-									fieldValues.values,
-									fieldValues.type,
-									fieldValues.order
-								).map(({ value: v, index: i }) =>
-									renderDashCategory(v, i)
-								)}
-								{/* No "Apply pattern to range" here: with a pattern
-								 *  variable mapped, the variable itself says where each
-								 *  dash applies — the two would conflict, so the range is
-								 *  hidden and ignored. */}
-								{gapFillRow}
-							</div>
-						</CollapsibleSubsection>
-						{polygonCategorySubsection}
-						{violinSubsection}
-						<CollapsibleSubsection
-							title="Point fill"
-							defaultOpen
-							changed={fillSubsectionChanged}
-						>
-							<div className="flex flex-col gap-4">
-								{orderedLevels(
-									fieldValues.values,
-									fieldValues.type,
-									fieldValues.order
-								).map(({ value: v, index: i }) =>
-									renderFillCategory(v, i)
-								)}
-							</div>
-						</CollapsibleSubsection>
-					</>
+					// under it. Polygon mode orders them as the other menus do.
+					isPolygonMode ? (
+						<>
+							{pointFillCategories}
+							{pointOutlineSubsection}
+							{lineDashCategories}
+							{polygonCategorySubsection}
+							{violinSubsection}
+						</>
+					) : (
+						<>
+							{lineDashCategories}
+							{polygonCategorySubsection}
+							{violinSubsection}
+							{pointFillCategories}
+						</>
+					)
 				) : patternMode === "fill" && violinFilled ? (
 					// Beside the Violin / box fill subsection the point rows get
 					// their own, so the two targets read as peers.

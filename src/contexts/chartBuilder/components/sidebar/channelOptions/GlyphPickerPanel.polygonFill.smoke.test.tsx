@@ -92,9 +92,10 @@ describe("Pattern panel — radar 'Polygon fill' (no pattern variable)", () => {
 		seed(RADAR, FILLED)
 		q = await mount()
 		expect(q.queryByText("Polygon fill")).not.toBeNull()
-		// The point-fill and line-dash subsections are still there beside it.
+		// The point-fill and connection-line (the radar's line dash)
+		// subsections are still there beside it.
 		expect(q.queryByText("Point fill")).not.toBeNull()
-		expect(q.queryByText("Line dash")).not.toBeNull()
+		expect(q.queryByText("Connection line")).not.toBeNull()
 	})
 
 	it("a polygon swatch writes pattern.defaultPolygonPattern and leaves the point-fill defaultPattern alone", async () => {

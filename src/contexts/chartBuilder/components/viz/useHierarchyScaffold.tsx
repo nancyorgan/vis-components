@@ -19,12 +19,18 @@ import { ptToPx } from "../../lib/fontUnit"
 import { charWidthConservativeFactor } from "../../lib/estimateMargins"
 import { cartesian } from "./coords"
 import {
-	formatSingleLabel,
 	labelHueScaleParts,
 	resolveLabelFill,
 	resolveLabelSize,
 } from "../../lib/dataLabelsStyle"
 import { effectiveType } from "../../lib/fieldType"
+import {
+	hierarchyLabelLines,
+	hierarchyLabelRow,
+	hierarchyNameField,
+	hierarchySingleLabelField,
+	type HierarchyLabelLine,
+} from "../../lib/hierarchyLabels"
 import { resolveTextFont } from "../../lib/labelsConfig"
 import {
 	hierarchyDepthLevels,
@@ -296,15 +302,21 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 	// picks the leaf text (default: the node's name), `hue` colors labels
 	// through the standard override → rule → scale → single-color chain,
 	// and `size` scales each label's font across [sizeMin, sizeMax].
-	// Containers always show their NAME — a container aggregates many
-	// rows, so a mapped value field doesn't apply — but take the styling
-	// (row-backed containers resolve color/size against their row).
+	// Every node — container or leaf — composes its text from its LABEL
+	// ROW (its row with the name column set to its own name; see
+	// `lib/hierarchyLabels.ts`): unset Value = the name, "— none —" = no
+	// labels, otherwise the picked variable(s). Row-backed containers
+	// resolve color/size against their row too.
 	// Field-scale domains come from the FULL dataset so facet panels
 	// agree. Color and Size additionally accept the hierarchy-DERIVED
 	// sources ("Top-level group" / "Nesting depth" — the label analogue
 	// of the mark channels' derived variables), resolved from each
 	// node's position in the laid-out tree rather than a row value.
-	const labelValueField = dataLabelsEnc.value.field
+	const labelNameField = hierarchyNameField(parentField, idField)
+	const labelSingleField = hierarchySingleLabelField(
+		dataLabelsEnc.value,
+		labelNameField
+	)
 	const labelHueField = dataLabelsEnc.hue.field
 	const labelSizeField = dataLabelsEnc.size.field
 	const labelHueSource: PackedDerivedSource | null =
@@ -368,37 +380,59 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 					.map((v) => Number(v))
 					.filter((n) => Number.isFinite(n))
 			: []
-	/** The raw value behind a node's label — the leaf's Value cell when one
-	 * is mapped (and the row has it), else the node's name. Feeds BOTH
-	 * Data Labels conditional-rule features (position and text color),
-	 * which compare against the backing value rather than its formatted
-	 * display form; sharing it keeps `== Melon` meaning the same thing in
-	 * both editors. */
+	/** A node's label row (see `hierarchyLabelRow`). `nameFrom` lends a
+	 * node another node's name — packed circles hand an anonymous only-child
+	 * leaf its group's name, since the two are one drawn circle. */
+	const labelRowOf = (
+		node: HierarchyLayoutNode,
+		nameFrom: HierarchyLayoutNode = node
+	): Record<string, unknown> =>
+		hierarchyLabelRow(node.data.row, nameFrom.data.label, labelNameField)
+	/** The raw value behind a node's label — the single label field's
+	 * value on its label row (the name by default). Feeds BOTH Data Labels
+	 * conditional-rule features (position and text color), which compare
+	 * against the backing value rather than its formatted display form;
+	 * sharing it keeps `== Melon` meaning the same thing in both editors.
+	 * Multi-variable labels compare per label inside the label layer. */
 	const labelBackingValue = (
 		node: HierarchyLayoutNode,
-		isLeaf: boolean
+		_isLeaf?: boolean,
+		nameFrom: HierarchyLayoutNode = node
 	): unknown => {
-		const d = node.data
-		if (isLeaf && labelValueField && d.row) return d.row[labelValueField]
-		return d.label || undefined
+		const v = labelSingleField
+			? labelRowOf(node, nameFrom)[labelSingleField]
+			: undefined
+		return v === "" || v === null ? undefined : v
 	}
+	/** The labels a node draws (one per composed label with something to
+	 * say here; one line for the single-field label). */
+	const linesFor = (
+		node: HierarchyLayoutNode,
+		nameFrom: HierarchyLayoutNode = node
+	): HierarchyLabelLine[] =>
+		hierarchyLabelLines(
+			labelRowOf(node, nameFrom),
+			dataLabelsEnc.value,
+			dataLabelsCfg,
+			labelNameField
+		)
 	const labelStyle = {
 		cfg: dataLabelsCfg,
-		/** A node's label text. Leaves show the mapped value field's row
-		 * value (formatted per the field's Label format spec, falling back
-		 * to the decimals option), defaulting to the node's name;
-		 * containers always name themselves. `null` = no label (blank
-		 * value / anonymous leaf with nothing mapped). */
-		textFor: (node: HierarchyLayoutNode, isLeaf: boolean): string | null => {
-			const d = node.data
-			if (isLeaf && labelValueField && d.row) {
-				return formatSingleLabel(
-					d.row[labelValueField],
-					dataLabelsCfg.fieldFormats?.[labelValueField],
-					dataLabelsCfg.decimals
-				)
-			}
-			return d.label || null
+		/** The name column (null on a flat layout) — what an unset Value
+		 * shows. */
+		nameField: labelNameField,
+		rowFor: labelRowOf,
+		linesFor,
+		/** A node's label as ONE string — every line joined — for renderers
+		 * that draw a single run of text (treemap tiles, arc-wrapped rims)
+		 * and for fit checks. `null` = no label. */
+		textFor: (
+			node: HierarchyLayoutNode,
+			_isLeaf?: boolean,
+			nameFrom: HierarchyLayoutNode = node
+		): string | null => {
+			const lines = linesFor(node, nameFrom)
+			return lines.length === 0 ? null : lines.map((l) => l.text).join(" ")
 		},
 		/** The raw value behind `textFor` (see `labelBackingValue`). */
 		valueFor: labelBackingValue,

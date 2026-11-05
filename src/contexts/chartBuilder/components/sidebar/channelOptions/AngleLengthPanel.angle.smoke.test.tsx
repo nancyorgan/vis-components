@@ -100,12 +100,13 @@ describe("Angle panel — radar mode", () => {
 		expect(q.getByLabelText("Max")).not.toBeNull()
 	})
 
-	it("Spokes holds the spoke count and the spoke line style", async () => {
+	it("Spokes holds the spoke count and points to R position → Spine for the line style", async () => {
 		seed(RADAR)
 		const q = await mount()
 		fireEvent.click(header(q, /^spokes$/i))
 		expect(q.getByLabelText("Spokes")).not.toBeNull()
-		expect(q.getByText(/Radar spine/)).not.toBeNull()
+		expect(q.getByText("R position → Spine")).not.toBeNull()
+		expect(q.queryByLabelText("Thickness")).toBeNull()
 	})
 
 	it("Spoke Labels holds label angle, format, label every, and distance", async () => {

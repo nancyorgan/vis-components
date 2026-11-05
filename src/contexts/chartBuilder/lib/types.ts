@@ -902,6 +902,12 @@ export type Theme = {
 	/** Default chart-area background color used when a new visualization is
 	 * created. `null` means transparent (host page shows through). */
 	chartBackgroundColor: string | null
+	/** Panel border defaults (Global aesthetics → Panel border), seeded into
+	 * `ChannelConfigs.panelBorder` when a chart is created or re-themed.
+	 * Unset keeps the built-in off / 1px / the theme's x-spine color. */
+	panelBorderEnabled?: boolean
+	panelBorderWidth?: number
+	panelBorderColor?: string
 	/** Default background color for the legend box. `null` means transparent. */
 	legendBackgroundColor: string | null
 	/** Legend layout + box defaults, seeded into `LegendConfig` when a chart

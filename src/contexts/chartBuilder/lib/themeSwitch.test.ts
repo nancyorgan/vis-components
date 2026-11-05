@@ -10,10 +10,12 @@ import {
 	dataTableConfigFromTheme,
 	legendConfigFromTheme,
 	mapConfigFromTheme,
+	panelBorderFromTheme,
 	tooltipConfigFromTheme,
 } from "./themeConfig"
 import {
 	rethemeCaption,
+	rethemeChannelConfigs,
 	rethemeDataTable,
 	rethemeLegend,
 	rethemeMap,
@@ -199,6 +201,48 @@ describe("retheme", () => {
 			projection: "mercator",
 			noDataFill: "#222222",
 			noDataPatternInk: "#444444",
+		})
+	})
+})
+
+describe("panel border", () => {
+	it("is off by default and takes the theme's x spine color", () => {
+		expect(panelBorderFromTheme(LIGHT_THEME_BASE)).toEqual({
+			enabled: false,
+			width: 1,
+			color: LIGHT_THEME_BASE.xSpineColor ?? LIGHT_THEME_BASE.spineColor,
+		})
+	})
+
+	it("seeds the theme's values", () => {
+		const theme: Theme = {
+			...LIGHT_THEME_BASE,
+			panelBorderEnabled: true,
+			panelBorderWidth: 3,
+			panelBorderColor: "#abcdef",
+		}
+		expect(panelBorderFromTheme(theme)).toEqual({
+			enabled: true,
+			width: 3,
+			color: "#abcdef",
+		})
+	})
+
+	it("follows a theme switch", () => {
+		const theme: Theme = {
+			...LIGHT_THEME_BASE,
+			panelBorderEnabled: true,
+			panelBorderWidth: 2,
+			panelBorderColor: "#112233",
+		}
+		const next = rethemeChannelConfigs(
+			{ panelBorder: { enabled: false, width: 1, color: "#000000" } },
+			theme
+		)
+		expect(next.panelBorder).toEqual({
+			enabled: true,
+			width: 2,
+			color: "#112233",
 		})
 	})
 })

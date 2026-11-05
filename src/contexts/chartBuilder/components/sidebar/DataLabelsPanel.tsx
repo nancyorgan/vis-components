@@ -16,6 +16,7 @@ import {
 	type LabelPositionRule,
 } from "../../lib/channelConfig"
 import { resolveHierarchyIdField } from "../../lib/buildHierarchy"
+import { hierarchyNameField } from "../../lib/hierarchyLabels"
 import { buildFlowGraph, resolveFlowEndpoints } from "../../lib/buildFlowGraph"
 import {
 	effectiveFlowLabelNodes,
@@ -286,10 +287,11 @@ export const DataLabelsPanel = () => {
 	// Tree layouts (packed circles / treemap / sunburst): labels are PLACED
 	// by the layout (leaf centers, container rims, arc centroids), so the
 	// position rows stand down — Value, Color, Size, and Text Properties
-	// still apply. Packed circles / treemap draw their labels themselves, so
-	// the position / overlap / background fine-tuning stands down there too.
-	// The sunburst hands its arc anchors to the shared label layer, so it
-	// keeps the full fine-tuning set (polar nudges included, like a pie).
+	// still apply. The treemap draws its labels itself, so the position /
+	// overlap / background fine-tuning stands down there. Packed circles
+	// and the sunburst hand their anchors to the shared label layer, so they
+	// keep the full fine-tuning set (the sunburst's polar nudges included,
+	// like a pie).
 	// Which of those applies is the mode's declared `labels.placement`.
 	const isTreeMode = isHierarchyModeId(chartMode)
 	const isRingLabels = modeDef.labels.placement === "ring"
@@ -880,14 +882,14 @@ export const DataLabelsPanel = () => {
 	// `value.field` null and drives the label off `value.fields` + template.
 	const setValueField = (v: string) => {
 		if (v === DATA_LABELS_MULTI_VALUE) {
-			// A flow's labels start from the node names: an empty checklist
-			// begins with the source column, as if the user had checked it.
+			// Flows and trees label their nodes by name by default: an empty
+			// checklist begins with the name column, as if the user had
+			// checked it.
 			if (
-				isFlowMode &&
-				flowSourceField &&
+				defaultValueField &&
 				(encodings.value.fields ?? []).length === 0
 			) {
-				setValueFields([flowSourceField])
+				setValueFields([defaultValueField])
 				return
 			}
 			setEncodings((prev) => ({
@@ -902,9 +904,9 @@ export const DataLabelsPanel = () => {
 				field: v === "" ? null : v,
 				multiField: false,
 				fields: prev.value?.fields ?? [],
-				// Flows only: "— none —" is a deliberate "no labels", distinct
-				// from the unset default (the node names).
-				...(isFlowMode && v === "" ? { none: true } : {}),
+				// Flows and trees: "— none —" is a deliberate "no labels",
+				// distinct from the unset default (the node names).
+				...(defaultValueField && v === "" ? { none: true } : {}),
 			},
 		}))
 		// A total reads as the bar's once per bar, past its end: a fresh Bar
@@ -948,10 +950,33 @@ export const DataLabelsPanel = () => {
 			])
 		: new Set<string>()
 	const labelTextEligible = allEligible.filter((f) => !flowRedundant.has(f.name))
+	// Tree layouts (packed circles / treemap / sunburst) likewise: an unset
+	// Value is the column that names the nodes — the id column when the
+	// tree nests by id, else the connection column (see
+	// `lib/hierarchyLabels.ts`, which the renderers use too).
+	const treeNameField = useMemo(() => {
+		if (!isTreeMode || !dataset) return null
+		const parentField = chartEncodings.connection?.field ?? null
+		if (!parentField) return null
+		const idField = resolveHierarchyIdField(
+			chartConfigs.connection?.hierarchyIdField ?? null,
+			dataset.rows,
+			dataset.fields.map((f) => f.name),
+			parentField,
+			chartEncodings.area?.field ?? null
+		)
+		return hierarchyNameField(parentField, idField)
+	}, [isTreeMode, dataset, chartEncodings, chartConfigs.connection])
+	/** What an unset Value shows: the node names on flows and trees. */
+	const defaultValueField = isFlowMode
+		? flowSourceField
+		: isTreeMode
+			? treeNameField
+			: null
 	const valueFieldShown: string | null =
 		encodings.value.field ??
-		(isFlowMode && !encodings.value.multiField && encodings.value.none !== true
-			? flowSourceField
+		(!encodings.value.multiField && encodings.value.none !== true
+			? defaultValueField
 			: null)
 	// Flow-only values (Flow in / Flow out / Node total) listed with the
 	// dataset's variables under Value and Size; a column already using one
@@ -1033,7 +1058,7 @@ export const DataLabelsPanel = () => {
 			: hierarchyDepthLevels(dataset.rows, parentField, idField, areaField)
 	})()
 
-	// Packed circles' "Text Position" checkboxes: one per CONTAINER depth
+	// Packed circles' "Wrap label around" checkboxes: one per CONTAINER depth
 	// (levels that draw grouping circles — every hierarchy level except the
 	// deepest, which is all leaves). Derived from the same tree the renderer
 	// builds so the checkbox list tracks the drawn nesting.
@@ -1055,6 +1080,8 @@ export const DataLabelsPanel = () => {
 			.map(Number)
 			.filter((n) => Number.isFinite(n))
 	})()
+	// Shown (inside Position and alignment) only with levels to wrap.
+	const showWrapLevels = hasContainerRimLabels && containerWrapLevels.length > 0
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -1212,10 +1239,10 @@ export const DataLabelsPanel = () => {
 			 *  above. Overlap avoidance lives with the other placement knobs
 			 *  under "Position and alignment". */}
 			{/* Selection / overlap / position controls act on the shared label
-			 *  layer's positioned labels — inert for the self-drawn packed /
-			 *  treemap labels, so they stand down there (as does Text
-			 *  Background, which those renderers don't draw). The sunburst
-			 *  renders through the layer, so it keeps them. */}
+			 *  layer's positioned labels — inert for the self-drawn treemap
+			 *  labels, so they stand down there (as does Text Background,
+			 *  which that renderer doesn't draw). Packed circles and the
+			 *  sunburst render through the layer, so they keep them. */}
 			{fineTuningApplies && (
 			<>
 			{labelSelectionHasContent && (
@@ -1352,9 +1379,24 @@ export const DataLabelsPanel = () => {
 
 			<CollapsibleSubsection
 				title="Position and alignment"
-				changed={positionChanged}
+				changed={positionChanged || (showWrapLevels && textPositionChanged)}
 			>
 				<div className="flex flex-col gap-2">
+				{/* Packed circles only: per-container-level choice between the
+				 *  default inside-the-rim placement and wrapping the group name
+				 *  around the OUTSIDE of the circle on an arc. Leads the section:
+				 *  it decides where a container's label sits at all, before any
+				 *  alignment or nudge applies. */}
+				{showWrapLevels && (
+					<>
+						<TextPositionPanel
+							cfg={merged}
+							onChange={updateCfg}
+							levels={containerWrapLevels}
+						/>
+						<hr className="border-stone-200 dark:border-stone-700" />
+					</>
+				)}
 				{/* Separate labels (Combine variables unchecked): every variable is
 				 *  its own label, so each gets its OWN subsection holding the
 				 *  whole set — alignment, angle, wrapping, overlap avoidance, bar
@@ -1947,19 +1989,6 @@ export const DataLabelsPanel = () => {
 				</div>
 			</CollapsibleSubsection>
 			</>
-			)}
-
-			{/* Packed circles only: per-container-level choice between the
-			 *  default inside-the-rim placement and wrapping the group name
-			 *  around the OUTSIDE of the circle on an arc. */}
-			{hasContainerRimLabels && containerWrapLevels.length > 0 && (
-				<CollapsibleSubsection title="Text position" changed={textPositionChanged}>
-					<TextPositionPanel
-						cfg={merged}
-						onChange={updateCfg}
-						levels={containerWrapLevels}
-					/>
-				</CollapsibleSubsection>
 			)}
 
 			<CollapsibleSubsection title="Text" changed={textPropertiesChanged}>

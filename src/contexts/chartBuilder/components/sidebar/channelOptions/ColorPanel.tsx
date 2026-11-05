@@ -2,6 +2,7 @@ import { useAtom, useAtomValue } from "jotai"
 import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_REGRESSION_CONFIG,
+	type ChannelConfigs,
 	type ColorSlotConfig,
 	type RegressionConfig,
 } from "../../../lib/channelConfig"
@@ -11,9 +12,13 @@ import {
 	colorSlotEdited,
 	legacySlotColor,
 	type ColorSlotDef,
-	filledRadarOn,
-	overlayOn,
 } from "../../../lib/colorSlots"
+import { markPartTitles } from "../../../lib/markPartTitles"
+import {
+	RADAR_LINE_INHERIT,
+	clearLegacyRadarLine,
+	legacyRadarLineSlot,
+} from "../../../lib/radarLineSlot"
 import { isAreaModeId } from "../../../lib/chartModes/families"
 import { defaultColorSlot, isDefaultColorSlot } from "../../../lib/colorSlotDefaults"
 import { effectiveType } from "../../../lib/fieldType"
@@ -65,8 +70,9 @@ import { ColorRulesEditor, markRuleHelp } from "../ColorRulesEditor"
  *   - Fill  — the primary color encoding (variable mapped via the Color shelf
  *             row); reuses the full hue palette/gradient editor.
  *   - Outline — the independent `outlineHue` color encoding.
- *   - Generic color slots (Line / Rug / Violin-Box Fill+Outline / Stem / Radar
- *     Spine) — each an independent optional color encoding.
+ *   - Generic color slots (Line / Rug / Violin-Box Fill+Outline / Stem /
+ *     Polygon Fill / Radar Spine) — each an independent optional color
+ *     encoding.
  * Every subheader follows the same shape: None (single color) by default, or
  * map a variable → pick a palette → adjust per-level colors (categorical) or a
  * gradient (quantitative). Data labels are intentionally excluded — they keep
@@ -81,19 +87,23 @@ export const ColorPanel = () => {
 	// mark Fill / Outline groups have nothing to style and are hidden; the
 	// Density Curve slots take over. Histogram + curve keeps them (bars render).
 	const pureDensityCurve = usePureDensityCurve()
-	// Area / filled-radar color the OUTLINE per layer by the same hue field as
-	// the fill (linked), via `connection`-based palettes — so they get the
-	// dedicated `AreaRadarOutlinePanel` instead of the independent-field
-	// `OutlineColorRow`. Radar only shows it when the polygon is filled.
+	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
+	// where a second body sits beside the marks (radar polygon, violin / box).
+	const titles = markPartTitles(modeDef, configs)
+	// The area modes color the layer OUTLINE per layer by the same hue field
+	// as the fill (linked), via `connection`-based palettes — the dedicated
+	// `AreaRadarOutlinePanel`, in place of the independent-field
+	// `OutlineColorRow` (areas draw no points). The polygon mode (radar)
+	// colors its CONNECTION LINE (the polygon outline) with the Line color
+	// slot instead — a Vary by like every other part, led by "Match fill" —
+	// while its points keep the independent outline like scatter's.
 	const isAreaMode = isAreaModeId(mode)
-	const isRadarFilled = filledRadarOn(mode, configs)
-	const useLinkedOutline = isAreaMode || isRadarFilled
-	// Scatter-style independent outline (own field) for every other mode —
-	// the polygon mode (radar) keeps its linked panel even unfilled — except
-	// the pure density curve, whose marks (the styling target) are gone.
 	const isPolygonMode = modeDef.canvas.connectionRole === "polygon"
-	const showIndependentOutline =
-		!isAreaMode && !isPolygonMode && !pureDensityCurve
+	const useLinkedOutline = isAreaMode
+	// Scatter-style independent outline (own field) for the point marks:
+	// every mode but the areas, and the pure density curve, whose marks (the
+	// styling target) are gone.
+	const showIndependentOutline = !isAreaMode && !pureDensityCurve
 
 	// Subsection dots — reuse the SAME change data the top-level Color dot uses
 	// (so they can't disagree). The hue registry labels map to the subheaders.
@@ -121,13 +131,22 @@ export const ColorPanel = () => {
 		<div className="vc-option-panel">
 			{!pureDensityCurve && (
 				<CollapsibleSubsection
-					// Beside the Violin / box subheaders the marks' fill is the
-					// POINT fill — named so, as the Pattern menu names it.
-					title={overlayOn(configs) ? "Point fill" : "Fill"}
+					title={titles.fill}
 					defaultOpen
 					changed={fillChanged}
 				>
-					<ColorOptionsPanel hideVaryBy={useLinkedOutline} />
+					{/* The area modes set the color field via the Color shelf
+					 *  row (fill and outline are linked to the series), so the
+					 *  in-panel selector would be redundant there. */}
+					<ColorOptionsPanel hideVaryBy={isAreaMode} />
+				</CollapsibleSubsection>
+			)}
+			{showIndependentOutline && (
+				<CollapsibleSubsection
+					title={titles.outline}
+					changed={outlineScatterChanged}
+				>
+					<OutlineColorRow />
 				</CollapsibleSubsection>
 			)}
 			{useLinkedOutline && (
@@ -135,19 +154,29 @@ export const ColorPanel = () => {
 					<AreaRadarOutlinePanel />
 				</CollapsibleSubsection>
 			)}
-			{showIndependentOutline && (
-				<CollapsibleSubsection
-					// Beside "Violin / box outline" this is the POINT outline.
-					title={overlayOn(configs) ? "Point outline" : "Outline"}
-					changed={outlineScatterChanged}
-				>
-					<OutlineColorRow />
-				</CollapsibleSubsection>
-			)}
 			{slots.map((def) => (
 				<ColorSlotSubsection
 					key={def.key}
-					def={def}
+					def={
+						isPolygonMode && def.key === "line"
+							? { ...def, label: titles.line, inherit: RADAR_LINE_INHERIT }
+							: def
+					}
+					// Radar polygons saved with the old Outline editor's palette /
+					// per-series / single color show (and seed from) that state
+					// until the slot takes over; the first edit clears it.
+					legacyCfg={
+						isPolygonMode && def.key === "line"
+							? legacyRadarLineSlot(
+									configs,
+									encodings.connection?.field ?? null,
+									configs.defaultFill ?? theme.defaultFill
+								)
+							: undefined
+					}
+					transformWrite={
+						isPolygonMode && def.key === "line" ? clearLegacyRadarLine : undefined
+					}
 					// The Regression line subheader also owns the line's WIDTH (it
 					// lives on `configs.x.regression`, not the slot). The dash
 					// pattern moved to the Pattern menu's "Regression line"
@@ -163,7 +192,9 @@ export const ColorPanel = () => {
 									configs.x?.regression?.strokeWidth,
 									themeRegression(theme).strokeWidth
 								)
-							: false
+							: isPolygonMode && def.key === "line"
+								? outlineAreaChanged
+								: false
 					}
 				/>
 			))}
@@ -393,10 +424,19 @@ const ColorSlotSubsection = ({
 	def,
 	extra,
 	extraChanged = false,
+	legacyCfg,
+	transformWrite = (c) => c,
 }: {
 	def: ColorSlotDef
 	extra?: React.ReactNode
 	extraChanged?: boolean
+	/** What an UNSTORED slot draws through older config fields (the radar
+	 *  outline's connection palette), shown and seeded from until the first
+	 *  edit. */
+	legacyCfg?: ColorSlotConfig
+	/** Applied to every write — clears those older fields once the slot owns
+	 *  the color. */
+	transformWrite?: (configs: ChannelConfigs) => ChannelConfigs
 }) => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
@@ -412,7 +452,7 @@ const ColorSlotSubsection = ({
 	const hueType =
 		dataset && hueField ? effectiveType(dataset, hueField, overrides) : null
 	const dflt = defaultColorSlot(def.key, encodings, configs, hueType, theme)
-	const derivedCfg = storedCfg ? undefined : dflt
+	const derivedCfg = storedCfg ? undefined : (dflt ?? legacyCfg)
 	const slotCfg = storedCfg ?? derivedCfg
 	// The variable the untouched slot varies by, touched or not: re-picking
 	// it returns to the live default.
@@ -446,12 +486,12 @@ const ColorSlotSubsection = ({
 			// keeps tracking the live default.
 			if (isDefaultColorSlot(next, dflt)) {
 				const { [def.key]: _removed, ...rest } = prev.colorSlots ?? {}
-				return { ...prev, colorSlots: rest }
+				return transformWrite({ ...prev, colorSlots: rest })
 			}
-			return {
+			return transformWrite({
 				...prev,
 				colorSlots: { ...prev.colorSlots, [def.key]: next },
-			}
+			})
 		})
 
 	// Inherit-capable slots (regression, combo points) render the Color mapping's
@@ -459,9 +499,9 @@ const ColorSlotSubsection = ({
 	// option; picking it deletes the stored slot, returning to that state.
 	const clearSlot = () =>
 		setConfigs((prev) => {
-			if (!prev.colorSlots?.[def.key]) return prev
+			if (!prev.colorSlots?.[def.key]) return transformWrite(prev)
 			const { [def.key]: _removed, ...rest } = prev.colorSlots
-			return { ...prev, colorSlots: rest }
+			return transformWrite({ ...prev, colorSlots: rest })
 		})
 
 	// This slot deviates when it has a field mapped, a picked palette, or a

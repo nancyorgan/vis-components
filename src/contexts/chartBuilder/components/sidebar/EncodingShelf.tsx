@@ -263,6 +263,13 @@ export const EncodingShelf = ({ channel }: Props) => {
 		const pronoun = conflictingActiveChannels.length === 1 ? "it" : "them"
 		return `${list} ${verb} currently mapped. ${ENCODING_CHANNEL_LABELS[channel]} will override ${pronoun}.`
 	}, [pendingConflict, conflictingActiveChannels, channel])
+	// X / Y over a mapped R position (a radar) usually means the user wants to
+	// place several radars side by side, the way pies sit at x / y positions.
+	// Radars don't position that way — facets arrange them — so say so.
+	const conflictHint =
+		(channel === "x" || channel === "y") && conflictingActiveChannels.includes("r")
+			? " To arrange charts, use a facet."
+			: ""
 
 	// For bars/areas the measure (`length`) renders on whichever position
 	// axis the orientation puts it on — so the user needs to be able to
@@ -403,7 +410,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 					className="flex flex-col gap-1.5 rounded border border-amber-300 bg-amber-50 p-2 dark:border-amber-700 dark:bg-amber-900/30"
 				>
 					<div className="text-sm text-amber-800 dark:text-amber-300">
-						{conflictMessage} Proceed?
+						{conflictMessage} Proceed?{conflictHint}
 					</div>
 					<div className="flex gap-2">
 						<Button compact

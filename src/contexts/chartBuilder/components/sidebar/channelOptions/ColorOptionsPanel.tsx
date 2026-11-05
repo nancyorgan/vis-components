@@ -853,7 +853,9 @@ export const AreaRadarOutlinePanel = () => {
 	)
 	const linePaletteOptions = [
 		{ value: "", label: "Match fill" },
-		{ value: SINGLE_OUTLINE_COLOR, label: "Single color" },
+		// "— none —" = one uniform color, the convention every Vary-by /
+		// palette dropdown uses for its single-color choice.
+		{ value: SINGLE_OUTLINE_COLOR, label: "— none —" },
 		...theme.categoricalPalettes.map((p) => ({ value: p.id, label: p.name })),
 	]
 	const paletteValue = isSingleColor

@@ -27,6 +27,14 @@ const round = (n: number) => Math.round(n)
 const HUE_STRIP =
 	"linear-gradient(to right, #f00 0%, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00 100%)"
 
+/** The browser's screen eyedropper (Chromium only; Safari and Firefox
+ *  don't ship it), or null where it's missing so the button stays hidden. */
+type EyeDropperCtor = new () => { open: () => Promise<{ sRGBHex: string }> }
+const eyeDropper = (): EyeDropperCtor | null =>
+	typeof window !== "undefined" && "EyeDropper" in window
+		? (window as unknown as { EyeDropper: EyeDropperCtor }).EyeDropper
+		: null
+
 /** Keyboard step for the sliders: 1 unit, or 10 with Shift. */
 const stepFor = (e: React.KeyboardEvent) => (e.shiftKey ? 10 : 1)
 
@@ -110,6 +118,24 @@ export const ColorPickerPopover = ({
 		emit(rgbToHex(rgb.r, rgb.g, rgb.b))
 	}
 
+	// ----- screen eyedropper -------------------------------------------------
+	// While the browser's dropper is up, the page can see a blur, a press or
+	// an Escape that belongs to the dropper; none of them should close us.
+	const picking = useRef(false)
+	const EyeDropper = eyeDropper()
+	const pickFromScreen = async () => {
+		if (!EyeDropper || picking.current) return
+		picking.current = true
+		try {
+			const { sRGBHex } = await new EyeDropper().open()
+			applyText(sRGBHex)
+		} catch {
+			// Escape or a click-away cancels the dropper: keep the color as is.
+		} finally {
+			picking.current = false
+		}
+	}
+
 	// ----- placement --------------------------------------------------------
 	const [pos, setPos] = useState({ top: 0, left: 0 })
 	const place = () => {
@@ -147,6 +173,7 @@ export const ColorPickerPopover = ({
 	}
 	useEffect(() => {
 		const onPointerDown = (e: PointerEvent) => {
+			if (picking.current) return
 			const t = e.target as Node
 			if (popoverRef.current?.contains(t) || anchorRef.current?.contains(t))
 				return
@@ -157,7 +184,7 @@ export const ColorPickerPopover = ({
 		// Capture + stopPropagation keeps the same key from also closing a
 		// dialog that might host the swatch.
 		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.key !== "Escape") return
+			if (e.key !== "Escape" || picking.current) return
 			e.stopPropagation()
 			closeToAnchor()
 		}
@@ -175,6 +202,7 @@ export const ColorPickerPopover = ({
 			svRef.current?.focus({ preventScroll: true })
 	}, [])
 	const onBlur = (e: React.FocusEvent) => {
+		if (picking.current) return
 		const next = e.relatedTarget as Node | null
 		if (
 			next &&
@@ -348,6 +376,32 @@ export const ColorPickerPopover = ({
 				/>
 			</div>
 			<div className="mt-3 flex items-center gap-2">
+				{EyeDropper && (
+					<button
+						type="button"
+						onClick={pickFromScreen}
+						aria-label="Pick a color from the screen"
+						title="Pick a color from the screen"
+						className="flex h-6 w-6 shrink-0 items-center justify-center rounded-control border border-stone-400 text-stone-700 transition-colors vc-focus-ring hover:border-stone-600 hover:text-stone-900 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-white"
+					>
+						<svg
+							aria-hidden
+							viewBox="0 0 24 24"
+							width="14"
+							height="14"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							{/* Bulb up-right, glass tube down to a tip at bottom-left. */}
+							<path d="M14 7l3-3a2.12 2.12 0 0 1 3 3l-3 3" />
+							<path d="M11.5 8.5l4 4" />
+							<path d="M13 10L4.5 18.5 3 21l2.5-1.5L14 11" />
+						</svg>
+					</button>
+				)}
 				<div
 					aria-hidden
 					className="h-6 w-6 shrink-0 rounded border border-stone-400 dark:border-stone-700"
