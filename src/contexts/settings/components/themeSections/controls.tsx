@@ -112,11 +112,9 @@ export const SelectInput = (props: {
 	onChange: (v: string) => void
 	options: Array<{ label: string; value: string }>
 }) => (
-	<UiSelectInput
-		labelClassName={THEME_LABEL_CLASS}
-		selectClassName="flex-1"
-		{...props}
-	/>
+	// Sized to its longest option (like the font family / weight rows), not
+	// stretched across the page: a full-width "Right" reads as a text field.
+	<UiSelectInput labelClassName={THEME_LABEL_CLASS} {...props} />
 )
 
 export const ShapeGlyph = ({

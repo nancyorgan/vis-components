@@ -8,10 +8,10 @@ import {
 	type LegendPosition,
 } from "../../../chartBuilder/lib/labelsConfig"
 import { legendConfigFromTheme } from "../../../chartBuilder/lib/themeConfig"
+import { Checkbox } from "../../../../components/ui/Checkbox"
 import { NumberInput as UiNumberInput } from "../../../../components/ui/NumberInput"
 import {
 	AlignmentRow,
-	CheckboxRow,
 	ColorInput,
 	NumberInput,
 	Section,
@@ -95,10 +95,11 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 						/>
 					)}
 				</div>
-				<CheckboxRow
+				<Checkbox
 					label="Border"
 					checked={seed.showBorder}
 					onChange={(v) => set("legendShowBorder", v)}
+					className="mt-2"
 				/>
 				{seed.showBorder && (
 					<>
