@@ -5,6 +5,9 @@ import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fix
 import { describe, expect, it } from "vitest"
 import type { DrawOrderConfig } from "../../lib/drawOrder"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+// Axis titles seeded cleared (""): jsdom gives the chart a tiny fallback
+// canvas, and the default field-name titles would squeeze the plot area
+// these mark-geometry assertions measure down to nothing.
 import { emptyEncodings, type Dataset } from "../../lib/types"
 
 import { ChartCanvas } from "./ChartCanvas"
@@ -53,7 +56,7 @@ const seed = (drawOrder: DrawOrderConfig | null) => {
 		connection: { field: "series" },
 	})
 	set("vis-components:currentChannelConfigs", { drawOrder })
-	set("vis-components:currentLabels", { _v: 1, data: DEFAULT_LABELS_CONFIG })
+	set("vis-components:currentLabels", { _v: 1, data: { ...DEFAULT_LABELS_CONFIG, xAxisTitle: "", yAxisTitle: "" } })
 	/* eslint-enable no-restricted-globals, @vc/no-storage-outside-try, @vc/use-wrapped-json-functions */
 }
 

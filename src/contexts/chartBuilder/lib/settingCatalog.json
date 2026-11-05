@@ -6440,6 +6440,28 @@
 				"string"
 			]
 		},
+		"channelConfigs.pattern.customPatterns": {
+			"doc": "Per-chart custom fill patterns (uploaded black-and-white images reduced to a small ink/background grid — see `lib/customPatterns`).",
+			"items": {
+				"kinds": [
+					"null",
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.pattern.customPatterns[].bits": {
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.pattern.customPatterns[].size": {
+			"kinds": [
+				"number"
+			]
+		},
 		"channelConfigs.pattern.customPointOutlineDash": {
 			"kinds": [
 				"null",
@@ -13106,11 +13128,25 @@
 				"string"
 			]
 		},
+		"legendConfig.auxLegendSwatchShape": {
+			"doc": "Glyph for Size-led legends (no Color in the section) — a `SHAPE_PALETTE` index. `null` = the marks' own shape. Shared across those sections like the aux swatch color / stroke above.",
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
 		"legendConfig.auxLegendSwatchStroke": {
 			"doc": "Border (stroke) color for the AREA (size) legend swatch circles. Only the area swatch is a filled shape with a meaningful outline — length / angle swatches are lines (their stroke IS the swatch color) and opacity swatches are borderless fills.",
 			"kinds": [
 				"null",
 				"string"
+			]
+		},
+		"legendConfig.auxLegendSwatchStrokeWidth": {
+			"doc": "Outline width (px) for those Size glyphs. `null` = 1px.",
+			"kinds": [
+				"null",
+				"number"
 			]
 		},
 		"legendConfig.backgroundColor": {
@@ -13579,6 +13615,13 @@
 			"kinds": [
 				"null",
 				"string"
+			]
+		},
+		"legendConfig.shapeLegendStrokeWidth": {
+			"doc": "Outline width (px) for shape legend glyphs — standalone and in a combined (e.g. Color · Shape) section. `null` = the historical 1px.",
+			"kinds": [
+				"null",
+				"number"
 			]
 		},
 		"legendConfig.showBorder": {

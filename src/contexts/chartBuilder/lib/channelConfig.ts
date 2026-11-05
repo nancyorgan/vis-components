@@ -2,6 +2,7 @@
 // isn't in the map, defaults are used. Each channel's shape is independent.
 
 import type { GradientInterpolation } from "./colorInterpolate"
+import type { CustomPattern } from "./customPatterns"
 import type { DisplayUnit } from "./displayUnits"
 import type { DrawOrderConfig } from "./drawOrder"
 import type { FacetPanelRef } from "./facetPanelRef"
@@ -1030,6 +1031,14 @@ export type PatternConfig = {
 	 * (`resolveSegmentPatternMode`), else dash. The Pattern menu's
 	 * "Segments" toggle writes it; its reset clears the key. */
 	segmentPattern?: SegmentPatternMode
+	/** Per-chart custom fill patterns (uploaded black-and-white images
+	 * reduced to a small ink/background grid — see `lib/customPatterns`).
+	 * A pattern index `i >= CUSTOM_PATTERN_BASE` in any of the pick fields
+	 * above (`overrides`, `defaultPattern`, the polygon / violin twins)
+	 * refers to `customPatterns[i - CUSTOM_PATTERN_BASE]`. Deleted slots
+	 * are tombstoned to `null` (never spliced) so other slots' indices stay
+	 * stable. Absent = none. */
+	customPatterns?: Array<CustomPattern | null>
 }
 
 /** See `PatternConfig.segmentPattern`. */

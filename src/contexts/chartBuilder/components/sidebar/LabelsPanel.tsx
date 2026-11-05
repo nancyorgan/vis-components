@@ -193,6 +193,14 @@ export const LabelsPanel = () => {
 			legendTitles: { ...prev.legendTitles, [channel]: value },
 		}))
 	}
+	// "Reset to variable name": back to `undefined` (the legend headers with
+	// its field / derived label again), for every member of a combined group.
+	const resetLegendTitle = (channels: LegendChannel[]) =>
+		setLabels((prev) => {
+			const next = { ...prev.legendTitles }
+			for (const c of channels) delete next[c]
+			return { ...prev, legendTitles: next }
+		})
 
 	const modeDef = useChartModeDef()
 	const fieldOverrides = useAtomValue(currentFieldOverridesAtom)
@@ -205,7 +213,7 @@ export const LabelsPanel = () => {
 	// legend), yet `encodings[ch].field` is null — so they need listing here
 	// explicitly or the user gets no title row for the legend they can see.
 	// Gated like LegendPanel's "Legends shown" toggles and legendSections'
-	// section builders; the value is the default title the row's placeholder
+	// section builders; the value is the default title the row's box
 	// shows (the derived label the legend otherwise headers with).
 	const derivedLegendLabels: Partial<Record<EncodingLegendChannel, string>> = {}
 	const derivedHueSource = isHierarchyModeId(modeDef.id)
@@ -969,7 +977,14 @@ export const LabelsPanel = () => {
 						const keys = group.map(legendFontKey)
 						const titleCh =
 							group.find((c) => (labels.legendTitles?.[c] ?? "") !== "") ??
+							group.find((c) => labels.legendTitles?.[c] !== undefined) ??
 							group[0]
+						// Same three states as the axis titles: the box SHOWS the
+						// default the legend headers with (not a placeholder), so
+						// what the box reads is what the figure draws; "" = cleared.
+						const legendTitleFallback =
+							encodings[group[0]].field ?? derivedLegendLabels[group[0]] ?? ""
+						const storedLegendTitle = labels.legendTitles?.[titleCh]
 						const fKey = keys.find((k) => overrides[k]) ?? keys[0]
 						const aKey = keys.find((k) => titleAlignments[k]) ?? keys[0]
 						const oKey = keys.find((k) => labels.titleOffsets?.[k]) ?? keys[0]
@@ -980,20 +995,20 @@ export const LabelsPanel = () => {
 									.map((c) => LEGEND_FRIENDLY_NAME[c])
 									.join(" · ")} legend`}
 								fontKey={fKey}
-								value={labels.legendTitles?.[titleCh] ?? ""}
+								value={storedLegendTitle ?? legendTitleFallback}
 								onChange={(v) =>
 									group.forEach((c) => updateLegendTitle(c, v))
+								}
+								onReset={
+									storedLegendTitle !== undefined
+										? () => resetLegendTitle(group)
+										: undefined
 								}
 								override={overrides[fKey]}
 								onOverride={(next) => keys.forEach((k) => setOverride(k, next))}
 								alignment={titleAlignments[aKey]}
 								onAlignment={(a) => keys.forEach((k) => setAlignment(k, a))}
 								baseAlignment={labels.baseFont.titles.legendAlignment}
-								placeholder={
-									encodings[group[0]].field ??
-									derivedLegendLabels[group[0]] ??
-									""
-								}
 								baseColor={
 									labels.baseFont.titles.legendColor ??
 									labels.baseFont.titles.color

@@ -6,6 +6,7 @@ import {
 	type LegendChannel,
 	type LegendConfig,
 	type LegendDefaultTraits,
+	type LegendSwatchShape,
 	type LegendSwatchShapeChoice,
 	type SwatchShapeChannel,
 } from "./labelsConfig"
@@ -26,10 +27,13 @@ export const swatchShapePatch = (
 	cfg: Pick<LegendConfig, "swatchShapes" | "hueLegendSwatchShape">,
 	ch: SwatchShapeChannel,
 	shape: LegendSwatchShapeChoice | null,
-	theme: Pick<Theme, "legendSwatchShape">
+	theme: Pick<Theme, "legendSwatchShape">,
+	/** The section's own default when it isn't the theme's — a glyph
+	 *  section starts from the marks' shape (legendSwatchControls). */
+	auto?: LegendSwatchShape
 ): Partial<LegendConfig> => {
 	const next = { ...cfg.swatchShapes }
-	if (shape === theme.legendSwatchShape) delete next[ch]
+	if (shape === (auto !== undefined ? auto : theme.legendSwatchShape)) delete next[ch]
 	else next[ch] = shape === null ? "rect" : shape
 	return {
 		swatchShapes: next,
@@ -56,10 +60,14 @@ export const swatchOutlineWidthPatch = (
 	cfg: Pick<LegendConfig, "swatchOutlineWidths" | "swatchOutlineWidth">,
 	ch: SwatchShapeChannel,
 	width: number,
-	theme: Pick<Theme, "legendSwatchOutlineWidth">
+	theme: Pick<Theme, "legendSwatchOutlineWidth">,
+	/** The section's auto width when it isn't the theme's
+	 *  (sectionOutlineWidthAuto); `null` / omitted = the theme's. */
+	auto?: number | null
 ): Pick<LegendConfig, "swatchOutlineWidths"> => {
 	const next = { ...cfg.swatchOutlineWidths }
-	if (width === theme.legendSwatchOutlineWidth && cfg.swatchOutlineWidth == null) delete next[ch]
+	if (width === (auto ?? theme.legendSwatchOutlineWidth) && cfg.swatchOutlineWidth == null)
+		delete next[ch]
 	else next[ch] = width
 	return { swatchOutlineWidths: next }
 }

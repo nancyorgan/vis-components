@@ -15,6 +15,7 @@ export const ShapeLegend = ({
 	pinnedOrder,
 	legendFillColor,
 	legendStrokeColor,
+	legendStrokeWidth,
 	orientation = "vertical",
 	defaultSwatchOpacity = 1,
 	entryColumns,
@@ -23,6 +24,8 @@ export const ShapeLegend = ({
 }: LegendProps & {
 	legendFillColor: string | null | undefined
 	legendStrokeColor: string | null | undefined
+	/** `shapeLegendStrokeWidth`; null / undefined = 1px. */
+	legendStrokeWidth?: number | null
 	defaultSwatchOpacity?: number
 	/** Glyph radius (px) from the Legend panel's Shape swatch size control
 	 *  (`swatchSizes.shape`). `null` / undefined = the historical 5. */
@@ -96,7 +99,7 @@ export const ShapeLegend = ({
 								fill={fill}
 								fillOpacity={fill === "none" ? 0 : defaultSwatchOpacity}
 								stroke={stroke}
-								strokeWidth={1}
+								strokeWidth={legendStrokeWidth ?? 1}
 							/>
 						</svg>
 					</SwatchCell>

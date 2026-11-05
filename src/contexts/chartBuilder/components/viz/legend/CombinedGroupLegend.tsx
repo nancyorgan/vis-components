@@ -139,6 +139,8 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	 *  these are ignored. */
 	shapeLegendFillColor?: string | null
 	shapeLegendStrokeColor?: string | null
+	/** Shape glyph outline width (`shapeLegendStrokeWidth`); null = 1px. */
+	shapeLegendStrokeWidth?: number | null
 	/** Opacity for swatch graphics, matching marks at the global default
 	 *  opacity when opacity isn't encoded. Folds into each entry's opacity
 	 *  unless the opacity channel is itself part of the combined group. */
@@ -188,6 +190,7 @@ export const CombinedGroupLegend = ({
 	patternLegendInkColor = null,
 	shapeLegendFillColor = null,
 	shapeLegendStrokeColor = null,
+	shapeLegendStrokeWidth = null,
 	defaultSwatchOpacity = 1,
 	splitOutline = null,
 	swatchOutline = null,
@@ -468,7 +471,11 @@ export const CombinedGroupLegend = ({
 					strokeOverride ??
 					outlineRuleColor ??
 					outlineScaleColor ??
-					(hasHue ? color : (shapeLegendStrokeColor ?? shapeOutlineColor)),
+					// The marks stroke with the Shape menu's outline color whether
+					// or not hue is mapped (resolveShapeColors), so the glyph does
+					// too — the legend's Swatch outline picker wins over it.
+					(shapeLegendStrokeColor ?? shapeOutlineColor),
+				strokeWidth: shapeLegendStrokeWidth ?? undefined,
 				// The Shape swatch size control scales the glyphs here too, so a
 				// combined Color · Shape legend follows the same picker as the
 				// standalone ShapeLegend. Area-driven radii still win below.
@@ -479,8 +486,9 @@ export const CombinedGroupLegend = ({
 			// varying stroke color is visible. The user's swatch-shape / size
 			// picker for the Outline section drives the glyph (a SHAPE_PALETTE
 			// index, or "line"); falls back to the default shape. Fill follows the
-			// hue color when hue is also shown (matching the marks); outline-only
-			// (no hue) stays unfilled so the swatch reads as a stroke.
+			// hue color when hue is also shown (matching the marks); a Pattern
+			// member tiles it (the shape route paints the tile); outline-only
+			// stays unfilled so the swatch reads as a stroke.
 			const glyphIdx =
 				typeof swatchShape === "number"
 					? swatchShape
@@ -488,8 +496,11 @@ export const CombinedGroupLegend = ({
 			shape = {
 				idx: glyphIdx,
 				glyph: resolveGlyph(glyphIdx, configs.shape?.customGlyphs),
-				fill: hasHue ? color : "none",
+				fill: hasHue || pattern ? color : "none",
 				stroke: outlineRuleColor ?? outlineScaleColor ?? shapeOutlineColor,
+				// The encoded stroke's width is the section's Outline width
+				// (auto 1px — Legend.tsx's sectionOutlineWidthAuto).
+				strokeWidth: swatchOutline?.width ?? 1,
 				size: swatchSize ?? undefined,
 				line: swatchShape === "line",
 			}
@@ -569,10 +580,20 @@ export const CombinedGroupLegend = ({
 						idx: areaGlyphIdx,
 						glyph: resolveGlyph(areaGlyphIdx, configs.shape?.customGlyphs),
 						fill: hasHue ? color : noHueSwatchFill,
+						// The section's Outline color / width when it draws one;
+						// otherwise the historical self-colored (invisible) edge.
 						stroke:
 							outlineRuleColor ??
 							outlineScaleColor ??
-							(hasHue ? color : shapeOutlineColor),
+							(swatchOutline && swatchOutline.width > 0
+								? swatchOutline.color
+								: hasHue
+									? color
+									: shapeOutlineColor),
+						strokeWidth:
+							swatchOutline && swatchOutline.width > 0
+								? swatchOutline.width
+								: undefined,
 						size: areaR,
 						line: swatchShape === "line",
 					}
@@ -640,14 +661,21 @@ export const CombinedGroupLegend = ({
 			? makeAngleScale(values, type, configs.angle, domainOverride)
 			: null
 		const FALLBACK_R = 8
-		const shapeIdx = configs.defaultShape ?? 0
+		// The section's glyph (Legend.tsx resolves a glyph section's explicit
+		// choice, else the marks' shape); the marks' shape when unset.
+		const shapeIdx =
+			typeof swatchShape === "number" ? swatchShape : (configs.defaultShape ?? 0)
 		// Swatches render centered — strip any creation-time nudge.
 		const shapeGlyph = stripNudge(
 			resolveGlyph(shapeIdx, configs.shape?.customGlyphs)
 		)
+		// The section's Outline color / width (auto: the marks' outline) —
+		// the marks' own when no section outline was resolved.
 		const strokeColor =
-			configs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
-		const strokeWidth = configs.shape?.outlineWidth ?? 1
+			swatchOutline?.color ??
+			configs.shape?.outlineColor ??
+			DEFAULT_SHAPE_CONFIG.outlineColor
+		const strokeWidth = swatchOutline?.width ?? configs.shape?.outlineWidth ?? 1
 		// When no hue drives the glyph color, the Legend "Size" submenu's aux
 		// swatch fill/stroke apply — mirroring the standalone AreaLegend so a
 		// combined size legend honors the same picker. With hue present the
@@ -657,7 +685,10 @@ export const CombinedGroupLegend = ({
 		const noHueFill =
 			(hasShape ? shapeLegendFillColor : null) ?? auxSwatchColor ?? "#4f8eda"
 		const noHueStroke =
-			(hasShape ? shapeLegendStrokeColor : null) ?? auxSwatchStroke ?? strokeColor
+			(hasShape ? shapeLegendStrokeColor : null) ??
+			swatchOutline?.color ??
+			auxSwatchStroke ??
+			strokeColor
 		const maxR = stops.reduce((m, v) => {
 			const r = areaScale ? (applyAreaScale(areaScale, v, type) ?? FALLBACK_R) : FALLBACK_R
 			return Math.max(m, r)
@@ -784,9 +815,11 @@ export const CombinedGroupLegend = ({
 		return (
 			<div className="vc-legend-rows flex flex-col gap-1">
 				{stops.map((v, i) => {
+					// No Color in the section: the segments take the Swatch color
+					// (legendSwatchControls → fill "color"), like LengthLegend.
 					const color = hueScale
 						? (applyHueScale(hueScale, v, type) ?? "#4f8eda")
-						: "#4f8eda"
+						: (auxSwatchColor ?? "#4f8eda")
 					const len = lengthScale ? (lengthScale(v) ?? FALLBACK_LEN) : FALLBACK_LEN
 					const rad = angleScale ? (angleScale(v) ?? 0) : 0
 					const half = Math.max(6, len / 2)

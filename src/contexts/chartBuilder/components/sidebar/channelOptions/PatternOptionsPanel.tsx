@@ -31,6 +31,11 @@ import {
 } from "../../../lib/packedMeasure"
 import { channelAccepts } from "../../../lib/channels"
 import {
+	insertCustomPattern,
+	removeCustomPattern,
+	type CustomPattern,
+} from "../../../lib/customPatterns"
+import {
 	DEFAULT_PATTERN_INK,
 	inkForHueColor,
 	inkPaletteForHue,
@@ -69,6 +74,7 @@ import { Segmented } from "../../../../../components/ui/Segmented"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 
 import { StackModeRow } from "./StackModeRow"
+import { CustomPatternChips, CustomPatternEditor } from "./customPatternEditor"
 import {
 	ConnectionDashRangeRows,
 	DashStylePicker,
@@ -111,6 +117,9 @@ export const PatternOptionsPanel = () => {
 	const [defaultCustomDashOpen, setDefaultCustomDashOpen] = useState(false)
 	// Same flag for the polygon mode's "Point outline" dash picker.
 	const [pointOutlineCustomOpen, setPointOutlineCustomOpen] = useState(false)
+	// Which swatch row's "+" custom-pattern upload editor is open (the row
+	// key `customPatternControls` is given), null when closed.
+	const [patternEditorFor, setPatternEditorFor] = useState<string | null>(null)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const dataset = useCurrentDatasetView()
@@ -552,6 +561,55 @@ export const PatternOptionsPanel = () => {
 		}))
 	}
 
+	// Custom (uploaded) fill patterns — chart-wide slots, selectable from
+	// every fill swatch row (point fill, polygon fill, violin / box fill).
+	const customPatterns = cfg.customPatterns ?? []
+	/** Store an uploaded pattern, then select it for the row that opened
+	 *  the editor (through that row's own setter, so every target writes
+	 *  its own pick field). */
+	const addCustomPattern = (p: CustomPattern, select: (idx: number) => void) => {
+		const { list, idx } = insertCustomPattern(customPatterns, p)
+		updateCfg({ customPatterns: list })
+		select(idx)
+	}
+	const deleteCustomPattern = (slot: number) =>
+		setConfigs((prev) => removeCustomPattern(prev, slot))
+	/** The custom chips + "+" for one fill swatch row, and (below the row)
+	 *  its upload editor while open. */
+	const customPatternControls = (
+		rowKey: string,
+		row: {
+			activeIdx: number | null
+			select: (idx: number) => void
+			ink: string
+			bg: string
+			scale?: number | null
+			ariaName: string
+		}
+	) => ({
+		chips: (
+			<CustomPatternChips
+				patterns={customPatterns}
+				activeIdx={row.activeIdx}
+				onPick={row.select}
+				onDelete={deleteCustomPattern}
+				onAdd={() =>
+					setPatternEditorFor((open) => (open === rowKey ? null : rowKey))
+				}
+				inkColor={row.ink}
+				bgColor={row.bg}
+				scale={row.scale}
+				ariaName={row.ariaName}
+			/>
+		),
+		editor: patternEditorFor === rowKey && (
+			<CustomPatternEditor
+				onCreate={(p) => addCustomPattern(p, row.select)}
+				onClose={() => setPatternEditorFor(null)}
+			/>
+		),
+	})
+
 	// The "Segments" toggle: an explicit Dash / Fill pick, or auto (the key
 	// is absent — reset STRIPS it rather than writing null, so untouched
 	// saves don't grow a key).
@@ -825,47 +883,63 @@ export const PatternOptionsPanel = () => {
 			scale: defaultScale,
 			ariaName: "Pattern option",
 		}
-	) => (
-		<div className="flex flex-col gap-1 text-sm">
-			{/* Group title. These rows open the panel (nothing above to
-			 *  divide from), so the header carries no divider line. */}
-			{label && <span className="vc-group-header">{label}</span>}
-			<div className="flex flex-wrap gap-1">
-				{showNone && (
-					<button
-						type="button"
-						onClick={() => target.setIdx(null)}
-						aria-pressed={target.activeIdx === null}
-						className={swatchChipClass(target.activeIdx === null, "px-2 text-sm")}
-					>
-						None
-					</button>
-				)}
-				{palette.map((_, idx) => {
-					const selected = idx === target.activeIdx
-					return (
+	) => {
+		// Fill rows (not line-dash rows) take custom uploaded patterns too.
+		const custom =
+			Glyph === PatternGlyph
+				? customPatternControls(`default:${target.ariaName}`, {
+						activeIdx: target.activeIdx,
+						select: target.setIdx,
+						ink: target.ink,
+						bg: target.bg ?? previewBg,
+						scale: target.scale,
+						ariaName: target.ariaName,
+					})
+				: null
+		return (
+			<div className="flex flex-col gap-1 text-sm">
+				{/* Group title. These rows open the panel (nothing above to
+				 *  divide from), so the header carries no divider line. */}
+				{label && <span className="vc-group-header">{label}</span>}
+				<div className="flex flex-wrap gap-1">
+					{showNone && (
 						<button
-							// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
-							key={idx}
 							type="button"
-							onClick={() => target.setIdx(idx)}
-							aria-pressed={selected}
-							aria-label={`${target.ariaName} ${idx + 1}`}
-							className={swatchChipClass(selected, "w-7")}
+							onClick={() => target.setIdx(null)}
+							aria-pressed={target.activeIdx === null}
+							className={swatchChipClass(target.activeIdx === null, "px-2 text-sm")}
 						>
-							<Glyph
-								idx={idx}
-								selected={selected}
-								inkColor={target.ink}
-								bgColor={target.bg ?? previewBg}
-								scale={target.scale}
-							/>
+							None
 						</button>
-					)
-				})}
+					)}
+					{palette.map((_, idx) => {
+						const selected = idx === target.activeIdx
+						return (
+							<button
+								// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
+								key={idx}
+								type="button"
+								onClick={() => target.setIdx(idx)}
+								aria-pressed={selected}
+								aria-label={`${target.ariaName} ${idx + 1}`}
+								className={swatchChipClass(selected, "w-7")}
+							>
+								<Glyph
+									idx={idx}
+									selected={selected}
+									inkColor={target.ink}
+									bgColor={target.bg ?? previewBg}
+									scale={target.scale}
+								/>
+							</button>
+						)
+					})}
+					{custom?.chips}
+				</div>
+				{custom?.editor}
 			</div>
-		</div>
-	)
+		)
+	}
 
 	// Default LINE DASH row (no pattern variable) — the shared
 	// DashStylePicker (same row the per-category and regression pickers
@@ -1067,40 +1141,55 @@ export const PatternOptionsPanel = () => {
 		const Glyph = args.Glyph
 		const kind = args.ariaKind ?? "pattern"
 		const optionName = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} option`
+		const custom =
+			Glyph === PatternGlyph
+				? customPatternControls(`${kind}:${v}`, {
+						activeIdx: args.isNone ? null : args.activeIdx,
+						select: args.setIdx,
+						ink: args.ink,
+						bg: args.bg ?? previewBg,
+						scale: args.scale ?? DEFAULT_PATTERN_SCALE,
+						ariaName: optionName,
+					})
+				: null
 		return (
-			<div className="flex flex-wrap gap-1">
-				<button
-					type="button"
-					onClick={args.setNone}
-					aria-pressed={args.isNone}
-					aria-label={`No ${kind} for ${v}`}
-					className={swatchChipClass(args.isNone, "px-2 text-sm")}
-				>
-					None
-				</button>
-				{args.palette.map((_, idx) => {
-					const selected = !args.isNone && idx === args.activeIdx
-					return (
-						<button
-							// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
-							key={idx}
-							type="button"
-							onClick={() => args.setIdx(idx)}
-							aria-pressed={selected}
-							aria-label={`${optionName} ${idx + 1}`}
-							className={swatchChipClass(selected, "w-7")}
-						>
-							<Glyph
-								idx={idx}
-								selected={selected}
-								inkColor={args.ink}
-								bgColor={args.bg ?? previewBg}
-								scale={args.scale ?? DEFAULT_PATTERN_SCALE}
-							/>
-						</button>
-					)
-				})}
-			</div>
+			<>
+				<div className="flex flex-wrap gap-1">
+					<button
+						type="button"
+						onClick={args.setNone}
+						aria-pressed={args.isNone}
+						aria-label={`No ${kind} for ${v}`}
+						className={swatchChipClass(args.isNone, "px-2 text-sm")}
+					>
+						None
+					</button>
+					{args.palette.map((_, idx) => {
+						const selected = !args.isNone && idx === args.activeIdx
+						return (
+							<button
+								// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
+								key={idx}
+								type="button"
+								onClick={() => args.setIdx(idx)}
+								aria-pressed={selected}
+								aria-label={`${optionName} ${idx + 1}`}
+								className={swatchChipClass(selected, "w-7")}
+							>
+								<Glyph
+									idx={idx}
+									selected={selected}
+									inkColor={args.ink}
+									bgColor={args.bg ?? previewBg}
+									scale={args.scale ?? DEFAULT_PATTERN_SCALE}
+								/>
+							</button>
+						)
+					})}
+					{custom?.chips}
+				</div>
+				{custom?.editor}
+			</>
 		)
 	}
 

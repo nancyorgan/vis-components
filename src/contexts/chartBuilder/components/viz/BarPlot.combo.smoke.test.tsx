@@ -5,6 +5,9 @@ import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fix
 import { describe, expect, it } from "vitest"
 import { DEFAULT_DATA_LABELS_CONFIG } from "../../lib/channelConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+// Axis titles seeded cleared (""): jsdom gives the chart a tiny fallback
+// canvas, and the default field-name titles would squeeze the plot area
+// these mark-geometry assertions measure down to nothing.
 import {
 	emptyDataLabelsEncodings,
 	emptyEncodings,
@@ -78,7 +81,7 @@ const seed = (
 	store.set("vis-components:currentChannelConfigs", JSON.stringify(configs))
 	store.set(
 		"vis-components:currentLabels",
-		JSON.stringify({ _v: 1, data: DEFAULT_LABELS_CONFIG })
+		JSON.stringify({ _v: 1, data: { ...DEFAULT_LABELS_CONFIG, xAxisTitle: "", yAxisTitle: "" } })
 	)
 	/* eslint-enable @vc/use-wrapped-json-functions */
 }

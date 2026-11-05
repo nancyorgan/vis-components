@@ -10,8 +10,6 @@ import {
 	DEFAULT_LEGEND_CONFIG,
 	legendFontKey,
 	resolveLegendSwatchOutlineColor,
-	resolveLegendSwatchOutlineWidth,
-	resolveLegendSwatchShape,
 	resolveLegendSwatchSize,
 	resolveGradientBarStyle,
 	resolveLegendHidden,
@@ -20,9 +18,19 @@ import {
 	titleAlignmentOf,
 	type LegendChannel,
 	type LegendConfig,
-	type SwatchShapeChannel,
 } from "../../lib/labelsConfig"
-import { chunkColumns, planLegendSections } from "../../lib/legendSections"
+import {
+	chunkColumns,
+	planLegendSections,
+	sectionSwatchKey,
+	sectionSwatchMembers,
+} from "../../lib/legendSections"
+import {
+	isGlyphSection,
+	resolveSectionOutlineWidth,
+	resolveSectionSwatchShape,
+	sectionOutlineWidthAuto,
+} from "../../lib/legendSwatchControls"
 import {
 	currentEncodingsAtom,
 	currentFieldLevelOrdersAtom,
@@ -344,6 +352,14 @@ export const Legend = ({
 								? ((s.kind === "single" ? s.highlightField : undefined) ??
 									s.field)
 								: undefined
+						const swatchKey = sectionSwatchKey(s)
+						const swatchMembers = sectionSwatchMembers(s)
+						// Sections a Size / Angle / Length channel leads have no
+						// group channel (Color, Saturation, …) — those sort first.
+						const auxLed =
+							swatchKey === ("area" as string) ||
+							swatchKey === ("angle" as string) ||
+							swatchKey === ("length" as string)
 						const node = (
 							<LegendSection
 								key={sectionKey}
@@ -387,6 +403,7 @@ export const Legend = ({
 								gradientBarStyle={resolveGradientBarStyle(legendCfg, theme)}
 								legendFillColor={legendCfg.shapeLegendFillColor}
 								legendStrokeColor={legendCfg.shapeLegendStrokeColor}
+								legendStrokeWidth={legendCfg.shapeLegendStrokeWidth}
 								connectionMapped={
 									!hideConnection && !!encodings.connection?.field
 								}
@@ -427,19 +444,32 @@ export const Legend = ({
 												? 1
 												: undefined
 								}
-								// Per-visual choice, else the theme's default swatch
-								// shape / size. Sections keyed by a non-swatch-shape
-								// channel (shape / length / …) have no entry of their
-								// own and so take the theme's.
-								hueSwatchShape={resolveLegendSwatchShape(
-									legendCfg,
-									theme,
-									keyChannel as SwatchShapeChannel
-								)}
+								// Swatch settings key on the section's LEAD channel
+								// (sectionSwatchKey) — the key the Legend panel's
+								// subsection edits. Per-visual choice, else the
+								// theme's default; glyph sections (Size / Angle folded
+								// in) default to the marks' own shape instead.
+								hueSwatchShape={
+									auxLed
+										? (legendCfg.auxLegendSwatchShape ??
+											configs.defaultShape ??
+											0)
+										: resolveSectionSwatchShape(
+												legendCfg,
+												theme,
+												swatchKey,
+												swatchMembers,
+												configs.defaultShape ?? 0,
+												{
+													connection:
+														!hideConnection && !!encodings.connection?.field,
+												}
+											)
+								}
 								hueSwatchSize={resolveLegendSwatchSize(
 									legendCfg,
 									theme,
-									keyChannel as SwatchShapeChannel
+									swatchKey
 								)}
 								// Shape-channel glyph radius — its own key, independent
 								// of the section's lead channel, so the Shape swatch
@@ -451,39 +481,53 @@ export const Legend = ({
 									"shape"
 								)}
 								swatchOutline={(() => {
-									// Width 0 = no outline; unset follows the theme's
-									// default width. The user's swatch outline also stays
-									// inert while the outline-color encoding is mapped —
-									// those strokes are a faithful key for that encoding.
-									// Resolved per section (keyed like the swatch shape,
-									// legacy globals then the theme as fallback). Auto
-									// color depends on what the swatch DEPICTS:
-									// sections whose fill is the hue scale (a mark
-									// stand-in) pipe the marks' outline color (Color
-									// menu → Outline) so the legend matches the chart;
-									// aux-painted sections (opacity / saturation /
-									// brightness lead — fill = the theme's legend-swatch
-									// color) stroke with the theme's legend-swatch
-									// outline instead, since a mark stroke has nothing
-									// to do with those swatches. Same chains the panel
-									// displays.
-									const key = keyChannel as SwatchShapeChannel
-									const width = resolveLegendSwatchOutlineWidth(
+									// Width 0 = no outline; unset follows the section's
+									// auto width (sectionOutlineWidthAuto), else the
+									// theme's. An Outline-color member owns the stroke
+									// COLOR (the renderer ignores `color` there) but the
+									// width still applies — and 0 is honored, so the
+									// object is passed even then. Channels on other
+									// fields never switch the outline off. Auto color
+									// depends on what the swatch DEPICTS: sections whose
+									// fill is the hue scale (a mark stand-in) pipe the
+									// marks' outline color (Color menu → Outline) so the
+									// legend matches the chart; aux-painted sections
+									// (opacity / saturation / brightness lead — fill = the
+									// theme's legend-swatch color) stroke with the
+									// theme's legend-swatch outline instead. Same chains
+									// the panel displays.
+									// Size / Angle / Length-led sections (no Color):
+									// the shared Length · Angle · Size subsection's
+									// flat fields own the glyph outline.
+									if (auxLed)
+										return {
+											color: resolvedAuxSwatchStroke,
+											width: legendCfg.auxLegendSwatchStrokeWidth ?? 1,
+										}
+									const key = swatchKey
+									const width = resolveSectionOutlineWidth(
 										legendCfg,
 										theme,
-										key
+										key,
+										sectionOutlineWidthAuto(
+											swatchMembers,
+											s.type === "quantitative" || s.type === "temporal",
+											configs.shape?.outlineWidth
+										)
 									)
-									const auxLed =
+									const auxPainted =
 										key === "opacity" ||
 										key === "saturation" ||
 										key === "brightness"
-									return width > 0 && !encodings.outlineHue?.field
+									return width > 0 ||
+										swatchMembers.includes("outlineHue") ||
+										isGlyphSection(swatchMembers)
 										? {
 												color: resolveLegendSwatchOutlineColor(
 													legendCfg,
 													theme,
 													key,
-													auxLed
+													auxPainted
 														? resolvedAuxSwatchStroke
 														: (configs.shape?.outlineColor ??
 															theme.outlineColor ??

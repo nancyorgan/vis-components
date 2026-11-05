@@ -571,6 +571,9 @@ export type LegendConfig = {
 	 *  legend's swatch color needs to read distinctly against the
 	 *  legend background. */
 	shapeLegendStrokeColor?: string | null
+	/** Outline width (px) for shape legend glyphs — standalone and in a
+	 *  combined (e.g. Color · Shape) section. `null` = the historical 1px. */
+	shapeLegendStrokeWidth?: number | null
 	/** Shape drawn for each color (hue) legend swatch. `null` / undefined
 	 *  renders the historical rounded rectangle. A `0`-based index into
 	 *  `SHAPE_PALETTE` (circle, square, triangle, …) swaps the rectangle
@@ -646,6 +649,12 @@ export type LegendConfig = {
 	 * historical white (`#ffffff`) outline, which reads the marks apart
 	 * against a colored background. */
 	auxLegendSwatchStroke?: string | null
+	/** Glyph for Size-led legends (no Color in the section) — a
+	 *  `SHAPE_PALETTE` index. `null` = the marks' own shape. Shared across
+	 *  those sections like the aux swatch color / stroke above. */
+	auxLegendSwatchShape?: number | null
+	/** Outline width (px) for those Size glyphs. `null` = 1px. */
+	auxLegendSwatchStrokeWidth?: number | null
 	/** Per-quantitative-channel break + format overrides. Sparse: channels
 	 * not present here fall back to `DEFAULT_LEGEND_CHANNEL_CONFIG`. The
 	 * scale-building code reads `breaks` to override its domain; the legend
@@ -714,12 +723,15 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	gradientBarLabelAlign: null,
 	shapeLegendFillColor: null,
 	shapeLegendStrokeColor: null,
+	shapeLegendStrokeWidth: null,
 	hueLegendSwatchShape: null,
 	hueLegendSwatchSize: null,
 	swatchOutlineColor: null,
 	swatchOutlineWidth: null,
 	auxLegendSwatchColor: null,
 	auxLegendSwatchStroke: null,
+	auxLegendSwatchShape: null,
+	auxLegendSwatchStrokeWidth: null,
 	patternLegendBgColor: null,
 	patternLegendInkColor: null,
 	channels: {},

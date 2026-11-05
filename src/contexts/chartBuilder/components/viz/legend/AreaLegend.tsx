@@ -14,6 +14,8 @@ import {
 	makeAreaScale,
 	ordinalAreaCategories,
 } from "../../../lib/scales"
+import { GlyphMark, resolveGlyph, stripNudge } from "../../../lib/customGlyphs"
+import { swatchGlyphBox } from "../../../lib/swatchBox"
 import { SwatchCell } from "./swatches"
 import type { LegendProps } from "./types"
 
@@ -25,11 +27,19 @@ export const AreaLegend = ({
 	channelCfg,
 	swatchColor,
 	swatchStroke,
+	swatchShape = 0,
+	swatchStrokeWidth = 1,
 	orientation = "vertical",
 	defaultSwatchOpacity = 1,
 	proportionalSizeExponent,
 }: LegendProps & {
 	defaultSwatchOpacity?: number
+	/** Glyph (`SHAPE_PALETTE` index or custom glyph) the size swatches
+	 *  draw — the Legend panel's Size swatch shape, else the marks' shape.
+	 *  Defaults to the circle. */
+	swatchShape?: number
+	/** Glyph outline width (px). Defaults to 1. */
+	swatchStrokeWidth?: number
 	/** Hierarchy modes: swatch radii mirror the layout's TRUE proportions —
 	 * zero-anchored value^exponent scaled so the largest break fills the
 	 * maxRadius budget — instead of the min→max px range mapping (which
@@ -60,6 +70,20 @@ export const AreaLegend = ({
 			: makeAreaScale(values, type, configs.area, domain, true, pinnedOrder)
 	const color = swatchColor ?? "#4f8eda"
 	const stroke = swatchStroke ?? "#ffffff"
+	const strokeWidth = swatchStrokeWidth
+	// Swatches render centered — strip any creation-time nudge.
+	const glyph = stripNudge(resolveGlyph(swatchShape, configs.shape?.customGlyphs))
+	// Box a glyph of radius r needs: the circle keeps its historical
+	// 2r + 4 (24px floor); pointed symbols / thick outlines grow it.
+	const isCircle = glyph.kind === "symbol" && glyph.idx === 0
+	const boxOf = (r: number): number =>
+		Math.max(
+			24,
+			Math.ceil(r * 2) + 4,
+			isCircle
+				? Math.ceil(r * 2 + strokeWidth + 2)
+				: swatchGlyphBox(glyph, r, strokeWidth)
+		)
 	// Each swatch to draw: its radius + its label. Numeric fields sample
 	// value breaks; a NON-numeric ordinal draws one swatch per category
 	// (sized by the category's rank), so the size key reads the same way the
@@ -92,7 +116,31 @@ export const AreaLegend = ({
 	}
 	if (entries.length === 0) return null
 	const maxR = entries.reduce((m, e) => Math.max(m, e.r), 4)
-	const colWidth = Math.max(24, Math.ceil(maxR * 2) + 4)
+	const colWidth = boxOf(maxR)
+	// The circle stays a plain <circle> (its historical markup); other
+	// glyphs draw through GlyphMark like every shape swatch.
+	const sizeGlyph = (r: number, cx: number, cy: number) =>
+		isCircle ? (
+			<circle
+				cx={cx}
+				cy={cy}
+				r={r}
+				fill={color}
+				fillOpacity={0.8 * defaultSwatchOpacity}
+				stroke={stroke}
+				strokeWidth={strokeWidth === 1 ? undefined : strokeWidth}
+			/>
+		) : (
+			<GlyphMark
+				glyph={glyph}
+				r={r}
+				transform={`translate(${cx},${cy})`}
+				fill={color}
+				fillOpacity={0.8 * defaultSwatchOpacity}
+				stroke={stroke}
+				strokeWidth={strokeWidth}
+			/>
+		)
 	if (orientation === "horizontal") {
 		// Single row of swatches, NO wrap. The legend's outer container
 		// expands to accommodate; horizontal layouts get a long row, not
@@ -105,18 +153,11 @@ export const AreaLegend = ({
 						className="flex flex-shrink-0 flex-col items-center gap-1"
 					>
 						<svg
-							width={Math.max(24, e.r * 2 + 4)}
-							height={Math.max(24, e.r * 2 + 4)}
+							width={boxOf(e.r)}
+							height={boxOf(e.r)}
 							aria-hidden="true"
 						>
-							<circle
-								cx={Math.max(12, e.r + 2)}
-								cy={Math.max(12, e.r + 2)}
-								r={e.r}
-								fill={color}
-								fillOpacity={0.8 * defaultSwatchOpacity}
-								stroke={stroke}
-							/>
+							{sizeGlyph(e.r, boxOf(e.r) / 2, boxOf(e.r) / 2)}
 						</svg>
 						<span>{e.label}</span>
 					</div>
@@ -129,7 +170,7 @@ export const AreaLegend = ({
 	return (
 		<div className="vc-legend-rows flex flex-col gap-1">
 			{entries.map((e) => {
-				const rowH = Math.max(24, Math.ceil(e.r * 2) + 4)
+				const rowH = boxOf(e.r)
 				return (
 					<div key={e.key} className="flex items-center gap-2">
 						<SwatchCell>
@@ -139,14 +180,7 @@ export const AreaLegend = ({
 								aria-hidden="true"
 								className="flex-shrink-0"
 							>
-								<circle
-									cx={colWidth / 2}
-									cy={rowH / 2}
-									r={e.r}
-									fill={color}
-									fillOpacity={0.8 * defaultSwatchOpacity}
-									stroke={stroke}
-								/>
+								{sizeGlyph(e.r, colWidth / 2, rowH / 2)}
 							</svg>
 						</SwatchCell>
 						<span className="min-w-0 truncate">{e.label}</span>

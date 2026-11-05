@@ -9,6 +9,9 @@ import {
 } from "../../lib/channelConfig"
 import { BAR_LABEL_EDGE_PAD_PX } from "../../lib/dataLabelsLayout"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+// Axis titles seeded cleared (""): jsdom gives the chart a tiny fallback
+// canvas, and the default field-name titles would squeeze the plot area
+// these mark-geometry assertions measure down to nothing.
 import {
 	emptyDataLabelsEncodings,
 	emptyEncodings,
@@ -71,7 +74,7 @@ const seed = (
 	store.set("vis-components:currentChannelConfigs", JSON.stringify({}))
 	store.set(
 		"vis-components:currentLabels",
-		JSON.stringify({ _v: 1, data: DEFAULT_LABELS_CONFIG })
+		JSON.stringify({ _v: 1, data: { ...DEFAULT_LABELS_CONFIG, xAxisTitle: "", yAxisTitle: "" } })
 	)
 	store.set(
 		"vis-components:currentDataLabelsEncodings",

@@ -14,6 +14,9 @@ import {
 } from "../../lib/channelConfig"
 import { DEFAULT_DATA_TABLE_CONFIG } from "../../lib/dataTableConfig"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+// Axis titles seeded cleared (""): jsdom gives the chart a tiny fallback
+// canvas, and the default field-name titles would squeeze the plot area
+// these mark-geometry assertions measure down to nothing.
 import { emptyEncodings, type Encodings, type Field } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -56,7 +59,7 @@ const mount = (args: {
 		s.set(currentChannelConfigsAtom, args.channelConfigs ?? EMPTY_CHANNEL_CONFIGS)
 		s.set(currentFieldOverridesAtom, {})
 		s.set(currentFieldLevelOrdersAtom, {})
-		s.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+		s.set(currentLabelsAtom, { ...DEFAULT_LABELS_CONFIG, xAxisTitle: "", yAxisTitle: "" })
 		s.set(currentVisualNameAtom, "Agg")
 		s.set(currentDataTableConfigAtom, { ...DEFAULT_DATA_TABLE_CONFIG, enabled: true })
 	}

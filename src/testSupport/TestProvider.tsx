@@ -1,6 +1,8 @@
 import { createStore, Provider } from "jotai"
 import { useState, type ReactNode } from "react"
 
+import { CustomPatternsProvider } from "../contexts/chartBuilder/store/CustomPatternsProvider"
+
 export type TestStore = ReturnType<typeof createStore>
 
 /** Test root that replaces Recoil's `<RecoilRoot initializeState={...}>`:
@@ -24,5 +26,9 @@ export const TestProvider = ({
 		initializeState?.(s)
 		return s
 	})
-	return <Provider store={store}>{children}</Provider>
+	return (
+		<Provider store={store}>
+			<CustomPatternsProvider>{children}</CustomPatternsProvider>
+		</Provider>
+	)
 }

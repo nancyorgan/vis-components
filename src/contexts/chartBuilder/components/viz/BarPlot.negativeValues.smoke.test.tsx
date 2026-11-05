@@ -4,6 +4,9 @@ import { installInMemoryLocalStorage } from "../../../../testSupport/localStorag
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_LABELS_CONFIG } from "../../lib/labelsConfig"
+// Axis titles seeded cleared (""): jsdom gives the chart a tiny fallback
+// canvas, and the default field-name titles would squeeze the plot area
+// these mark-geometry assertions measure down to nothing.
 import { emptyEncodings, type Dataset } from "../../lib/types"
 
 import { ChartCanvas } from "./ChartCanvas"
@@ -62,7 +65,7 @@ const seed = ({ horizontal = false }: { horizontal?: boolean } = {}) => {
 	)
 	store.set(
 		"vis-components:currentLabels",
-		JSON.stringify({ _v: 1, data: DEFAULT_LABELS_CONFIG })
+		JSON.stringify({ _v: 1, data: { ...DEFAULT_LABELS_CONFIG, xAxisTitle: "", yAxisTitle: "" } })
 	)
 	/* eslint-enable @vc/use-wrapped-json-functions */
 }
@@ -193,7 +196,7 @@ describe("BarPlot — negative measures", () => {
 		store.set("vis-components:currentChannelConfigs", JSON.stringify({}))
 		store.set(
 			"vis-components:currentLabels",
-			JSON.stringify({ _v: 1, data: DEFAULT_LABELS_CONFIG })
+			JSON.stringify({ _v: 1, data: { ...DEFAULT_LABELS_CONFIG, xAxisTitle: "", yAxisTitle: "" } })
 		)
 		/* eslint-enable @vc/use-wrapped-json-functions */
 		const { container } = mount()

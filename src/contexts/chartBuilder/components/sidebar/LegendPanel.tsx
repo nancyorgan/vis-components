@@ -33,8 +33,6 @@ import {
 	QUANTITATIVE_LEGEND_CHANNELS,
 	legendSwatchOutlineColor,
 	resolveLegendSwatchOutlineColor,
-	resolveLegendSwatchOutlineWidth,
-	resolveLegendSwatchShape,
 	resolveLegendSwatchSize,
 	resolveLegendHidden,
 	resolveGradientBarStyle,
@@ -43,7 +41,6 @@ import {
 	type LabelAlignment,
 	type LegendChannel,
 	type LegendChannelConfig,
-	type LegendSwatchShape,
 	type LegendConfig,
 	type QuantitativeLegendChannel,
 	type SwatchShapeChannel,
@@ -55,6 +52,13 @@ import {
 	resolveLegendBreaks,
 } from "../../lib/legendBreaks"
 import { planLegendSections } from "../../lib/legendSections"
+import {
+	legendSwatchControls,
+	resolveSectionOutlineWidth,
+	resolveSectionSwatchShape,
+	sectionOutlineWidthAuto,
+	type SwatchMember,
+} from "../../lib/legendSwatchControls"
 import { isHierarchyModeId, packedSourceOf } from "../../lib/packedMeasure"
 import { DEFAULT_PATTERN_INK } from "../../lib/patterns"
 import {
@@ -636,15 +640,64 @@ export const LegendPanel = () => {
 			(c) => swatchChannelActive(c) && encodings[c]?.field === field
 		)
 	}
+	// The glyph the marks draw when no Shape field varies it — same mode
+	// rule Legend.tsx applies (the Default shape only draws in glyph modes).
+	const marksShape =
+		modeDef.canvas.shapeRole === "glyph" ? (renderConfigs.defaultShape ?? 0) : 0
+	// EVERY channel the renderer folds into the section on `field` that
+	// `lead` leads — group channels plus Shape / Length / Angle / Size, in
+	// the renderer's GROUP_CHANNELS order. legendSwatchControls turns this
+	// into the subsection's rows, so the panel offers exactly the swatch
+	// properties no member encodes.
+	const sectionMembersOf = (
+		field: string | null | undefined,
+		lead: SwatchMember
+	): SwatchMember[] => {
+		if (!field || !combineLegendSections) return [lead]
+		const order: SwatchMember[] = [
+			...swatchGroupChannels,
+			"shape",
+			"length",
+			"angle",
+			"area",
+		]
+		return order.filter(
+			(c) =>
+				c === lead ||
+				(mappedLegendChannels.includes(c as EncodingLegendChannel) &&
+					!effHidden[c as LegendChannel] &&
+					encodings[c as keyof typeof encodings]?.field === field &&
+					(c !== "shape" || showShapeSwatch))
+		)
+	}
+	// Line-chart context for the rule (a Pattern member draws the dash
+	// overlay) — the same test Legend.tsx hands the renderer.
+	const swatchCtx = {
+		connection:
+			!modeDef.legend.hideConnectionInThisMode && !!encodings.connection?.field,
+	}
+	const isQuantField = (field: string | null | undefined): boolean => {
+		if (!field || !dataset) return false
+		const t = effectiveType(dataset, field, overrides)
+		return t === "quantitative" || t === "temporal"
+	}
 	// A quantitative color section falls back to discrete swatches — even in
 	// "bar" gradient style — when another group channel shares its field (a
 	// composed per-stop visual can't render as a continuous gradient strip).
 	const quantForcedToSwatches = (field: string | null): boolean =>
 		!!field &&
 		combineLegendSections &&
-		(["saturation", "brightness", "pattern", "opacity"] as const).some(
+		((["saturation", "brightness", "pattern", "opacity"] as const).some(
 			(c) => swatchChannelActive(c) && encodings[c]?.field === field
-		)
+		) ||
+			// Size / Angle on the field draw per-stop glyphs (the combined
+			// legend's glyph path), whatever the gradient style.
+			(["area", "angle"] as const).some(
+				(c) =>
+					mappedLegendChannels.includes(c) &&
+					!effHidden[c] &&
+					encodings[c]?.field === field
+			))
 	const hueRendersSwatches =
 		mappedLegendChannels.includes("hue") &&
 		!effHidden.hue &&
@@ -680,8 +733,6 @@ export const LegendPanel = () => {
 	// explicitly — the rectangle as "rect", since a stored null means
 	// "follow the theme". Hue's legacy global fields are cleared alongside
 	// so they can't shine through a dropped entry.
-	const setSwatchShape = (ch: SwatchShapeChannel, shape: LegendSwatchShape) =>
-		update(swatchShapePatch(merged, ch, shape, theme))
 	const setSwatchSize = (ch: SwatchShapeChannel, size: number) =>
 		update(swatchSizePatch(merged, ch, size, theme))
 	const setSwatchOutlineColor = (ch: SwatchShapeChannel, color: string) =>
@@ -697,8 +748,6 @@ export const LegendPanel = () => {
 		else delete next[ch]
 		update({ swatchOutlineColors: next })
 	}
-	const setSwatchOutlineWidth = (ch: SwatchShapeChannel, width: number) =>
-		update(swatchOutlineWidthPatch(merged, ch, width, theme))
 	// The standalone-swatch color picker appears for channels in
 	// {length, angle, area, opacity} that are mapped + visible AND aren't
 	// sharing a field with hue (those get their color from the hue
@@ -723,6 +772,18 @@ export const LegendPanel = () => {
 		// visible effect, so leave it out of the header.
 		const f = encodings[ch]?.field
 		if (f && visibleHueField && f === visibleHueField) return false
+		// Likewise any other group channel (Saturation, Pattern, …) on the
+		// field: the section is that channel's, and its own subsection
+		// carries the swatch rows (legendSwatchControls) — a second picker
+		// here would edit settings that section doesn't read.
+		if (
+			f &&
+			combineLegendSections &&
+			swatchGroupChannels.some(
+				(g) => swatchChannelActive(g) && encodings[g]?.field === f
+			)
+		)
+			return false
 		return true
 	})
 	// "Combine legends with same variables": when on (the default), an aux
@@ -736,7 +797,14 @@ export const LegendPanel = () => {
 		combineLegendSections && shapeField
 			? auxSwatchActiveChannels.filter((ch) => encodings[ch]?.field === shapeField)
 			: []
-	const shapeGroupedWithAux = auxSharingShapeField.length > 0
+	// Every channel the Shape legend section depicts, and the rows it gets
+	// (legendSwatchControls): Color on the field owns the fill, Pattern
+	// tiles it, Outline color owns the stroke color, Size the radius.
+	const shapeMembers: SwatchMember[] = sectionMembersOf(shapeField, "shape")
+	const shapeControls = legendSwatchControls(shapeMembers)
+	// ≥2 members → the combined renderer (its defaults differ from the
+	// standalone Shape legend's).
+	const shapeSectionCombined = shapeMembers.length > 1
 	// Aux channels shown in their OWN swatch subsection = the active ones not
 	// folded into the Shape swatch above.
 	const auxSwatchDisplayChannels = auxSwatchActiveChannels.filter(
@@ -755,15 +823,66 @@ export const LegendPanel = () => {
 	const showAuxSwatchStroke = auxSwatchDisplayChannels.includes("area")
 	const resolvedAuxSwatchStroke =
 		merged.auxLegendSwatchStroke ?? theme.legendSwatchStroke ?? DEFAULT_SWATCH_STROKE
+	// No-hue pattern tiles (a section with Pattern but no Color — pattern-,
+	// saturation-, brightness-, opacity-, outline- or shape-led): the tiles
+	// ARE the fill, defaulting to the Pattern menu's Background (else gray)
+	// under a near-black ink — offer both as legend-side overrides.
+	// Per-category ink overrides from the Pattern menu still win in the
+	// renderer. Shared by every swatch subsection whose fill control is
+	// "pattern" (legendSwatchControls).
+	const patternFillRows = (
+		<>
+			<div className="flex flex-wrap items-center gap-2">
+				<ColorInput
+					label="Background"
+					labelClassName={LABEL_COL}
+					value={
+						merged.patternLegendBgColor ??
+						configs.defaultFill ??
+						DEFAULT_FILL
+					}
+					onChange={(patternLegendBgColor) =>
+						update({ patternLegendBgColor })
+					}
+					showHexInput
+				/>
+				{merged.patternLegendBgColor != null && (
+					<ResetLink
+						onClick={() =>
+							update({ patternLegendBgColor: null })
+						}
+					/>
+				)}
+			</div>
+			<div className="flex flex-wrap items-center gap-2">
+				<ColorInput
+					label="Pattern color"
+					labelClassName={LABEL_COL}
+					value={
+						merged.patternLegendInkColor ??
+						DEFAULT_PATTERN_INK
+					}
+					onChange={(patternLegendInkColor) =>
+						update({ patternLegendInkColor })
+					}
+					showHexInput
+				/>
+				{merged.patternLegendInkColor != null && (
+					<ResetLink
+						onClick={() =>
+							update({ patternLegendInkColor: null })
+						}
+					/>
+				)}
+			</div>
+		</>
+	)
 	// Header for the shape swatch subsection: when a same-field aux channel
 	// (e.g. Size) merged in, name both — "Size · Shape" — so it's clear this
 	// one control drives the combined legend's swatch.
-	const shapeSwatchHeader = shapeGroupedWithAux
-		? [
-				...auxSharingShapeField.map((ch) => LEGEND_FRIENDLY_NAME[ch]),
-				LEGEND_FRIENDLY_NAME.shape,
-			].join(" · ")
-		: LEGEND_FRIENDLY_NAME.shape
+	const shapeSwatchHeader = shapeMembers
+		.map((ch) => LEGEND_FRIENDLY_NAME[ch as LegendChannel])
+		.join(" · ")
 	// The combine toggle only makes sense when ≥2 legend channels actually
 	// share a field; otherwise there's nothing to combine. The rug and
 	// density-curve slot legends count too — they fold into a same-field
@@ -1521,10 +1640,31 @@ export const LegendPanel = () => {
 								<ResetLink onClick={() => update({ auxLegendSwatchColor: null })} />
 							)}
 					</div>
+					{/* Size glyphs: shape (default: the marks' own) — Length /
+					 *  Angle swatches are line segments, so only a Size legend
+					 *  takes one — plus the outline color + width below. */}
+					{showAuxSwatchStroke && (
+						<div className="flex flex-col gap-1 text-sm">
+							<span className="vc-muted">Swatch shape</span>
+							<SwatchShapePicker
+								value={merged.auxLegendSwatchShape ?? marksShape}
+								defaultShape={marksShape}
+								options="glyphs"
+								onChange={(shape) =>
+									update({
+										auxLegendSwatchShape:
+											shape === marksShape || typeof shape !== "number"
+												? null
+												: shape,
+									})
+								}
+							/>
+						</div>
+					)}
 					{showAuxSwatchStroke && (
 						<div className="flex flex-wrap items-center gap-2">
 							<ColorInput
-								label="Swatch outline"
+								label="Outline color"
 								labelClassName={LABEL_COL}
 								value={resolvedAuxSwatchStroke}
 								onChange={(auxLegendSwatchStroke) =>
@@ -1538,15 +1678,35 @@ export const LegendPanel = () => {
 								)}
 						</div>
 					)}
+					{showAuxSwatchStroke && (
+						<div className="flex items-center gap-2">
+							<NumberInput
+								label="Outline width"
+								labelClassName={LABEL_COL}
+								value={merged.auxLegendSwatchStrokeWidth ?? 1}
+								min={0}
+								max={5}
+								step={0.5}
+								clamp
+								onChange={(w) =>
+									update({ auxLegendSwatchStrokeWidth: w === 1 ? null : w })
+								}
+								inputClassName="w-16"
+								suffix="px"
+							/>
+							{merged.auxLegendSwatchStrokeWidth != null && (
+								<ResetLink
+									onClick={() => update({ auxLegendSwatchStrokeWidth: null })}
+								/>
+							)}
+						</div>
+					)}
 				</CollapsibleSubsection>
 			)}
 
 			{swatchShapeSections.map((ch) => {
-						// The glyph this section renders with: its own choice, else
-						// the theme's default.
-						const current = resolveLegendSwatchShape(merged, theme, ch)
-						// Channels folded into this section (lead first). Drives the
-						// subsection title AND which color rows are live: pattern tiles
+						// Group channels folded into this section (lead first). Drives
+						// which color rows are live: pattern tiles
 						// own the swatch background, so the aux Swatch-color row is
 						// inert when pattern is a member (except in line context,
 						// where the dash overlay strokes with the aux color), and
@@ -1556,14 +1716,57 @@ export const LegendPanel = () => {
 						const members: readonly SwatchGroupChannel[] =
 							ch === "rug" ? [] : swatchSectionMembers(ch)
 						const patternInSection = members.includes("pattern")
-						const connectionMapped = !!encodings.connection?.field
+						// Every channel the section's swatches depict → the rows
+						// this subsection offers (see legendSwatchControls).
+						const sectionField = ch === "rug" ? rugField : encodings[ch]?.field
+						const swatchMembers: SwatchMember[] =
+							ch === "rug" ? ["rug"] : sectionMembersOf(sectionField, ch)
+						const controls = legendSwatchControls(swatchMembers, swatchCtx)
+						const glyphSection = controls.shapeOptions === "glyphs"
+						const outlineAuto = sectionOutlineWidthAuto(
+							swatchMembers,
+							isQuantField(sectionField),
+							configs.shape?.outlineWidth
+						)
+						const outlineWidth = resolveSectionOutlineWidth(
+							merged,
+							theme,
+							ch,
+							outlineAuto
+						)
+						const shapeValue = resolveSectionSwatchShape(
+							merged,
+							theme,
+							ch,
+							swatchMembers,
+							marksShape,
+							swatchCtx
+						)
+						const auxColorRow =
+							(ch === "opacity" ||
+								ch === "saturation" ||
+								ch === "brightness") &&
+							(!patternInSection || !!encodings.connection?.field)
+						// Nothing to choose (e.g. a Color · Length vector-field
+						// legend: segments in the hue color) → no subsection.
+						if (
+							!controls.shape &&
+							!controls.size &&
+							!controls.outlineColor &&
+							!controls.outlineWidth &&
+							!auxColorRow &&
+							controls.fill !== "pattern"
+						)
+							return null
 						// Each swatch-drawing legend section gets its OWN collapsible
 						// subsection, titled by the channels it represents — matching
 						// the standalone "Shape swatch" / "Size swatch" subsections.
 						const sectionName =
 							ch === "rug"
 								? LEGEND_FRIENDLY_NAME.rug
-								: members.map((c) => LEGEND_FRIENDLY_NAME[c]).join(" · ")
+								: swatchMembers
+										.map((c) => LEGEND_FRIENDLY_NAME[c as LegendChannel])
+										.join(" · ")
 						// The dot lights when ANY member channel's swatch settings
 						// deviate — a combined "Brightness · Pattern" subsection also
 						// hosts the pattern rows, so it tracks both channels.
@@ -1578,14 +1781,33 @@ export const LegendPanel = () => {
 								changed={sectionChanged}
 							>
 							<div className="flex flex-col gap-1 text-sm">
-								<span className="vc-muted">
-									Swatch shape
-								</span>
-								<SwatchShapePicker
-									value={current}
-									defaultShape={theme.legendSwatchShape}
-									onChange={(shape) => setSwatchShape(ch, shape)}
-								/>
+								{controls.shape && (
+									<>
+										<span className="vc-muted">Swatch shape</span>
+										{/* Glyph sections (Size / Angle folded in) draw the
+										 *  marks' shape by default and take glyphs only — a
+										 *  rectangle or line can't show a size or rotation. */}
+										<SwatchShapePicker
+											value={shapeValue}
+											defaultShape={
+												glyphSection ? marksShape : theme.legendSwatchShape
+											}
+											options={controls.shapeOptions}
+											onChange={(shape) =>
+												update(
+													swatchShapePatch(
+														merged,
+														ch,
+														shape,
+														theme,
+														glyphSection ? marksShape : undefined
+													)
+												)
+											}
+										/>
+									</>
+								)}
+								{controls.size && (
 								<div className="flex items-center gap-2">
 									<NumberInput
 										label="Swatch size"
@@ -1605,6 +1827,7 @@ export const LegendPanel = () => {
 										/>
 									)}
 								</div>
+								)}
 								{/* Swatch color: opacity / saturation / brightness swatches
 								 *  paint with the shared aux color (no hue scale to inherit
 								 *  from), so its picker lives right in their group — the
@@ -1613,10 +1836,7 @@ export const LegendPanel = () => {
 								 *  (hidden) when pattern shares the section — the tiles
 								 *  paint the pattern Background instead — unless the dash
 								 *  overlay (line context) strokes with this color. */}
-								{(ch === "opacity" ||
-									ch === "saturation" ||
-									ch === "brightness") &&
-									(!patternInSection || connectionMapped) && (
+								{auxColorRow && (
 									<div className="flex flex-wrap items-center gap-2">
 										<ColorInput
 											label="Swatch color"
@@ -1644,59 +1864,15 @@ export const LegendPanel = () => {
 								 *  win in the renderer, and both rows are moot when hue
 								 *  shares the field (that section is hue-led — hue owns
 								 *  the tile background). */}
-								{ch !== "hue" && ch !== "outlineHue" && patternInSection && (
-									<>
-										<div className="flex flex-wrap items-center gap-2">
-											<ColorInput
-												label="Background"
-												labelClassName={LABEL_COL}
-												value={
-													merged.patternLegendBgColor ??
-													configs.defaultFill ??
-													DEFAULT_FILL
-												}
-												onChange={(patternLegendBgColor) =>
-													update({ patternLegendBgColor })
-												}
-												showHexInput
-											/>
-											{merged.patternLegendBgColor != null && (
-												<ResetLink
-													onClick={() =>
-														update({ patternLegendBgColor: null })
-													}
-												/>
-											)}
-										</div>
-										<div className="flex flex-wrap items-center gap-2">
-											<ColorInput
-												label="Pattern color"
-												labelClassName={LABEL_COL}
-												value={
-													merged.patternLegendInkColor ??
-													DEFAULT_PATTERN_INK
-												}
-												onChange={(patternLegendInkColor) =>
-													update({ patternLegendInkColor })
-												}
-												showHexInput
-											/>
-											{merged.patternLegendInkColor != null && (
-												<ResetLink
-													onClick={() =>
-														update({ patternLegendInkColor: null })
-													}
-												/>
-											)}
-										</div>
-									</>
-								)}
-								{/* Swatch outline: per-section color + width. Hidden
-								 *  while the outline-color channel is encoded — mapped
-								 *  outline colors own the swatch strokes and this
-								 *  setting is inert (the renderer ignores it too).
-								 *  Width 0 draws no outline; both rows start from the
-								 *  theme's defaults. A theme without an outline color
+								{controls.fill === "pattern" && patternFillRows}
+								{/* Swatch outline: per-section color + width, per
+								 *  legendSwatchControls — the color row hides only when an
+								 *  Outline color channel is IN this section (its scale
+								 *  strokes the glyphs); the width always applies, and
+								 *  channels on other fields never switch either off.
+								 *  Width 0 draws no outline; the width starts from the
+								 *  section's auto width (sectionOutlineWidthAuto), else
+								 *  the theme's. A theme without an outline color
 								 *  seeds it from the marks' outline color (Color menu →
 								 *  Outline) so the legend matches the chart when the
 								 *  user turns the width up — except aux-painted
@@ -1704,8 +1880,7 @@ export const LegendPanel = () => {
 								 *  swatches aren't mark stand-ins: those seed from the
 								 *  theme's legend-swatch outline, matching the
 								 *  renderer. */}
-								{!outlineHueField && (
-									<>
+								{controls.outlineColor && (
 										<div className="flex flex-wrap items-center gap-2">
 											<ColorInput
 												label="Outline color"
@@ -1731,29 +1906,48 @@ export const LegendPanel = () => {
 												<ResetLink onClick={() => resetSwatchOutlineColor(ch)} />
 											)}
 										</div>
+								)}
+								{controls.outlineWidth && (
 										<div className="flex items-center gap-2">
 											<NumberInput
 												label="Outline width"
 												labelClassName={LABEL_COL}
-												value={resolveLegendSwatchOutlineWidth(merged, theme, ch)}
+												value={outlineWidth}
 												min={0}
 												max={10}
 												step={0.5}
 												clamp
-												onChange={(width) => setSwatchOutlineWidth(ch, width)}
+												onChange={(width) =>
+													update(
+														swatchOutlineWidthPatch(
+															merged,
+															ch,
+															width,
+															theme,
+															outlineAuto
+														)
+													)
+												}
 												inputClassName="w-16"
 												suffix="px"
 											/>
-											{resolveLegendSwatchOutlineWidth(merged, theme, ch) !==
-												theme.legendSwatchOutlineWidth && (
+											{outlineWidth !==
+												(outlineAuto ?? theme.legendSwatchOutlineWidth) && (
 												<ResetLink
 													onClick={() =>
-														setSwatchOutlineWidth(ch, theme.legendSwatchOutlineWidth)
+														update(
+															swatchOutlineWidthPatch(
+																merged,
+																ch,
+																outlineAuto ?? theme.legendSwatchOutlineWidth,
+																theme,
+																outlineAuto
+															)
+														)
 													}
 												/>
 											)}
 										</div>
-									</>
 								)}
 							</div>
 							</CollapsibleSubsection>
@@ -1768,14 +1962,37 @@ export const LegendPanel = () => {
 						}
 					>
 					<div className="flex flex-col gap-2">
+					{/* Fill per legendSwatchControls: Color owns it; a Pattern
+					 *  member tiles it (Background + Pattern color); else the
+					 *  shape swatch color. Defaults shown are what the renderer
+					 *  draws: the standalone Shape legend's neutral gray, or the
+					 *  combined legend's aux / theme swatch color. */}
+					{shapeControls.fill === "pattern" && patternFillRows}
+					{shapeControls.fill === "color" && (
 					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
 							label="Swatch color"
 							labelClassName={LABEL_COL}
 							value={
 								merged.shapeLegendFillColor ??
-								theme.legendSwatchColor ??
-								DEFAULT_SWATCH_FILL
+								(!shapeSectionCombined
+									? "#9ca3af"
+									: shapeMembers.some((c) =>
+												(
+													[
+														"opacity",
+														"saturation",
+														"brightness",
+														"area",
+														"length",
+														"angle",
+													] as SwatchMember[]
+												).includes(c)
+										  )
+										? resolvedAuxSwatchColor
+										: (theme.legendSwatchColor ??
+											configs.defaultFill ??
+											DEFAULT_FILL))
 							}
 							onChange={(shapeLegendFillColor) =>
 								update({ shapeLegendFillColor })
@@ -1787,14 +2004,22 @@ export const LegendPanel = () => {
 								<ResetLink onClick={() => update({ shapeLegendFillColor: null })} />
 							)}
 					</div>
+					)}
+					{/* Outline color: hidden when an Outline color channel
+					 *  shares the field (it strokes each glyph). Default shown is
+					 *  what the renderer draws: the combined legend follows the
+					 *  marks' outline (Shape menu), the standalone one a dark
+					 *  contrast stroke. */}
+					{shapeControls.outlineColor && (
 					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
-							label="Swatch outline"
+							label="Outline color"
 							labelClassName={LABEL_COL}
 							value={
 								merged.shapeLegendStrokeColor ??
-								theme.outlineColor ??
-								DEFAULT_SWATCH_STROKE
+								(shapeSectionCombined
+									? (configs.shape?.outlineColor ?? DEFAULT_SWATCH_STROKE)
+									: "#1f2937")
 							}
 							onChange={(shapeLegendStrokeColor) =>
 								update({ shapeLegendStrokeColor })
@@ -1806,10 +2031,30 @@ export const LegendPanel = () => {
 								<ResetLink onClick={() => update({ shapeLegendStrokeColor: null })} />
 							)}
 					</div>
+					)}
+					<div className="flex items-center gap-2">
+						<NumberInput
+							label="Outline width"
+							labelClassName={LABEL_COL}
+							value={merged.shapeLegendStrokeWidth ?? 1}
+							min={0}
+							max={5}
+							step={0.5}
+							clamp
+							onChange={(shapeLegendStrokeWidth) =>
+								update({ shapeLegendStrokeWidth })
+							}
+							inputClassName="w-16"
+							suffix="px"
+						/>
+						{merged.shapeLegendStrokeWidth != null && (
+							<ResetLink onClick={() => update({ shapeLegendStrokeWidth: null })} />
+						)}
+					</div>
 					{/* Glyph radius for shape swatches. Hidden when the Size (area)
 					 *  channel merged into this section — the size scale then owns
 					 *  each swatch's radius and this input would be inert. */}
-					{!auxSharingShapeField.includes("area") && (
+					{shapeControls.size && (
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Swatch size"

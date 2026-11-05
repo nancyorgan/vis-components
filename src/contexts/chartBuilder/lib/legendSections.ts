@@ -33,7 +33,6 @@ import {
 	type LegendSwatchThemeDefaults,
 	QUANTITATIVE_LEGEND_CHANNELS,
 	type QuantitativeLegendChannel,
-	resolveLegendSwatchOutlineWidth,
 	resolveLegendSwatchShape,
 	resolveLegendSwatchSize,
 	resolveLegendTextFont,
@@ -69,6 +68,11 @@ import { applyLevelOrder } from "./smartSort"
 import { SWATCH_BOX_PAD, swatchGlyphBox } from "./swatchBox"
 import type { DatasetView, EncodingChannel, Encodings, FieldType } from "./types"
 import { uniqueValues } from "./uniqueFieldValues"
+import {
+	isGlyphSection,
+	resolveSectionOutlineWidth,
+	type SwatchMember,
+} from "./legendSwatchControls"
 
 const effectiveType = (
 	inferred: FieldType | undefined,
@@ -209,6 +213,26 @@ export type SlotSection = {
 	coalesced?: LegendChannel[]
 }
 export type SectionInfo = SingleSection | CombinedSection | SlotSection
+
+/** The key a section's swatch settings (shape / size / outline) live
+ *  under: its LEAD channel — the first group channel on the field, which is
+ *  also the channel the Legend panel's swatch subsection edits. NOT the
+ *  title channel: titling only a later member (say Pattern in a Color ·
+ *  Pattern legend) must not move the swatch settings to another key. */
+export const sectionSwatchKey = (s: SectionInfo): SwatchShapeChannel =>
+	(s.kind === "single"
+		? s.channel
+		: s.kind === "combined"
+			? s.channels[0]
+			: s.legendKey) as SwatchShapeChannel
+
+/** Every channel a section's swatches depict (see legendSwatchControls). */
+export const sectionSwatchMembers = (s: SectionInfo): SwatchMember[] =>
+	s.kind === "combined"
+		? [...s.channels]
+		: s.kind === "single"
+			? [s.channel as SwatchMember]
+			: ["rug"]
 
 /** The swatch rows a discrete color section renders, as a comparable
  *  string: each category → its fill, plus the outline where the section
@@ -862,11 +886,9 @@ export const planLegendSections = ({
 	// The user's swatch outline stays inert while the outline-color encoding
 	// is mapped (Legend.tsx) — no stroke widens the box then.
 	const swatchOutlineWidthOf = (key: SwatchShapeChannel): number =>
-		encodings.outlineHue?.field
-			? 0
-			: swatchTheme
-				? resolveLegendSwatchOutlineWidth(legendCfg, swatchTheme, key)
-				: (legendSwatchOutlineWidth(legendCfg, key) ?? 0)
+		swatchTheme
+			? resolveSectionOutlineWidth(legendCfg, swatchTheme, key, null)
+			: (legendSwatchOutlineWidth(legendCfg, key) ?? 0)
 	// Composed (color-style) swatch width honoring the user's per-section
 	// swatch shape + size (Legend panel → Swatches): a shaped glyph draws in
 	// its `swatchGlyphBox`; the default rectangle scales 18px × r/5.
@@ -914,11 +936,11 @@ export const planLegendSections = ({
 		if (s.channels.includes("shape")) {
 			return Math.max(AREA_SWATCH_W, widestShapeGlyphBox(s, areaMaxRadius, 1))
 		}
-		const shape = swatchShapeOf(key)
+		const choice = legendSwatchShape(legendCfg, key)
 		const glyph =
-			shape === null
-				? resolveGlyph(configs.defaultShape ?? 0, configs.shape?.customGlyphs)
-				: shape
+			typeof choice === "number" && isGlyphSection(s.channels)
+				? choice
+				: resolveGlyph(configs.defaultShape ?? 0, configs.shape?.customGlyphs)
 		return Math.max(AREA_SWATCH_W, swatchGlyphBox(glyph, areaMaxRadius, 1))
 	}
 	// Line-chart context: a combined pattern section overlays the dash line
@@ -928,12 +950,7 @@ export const planLegendSections = ({
 		!modeDef.legend.hideConnectionInThisMode && !!encodings.connection?.field
 	// Swatch shape / size lookups key on the section's LEAD channel — same
 	// resolution Legend.tsx uses when it hands the pickers' values down.
-	const sectionKeyOf = (s: SectionInfo): SwatchShapeChannel =>
-		(s.kind === "single"
-			? (s.titleChannel ?? s.channel)
-			: s.kind === "combined"
-				? (s.titleChannel ?? s.channels[0])
-				: s.legendKey) as SwatchShapeChannel
+	const sectionKeyOf = sectionSwatchKey
 	const sectionSwatchW = (s: SectionInfo): number => {
 		const key = sectionKeyOf(s)
 		if (s.kind === "single") {
@@ -941,7 +958,19 @@ export const planLegendSections = ({
 				case "length":
 					return LENGTH_SWATCH_W
 				case "area":
-					return AREA_SWATCH_W
+					// The Size swatch glyph (Length · Angle · Size subsection,
+					// else the marks' shape) at the largest radius.
+					return Math.max(
+						AREA_SWATCH_W,
+						swatchGlyphBox(
+							resolveGlyph(
+								legendCfg.auxLegendSwatchShape ?? configs.defaultShape ?? 0,
+								configs.shape?.customGlyphs
+							),
+							areaMaxRadius,
+							legendCfg.auxLegendSwatchStrokeWidth ?? 1
+						)
+					)
 				case "angle":
 					return ANGLE_SWATCH_W
 				case "opacity":

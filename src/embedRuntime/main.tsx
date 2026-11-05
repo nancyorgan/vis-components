@@ -9,6 +9,7 @@ import { Provider } from "jotai"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 
+import { CustomPatternsProvider } from "../contexts/chartBuilder/store/CustomPatternsProvider"
 import { bootEmbedRuntime } from "./boot"
 import { EmbedRoot } from "./EmbedRoot"
 import { readEmbedDocument } from "./payload"
@@ -31,10 +32,12 @@ if (embedDocument === null) {
 	createRoot(root).render(
 		<StrictMode>
 			<Provider store={store}>
-				<EmbedRoot
-					part={embedDocument.part}
-					visualId={embedDocument.payload.visual.id}
-				/>
+				<CustomPatternsProvider>
+					<EmbedRoot
+						part={embedDocument.part}
+						visualId={embedDocument.payload.visual.id}
+					/>
+				</CustomPatternsProvider>
 			</Provider>
 		</StrictMode>
 	)

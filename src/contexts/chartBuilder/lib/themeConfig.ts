@@ -1279,6 +1279,17 @@ export const explainLegendCustomization = (
 			group: "auxSwatch",
 			changed: differs(cfg.auxLegendSwatchStroke, base.auxLegendSwatchStroke),
 		},
+		{
+			group: "auxSwatch",
+			changed: differs(cfg.auxLegendSwatchShape, base.auxLegendSwatchShape),
+		},
+		{
+			group: "auxSwatch",
+			changed: differs(
+				cfg.auxLegendSwatchStrokeWidth,
+				base.auxLegendSwatchStrokeWidth
+			),
+		},
 		// Per-section swatch controls (shape / size / outline), keyed by the
 		// channel that leads the legend section. Each swatch subsection in the
 		// panel dots when its own channel's entries deviate. A stored `null`
@@ -1356,6 +1367,10 @@ export const explainLegendCustomization = (
 		{
 			group: "shapeSwatch",
 			changed: differs(cfg.shapeLegendStrokeColor, base.shapeLegendStrokeColor),
+		},
+		{
+			group: "shapeSwatch",
+			changed: differs(cfg.shapeLegendStrokeWidth, base.shapeLegendStrokeWidth),
 		},
 	]
 	const out = new Set<LegendDotGroup>()

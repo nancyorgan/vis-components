@@ -94,13 +94,25 @@ export const SwatchShapePicker = ({
 	value,
 	onChange,
 	defaultShape,
+	options = "all",
 }: {
 	value: LegendSwatchShape
 	onChange: (shape: LegendSwatchShape) => void
 	defaultShape?: LegendSwatchShape
+	/** Which shapes to offer (legendSwatchControls' `shapeOptions`):
+	 *  "glyphs" for swatches the data sizes or rotates (Size / Angle), which
+	 *  a rectangle or line can't show; "noRect" where the swatch is always a
+	 *  glyph or a line (Outline-color glyphs, line-chart dash swatches). */
+	options?: "all" | "glyphs" | "noRect"
 }) => (
 	<div className="flex flex-wrap gap-1">
-		{SWATCH_SHAPE_OPTIONS.map((opt) => {
+		{SWATCH_SHAPE_OPTIONS.filter((o) =>
+			options === "glyphs"
+				? typeof o === "number"
+				: options === "noRect"
+					? o !== null
+					: true
+		).map((opt) => {
 			const selected = value === opt
 			const name = swatchShapeName(opt)
 			const isDefault = defaultShape !== undefined && opt === defaultShape

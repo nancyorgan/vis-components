@@ -567,6 +567,8 @@ export type ComposedSwatchProps = {
 		glyph?: ResolvedGlyph
 		fill: string // "none" or a color
 		stroke: string
+		/** Glyph outline width (px). Defaults to 1. */
+		strokeWidth?: number
 		/** Glyph radius (px). Defaults to 5. Set by synthesized outline-only
 		 *  swatches so the user's swatch-size choice applies. */
 		size?: number
@@ -647,7 +649,11 @@ export const composedSwatchSize = (
 		const r = shape.size ?? 5
 		const side = Math.max(
 			16,
-			swatchGlyphBox(shape.line ? "line" : (shape.glyph ?? shape.idx), r, 1),
+			swatchGlyphBox(
+				shape.line ? "line" : (shape.glyph ?? shape.idx),
+				r,
+				shape.strokeWidth ?? 1,
+			),
 		)
 		return { w: side, h: side }
 	}
@@ -734,7 +740,12 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 		const shapeFill = pattern
 			? `url(#${patId})`
 			: (shape?.fill ?? color)
-		const shapeStroke = shape?.stroke ?? color
+		// The point glyph keeps an encoded stroke (shape / outline
+		// descriptor); otherwise the section's Outline color / width when it
+		// draws one, else the historical 1px self-colored edge.
+		const shapeStroke = shape?.stroke ?? outlineStroke ?? color
+		const shapeStrokeWidth =
+			shape?.strokeWidth ?? (shape ? 1 : outlineStroke ? (outlineWidth ?? 1.5) : 1)
 		return (
 			<svg
 				width={lw}
@@ -774,7 +785,7 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 							fill={shapeFill}
 							fillOpacity={shape?.fill === "none" && !pattern ? 0 : 1}
 							stroke={shapeStroke}
-							strokeWidth={1}
+							strokeWidth={shapeStrokeWidth}
 						/>
 					</g>
 				)}
@@ -783,13 +794,14 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 	}
 	if (shape) {
 		// Shape route: emit the symbol path filled with hue color (or
-		// outlined-only when fill === "none"). Pattern overlay still
-		// applies as a fill via `<defs>` if present, but the simpler
-		// path here covers the user-reported case (hue + shape on same
-		// field). Synthesized outline swatches may carry a `size` (from the
-		// swatch-size picker) and a `line` flag (the "line" swatch shape).
+		// outlined-only when fill === "none"). A pattern sharing the section
+		// tiles the glyph's fill, as it tiles the marks. Synthesized outline
+		// swatches may carry a `size` (from the swatch-size picker) and a
+		// `line` flag (the "line" swatch shape).
 		const r = shape.size ?? 5
 		const side = w
+		const patId =
+			pattern && shape.fill !== "none" ? `legend-combined-${pattern.svgId}` : null
 		return (
 			<svg
 				width={side}
@@ -799,6 +811,17 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 				className="flex-shrink-0"
 				style={{ opacity }}
 			>
+				{pattern && patId && (
+					<defs>
+						<PatternTile
+							id={patId}
+							paletteIdx={pattern.paletteIdx}
+							bgColor={pattern.bg}
+							inkColor={pattern.ink}
+							scale={pattern.scale}
+						/>
+					</defs>
+				)}
 				{shape.line ? (
 					<line
 						x1={-r}
@@ -815,10 +838,10 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 							shape.glyph ?? { kind: "symbol", idx: shape.idx }
 						)}
 						r={r}
-						fill={shape.fill}
+						fill={patId ? `url(#${patId})` : shape.fill}
 						fillOpacity={shape.fill === "none" ? 0 : 1}
 						stroke={shape.stroke}
-						strokeWidth={1}
+						strokeWidth={shape.strokeWidth ?? 1}
 					/>
 				)}
 			</svg>

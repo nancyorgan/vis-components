@@ -101,23 +101,23 @@ const openLegendTitles = (container: HTMLElement) => {
 }
 
 // Row presence is probed via the disclosure button's aria-label — it's the
-// one element every LabelRow renders regardless of placeholder text.
+// one element every LabelRow renders regardless of its text.
 const rowToggle = (container: HTMLElement, label: string) =>
 	container.querySelector(
 		`button[aria-label="Toggle font settings for ${label}"]`
 	)
 
 describe("LabelsPanel — legend titles for a hierarchy-derived Color legend", () => {
-	it("sunburst colored by Top-level group: offers a Color legend row whose placeholder is the derived label; typing titles the Color legend", () => {
+	it("sunburst colored by Top-level group: offers a Color legend row whose box shows the derived label; typing titles the Color legend", () => {
 		seed({ source: "rootGroup", connection: true })
 		const { container, labels } = mount()
 		openLegendTitles(container)
 
 		expect(rowToggle(container, "Color legend")).not.toBeNull()
-		const box = container.querySelector<HTMLTextAreaElement>(
-			'textarea[placeholder="Top-level group"]'
+		const box = [...container.querySelectorAll("textarea")].find(
+			(t) => t.value === "Top-level group"
 		)
-		expect(box).not.toBeNull()
+		expect(box).toBeDefined()
 
 		fireEvent.change(box!, { target: { value: "Fruit family" } })
 		// The legend's Color section reads `legendTitles.hue` — the same key a
@@ -125,14 +125,16 @@ describe("LabelsPanel — legend titles for a hierarchy-derived Color legend", (
 		expect(labels()?.legendTitles.hue).toBe("Fruit family")
 	})
 
-	it("Nesting depth placeholder names that source", () => {
+	it("Nesting depth: the box shows that source as its value", () => {
 		seed({ source: "depth", connection: true })
 		const { container } = mount()
 		openLegendTitles(container)
 
 		expect(
-			container.querySelector('textarea[placeholder="Nesting depth"]')
-		).not.toBeNull()
+			[...container.querySelectorAll("textarea")].some(
+				(t) => t.value === "Nesting depth"
+			)
+		).toBe(true)
 	})
 
 	it("omits the Size legend row while the mode hides the Size legend by default, and offers it once the user turns that legend back on", () => {

@@ -56,6 +56,7 @@ export type LegendSectionProps = {
 	gradientBarStyle?: GradientBarStyle
 	legendFillColor?: string | null
 	legendStrokeColor?: string | null
+	legendStrokeWidth?: number | null
 	connectionMapped?: boolean
 	/** Filled radar: the swatch stands for the series POLYGON, so pattern
 	 *  tiles resolve from the Pattern menu's separate "Polygon fill" state
@@ -154,6 +155,7 @@ export const LegendSection = ({
 	gradientBarStyle = DEFAULT_GRADIENT_BAR_STYLE,
 	legendFillColor,
 	legendStrokeColor,
+	legendStrokeWidth,
 	connectionMapped = false,
 	polygonPatternFill = false,
 	segmentSwatch = null,
@@ -343,6 +345,7 @@ export const LegendSection = ({
 						patternLegendInkColor={patternLegendInkColor}
 						shapeLegendFillColor={legendFillColor}
 						shapeLegendStrokeColor={legendStrokeColor}
+						shapeLegendStrokeWidth={legendStrokeWidth}
 						channelCfg={
 							// Combined sections always include hue as the leading
 							// visual cue, so the user's hue overrides drive the
@@ -489,6 +492,7 @@ export const LegendSection = ({
 						pinnedOrder={pinnedOrder}
 						legendFillColor={legendFillColor}
 						legendStrokeColor={legendStrokeColor}
+						legendStrokeWidth={legendStrokeWidth}
 						orientation={orientation}
 						entryColumns={entryColumns}
 						defaultSwatchOpacity={defaultSwatchOpacity}
@@ -520,6 +524,10 @@ export const LegendSection = ({
 						channelCfg={channelLegendCfgs?.area}
 						swatchColor={auxSwatchColor}
 						swatchStroke={auxSwatchStroke}
+						// Legend.tsx resolves a Size-led section's glyph and
+						// outline width from the Length · Angle · Size subsection.
+						swatchShape={typeof hueSwatchShape === "number" ? hueSwatchShape : 0}
+						swatchStrokeWidth={swatchOutline?.width ?? 1}
 						orientation={orientation}
 						defaultSwatchOpacity={defaultSwatchOpacity}
 						proportionalSizeExponent={proportionalSizeExponent}

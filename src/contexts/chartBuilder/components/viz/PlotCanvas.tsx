@@ -3,6 +3,8 @@ import { useEffect, useId, useMemo } from "react"
 import useMeasure from "react-use-measure"
 import { useAtomValue, useSetAtom } from "jotai"
 import { axisFieldsFor, hasXAxis, hasYAxis } from "../../lib/axisFields"
+import { defaultAxisTitles } from "../../lib/axisTitleDefaults"
+import { resolveHistogramMeasure } from "../../lib/histogramMeasure"
 import {
 	DEFAULT_FACET_CONFIG,
 	migrateShareValue,
@@ -371,20 +373,34 @@ export const PlotCanvas = ({
 	// title for the missing axis so a stale `labels.xAxisTitle` left over
 	// from a prior chart configuration doesn't surface on an axis the new
 	// mode never draws.
-	// Three-state title: `undefined` = not customized → field-name fallback,
-	// `""` = user cleared it → draw no title (so the `!== undefined` check,
-	// not a truthiness check, gates the custom/blank branch).
+	// Three-state title: `undefined` = not customized → the default the
+	// Labels panel shows in its box (`defaultAxisTitles`: the axis's field,
+	// or "Count" / "Density" on a histogram's measure axis), faceted or not —
+	// a single-panel chart draws its titles through this shared strip too
+	// (FacetPanel turns the per-panel titles off), so what the box shows is
+	// what the figure draws; `""` = user cleared it → draw no title (so the
+	// `!== undefined` check, not a truthiness check, gates the custom/blank
+	// branch).
+	const axisTitleDefaults = defaultAxisTitles(
+		mode,
+		encodings,
+		dataset
+			? resolveHistogramMeasure(
+					encodings,
+					(n) => effectiveType(dataset, n, overrides),
+					channelConfigs
+				)
+			: null
+	)
 	const sharedXAxisTitle = (() => {
 		if (!hasXAxis(mode)) return ""
 		if (labels.xAxisTitle !== undefined) return labels.xAxisTitle
-		if (!isFaceted) return ""
-		return axisFields.xField ?? ""
+		return axisTitleDefaults.x
 	})()
 	const sharedYAxisTitle = (() => {
 		if (!hasYAxis(mode)) return ""
 		if (labels.yAxisTitle !== undefined) return labels.yAxisTitle
-		if (!isFaceted) return ""
-		return axisFields.yField ?? ""
+		return axisTitleDefaults.y
 	})()
 
 	// ─── Per-panel label sample for solver margin estimation ──────────────
