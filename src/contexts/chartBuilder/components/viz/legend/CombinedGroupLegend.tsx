@@ -1,3 +1,4 @@
+import { rgb as d3Rgb } from "d3-color"
 import {
 	DEFAULT_FILL,
 	DEFAULT_SHAPE_CONFIG,
@@ -99,6 +100,9 @@ type CombinedGroupLegendProps = ReversibleLegendProps & {
 	 *  mode) over the hue color, as the marks draw. Null = the usual
 	 *  rectangle / glyph swatches. */
 	segmentSwatch?: SegmentPatternContext | null
+	/** "bar" draws a lone continuous Saturation / Brightness / Opacity
+	 *  section as a gradient bar (Legend.tsx's resolveRampLegendStyle). */
+	rampStyle?: "bar" | "swatches" | null
 	/** Hue-legend swatch shape (`SHAPE_PALETTE` index). Reshapes the color
 	 *  swatches when no per-mark shape encoding is present. `null` /
 	 *  undefined keeps the default rectangle. */
@@ -198,6 +202,7 @@ export const CombinedGroupLegend = ({
 	highlightField,
 	themeInkFallback,
 	segmentSwatch = null,
+	rampStyle = null,
 }: CombinedGroupLegendProps) => {
 	const hasHue = channels.includes("hue")
 	const hasOutline = channels.includes("outlineHue")
@@ -897,6 +902,37 @@ export const CombinedGroupLegend = ({
 				<GradientBarRamp
 					stops={gradientStops}
 					cssStops={sampleRampCssStops(colorScale, lo, hi, type)}
+					orientation={orientation}
+					barStyle={gradientBarStyle}
+				/>
+			)
+		}
+		// A lone Saturation / Brightness / Opacity legend as a gradient bar:
+		// each stop's composed color (the swatch color modulated by the
+		// channel; opacity as alpha), densely sampled for the CSS ramp.
+		if (
+			rampStyle === "bar" &&
+			channels.length === 1 &&
+			(hasSat || hasBri || hasOp)
+		) {
+			const rampColor = (v: number): string => {
+				const e = buildEntry(String(v))
+				if (!hasOp) return e.color
+				const c = d3Rgb(e.color)
+				return Number.isNaN(c.r) ? e.color : `rgba(${c.r}, ${c.g}, ${c.b}, ${e.opacity})`
+			}
+			return (
+				<GradientBarRamp
+					stops={stops.map((val, i) => ({
+						t: (val - lo) / (hi - lo || 1),
+						color: rampColor(val),
+						label: fmt(val, i),
+						key: i,
+					}))}
+					cssStops={Array.from({ length: 32 }, (_, i) => ({
+						t: i / 31,
+						color: rampColor(lo + ((hi - lo) * i) / 31),
+					}))}
 					orientation={orientation}
 					barStyle={gradientBarStyle}
 				/>

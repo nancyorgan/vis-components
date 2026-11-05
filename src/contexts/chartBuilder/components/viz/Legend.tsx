@@ -11,6 +11,7 @@ import {
 	legendFontKey,
 	resolveLegendSwatchOutlineColor,
 	resolveLegendSwatchSize,
+	resolveRampLegendStyle,
 	resolveGradientBarStyle,
 	resolveLegendHidden,
 	resolveTitleFont,
@@ -360,8 +361,25 @@ export const Legend = ({
 							swatchKey === ("area" as string) ||
 							swatchKey === ("angle" as string) ||
 							swatchKey === ("length" as string)
+						// A lone continuous Saturation / Brightness / Opacity legend
+						// can draw as a gradient bar, like Color's.
+						const rampSolo =
+							s.type !== "quantitative" && s.type !== "temporal"
+								? null
+								: s.kind === "combined" && s.channels.length === 1
+									? s.channels[0]
+									: s.kind === "single"
+										? s.channel
+										: null
+						const rampStyle =
+							rampSolo === "saturation" ||
+							rampSolo === "brightness" ||
+							rampSolo === "opacity"
+								? resolveRampLegendStyle(legendCfg, rampSolo, s.kind === "single")
+								: null
 						const node = (
 							<LegendSection
+								rampStyle={rampStyle}
 								key={sectionKey}
 								section={s}
 								highlightField={highlightField}

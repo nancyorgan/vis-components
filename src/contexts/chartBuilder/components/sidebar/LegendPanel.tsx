@@ -36,6 +36,9 @@ import {
 	resolveLegendSwatchSize,
 	resolveLegendHidden,
 	resolveGradientBarStyle,
+	resolveRampLegendStyle,
+	RAMP_LEGEND_CHANNELS,
+	type RampLegendChannel,
 	type EncodingLegendChannel,
 	type FontConfig,
 	type LabelAlignment,
@@ -50,6 +53,7 @@ import {
 	legendDataExtent,
 	parseBreaksInput,
 	resolveLegendBreaks,
+	breaksForCount,
 } from "../../lib/legendBreaks"
 import { planLegendSections } from "../../lib/legendSections"
 import {
@@ -91,6 +95,7 @@ import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
 	LABEL_COL_NESTED,
+	LabelSpacer,
 	LabelSpacerNested,
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
@@ -111,25 +116,37 @@ const DEFAULT_SWATCH_STROKE = "#ffffff"
 
 type BgKind = "transparent" | "themeDefault" | "custom"
 
-const QuantLegendChannelControls = ({
-	sectionLabel,
+/** Break rows for one quantitative legend: how many stops it draws and
+ *  the custom break values. Lives in the legend's swatch subsection when it
+ *  has one (Size swatch, Color · Size swatch, …), else under Label format
+ *  (gradient bars). The count is EXACT (breaksForCount) and always shows
+ *  the number of stops actually drawn — the auto breaks are round numbers,
+ *  so a 0–14 field draws 8 until the user picks another count. */
+const LegendBreaksRows = ({
 	values,
 	fieldType,
 	cfg,
 	onChange,
+	countLabel,
+	floorCount = 2,
+	labelClassName = LABEL_COL_NESTED,
+	spacer = <LabelSpacerNested />,
 }: {
-	/** Header text — e.g. "Color legend formatting" for a single channel,
-	 *  "Color · Length · Angle legend formatting" when shared. */
-	sectionLabel: string
 	values: unknown[]
 	fieldType: "quantitative" | "temporal" | "ordinal"
 	cfg: LegendChannelConfig
 	onChange: (next: LegendChannelConfig) => void
+	/** "Swatches" in a swatch subsection, "Breaks" under Label format. */
+	countLabel: string
+	/** The renderer's floor for this legend (the Size legend draws ≥ 3). */
+	floorCount?: number
+	labelClassName?: string
+	spacer?: React.ReactNode
 }) => {
 	// Local mirror of the breaks text input so users can free-type without
 	// the parsed array snapping cursor position back on every keystroke. We
 	// commit the parsed array on blur (or when the field auto-fills from
-	// breakCount), keeping the jotai atom canonical but the textbox
+	// the count), keeping the jotai atom canonical but the textbox
 	// uninterrupted.
 	const [breaksText, setBreaksText] = useState<string>(
 		cfg.breaks.length > 0 ? formatBreaksInput(cfg.breaks) : "",
@@ -159,27 +176,87 @@ const QuantLegendChannelControls = ({
 		onChange({ ...cfg, breaks: parsed })
 	}
 
+	// The stops the legend draws right now (custom breaks, else the auto
+	// round-number breaks) — what the count box shows.
+	const drawnCount = resolveLegendBreaks(values, fieldType, cfg, 5, floorCount).length
+
 	const populateFromCount = (count: number) => {
-		// Treat the user's current domain as "lo..hi" — either their
-		// existing custom breaks min/max, or the underlying data extent.
-		// The dropdown then expands into `count` evenly-spaced break
-		// values, which the user can refine by hand afterwards.
-		const stops = resolveLegendBreaks(
-			values,
-			fieldType,
-			{ ...cfg, breakCount: count, breaks: [] },
-			5,
-			2,
-		)
-		const next: LegendChannelConfig = {
-			...cfg,
-			breakCount: count,
-			breaks: stops,
-		}
-		onChange(next)
+		// Expand the count into exactly `count` break values across the data
+		// extent, which the user can refine by hand afterwards.
+		const stops = breaksForCount(values, fieldType, count)
+		onChange({ ...cfg, breakCount: count, breaks: stops })
 		setBreaksText(stops.length > 0 ? formatBreaksInput(stops) : "")
 	}
 
+	return (
+		<>
+			<div className="flex items-center gap-2 text-sm">
+				<NumberInput
+					label={countLabel}
+					labelClassName={labelClassName}
+					value={drawnCount}
+					min={2}
+					max={12}
+					step={1}
+					clamp
+					onChange={(n) => populateFromCount(n)}
+					inputClassName="w-16"
+				/>
+				{cfg.breaks.length > 0 && (
+					<ResetLink
+						onClick={() => {
+							onChange({ ...cfg, breakCount: DEFAULT_LEGEND_CHANNEL_CONFIG.breakCount, breaks: [] })
+							setBreaksText("")
+						}}
+					/>
+				)}
+			</div>
+			<label className="flex items-center gap-2 text-sm">
+				<span className={labelClassName}>Custom breaks</span>
+				<Input
+					type="text"
+					value={breaksText}
+					onChange={(e) => setBreaksText(e.target.value)}
+					onBlur={() => commit(breaksText)}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							commit(breaksText)
+							e.currentTarget.blur()
+						}
+					}}
+					placeholder="e.g. 0, 50, 100, 150, 200"
+					className="flex-1 font-mono"
+				/>
+			</label>
+			<div className="flex gap-2">
+				{spacer}
+				<span className="min-w-0 flex-1 vc-help">
+					Comma- or space-separated. Min and max define the legend&apos;s
+					extent; the chart&apos;s color/size mapping uses this range too.
+				</span>
+			</div>
+		</>
+	)
+}
+
+const QuantLegendChannelControls = ({
+	sectionLabel,
+	values,
+	fieldType,
+	cfg,
+	onChange,
+	showBreaks = true,
+}: {
+	/** Header text — e.g. "Color legend formatting" for a single channel,
+	 *  "Color · Length · Angle legend formatting" when shared. */
+	sectionLabel: string
+	values: unknown[]
+	fieldType: "quantitative" | "temporal" | "ordinal"
+	cfg: LegendChannelConfig
+	onChange: (next: LegendChannelConfig) => void
+	/** False when the legend's break rows live in its swatch subsection. */
+	showBreaks?: boolean
+}) => {
 	const extent = legendDataExtent(values, fieldType)
 	const dataHint = extent ? `data range ${extent[0]} — ${extent[1]}` : null
 
@@ -193,9 +270,6 @@ const QuantLegendChannelControls = ({
 					<span className="font-normal vc-muted">{` · ${dataHint}`}</span>
 				)}
 			</span>
-			{/* Rows subordinate to the section label indent by ml-6; the narrower
-			 * LABEL_COL_NESTED keeps their controls on the shared 104px column
-			 * (24px indent + 72px label + 8px gap). */}
 			{/* The shared format control (preset dropdown over the custom box)
 			 *  sits on the panel's main label column, so its select lines up
 			 *  with the nested Breaks rows below (both start at 104px). */}
@@ -204,45 +278,20 @@ const QuantLegendChannelControls = ({
 				changed={cfg.format !== ""}
 				onChange={(format) => onChange({ ...cfg, format })}
 			/>
-			<div className="ml-6 flex flex-col gap-2">
-				<div className="flex items-center gap-2 text-sm">
-					<NumberInput
-						label="Breaks"
-						labelClassName={LABEL_COL_NESTED}
-						value={cfg.breakCount}
-						min={2}
-						max={12}
-						step={1}
-						clamp
-						onChange={(n) => populateFromCount(n)}
-						inputClassName="w-16"
+			{/* Rows subordinate to the section label indent by ml-6; the narrower
+			 * LABEL_COL_NESTED keeps their controls on the shared 104px column
+			 * (24px indent + 72px label + 8px gap). */}
+			{showBreaks && (
+				<div className="ml-6 flex flex-col gap-2">
+					<LegendBreaksRows
+						values={values}
+						fieldType={fieldType}
+						cfg={cfg}
+						onChange={onChange}
+						countLabel="Breaks"
 					/>
 				</div>
-				<label className="flex items-center gap-2 text-sm">
-					<span className={LABEL_COL_NESTED}>Custom breaks</span>
-					<Input
-						type="text"
-						value={breaksText}
-						onChange={(e) => setBreaksText(e.target.value)}
-						onBlur={() => commit(breaksText)}
-						onKeyDown={(e) => {
-							if (e.key === "Enter") {
-								commit(breaksText)
-								e.currentTarget.blur()
-							}
-						}}
-						placeholder="e.g. 0, 50, 100, 150, 200"
-						className="flex-1 font-mono"
-					/>
-				</label>
-				<div className="flex gap-2">
-					<LabelSpacerNested />
-					<span className="min-w-0 flex-1 vc-help">
-						Comma- or space-separated. Min and max define the gradient extent;
-						the chart&apos;s color/size mapping uses this range too.
-					</span>
-				</div>
-			</div>
+			)}
 		</div>
 	)
 }
@@ -713,6 +762,33 @@ export const LegendPanel = () => {
 		(rendersSwatches(outlineHueType) ||
 			((outlineHueType === "quantitative" || outlineHueType === "temporal") &&
 				quantForcedToSwatches(outlineHueField)))
+	// Lone continuous Saturation / Brightness / Opacity legends (a field no
+	// other legend channel shares, or the Count / Density opacity ramp): like
+	// Color, each can draw as a gradient bar or as swatches
+	// (resolveRampLegendStyle — the same chain Legend.tsx renders with).
+	const opacityMeasureLegend =
+		opacityMeasureActive && !encodings.opacity?.field && !effHidden.opacity
+	const rampChannels = RAMP_LEGEND_CHANNELS.filter((ch) => {
+		if (ch === "opacity" && opacityMeasureLegend) return true
+		if (!mappedLegendChannels.includes(ch) || effHidden[ch]) return false
+		const f = encodings[ch]?.field
+		return isQuantField(f) && sectionMembersOf(f, ch).length === 1
+	})
+	const rampStyleOf = (ch: RampLegendChannel) =>
+		resolveRampLegendStyle(merged, ch, ch === "opacity" && opacityMeasureLegend)
+	const setRampStyle = (ch: RampLegendChannel, style: "bar" | "swatches") => {
+		const next = { ...merged.gradientLegendStyles }
+		// Sparse: the legend's historical look is stored as unset.
+		if (style === resolveRampLegendStyle({}, ch, ch === "opacity" && opacityMeasureLegend))
+			delete next[ch]
+		else next[ch] = style
+		update({ gradientLegendStyles: next })
+	}
+	const rampBarChannels = rampChannels.filter((ch) => rampStyleOf(ch) === "bar")
+	// Any legend drawing a gradient bar → the shared bar settings apply.
+	const anyGradientBar =
+		(showGradientLegendStyle && (merged.gradientLegendStyle ?? "bar") === "bar") ||
+		rampBarChannels.length > 0
 	// The shape channel never emits a swatch-shape section (its glyphs ARE the
 	// encoding) — it gets its own "Shape swatch" subsection below instead.
 	const swatchShapeSections: Exclude<SwatchShapeChannel, "shape">[] = [
@@ -723,7 +799,9 @@ export const LegendPanel = () => {
 			? (["outlineHue"] as const)
 			: []),
 		...(["saturation", "brightness", "pattern", "opacity"] as const).filter(
-			leadsSwatchSection
+			(ch) =>
+				leadsSwatchSection(ch) &&
+				!(ch !== "pattern" && rampBarChannels.includes(ch))
 		),
 		...(rugRendersSwatches ? (["rug"] as const) : []),
 	]
@@ -810,6 +888,64 @@ export const LegendPanel = () => {
 	const auxSwatchDisplayChannels = auxSwatchActiveChannels.filter(
 		(ch) => !auxSharingShapeField.includes(ch)
 	)
+	// Quantitative legends that draw discrete swatches keep their break rows
+	// (swatch count + custom breaks) in their swatch subsection — the group
+	// section their field leads, or the shared Length · Angle · Size one.
+	// Label format then keeps only the number format for them; gradient
+	// bars (no swatch subsection) keep their breaks there.
+	const swatchBreakFields = new Set<string>(
+		[
+			...swatchShapeSections
+				.filter((ch) => ch !== "rug")
+				.map((ch) => encodings[ch as keyof typeof encodings]?.field),
+			...auxSwatchDisplayChannels.map(
+				(ch) => encodings[ch as keyof typeof encodings]?.field
+			),
+		].filter((f): f is string => !!f && isQuantField(f))
+	)
+	const auxBreakFields = [
+		...new Set(
+			auxSwatchDisplayChannels
+				.map((ch) => encodings[ch as keyof typeof encodings]?.field)
+				.filter((f): f is string => !!f && isQuantField(f))
+		),
+	]
+	// The break rows for `field`'s legend, fanning edits out to every
+	// channel on the field like the Label format editor does.
+	const swatchBreaksRows = (
+		field: string,
+		countLabel: string,
+		floorCount = 2
+	) => {
+		const group = quantChannelGroups.find((g) => g.field === field)
+		if (!group || !dataset) return null
+		const t = effectiveType(dataset, field, overrides) as
+			| "quantitative"
+			| "temporal"
+		const cfg: LegendChannelConfig = {
+			...DEFAULT_LEGEND_CHANNEL_CONFIG,
+			...(merged.channels?.[group.channels[0]] ?? {}),
+		}
+		return (
+			<LegendBreaksRows
+				key={`breaks-${field}`}
+				values={dataset.rows.map((r) => r[field])}
+				fieldType={t}
+				cfg={cfg}
+				onChange={(next) => updateChannelGroup(group.channels, next)}
+				countLabel={countLabel}
+				floorCount={floorCount}
+				labelClassName={LABEL_COL}
+				spacer={<LabelSpacer />}
+			/>
+		)
+	}
+	const breaksSet = (field: string | null | undefined): boolean =>
+		!!field &&
+		(quantChannelGroups
+			.find((g) => g.field === field)
+			?.channels.some((c) => (merged.channels?.[c]?.breaks?.length ?? 0) > 0) ??
+			false)
 	const showAuxSwatchColor = auxSwatchDisplayChannels.length > 0
 	const auxSwatchHeader = auxSwatchDisplayChannels
 		.map((ch) => LEGEND_FRIENDLY_NAME[ch])
@@ -1326,8 +1462,7 @@ export const LegendPanel = () => {
 					</div>
 					{/* The gradient bar's break labels align on their own —
 					 *  only while a bar-style gradient legend shows. */}
-					{showGradientLegendStyle &&
-						(merged.gradientLegendStyle ?? "bar") === "bar" && (
+					{anyGradientBar && (
 							<div className="flex flex-col gap-1">
 								<div className="flex items-center gap-2 text-sm">
 									<span className={LABEL_COL}>Align break labels</span>
@@ -1414,27 +1549,71 @@ export const LegendPanel = () => {
 								fieldType={t}
 								cfg={channelCfg}
 								onChange={(next) => updateChannelGroup(channels, next)}
+								showBreaks={!swatchBreakFields.has(field)}
 							/>
 						)
 					})}
 				</CollapsibleSubsection>
 			)}
 
-			{showGradientLegendStyle && (
+			{(showGradientLegendStyle || rampChannels.length > 0) && (
 				<CollapsibleSubsection
 						title="Gradient legend style"
 						changed={groupChanged("gradient")}
 					>
-					<RadioGroup
-						legend="Gradient legend style"
-						value={merged.gradientLegendStyle ?? "bar"}
-						options={[
-							{ value: "bar", label: "Show gradient bar" },
-							{ value: "swatches", label: "Show swatches" },
-						]}
-						onChange={(gradientLegendStyle) => update({ gradientLegendStyle })}
-					/>
-					{(merged.gradientLegendStyle ?? "bar") === "bar" && (
+					{/* One bar / swatches choice per continuous legend that can
+					 *  draw as a bar — named by channel once there's more than
+					 *  Color's. The bar settings below are shared by every bar. */}
+					{showGradientLegendStyle && (
+						<RadioGroup
+							legend={
+								rampChannels.length > 0
+									? LEGEND_FRIENDLY_NAME.hue
+									: "Gradient legend style"
+							}
+							value={merged.gradientLegendStyle ?? "bar"}
+							options={[
+								{ value: "bar", label: "Show gradient bar" },
+								{ value: "swatches", label: "Show swatches" },
+							]}
+							onChange={(gradientLegendStyle) => update({ gradientLegendStyle })}
+						/>
+					)}
+					{rampChannels.map((ch) => (
+						<RadioGroup
+							key={ch}
+							legend={
+								showGradientLegendStyle || rampChannels.length > 1
+									? LEGEND_FRIENDLY_NAME[ch]
+									: "Gradient legend style"
+							}
+							value={rampStyleOf(ch)}
+							options={[
+								{ value: "bar", label: "Show gradient bar" },
+								{ value: "swatches", label: "Show swatches" },
+							]}
+							onChange={(style) => setRampStyle(ch, style)}
+						/>
+					))}
+					{/* Saturation / Brightness / Opacity bars ramp the shared
+					 *  swatch color (no Color scale to inherit) — the same
+					 *  auxLegendSwatchColor their swatch subsection edits, which
+					 *  isn't shown while they draw as bars. */}
+					{rampBarChannels.length > 0 && (
+						<div className="flex flex-wrap items-center gap-2">
+							<ColorInput
+								label="Bar color"
+								labelClassName={LABEL_COL}
+								value={resolvedAuxSwatchColor}
+								onChange={(auxLegendSwatchColor) => update({ auxLegendSwatchColor })}
+								showHexInput
+							/>
+							{merged.auxLegendSwatchColor != null && (
+								<ResetLink onClick={() => update({ auxLegendSwatchColor: null })} />
+							)}
+						</div>
+					)}
+					{anyGradientBar && (
 						<div className="flex flex-col gap-2">
 							{/* Auto (null) is orientation-dependent (8rem minimum
 							 *  vertical, full legend width horizontal) — not one fixed
@@ -1623,7 +1802,9 @@ export const LegendPanel = () => {
 			{showAuxSwatchColor && (
 				<CollapsibleSubsection
 						title={`${auxSwatchHeader} swatch`}
-						changed={groupChanged("auxSwatch")}
+						changed={
+							groupChanged("auxSwatch") || auxBreakFields.some(breaksSet)
+						}
 					>
 					<div className="flex flex-wrap items-center gap-2">
 						<ColorInput
@@ -1701,6 +1882,20 @@ export const LegendPanel = () => {
 							)}
 						</div>
 					)}
+					{/* Quantitative Size / Length / Angle legends: how many stops
+					 *  and where (one block per field; named when there are
+					 *  several). The Size legend draws at least 3. */}
+					{auxBreakFields.map((f) => {
+						const chans = auxSwatchDisplayChannels.filter(
+							(c) => encodings[c as keyof typeof encodings]?.field === f
+						)
+						const name = chans.map((c) => LEGEND_FRIENDLY_NAME[c]).join(" · ")
+						return swatchBreaksRows(
+							f,
+							auxBreakFields.length > 1 ? `${name} swatches` : "Swatches",
+							chans.length === 1 && chans[0] === "area" ? 3 : 2
+						)
+					})}
 				</CollapsibleSubsection>
 			)}
 
@@ -1749,13 +1944,16 @@ export const LegendPanel = () => {
 							(!patternInSection || !!encodings.connection?.field)
 						// Nothing to choose (e.g. a Color · Length vector-field
 						// legend: segments in the hue color) → no subsection.
+						const breaksHere =
+							!!sectionField && swatchBreakFields.has(sectionField)
 						if (
 							!controls.shape &&
 							!controls.size &&
 							!controls.outlineColor &&
 							!controls.outlineWidth &&
 							!auxColorRow &&
-							controls.fill !== "pattern"
+							controls.fill !== "pattern" &&
+							!breaksHere
 						)
 							return null
 						// Each swatch-drawing legend section gets its OWN collapsible
@@ -1773,7 +1971,8 @@ export const LegendPanel = () => {
 						const sectionChanged =
 							ch === "rug"
 								? groupChanged("swatch:rug")
-								: members.some((m) => groupChanged(`swatch:${m}`))
+								: members.some((m) => groupChanged(`swatch:${m}`)) ||
+									(breaksHere && breaksSet(sectionField))
 						return (
 							<CollapsibleSubsection
 								key={ch}
@@ -1949,6 +2148,8 @@ export const LegendPanel = () => {
 											)}
 										</div>
 								)}
+								{breaksHere && sectionField &&
+									swatchBreaksRows(sectionField, "Swatches")}
 							</div>
 							</CollapsibleSubsection>
 						)

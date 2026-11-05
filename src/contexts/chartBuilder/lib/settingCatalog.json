@@ -6457,6 +6457,11 @@
 				"string"
 			]
 		},
+		"channelConfigs.pattern.customPatterns[].mask": {
+			"kinds": [
+				"string"
+			]
+		},
 		"channelConfigs.pattern.customPatterns[].size": {
 			"kinds": [
 				"number"
@@ -13446,6 +13451,39 @@
 		},
 		"legendConfig.gradientLegendStyle": {
 			"doc": "How a quantitative hue legend renders. `\"bar\"` (default) shows a single gradient strip with min / max labels — compact, classic scientific-paper look.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bar",
+				"swatches"
+			]
+		},
+		"legendConfig.gradientLegendStyles": {
+			"doc": "The same bar / swatches choice for a continuous Saturation, Brightness or Opacity legend that stands alone (sharing a field with another channel forces swatches, as for Color). Absent = that legend's historical look (resolveRampLegendStyle). The bar draws with the shared gradient-bar settings below.",
+			"kinds": [
+				"object"
+			]
+		},
+		"legendConfig.gradientLegendStyles.brightness": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bar",
+				"swatches"
+			]
+		},
+		"legendConfig.gradientLegendStyles.opacity": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bar",
+				"swatches"
+			]
+		},
+		"legendConfig.gradientLegendStyles.saturation": {
 			"kinds": [
 				"string"
 			],

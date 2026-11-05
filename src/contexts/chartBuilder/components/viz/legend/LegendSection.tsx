@@ -106,6 +106,10 @@ export type LegendSectionProps = {
 	 *  instead of the default rectangle. `null` / undefined keeps the
 	 *  rectangle. */
 	hueSwatchShape?: LegendSwatchShape
+	/** Bar or swatches for a lone continuous Saturation / Brightness /
+	 *  Opacity legend (resolveRampLegendStyle); null for every other
+	 *  section. */
+	rampStyle?: "bar" | "swatches" | null
 	/** Symbol radius (px) for hue swatch shapes. `null` / undefined → 5. */
 	hueSwatchSize?: number | null
 	/** Glyph radius (px) for SHAPE-channel swatches (`swatchSizes.shape`),
@@ -168,6 +172,7 @@ export const LegendSection = ({
 	splitOutlineEligible = false,
 	proportionalSizeExponent,
 	hueSwatchShape,
+	rampStyle = null,
 	hueSwatchSize,
 	shapeSwatchSize = null,
 	swatchOutline = null,
@@ -323,6 +328,7 @@ export const LegendSection = ({
 				{section.kind === "combined" && (
 					<CombinedGroupLegend
 						channels={section.channels}
+						rampStyle={rampStyle}
 						type={type}
 						values={values}
 						configs={configs}
@@ -544,6 +550,8 @@ export const LegendSection = ({
 						swatchColor={auxSwatchColor}
 						orientation={orientation}
 						entryColumns={entryColumns}
+						rampStyle={rampStyle ?? "bar"}
+						barStyle={gradientBarStyle}
 					/>
 				)}
 				{section.kind === "single" && section.channel === "length" && (

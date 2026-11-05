@@ -372,6 +372,25 @@ export type LegendSwatchShapeChoice = LegendSwatchShape | "rect"
  * one when they lead a shared-field group with no color channel present.
  * `shape` is size-only: its glyphs ARE the encoding, so it never accepts a
  * swatch shape, but `swatchSizes.shape` scales the glyphs. */
+/** Channels whose continuous legend can draw as a gradient bar besides
+ * Color (which uses the global `gradientLegendStyle`). */
+export type RampLegendChannel = "saturation" | "brightness" | "opacity"
+export const RAMP_LEGEND_CHANNELS: readonly RampLegendChannel[] = [
+	"saturation",
+	"brightness",
+	"opacity",
+]
+
+/** Bar or swatches for a continuous Saturation / Brightness / Opacity
+ * legend: the visual's choice, else its historical look — a field-mapped
+ * legend drew stops, the Count / Density opacity ramp a bar. */
+export const resolveRampLegendStyle = (
+	cfg: Pick<LegendConfig, "gradientLegendStyles">,
+	ch: RampLegendChannel,
+	measure: boolean
+): "bar" | "swatches" =>
+	cfg.gradientLegendStyles?.[ch] ?? (measure ? "bar" : "swatches")
+
 export type SwatchShapeChannel =
 	| "hue"
 	| "outlineHue"
@@ -521,6 +540,12 @@ export type LegendConfig = {
 	 * least one hue legend is quantitative — the sidebar control gates
 	 * itself on that. */
 	gradientLegendStyle?: "bar" | "swatches"
+	/** The same bar / swatches choice for a continuous Saturation,
+	 * Brightness or Opacity legend that stands alone (sharing a field with
+	 * another channel forces swatches, as for Color). Absent = that legend's
+	 * historical look (resolveRampLegendStyle). The bar draws with the
+	 * shared gradient-bar settings below. */
+	gradientLegendStyles?: Partial<Record<RampLegendChannel, "bar" | "swatches">>
 	/** Gradient bar length in pixels — the bar's height when the legend is
 	 * vertical, its width when horizontal. `null` / absent = auto (the
 	 * historical sizing: 8rem minimum height vertical, full legend width

@@ -11,7 +11,13 @@ import {
 import { orderCategories } from "../../../lib/legendSections"
 import { uniqueValues } from "../../../lib/uniqueFieldValues"
 import { makeOpacityScale } from "../../../lib/scales"
-import { renderEntryList, SwatchCell } from "./swatches"
+import {
+	DEFAULT_GRADIENT_BAR_STYLE,
+	GradientBarRamp,
+	renderEntryList,
+	SwatchCell,
+} from "./swatches"
+import type { GradientBarStyle } from "../../../lib/labelsConfig"
 import type { ReversibleLegendProps } from "./types"
 
 export const OpacityLegend = ({
@@ -23,7 +29,16 @@ export const OpacityLegend = ({
 	channelCfg,
 	swatchColor,
 	entryColumns,
-}: ReversibleLegendProps) => {
+	orientation = "vertical",
+	rampStyle = "bar",
+	barStyle = DEFAULT_GRADIENT_BAR_STYLE,
+}: ReversibleLegendProps & {
+	/** Continuous legend as a gradient bar (the historical look) or one
+	 *  swatch per break — the Legend panel's Gradient legend style. */
+	rampStyle?: "bar" | "swatches"
+	/** Shared gradient-bar settings (length / thickness / ticks / …). */
+	barStyle?: GradientBarStyle
+}) => {
 	const merged = resolveLegendChannelConfig(channelCfg)
 	const isQuantitative = type === "quantitative" || type === "temporal"
 	const domain = isQuantitative
@@ -69,32 +84,43 @@ export const OpacityLegend = ({
 		values: breaks,
 		type,
 	})
-	const gradientStops = breaks.map((v, i) => {
-		const t = (v - lo) / (hi - lo || 1)
-		return {
-			t,
-			opacity: scale(v) ?? 1,
-			label: decorateOpenEndLabel(fmt(v), i, breaks, dataExt),
-			i,
-		}
-	})
-	const gradientCss = `linear-gradient(to right, ${gradientStops
-		.map((s) => `rgba(${rgbTriple}, ${s.opacity}) ${s.t * 100}%`)
-		.join(", ")})`
-	return (
-		<div className="flex flex-col gap-1">
-			<div className="h-3 rounded-sm" style={{ background: gradientCss }} />
-			<div className="relative h-5 w-full">
-				{gradientStops.map((s) => (
+	const rgba = (o: number) => `rgba(${rgbTriple}, ${o})`
+	const label = (v: number, i: number) =>
+		decorateOpenEndLabel(fmt(v), i, breaks, dataExt)
+	if (rampStyle === "swatches") {
+		const rows = breaks.map((v, i) => (
+			<div key={v} className="flex items-center gap-2">
+				<SwatchCell>
 					<span
-						key={s.i}
-						className="absolute -translate-x-1/2"
-						style={{ left: `${s.t * 100}%` }}
-					>
-						{s.label}
-					</span>
-				))}
+						className="block h-3 w-4 flex-shrink-0 rounded-sm"
+						style={{ backgroundColor: rgba(scale(v) ?? 1) }}
+					/>
+				</SwatchCell>
+				<span className="min-w-0 truncate">{label(v, i)}</span>
 			</div>
-		</div>
+		))
+		return orientation === "horizontal" ? (
+			<div className="flex flex-row flex-nowrap items-center gap-3">{rows}</div>
+		) : (
+			renderEntryList(rows, entryColumns)
+		)
+	}
+	// The same gradient bar as a continuous Color legend: honors the
+	// orientation and the shared bar settings.
+	return (
+		<GradientBarRamp
+			stops={breaks.map((v, i) => ({
+				t: (v - lo) / (hi - lo || 1),
+				color: rgba(scale(v) ?? 1),
+				label: label(v, i),
+				key: i,
+			}))}
+			cssStops={Array.from({ length: 32 }, (_, i) => {
+				const v = lo + ((hi - lo) * i) / 31
+				return { t: i / 31, color: rgba(scale(v) ?? 1) }
+			})}
+			orientation={orientation}
+			barStyle={barStyle}
+		/>
 	)
 }

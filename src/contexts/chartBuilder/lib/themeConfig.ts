@@ -1232,6 +1232,10 @@ export const explainLegendCustomization = (
 		},
 		{
 			group: "gradient",
+			changed: Object.keys(cfg.gradientLegendStyles ?? {}).length > 0,
+		},
+		{
+			group: "gradient",
 			changed: differs(cfg.gradientBarLength, base.gradientBarLength),
 		},
 		{

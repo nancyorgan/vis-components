@@ -243,3 +243,33 @@ export const decorateOpenEndLabel = (
 		return `${label}-`
 	return label
 }
+
+/** Exactly `count` break values across the data extent — for when the user
+ *  asks for a number of swatches (the legend panel's "Swatches" count).
+ *  Prefers the round increments `prettyBreaks` finds when one of its sets
+ *  has exactly `count` values; otherwise spaces them evenly from min to max,
+ *  rounded to two significant digits of the step (0–14 in 5 → 0, 3.5, 7,
+ *  10.5, 14). Temporal fields always space evenly (epoch ms). */
+export const breaksForCount = (
+	rawValues: unknown[],
+	type: FieldType,
+	count: number,
+): number[] => {
+	const extent = legendDataExtent(rawValues, type)
+	if (!extent) return []
+	const [lo, hi] = extent
+	if (lo === hi || count <= 1) return [lo]
+	if (type !== "temporal") {
+		for (let c = 1; c <= count * 3; c++) {
+			const pretty = prettyBreaks(lo, hi, c)
+			if (pretty.length === count) return pretty
+		}
+	}
+	const step = (hi - lo) / (count - 1)
+	const decimals =
+		type === "temporal" ? 0 : Math.max(0, 1 - Math.floor(Math.log10(step)))
+	const round = (v: number) => Number(v.toFixed(decimals))
+	return Array.from({ length: count }, (_, i) =>
+		i === 0 ? lo : i === count - 1 ? hi : round(lo + step * i),
+	)
+}

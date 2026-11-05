@@ -68,3 +68,58 @@ describe("legend swatch conventions", () => {
 		expect(container.querySelector("circle")?.getAttribute("stroke-width")).toBeNull()
 	})
 })
+
+import { CombinedGroupLegend } from "./CombinedGroupLegend"
+import { OpacityLegend } from "./OpacityLegend"
+
+describe("continuous Saturation / Brightness / Opacity legends", () => {
+	const values = [0, 5, 10, 14]
+	const gradientOf = (el: Element) =>
+		[...el.querySelectorAll<HTMLElement>("div")]
+			.map((d) => d.style.backgroundImage || d.style.background)
+			.find((b) => b.includes("linear-gradient"))
+
+	it("a lone Saturation legend draws a gradient bar when asked", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["saturation"]}
+				type="quantitative"
+				values={values}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				auxSwatchColor="#d62728"
+				rampStyle="bar"
+			/>
+		)
+		expect(gradientOf(container)).toBeTruthy()
+	})
+
+	it("keeps its swatches by default", () => {
+		const { container } = render(
+			<CombinedGroupLegend
+				channels={["saturation"]}
+				type="quantitative"
+				values={values}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				auxSwatchColor="#d62728"
+			/>
+		)
+		expect(gradientOf(container)).toBeFalsy()
+	})
+
+	it("the opacity ramp can switch to one swatch per break", () => {
+		const { container } = render(
+			<OpacityLegend
+				type="quantitative"
+				values={values}
+				configs={EMPTY_CHANNEL_CONFIGS}
+				reverseCategorical={false}
+				swatchColor="#d62728"
+				rampStyle="swatches"
+			/>
+		)
+		expect(gradientOf(container)).toBeFalsy()
+		expect(container.querySelectorAll("span.rounded-sm").length).toBeGreaterThan(1)
+	})
+})
