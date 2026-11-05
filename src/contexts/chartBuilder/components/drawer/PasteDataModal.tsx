@@ -31,7 +31,7 @@ type Props = {
  *  visualization), otherwise it creates the data set here, which is why
  *  the name field only appears in that case. */
 export const PasteDataModal = ({ open, onClose, initialText = "" }: Props) => (
-	<Modal open={open} onClose={onClose} title="Paste data" widthClass="max-w-xl">
+	<Modal open={open} onClose={onClose} title="Paste or type data" widthClass="max-w-xl">
 		{/* The Modal renders nothing while closed, so the form (and its draft
 		 *  text, name and errors) remounts fresh on every open. */}
 		<PasteDataForm onClose={onClose} initialText={initialText} />
@@ -95,7 +95,7 @@ const PasteDataForm = ({
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="text-sm vc-muted">
-				Paste comma- or tab-separated data, such as cells copied from a
+				Paste or type comma- or tab-separated data, such as cells copied from a
 				spreadsheet. The first row is the header.
 			</div>
 			<Textarea

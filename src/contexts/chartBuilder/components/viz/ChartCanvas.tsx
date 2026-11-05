@@ -133,9 +133,6 @@ export const ChartBody = ({
 				) : (
 					<>
 						<div className="text-sm">No data set loaded.</div>
-						<div className="text-sm">
-							Upload a CSV from the sidebar to get started.
-						</div>
 					</>
 				)}
 			</div>

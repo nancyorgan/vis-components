@@ -185,15 +185,12 @@ export const DataDrawer = () => {
 					 *  no longer spelled out. */}
 					{!dataset && (
 						<>
-							<span className="hidden text-sm sm:inline vc-faint">
-								Drop a CSV to upload
-							</span>
 							<button
 								type="button"
 								onClick={() => setPaste({ open: true, text: "" })}
 								className="text-sm transition-colors hover:text-stone-900 pointer-coarse:px-2 pointer-coarse:py-1.5 dark:hover:text-white vc-muted"
 							>
-								Paste data
+								Paste or type data
 							</button>
 						</>
 					)}
