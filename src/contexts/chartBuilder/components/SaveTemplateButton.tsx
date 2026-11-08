@@ -66,6 +66,7 @@ export const SaveTemplateButton = ({ visualId }: { visualId: string }) => {
 		<>
 			<Button
 				compact
+				data-tip="save-template"
 				onClick={() => {
 					setError(null)
 					setOpen(true)

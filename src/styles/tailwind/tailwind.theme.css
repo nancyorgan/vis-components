@@ -96,6 +96,9 @@
 	--color-viz-text-colors-orange: #e3740d;
 	--color-viz-text-colors-gray: #828282;
 
+	/** "Hot pink": the helper-tip highlight ring (src/tips/TipBubble.tsx). */
+	--color-vc-hot-pink: #ff1ee8;
+
 	/**
 	 * Brand colors
 	 */

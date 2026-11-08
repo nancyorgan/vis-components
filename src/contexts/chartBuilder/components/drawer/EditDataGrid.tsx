@@ -549,6 +549,7 @@ export const EditDataGrid = ({
 					<table
 						role="grid"
 						aria-label="Data to edit"
+						data-tip="edit-grid"
 						aria-rowcount={rowCount + 1}
 						aria-colcount={colCount + 1}
 						className="border-separate border-spacing-0 text-sm"
@@ -634,6 +635,7 @@ export const EditDataGrid = ({
 										type="button"
 										onClick={onAddColumn}
 										aria-label="Add column"
+										data-tip="edit-add-column"
 										title="Add column"
 										className="h-full w-full text-base leading-none font-medium hover:text-brand-500 dark:hover:text-indigo-400 vc-muted"
 									>

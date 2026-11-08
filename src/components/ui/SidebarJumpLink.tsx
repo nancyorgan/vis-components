@@ -72,6 +72,7 @@ export const SidebarJumpLink = ({
 		<button
 			type="button"
 			onClick={() => jumpTo(target)}
+			data-tip="jump-link"
 			className="text-vc-brand-text self-end text-sm underline hover:opacity-80 dark:text-brand-300"
 		>
 			{label}

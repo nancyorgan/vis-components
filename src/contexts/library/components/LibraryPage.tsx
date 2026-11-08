@@ -524,6 +524,7 @@ export const LibraryPage = () => {
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Search visualizations…"
 							aria-label="Search visualizations"
+							data-tip="library-search"
 							className="w-full sm:w-64"
 						/>
 						<Select
@@ -639,6 +640,7 @@ export const LibraryPage = () => {
 								<li
 									key={d.visual.id}
 									className="group/card relative"
+									data-tip="library-card"
 									draggable
 									onDragStart={(e) => {
 										// Grid drags carry just this card (the checkbox selection is
@@ -816,6 +818,7 @@ const KindToggle = ({
 	// Visuals | Templates | All. "visuals" is the clean URL (no ?kind=).
 	<Segmented
 		ariaLabel="Show visualizations, templates, or both"
+		tipAnchor="library-kind"
 		value={kind ?? "visuals"}
 		segments={[
 			{ key: "visuals", label: "Visuals" },
@@ -838,6 +841,7 @@ const ViewToggle = ({
 	// styled from a single place.
 	<Segmented
 		ariaLabel="Library view"
+		tipAnchor="library-view"
 		value={view}
 		segments={[
 			{ key: "grid", label: "Grid" },

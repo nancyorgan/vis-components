@@ -45,7 +45,13 @@ type Props = {
  *  text the dialog's text box used to hold, so the save path
  *  (`store/useEditDataset.ts`) is unchanged. */
 export const EditDataModal = ({ open, onClose }: Props) => (
-	<Modal open={open} onClose={onClose} title="Edit data" widthClass="max-w-5xl">
+	<Modal
+		open={open}
+		onClose={onClose}
+		title="Edit data"
+		widthClass="max-w-5xl"
+		tipDialog="edit-data"
+	>
 		{/* The Modal renders nothing while closed, so the form (and its draft
 		 *  grid, undo history, name and errors) remounts fresh on every open. */}
 		<EditDataForm onClose={onClose} />
@@ -168,6 +174,7 @@ const EditDataBody = ({
 				</label>
 				<Input
 					id="edit-data-name"
+					data-tip="edit-data-name"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
 					onKeyDown={(e) => {

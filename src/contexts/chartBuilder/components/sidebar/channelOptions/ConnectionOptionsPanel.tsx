@@ -743,7 +743,11 @@ export const ConnectionOptionsPanel = () => {
 				</>
 			)}
 			{isLineOrAreaMode && !!connectionFieldName && (
-				<CollapsibleSubsection title="Polygon" changed={ch.fill}>
+				<CollapsibleSubsection
+					title="Polygon"
+					changed={ch.fill}
+					tipAnchor="area-fill"
+				>
 					<div className="flex flex-col gap-2">
 						<Checkbox
 							label="Fill polygon"
@@ -900,7 +904,11 @@ export const ConnectionOptionsPanel = () => {
 				</CollapsibleSubsection>
 			)}
 			{isPolygonMode && !!connectionFieldName && (
-				<CollapsibleSubsection title="Polygon" changed={ch.fill}>
+				<CollapsibleSubsection
+					title="Polygon"
+					changed={ch.fill}
+					tipAnchor="area-fill"
+				>
 					<div className="flex flex-col gap-2">
 						<Checkbox
 							label="Fill polygon"

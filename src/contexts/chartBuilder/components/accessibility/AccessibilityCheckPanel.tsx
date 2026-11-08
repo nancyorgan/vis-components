@@ -222,6 +222,7 @@ export const AccessibilityCheckCard = ({
 										<button
 											type="button"
 											data-finding={f.id}
+											data-tip="a11y-finding"
 											onMouseEnter={() => onHighlight(f.id)}
 											onMouseLeave={() => onHighlight(null)}
 											onFocus={() => onHighlight(f.id)}

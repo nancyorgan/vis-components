@@ -107,7 +107,12 @@ export const AddThemeButton = ({
 
 	return (
 		<>
-			<Button compact onClick={() => setOpen(true)} className={className}>
+			<Button
+				compact
+				onClick={() => setOpen(true)}
+				className={className}
+				data-tip="add-theme"
+			>
 				+ Add a new theme
 			</Button>
 			<AddThemeDialog

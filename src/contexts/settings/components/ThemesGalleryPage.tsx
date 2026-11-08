@@ -107,7 +107,11 @@ const CardBody = ({
 					{theme.name}
 				</div>
 				<div className="flex flex-shrink-0 flex-wrap justify-end gap-1">
-					{isDefault && <Pill tone="brand">Default</Pill>}
+					{isDefault && (
+						<span data-tip="theme-default">
+							<Pill tone="brand">Default</Pill>
+						</span>
+					)}
 					{folder === "system" ? (
 						<Pill tone="stone">
 							<LockIcon />
@@ -178,7 +182,7 @@ export const ThemesGalleryPage = () => {
 					>
 						{THEME_FOLDER_LABEL[folder]}
 						{locked && (
-							<span className="vc-muted">
+							<span className="vc-muted" data-tip="theme-lock">
 								<LockIcon size={12} />
 							</span>
 						)}
@@ -204,6 +208,7 @@ export const ThemesGalleryPage = () => {
 											type="button"
 											onClick={() => setGatedThemeId(t.id)}
 											className={cardClass}
+											data-tip="theme-card"
 										>
 											<CardBody theme={t} isDefault={isDefault} />
 										</button>
@@ -212,6 +217,7 @@ export const ThemesGalleryPage = () => {
 											to="/settings/themes/$themeId"
 											params={{ themeId: t.id }}
 											className={cardClass}
+											data-tip="theme-card"
 										>
 											<CardBody theme={t} isDefault={isDefault} />
 										</Link>

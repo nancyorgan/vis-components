@@ -198,6 +198,7 @@ export const SaveBar = () => {
 					onChange={(e) => setName(e.target.value)}
 					placeholder="Untitled visualization"
 					aria-label="Visualization title"
+					data-tip="visual-title"
 					aria-invalid={nameTaken ? true : undefined}
 					aria-describedby={nameTaken ? nameErrorId : undefined}
 					className={`vc-focus-ring min-w-24 flex-1 rounded-control border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-stone-900 transition-colors hover:border-stone-200 focus:border-stone-600 dark:text-white dark:hover:border-stone-700 dark:focus:border-stone-500 ${

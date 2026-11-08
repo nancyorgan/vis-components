@@ -113,6 +113,7 @@ export const PalettePickerButton = ({
 		<div ref={containerRef} className="relative flex-shrink-0">
 			<button
 				type="button"
+				data-tip="palette-picker"
 				onClick={() => (open ? close() : setOpen(true))}
 				onBlur={closeIfFocusLeft}
 				onKeyDown={closeOnEscape}

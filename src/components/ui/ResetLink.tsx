@@ -22,6 +22,7 @@ export const ResetLink = ({
 		type="button"
 		onClick={onClick}
 		aria-label={ariaLabel}
+		data-tip="reset-link"
 		className={
 			"text-sm hover:text-stone-900 dark:hover:text-white vc-muted" +
 			(underline ? " underline" : "") +

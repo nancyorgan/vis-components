@@ -75,7 +75,10 @@ const MISSING_THEME_DRAFT = draftOf(SYSTEM_LIGHT_THEME)
  *  table. All draw the DRAFT, so every edit below redraws them at once —
  *  before anything is saved. */
 const EditorPreviews = ({ theme, name }: { theme: Theme; name: string }) => (
-	<div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+	<div
+		className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+		data-tip="theme-previews"
+	>
 		<div className="min-w-0 overflow-hidden rounded-card border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
 			<ThemePreview theme={theme} name={name} className="block aspect-[4/3] w-full" />
 		</div>
@@ -599,7 +602,7 @@ export const ThemesPage = ({
 							<span className="text-sm vc-muted">Unsaved changes</span>
 						)}
 						{onDone && (
-							<Button compact onClick={done}>
+							<Button compact onClick={done} data-tip="theme-done">
 								Done
 							</Button>
 						)}

@@ -16,6 +16,7 @@ const NavLink = ({ to, children }: { to: string; children: string }) => (
 	<Link
 		to={to}
 		className={c(navLink, navIdle)}
+		data-tip={`nav-${children.toLowerCase()}`}
 		activeProps={{ className: c(navLink, navActive) }}
 	>
 		{children}

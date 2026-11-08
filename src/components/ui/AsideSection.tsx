@@ -43,6 +43,8 @@ export const AsideSection = ({
 	// Slugged: raw titles carry spaces and "&" ("Aesthetics & Theme"), which
 	// make an invalid IDREF for aria-controls. Stable so e2e can find a body.
 	const bodyId = asideSectionId(title)
+	// Helper-tip anchor (src/tips/tips.ts): `section-<slug>`.
+	const tipAnchor = bodyId.replace(/^aside-section-/, "section-")
 	const headingClass =
 		"text-vc-section-header flex items-center gap-1.5 text-base font-semibold tracking-wider uppercase"
 
@@ -71,7 +73,7 @@ export const AsideSection = ({
 				{collapsible ? (
 					// The heading wraps the toggle (not the other way round) so
 					// assistive tech still exposes the section title as a heading.
-					<h2 className="flex flex-1">
+					<h2 className="flex flex-1" data-tip={tipAnchor}>
 						<button
 							type="button"
 							onClick={toggle}
@@ -87,7 +89,9 @@ export const AsideSection = ({
 						</button>
 					</h2>
 				) : (
-					<h2 className={headingClass}>{title}</h2>
+					<h2 className={headingClass} data-tip={tipAnchor}>
+						{title}
+					</h2>
 				)}
 				{right}
 			</div>

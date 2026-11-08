@@ -133,7 +133,12 @@ export const SharingPage = () => {
 					library.
 				</p>
 				<div className="flex items-center gap-3">
-					<Button compact onClick={onExport} disabled={exporting}>
+					<Button
+						compact
+						onClick={onExport}
+						disabled={exporting}
+						data-tip="download-bundle"
+					>
 						{exporting ? "Exporting…" : "Download bundle"}
 					</Button>
 					{status && (
@@ -160,6 +165,7 @@ export const SharingPage = () => {
 						compact
 						onClick={() => importInputRef.current?.click()}
 						disabled={importing}
+						data-tip="import-bundle"
 					>
 						{importing ? "Importing…" : "Import bundle…"}
 					</Button>

@@ -567,7 +567,11 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			)}
 
 			{showScaleSection && (
-				<Section title="Scale" changed={sectionChanged.Scale}>
+				<Section
+					title="Scale"
+					changed={sectionChanged.Scale}
+					tipAnchor="axis-scale"
+				>
 					{/* Min / Max + plain custom breaks step aside while the axis
 					 *  is mirrored — the mirror's side maxes and mirrored breaks
 					 *  replace them. */}
@@ -840,6 +844,7 @@ export const TickFormatControl = ({
 				{label}
 			</span>
 			<Select
+				data-tip="number-format"
 				value={formatPresetValueFor(value, countryNames)}
 				onChange={(e) => {
 					const spec = formatPresetSelection(e.target.value)
@@ -875,14 +880,21 @@ const Section = ({
 	children,
 	changed,
 	jumpId,
+	tipAnchor,
 }: {
 	title: string
 	children: React.ReactNode
 	changed?: boolean
 	/** Target for sidebar jump links (`channelJump(channel, jumpId)`). */
 	jumpId?: string
+	tipAnchor?: string
 }) => (
-	<CollapsibleSubsection title={title} changed={changed} jumpId={jumpId}>
+	<CollapsibleSubsection
+		title={title}
+		changed={changed}
+		jumpId={jumpId}
+		tipAnchor={tipAnchor}
+	>
 		{children}
 	</CollapsibleSubsection>
 )

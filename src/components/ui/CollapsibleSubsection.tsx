@@ -46,6 +46,8 @@ export const CollapsibleSubsection = ({
 	 *  transient jump target names this id, the subsection opens, scrolls
 	 *  itself into view and clears the target. */
 	jumpId,
+	/** `data-tip` anchor for a helper tip on the header (src/tips/tips.ts). */
+	tipAnchor,
 }: {
 	title: React.ReactNode
 	children: React.ReactNode
@@ -54,6 +56,7 @@ export const CollapsibleSubsection = ({
 	boxed?: boolean
 	changed?: boolean
 	jumpId?: string
+	tipAnchor?: string
 }) => {
 	const [open, setOpen] = useState(defaultOpen)
 	const rootRef = useRef<HTMLDivElement>(null)
@@ -75,6 +78,7 @@ export const CollapsibleSubsection = ({
 					type="button"
 					onClick={() => setOpen((o) => !o)}
 					aria-expanded={open}
+					data-tip={tipAnchor}
 					className="font-heading text-vc-section-header flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wider uppercase hover:opacity-80"
 				>
 					<SectionChevron open={open} />
@@ -83,6 +87,7 @@ export const CollapsibleSubsection = ({
 						<span
 							className="ml-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-stone-900 dark:bg-white"
 							aria-hidden="true"
+							data-tip="customized-dot"
 						/>
 					)}
 				</button>

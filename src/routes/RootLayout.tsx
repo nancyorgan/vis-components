@@ -11,6 +11,7 @@ import { installFocusModality } from "../lib/focusModality"
 import { UploadNoticeModal } from "../contexts/chartBuilder/components/UploadNoticeModal"
 import { registerUserFonts } from "../contexts/chartBuilder/lib/fontRegistration"
 import { userFontsAtom } from "../contexts/chartBuilder/store/atoms"
+import { TipHost } from "../tips/TipHost"
 
 /** Swallow file drops that miss the data drawer's drop zone. Without this, the
  * browser default (navigate to the file:// URL) replaces the app with what
@@ -103,6 +104,8 @@ export const RootLayout = () => {
 			{/* Above the outlet so an upload notice survives the navigation that
 			 *  creating a new visualization performs. Embeds never upload. */}
 			{!isEmbed && <UploadNoticeModal />}
+			{/* Just-in-time helper bubbles (src/tips/tips.ts). */}
+			{!isEmbed && <TipHost />}
 		</div>
 	)
 }

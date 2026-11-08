@@ -447,6 +447,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 		<Disclosure
 			as="div"
 			id={encodingRowId(channel)}
+			data-tip={`shelf-${channel}`}
 			className="vc-jump-target flex flex-col gap-1"
 		>
 			{({ open }) => (
@@ -462,12 +463,14 @@ export const EncodingShelf = ({ channel }: Props) => {
 							ref={toggleRef}
 							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 pointer-coarse:h-9 pointer-coarse:w-9 dark:hover:bg-stone-700"
 							aria-label={`Toggle options for ${ENCODING_CHANNEL_LABELS[channel]}`}
+							data-tip="encoding-options"
 						>
 							<RowChevron open={open} />
 							{hasCustomization && (
 								<span
 									className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-stone-900 dark:bg-white"
 									aria-hidden="true"
+									data-tip="customized-dot"
 								/>
 							)}
 						</Disclosure.Button>

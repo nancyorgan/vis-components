@@ -61,6 +61,7 @@ export const DataUpload = () => {
 				compact
 				onClick={() => inputRef.current?.click()}
 				className="w-full"
+				data-tip="upload-data"
 			>
 				{currentDataset ? "Upload data…" : "Upload CSV…"}
 			</Button>

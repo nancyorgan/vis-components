@@ -28,7 +28,7 @@ export const EncodingShelves = () => {
 		<div className="flex flex-col gap-2">
 			{/* Boxed and labeled optional so the icon grid reads as a
 			    convenience, not a required chart-type picker. */}
-			<div className="vc-option-panel">
+			<div className="vc-option-panel" data-tip="quickstart">
 				<CollapsibleSubsection
 					title="Quickstart charts (optional)"
 					defaultOpen

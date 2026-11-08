@@ -142,6 +142,7 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 					disabled={!canUndo}
 					title={`Undo (${mod}Z)`}
 					aria-label="Undo"
+					data-tip="undo"
 					className={iconBtn}
 				>
 					<UndoIcon />
@@ -162,6 +163,7 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 					compact
 					onClick={() => setExportOpen(true)}
 					title="Embed or export this visualization"
+					data-tip="export"
 					aria-label={compact ? "Export" : undefined}
 					className={iconBtn}
 				>

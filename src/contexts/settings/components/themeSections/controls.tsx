@@ -44,6 +44,7 @@ export const SectionGroup = ({
 	<CollapsibleSubsection
 		title={<span className="text-sm">{title}</span>}
 		boxed={false}
+		tipAnchor="theme-section"
 	>
 		<fieldset
 			disabled={isReadOnly}

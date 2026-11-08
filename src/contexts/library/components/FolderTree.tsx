@@ -695,6 +695,7 @@ const FolderTreeItem = ({
 					// button the name is also the row's Tab stop and Enter target.
 					<button
 						type="button"
+						data-tip={stock ? undefined : "folder-row"}
 						className={`min-w-0 flex-1 truncate text-left font-bold ${
 							stock
 								? "vc-heading"
@@ -1162,6 +1163,7 @@ export const FolderTree = ({
 						onClick={() => createFolder(enteredFolder?.id ?? null)}
 						className="-m-0.5 rounded p-1.5 hover:bg-stone-100 hover:text-stone-900 pointer-coarse:p-2 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"
 						title="New folder"
+						data-tip="new-folder"
 						aria-label={
 							enteredFolder
 								? `New folder in ${enteredFolder.name}`

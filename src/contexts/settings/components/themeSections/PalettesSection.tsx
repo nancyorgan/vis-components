@@ -161,6 +161,7 @@ const PaletteCard = ({
 			<button
 				type="button"
 				title={isDefault ? "Default palette" : "Set as default"}
+				data-tip="palette-default"
 				aria-label={isDefault ? "Default palette" : "Set as default"}
 				aria-pressed={isDefault}
 				onClick={onMakeDefault}
@@ -553,6 +554,7 @@ export const PalettesSection = ({
 				/>
 				<Button compact
 					onClick={addCatPalette}
+					data-tip="add-palette"
 					className="self-start"
 				>
 					Add palette

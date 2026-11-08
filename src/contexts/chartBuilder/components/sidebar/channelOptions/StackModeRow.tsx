@@ -79,6 +79,7 @@ export const StackModeRow = ({
 			</span>
 			<Segmented
 				ariaLabel={rowLabel}
+				tipAnchor="stack-mode"
 				value={value}
 				segments={STACK_MODE_SEGMENTS}
 				onChange={setValue}

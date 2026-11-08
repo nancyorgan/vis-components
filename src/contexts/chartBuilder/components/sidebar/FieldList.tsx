@@ -211,6 +211,7 @@ export const FieldList = () => {
 											<Disclosure.Button
 												className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 dark:hover:bg-stone-700"
 												aria-label={`Reorder levels of ${field.name}`}
+												data-tip="field-levels"
 												title="Reorder levels"
 											>
 												<RowChevron open={open} />
@@ -318,6 +319,7 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 						: `${field.name} — click to rename`
 				}
 				aria-label={`Rename ${field.name}`}
+				data-tip="field-name"
 				className="group -my-0.5 flex min-w-0 flex-1 items-center gap-1 py-0.5 text-left text-sm vc-text"
 			>
 				<span className="min-w-0 truncate">{field.name}</span>
@@ -429,6 +431,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 				onClick={startEditing}
 				title={`${field.name} — click to rename`}
 				aria-label={`Rename ${field.name}`}
+				data-tip="field-name"
 				className="group -my-0.5 flex min-w-0 flex-1 items-center gap-1 py-0.5 text-left text-sm vc-text"
 			>
 				<span className="min-w-0 truncate">{field.name}</span>

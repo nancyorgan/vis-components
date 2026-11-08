@@ -65,6 +65,8 @@ type ModalProps = {
 	 * For dialogs with no "Done" — the user leaves them by closing, not by
 	 * confirming anything. Requires `title`. */
 	closeButton?: boolean
+	/** Names this dialog for helper tips (src/tips/tips.ts `dialog`). */
+	tipDialog?: string
 }
 
 export const Modal = ({
@@ -82,6 +84,7 @@ export const Modal = ({
 	bodyClassName,
 	"aria-label": ariaLabel,
 	closeButton = false,
+	tipDialog,
 }: ModalProps) => {
 	// A text-selection drag that starts inside the panel (e.g. highlighting a
 	// dimension input) and releases over the backdrop fires the click on the
@@ -181,6 +184,7 @@ export const Modal = ({
 			onKeyDown={onPanelKeyDown}
 			role="dialog"
 			aria-modal="true"
+			data-tip-dialog={tipDialog}
 			aria-labelledby={title ? titleId : undefined}
 			aria-label={title ? undefined : ariaLabel}
 		>

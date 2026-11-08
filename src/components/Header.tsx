@@ -96,6 +96,7 @@ export const Header = () => {
 					to="/settings"
 					className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"
 					title="Settings"
+					data-tip="settings"
 				>
 					<svg
 						viewBox="0 0 20 20"
@@ -455,6 +456,7 @@ const NewVisualizationButton = () => {
 					className="rounded-r-none whitespace-nowrap"
 					onClick={onFreshDataset}
 					title="Start a new visualization"
+					data-tip="new-visual"
 				>
 					<NewVisualizationLabel />
 				</Button>
@@ -463,6 +465,7 @@ const NewVisualizationButton = () => {
 					className="rounded-l-none border-l border-l-white/30 px-2"
 					onClick={() => setOpen((v) => !v)}
 					aria-label="More ways to start"
+					data-tip="new-visual-menu"
 					aria-haspopup="menu"
 					aria-expanded={open}
 				>
@@ -646,6 +649,7 @@ const AccessibilityCheckToggle = () => {
 			onClick={() => setActive(!active)}
 			title="Accessibility check"
 			aria-label="Accessibility check"
+			data-tip="a11y-check"
 			aria-pressed={active}
 			className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
 				active
@@ -694,6 +698,7 @@ const BlackAndWhiteToggle = () => {
 					: "Black-and-white preview"
 			}
 			aria-pressed={active}
+			data-tip="bw-toggle"
 			className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
 				active
 					? "vc-toggle-on"

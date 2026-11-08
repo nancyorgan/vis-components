@@ -59,7 +59,9 @@ export const AccessibilityPage = () => {
 			</p>
 
 			<div className="max-w-2xl rounded-lg border border-stone-200 p-5 dark:border-stone-700">
-				<h2 className="mb-2 text-sm vc-heading">Text contrast</h2>
+				<h2 className="mb-2 text-sm vc-heading" data-tip="contrast-model">
+					Text contrast
+				</h2>
 				<RadioGroup
 					legend="Measure text against its background with"
 					align="start"

@@ -172,6 +172,7 @@ export const ColorInput = ({
 					ref={swatchRef}
 					id={inputId}
 					type="button"
+					data-tip="color-swatch"
 					onClick={() => setPickerOpen((o) => !o)}
 					disabled={disabled}
 					aria-haspopup="dialog"

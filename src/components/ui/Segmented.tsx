@@ -10,8 +10,11 @@ export const Segmented = <K extends string>({
 	segments,
 	onChange,
 	className,
+	tipAnchor,
 }: {
 	ariaLabel: string
+	/** `data-tip` anchor for a helper tip (src/tips/tips.ts). */
+	tipAnchor?: string
 	value: K
 	segments: ReadonlyArray<{ key: K; label: string }>
 	onChange: (key: K) => void
@@ -25,6 +28,7 @@ export const Segmented = <K extends string>({
 		<div
 			role="radiogroup"
 			aria-label={ariaLabel}
+			data-tip={tipAnchor}
 			className={`inline-flex self-start overflow-hidden rounded border border-vc-brand-text ${className ?? ""}`}
 		>
 			{segments.map((s) => (

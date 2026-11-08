@@ -119,6 +119,7 @@ export const FontsPage = () => {
 						onChange={(e) => setName(e.target.value)}
 						placeholder="Font name, e.g. Roboto Slab"
 						aria-label="Google Font name"
+						data-tip="font-name"
 						className="w-64"
 					/>
 					<Button

@@ -62,6 +62,7 @@ export const TrashButton = () => {
 				type="button"
 				onClick={() => setOpen(true)}
 				title={count === 0 ? "Trash is empty" : `Trash · ${plural(count, "visualization")}`}
+				data-tip="trash"
 				aria-label={
 					count === 0 ? "Open trash (empty)" : `Open trash, ${plural(count, "item")}`
 				}

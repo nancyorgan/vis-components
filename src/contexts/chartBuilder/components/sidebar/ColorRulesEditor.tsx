@@ -90,6 +90,7 @@ export const ColorRulesEditor = ({
 			<button
 				type="button"
 				onClick={addRule}
+				data-tip="color-rules"
 				className="self-end text-xs text-blue-600 hover:underline dark:text-blue-400"
 			>
 				{addLabel}

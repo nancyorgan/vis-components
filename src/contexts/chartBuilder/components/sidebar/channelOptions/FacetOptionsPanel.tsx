@@ -346,7 +346,7 @@ export const FacetOptionsPanel = () => {
 			{/* Blank = auto grid. The placeholder shows the resolved auto
 			 *  count, and the first spinner click / arrow key steps from it
 			 *  rather than from 1. */}
-			<CollapsibleSubsection title="Dimension">
+			<CollapsibleSubsection title="Dimension" tipAnchor="facet-dimension">
 				<NumberInput
 					label="Rows"
 					labelClassName={LABEL_COL}

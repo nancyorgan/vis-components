@@ -298,6 +298,7 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 			onClose={onClose}
 			title="Export this visualization"
 			closeButton
+			tipDialog="export"
 			maxWidthPx={slotWidth}
 			anchorTop
 			fitWidth
@@ -305,10 +306,18 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 		>
 			<div className="flex flex-col gap-4">
 				<div className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700">
-					<TabButton active={tab === "embed"} onClick={() => setTab("embed")}>
+					<TabButton
+						active={tab === "embed"}
+						onClick={() => setTab("embed")}
+						tipAnchor="export-embed-tab"
+					>
 						Embed
 					</TabButton>
-					<TabButton active={tab === "export"} onClick={() => setTab("export")}>
+					<TabButton
+						active={tab === "export"}
+						onClick={() => setTab("export")}
+						tipAnchor="export-image-tab"
+					>
 						Export image
 					</TabButton>
 					{/* Not tabs: the JSON bundle downloads straight away and the
@@ -403,14 +412,18 @@ const TabButton = ({
 	active,
 	onClick,
 	children,
+	tipAnchor,
 }: {
 	active: boolean
 	onClick: () => void
 	children: React.ReactNode
+	/** `data-tip` anchor for a helper tip (src/tips/tips.ts). */
+	tipAnchor?: string
 }) => (
 	<button
 		type="button"
 		onClick={onClick}
+		data-tip={tipAnchor}
 		className={`px-4 py-2 text-sm font-medium transition-colors ${
 			active
 				? "border-b-2 border-stone-900 text-stone-900 dark:border-white dark:text-white"
