@@ -405,6 +405,7 @@ export const CombinedGroupLegend = ({
 						paletteIdx: resolved.paletteIdx,
 						svgId: resolved.svgId,
 						scale: resolved.scale,
+						rotation: resolved.rotation,
 					}
 				} else if (!hasHue && !showDash) {
 					// PATTERN_NONE is a legitimate category — "this one has no
@@ -437,7 +438,8 @@ export const CombinedGroupLegend = ({
 					type,
 					themeInkFallback
 				),
-				patView.pattern.defaultScale
+				patView.pattern.defaultScale,
+				patView.pattern.defaultRotation
 			)
 			if (resolved !== null) {
 				pattern = {
@@ -446,6 +448,7 @@ export const CombinedGroupLegend = ({
 					paletteIdx: resolved.paletteIdx,
 					svgId: resolved.svgId,
 					scale: resolved.scale,
+					rotation: resolved.rotation,
 				}
 			}
 		}

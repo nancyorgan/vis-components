@@ -38,6 +38,8 @@ import {
 	measureFacetGapsFromPlotEdges,
 	rebaseCustomGlyphRefs,
 	resetVisualFontSizesV1ToV2,
+	retireStraightStripesInVisual,
+	STRAIGHT_STRIPES_RETIRED_AT,
 	themeFontSizesFromListV2,
 } from "./storage/migrations"
 import { foldFlowNodeTitles } from "./foldFlowNodeTitles"
@@ -131,9 +133,13 @@ const seedVisualsAtCurrentFontUnit = (seed: SeedBundle): Visual[] => {
 	// structure), v7→v8 (plot-edge facet gaps) and v8→v9 (custom-glyph
 	// refs rebased), v12→v13 (radar spine slots folded into the angle
 	// spine), plus the flow Node-titles fold, apply to EVERY seed: all are
-	// idempotent and there is no cutover stamp to gate on.
-	const visuals = seed.visuals.map((v) =>
-		foldFlowNodeTitles(
+	// idempotent and there is no cutover stamp to gate on. The v13→v14
+	// straight-stripe step is not idempotent (its slots are the wave and
+	// zig-zag now), so it runs only for seeds stamped before the change.
+	const exportedBeforeStripesRetired =
+		seed.exportedAt !== null && seed.exportedAt < STRAIGHT_STRIPES_RETIRED_AT
+	const visuals = seed.visuals.map((v) => {
+		const structured = foldFlowNodeTitles(
 			structureVisualKeys(
 				foldRadarSpineSlotsInVisual(
 					rebaseCustomGlyphRefs(
@@ -142,7 +148,10 @@ const seedVisualsAtCurrentFontUnit = (seed: SeedBundle): Visual[] => {
 				)
 			)
 		)
-	)
+		return exportedBeforeStripesRetired
+			? retireStraightStripesInVisual(structured)
+			: structured
+	})
 	if (seed.exportedAt === null || seed.exportedAt >= FONT_PT_CUTOVER) {
 		return visuals
 	}

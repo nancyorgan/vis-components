@@ -1890,6 +1890,26 @@ Behavior depends on chart context:
   `<pattern>` def's id, so the legend and the Pattern menu's chips
   render the same zoom as the marks. A stored 0 draws at ×0.1 — a
   zero-size SVG tile paints nothing, which would make the marks vanish.
+  On its own row below, a **Rotate** box turns that category's tile
+  grid (−180° to 180° by 1°, clockwise; blank = 0°): 45° lays the
+  diagonal stripes horizontal, −45° stands them vertical — which is why
+  the palette no longer carries straight vertical / horizontal stripe
+  entries. Their two slots hold a **wave** and a **zig-zag** instead:
+  filled bands of constant height along the stripe, zooming uniformly
+  with Scale — the wave half ink and half background, the zig-zag 0.3
+  ink (a little heavier than the diagonal stripe, lighter than the
+  wave). Scale and Rotate each carry their own reset link once set, and
+  emptying either box resets it too. Saved picks of the old straight stripes (visuals v14,
+  channel configs v8, map no-data v9, and bundles / seeds exported
+  before 2026-11-09) migrate to the diagonal stripe turned ∓45°, so
+  those charts draw as before. The grid as a whole turns (`patternTransform` on the
+  `<pattern>`), so the tile size and spacing are unchanged. Stored
+  sparsely like Scale (`pattern.rotations[category]`,
+  `pattern.defaultRotation`, the `polygonRotations` / `violinRotations`
+  twins), normalized into [0°, 360°) and baked into the def's id, so
+  legend swatches and the menu's chips turn with the marks. Each
+  category's Reset link clears its rotation along with its pattern, ink
+  and scale picks.
   With no pattern variable mapped, the panel's **Default pattern**
   picker (`defaultPattern` + its ink) fills EVERY mark — scatter
   points, bars, area layers, and pie wedges alike (the pattern tile's

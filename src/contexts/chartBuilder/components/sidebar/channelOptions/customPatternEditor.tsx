@@ -24,6 +24,7 @@ export const CustomPatternChips = ({
 	inkColor,
 	bgColor,
 	scale,
+	rotation,
 	ariaName,
 }: {
 	patterns: ReadonlyArray<CustomPattern | null>
@@ -35,6 +36,7 @@ export const CustomPatternChips = ({
 	inkColor: string
 	bgColor: string
 	scale?: number | null
+	rotation?: number | null
 	/** Accessible-name prefix, e.g. "Pattern option" / "Polygon pattern
 	 *  option" — the chips read "<prefix> custom 1". */
 	ariaName: string
@@ -59,6 +61,7 @@ export const CustomPatternChips = ({
 							inkColor={inkColor}
 							bgColor={bgColor}
 							scale={scale}
+							rotation={rotation}
 						/>
 					</button>
 					<button

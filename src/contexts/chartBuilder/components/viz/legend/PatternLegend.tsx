@@ -181,7 +181,7 @@ export const PatternLegend = ({
 						</EntryHoverWrap>
 					)
 				}
-				const { paletteIdx, inkColor, svgId, scale } = resolved
+				const { paletteIdx, inkColor, svgId, scale, rotation } = resolved
 				const patId = `legend-${svgId}`
 				const tile = (
 					<PatternTile
@@ -190,6 +190,7 @@ export const PatternLegend = ({
 						bgColor={bgColor}
 						inkColor={inkColor}
 						scale={scale}
+						rotation={rotation}
 					/>
 				)
 				return (

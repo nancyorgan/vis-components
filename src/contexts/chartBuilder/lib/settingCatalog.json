@@ -6666,7 +6666,20 @@
 				"string"
 			]
 		},
+		"channelConfigs.pattern.defaultPolygonRotation": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
 		"channelConfigs.pattern.defaultPolygonScale": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.pattern.defaultRotation": {
+			"doc": "Rotation for the no-variable default pattern (`ChannelConfigs.defaultPattern`); null/absent = 0°.",
 			"kinds": [
 				"null",
 				"number"
@@ -6689,6 +6702,12 @@
 			"kinds": [
 				"null",
 				"string"
+			]
+		},
+		"channelConfigs.pattern.defaultViolinRotation": {
+			"kinds": [
+				"null",
+				"number"
 			]
 		},
 		"channelConfigs.pattern.defaultViolinScale": {
@@ -6764,6 +6783,17 @@
 				"none"
 			]
 		},
+		"channelConfigs.pattern.polygonRotations": {
+			"doc": "The polygon-fill twins of `rotations` / `defaultRotation`.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.polygonRotations.*": {
+			"kinds": [
+				"number"
+			]
+		},
 		"channelConfigs.pattern.polygonScales": {
 			"doc": "The polygon-fill twins of `scales` / `defaultScale` (filled radar).",
 			"kinds": [
@@ -6771,6 +6801,17 @@
 			]
 		},
 		"channelConfigs.pattern.polygonScales.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.pattern.rotations": {
+			"doc": "PATTERN ROTATION — the angle (degrees, clockwise) the pattern tile grid is turned by, per point-fill category: 45° lays the diagonal stripes horizontal, −45° stands them vertical.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.rotations.*": {
 			"kinds": [
 				"number"
 			]
@@ -6838,6 +6879,17 @@
 			],
 			"values": [
 				"none"
+			]
+		},
+		"channelConfigs.pattern.violinRotations": {
+			"doc": "The violin / box-fill twins of `rotations` / `defaultRotation`.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.violinRotations.*": {
+			"kinds": [
+				"number"
 			]
 		},
 		"channelConfigs.pattern.violinScales": {

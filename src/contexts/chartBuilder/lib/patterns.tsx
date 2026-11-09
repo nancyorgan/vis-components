@@ -1,5 +1,6 @@
 import {
 	DEFAULT_PATTERN_CONFIG,
+	DEFAULT_PATTERN_ROTATION,
 	DEFAULT_PATTERN_SCALE,
 	PATTERN_SCALE_MAX,
 	type ChannelConfigs,
@@ -85,6 +86,80 @@ const antiDiagonal = (L: number, m: number): string =>
 const mainDiagonal = (L: number, m: number): string =>
 	`M${px(-m)},${px(L - m)} l${px(2 * m)},${px(2 * m)} M0,0 l${px(L)},${px(L)} M${px(L - m)},${px(-m)} l${px(2 * m)},${px(2 * m)}`
 
+/** Vertical swing of the wave and zig-zag bands, as a fraction of the tile:
+ * the band's centre line rises and falls this far either side of its rest
+ * height. Must stay within `(1 − inkFraction) / 2` of the tile, where the
+ * crests would touch the tile edges. */
+const WAVE_AMPLITUDE = 1 / 6
+const ZIGZAG_AMPLITUDE = 1 / 5
+/** How much of each tile's height the band's ink takes, the rest being
+ * background. The wave is half and half — ink and gap the same height
+ * everywhere along the stripe. The zig-zag is lighter: measured across its
+ * runs it is a little heavier than the diagonal stripe (ink ≈2.3 px to
+ * the stripe's 1.5 at ×1) and well short of the wave. */
+const WAVE_INK_FRACTION = 1 / 2
+const ZIGZAG_INK_FRACTION = 0.3
+
+/** One horizontal stripe of a band pattern, as a FILLED region: the area
+ * between a periodic edge curve and that same curve shifted down by
+ * `inkFraction` of the tile, the pair centred in the tile. Because both
+ * edges are the one shape, the ink band is exactly `inkFraction × L` tall
+ * at every x, and the background band between it and the next tile's
+ * stripe exactly the rest. The edges span x = −L/2 to 3L/2 (one extra
+ * half-period each side) so the tile seams fall mid-band and never show a
+ * hairline. `edge(xa, xb, y, dir)` appends the half-period from xa to xb
+ * (either direction) at rest height y, swinging up (dir −1) or down
+ * (dir 1) at its midpoint. */
+const bandPath = (
+	L: number,
+	inkFraction: number,
+	edge: (xa: number, xb: number, y: number, dir: 1 | -1) => string
+): string => {
+	const half = L / 2
+	const top = (L * (1 - inkFraction)) / 2
+	const bottom = top + L * inkFraction
+	const starts = [-half, 0, half, L]
+	let d = `M${px(-half)},${px(top)}`
+	// Top edge, left to right: four half-periods, alternating swing.
+	starts.forEach((x0, i) => {
+		d += edge(x0, x0 + half, top, i % 2 === 0 ? -1 : 1)
+	})
+	d += ` L${px(L + half)},${px(bottom)}`
+	// Bottom edge, right to left: the same half-periods traced backwards.
+	starts.forEach((x0, i) => {
+		const j = starts.length - 1 - i
+		const xj = starts[j] ?? x0
+		d += edge(xj + half, xj, bottom, j % 2 === 0 ? -1 : 1)
+	})
+	return `${d} Z`
+}
+
+/** The wave: each half-period is a quadratic curve whose control point sits
+ * at twice the amplitude above the midpoint (a quadratic reaches halfway
+ * to its control), so the crest is `WAVE_AMPLITUDE × L` off the rest line.
+ * Symmetric, so the same curve serves both directions. */
+const waveBand = (L: number): string => {
+	const a = WAVE_AMPLITUDE * L
+	return bandPath(
+		L,
+		WAVE_INK_FRACTION,
+		(xa, xb, y, dir) =>
+			` Q${px((xa + xb) / 2)},${px(y + dir * 2 * a)} ${px(xb)},${px(y)}`
+	)
+}
+
+/** The zig-zag: each half-period is a straight run to the peak at its
+ * midpoint and back to the rest line. */
+const zigzagBand = (L: number): string => {
+	const a = ZIGZAG_AMPLITUDE * L
+	return bandPath(
+		L,
+		ZIGZAG_INK_FRACTION,
+		(xa, xb, y, dir) =>
+			` L${px((xa + xb) / 2)},${px(y + dir * a)} L${px(xb)},${px(y)}`
+	)
+}
+
 // Patterns are intentionally ink-dense: default mark radii are small (~4px),
 // and the pattern tiles need enough visible ink to read as "a pattern" in
 // that little space. Tiles are sized so that at least one full repeat fits
@@ -116,29 +191,26 @@ export const PATTERN_PALETTE: PatternDef[] = [
 			<path d={antiDiagonal(L, m)} stroke={ink} strokeWidth={px(1.5 * m)} />
 		),
 	},
+	// The two straight-stripe entries that used to sit here (vertical,
+	// horizontal) retired on 2026-11-09: the diagonal stripe plus the Rotate
+	// control draws both (−45° / 45°), and saved picks migrated to exactly
+	// that (`retireStraightStripes` in storage/migrations). Their slots now
+	// hold the wave and the zig-zag — both FILLED bands rather than strokes,
+	// so the ink band keeps one height at every point along the stripe
+	// (half the tile for the wave, 0.3 of it for the zig-zag). Pure zoom
+	// (spacingExponent 1): the band heights are fractions of the tile, so
+	// Scale keeps the ink / background ratio.
 	{
-		id: "vc-pat-vert",
-		size: 8,
-		spacingExponent: MARK_WEIGHTED_SPACING_EXPONENT,
-		render: (ink, { side: L, mark: m }) => (
-			<path
-				d={`M${px(L / 2)},${px(-m)} v${px(L + 2 * m)}`}
-				stroke={ink}
-				strokeWidth={px(1.5 * m)}
-			/>
-		),
+		id: "vc-pat-wave",
+		size: 10,
+		spacingExponent: 1,
+		render: (ink, { side: L }) => <path d={waveBand(L)} fill={ink} />,
 	},
 	{
-		id: "vc-pat-horiz",
-		size: 8,
-		spacingExponent: MARK_WEIGHTED_SPACING_EXPONENT,
-		render: (ink, { side: L, mark: m }) => (
-			<path
-				d={`M${px(-m)},${px(L / 2)} h${px(L + 2 * m)}`}
-				stroke={ink}
-				strokeWidth={px(1.5 * m)}
-			/>
-		),
+		id: "vc-pat-zigzag",
+		size: 10,
+		spacingExponent: 1,
+		render: (ink, { side: L }) => <path d={zigzagBand(L)} fill={ink} />,
 	},
 	{
 		id: "vc-pat-cross",
@@ -194,6 +266,23 @@ export const effectivePatternScale = (raw: number | null | undefined): number =>
 const scaleSlug = (scale: number): string =>
 	scale === DEFAULT_PATTERN_SCALE ? "" : `-x${String(scale).replace(".", "p")}`
 
+/** The angle (degrees, clockwise) a stored rotation actually renders at:
+ * absent / non-numeric → 0°, otherwise normalized into [0°, 360°) and
+ * rounded to hundredths, so 180° and −180° (or 45° and 405°) resolve to
+ * one def rather than two identical ones. */
+export const effectivePatternRotation = (raw: number | null | undefined): number => {
+	if (typeof raw !== "number" || !Number.isFinite(raw)) return DEFAULT_PATTERN_ROTATION
+	const wrapped = ((raw % 360) + 360) % 360
+	return Number(wrapped.toFixed(2))
+}
+
+/** Id-safe spelling of a rotation ("22.5" → "22p5"); empty at 0° so ids
+ * of unrotated patterns stay exactly as before the Rotate control existed. */
+const rotationSlug = (rotation: number): string =>
+	rotation === DEFAULT_PATTERN_ROTATION
+		? ""
+		: `-r${String(rotation).replace(".", "p")}`
+
 // ----- Per-category pattern resolution -------------------------------------
 
 /** Ordered list of unique category values for a pattern-encoded field. Both
@@ -212,6 +301,9 @@ export type ResolvedPattern = {
 	/** Tile zoom to draw at (already passed through `effectivePatternScale`,
 	 * so ×1 when the category has no stored scale). */
 	scale: number
+	/** Tile rotation in degrees (already passed through
+	 * `effectivePatternRotation`, so 0 when the category has none). */
+	rotation: number
 }
 
 /** Look up the per-hue-color pattern-ink override for a mark. Returns the
@@ -352,25 +444,29 @@ export const resolvePatternForMark = (
 	const inkColor =
 		config?.inkColors?.[category] ?? preferredInk ?? DEFAULT_PATTERN_INK
 	const scale = effectivePatternScale(config?.scales?.[category])
-	// The scale is part of the id: two categories sharing colors but zoomed
-	// differently need two defs.
-	const svgId = `vc-pat-${paletteIdx}-${colorSlug(bgColor)}-${colorSlug(inkColor)}${scaleSlug(scale)}`
-	return { paletteIdx, bgColor, inkColor, svgId, scale }
+	const rotation = effectivePatternRotation(config?.rotations?.[category])
+	// The scale and rotation are part of the id: two categories sharing
+	// colors but zoomed or turned differently need two defs.
+	const svgId = `vc-pat-${paletteIdx}-${colorSlug(bgColor)}-${colorSlug(inkColor)}${scaleSlug(scale)}${rotationSlug(rotation)}`
+	return { paletteIdx, bgColor, inkColor, svgId, scale, rotation }
 }
 
 /** The single no-variable DEFAULT pattern (`ChannelConfigs.defaultPattern`
- * + its ink + `PatternConfig.defaultScale`) resolved for one mark, through
- * the same resolver as field-mapped categories so renderers and legends
- * agree on the def's id. `scale` null/absent = ×1. */
+ * + its ink + `PatternConfig.defaultScale` / `defaultRotation`) resolved
+ * for one mark, through the same resolver as field-mapped categories so
+ * renderers and legends agree on the def's id. `scale` null/absent = ×1;
+ * `rotation` null/absent = 0°. */
 export const resolveDefaultPatternForMark = (
 	bgColor: string,
 	paletteIdx: number,
 	inkColor: string,
-	scale?: number | null
+	scale?: number | null,
+	rotation?: number | null
 ): ResolvedPattern | null =>
 	resolvePatternForMark("__default__", 0, bgColor, {
 		...DEFAULT_PATTERN_CONFIG,
 		overrides: { __default__: paletteIdx },
 		inkColors: { __default__: inkColor },
 		scales: scale == null ? {} : { __default__: scale },
+		rotations: rotation == null ? {} : { __default__: rotation },
 	})

@@ -15,7 +15,10 @@ import {
 	datasetsMigrations,
 	measureFacetGapsFromPlotEdges,
 	readThemeFontSizesV2,
+	mapConfigMigrations,
 	rebaseCustomGlyphRefs,
+	retireStraightStripes,
+	retireStraightStripesInVisual,
 	resetVisualFontSizesV1ToV2,
 	themesMigrations,
 	visualsMigrations,
@@ -959,5 +962,75 @@ describe("radar spine slots fold into the angle spine (visuals v12 -> v13, chann
 		}>
 		expect(vis!.channelConfigs.angle.spine.color).toBe("#ff0000")
 		expect(vis!.channelConfigs.colorSlots).not.toHaveProperty("spine")
+	})
+})
+
+describe("straight stripes retire into the turned diagonal (visuals v13 -> v14, channelConfigs v7 -> v8, mapConfig v8 -> v9)", () => {
+	const step = channelConfigsMigrations[7]!
+
+	it("turns a default vertical / horizontal pick into the diagonal at ∓45°", () => {
+		const vertical = step({ defaultPattern: 2 }) as Record<string, unknown>
+		expect(vertical.defaultPattern).toBe(1)
+		expect(vertical.pattern).toMatchObject({ defaultRotation: -45, overrides: {} })
+		const horizontal = step({
+			defaultPattern: 3,
+			pattern: { overrides: {}, inkColors: {}, defaultRotation: 10 },
+		}) as { pattern: { defaultRotation: number } }
+		expect(horizontal.pattern.defaultRotation).toBe(55)
+	})
+
+	it("moves per-category picks (point fill, polygon, violin) with their twins' rotations", () => {
+		const out = step({
+			pattern: {
+				overrides: { a: 2, b: 3, c: 0, d: "none" },
+				rotations: { b: 150 },
+				polygonOverrides: { a: 3 },
+				violinOverrides: { a: 2 },
+				defaultPolygonPattern: 2,
+				defaultViolinPattern: 3,
+			},
+		}) as { pattern: Record<string, unknown> }
+		expect(out.pattern.overrides).toEqual({ a: 1, b: 1, c: 0, d: "none" })
+		// 150 + 45 wraps into (−180, 180].
+		expect(out.pattern.rotations).toEqual({ a: -45, b: -165 })
+		expect(out.pattern.polygonOverrides).toEqual({ a: 1 })
+		expect(out.pattern.polygonRotations).toEqual({ a: 45 })
+		expect(out.pattern.violinOverrides).toEqual({ a: 1 })
+		expect(out.pattern.violinRotations).toEqual({ a: -45 })
+		expect(out.pattern.defaultPolygonPattern).toBe(1)
+		expect(out.pattern.defaultPolygonRotation).toBe(-45)
+		expect(out.pattern.defaultViolinPattern).toBe(1)
+		expect(out.pattern.defaultViolinRotation).toBe(45)
+	})
+
+	it("returns the same reference when nothing was picked from the retired slots", () => {
+		const clean = { defaultPattern: 1, pattern: { overrides: { a: 0, b: 5 } } }
+		expect(step(clean)).toBe(clean)
+		expect(retireStraightStripes(null)).toBeNull()
+	})
+
+	it("rewrites a map's no-data stripes to the diagonal", () => {
+		const mapStep = mapConfigMigrations[8]!
+		expect(mapStep({ noDataPattern: 3 })).toEqual({ noDataPattern: 1 })
+		const plain = { noDataPattern: 0 }
+		expect(mapStep(plain)).toBe(plain)
+	})
+
+	it("runs over saved visuals, channel configs and map config alike", () => {
+		const untouched = { id: "u", channelConfigs: { defaultPattern: 0 } }
+		const [a, b] = visualsMigrations[13]!([
+			{
+				id: "v",
+				channelConfigs: { pattern: { overrides: { a: 2 } } },
+				mapConfig: { noDataPattern: 2 },
+			},
+			untouched,
+		]) as Array<Record<string, unknown>>
+		expect(a!.channelConfigs).toEqual({
+			pattern: { overrides: { a: 1 }, rotations: { a: -45 } },
+		})
+		expect(a!.mapConfig).toEqual({ noDataPattern: 1 })
+		expect(b).toBe(untouched)
+		expect(retireStraightStripesInVisual(untouched)).toBe(untouched)
 	})
 })

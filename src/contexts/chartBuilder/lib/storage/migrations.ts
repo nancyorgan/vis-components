@@ -28,9 +28,9 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 13
+export const VISUALS_VERSION = 14
 export const DATASETS_VERSION = 1
-export const CHANNEL_CONFIGS_VERSION = 7
+export const CHANNEL_CONFIGS_VERSION = 8
 export const LABELS_VERSION = 1
 export const LEGEND_VERSION = 2
 export const TOOLTIP_VERSION = 1
@@ -45,7 +45,7 @@ export const FIELD_LEVEL_ORDER_SPECS_VERSION = 1
 export const FIELD_ORDER_VERSION = 1
 export const ANNOTATIONS_VERSION = 6
 export const CAPTION_VERSION = 1
-export const MAP_CONFIG_VERSION = 8
+export const MAP_CONFIG_VERSION = 9
 export const RESHAPE_CONFIG_VERSION = 1
 export const DERIVED_VARIABLES_VERSION = 1
 export const DATA_TABLE_VERSION = 3
@@ -444,7 +444,146 @@ export const visualsMigrations: Migration[] = [
 		if (!Array.isArray(raw)) return raw
 		return raw.map((v) => foldRadarSpineSlotsInVisual(v))
 	},
+	// v13 -> v14: the straight-stripe pattern slots (vertical, horizontal)
+	// became the wave and the zig-zag; saved picks of them become the
+	// diagonal stripe turned to match — see `retireStraightStripes`.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		return raw.map((v) => retireStraightStripesInVisual(v))
+	},
 ]
+
+/** Pattern palette slots 2 and 3 held the vertical and horizontal
+ *  stripes until 2026-11-09, when the wave and zig-zag took them over:
+ *  the diagonal stripe (slot 1) plus the Rotate control draws both. Frozen
+ *  here per this file's conventions. */
+const RETIRED_VERTICAL_STRIPES = 2
+const RETIRED_HORIZONTAL_STRIPES = 3
+const DIAGONAL_STRIPES = 1
+/** The Rotate angle that lays the "/" diagonal stripe horizontal (clockwise
+ *  degrees); its negative stands it vertical. */
+const DIAGONAL_TO_HORIZONTAL = 45
+/** Exports from before the slots changed hands: a bundle or seed stamped
+ *  earlier than this still means "vertical / horizontal stripes" by slots 2
+ *  and 3 and gets the same step on import; a later one means the wave and
+ *  the zig-zag and must not. (Bundles carry no storage version, only this
+ *  stamp.) */
+export const STRAIGHT_STRIPES_RETIRED_AT = "2026-11-09T18:00:00.000Z"
+/** The point-fill pattern config at the time, for a record that stored a
+ *  default pattern but never touched the Pattern menu. */
+const V14_PATTERN_CONFIG = {
+	overrides: {},
+	dashOverrides: {},
+	customDashOverrides: {},
+	inkColors: {},
+	backgroundColor: null,
+	stackMode: "stack",
+} as const
+
+const recordOrNull = (v: unknown): Record<string, unknown> | null =>
+	typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null
+
+const stripeTurn = (idx: unknown): number | null =>
+	idx === RETIRED_VERTICAL_STRIPES
+		? -DIAGONAL_TO_HORIZONTAL
+		: idx === RETIRED_HORIZONTAL_STRIPES
+			? DIAGONAL_TO_HORIZONTAL
+			: null
+
+/** `prior` (a stored Rotate angle, or none) turned by `delta`, wrapped into
+ *  the Rotate box's (−180°, 180°] range. */
+const turnedBy = (prior: unknown, delta: number): number => {
+	const base = typeof prior === "number" && Number.isFinite(prior) ? prior : 0
+	const sum = base + delta
+	return ((((sum + 180) % 360) + 360) % 360) - 180
+}
+
+/** One `ChannelConfigs` record, v7 → v8 of the draft slice (the visuals
+ *  v13→v14 step). Every stored pick of the retired vertical / horizontal
+ *  stripe slots — the no-variable default pattern, a per-category
+ *  override, and the radar polygon / violin-box twins — becomes the
+ *  diagonal stripe with its Rotate angle turned by ∓45° (composed with any
+ *  angle already stored), which draws the same stripes. NOT idempotent
+ *  in the general sense: slots 2 and 3 are the wave and zig-zag now, so a
+ *  second pass would turn a wave pick into stripes. The versioned paths
+ *  run it exactly once; the unversioned intake paths (bundle imports,
+ *  seeds) gate it on `STRAIGHT_STRIPES_RETIRED_AT`. Returns the input
+ *  reference when nothing was picked from those slots. */
+export const retireStraightStripes = (raw: unknown): unknown => {
+	if (typeof raw !== "object" || !raw) return raw
+	const cc = raw as Record<string, unknown>
+	const pat = recordOrNull(cc.pattern)
+	let next: Record<string, unknown> | null = null
+	let nextPat: Record<string, unknown> | null = null
+	const patch = (key: string, value: unknown) => {
+		nextPat = { ...(nextPat ?? pat ?? V14_PATTERN_CONFIG), [key]: value }
+	}
+	// The three (default pick, default rotation) pairs. The point-fill
+	// default lives on the configs record itself; its twins on `pattern`.
+	const defaultTurn = stripeTurn(cc.defaultPattern)
+	if (defaultTurn !== null) {
+		next = { ...cc, defaultPattern: DIAGONAL_STRIPES }
+		patch("defaultRotation", turnedBy(pat?.defaultRotation, defaultTurn))
+	}
+	for (const [pick, rotation] of [
+		["defaultPolygonPattern", "defaultPolygonRotation"],
+		["defaultViolinPattern", "defaultViolinRotation"],
+	] as const) {
+		const turn = stripeTurn(pat?.[pick])
+		if (turn === null) continue
+		patch(pick, DIAGONAL_STRIPES)
+		patch(rotation, turnedBy((nextPat ?? pat)?.[rotation], turn))
+	}
+	// The three (per-category picks, per-category rotations) map pairs.
+	for (const [picks, rotations] of [
+		["overrides", "rotations"],
+		["polygonOverrides", "polygonRotations"],
+		["violinOverrides", "violinRotations"],
+	] as const) {
+		const map = recordOrNull(pat?.[picks])
+		if (!map) continue
+		let movedPicks: Record<string, unknown> | null = null
+		let movedTurns: Record<string, unknown> | null = null
+		for (const [category, idx] of Object.entries(map)) {
+			const turn = stripeTurn(idx)
+			if (turn === null) continue
+			movedPicks = { ...(movedPicks ?? map), [category]: DIAGONAL_STRIPES }
+			const priorTurns = recordOrNull(pat?.[rotations]) ?? {}
+			movedTurns = {
+				...(movedTurns ?? priorTurns),
+				[category]: turnedBy(priorTurns[category], turn),
+			}
+		}
+		if (movedPicks) patch(picks, movedPicks)
+		if (movedTurns) patch(rotations, movedTurns)
+	}
+	if (nextPat) next = { ...(next ?? cc), pattern: nextPat }
+	return next ?? raw
+}
+
+/** The map's no-data pattern, v8 → v9 of the mapConfig slice (and the
+ *  visuals v13→v14 step over an embedded `mapConfig`): a retired straight
+ *  stripe pick becomes the diagonal stripe. The map chips have no Rotate,
+ *  so the orientation is not carried — "stripes" still reads as no data.
+ *  Returns the input reference when the pick was anything else. */
+export const retireStraightStripesInMapConfig = (raw: unknown): unknown => {
+	if (typeof raw !== "object" || !raw) return raw
+	const mc = raw as Record<string, unknown>
+	return stripeTurn(mc.noDataPattern) === null
+		? raw
+		: { ...mc, noDataPattern: DIAGONAL_STRIPES }
+}
+
+/** Both steps over a whole visual (its `channelConfigs` and `mapConfig`).
+ *  Returns the input reference when nothing changed. */
+export const retireStraightStripesInVisual = <T>(visual: T): T => {
+	if (typeof visual !== "object" || !visual) return visual
+	const vis = visual as Record<string, unknown>
+	const cc = retireStraightStripes(vis.channelConfigs)
+	const mc = retireStraightStripesInMapConfig(vis.mapConfig)
+	if (cc === vis.channelConfigs && mc === vis.mapConfig) return visual
+	return { ...vis, channelConfigs: cc, mapConfig: mc } as T
+}
 
 /** One `ChannelConfigs` record, v6 → v7 of the draft slice (the visuals
  *  v12→v13 step). The radar spokes were styled from three places — thickness
@@ -865,6 +1004,10 @@ export const channelConfigsMigrations: Migration[] = [
 	// v6 -> v7: radar spine Color / Opacity slots fold into `angle.spine`
 	// (the visuals v12→v13 step, for the draft slice).
 	(raw) => foldRadarSpineSlots(raw),
+	// v7 -> v8: picks of the retired vertical / horizontal stripe slots
+	// become the turned diagonal stripe (the visuals v13→v14 step, for the
+	// draft slice).
+	(raw) => retireStraightStripes(raw),
 ]
 /** mapConfig v0 (pre-versioning) shape matched the original `MapConfig`, so
  *  the v0→v1 promotion is the identity. v1→v2 backfills `showNoDataRegions`
@@ -881,7 +1024,9 @@ export const channelConfigsMigrations: Migration[] = [
  *  for configs persisted before the no-data pattern option shipped. v7→v8
  *  rewrites `coordSystem: "cartesian"` → `"noMap"` — the Cartesian option was
  *  retired (it shared a render path with "noMap"; only "geographic" ever
- *  changed behavior). Every step leaves every other field untouched. */
+ *  changed behavior). v8→v9 rewrites a `noDataPattern` of 2 or 3 (the
+ *  retired straight stripes) to 1. Every step leaves every other field
+ *  untouched. */
 export const mapConfigMigrations: Migration[] = [
 	identityMigrations[0],
 	(raw) => {
@@ -954,6 +1099,10 @@ export const mapConfigMigrations: Migration[] = [
 		// other value passes through untouched.
 		return o.coordSystem === "cartesian" ? { ...o, coordSystem: "noMap" } : o
 	},
+	// v8→v9: a no-data pick of the retired vertical / horizontal stripe
+	// slots becomes the diagonal stripe (the visuals v13→v14 step, for the
+	// draft slice).
+	(raw) => retireStraightStripesInMapConfig(raw),
 ]
 export const labelsMigrations = identityMigrations
 /** v1 stored `insideX`/`insideY` as pixel offsets from the chart's top-left.

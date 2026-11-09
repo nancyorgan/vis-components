@@ -85,7 +85,7 @@ const patternFilledRects = (container: HTMLElement) =>
 
 describe("BarPlot — default pattern (no pattern field mapped)", () => {
 	it("fills every mark rect with the configured default pattern and emits its defs", () => {
-		seed({ defaultPattern: 2 })
+		seed({ defaultPattern: 0 })
 		const { container } = mount()
 		const patterned = patternFilledRects(container)
 		// Two categories × two hue slices = 4 mark rects, all patterned.
@@ -97,7 +97,7 @@ describe("BarPlot — default pattern (no pattern field mapped)", () => {
 				"url(#".length,
 				-")".length
 			)
-			expect(id.startsWith("vc-pat-2-")).toBe(true)
+			expect(id.startsWith("vc-pat-0-")).toBe(true)
 			expect(container.querySelector(`pattern[id="${id}"]`)).not.toBeNull()
 		}
 	})
@@ -108,7 +108,7 @@ describe("BarPlot — default pattern (no pattern field mapped)", () => {
 		// ink — the Background swatch (null) and Ink picker (null) both inherit.
 		seed(
 			{
-				defaultPattern: 2,
+				defaultPattern: 0,
 				defaultFill: "#ef476f",
 				categoricalPalette: ["#ef476f", "#118ab2"],
 				categoricalPalettePatternInks: ["#8a0023", "#073b55"],

@@ -556,6 +556,7 @@ export type ComposedSwatchProps = {
 		paletteIdx: number
 		svgId: string
 		scale?: number
+		rotation?: number
 	} | null
 	shape?: {
 		idx: number
@@ -714,6 +715,7 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 							bgColor={pattern.bg}
 							inkColor={pattern.ink}
 							scale={pattern.scale}
+							rotation={pattern.rotation}
 						/>
 					) : undefined
 				}
@@ -763,6 +765,7 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 							bgColor={pattern.bg}
 							inkColor={pattern.ink}
 							scale={pattern.scale}
+							rotation={pattern.rotation}
 						/>
 					</defs>
 				)}
@@ -819,6 +822,7 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 							bgColor={pattern.bg}
 							inkColor={pattern.ink}
 							scale={pattern.scale}
+							rotation={pattern.rotation}
 						/>
 					</defs>
 				)}
@@ -873,6 +877,7 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 							bgColor={pattern.bg}
 							inkColor={pattern.ink}
 							scale={pattern.scale}
+							rotation={pattern.rotation}
 						/>
 					</defs>
 				)}
@@ -914,6 +919,7 @@ export const ComposedSwatch = (props: ComposedSwatchProps) => {
 						bgColor={pattern.bg}
 						inkColor={pattern.ink}
 						scale={pattern.scale}
+						rotation={pattern.rotation}
 					/>
 				</defs>
 				<rect

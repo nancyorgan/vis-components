@@ -55,8 +55,9 @@ export const LineDashGlyph = ({
 	inkColor?: string
 	bgColor?: string
 	/** Accepted so the dash glyph is interchangeable with `PatternGlyph` in
-	 *  the swatch rows; dashes have no tile to zoom. */
+	 *  the swatch rows; dashes have no tile to zoom or turn. */
 	scale?: number | null
+	rotation?: number | null
 }) => {
 	const pattern = DASH_CYCLE[idx % DASH_CYCLE.length] ?? "solid"
 	const strokeDashArray = dashArrayFor(pattern) ?? undefined
@@ -89,6 +90,7 @@ export const PatternGlyph = ({
 	inkColor: inkColorProp,
 	bgColor = CHIP_BG,
 	scale,
+	rotation,
 }: {
 	idx: number
 	selected: boolean
@@ -97,12 +99,15 @@ export const PatternGlyph = ({
 	/** Tile zoom previewed in the chip (the category's Scale pick); ×1 when
 	 *  unset — so the chips show the pattern as the marks will draw it. */
 	scale?: number | null
+	/** Tile rotation previewed in the chip (the category's Rotate pick);
+	 *  0° when unset. */
+	rotation?: number | null
 }) => {
 	const inkColor = inkColorProp ?? (selected ? CHIP_INK_SELECTED : CHIP_INK)
 	// Background is part of the id: chips differing only in background (per-
 	// category hue colors) would otherwise share one def and all paint the
-	// first chip's background.
-	const uniqueId = `glyph-pat-${idx}-${selected ? "sel" : "off"}-${inkColor.replaceAll(/[^a-zA-Z0-9]/g, "")}-${bgColor.replaceAll(/[^a-zA-Z0-9]/g, "")}-x${String(scale ?? 1).replace(".", "p")}`
+	// first chip's background. Scale and rotation likewise.
+	const uniqueId = `glyph-pat-${idx}-${selected ? "sel" : "off"}-${inkColor.replaceAll(/[^a-zA-Z0-9]/g, "")}-${bgColor.replaceAll(/[^a-zA-Z0-9]/g, "")}-x${String(scale ?? 1).replace(".", "p")}-r${String(rotation ?? 0).replace(".", "p").replace("-", "n")}`
 	return (
 		<svg width={PREVIEW_SIZE} height={PREVIEW_SIZE} aria-hidden="true">
 			<defs>
@@ -112,6 +117,7 @@ export const PatternGlyph = ({
 					bgColor={bgColor}
 					inkColor={inkColor}
 					scale={scale}
+					rotation={rotation}
 				/>
 			</defs>
 			<rect

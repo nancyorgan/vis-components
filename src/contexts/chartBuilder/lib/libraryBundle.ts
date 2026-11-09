@@ -31,6 +31,8 @@ import {
 	followMarkFillForLegacyThemePatternBackground,
 	measureFacetGapsFromPlotEdges,
 	rebaseCustomGlyphRefs,
+	retireStraightStripesInVisual,
+	STRAIGHT_STRIPES_RETIRED_AT,
 } from "./storage/migrations"
 import { getStorageAdapter } from "./storage/registry"
 import { normalizeSavedTheme } from "./systemThemes"
@@ -738,22 +740,29 @@ export const mergeBundleIntoLibrary = (
 		// ink in place of "follow the mark", and a flow chart from before
 		// 2026-10-19 its Node-titles styling, and a pre-v13 one the radar
 		// spine's Color / Opacity slots. All seven steps are idempotent;
-		// apply them to every import.
+		// apply them to every import. The pre-v14 straight-stripe step is
+		// NOT (slots 2 and 3 mean the wave and zig-zag now), so it runs only
+		// for exports stamped before the slots changed hands.
 		const { templateId: _incomingTemplateId, ...incoming } = v
-		imported.push({
-			...foldFlowNodeTitles(
-				structureVisualKeys(
-					foldRadarSpineSlotsInVisual(
-						followMarkFillForLegacyPatternDefaultsInVisual(
-							rebaseCustomGlyphRefs(
-								measureFacetGapsFromPlotEdges(
-									clearLegacyAutoTickLabelAngle(incoming)
-								)
+		const exportedBeforeStripesRetired =
+			bundle.exportedAt !== null && bundle.exportedAt < STRAIGHT_STRIPES_RETIRED_AT
+		const structured = foldFlowNodeTitles(
+			structureVisualKeys(
+				foldRadarSpineSlotsInVisual(
+					followMarkFillForLegacyPatternDefaultsInVisual(
+						rebaseCustomGlyphRefs(
+							measureFacetGapsFromPlotEdges(
+								clearLegacyAutoTickLabelAngle(incoming)
 							)
 						)
 					)
 				)
-			),
+			)
+		)
+		imported.push({
+			...(exportedBeforeStripesRetired
+				? retireStraightStripesInVisual(structured)
+				: structured),
 			id,
 			...(templateId ? { templateId } : {}),
 			datasetId,

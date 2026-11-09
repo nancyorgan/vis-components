@@ -5,7 +5,11 @@ import {
 	resolveCustomPattern,
 	useCustomPatterns,
 } from "./customPatterns"
-import { effectivePatternScale, PATTERN_PALETTE } from "./patterns"
+import {
+	effectivePatternRotation,
+	effectivePatternScale,
+	PATTERN_PALETTE,
+} from "./patterns"
 
 export type PatternDefSpec = {
 	svgId: string
@@ -15,6 +19,9 @@ export type PatternDefSpec = {
 	/** Tile zoom (see `PatternConfig.scales`); absent = ×1. Resolved specs
 	 * always carry it; hand-built ones (the map's no-data def) leave it out. */
 	scale?: number
+	/** Tile rotation in degrees (see `PatternConfig.rotations`); absent =
+	 * 0°. */
+	rotation?: number
 }
 
 /** Dedup pattern defs by svgId so we don't emit duplicate <pattern> elements. */
@@ -56,21 +63,35 @@ export const patternTileSide = (
 	return Number((def.size * s ** def.spacingExponent).toFixed(3))
 }
 
+/** The `patternTransform` that turns a tile by `rotation` degrees
+ * (clockwise, about the user-space origin — the grid as a whole turns, so
+ * stripes change direction without the tile seams drifting per mark);
+ * `undefined` at 0° so unrotated defs serialize exactly as before. */
+export const patternTransformFor = (
+	rotation?: number | null
+): string | undefined => {
+	const r = effectivePatternRotation(rotation)
+	return r === 0 ? undefined : `rotate(${r})`
+}
+
 export const PatternTile = ({
 	id,
 	paletteIdx,
 	bgColor,
 	inkColor,
 	scale,
+	rotation,
 }: {
 	id: string
 	paletteIdx: number
 	bgColor: string
 	inkColor: string
 	scale?: number | null
+	rotation?: number | null
 }) => {
 	const customPatterns = useCustomPatterns()
 	const s = effectivePatternScale(scale)
+	const patternTransform = patternTransformFor(rotation)
 	if (isCustomPatternIdx(paletteIdx)) {
 		const custom = resolveCustomPattern(paletteIdx, customPatterns)
 		// A deleted / unknown custom slot draws the first built-in pattern
@@ -83,6 +104,7 @@ export const PatternTile = ({
 					bgColor={bgColor}
 					inkColor={inkColor}
 					scale={scale}
+					rotation={rotation}
 				/>
 			)
 		}
@@ -94,7 +116,13 @@ export const PatternTile = ({
 			// each def carries its own mask id.
 			const maskId = `${id}-mask`
 			return (
-				<pattern id={id} patternUnits="userSpaceOnUse" width={side} height={side}>
+				<pattern
+					id={id}
+					patternUnits="userSpaceOnUse"
+					width={side}
+					height={side}
+					patternTransform={patternTransform}
+				>
 					<mask
 						id={maskId}
 						maskUnits="userSpaceOnUse"
@@ -121,7 +149,13 @@ export const PatternTile = ({
 			)
 		}
 		return (
-			<pattern id={id} patternUnits="userSpaceOnUse" width={side} height={side}>
+			<pattern
+					id={id}
+					patternUnits="userSpaceOnUse"
+					width={side}
+					height={side}
+					patternTransform={patternTransform}
+				>
 				<rect width={side} height={side} fill={bgColor} />
 				<path
 					d={customPatternPath(custom)}
@@ -134,7 +168,13 @@ export const PatternTile = ({
 	const def = PATTERN_PALETTE[paletteIdx % PATTERN_PALETTE.length]
 	const side = patternTileSide(paletteIdx, scale)
 	return (
-		<pattern id={id} patternUnits="userSpaceOnUse" width={side} height={side}>
+		<pattern
+					id={id}
+					patternUnits="userSpaceOnUse"
+					width={side}
+					height={side}
+					patternTransform={patternTransform}
+				>
 			<rect width={side} height={side} fill={bgColor} />
 			{def.render(inkColor, { side, mark: s })}
 		</pattern>
@@ -146,7 +186,7 @@ export const PatternTile = ({
 export const PatternDefs = ({ defs }: { defs: PatternDefSpec[] }) => (
 	<defs>
 		{dedupPatternDefs(defs).map(
-			({ svgId, paletteIdx, bgColor, inkColor, scale }) => (
+			({ svgId, paletteIdx, bgColor, inkColor, scale, rotation }) => (
 				<PatternTile
 					key={svgId}
 					id={svgId}
@@ -154,6 +194,7 @@ export const PatternDefs = ({ defs }: { defs: PatternDefSpec[] }) => (
 					bgColor={bgColor}
 					inkColor={inkColor}
 					scale={scale}
+					rotation={rotation}
 				/>
 			)
 		)}

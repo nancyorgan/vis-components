@@ -361,7 +361,9 @@ describe("mapConfig migration", () => {
 			showBasemap: true,
 			focusRegion: "auto",
 			customViewport: null,
-			noDataPattern: 3,
+			// Slot 0 (dots): slots 2 / 3 were the straight stripes, which the
+			// v8→v9 step deliberately rewrites.
+			noDataPattern: 0,
 			noDataPatternInk: "#123456",
 		}
 		const result = migrateVersioned(
@@ -370,7 +372,7 @@ describe("mapConfig migration", () => {
 			mapConfigMigrations,
 			DEFAULT_MAP_CONFIG
 		)
-		expect((result as MapConfig).noDataPattern).toBe(3)
+		expect((result as MapConfig).noDataPattern).toBe(0)
 		expect((result as MapConfig).noDataPatternInk).toBe("#123456")
 	})
 

@@ -4,6 +4,7 @@ import { DEFAULT_PATTERN_CONFIG, PATTERN_SCALE_MAX } from "./channelConfig"
 import {
 	buildThemeInkFallback,
 	DEFAULT_PATTERN_INK,
+	effectivePatternRotation,
 	effectivePatternScale,
 	inkForHueColor,
 	PATTERN_NONE,
@@ -105,6 +106,18 @@ describe("pattern scale", () => {
 		const unscaled = resolveDefaultPatternForMark("#ffffff", 3, "#000000", null)
 		expect(unscaled?.scale).toBe(1)
 		expect(unscaled?.svgId).toBe("vc-pat-3-ffffff-000000")
+	})
+
+	it("resolveDefaultPatternForMark applies the default rotation (null = 0°)", () => {
+		const r = resolveDefaultPatternForMark("#ffffff", 3, "#000000", null, 45)
+		expect(r?.rotation).toBe(45)
+		expect(r?.scale).toBe(1)
+		expect(r?.svgId).toBe("vc-pat-3-ffffff-000000-r45")
+		const both = resolveDefaultPatternForMark("#ffffff", 3, "#000000", 1.5, 45)
+		expect(both?.svgId).toBe("vc-pat-3-ffffff-000000-x1p5-r45")
+		const level = resolveDefaultPatternForMark("#ffffff", 3, "#000000", null, null)
+		expect(level?.rotation).toBe(0)
+		expect(level?.svgId).toBe("vc-pat-3-ffffff-000000")
 	})
 
 	it("polygonPatternView re-points the scale maps at the polygon picks", () => {
@@ -221,5 +234,44 @@ describe("resolveDefaultPatternInk", () => {
 		expect(resolveDefaultPatternInk(configs, "#cccccc", "categorical", { "#cccccc": "#333333" })).toBe("#333333")
 		expect(resolveDefaultPatternInk(configs, "#bbbbbb", "categorical")).toBe("#999999")
 		expect(resolveDefaultPatternInk({ ...configs, patternInkColor: undefined }, "#123456", "categorical")).toBe(DEFAULT_PATTERN_INK)
+	})
+})
+
+describe("pattern rotation", () => {
+	it("renders level with the pre-Rotate id when the category has no stored angle", () => {
+		const r = resolvePatternForMark("A", 0, "#ff0000", DEFAULT_PATTERN_CONFIG)
+		expect(r?.rotation).toBe(0)
+		expect(r?.svgId).not.toMatch(/-r/)
+	})
+
+	it("carries the category's angle and bakes it into the def id", () => {
+		const r = resolvePatternForMark("A", 0, "#ff0000", {
+			...DEFAULT_PATTERN_CONFIG,
+			rotations: { A: 30 },
+		})
+		expect(r?.rotation).toBe(30)
+		expect(r?.svgId).toMatch(/-r30$/)
+		const other = resolvePatternForMark("B", 1, "#ff0000", {
+			...DEFAULT_PATTERN_CONFIG,
+			rotations: { A: 30 },
+		})
+		expect(other?.rotation).toBe(0)
+	})
+
+	it("normalizes stored angles into [0°, 360°) so coincident angles share a def", () => {
+		expect(effectivePatternRotation(-180)).toBe(180)
+		expect(effectivePatternRotation(180)).toBe(180)
+		expect(effectivePatternRotation(405)).toBe(45)
+		expect(effectivePatternRotation(-90)).toBe(270)
+		expect(effectivePatternRotation(360)).toBe(0)
+		expect(effectivePatternRotation(22.5)).toBe(22.5)
+		expect(effectivePatternRotation(null)).toBe(0)
+		expect(effectivePatternRotation(undefined)).toBe(0)
+		expect(effectivePatternRotation(Number.NaN)).toBe(0)
+		const neg = resolvePatternForMark("A", 0, "#ff0000", {
+			...DEFAULT_PATTERN_CONFIG,
+			rotations: { A: -90 },
+		})
+		expect(neg?.svgId).toMatch(/-r270$/)
 	})
 })

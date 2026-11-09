@@ -1058,6 +1058,22 @@ export type PatternConfig = {
 	defaultViolinPattern?: number | null
 	defaultViolinPatternInk?: string | null
 	defaultViolinScale?: number | null
+	/** PATTERN ROTATION — the angle (degrees, clockwise) the pattern tile
+	 * grid is turned by, per point-fill category: 45° lays the diagonal
+	 * stripes horizontal, −45° stands them vertical. The Pattern menu's
+	 * "Rotate" box beside each Scale box writes these, within
+	 * [PATTERN_ROTATION_MIN, PATTERN_ROTATION_MAX] by PATTERN_ROTATION_STEP.
+	 * Sparse: a missing category renders in the palette's own orientation. */
+	rotations?: Record<string, number>
+	/** Rotation for the no-variable default pattern
+	 * (`ChannelConfigs.defaultPattern`); null/absent = 0°. */
+	defaultRotation?: number | null
+	/** The polygon-fill twins of `rotations` / `defaultRotation`. */
+	polygonRotations?: Record<string, number>
+	defaultPolygonRotation?: number | null
+	/** The violin / box-fill twins of `rotations` / `defaultRotation`. */
+	violinRotations?: Record<string, number>
+	defaultViolinRotation?: number | null
 	/** What the violin / box body's pattern VARIES BY — the subsection's
 	 * "Vary by", the analogue of a color slot's field. Absent = Auto: the
 	 * Pattern variable, as for the points (per-level picks in
@@ -1114,6 +1130,16 @@ export const PATTERN_SCALE_MIN = 0
 export const PATTERN_SCALE_MAX = 4
 export const PATTERN_SCALE_STEP = 0.1
 export const DEFAULT_PATTERN_SCALE = 1
+
+/** Range of the Pattern menu's "Rotate" box (`PatternConfig.rotations` et
+ *  al.): −180° through 180° by 1°, clockwise like the other angle inputs.
+ *  The renderer normalizes a stored angle into [0°, 360°)
+ *  (`effectivePatternRotation` in `./patterns`), so 180° and −180° share
+ *  one def. */
+export const PATTERN_ROTATION_MIN = -180
+export const PATTERN_ROTATION_MAX = 180
+export const PATTERN_ROTATION_STEP = 1
+export const DEFAULT_PATTERN_ROTATION = 0
 
 export type LengthConfig = {
 	minLength: number

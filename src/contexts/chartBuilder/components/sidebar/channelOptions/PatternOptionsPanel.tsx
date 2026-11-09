@@ -3,7 +3,11 @@ import { useAtom, useAtomValue } from "jotai"
 
 import {
 	DEFAULT_DASH_RANGE,
+	DEFAULT_PATTERN_ROTATION,
 	DEFAULT_PATTERN_SCALE,
+	PATTERN_ROTATION_MAX,
+	PATTERN_ROTATION_MIN,
+	PATTERN_ROTATION_STEP,
 	PATTERN_SCALE_MAX,
 	PATTERN_SCALE_MIN,
 	PATTERN_SCALE_STEP,
@@ -541,10 +545,12 @@ export const PatternOptionsPanel = () => {
 	const fillSubsectionChanged = patternFieldMapped
 		? nonEmptyMap(cfg.overrides) ||
 			nonEmptyMap(cfg.inkColors) ||
-			nonEmptyMap(cfg.scales)
+			nonEmptyMap(cfg.scales) ||
+			nonEmptyMap(cfg.rotations)
 		: valueChanged(configs.defaultPattern, null) ||
 			valueChanged(configs.defaultPatternInk ?? null, null) ||
-			(cfg.defaultScale ?? null) !== null
+			(cfg.defaultScale ?? null) !== null ||
+			(cfg.defaultRotation ?? null) !== null
 
 	const updateCfg = (next: Partial<PatternConfig>) => {
 		// Seed untouched fields from the THEME's pattern config (background
@@ -584,6 +590,7 @@ export const PatternOptionsPanel = () => {
 			ink: string
 			bg: string
 			scale?: number | null
+			rotation?: number | null
 			ariaName: string
 		}
 	) => ({
@@ -599,6 +606,7 @@ export const PatternOptionsPanel = () => {
 				inkColor={row.ink}
 				bgColor={row.bg}
 				scale={row.scale}
+				rotation={row.rotation}
 				ariaName={row.ariaName}
 			/>
 		),
@@ -684,12 +692,14 @@ export const PatternOptionsPanel = () => {
 	}
 	// Separate fill targets — the radar polygon body and the violin / box
 	// body — keep the same shapes as the point-fill `overrides` / `inkColors`
-	// / `scales` / `defaultPattern` trio, stored beside them on the pattern
-	// config so no two picks ever share an index. One accessor per target.
+	// / `scales` / `rotations` / `defaultPattern` set, stored beside them on
+	// the pattern config so no two picks ever share an index. One accessor
+	// per target.
 	const fillTargetState = (keys: FillTargetPatternKeys) => {
 		const overrides = cfg[keys.overrides] ?? {}
 		const inkColors = cfg[keys.inkColors] ?? {}
 		const scales = cfg[keys.scales] ?? {}
+		const rotations = cfg[keys.rotations] ?? {}
 		const write = (next: Record<string, unknown>) =>
 			updateCfg(next as Partial<PatternConfig>)
 		const without = <V,>(m: Record<string, V>, value: string) => {
@@ -700,6 +710,7 @@ export const PatternOptionsPanel = () => {
 			overrides,
 			inkColors,
 			scales,
+			rotations,
 			setOverride: (value: string, idx: number | typeof PATTERN_NONE) =>
 				write({ [keys.overrides]: { ...overrides, [value]: idx } }),
 			resetOverride: (value: string) =>
@@ -712,20 +723,28 @@ export const PatternOptionsPanel = () => {
 				write({ [keys.scales]: { ...scales, [value]: scale } }),
 			resetScale: (value: string) =>
 				write({ [keys.scales]: without(scales, value) }),
+			setRotation: (value: string, rotation: number) =>
+				write({ [keys.rotations]: { ...rotations, [value]: rotation } }),
+			resetRotation: (value: string) =>
+				write({ [keys.rotations]: without(rotations, value) }),
 			defaultIdx: cfg[keys.defaultPattern] ?? null,
 			defaultInk: cfg[keys.defaultInk] ?? null,
 			defaultScale: cfg[keys.defaultScale] ?? null,
+			defaultRotation: cfg[keys.defaultRotation] ?? null,
 			setDefaultIdx: (next: number | null) =>
 				write({ [keys.defaultPattern]: next }),
 			setDefaultInk: (next: string | null) =>
 				write({ [keys.defaultInk]: next }),
 			setDefaultScale: (next: number | null) =>
 				write({ [keys.defaultScale]: next }),
+			setDefaultRotation: (next: number | null) =>
+				write({ [keys.defaultRotation]: next }),
 			/** The panel-wide reset's patch for this target's defaults. */
 			clearDefaults: {
 				[keys.defaultPattern]: null,
 				[keys.defaultInk]: null,
 				[keys.defaultScale]: null,
+				[keys.defaultRotation]: null,
 			} as Partial<PatternConfig>,
 		}
 	}
@@ -743,46 +762,119 @@ export const PatternOptionsPanel = () => {
 		const { [value]: _removed, ...rest } = scales
 		updateCfg({ scales: rest })
 	}
-	/** The Scale number box: ×0 to ×4 in tenths (typed values clamp into the
-	 *  range), blank = the ×1 default, shown as the placeholder so the
-	 *  spinner's first step moves off ×1 rather than off 0. Emptying the box
-	 *  (or the category's Reset link) goes back to ×1. `context` names the
-	 *  row for assistive tech only ("Scale for north"), so every box has a
+	// PATTERN ROTATION — the "Rotate" box beside each Scale box turns that
+	// category's tile grid (0° = the palette's own orientation). Same sparse
+	// shape as `scales`.
+	const rotations = cfg.rotations ?? {}
+	const setCategoryRotation = (value: string, rotation: number) =>
+		updateCfg({ rotations: { ...rotations, [value]: rotation } })
+	const resetCategoryRotation = (value: string) => {
+		const { [value]: _removed, ...rest } = rotations
+		updateCfg({ rotations: rest })
+	}
+	/** The Scale and Rotate rows under a pattern's Ink color, one line each.
+	 *  Scale: ×0 to ×4 in tenths, typed values clamp into the range; blank =
+	 *  the ×1 default, shown as the placeholder so the spinner's first step
+	 *  moves off ×1 rather than off 0. Rotate: −180° to 180° by 1°; blank =
+	 *  0°. Each row carries its own reset link once a value is set, and
+	 *  emptying a box resets it too. `context` names the rows for assistive
+	 *  tech only ("Scale for north", "Rotate for north"), so every box has a
 	 *  distinct name. */
-	const scaleInput = (args: {
+	const numberRow = (args: {
+		label: string
 		context?: string
 		labelClassName?: string
 		value: number | null
 		onChange: (next: number) => void
 		onClear: () => void
+		min: number
+		max: number
+		step: number
+		placeholder: string
+		suffix?: string
 	}) => (
-		<NumberInput
-			label={
-				args.context ? (
-					<>
-						Scale<span className="sr-only"> for {args.context}</span>
-					</>
-				) : (
-					"Scale"
-				)
-			}
-			labelClassName={args.labelClassName ?? "vc-muted"}
-			value={args.value}
-			onChange={args.onChange}
-			onClear={args.onClear}
-			min={PATTERN_SCALE_MIN}
-			max={PATTERN_SCALE_MAX}
-			step={PATTERN_SCALE_STEP}
-			clamp
-			placeholder={String(DEFAULT_PATTERN_SCALE)}
-		/>
+		// flex-wrap like ColorRow: a squeezed row drops the reset link under
+		// the box instead of pushing past the sheet edge.
+		<div className="flex flex-wrap items-center gap-2 text-sm">
+			<NumberInput
+				label={
+					args.context ? (
+						<>
+							{args.label}
+							<span className="sr-only"> for {args.context}</span>
+						</>
+					) : (
+						args.label
+					)
+				}
+				labelClassName={args.labelClassName ?? "vc-muted"}
+				value={args.value}
+				onChange={args.onChange}
+				onClear={args.onClear}
+				min={args.min}
+				max={args.max}
+				step={args.step}
+				clamp
+				placeholder={args.placeholder}
+				suffix={args.suffix}
+				className="contents"
+			/>
+			{args.value !== null && (
+				<ResetLink
+					onClick={args.onClear}
+					ariaLabel={`Reset ${args.label.toLowerCase()}${args.context ? ` for ${args.context}` : ""}`}
+				/>
+			)}
+		</div>
+	)
+	const scaleRotateRows = (args: {
+		context?: string
+		labelClassName?: string
+		value: number | null
+		onChange: (next: number) => void
+		onClear: () => void
+		rotation: number | null
+		onRotationChange: (next: number) => void
+		onRotationClear: () => void
+	}) => (
+		<>
+			{numberRow({
+				label: "Scale",
+				context: args.context,
+				labelClassName: args.labelClassName,
+				value: args.value,
+				onChange: args.onChange,
+				onClear: args.onClear,
+				min: PATTERN_SCALE_MIN,
+				max: PATTERN_SCALE_MAX,
+				step: PATTERN_SCALE_STEP,
+				placeholder: String(DEFAULT_PATTERN_SCALE),
+			})}
+			{numberRow({
+				label: "Rotate",
+				context: args.context,
+				labelClassName: args.labelClassName,
+				value: args.rotation,
+				onChange: args.onRotationChange,
+				onClear: args.onRotationClear,
+				min: PATTERN_ROTATION_MIN,
+				max: PATTERN_ROTATION_MAX,
+				step: PATTERN_ROTATION_STEP,
+				placeholder: String(DEFAULT_PATTERN_ROTATION),
+				suffix: "°",
+			})}
+		</>
 	)
 	const targetSubsectionChanged = (t: FillTargetState, mapped: boolean) =>
 		mapped
 			? nonEmptyMap(t.overrides) ||
 				nonEmptyMap(t.inkColors) ||
-				nonEmptyMap(t.scales)
-			: t.defaultIdx !== null || t.defaultInk !== null || t.defaultScale !== null
+				nonEmptyMap(t.scales) ||
+				nonEmptyMap(t.rotations)
+			: t.defaultIdx !== null ||
+				t.defaultInk !== null ||
+				t.defaultScale !== null ||
+				t.defaultRotation !== null
 	const polygonSubsectionChanged = targetSubsectionChanged(polygon, patternFieldMapped)
 	// Any explicit Vary by (a variable OR "none") is a deviation from Auto.
 	const violinSubsectionChanged =
@@ -837,6 +929,7 @@ export const PatternOptionsPanel = () => {
 		segmentPatternSet
 	const defaultPatternIdx = configs.defaultPattern ?? null
 	const defaultScale = cfg.defaultScale ?? DEFAULT_PATTERN_SCALE
+	const defaultRotation = cfg.defaultRotation ?? DEFAULT_PATTERN_ROTATION
 	// The inherited ink (no explicit pick) follows the pattern-color
 	// pairings the user configured in theme settings: each palette color
 	// can carry a paired pattern ink. Match the tile color (the mark's
@@ -859,6 +952,7 @@ export const PatternOptionsPanel = () => {
 		setIdx: t.setDefaultIdx,
 		ink: t.defaultInk ?? (tile ? pairedInkForTile(tile) : defaultInk),
 		scale: t.defaultScale ?? DEFAULT_PATTERN_SCALE,
+		rotation: t.defaultRotation ?? DEFAULT_PATTERN_ROTATION,
 		ariaName,
 		bg: tile,
 	})
@@ -871,8 +965,9 @@ export const PatternOptionsPanel = () => {
 			activeIdx: number | null
 			setIdx: (next: number | null) => void
 			ink: string
-			/** Tile zoom previewed in the chips. */
+			/** Tile zoom / rotation previewed in the chips. */
 			scale: number
+			rotation: number
 			ariaName: string
 			/** Chip tile when the target's isn't the point tile (`previewBg`). */
 			bg?: string
@@ -881,6 +976,7 @@ export const PatternOptionsPanel = () => {
 			setIdx: setDefaultPattern,
 			ink: defaultInk,
 			scale: defaultScale,
+			rotation: defaultRotation,
 			ariaName: "Pattern option",
 		}
 	) => {
@@ -893,6 +989,7 @@ export const PatternOptionsPanel = () => {
 						ink: target.ink,
 						bg: target.bg ?? previewBg,
 						scale: target.scale,
+						rotation: target.rotation,
 						ariaName: target.ariaName,
 					})
 				: null
@@ -930,6 +1027,7 @@ export const PatternOptionsPanel = () => {
 									inkColor={target.ink}
 									bgColor={target.bg ?? previewBg}
 									scale={target.scale}
+									rotation={target.rotation}
 								/>
 							</button>
 						)
@@ -1003,11 +1101,14 @@ export const PatternOptionsPanel = () => {
 			)}
 			{defaultPatternIdx !== null &&
 				showFillRow &&
-				scaleInput({
+				scaleRotateRows({
 					labelClassName: LABEL_COL,
 					value: cfg.defaultScale ?? null,
 					onChange: (n) => updateCfg({ defaultScale: n }),
 					onClear: () => updateCfg({ defaultScale: null }),
+					rotation: cfg.defaultRotation ?? null,
+					onRotationChange: (n) => updateCfg({ defaultRotation: n }),
+					onRotationClear: () => updateCfg({ defaultRotation: null }),
 				})}
 		</>
 	)
@@ -1042,12 +1143,15 @@ export const PatternOptionsPanel = () => {
 					/>
 				)}
 				{t.defaultIdx !== null &&
-					scaleInput({
+					scaleRotateRows({
 						context,
 						labelClassName: LABEL_COL,
 						value: t.defaultScale,
 						onChange: (n) => t.setDefaultScale(n),
 						onClear: () => t.setDefaultScale(null),
+						rotation: t.defaultRotation,
+						onRotationChange: (n) => t.setDefaultRotation(n),
+						onRotationClear: () => t.setDefaultRotation(null),
 					})}
 			</div>
 		</CollapsibleSubsection>
@@ -1112,6 +1216,8 @@ export const PatternOptionsPanel = () => {
 			hasInk: cfg.inkColors[v] !== undefined,
 			scale: scales[v] ?? null,
 			hasScale: scales[v] !== undefined,
+			rotation: rotations[v] ?? null,
+			hasRotation: rotations[v] !== undefined,
 			hasPaletteOverride: fillOverride !== undefined,
 			hasDashOverride: dashOverride !== undefined,
 		}
@@ -1125,8 +1231,10 @@ export const PatternOptionsPanel = () => {
 			isNone: boolean
 			activeIdx: number
 			ink: string
-			/** Tile zoom previewed in the chips (×1 when unset). */
+			/** Tile zoom / rotation previewed in the chips (×1 / 0° when
+			 *  unset). */
 			scale?: number | null
+			rotation?: number | null
 			/** Chip background (the category's hue color when pattern shares
 			 *  hue's field); the panel's Background when unset. */
 			bg?: string
@@ -1149,6 +1257,7 @@ export const PatternOptionsPanel = () => {
 						ink: args.ink,
 						bg: args.bg ?? previewBg,
 						scale: args.scale ?? DEFAULT_PATTERN_SCALE,
+						rotation: args.rotation ?? DEFAULT_PATTERN_ROTATION,
 						ariaName: optionName,
 					})
 				: null
@@ -1182,6 +1291,7 @@ export const PatternOptionsPanel = () => {
 									inkColor={args.ink}
 									bgColor={args.bg ?? previewBg}
 									scale={args.scale ?? DEFAULT_PATTERN_SCALE}
+									rotation={args.rotation ?? DEFAULT_PATTERN_ROTATION}
 								/>
 							</button>
 						)
@@ -1209,7 +1319,7 @@ export const PatternOptionsPanel = () => {
 		// which `ink` already resolves to (previewed in the swatch).
 		<ColorInput
 			label="Ink color"
-			labelClassName="vc-muted"
+			labelClassName={LABEL_COL}
 			value={hasInk ? ink : null}
 			onChange={(color) => target.set(v, color)}
 			onClear={() => target.reset(v)}
@@ -1218,24 +1328,38 @@ export const PatternOptionsPanel = () => {
 		/>
 	)
 
-	/** The category's Scale box, directly under its Color picker. Blank =
-	 *  inherit ×1 (the map has no entry); typing writes the entry. */
-	const renderScalePicker = (
+	/** The category's Scale and Rotate rows, directly under its Color
+	 *  picker. Blank = inherit ×1 / 0° (the map has no entry); typing writes
+	 *  the entry. */
+	const renderScaleRotatePicker = (
 		v: string,
 		scale: number | null,
+		rotation: number | null,
 		target: {
 			set: (value: string, scale: number) => void
 			reset: (value: string) => void
+			setRotation: (value: string, rotation: number) => void
+			resetRotation: (value: string) => void
 			/** Accessible-name context ("<category>" for point fills, "polygon
 			 *  fill <category>" for the Polygon-fill rows). */
 			context: string
-		} = { set: setCategoryScale, reset: resetCategoryScale, context: v }
+		} = {
+			set: setCategoryScale,
+			reset: resetCategoryScale,
+			setRotation: setCategoryRotation,
+			resetRotation: resetCategoryRotation,
+			context: v,
+		}
 	) =>
-		scaleInput({
+		scaleRotateRows({
 			context: target.context,
+			labelClassName: LABEL_COL,
 			value: scale,
 			onChange: (n) => target.set(v, n),
 			onClear: () => target.reset(v),
+			rotation,
+			onRotationChange: (n) => target.setRotation(v, n),
+			onRotationClear: () => target.resetRotation(v),
 		})
 
 	const categoryNameRow = (
@@ -1324,11 +1448,12 @@ export const PatternOptionsPanel = () => {
 			<div key={v} className="flex flex-col gap-1 text-sm">
 				{categoryNameRow(
 					v,
-					s.hasPaletteOverride || s.hasInk || s.hasScale,
+					s.hasPaletteOverride || s.hasInk || s.hasScale || s.hasRotation,
 					() => {
 						if (s.hasPaletteOverride) resetPaletteOverride(v)
 						if (s.hasInk) resetCategoryInk(v)
 						if (s.hasScale) resetCategoryScale(v)
+						if (s.hasRotation) resetCategoryRotation(v)
 					},
 					display
 				)}
@@ -1339,12 +1464,13 @@ export const PatternOptionsPanel = () => {
 					activeIdx: s.fillActiveIdx,
 					ink: s.ink,
 					scale: s.scale,
+					rotation: s.rotation,
 					bg: effectiveBgFor(i, v),
 					setIdx: (idx) => setPaletteOverride(v, idx),
 					setNone: () => setPaletteOverride(v, PATTERN_NONE),
 				})}
 				{renderColorPicker(v, s.ink, s.hasInk)}
-				{renderScalePicker(v, s.scale)}
+				{renderScaleRotatePicker(v, s.scale, s.rotation)}
 			</div>
 		)
 	}
@@ -1374,15 +1500,18 @@ export const PatternOptionsPanel = () => {
 			(preview ? pairedInkForTile(preview.tile) : effectiveInkFor(i, v))
 		const scale = t.scales[v] ?? null
 		const hasScale = scale !== null
+		const rotation = t.rotations[v] ?? null
+		const hasRotation = rotation !== null
 		return (
 			<div key={v} className="flex flex-col gap-1 text-sm">
 				{categoryNameRow(
 					v,
-					override !== undefined || hasInk || hasScale,
+					override !== undefined || hasInk || hasScale || hasRotation,
 					() => {
 						if (override !== undefined) t.resetOverride(v)
 						if (hasInk) t.resetInk(v)
 						if (hasScale) t.resetScale(v)
+						if (hasRotation) t.resetRotation(v)
 					},
 					display
 				)}
@@ -1393,6 +1522,7 @@ export const PatternOptionsPanel = () => {
 					activeIdx,
 					ink,
 					scale,
+					rotation,
 					bg: preview?.tile ?? effectiveBgFor(i, v),
 					setIdx: (idx) => t.setOverride(v, idx),
 					setNone: () => t.setOverride(v, PATTERN_NONE),
@@ -1403,9 +1533,11 @@ export const PatternOptionsPanel = () => {
 					reset: t.resetInk,
 					ariaKind: `${aria.kind.charAt(0).toUpperCase()}${aria.kind.slice(1)}`,
 				})}
-				{renderScalePicker(v, scale, {
+				{renderScaleRotatePicker(v, scale, rotation, {
 					set: t.setScale,
 					reset: t.resetScale,
+					setRotation: t.setRotation,
+					resetRotation: t.resetRotation,
 					context: `${aria.context} ${v}`,
 				})}
 			</div>
@@ -1565,12 +1697,15 @@ export const PatternOptionsPanel = () => {
 							/>
 						)}
 						{violin.defaultIdx !== null &&
-							scaleInput({
+							scaleRotateRows({
 								context: "violin / box fill",
 								labelClassName: LABEL_COL,
 								value: violin.defaultScale,
 								onChange: (n) => violin.setDefaultScale(n),
 								onClear: () => violin.setDefaultScale(null),
+								rotation: violin.defaultRotation,
+								onRotationChange: (n) => violin.setDefaultRotation(n),
+								onRotationClear: () => violin.setDefaultRotation(null),
 							})}
 					</>
 				)}
@@ -1725,6 +1860,7 @@ export const PatternOptionsPanel = () => {
 								// Only cleared once set, so untouched saves don't grow a
 								// null key.
 								...(cfg.defaultScale != null ? { defaultScale: null } : {}),
+								...(cfg.defaultRotation != null ? { defaultRotation: null } : {}),
 								// Filled-radar polygon defaults live on the pattern config;
 								// only touched where the Polygon fill section exists, so
 								// other charts' saves don't grow null keys.

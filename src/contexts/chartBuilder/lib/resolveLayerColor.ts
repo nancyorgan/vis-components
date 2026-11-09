@@ -285,7 +285,8 @@ export const resolvePatternDefForItem = (
 			hueG?.type,
 			aestheticScales.themeInkFallback
 		),
-		channelConfigs.pattern?.defaultScale
+		channelConfigs.pattern?.defaultScale,
+		channelConfigs.pattern?.defaultRotation
 	)
 }
 
@@ -297,25 +298,31 @@ export type FillTargetPatternKeys = {
 	overrides: "polygonOverrides" | "violinOverrides"
 	inkColors: "polygonInkColors" | "violinInkColors"
 	scales: "polygonScales" | "violinScales"
+	rotations: "polygonRotations" | "violinRotations"
 	defaultPattern: "defaultPolygonPattern" | "defaultViolinPattern"
 	defaultInk: "defaultPolygonPatternInk" | "defaultViolinPatternInk"
 	defaultScale: "defaultPolygonScale" | "defaultViolinScale"
+	defaultRotation: "defaultPolygonRotation" | "defaultViolinRotation"
 }
 export const POLYGON_PATTERN_KEYS: FillTargetPatternKeys = {
 	overrides: "polygonOverrides",
 	inkColors: "polygonInkColors",
 	scales: "polygonScales",
+	rotations: "polygonRotations",
 	defaultPattern: "defaultPolygonPattern",
 	defaultInk: "defaultPolygonPatternInk",
 	defaultScale: "defaultPolygonScale",
+	defaultRotation: "defaultPolygonRotation",
 }
 export const VIOLIN_PATTERN_KEYS: FillTargetPatternKeys = {
 	overrides: "violinOverrides",
 	inkColors: "violinInkColors",
 	scales: "violinScales",
+	rotations: "violinRotations",
 	defaultPattern: "defaultViolinPattern",
 	defaultInk: "defaultViolinPatternInk",
 	defaultScale: "defaultViolinScale",
+	defaultRotation: "defaultViolinRotation",
 }
 
 type FillTargetPatternView = {
@@ -342,6 +349,8 @@ const fillTargetPatternView = (
 			inkColors: pat?.[keys.inkColors] ?? {},
 			scales: pat?.[keys.scales] ?? {},
 			defaultScale: pat?.[keys.defaultScale] ?? null,
+			rotations: pat?.[keys.rotations] ?? {},
+			defaultRotation: pat?.[keys.defaultRotation] ?? null,
 		},
 		defaultPattern: pat?.[keys.defaultPattern] ?? null,
 		defaultPatternInk:
