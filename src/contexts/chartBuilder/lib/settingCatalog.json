@@ -7308,6 +7308,18 @@
 				"number"
 			]
 		},
+		"channelConfigs.r.side": {
+			"doc": "Plot edge the whole axis — spine, tick marks, tick labels and title — sits on (\"Side\" in the Spine section). x: \"bottom\" (default) or \"top\"; y: \"left\" (default) or \"right\". Absent = the default edge; see `axisFlipped`.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bottom",
+				"left",
+				"right",
+				"top"
+			]
+		},
 		"channelConfigs.r.spine": {
 			"kinds": [
 				"object"
@@ -7351,6 +7363,28 @@
 		"channelConfigs.r.tickLabelColor": {
 			"color": true,
 			"doc": "Per-axis tick LABEL color. Superseded by `tickLabelFont.color` when that is set; kept for back-compat with visuals saved before the fuller `tickLabelFont` override existed. When neither is set, tick labels inherit the global Text encoding color (`labels.baseFont.text.color`).",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.r.tickLabelColorRules": {
+			"doc": "Conditional tick-label colors (\"+ Add color rule\" under the Tick labels Color row on the x / y panels).",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.r.tickLabelColorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.r.tickLabelColorRules[].condition": {
 			"kinds": [
 				"string"
 			]
@@ -7414,7 +7448,7 @@
 			]
 		},
 		"channelConfigs.r.wrapTickLabelAlign": {
-			"doc": "Horizontal alignment of the LINES within a wrapped tick label's block (only meaningful while `wrapTickLabels` is on — single-line labels have nothing to align).",
+			"doc": "Tick-label alignment (\"Align\" in the Tick labels section; the field keeps its historical name from when it applied to wrapped labels only).",
 			"kinds": [
 				"string"
 			],
@@ -8394,6 +8428,18 @@
 				"number"
 			]
 		},
+		"channelConfigs.x.side": {
+			"doc": "Plot edge the whole axis — spine, tick marks, tick labels and title — sits on (\"Side\" in the Spine section). x: \"bottom\" (default) or \"top\"; y: \"left\" (default) or \"right\". Absent = the default edge; see `axisFlipped`.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bottom",
+				"left",
+				"right",
+				"top"
+			]
+		},
 		"channelConfigs.x.spine": {
 			"kinds": [
 				"object"
@@ -8437,6 +8483,28 @@
 		"channelConfigs.x.tickLabelColor": {
 			"color": true,
 			"doc": "Per-axis tick LABEL color. Superseded by `tickLabelFont.color` when that is set; kept for back-compat with visuals saved before the fuller `tickLabelFont` override existed. When neither is set, tick labels inherit the global Text encoding color (`labels.baseFont.text.color`).",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.x.tickLabelColorRules": {
+			"doc": "Conditional tick-label colors (\"+ Add color rule\" under the Tick labels Color row on the x / y panels).",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.x.tickLabelColorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.x.tickLabelColorRules[].condition": {
 			"kinds": [
 				"string"
 			]
@@ -8500,7 +8568,7 @@
 			]
 		},
 		"channelConfigs.x.wrapTickLabelAlign": {
-			"doc": "Horizontal alignment of the LINES within a wrapped tick label's block (only meaningful while `wrapTickLabels` is on — single-line labels have nothing to align).",
+			"doc": "Tick-label alignment (\"Align\" in the Tick labels section; the field keeps its historical name from when it applied to wrapped labels only).",
 			"kinds": [
 				"string"
 			],
@@ -8975,6 +9043,18 @@
 				"number"
 			]
 		},
+		"channelConfigs.y.side": {
+			"doc": "Plot edge the whole axis — spine, tick marks, tick labels and title — sits on (\"Side\" in the Spine section). x: \"bottom\" (default) or \"top\"; y: \"left\" (default) or \"right\". Absent = the default edge; see `axisFlipped`.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bottom",
+				"left",
+				"right",
+				"top"
+			]
+		},
 		"channelConfigs.y.spine": {
 			"kinds": [
 				"object"
@@ -9018,6 +9098,28 @@
 		"channelConfigs.y.tickLabelColor": {
 			"color": true,
 			"doc": "Per-axis tick LABEL color. Superseded by `tickLabelFont.color` when that is set; kept for back-compat with visuals saved before the fuller `tickLabelFont` override existed. When neither is set, tick labels inherit the global Text encoding color (`labels.baseFont.text.color`).",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.y.tickLabelColorRules": {
+			"doc": "Conditional tick-label colors (\"+ Add color rule\" under the Tick labels Color row on the x / y panels).",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.y.tickLabelColorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.y.tickLabelColorRules[].condition": {
 			"kinds": [
 				"string"
 			]
@@ -9081,7 +9183,7 @@
 			]
 		},
 		"channelConfigs.y.wrapTickLabelAlign": {
-			"doc": "Horizontal alignment of the LINES within a wrapped tick label's block (only meaningful while `wrapTickLabels` is on — single-line labels have nothing to align).",
+			"doc": "Tick-label alignment (\"Align\" in the Tick labels section; the field keeps its historical name from when it applied to wrapped labels only).",
 			"kinds": [
 				"string"
 			],

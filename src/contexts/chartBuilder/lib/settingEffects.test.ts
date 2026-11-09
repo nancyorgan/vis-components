@@ -193,6 +193,17 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 		expect(out.labelsConfig.legendTitles).toMatchObject({ hue: "Region", shape: "Region" })
 	})
 
+	it("keeps an axis side to its own axis and stores the default side as unset", () => {
+		expect(paths({ channelConfigs: { x: { side: "left" } } }, bars())).toEqual(["channelConfigs.x.side"])
+		expect(paths({ channelConfigs: { y: { side: "top" } } }, bars())).toEqual(["channelConfigs.y.side"])
+		const flipped = ok({ channelConfigs: { x: { side: "top" }, y: { side: "right" } } }, bars())
+		expect(flipped.channelConfigs.x?.side).toBe("top")
+		expect(flipped.channelConfigs.y?.side).toBe("right")
+		const back = ok({ channelConfigs: { x: { side: "bottom" }, y: { side: "left" } } }, flipped)
+		expect(back.channelConfigs.x?.side).toBeUndefined()
+		expect(back.channelConfigs.y?.side).toBeUndefined()
+	})
+
 	it("clears the panel size and moves an all-shared axis aside when facet sizing turns on", () => {
 		const v = bars({ encodings: { ...bars().encodings, facetRow: { field: "region" }, facetCol: { field: "year" } } })
 		const withFacet = { ...v, channelConfigs: { ...v.channelConfigs, facet: { ...DEFAULT_FACET_CONFIG, shareY: "all" as const, panelHeight: 200 } } }

@@ -5,6 +5,7 @@ import type { FacetConfig } from "./channelConfig"
 import {
 	compactNonEmptyGrid,
 	facetPanelOptions,
+	facetPanelRow,
 	knownFacetPanels,
 	panelFacetValues,
 	resolveFacetPanels,
@@ -385,5 +386,78 @@ describe("facetPanelOptions", () => {
 		expect(facetPanelOptions(panels)).toEqual([
 			{ key: "__all__", label: "__all__", ref: "__all__" },
 		])
+	})
+})
+
+describe("facetPanelRow", () => {
+	it("names the row and column variables of a grid cell", () => {
+		const result = resolve(
+			[rec("a", "x"), rec("c", "x"), rec("b", "y")],
+			facetCfg({ hideEmptyPanels: false }),
+		)
+		// Dense 3×2 grid, row-major: idx 3 → layout row 1, col 1.
+		const key = result.values[3]
+		expect(facetPanelRow(result, key, 3, gridEncodings())).toEqual({
+			r: result.values[3].split("|")[0],
+			c: result.values[3].split("|")[1],
+		})
+	})
+
+	it("reads compacted cells by facet value, not layout position", () => {
+		const result = resolve(
+			[
+				rec("a", "x"),
+				rec("c", "x"),
+				rec("b", "y"),
+				rec("e", "y"),
+				rec("a", "z"),
+				rec("f", "z"),
+			],
+			facetCfg({ hideEmptyPanels: true }),
+		)
+		expect(facetPanelRow(result, "c|x", 3, gridEncodings())).toEqual({
+			r: "c",
+			c: "x",
+		})
+	})
+
+	it("skips an unmapped grid axis", () => {
+		const result = resolveFacetPanels(
+			makeDataset([rec("a", "x"), rec("b", "x")]),
+			{ ...emptyEncodings(), facetRow: { field: "r" } },
+			{},
+			{},
+			facetCfg(),
+		)
+		expect(facetPanelRow(result, result.values[1], 1, {
+			...emptyEncodings(),
+			facetRow: { field: "r" },
+		})).toEqual({ r: "b" })
+	})
+
+	it("names the wrap facet variable, keyed by the panel value", () => {
+		const enc = { ...emptyEncodings(), facet: { field: "r" } }
+		const result = resolveFacetPanels(
+			makeDataset([rec("a", "x"), rec("b", "x")]),
+			enc,
+			{},
+			{},
+			facetCfg(),
+		)
+		expect(result.mode).toBe("wrap")
+		expect(facetPanelRow(result, "b", 1, enc)).toEqual({ r: "b" })
+	})
+
+	it("is undefined for an unfaceted chart", () => {
+		const enc = emptyEncodings()
+		const result = resolveFacetPanels(
+			makeDataset([rec("a", "x")]),
+			enc,
+			{},
+			{},
+			facetCfg(),
+		)
+		expect(result.mode).toBe("single")
+		expect(facetPanelRow(result, result.values[0], 0, enc)).toBeUndefined()
 	})
 })

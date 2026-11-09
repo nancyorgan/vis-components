@@ -2996,3 +2996,186 @@ describe("solveFacetLayout — chart title keep-in-view (horizontal)", () => {
 		expect(spec.title!.x + textWidth).toBeLessThanOrEqual(spec.canvas.width - BUFFER)
 	})
 })
+
+// An axis may sit on the opposite plot edge (x on top, y on the right —
+// `AxisConfig.side`, LAYOUT.md §17). The solver swaps the axis chrome and
+// the far-side pad, draws the shared axis on that edge's row / column, and
+// mirrors the title gap / offset / overhang math. Nothing changes while the
+// flags are off.
+describe("solveFacetLayout — axis sides (LAYOUT.md §17)", () => {
+	const xt = { text: "x", fontSize: 14, align: "center" as const }
+	const yt = {
+		text: "y",
+		fontSize: 14,
+		align: "center" as const,
+		horizontal: false,
+	}
+	const wideY = () =>
+		makePanels(1, 1, { yLabels: ["1,000,000", "2,000,000"], yLabelMaxWidthPx: 70 })
+	const right = (over: Partial<SolverInput> = {}) =>
+		solveFacetLayout(baseline({ yTitle: yt, panels: wideY(), yAxisRight: true, ...over }))
+	const left = (over: Partial<SolverInput> = {}) =>
+		solveFacetLayout(baseline({ yTitle: yt, panels: wideY(), ...over }))
+	const top = (over: Partial<SolverInput> = {}) =>
+		solveFacetLayout(baseline({ xTitle: xt, xAxisTop: true, ...over }))
+	const bottom = (over: Partial<SolverInput> = {}) =>
+		solveFacetLayout(baseline({ xTitle: xt, ...over }))
+
+	it("flags off: the layout is identical to one without the flags", () => {
+		expect(
+			solveFacetLayout(
+				baseline({ xTitle: xt, yTitle: yt, xAxisTop: false, yAxisRight: false })
+			)
+		).toEqual(solveFacetLayout(baseline({ xTitle: xt, yTitle: yt })))
+	})
+
+	it("yAxisRight mirrors the y chrome: the far pad sits on the left, the label + title band on the right", () => {
+		const l = left().panels[0]!.inner
+		const spec = right()
+		const r = spec.panels[0]!.inner
+		expect(r.width).toBeCloseTo(l.width, 5)
+		expect(r.x).toBe(BASE_MARGIN.right)
+		expect(spec.canvas.width - (r.x + r.width)).toBeCloseTo(l.x, 5)
+	})
+
+	it("yAxisRight puts the rotated y title right of the plot at the left side's gap, still reading bottom-to-top", () => {
+		const lSpec = left()
+		const rSpec = right()
+		const lInner = lSpec.panels[0]!.inner
+		const rInner = rSpec.panels[0]!.inner
+		const gapLeft = lInner.x - lSpec.yTitle!.x
+		const gapRight = rSpec.yTitle!.x - (rInner.x + rInner.width)
+		expect(gapRight).toBeCloseTo(gapLeft, 5)
+		expect(rSpec.yTitle!.rotation).toBe(-90)
+		expect(rSpec.yTitle!.y).toBeCloseTo(lSpec.yTitle!.y, 5)
+	})
+
+	it("yAxisRight: an upright y title's box starts right of the tick labels and alignment moves only the anchor", () => {
+		const horizontal = { ...yt, text: "Sales (USD millions)", horizontal: true }
+		const inner = right({ yTitle: horizontal }).panels[0]!.inner
+		const plotRight = inner.x + inner.width
+		const blockWidth = estimateLongestLineWidth(horizontal.text, horizontal.fontSize)
+		const at = (align: "left" | "center" | "right") =>
+			right({ yTitle: { ...horizontal, align } }).yTitle!
+		expect(at("left").textAnchor).toBe("start")
+		expect(at("left").x).toBeGreaterThan(plotRight)
+		expect(at("center").x).toBeCloseTo(at("left").x + blockWidth / 2, 5)
+		expect(at("right").x).toBeCloseTo(at("left").x + blockWidth, 5)
+	})
+
+	it("yAxisRight: a positive (away) title offset shrinks the plot from the right and keeps the title put; negative extends the plot", () => {
+		const without = right()
+		const away = right({ yTitle: { ...yt, offsetX: 12 } })
+		expect(away.panels[0]!.inner.width).toBe(without.panels[0]!.inner.width - 12)
+		expect(away.panels[0]!.inner.x).toBe(without.panels[0]!.inner.x)
+		expect(away.yTitle!.x).toBeCloseTo(without.yTitle!.x, 5)
+		const toward = right({ yTitle: { ...yt, offsetX: -12 } })
+		expect(toward.panels[0]!.inner.width).toBe(without.panels[0]!.inner.width + 12)
+	})
+
+	it("yAxisRight: a rightward tick-label nudge widens the title gap; a leftward one is ignored", () => {
+		const gapFrom = (spec: ReturnType<typeof solveFacetLayout>) => {
+			const i = spec.panels[0]!.inner
+			return spec.yTitle!.x - (i.x + i.width)
+		}
+		const base = right()
+		expect(gapFrom(right({ yTickLabelDx: 20 }))).toBeCloseTo(gapFrom(base) + 20, 1)
+		expect(gapFrom(right({ yTickLabelDx: -20 }))).toBeCloseTo(gapFrom(base), 1)
+	})
+
+	it("yAxisRight: shared y ticks draw on each row's rightmost filled panel", () => {
+		const spec = solveFacetLayout(
+			baseline({
+				rows: 2,
+				cols: 3,
+				panels: makePanels(2, 3).filter((p) => !(p.row === 1 && p.col === 2)),
+				shareY: true,
+				yAxisRight: true,
+			})
+		)
+		for (const p of spec.panels) {
+			const rightmost = p.row === 0 ? 2 : 1
+			expect(p.showYTicks).toBe(p.col === rightmost)
+		}
+	})
+
+	it("yAxisRight: a continuous x axis's edge-label overhang is reserved on the LEFT pad", () => {
+		const panels = makePanels(1, 1, {
+			xLabels: ["$140,000"],
+			xLabelMaxWidthPx: 80,
+			xAxisContinuous: true,
+		})
+		const spec = solveFacetLayout(baseline({ panels, yAxisRight: true }))
+		// Half the label (40) + 3px breathing room spills past inner.x0; the
+		// 24px pad covers 24 of it, so the plot starts 19px further right.
+		expect(spec.panels[0]!.inner.x).toBe(BASE_MARGIN.right + (43 - BASE_MARGIN.right))
+	})
+
+	it("xAxisTop mirrors the x chrome: the far pad sits below the plot, the label + title band above it under the facet band", () => {
+		const bSpec = bottom()
+		const tSpec = top()
+		const b = bSpec.panels[0]!.inner
+		const t = tSpec.panels[0]!.inner
+		expect(t.height).toBeCloseTo(b.height, 5)
+		expect(tSpec.canvas.height - (t.y + t.height)).toBe(BASE_MARGIN.top)
+		const bottomChrome = bSpec.canvas.height - (b.y + b.height)
+		expect(t.y).toBeCloseTo(FACET_LABEL.height + bottomChrome, 5)
+		// The facet label stays at the very top of the cell, above the axis.
+		expect(tSpec.panels[0]!.facetLabel!.y).toBeLessThan(tSpec.xTitle!.y)
+	})
+
+	it("xAxisTop puts the x title above the plot, growing up, at the bottom side's label gap", () => {
+		const bSpec = bottom()
+		const tSpec = top()
+		const t = tSpec.panels[0]!.inner
+		expect(tSpec.xTitle!.y).toBeLessThan(t.y)
+		expect(tSpec.xTitle!.growUp).toBe(true)
+		// Bottom: baseline = plotBottom + pad + labels + gap + fontSize (ascender).
+		// Top: baseline = plotTop - (pad + labels + gap + 0.25·fontSize (descender)).
+		const b = bSpec.panels[0]!.inner
+		const gapBottom = bSpec.xTitle!.y - (b.y + b.height) - xt.fontSize
+		const gapTop = t.y - tSpec.xTitle!.y - xt.fontSize * 0.25
+		expect(gapTop).toBeCloseTo(gapBottom, 5)
+	})
+
+	it("xAxisTop: a negative (away) title offset shrinks the plot from the top and keeps the title put; positive extends the plot", () => {
+		const without = top()
+		const away = top({ xTitle: { ...xt, offsetY: -12 } })
+		expect(away.panels[0]!.inner.height).toBe(without.panels[0]!.inner.height - 12)
+		expect(away.panels[0]!.inner.y).toBe(without.panels[0]!.inner.y + 12)
+		expect(away.xTitle!.y).toBeCloseTo(without.xTitle!.y, 5)
+		const toward = top({ xTitle: { ...xt, offsetY: 12 } })
+		expect(toward.panels[0]!.inner.height).toBe(without.panels[0]!.inner.height + 12)
+	})
+
+	it("xAxisTop: an upward tick-label nudge widens the title gap; a downward one is ignored", () => {
+		const gapFrom = (spec: ReturnType<typeof solveFacetLayout>) =>
+			spec.panels[0]!.inner.y - spec.xTitle!.y
+		const base = top()
+		expect(gapFrom(top({ xTickLabelDy: -20 }))).toBeCloseTo(gapFrom(base) + 20, 1)
+		expect(gapFrom(top({ xTickLabelDy: 20 }))).toBeCloseTo(gapFrom(base), 1)
+	})
+
+	it("xAxisTop: shared x ticks draw on each column's top panel", () => {
+		const spec = solveFacetLayout(
+			baseline({
+				rows: 2,
+				cols: 3,
+				panels: makePanels(2, 3).filter((p) => !(p.row === 1 && p.col === 2)),
+				shareX: true,
+				xAxisTop: true,
+			})
+		)
+		for (const p of spec.panels) expect(p.showXTicks).toBe(p.row === 0)
+	})
+
+	it("xAxisTop with an interior shared row keeps only the spine reserve on that row's top", () => {
+		const spec = solveFacetLayout(
+			baseline({ rows: 2, cols: 1, panels: makePanels(2, 1), shareX: true, xAxisTop: true })
+		)
+		const [r0, r1] = [spec.panels[0]!, spec.panels[1]!]
+		// Row 0 carries the axis: a tall top chrome. Row 1: facet band + 4px.
+		expect(r0.inner.y - r0.cell.y).toBeGreaterThan(FACET_LABEL.height + 40)
+		expect(r1.inner.y - r1.cell.y).toBe(FACET_LABEL.height + 4)
+	})
+})

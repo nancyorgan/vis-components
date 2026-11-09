@@ -5,7 +5,11 @@ import {
 	LABEL_COL_NESTED,
 } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
-import { RuleConditionInput, RuleVariableHelp } from "../RuleConditionInput"
+import {
+	RuleCombineHelp,
+	RuleConditionInput,
+	RuleVariableHelp,
+} from "../RuleConditionInput"
 
 /** Conditional position rules under "Adjust position" — the positional
  *  sibling of the text-color rules. Each rule pairs a comparison condition
@@ -131,7 +135,7 @@ export const PositionRulesEditor = ({
 						of the values above. First matching rule wins. Use{" "}
 						<code>{">"}</code>, <code>{"<"}</code>, <code>{">="}</code>,{" "}
 						<code>{"<="}</code>, <code>==</code>, or <code>!=</code> followed
-						by a number. <RuleVariableHelp />
+						by a number. <RuleVariableHelp /> <RuleCombineHelp />
 					</p>
 					{help && <p className="vc-help">{help}</p>}
 				</>

@@ -189,6 +189,32 @@ export const panelFacetValues = (
 	}
 }
 
+/** One panel's facet variables as a single data row — `{ Company: "Merck" }`
+ *  for a wrap panel, `{ Region: "West", Year: "2024" }` for a grid cell —
+ *  so a conditional rule evaluated where the marks carry no dataset rows
+ *  (axis tick labels) can still test the panel it sits in:
+ *  `== Cardiology AND {Company} == Merck`. `undefined` when the chart isn't
+ *  faceted, so such a rule never fires there. */
+export const facetPanelRow = (
+	panelData: FacetPanels,
+	key: string,
+	idx: number,
+	encodings: Pick<Encodings, "facet" | "facetRow" | "facetCol">,
+): Record<string, unknown> | undefined => {
+	if (panelData.mode === "single") return undefined
+	if (panelData.mode === "wrap") {
+		const field = encodings.facet?.field
+		return field ? { [field]: key } : undefined
+	}
+	const { rowValue, colValue } = panelFacetValues(panelData, key, idx)
+	const row: Record<string, unknown> = {}
+	const rowField = encodings.facetRow?.field
+	const colField = encodings.facetCol?.field
+	if (rowField && rowValue !== null) row[rowField] = rowValue
+	if (colField && colValue !== null) row[colField] = colValue
+	return Object.keys(row).length > 0 ? row : undefined
+}
+
 /** The SAVED reference for a panel (`FacetPanelRef`): the facet value in
  *  wrap mode (the key itself), the `{ row, col }` pair in grid mode — read
  *  off the compact descriptor or the layout position like

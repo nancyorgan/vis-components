@@ -489,6 +489,11 @@ const renameViewFieldRefs = <T extends FieldNameConfigs>(
 						axis.mirror?.directionField === oldName
 							? { ...axis.mirror, directionField: newName }
 							: axis.mirror,
+					tickLabelColorRules: renameRuleTokens(
+						axis.tickLabelColorRules,
+						oldName,
+						newName
+					),
 				})
 			: axis
 	const channelConfigs = patched(cc, {
@@ -939,12 +944,12 @@ const renameMeltedValueRefs = <T extends FieldNameConfigs>(
 					circles: swapFacetKeys(ac.circles),
 					lineSegments: swapFacetKeys(ac.lineSegments),
 					texts: swapFacetKeys(ac.texts),
+					images: swapFacetKeys(ac.images),
 				})
 			: ac
 
 	const dle = state.dataLabelsEncodings
 	const dlc = state.dataLabelsConfig
-					images: swapFacetKeys(ac.images),
 	const dataLabelsConfig =
 		dle && drives(dle.hue) && dlc
 			? patched(dlc, {

@@ -396,6 +396,10 @@ describe("renameFieldInConfigs — standard (view-field) rewrite", () => {
 				outlineColorRules: [{ condition: "{sales} > 9", color: "#111" }],
 			},
 			fillColorRules: [{ condition: "{sales} < 0", color: "#222" }],
+			x: {
+				...DEFAULT_AXIS_CONFIG,
+				tickLabelColorRules: [{ condition: "{sales} > 1", color: "#555" }],
+			},
 			colorSlots: {
 				line: {
 					field: null,
@@ -425,6 +429,9 @@ describe("renameFieldInConfigs — standard (view-field) rewrite", () => {
 		)
 		expect(next.channelConfigs.fillColorRules?.[0].condition).toBe(
 			"{revenue} < 0"
+		)
+		expect(next.channelConfigs.x?.tickLabelColorRules?.[0].condition).toBe(
+			"{revenue} > 1"
 		)
 		expect(
 			next.channelConfigs.colorSlots?.line?.colorRules?.[0].condition

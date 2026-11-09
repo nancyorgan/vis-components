@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+	DEFAULT_AXIS_CONFIG,
 	DEFAULT_FACET_CONFIG,
 	type ChannelConfigs,
 	type FacetConfig,
@@ -110,6 +111,25 @@ const gridEncodings = (): Encodings => {
 }
 
 describe("buildSolverInput", () => {
+	it("passes the axis sides through as solver flags (default bottom / left)", () => {
+		const plain = build({})
+		expect(plain.xAxisTop).toBe(false)
+		expect(plain.yAxisRight).toBe(false)
+		const flipped = build({
+			channelConfigs: {
+				x: { ...DEFAULT_AXIS_CONFIG, side: "top" },
+				y: { ...DEFAULT_AXIS_CONFIG, side: "right" },
+			},
+		})
+		expect(flipped.xAxisTop).toBe(true)
+		expect(flipped.yAxisRight).toBe(true)
+		// A side that doesn't belong to the axis reads as the default edge.
+		const stray = build({
+			channelConfigs: { x: { ...DEFAULT_AXIS_CONFIG, side: "right" } },
+		})
+		expect(stray.xAxisTop).toBe(false)
+	})
+
 	it("builds a bare single-panel input with defaults", () => {
 		const input = build({})
 		expect(input.containerWidth).toBe(800)

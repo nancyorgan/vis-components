@@ -1,7 +1,11 @@
 import type { TextColorRule } from "../../lib/channelConfig"
 
 import { ColorInput } from "../../../../components/ui/ColorInput"
-import { RuleConditionInput, RuleVariableHelp } from "./RuleConditionInput"
+import {
+	RuleCombineHelp,
+	RuleConditionInput,
+	RuleVariableHelp,
+} from "./RuleConditionInput"
 
 /** The one conditional color-rule editor, shared by every color target that
  *  takes rules: the Color menu's Fill (`fillColorRules`), Outline
@@ -26,6 +30,8 @@ export const ColorRulesEditor = ({
 	addLabel = "+ Add color rule",
 	ruleLabel,
 	help,
+	divider = true,
+	variableRules = true,
 }: {
 	rules: readonly TextColorRule[]
 	onChange: (rules: TextColorRule[]) => void
@@ -43,6 +49,15 @@ export const ColorRulesEditor = ({
 	/** Extra help prose below the grammar note — typically what an implicit
 	 *  rule compares against. */
 	help?: React.ReactNode
+	/** `false` drops the hairline above the block — for a host that embeds
+	 *  the rules INSIDE another editor's rows (the axis Tick labels font
+	 *  editor, right under its Color row) rather than after them. */
+	divider?: boolean
+	/** `false` omits the `{Variable}` tip from the grammar note — for a
+	 *  target whose values carry no rows (axis tick labels), where such a
+	 *  rule could never fire — and gives the AND / OR example in plain
+	 *  comparisons. */
+	variableRules?: boolean
 }) => {
 	const ruleName = (i: number) =>
 		ruleLabel ? `${ruleLabel} rule ${i + 1}` : `rule ${i + 1}`
@@ -51,7 +66,7 @@ export const ColorRulesEditor = ({
 	const removeRule = (i: number) => update(stored.filter((_, idx) => idx !== i))
 	const addRule = () => update([...stored, { condition: "", color: defaultColor }])
 	return (
-		<div className="vc-divider-group">
+		<div className={divider ? "vc-divider-group" : "flex flex-col gap-2"}>
 			{stored.map((rule, i) => (
 				<div
 					// Index key is stable here: rules are ordered, identity == position
@@ -100,8 +115,14 @@ export const ColorRulesEditor = ({
 					<p className="vc-help">
 						First matching rule wins. Use <code>{">"}</code>, <code>{"<"}</code>,{" "}
 						<code>{">="}</code>, and <code>{"<="}</code> for numbers;{" "}
-						<code>==</code> and <code>!=</code> for text, e.g. <code>== Melon</code>.{" "}
-						<RuleVariableHelp />
+						<code>==</code> and <code>!=</code> for text, e.g. <code>== Melon</code>.
+						{variableRules && (
+							<>
+								{" "}
+								<RuleVariableHelp />
+							</>
+						)}{" "}
+						<RuleCombineHelp variables={variableRules} />
 					</p>
 					{help && <p className="vc-help">{help}</p>}
 				</>

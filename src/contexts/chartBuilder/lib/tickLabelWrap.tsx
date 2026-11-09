@@ -76,18 +76,26 @@ const naturalAlignForAnchor = (
  *  (The categorical auto-rotate is suppressed while wrapping, so the
  *  stored angle IS the effective one.)
  *
+ *  `flipped` (`axisFlipped(channel, config.side)`) is the axis on its
+ *  OPPOSITE edge — x on top, y on the right — where every anchor mirrors
+ *  so the text still leans away from the axis: y-right labels anchor
+ *  "start" (left); rotated x-top labels anchor "start" for negative
+ *  angles (left) and "end" for positive (right). Unrotated x and r never
+ *  change. Must stay in step with the anchor rules in Axes.tsx.
+ *
  *  The panel's alignment buttons MUST resolve their default through this
  *  — assuming "center" for a rotated x axis made "Center" store
  *  `undefined`, which the renderer resolved back to the anchor's natural
  *  (right), so Center and Right rendered identically. */
 export const naturalWrapAlignFor = (
 	channel: "x" | "y" | "r",
-	tickLabelAngle: number
+	tickLabelAngle: number,
+	flipped = false
 ): LabelAlignment => {
-	if (channel === "y") return "right"
+	if (channel === "y") return flipped ? "left" : "right"
 	if (channel === "r") return "left"
-	if (tickLabelAngle < 0) return "right"
-	if (tickLabelAngle > 0) return "left"
+	if (tickLabelAngle < 0) return flipped ? "left" : "right"
+	if (tickLabelAngle > 0) return flipped ? "right" : "left"
 	return "center"
 }
 
@@ -120,6 +128,7 @@ export const renderWrappedTickLabel = ({
 	fontSize,
 	verticallyCentered,
 	columnWidth,
+	growUp = false,
 }: {
 	label: string
 	/** Anchor x of the single-line label (the `<text>` element's own x). */
@@ -135,9 +144,16 @@ export const renderWrappedTickLabel = ({
 	 *  the axis; 0 = align at the anchor point). Omitted → single-line
 	 *  labels ignore `align` (legacy wrap-only behavior). */
 	columnWidth?: number
+	/** Stack a wrapped label's extra lines ABOVE the anchor so the LAST line
+	 *  sits at the `<text>`'s y — an x axis on the TOP edge, whose labels
+	 *  must grow away from the plot with the bottom line nearest the axis
+	 *  (see `renderMultilineTspans`). Wins over `verticallyCentered`. */
+	growUp?: boolean
 }): ReactNode => {
 	const naturalAlign = naturalAlignForAnchor(blockAnchor)
 	const effective = align ?? naturalAlign
+	// `fontSize` makes the growUp lift px-exact (the lines' own size).
+	const stack = { verticallyCentered, growUp, fontSize }
 	// Anchor every line at the chosen edge / center of a `w`-wide block
 	// hanging off `x` per `blockAnchor`.
 	const alignedRender = (w: number): ReactNode => {
@@ -151,14 +167,14 @@ export const renderWrappedTickLabel = ({
 					: blockLeft + w
 		const lineAnchor =
 			effective === "left" ? "start" : effective === "center" ? "middle" : "end"
-		return renderMultilineTspans(label, lineX, { verticallyCentered, lineAnchor })
+		return renderMultilineTspans(label, lineX, { ...stack, lineAnchor })
 	}
 	if (!label.includes("\n")) {
 		if (effective === naturalAlign || columnWidth === undefined) return label
 		return alignedRender(columnWidth)
 	}
 	if (effective === naturalAlign) {
-		return renderMultilineTspans(label, x, { verticallyCentered })
+		return renderMultilineTspans(label, x, stack)
 	}
 	return alignedRender(
 		Math.max(columnWidth ?? 0, estimateLongestLineWidth(label, fontSize))

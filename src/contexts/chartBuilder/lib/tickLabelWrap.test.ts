@@ -1,7 +1,9 @@
+import type { ReactNode } from "react"
 import { describe, expect, it } from "vitest"
 
 import {
 	naturalWrapAlignFor,
+	renderWrappedTickLabel,
 	tickWrapMaxPx,
 	wrapTickLabel,
 } from "./tickLabelWrap"
@@ -87,5 +89,73 @@ describe("naturalWrapAlignFor", () => {
 		// to Right (user-reported July 2026).
 		expect(naturalWrapAlignFor("x", -45)).toBe("right")
 		expect(naturalWrapAlignFor("x", 45)).toBe("left")
+	})
+})
+
+describe("naturalWrapAlignFor on a flipped axis (x top / y right)", () => {
+	it("y on the right anchors 'start' → left-aligned lines", () => {
+		expect(naturalWrapAlignFor("y", 0, true)).toBe("left")
+		expect(naturalWrapAlignFor("y", -45, true)).toBe("left")
+	})
+
+	it("rotated x on top mirrors the anchor; unrotated stays centered", () => {
+		expect(naturalWrapAlignFor("x", -45, true)).toBe("left")
+		expect(naturalWrapAlignFor("x", 45, true)).toBe("right")
+		expect(naturalWrapAlignFor("x", 0, true)).toBe("center")
+	})
+
+	it("r ignores the flag; `flipped` defaults to false", () => {
+		expect(naturalWrapAlignFor("r", 30, true)).toBe("left")
+		expect(naturalWrapAlignFor("x", -45)).toBe(naturalWrapAlignFor("x", -45, false))
+	})
+})
+
+describe("renderWrappedTickLabel with growUp", () => {
+	const lift = (nodes: ReactNode) =>
+		(Array.isArray(nodes) ? nodes : [nodes]).map(
+			(n) => (n as { props: { dy: unknown } }).props.dy
+		)
+
+	it("lifts the first line of a wrapped label by 1.2 × fontSize per extra line", () => {
+		const nodes = renderWrappedTickLabel({
+			label: "Cardiothoracic\nSurgery",
+			x: 0,
+			blockAnchor: "middle",
+			align: undefined,
+			fontSize: 10,
+			verticallyCentered: false,
+			columnWidth: 100,
+			growUp: true,
+		})
+		expect(lift(nodes)).toEqual([-12, "1.2em"])
+	})
+
+	it("keeps the lift when the lines are re-aligned", () => {
+		const nodes = renderWrappedTickLabel({
+			label: "Cardiothoracic\nSurgery",
+			x: 0,
+			blockAnchor: "middle",
+			align: "left",
+			fontSize: 10,
+			verticallyCentered: false,
+			columnWidth: 100,
+			growUp: true,
+		})
+		expect(lift(nodes)).toEqual([-12, "1.2em"])
+	})
+
+	it("single-line labels render as plain text regardless", () => {
+		expect(
+			renderWrappedTickLabel({
+				label: "ENT",
+				x: 0,
+				blockAnchor: "middle",
+				align: undefined,
+				fontSize: 10,
+				verticallyCentered: false,
+				columnWidth: 100,
+				growUp: true,
+			})
+		).toBe("ENT")
 	})
 })

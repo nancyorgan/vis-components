@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
 	firstMatchingRule,
+	parseCondition,
 	parseRule,
 	resolveRuleColor,
 } from "./textColorRules"
@@ -174,5 +175,110 @@ describe("{Variable} rules", () => {
 
 	it("fires for a nullish labeled value — the variable carries the test", () => {
 		expect(resolveRuleColor(rules, null, [{ Region: "West" }])).toBe("#00f")
+	})
+})
+
+describe("AND / OR compound conditions", () => {
+	const cmp = (field: string | undefined, op: string, text: string) => ({
+		kind: "compare",
+		cmp: {
+			...(field === undefined ? {} : { field }),
+			op,
+			num: Number.isFinite(Number(text)) ? Number(text) : null,
+			text,
+		},
+	})
+
+	it("parses AND / OR (any case) with AND binding before OR", () => {
+		expect(parseCondition("{A} == a AND {B} == b")).toEqual({
+			kind: "and",
+			parts: [cmp("A", "==", "a"), cmp("B", "==", "b")],
+		})
+		expect(parseCondition("> 5 and < 10")).toEqual({
+			kind: "and",
+			parts: [cmp(undefined, ">", "5"), cmp(undefined, "<", "10")],
+		})
+		// a OR b AND c → a OR (b AND c)
+		expect(parseCondition("{A} == a OR {B} == b AND {C} > 3")).toEqual({
+			kind: "or",
+			parts: [
+				cmp("A", "==", "a"),
+				{ kind: "and", parts: [cmp("B", "==", "b"), cmp("C", ">", "3")] },
+			],
+		})
+		// A single comparison is just that comparison.
+		expect(parseCondition("{A} == a")).toEqual(cmp("A", "==", "a"))
+	})
+
+	it("keeps a text operand that merely contains the word, quoted or not", () => {
+		// Unquoted: the right-hand piece isn't a comparison, so the whole
+		// string stays one comparison against the text "Black and White".
+		expect(parseCondition("== Black and White")).toEqual(
+			cmp(undefined, "==", "Black and White")
+		)
+		expect(parseCondition('{Region} == "North or South"')).toEqual(
+			cmp("Region", "==", "North or South")
+		)
+		// An apostrophe inside an operand doesn't open a quote.
+		expect(parseCondition("{Name} == O'Brien AND {Profit} > 0")).toEqual({
+			kind: "and",
+			parts: [cmp("Name", "==", "O'Brien"), cmp("Profit", ">", "0")],
+		})
+		// `&` / `|` are not connectives — nothing parses, so nothing fires.
+		expect(parseCondition("{A} == a & {B} == b")).toEqual(
+			cmp("A", "==", "a & {B} == b")
+		)
+	})
+
+	it("never fires an unfinished compound rule", () => {
+		// A dangling connective or an operand-less piece falls back to ONE
+		// comparison against the literal text, which no value equals.
+		const row = [{ A: "a", B: "b" }]
+		for (const condition of ["{A} == a AND", "{A} == a OR", "{A} == a AND {B}"]) {
+			expect(resolveRuleColor([{ condition, color: "#bad" }], 1, row)).toBeNull()
+		}
+		// A leading connective has no comparison at all.
+		expect(parseCondition("AND {A} == a")).toBeNull()
+	})
+
+	const rules = [
+		{ condition: "{Region} == West AND {Profit} < 0", color: "#f00" },
+		{ condition: "{Region} == West OR {Region} == East", color: "#00f" },
+		{ condition: "> 5 AND < 10", color: "#0f0" },
+	]
+
+	it("requires every AND piece and any OR piece, per row", () => {
+		expect(resolveRuleColor(rules, 1, [{ Region: "West", Profit: -1 }])).toBe(
+			"#f00"
+		)
+		expect(resolveRuleColor(rules, 1, [{ Region: "West", Profit: 1 }])).toBe(
+			"#00f"
+		)
+		expect(resolveRuleColor(rules, 1, [{ Region: "East", Profit: -1 }])).toBe(
+			"#00f"
+		)
+		expect(resolveRuleColor(rules, 1, [{ Region: "North", Profit: -1 }])).toBeNull()
+	})
+
+	it("mixes implicit and {Variable} pieces, and tests the implicit value alone", () => {
+		expect(resolveRuleColor(rules, 7, [{ Region: "North" }])).toBe("#0f0")
+		expect(resolveRuleColor(rules, 12, [{ Region: "North" }])).toBeNull()
+		// No rows: only the implicit rule can fire.
+		expect(resolveRuleColor(rules, 7)).toBe("#0f0")
+		const mixed = [{ condition: "{Region} == West AND > 100", color: "#abc" }]
+		expect(resolveRuleColor(mixed, 150, [{ Region: "West" }])).toBe("#abc")
+		expect(resolveRuleColor(mixed, 50, [{ Region: "West" }])).toBeNull()
+		expect(resolveRuleColor(mixed, 150)).toBeNull()
+	})
+
+	it("needs EVERY row of a multi-row mark to satisfy the whole condition", () => {
+		const westAndEast = [
+			{ Region: "West", Profit: -1 },
+			{ Region: "East", Profit: -1 },
+		]
+		// Each row is West or East → the OR rule fires for the whole bar…
+		expect(resolveRuleColor(rules, 1, westAndEast)).toBe("#00f")
+		// …but the AND rule wants West on every row, and one row is East.
+		expect(resolveRuleColor([rules[0]], 1, westAndEast)).toBeNull()
 	})
 })

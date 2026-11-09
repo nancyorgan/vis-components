@@ -1016,3 +1016,66 @@ its ascent/descent box, so ≈ 3–5 px of internal leading remains above a
 **Where.** Editor fixed canvas, image export (the export iframe renders
 the same `ChartCanvas` from the same config) and published embeds.
 Thumbnails serialize the SVG alone and are unaffected.
+
+---
+
+## 17. Axis sides (x on top, y on the right)
+
+`AxisConfig.side` ("Side" in each axis panel's Spine section) moves an
+axis to the opposite plot edge. `solverSpec.ts` resolves it through
+`axisFlipped` into two `SolverInput` flags, `xAxisTop` and `yAxisRight`;
+everything in the solver stays named for the DEFAULT edges and swaps at
+the few points where a side is materialized.
+
+**What stays put.** `cellMargin.bottom` / `.left` are still the axis-side
+BASES and `.top` / `.right` the far-side pads; `bottomFloor` / `leftFloor`
+and the interior chrome arrays are still the x / y axis MAGNITUDES
+(`estimateGlobalFloors` is side-agnostic). Gridlines, data positions,
+the facet label band, the header strips, the caption band and the
+data-label / annotation reserves don't move.
+
+**What swaps.**
+
+- `computeEdgePositions` finds the panel nearest the axis's edge per
+  column / row (`xAxisRowPerCol`, `yAxisColPerRow`: top-most instead of
+  bottom-most, rightmost instead of leftmost) — these drive both the
+  per-row / per-col full-chrome sets and `showXTicks` / `showYTicks`.
+- `cellMargins` lands the x chrome on the cell's TOP (below the facet
+  label band: `facetLabelHeight + xChrome`) and the pad
+  (`BASE_MARGIN.top`) on the bottom; the y chrome on the RIGHT and the
+  pad (`BASE_MARGIN.right`) on the left.
+- The title gaps are sized from the axis-edge row / column's labels
+  (`xAxisRow`, `yAxisCol`). The toward-the-title nudge component flips:
+  `max(0, +yTickLabelDx)` on the right, `max(0, -xTickLabelDy)` on top.
+  A top x-title's own extent term is its DESCENDER (0.25 × fontSize)
+  rather than the ascender, since the baseline now sits above the labels:
+  `xTitleGap = TICK_LINE_PAD + labels + TITLE_LABEL_GAP_PX + 0.25·fontSize
+  + nudge`, and `xTitle.y = plotTop − xTitleGap + offsetY` with `growUp`
+  (extra lines stack upward, `clampBaselineY` keeps the first line in
+  view). The right y-title is `plotRight + yTitleGap + offsetX`, still
+  rotated −90° (so "left" still starts at the panel floor); the upright
+  variant's box starts at that x and extends rightward
+  (`horizontalYTitleAnchorXFromLeft`, `clampHorizontalYTitleLeftX`).
+- §8 offsets keep screen coordinates; only "away" changes direction:
+  `xTitleAway = xAxisTop ? −offsetY : offsetY`, `yTitleAway = yAxisRight ?
+  offsetX : −offsetX`. The grow (which may go negative down to the chrome's
+  extension room) lands on the title's own edge (`xTitleTopGrow`,
+  `yTitleRightGrow`), and the phase-3 "opposite edge" check mirrors
+  (bottom grow for a top x-title clamped at the bottom buffer, left grow
+  for a right y-title clamped at the left buffer). The title's own side is
+  never `max`ed against the overhang, so the negative grow survives.
+- The continuous x-tick overhang reserve (§5) goes to whichever side
+  carries the far pad: the right by default, the LEFT under `yAxisRight`
+  (the y chrome covers the other side). A rotated label's one-sided
+  extent follows the renderer's flipped anchors on a top axis.
+- `yTitleOutsideRowStrip` is false for a right-side y axis: the title
+  stays beside its own labels on the right and the row strip keeps the
+  left.
+
+**Renderer.** `Axes.tsx` reads the same `side`: spine / tick origin at
+`inner.y0` (top) or `inner.x1` (right), ticks extend away from the plot,
+top labels hang above the axis with an alphabetic baseline (wrapped
+labels grow up), right labels anchor `start`, rotated top labels flip
+their anchor, and `naturalWrapAlignFor(channel, angle, flipped)` keeps
+the Align control's default in step. The opposing-spine gridline
+suppression tracks the opposing axis's side.

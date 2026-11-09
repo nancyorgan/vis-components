@@ -1,6 +1,7 @@
 import { max } from "d3-array"
 import type { AnnotationReserve } from "./annotationReserve"
 import {
+	axisFlipped,
 	colSizingMeaningful,
 	DEFAULT_TICKMARK_CONFIG,
 	migrateProportionalSizing,
@@ -299,6 +300,11 @@ export const buildSolverInput = ({
 			channelConfigs.x?.tickmarks?.length ?? DEFAULT_TICKMARK_CONFIG.length,
 		yTickLength:
 			channelConfigs.y?.tickmarks?.length ?? DEFAULT_TICKMARK_CONFIG.length,
+		// Axis sides ("Side" in each axis panel's Spine section): the solver
+		// moves the axis chrome and the shared title to the chosen edge and
+		// faceted panels draw the shared axis on that edge's row / column.
+		xAxisTop: axisFlipped("x", channelConfigs.x?.side),
+		yAxisRight: axisFlipped("y", channelConfigs.y?.side),
 		facetLabel: facetHidden.panel
 			? undefined
 			: panelData.mode === "grid"

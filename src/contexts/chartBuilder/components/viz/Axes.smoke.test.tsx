@@ -3,6 +3,7 @@ import { scaleBand, scaleLinear, scaleTime } from "d3-scale"
 import { describe, expect, it } from "vitest"
 
 import { Axis } from "./Axes"
+import { FacetPanelRowContext } from "./plotCanvas/FacetPanelContext"
 
 /** Axes component is the closest renderer to the user-visible axis title /
  *  tick stride / horizontal-y-rotation features. We mount it with seeded
@@ -1550,5 +1551,455 @@ describe("Axis 'year-ends' tick format (Year Mixed)", () => {
 		expect(labels[0]).toBe("2000")
 		expect(labels.at(-1)).toBe("2020")
 		expect(labels.slice(1, -1).every((l) => /^’\d\d$/.test(l))).toBe(true)
+	})
+})
+
+describe("Axis tick-label color rules", () => {
+	const xScale = scaleBand<string>()
+		.domain(["West", "East", "North"])
+		.range([80, 380])
+	const baseConfig = {
+		tickCount: 5,
+		customFormat: "",
+		tickLabelAngle: 0,
+		jitterAmount: 0,
+		gridlines: { enabled: false, color: "#000", thickness: 1, count: null },
+		tickmarks: { color: "#000", thickness: 1, length: 5 },
+		spine: { color: "#000", thickness: 1 },
+		distributionOverlay: {
+			showDensityViolin: false,
+			showBoxPlot: false,
+			showPoints: true,
+			color: "#000",
+			fillColor: "#000",
+			colorOverrides: {},
+			fillColorOverrides: {},
+		},
+		categoricalTickStride: 1,
+	}
+	const tickFills = (container: HTMLElement) =>
+		Object.fromEntries(
+			[...container.querySelectorAll("text[data-vc-tick-label]")].map((t) => [
+				t.textContent,
+				t.getAttribute("fill"),
+			])
+		)
+
+	it("recolors only the tick whose value matches; the rest keep the font color", () => {
+		const { container } = render(
+			wrapInSvg(
+				<Axis
+					scale={xScale}
+					orientation="x"
+					inner={inner}
+					label="Region"
+					fieldType="categorical"
+					config={{
+						...baseConfig,
+						tickLabelFont: { color: "#123456" },
+						tickLabelColorRules: [{ condition: "== East", color: "#ff0000" }],
+					}}
+				/>
+			)
+		)
+		expect(tickFills(container)).toEqual({
+			West: "#123456",
+			East: "#ff0000",
+			North: "#123456",
+		})
+	})
+
+	it("tests a {Variable} piece against the panel's facet row, so one panel's label can be singled out", () => {
+		const config = {
+			...baseConfig,
+			tickLabelFont: { color: "#123456" },
+			tickLabelColorRules: [
+				{ condition: "== East AND {Company} == Merck", color: "#ff0000" },
+			],
+		}
+		const axis = (
+			<Axis
+				scale={xScale}
+				orientation="x"
+				inner={inner}
+				label="Region"
+				fieldType="categorical"
+				config={config}
+			/>
+		)
+		const merck = render(
+			wrapInSvg(
+				<FacetPanelRowContext.Provider value={{ Company: "Merck" }}>
+					{axis}
+				</FacetPanelRowContext.Provider>
+			)
+		)
+		expect(tickFills(merck.container).East).toBe("#ff0000")
+		expect(tickFills(merck.container).West).toBe("#123456")
+		const pfizer = render(
+			wrapInSvg(
+				<FacetPanelRowContext.Provider value={{ Company: "Pfizer" }}>
+					{axis}
+				</FacetPanelRowContext.Provider>
+			)
+		)
+		expect(tickFills(pfizer.container).East).toBe("#123456")
+		// Unfaceted: no facet row, so the {Variable} piece never passes.
+		const bare = render(wrapInSvg(axis))
+		expect(tickFills(bare.container).East).toBe("#123456")
+	})
+
+	it("compares a quantitative tick against its number", () => {
+		const yScale = scaleLinear().domain([0, 100]).range([280, 20])
+		const { container } = render(
+			wrapInSvg(
+				<Axis
+					scale={yScale}
+					orientation="y"
+					inner={inner}
+					label="Sales"
+					fieldType="quantitative"
+					config={{
+						...baseConfig,
+						tickLabelFont: { color: "#123456" },
+						tickLabelColorRules: [{ condition: ">= 80", color: "#00ff00" }],
+					}}
+				/>
+			)
+		)
+		const fills = tickFills(container)
+		expect(fills["100"]).toBe("#00ff00")
+		expect(fills["80"]).toBe("#00ff00")
+		expect(fills["0"]).toBe("#123456")
+		expect(fills["60"]).toBe("#123456")
+	})
+})
+
+describe("Axis side (top / right)", () => {
+	// `config.side` moves the whole axis — spine, tick marks, tick labels
+	// and title — to the opposite plot edge: x to the top, y to the right.
+	// Distinct stroke colors let the tests pick spine / tick / grid lines
+	// apart; the label nudge stays at 0 so offsets read straight.
+	const SPINE = "#a1a1a1"
+	const TICK = "#b2b2b2"
+	const GRID = "#c3c3c3"
+	const baseConfig = {
+		tickCount: 5,
+		customFormat: "",
+		tickLabelAngle: null,
+		jitterAmount: 0,
+		gridlines: { enabled: false, color: GRID, thickness: 1, count: null },
+		tickmarks: { color: TICK, thickness: 1, length: 5 },
+		spine: { color: SPINE, thickness: 1 },
+		distributionOverlay: {
+			showDensityViolin: false,
+			showBoxPlot: false,
+			showPoints: true,
+			color: "#000",
+			fillColor: "#000",
+			colorOverrides: {},
+			fillColorOverrides: {},
+		},
+		categoricalTickStride: 1,
+	}
+	const xScale = scaleLinear().domain([0, 100]).range([inner.x0, inner.x1])
+	const yScale = scaleLinear().domain([0, 100]).range([inner.y1, inner.y0])
+	const linesBy = (container: HTMLElement, stroke: string) =>
+		[...container.querySelectorAll("line")].filter(
+			(l) => l.getAttribute("stroke") === stroke
+		)
+	const num = (el: Element | undefined, attr: string) =>
+		Number(el?.getAttribute(attr))
+	const titleOf = (container: HTMLElement, label: string) =>
+		[...container.querySelectorAll("text")].find((t) => t.textContent === label)
+	const tickLabels = (container: HTMLElement) => [
+		...container.querySelectorAll("text[data-vc-tick-label]"),
+	]
+
+	describe("x axis on top", () => {
+		const mount = (extra: Partial<React.ComponentProps<typeof Axis>> = {}) =>
+			render(
+				wrapInSvg(
+					<Axis
+						scale={xScale}
+						orientation="x"
+						inner={inner}
+						label="Year"
+						fieldType="quantitative"
+						config={{ ...baseConfig, side: "top" }}
+						{...extra}
+					/>
+				)
+			).container
+
+		it("draws the spine along the plot ceiling", () => {
+			const spine = linesBy(mount(), SPINE)
+			expect(spine).toHaveLength(1)
+			expect(num(spine[0], "y1")).toBe(inner.y0)
+			expect(num(spine[0], "y2")).toBe(inner.y0)
+		})
+
+		it("tick marks start at the ceiling and extend UP", () => {
+			const marks = linesBy(mount(), TICK)
+			expect(marks.length).toBeGreaterThan(0)
+			for (const m of marks) {
+				expect(num(m, "y1")).toBeLessThanOrEqual(inner.y0)
+				expect(num(m, "y2")).toBeLessThan(num(m, "y1"))
+			}
+		})
+
+		it("labels sit above the axis on their alphabetic baseline, centered", () => {
+			const labels = tickLabels(mount())
+			expect(labels.length).toBeGreaterThan(0)
+			for (const l of labels) {
+				// -(tick.length 5 + 8)
+				expect(num(l, "y")).toBe(-13)
+				expect(l.getAttribute("dominant-baseline")).toBe("auto")
+				expect(l.getAttribute("text-anchor")).toBe("middle")
+			}
+			// The label group hangs off the ceiling, not the floor.
+			const g = labels[0]?.parentElement
+			expect(g?.getAttribute("transform")).toContain(`,${inner.y0})`)
+		})
+
+		it("rotated labels flip their anchor (negative angle → start, positive → end)", () => {
+			const neg = tickLabels(
+				mount({ config: { ...baseConfig, side: "top", tickLabelAngle: -45 } })
+			)
+			expect(neg.length).toBeGreaterThan(0)
+			for (const l of neg) {
+				expect(l.getAttribute("text-anchor")).toBe("start")
+				expect(l.getAttribute("dominant-baseline")).toBe("middle")
+				// -(tick.length 5 + 6)
+				expect(num(l, "y")).toBe(-11)
+			}
+			const pos = tickLabels(
+				mount({ config: { ...baseConfig, side: "top", tickLabelAngle: 45 } })
+			)
+			for (const l of pos) expect(l.getAttribute("text-anchor")).toBe("end")
+		})
+
+		it("wrapped labels stack upward so the last line is nearest the axis", () => {
+			const scale = scaleBand<string>()
+				.domain(["Cardiothoracic Surgery", "ENT"])
+				.range([inner.x0, inner.x1])
+			const { container } = render(
+				wrapInSvg(
+					<Axis
+						scale={scale}
+						orientation="x"
+						inner={{ ...inner, x1: inner.x0 + 120 }}
+						label="Specialty"
+						fieldType="categorical"
+						config={{ ...baseConfig, side: "top", wrapTickLabels: true }}
+					/>
+				)
+			)
+			const wrapped = tickLabels(container).find(
+				(t) => t.querySelectorAll("tspan").length > 1
+			)
+			expect(wrapped).toBeDefined()
+			const [first] = [...wrapped!.querySelectorAll("tspan")]
+			// First line lifted by 1.2 × fontSize per extra line (px-exact).
+			expect(Number(first?.getAttribute("dy"))).toBeLessThan(0)
+		})
+
+		it("places the title above the plot, baseline-up, stacking a wrapped title upward", () => {
+			const title = titleOf(mount(), "Year")
+			expect(title).toBeDefined()
+			expect(num(title, "y")).toBeLessThan(inner.y0)
+			expect(title?.getAttribute("dominant-baseline")).toBe("auto")
+			const wrapped = titleOf(mount({ label: "Fiscal\nYear" }), "FiscalYear")
+			const tspans = [...(wrapped?.querySelectorAll("tspan") ?? [])]
+			expect(tspans).toHaveLength(2)
+			expect(Number(tspans[0]?.getAttribute("dy"))).toBeLessThan(0)
+		})
+
+		it("labels nudged UP push the title further up (mirror of the bottom's downward nudge)", () => {
+			const base = num(titleOf(mount(), "Year"), "y")
+			const nudged = num(
+				titleOf(
+					mount({ config: { ...baseConfig, side: "top", offsetY: -10 } }),
+					"Year"
+				),
+				"y"
+			)
+			expect(nudged).toBe(base - 10)
+			// A nudge toward the plot leaves the title where it was.
+			const inward = num(
+				titleOf(
+					mount({ config: { ...baseConfig, side: "top", offsetY: 10 } }),
+					"Year"
+				),
+				"y"
+			)
+			expect(inward).toBe(base)
+		})
+	})
+
+	describe("y axis on the right", () => {
+		const mount = (extra: Partial<React.ComponentProps<typeof Axis>> = {}) =>
+			render(
+				wrapInSvg(
+					<Axis
+						scale={yScale}
+						orientation="y"
+						inner={inner}
+						label="Count"
+						fieldType="quantitative"
+						config={{ ...baseConfig, side: "right" }}
+						{...extra}
+					/>
+				)
+			).container
+
+		it("draws the spine along the right plot edge", () => {
+			const spine = linesBy(mount(), SPINE)
+			expect(spine).toHaveLength(1)
+			expect(num(spine[0], "x1")).toBe(inner.x1)
+			expect(num(spine[0], "x2")).toBe(inner.x1)
+		})
+
+		it("tick marks start at the right edge and extend RIGHT", () => {
+			const marks = linesBy(mount(), TICK)
+			expect(marks.length).toBeGreaterThan(0)
+			for (const m of marks) {
+				expect(num(m, "x1")).toBeGreaterThanOrEqual(inner.x1)
+				expect(num(m, "x2")).toBeGreaterThan(num(m, "x1"))
+			}
+		})
+
+		it("labels anchor 'start' with a positive x offset, rotated or not", () => {
+			for (const angle of [null, -30]) {
+				const labels = tickLabels(
+					mount({ config: { ...baseConfig, side: "right", tickLabelAngle: angle } })
+				)
+				expect(labels.length).toBeGreaterThan(0)
+				for (const l of labels) {
+					expect(l.getAttribute("text-anchor")).toBe("start")
+					// +(tick.length 5 + 4)
+					expect(num(l, "x")).toBe(9)
+					expect(l.getAttribute("dominant-baseline")).toBe("middle")
+					expect(l.parentElement?.getAttribute("transform")).toContain(
+						`translate(${inner.x1},`
+					)
+				}
+			}
+		})
+
+		it("rotated title sits right of the plot and still reads bottom-to-top", () => {
+			const title = titleOf(mount(), "Count")
+			const transform = title?.getAttribute("transform") ?? ""
+			expect(transform).toContain("rotate(-90)")
+			const m = /translate\(([^,]+),/.exec(transform)
+			expect(Number(m?.[1])).toBeGreaterThan(inner.x1)
+		})
+
+		it("labels nudged RIGHT widen the title gap; a leftward nudge does not", () => {
+			const xOf = (offsetX?: number) => {
+				const t = titleOf(
+					mount({ config: { ...baseConfig, side: "right", offsetX } }),
+					"Count"
+				)
+				const m = /translate\(([^,]+),/.exec(t?.getAttribute("transform") ?? "")
+				return Number(m?.[1])
+			}
+			const base = xOf()
+			expect(xOf(12)).toBe(base + 12)
+			expect(xOf(-12)).toBe(base)
+		})
+
+		it("upright title's box starts right of the plot; alignment slides the anchor inside it", () => {
+			const anchorFor = (titleAlignment: "left" | "center" | "right") => {
+				const t = titleOf(
+					mount({ yTitleHorizontal: true, titleAlignment, label: "Negotiated rates" }),
+					"Negotiated rates"
+				)!
+				return { anchor: t.getAttribute("text-anchor"), x: num(t, "x") }
+			}
+			const left = anchorFor("left")
+			const center = anchorFor("center")
+			const right = anchorFor("right")
+			expect([left.anchor, center.anchor, right.anchor]).toEqual([
+				"start",
+				"middle",
+				"end",
+			])
+			expect(left.x).toBeGreaterThan(inner.x1)
+			const blockWidth = right.x - left.x
+			expect(blockWidth).toBeGreaterThan(0)
+			expect(center.x).toBeCloseTo(left.x + blockWidth / 2, 6)
+		})
+	})
+
+	describe("gridline suppression follows the opposing axis's side", () => {
+		const gridXs = (side?: "left" | "right") => {
+			const { container } = render(
+				wrapInSvg(
+					<Axis
+						scale={xScale}
+						orientation="x"
+						inner={inner}
+						label="X"
+						fieldType="quantitative"
+						config={{
+							...baseConfig,
+							gridlines: { enabled: true, color: GRID, thickness: 1, count: 5 },
+						}}
+						opposingAxis={{
+							config: { spine: { color: "#000", thickness: 1 }, side },
+						}}
+					/>
+				)
+			)
+			return linesBy(container, GRID).map((l) => num(l, "x1"))
+		}
+
+		it("default (left) y spine drops the gridline at inner.x0 and keeps inner.x1", () => {
+			const xs = gridXs(undefined)
+			expect(xs).not.toContain(inner.x0)
+			expect(xs).toContain(inner.x1)
+		})
+
+		it("a right-hand y spine drops the gridline at inner.x1 and keeps inner.x0", () => {
+			const xs = gridXs("right")
+			expect(xs).not.toContain(inner.x1)
+			expect(xs).toContain(inner.x0)
+		})
+	})
+
+	it("default (no side) keeps the x axis on the floor and the y axis on the left", () => {
+		const x = render(
+			wrapInSvg(
+				<Axis
+					scale={xScale}
+					orientation="x"
+					inner={inner}
+					label="X"
+					fieldType="quantitative"
+					config={baseConfig}
+				/>
+			)
+		).container
+		expect(num(linesBy(x, SPINE)[0], "y1")).toBe(inner.y1)
+		const xMark = linesBy(x, TICK)[0]
+		expect(num(xMark, "y2")).toBeGreaterThan(num(xMark, "y1"))
+		expect(tickLabels(x)[0]?.getAttribute("dominant-baseline")).toBe("hanging")
+		const y = render(
+			wrapInSvg(
+				<Axis
+					scale={yScale}
+					orientation="y"
+					inner={inner}
+					label="Y"
+					fieldType="quantitative"
+					config={baseConfig}
+				/>
+			)
+		).container
+		expect(num(linesBy(y, SPINE)[0], "x1")).toBe(inner.x0)
+		const yMark = linesBy(y, TICK)[0]
+		expect(num(yMark, "x2")).toBeLessThan(num(yMark, "x1"))
+		expect(tickLabels(y)[0]?.getAttribute("text-anchor")).toBe("end")
 	})
 })

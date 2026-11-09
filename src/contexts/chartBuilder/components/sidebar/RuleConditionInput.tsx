@@ -39,3 +39,17 @@ export const RuleVariableHelp = () => (
 		e.g. <code>{"{Region} == West"}</code>.
 	</>
 )
+
+/** The combining note: several comparisons in one rule join with the words
+ *  `AND` / `OR` (the same words as derived-variable conditions), never `&`
+ *  or `|`. The example uses `{Variable}` comparisons where the target's
+ *  marks carry rows and plain comparisons where they don't (tick labels). */
+export const RuleCombineHelp = ({ variables = true }: { variables?: boolean }) => (
+	<>
+		Join conditions with the words <code>AND</code> / <code>OR</code> (not{" "}
+		<code>&amp;</code> or <code>|</code>), e.g.{" "}
+		<code>{variables ? "{Region} == West AND {Profit} < 0" : "> 5 AND < 10"}</code>
+		; <code>AND</code> is applied before <code>OR</code>. Quote text that
+		contains those words: <code>== &quot;Black and White&quot;</code>.
+	</>
+)

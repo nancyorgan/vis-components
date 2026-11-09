@@ -29,7 +29,7 @@ const unquote = (s: string): string => {
 	return s
 }
 
-/** Parse a freeform condition string into an `(op, operand)` pair. The operand
+/** Parse ONE comparison — a freeform condition string into an `(op, operand)` pair. The operand
  *  keeps both a numeric reading (`num`, `null` when non-numeric) and the raw
  *  string form (`text`, with surrounding quotes stripped) so callers can do
  *  either a numeric comparison or a categorical string match. Returns `null`
@@ -42,7 +42,10 @@ const unquote = (s: string): string => {
  *  is the referenced name, absent for the implicit form.
  *
  *  Examples: `">0"` → {op:">", num:0}, `=="A"` → {op:"==", num:null, text:"A"},
- *  `"{Region} == West"` → {field:"Region", op:"==", num:null, text:"West"}. */
+ *  `"{Region} == West"` → {field:"Region", op:"==", num:null, text:"West"}.
+ *
+ *  Several comparisons joined with `AND` / `OR` are `parseCondition`'s job;
+ *  this reads a single one. */
 export const parseRule = (
 	condition: string
 ): { field?: string; op: Op; num: number | null; text: string } | null => {
@@ -68,6 +71,99 @@ export const parseRule = (
 }
 
 type ParsedRule = NonNullable<ReturnType<typeof parseRule>>
+
+/** A whole rule condition: one comparison, or several joined with the words
+ *  `AND` / `OR` — the same connectives, precedence (`AND` before `OR`) and
+ *  spelling as derived-variable If/else conditions (`derivedExpression.ts`),
+ *  so one grammar serves every place a user types a condition. */
+export type RuleCondition =
+	| { kind: "compare"; cmp: ParsedRule }
+	| { kind: "and" | "or"; parts: RuleCondition[] }
+
+const LOGIC_WORD = /\s+(and|or)\s+/iy
+
+/** Is the quote at `i` a quote that OPENS an operand (`== "West"`) rather
+ *  than an apostrophe inside one (`== O'Brien`)? It must follow the start,
+ *  whitespace or an operator character. */
+const opensQuote = (s: string, i: number): boolean =>
+	i === 0 || /[\s=<>!]/.test(s[i - 1])
+
+/** …and the matching closer must end the operand: last char or followed by
+ *  whitespace. */
+const closesQuote = (s: string, i: number): boolean =>
+	i === s.length - 1 || /\s/.test(s[i + 1])
+
+/** Split a condition on its top-level `AND` / `OR` words — whitespace on both
+ *  sides, any case, outside a quoted operand. `null` when there are none. */
+const splitLogic = (
+	s: string
+): { pieces: string[]; ops: ("and" | "or")[] } | null => {
+	const pieces: string[] = []
+	const ops: ("and" | "or")[] = []
+	let quote: string | null = null
+	let start = 0
+	for (let i = 0; i < s.length; i++) {
+		const ch = s[i]
+		if (quote !== null) {
+			if (ch === quote && closesQuote(s, i)) quote = null
+			continue
+		}
+		if ((ch === '"' || ch === "'") && opensQuote(s, i)) {
+			quote = ch
+			continue
+		}
+		if (ch === " " || ch === "\t") {
+			LOGIC_WORD.lastIndex = i
+			const m = LOGIC_WORD.exec(s)
+			if (m) {
+				pieces.push(s.slice(start, i))
+				ops.push(m[1].toLowerCase() as "and" | "or")
+				i += m[0].length - 1
+				start = i + 1
+			}
+		}
+	}
+	if (ops.length === 0) return null
+	pieces.push(s.slice(start))
+	return { pieces, ops }
+}
+
+/** Parse a whole condition: comparisons joined with `AND` / `OR`, `AND`
+ *  binding tighter (`a OR b AND c` = `a OR (b AND c)`); no parentheses.
+ *  Every piece must itself read as a comparison, or the string is taken as
+ *  ONE comparison — so a text operand that happens to contain the word
+ *  (`== Black and White`) keeps matching that text, and quoting it
+ *  (`== "Black and White"`) makes that explicit. `null` = unparseable. */
+export const parseCondition = (condition: string): RuleCondition | null => {
+	const split = splitLogic(condition)
+	if (split) {
+		const orGroups: RuleCondition[][] = [[]]
+		let complete = true
+		split.pieces.forEach((piece, i) => {
+			const cmp = parseRule(piece)
+			if (!cmp) {
+				complete = false
+				return
+			}
+			if (i > 0 && split.ops[i - 1] === "or") orGroups.push([])
+			orGroups[orGroups.length - 1].push({ kind: "compare", cmp })
+		})
+		if (complete) {
+			const groups = orGroups.map((parts) =>
+				parts.length === 1 ? parts[0] : { kind: "and" as const, parts }
+			)
+			return groups.length === 1 ? groups[0] : { kind: "or", parts: groups }
+		}
+	}
+	const cmp = parseRule(condition)
+	return cmp && { kind: "compare", cmp }
+}
+
+/** Does any comparison in the condition reference a `{Variable}`? Such a
+ *  condition is tested against the mark's rows; one without is tested once
+ *  against the implicit value. */
+const usesVariable = (c: RuleCondition): boolean =>
+	c.kind === "compare" ? c.cmp.field !== undefined : c.parts.some(usesVariable)
 
 /** One value against one parsed comparison. Ordering operators (`>`, `<`,
  *  `>=`, `<=`) are numeric-only. Equality operators (`==`, `!=`) compare
@@ -105,17 +201,34 @@ const valuePasses = (value: unknown, rule: ParsedRule): boolean => {
 				: num <= rule.num
 }
 
+/** The whole condition against one row (or none): `{Variable}` comparisons
+ *  read that variable from `row`, implicit ones read `value`. */
+const conditionPasses = (
+	c: RuleCondition,
+	value: unknown,
+	row: Record<string, unknown> | undefined
+): boolean => {
+	if (c.kind === "compare") {
+		const { field } = c.cmp
+		return valuePasses(field === undefined ? value : row?.[field], c.cmp)
+	}
+	return c.kind === "and"
+		? c.parts.every((p) => conditionPasses(p, value, row))
+		: c.parts.some((p) => conditionPasses(p, value, row))
+}
+
 /** The dataset rows behind one mark, for `{Variable}` rules: one row for a
  *  point / map shape / unaggregated label, every aggregated row for a bar
  *  slice, an area layer, a pie wedge. `undefined` / empty = the caller has no
  *  rows (a legend swatch), so `{Variable}` rules never fire there. */
 export type RuleRows = readonly Record<string, unknown>[] | undefined
 
-/** Walk `rules` top-to-bottom; first one whose comparison passes wins. An
- *  implicit rule (`> 0`) compares against `value`; a `{Variable}` rule
- *  compares against that variable in `rows` and passes only when EVERY row
- *  does — so `{Region} == West` colors a bar only when the whole bar is West
- *  rows, never by guessing from one of them. Generic over the rule's payload
+/** Walk `rules` top-to-bottom; first one whose condition passes wins. An
+ *  implicit rule (`> 0`) compares against `value`; a rule mentioning any
+ *  `{Variable}` is tested row by row against `rows` and passes only when
+ *  EVERY row satisfies the whole condition — so `{Region} == West` colors a
+ *  bar only when the whole bar is West rows, never by guessing from one of
+ *  them, and `{Region} == West AND {Profit} < 0` needs both on every row. Generic over the rule's payload
  *  — text-color rules carry a color, position rules carry X/Y offsets — so
  *  every conditional-rule feature matches identically. */
 export const firstMatchingRule = <T extends { condition: string }>(
@@ -125,15 +238,13 @@ export const firstMatchingRule = <T extends { condition: string }>(
 ): T | null => {
 	if (!rules || rules.length === 0) return null
 	for (const rule of rules) {
-		const parsed = parseRule(rule.condition)
+		const parsed = parseCondition(rule.condition)
 		if (!parsed) continue
-		const { field } = parsed
-		const passes =
-			field === undefined
-				? valuePasses(value, parsed)
-				: rows !== undefined &&
-					rows.length > 0 &&
-					rows.every((r) => valuePasses(r[field], parsed))
+		const passes = usesVariable(parsed)
+			? rows !== undefined &&
+				rows.length > 0 &&
+				rows.every((r) => conditionPasses(parsed, value, r))
+			: conditionPasses(parsed, value, undefined)
 		if (passes) return rule
 	}
 	return null

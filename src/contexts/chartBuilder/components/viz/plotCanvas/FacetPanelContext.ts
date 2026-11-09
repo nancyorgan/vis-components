@@ -9,3 +9,15 @@ import { createContext, useContext } from "react"
 export const FacetPanelContext = createContext<string | null>(null)
 
 export const useFacetPanelKey = (): string | null => useContext(FacetPanelContext)
+
+/** The panel's facet variables as one data row (`facetPanelRow` —
+ *  `{ Company: "Merck" }`), for conditional rules evaluated on things that
+ *  carry no dataset rows of their own: the axis tick-label color rules read
+ *  it so `== Cardiology AND {Company} == Merck` can single out one panel's
+ *  label. `undefined` outside a faceted PlotCanvas. */
+export const FacetPanelRowContext = createContext<
+	Record<string, unknown> | undefined
+>(undefined)
+
+export const useFacetPanelRow = (): Record<string, unknown> | undefined =>
+	useContext(FacetPanelRowContext)

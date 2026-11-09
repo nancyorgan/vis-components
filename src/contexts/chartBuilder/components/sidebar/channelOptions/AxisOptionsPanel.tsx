@@ -15,6 +15,8 @@ import {
 	type RegressionConfig,
 	type SpineConfig,
 	type TickmarkConfig,
+	axisFlipped,
+	type AxisSide,
 } from "../../../lib/channelConfig"
 import { distributionTypeOf, distributionTypePatch, type DistributionType } from "../../../lib/distributionType"
 import { naturalWrapAlignFor } from "../../../lib/tickLabelWrap"
@@ -60,6 +62,7 @@ import { Input } from "../../../../../components/ui/Input"
 import { DateInput } from "../../../../../components/ui/DateInput"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 import { BreaksField } from "./BreaksField"
+import { ColorRulesEditor } from "../ColorRulesEditor"
 
 type Props = {
 	channel: "x" | "y" | "r"
@@ -120,6 +123,8 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		),
 		tickLabelFont: valueChanged(configs[channel]?.tickLabelFont, undefined),
 		tickLabelColor: valueChanged(configs[channel]?.tickLabelColor, undefined),
+		tickLabelColorRules:
+			(configs[channel]?.tickLabelColorRules?.length ?? 0) > 0,
 		wrapTickLabels: valueChanged(configs[channel]?.wrapTickLabels, undefined),
 		wrapTickLabelAlign: valueChanged(
 			configs[channel]?.wrapTickLabelAlign,
@@ -131,6 +136,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		),
 		spine: valueChanged(configs[channel]?.spine, themeAxis.spine),
 		spineAtZero: valueChanged(configs[channel]?.spineAtZero, undefined),
+		side: valueChanged(configs[channel]?.side, undefined),
 		gridlines: valueChanged(configs[channel]?.gridlines, themeAxis.gridlines),
 		histogram: valueChanged(configs[channel]?.histogram, undefined),
 		distributionOverlay: valueChanged(
@@ -162,11 +168,12 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 			ch.tickLabelAngle ||
 			ch.tickLabelFont ||
 			ch.tickLabelColor ||
+			ch.tickLabelColorRules ||
 			ch.wrapTickLabels ||
 			ch.wrapTickLabelAlign ||
 			ch.wrapTickLabelChars ||
 			ch.offset,
-		Spine: ch.spine || ch.spineAtZero,
+		Spine: ch.spine || ch.spineAtZero || ch.side,
 		Gridlines: ch.gridlines,
 	}
 	// The theme's tick count for this axis — the "reset" target for the
@@ -665,6 +672,17 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						)
 					)}
 				</div>
+				{/* Always shown: single-line labels align within the axis's
+				 *  shared label column (y / r) or at their tick (x); wrapped
+				 *  labels align their lines within the block. */}
+				<TickLabelAlignmentControl
+					channel={channel}
+					tickLabelAngle={config.tickLabelAngle ?? 0}
+					flipped={channel !== "r" && axisFlipped(channel, config.side)}
+					value={config.wrapTickLabelAlign}
+					changed={ch.wrapTickLabelAlign}
+					onChange={(wrapTickLabelAlign) => update({ wrapTickLabelAlign })}
+				/>
 				<div className="flex flex-col gap-1">
 					<Checkbox
 						label="Wrap text"
@@ -698,17 +716,6 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 							)}
 						</div>
 					)}
-					{config.wrapTickLabels === true && (
-						<WrapAlignmentControl
-							channel={channel}
-							tickLabelAngle={config.tickLabelAngle ?? 0}
-							value={config.wrapTickLabelAlign}
-							changed={ch.wrapTickLabelAlign}
-							onChange={(wrapTickLabelAlign) =>
-								update({ wrapTickLabelAlign })
-							}
-						/>
-					)}
 				</div>
 				<TickLabelFontControl
 					value={config.tickLabelFont}
@@ -722,6 +729,41 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						// `tickLabelColor`; clear it so the two color sources can't
 						// drift out of sync.
 						update({ tickLabelFont, tickLabelColor: undefined })
+					}
+					// Tick-label color rules sit right under the Color row: the
+					// swatch is the primary control, the rules the exception
+					// path for "this one label in red". x / y only — the radar
+					// r ticks carry no value for a rule to test.
+					afterColor={
+						channel !== "r" ? (
+							<ColorRulesEditor
+								rules={config.tickLabelColorRules ?? []}
+								onChange={(rules) =>
+									update({
+										tickLabelColorRules:
+											rules.length > 0 ? rules : undefined,
+									})
+								}
+								defaultColor={
+									config.tickLabelFont?.color ??
+									config.tickLabelColor ??
+									inheritedTickLabelColor
+								}
+								paletteKind="text"
+								ruleLabel="tick label"
+								divider={false}
+								variableRules={false}
+								help={
+									<>
+										Compared against each tick label&apos;s own value — the
+										category name or the number; the Color above applies
+										when no rule matches. In a faceted chart a rule can
+										also test the facet variable, to color a label in one
+										panel only: <code>== Cardiology AND {"{Company}"} == Merck</code>.
+									</>
+								}
+							/>
+						) : undefined
 					}
 				/>
 				<AxisAdjustPositionControl
@@ -766,6 +808,18 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 
 			{channel !== "r" && (
 				<Section title="Spine" changed={sectionChanged.Spine}>
+					{/* Which plot edge the WHOLE axis sits on — spine, tick marks,
+					 *  tick labels and title together (the layout solver moves the
+					 *  axis chrome with it). Only offered where the mode draws this
+					 *  cartesian axis. */}
+					{modeDef.canvas.cartesianAxes[channel] && (
+						<AxisSideControl
+							channel={channel}
+							value={config.side}
+							changed={ch.side}
+							onChange={(side) => update({ side })}
+						/>
+					)}
 					<SpineControls
 						spine={config.spine ?? DEFAULT_SPINE_CONFIG}
 						onChange={(s) => update({ spine: s })}
@@ -1640,6 +1694,7 @@ export const TickLabelFontControl = ({
 	inheritedFamily,
 	inheritedWeight,
 	onChange,
+	afterColor,
 }: {
 	value: Partial<FontConfig> | undefined
 	legacyColor: string | undefined
@@ -1652,6 +1707,9 @@ export const TickLabelFontControl = ({
 	 *  weight) named in the Weight select's "(inherit)" entry. */
 	inheritedWeight: number
 	onChange: (next: Partial<FontConfig> | undefined) => void
+	/** Rendered directly under the editor's Color row (the x / y panels'
+	 *  tick-label color rules). */
+	afterColor?: React.ReactNode
 }) => {
 	const current: Partial<FontConfig> =
 		value ?? (legacyColor ? { color: legacyColor } : {})
@@ -1666,20 +1724,75 @@ export const TickLabelFontControl = ({
 			baseSize={inheritedSize}
 			baseFamily={inheritedFamily}
 			baseWeight={inheritedWeight}
+			afterColor={afterColor}
 		/>
 	)
 }
 
-/** Line alignment for wrapped tick labels — shown only while "Wrap text" is
- *  on (single-line labels have nothing to align). Reuses the Labels panel's
- *  left/center/right glyph buttons. The DEFAULT alignment is the axis's
- *  natural one (per `naturalWrapAlignFor` — anchor-derived, so a rotated x
- *  axis naturally right- or left-aligns), and picking that natural value
- *  stores `undefined`, so the "changed" dot only lights for a real
- *  deviation and older saves stay byte-identical. */
-const WrapAlignmentControl = ({
+/** "Side" (Spine section): which plot edge the axis sits on. x: Bottom
+ *  (default) / Top; y: Left (default) / Right. Writes the non-default side
+ *  only (`"top"` / `"right"`) and clears to absent for the default, so the
+ *  "changed" dot and saved visuals stay honest (see `AxisConfig.side`). */
+const AxisSideControl = ({
+	channel,
+	value,
+	changed,
+	onChange,
+}: {
+	channel: "x" | "y"
+	value: AxisSide | undefined
+	changed: boolean
+	onChange: (next: AxisSide | undefined) => void
+}) => {
+	const flipped = axisFlipped(channel, value)
+	const [defaultLabel, flippedLabel] =
+		channel === "x" ? ["Bottom", "Top"] : ["Left", "Right"]
+	const flippedSide: AxisSide = channel === "x" ? "top" : "right"
+	return (
+		<div className="flex flex-col gap-1">
+			<label className="flex items-center gap-2 text-sm">
+				<span
+					className={
+						changed
+							? "w-24 shrink-0 font-semibold !text-vc-section-header"
+							: "w-24 shrink-0 vc-muted"
+					}
+				>
+					Side
+				</span>
+				<Select
+					aria-label="Axis side"
+					value={flipped ? "flipped" : "default"}
+					onChange={(e) =>
+						onChange(e.target.value === "flipped" ? flippedSide : undefined)
+					}
+					className="flex-1"
+				>
+					<option value="default">{defaultLabel}</option>
+					<option value="flipped">{flippedLabel}</option>
+				</Select>
+			</label>
+			<p className="vc-help">
+				Moves the whole axis — spine, tick marks, tick labels and title.
+			</p>
+		</div>
+	)
+}
+
+/** Tick-label alignment — always shown (2026-11-09; it was gated on "Wrap
+ *  text" before). Single-line labels align within the axis's shared label
+ *  column (y / r) or at their tick (x); wrapped labels align their lines
+ *  within the block. Reuses the Labels panel's left/center/right glyph
+ *  buttons. The DEFAULT alignment is the axis's natural one (per
+ *  `naturalWrapAlignFor` — anchor-derived, so a rotated x axis naturally
+ *  right- or left-aligns, and a right-side y axis naturally left-aligns),
+ *  and picking that natural value stores `undefined`, so the "changed" dot
+ *  only lights for a real deviation and older saves stay byte-identical.
+ *  The stored field keeps its historical `wrapTickLabelAlign` name. */
+const TickLabelAlignmentControl = ({
 	channel,
 	tickLabelAngle,
+	flipped,
 	value,
 	changed,
 	onChange,
@@ -1688,11 +1801,14 @@ const WrapAlignmentControl = ({
 	/** The axis's explicit label angle — flips the natural alignment on a
 	 *  rotated x axis (see `naturalWrapAlignFor`). */
 	tickLabelAngle: number
+	/** Axis drawn on its non-default side (x top / y right) — flips the
+	 *  natural alignment with the label anchors. */
+	flipped: boolean
 	value: LabelAlignment | undefined
 	changed: boolean
 	onChange: (next: LabelAlignment | undefined) => void
 }) => {
-	const naturalAlign = naturalWrapAlignFor(channel, tickLabelAngle)
+	const naturalAlign = naturalWrapAlignFor(channel, tickLabelAngle, flipped)
 	return (
 		<div className="flex items-center gap-2 text-sm">
 			<span

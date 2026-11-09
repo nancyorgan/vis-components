@@ -8,6 +8,7 @@ import {
 	DEFAULT_GRIDLINE_CONFIG,
 	DEFAULT_SPINE_CONFIG,
 	DEFAULT_TICKMARK_CONFIG,
+	axisFlipped,
 	type AxisConfig,
 } from "../../lib/channelConfig"
 import { ptToPx, resolveTickFontSizePx } from "../../lib/fontUnit"
@@ -19,6 +20,8 @@ import { buildTickFormatter, type TickFormatterOptions } from "../../lib/formatT
 import { uniformTimeFormat, uniformTimeLiteral } from "../../lib/timeTickFormat"
 import { type DateColumnText, literalTimeLabel } from "../../lib/rawTextByTime"
 import { mirrorTickBreaks } from "../../lib/mirrorAxis"
+import { resolveRuleColor } from "../../lib/textColorRules"
+import { useFacetPanelRow } from "./plotCanvas/FacetPanelContext"
 import {
 	textAnchorFromAlignment,
 	type FontConfig,
@@ -68,8 +71,9 @@ type Props = {
 	/** Horizontal alignment for the axis title. Defaults to "center"
 	 * (centered along the axis). */
 	titleAlignment?: LabelAlignment
-	/** When true, the y-axis title is drawn upright (0°) sitting to the
-	 * left of the spine. Ignored on x-axes. */
+	/** When true, the y-axis title is drawn upright (0°) sitting beside the
+	 * spine, outside the tick labels (left of a left axis, right of a
+	 * right one — `config.side`). Ignored on x-axes. */
 	yTitleHorizontal?: boolean
 	/** When false, suppress the axis title only (still draw spine + ticks).
 	 * Used by faceted panels so a single shared title can be drawn outside
@@ -77,15 +81,18 @@ type Props = {
 	showTitle?: boolean
 	/** The perpendicular axis, when one is rendered. This axis's gridlines
 	 * run parallel to the opposing spine, so a gridline can land exactly
-	 * under it (x-gridline at inner.x0, y-gridline at inner.y1) — the
-	 * translucent gridline antialiases against the spine edge and the line
-	 * looks blurry. When the opposing spine is visible, it replaces any
-	 * gridline its stroke covers. Object presence = the opposing axis
-	 * renders; `config` may still be undefined (defaults apply). Typed as
-	 * the subset the suppression reads so callers can pass a full
-	 * AxisConfig or just the spine field. */
+	 * under it (x-gridline at the y spine's edge — inner.x0, or inner.x1
+	 * when that axis sits on the right; y-gridline at the x spine's edge —
+	 * inner.y1, or inner.y0 for a top x axis) — the translucent gridline
+	 * antialiases against the spine edge and the line looks blurry. When
+	 * the opposing spine is visible, it replaces any gridline its stroke
+	 * covers. Object presence = the opposing axis renders; `config` may
+	 * still be undefined (defaults apply). Typed as the subset the
+	 * suppression reads — `spine` for visibility, `side` for which edge
+	 * its default position is — so callers can pass a full AxisConfig or
+	 * just those fields. */
 	opposingAxis?: {
-		config?: Pick<AxisConfig, "spine">
+		config?: Pick<AxisConfig, "spine" | "side">
 		/** Where the opposing spine actually sits when it has been moved off
 		 * its default plot edge ("Set spine at 0" — see `spinePosition` below).
 		 * The gridline suppression must track the moved spine, not the edge. */
@@ -95,7 +102,8 @@ type Props = {
 	 * the plot-edge default (an x-axis takes a y pixel, a y-axis an x pixel).
 	 * Set by the coord system when THIS axis's `spineAtZero` is on, so its
 	 * spine crosses the OPPOSING scale at 0 instead of hugging the edge.
-	 * Only the spine line moves — ticks, labels, and title stay at the edge. */
+	 * Only the spine line moves — ticks, labels, and title stay at the edge
+	 * the axis sits on (`config.side`: bottom / top for x, left / right for y). */
 	spinePosition?: number
 	/** True when BOTH ends of this continuous axis are user-pinned (Scale
 	 * range min + max, or a facet range override). The automatic tick layout
@@ -157,6 +165,10 @@ export const Axis = ({
 	rawTextByValue,
 	replaceTicks,
 }: Props) => {
+	// The facet panel this axis draws in, as one data row (`{ Company:
+	// "Merck" }`) — the only rows a tick label has, so a tick-label color
+	// rule can test the panel's facet variable(s). Undefined unfaceted.
+	const facetRow = useFacetPanelRow()
 	const drawBack = layer !== "front"
 	const drawFront = layer !== "back" && showTicksAndLabels
 	// Tick STROKES draw in the back pass (with the gridlines) so points or
@@ -195,9 +207,20 @@ export const Axis = ({
 	const titleFontStyle = titleFont?.italic ? ("italic" as const) : undefined
 	const titleDecoration = titleFont?.underline ? ("underline" as const) : undefined
 	const isX = orientation === "x"
-	// The spine's perpendicular position — the plot edge unless the coord
+	// Which plot edge this axis sits on ("Side"): x is bottom unless flipped
+	// to the top, y is left unless flipped to the right. `edgeY` / `edgeX`
+	// are the axis's OWN edge — where its tick marks start, its labels hang
+	// off and its title sits — while gridlines stay at data positions.
+	// Everything that extends away from the plot flips sign with `out`.
+	const flipped = axisFlipped(orientation, config?.side)
+	const edgeY = flipped ? inner.y0 : inner.y1
+	const edgeX = flipped ? inner.x1 : inner.x0
+	// Outward direction along the axis's perpendicular, in screen px: x
+	// bottom grows +y (down), x top −y (up); y left grows −x, y right +x.
+	const out = isX ? (flipped ? -1 : 1) : flipped ? 1 : -1
+	// The spine's perpendicular position — the axis's edge unless the coord
 	// system moved it to the opposing scale's zero crossing ("Set spine at 0").
-	const spineAt = spinePosition ?? (isX ? inner.y1 : inner.x0)
+	const spineAt = spinePosition ?? (isX ? edgeY : edgeX)
 	const axisLine = isX
 		? { x1: inner.x0, y1: spineAt, x2: inner.x1, y2: spineAt }
 		: { x1: spineAt, y1: inner.y0, x2: spineAt, y2: inner.y1 }
@@ -307,7 +330,9 @@ export const Axis = ({
 			: evenlySpacedTicks(lo, hi, count)
 	}
 
-	const ticks: Array<{ pos: number; label: string }> = (() => {
+	// `value` is what the label shows — the category text or the number (a
+	// mirrored axis's magnitude) — and what the tick-label color rules test.
+	const ticks: Array<{ pos: number; label: string; value: unknown }> = (() => {
 		const s = scale as unknown as {
 			ticks?: (count: number) => unknown[]
 			tickFormat?: (count: number) => (v: unknown) => string
@@ -362,6 +387,7 @@ export const Axis = ({
 				.map((v) => ({
 					pos: (scale as unknown as (x: unknown) => number)(v),
 					label: fmt(toMagnitude(v)),
+					value: toMagnitude(v),
 				}))
 				.filter((t) => {
 					const key = t.pos.toFixed(2)
@@ -405,10 +431,11 @@ export const Axis = ({
 			.map((d, i) => ({
 				pos: ((scale as unknown as (x: unknown) => number)(d) ?? 0) + halfBand,
 				label: categoryFmt(toMagnitude(d)),
+				value: toMagnitude(d),
 				visible: visibleIndices.has(i),
 			}))
 			.filter((t) => t.visible)
-			.map(({ pos, label }) => ({ pos, label }))
+			.map(({ pos, label, value }) => ({ pos, label, value }))
 	})()
 
 	// Spread-merge defaults UNDER persisted overrides so a partial config
@@ -600,14 +627,19 @@ export const Axis = ({
 		if (!opposingAxis) return true
 		const oppSpine = { ...DEFAULT_SPINE_CONFIG, ...opposingAxis.config?.spine }
 		if (!(oppSpine.thickness > 0)) return true
-		// The opposing spine sits at the plot edge unless it was moved to a
-		// zero crossing ("Set spine at 0"), which is tracked at its moved
-		// position — the gridline there is the one it replaces, while the
-		// edge gridline stays. The "Adjust position" nudge does NOT enter
-		// here: it moves tick labels only, never the spine.
+		// The opposing spine sits at ITS plot edge — which follows its own
+		// "Side" (a right-hand y axis defaults to inner.x1, a top x axis to
+		// inner.y0) — unless it was moved to a zero crossing ("Set spine at
+		// 0"), which is tracked at its moved position — the gridline there is
+		// the one it replaces, while the edge gridline stays. The "Adjust
+		// position" nudge does NOT enter here: it moves tick labels only,
+		// never the spine.
+		const oppSide = opposingAxis.config?.side
 		const spinePos = isX
-			? (opposingAxis.spinePosition ?? inner.x0)
-			: (opposingAxis.spinePosition ?? inner.y1)
+			? (opposingAxis.spinePosition ??
+				(axisFlipped("y", oppSide) ? inner.x1 : inner.x0))
+			: (opposingAxis.spinePosition ??
+				(axisFlipped("x", oppSide) ? inner.y0 : inner.y1))
 		return Math.abs(pos - spinePos) > (oppSpine.thickness + grid.thickness) / 2 + 0.01
 	})
 
@@ -633,18 +665,19 @@ export const Axis = ({
 				 *  the gridlines and before the mark renderer — so overlapping
 				 *  points/shapes paint over them. The matching labels stay in the
 				 *  front pass below. Start each tick just outside the spine so the
-				 *  strokes don't overlap at the intersection point. */}
+				 *  strokes don't overlap at the intersection point, and extend
+				 *  AWAY from the plot (`out`) from whichever edge the axis sits on. */}
 				{drawTickMarks &&
 					wrappedTicks.map((t, i) => {
-						const [x, y] = isX ? [t.pos, inner.y1] : [inner.x0, t.pos]
+						const [x, y] = isX ? [t.pos, edgeY] : [edgeX, t.pos]
 						return (
 							<line
 								// eslint-disable-next-line react/no-array-index-key -- tick list is recomputed per render; label alone can collide
 								key={`tickmark-${t.label}-${i}`}
-								x1={x + (isX ? 0 : -tickSpineInset)}
-								y1={y + (isX ? tickSpineInset : 0)}
-								x2={x + (isX ? 0 : -(tick.length + tickSpineInset))}
-								y2={y + (isX ? tick.length + tickSpineInset : 0)}
+								x1={x + (isX ? 0 : out * tickSpineInset)}
+								y1={y + (isX ? out * tickSpineInset : 0)}
+								x2={x + (isX ? 0 : out * (tick.length + tickSpineInset))}
+								y2={y + (isX ? out * (tick.length + tickSpineInset) : 0)}
 								stroke={tick.color}
 								strokeWidth={tick.thickness}
 							/>
@@ -665,23 +698,48 @@ export const Axis = ({
 				{drawFront && (
 					<>
 						{wrappedTicks.map((t, i) => {
-							const [x, y] = isX ? [t.pos, inner.y1] : [inner.x0, t.pos]
+							const [x, y] = isX ? [t.pos, edgeY] : [edgeX, t.pos]
 							const labelAngle = effectiveLabelAngle
 							const rotated = labelAngle !== 0
-							// When rotated, anchor from whichever side keeps text away from
-							// the axis. For x-axis: negative angle tilts up-left → end;
-							// positive → start. For y-axis: always end.
+							// Anchor from whichever side keeps text away from the axis.
+							// Y: "end" against a left axis, "start" off a right one
+							// (rotated or not). X rotated on the bottom: a negative
+							// angle tilts up-left → "end", positive → "start"; on the
+							// TOP the same tilt must lean the other way, so the rule
+							// mirrors (negative → "start", positive → "end").
+							// `naturalWrapAlignFor` (tickLabelWrap.tsx) restates these
+							// for the panel — keep them in step.
 							const labelAnchor = ((): "start" | "middle" | "end" => {
-								if (!rotated) return isX ? "middle" : "end"
-								if (!isX) return "end"
-								return labelAngle < 0 ? "end" : "start"
+								if (!isX) return flipped ? "start" : "end"
+								if (!rotated) return "middle"
+								const leansEnd = labelAngle < 0
+								return leansEnd !== flipped ? "end" : "start"
 							})()
-							const labelBaseline = ((): "hanging" | "middle" => {
-								if (rotated) return "middle"
-								return isX ? "hanging" : "middle"
+							// Bottom x labels HANG below the axis; top x labels sit on
+							// their alphabetic baseline above it so the ink gap mirrors.
+							const labelBaseline = ((): "hanging" | "middle" | "auto" => {
+								if (rotated || !isX) return "middle"
+								return flipped ? "auto" : "hanging"
 							})()
-							const labelOffsetX = isX ? 0 : -(tick.length + 4)
-							const labelOffsetY = isX ? tick.length + (rotated ? 6 : 12) : 0
+							// Perpendicular offsets grow AWAY from the plot (`out`). The
+							// top-edge unrotated gap is 8 rather than 12 because the
+							// alphabetic baseline already sits a descender's height
+							// above the ink's bottom edge.
+							const labelOffsetX = isX ? 0 : out * (tick.length + 4)
+							const labelOffsetY = isX
+								? out * (tick.length + (rotated ? 6 : flipped ? 8 : 12))
+								: 0
+							// Tick-label color rules: the first rule matching THIS
+							// tick's value recolors just this label; the rest keep
+							// the axis's font color. A `{Variable}` piece can only
+							// name a facet variable (the panel row), e.g.
+							// `== Cardiology AND {Company} == Merck`.
+							const labelFill =
+								resolveRuleColor(
+									config?.tickLabelColorRules,
+									t.value,
+									facetRow && [facetRow]
+								) ?? tickFill
 							return (
 								<g
 									// eslint-disable-next-line react/no-array-index-key -- tick list is recomputed per render; label alone can collide
@@ -706,15 +764,17 @@ export const Axis = ({
 										fontWeight={tickFontWeight}
 										fontStyle={tickFontStyle}
 										textDecoration={tickDecoration}
-										fill={tickFill}
+										fill={labelFill}
 										className={
-											tickFill ? undefined : "fill-stone-600 dark:fill-stone-400"
+											labelFill ? undefined : "fill-stone-600 dark:fill-stone-400"
 										}
 									>
 										{/* Wrapped labels render as stacked tspans, honoring
 											the user's line alignment. Y labels anchor with
 											baseline "middle", so the block centers on the tick;
-											x labels hang below the axis and stack downward. */}
+											bottom x labels hang below the axis and stack
+											downward; top x labels stack UPWARD so the last
+											line stays nearest the axis. */}
 										{renderWrappedTickLabel({
 											label: t.label,
 											x: labelOffsetX,
@@ -723,6 +783,7 @@ export const Axis = ({
 											fontSize: tickFontSize,
 											verticallyCentered: !isX,
 											columnWidth: labelColumnWidth,
+											growUp: isX && flipped,
 										})}
 									</text>
 								</g>
@@ -742,17 +803,23 @@ export const Axis = ({
 											: titleAlignment === "right"
 												? inner.x1
 												: (inner.x0 + inner.x1) / 2
-									// Mirror of the y-side gap fix: labels nudged DOWN
-									// (positive labelDy) move toward the x-title, so push
-									// the title down by the same amount.
-									const titleY =
-										inner.y1 + 6 + tickFontSize + 20 + Math.max(0, labelDy)
+									// Mirror of the y-side gap fix: labels nudged toward the
+									// title (DOWN — positive labelDy — on the bottom edge, UP
+									// — negative — on the top) push the title the same way.
+									// The title clears the tick-label band (6 + tickFontSize
+									// + 20) on the axis's own side of the edge: hanging
+									// below it on the bottom; on the TOP its baseline sits
+									// above and a wrapped title stacks upward, so the
+									// bottom line stays nearest the labels either way.
+									const titleY = flipped
+										? inner.y0 - (6 + tickFontSize + 20) - Math.max(0, -labelDy)
+										: inner.y1 + 6 + tickFontSize + 20 + Math.max(0, labelDy)
 									return (
 										<text
 											x={titleX}
 											y={titleY}
 											textAnchor={alignAnchor}
-											dominantBaseline="hanging"
+											dominantBaseline={flipped ? "auto" : "hanging"}
 											fontSize={titleFontSize}
 											fontWeight={titleFontWeight}
 											fontStyle={titleFontStyle}
@@ -765,7 +832,13 @@ export const Axis = ({
 													: "fill-stone-700 dark:fill-stone-300"
 											}
 										>
-											{renderMultilineTspans(label, titleX)}
+											{renderMultilineTspans(
+												label,
+												titleX,
+												flipped
+													? { growUp: true, fontSize: titleFontSize }
+													: undefined
+											)}
 										</text>
 									)
 								}
@@ -783,9 +856,10 @@ export const Axis = ({
 										: titleAlignment === "left"
 											? inner.y1
 											: inner.y0
-								// Dynamically position the title left of the longest tick
-								// label so a long category name (e.g. "Cardiothoracic
-								// Surgery") doesn't render under the title. Estimate using
+								// Dynamically position the title outside the longest tick
+								// label (left of a left axis, right of a right one) so a
+								// long category name (e.g. "Cardiothoracic Surgery")
+								// doesn't render under the title. Estimate using
 								// the same per-character heuristic as
 								// `lib/estimateMargins.ts` (~0.55 × fontSize per char).
 								// Used for BOTH the horizontal and rotated branches so
@@ -804,34 +878,41 @@ export const Axis = ({
 								// The "Adjust position" nudge moves ONLY the tick labels
 								// (`labelDx` above), so a leftward nudge shifts the labels'
 								// rendered edge toward the title. Widen the gap by that
-								// component so the title keeps clear; a rightward nudge is
-								// ignored (the title never chases labels inward).
+								// component so the title keeps clear; a nudge toward the
+								// plot is ignored (the title never chases labels inward).
+								// "Toward the title" is leftward (negative labelDx) for a
+								// left axis and rightward (positive) for a right one.
 								const dynamicGap =
 									Math.max(
 										40 + tickFontSize,
 										longestLabelPx + tick.length + 12 + tickFontSize
-									) + Math.max(0, -labelDx)
+									) + Math.max(0, flipped ? labelDx : -labelDx)
 								if (yTitleHorizontal) {
-									// The block's RIGHT EDGE lands past the tick labels (same
-									// gap as the rotated branch) so it doesn't overlap them:
-									// tick labels live in the (inner.x0 - dynamicGap, inner.x0)
-									// range, so the edge sits at `inner.x0 - dynamicGap` and
-									// the text extends `blockWidth` leftward from there.
-									// Alignment slides the ANCHOR inside that fixed box — the
-									// widest line spans the whole box either way — so the
-									// wrapped lines align against each other without the ink
-									// moving into the labels or off-canvas.
-									const rightEdge = inner.x0 - dynamicGap
+									// The block's edge NEAREST THE PLOT lands past the tick
+									// labels (same gap as the rotated branch) so it doesn't
+									// overlap them. Left axis: tick labels live in the
+									// (inner.x0 - dynamicGap, inner.x0) range, so the block's
+									// RIGHT edge sits at `inner.x0 - dynamicGap` and the text
+									// extends `blockWidth` leftward from there. Right axis:
+									// the mirror — the block's LEFT edge sits at `inner.x1 +
+									// dynamicGap` and the text extends rightward. Alignment
+									// slides the ANCHOR inside that fixed box — the widest
+									// line spans the whole box either way — so the wrapped
+									// lines align against each other without the ink moving
+									// into the labels or off-canvas.
 									const blockWidth = estimateLongestLineWidth(
 										label,
 										titleFontSize
 									)
+									const leftEdge = flipped
+										? inner.x1 + dynamicGap
+										: inner.x0 - dynamicGap - blockWidth
 									const titleX =
 										titleAlignment === "left"
-											? rightEdge - blockWidth
+											? leftEdge
 											: titleAlignment === "center"
-												? rightEdge - blockWidth / 2
-												: rightEdge
+												? leftEdge + blockWidth / 2
+												: leftEdge + blockWidth
 									return (
 										<text
 											x={titleX}
@@ -859,7 +940,13 @@ export const Axis = ({
 										</text>
 									)
 								}
-								const titleX = inner.x0 - dynamicGap
+								// Rotated title past the tick labels on the axis's own side.
+								// It keeps rotate(-90) on the RIGHT edge too — reading
+								// bottom-to-top on both sides keeps the alignment semantics
+								// ("left" starts at the floor, "right" ends at the ceiling).
+								const titleX = flipped
+									? inner.x1 + dynamicGap
+									: inner.x0 - dynamicGap
 								return (
 									<text
 										x={0}

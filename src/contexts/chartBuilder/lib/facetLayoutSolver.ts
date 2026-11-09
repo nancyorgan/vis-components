@@ -202,6 +202,20 @@ export type SolverInput = {
 	readonly xTickLength?: number
 	readonly yTickLength?: number
 
+	/** Which plot edge each axis sits on (`AxisConfig.side` through
+	 *  `axisFlipped`, LAYOUT.md §17). `xAxisTop` moves the x axis — its
+	 *  tick-label band, the shared x title and the interior / shared
+	 *  reserves — from the bottom of every cell to the top (below the facet
+	 *  label band), and the shared x axis is drawn on each column's TOP-most
+	 *  filled panel instead of its bottom-most. `yAxisRight` likewise swaps
+	 *  the y chrome to the right of each cell and draws the shared y axis on
+	 *  each row's RIGHT-most filled panel. The far-side pads (BASE_MARGIN.top
+	 *  / .right) swap with them. Title offsets keep their screen-coordinate
+	 *  meaning; "away from the plot" simply points the other way (§8).
+	 *  Omitted = bottom / left. */
+	readonly xAxisTop?: boolean
+	readonly yAxisRight?: boolean
+
 	/** Per-panel facet label band. Omit for single-panel charts. */
 	readonly facetLabel?: FacetLabelInput
 
@@ -374,7 +388,11 @@ const VIEWPORT_BUFFER_PX = 10
  *  as the outermost label ([title][row titles][ticks][plot]) instead of
  *  being sandwiched between the row titles and the tick labels. */
 const yTitleOutsideRowStrip = (input: SolverInput): boolean =>
-	Boolean(input.yTitle) && (input.rowHeaders?.length ?? 0) > 0
+	Boolean(input.yTitle) &&
+	(input.rowHeaders?.length ?? 0) > 0 &&
+	// A right-side y axis keeps its title beside its own labels on the
+	// right; the row strip stays on the left, so there's nothing to clear.
+	!input.yAxisRight
 
 /** Space between an outside y-title and the row-header strip's left edge.
  *  Small because the strip band already carries 12px of side padding. */
@@ -540,44 +558,84 @@ const horizontalYTitleAnchorX = (
 			? rightEdge - blockWidth / 2
 			: rightEdge
 
+/** Mirror of `horizontalYTitleAnchorX` for a RIGHT-side y axis (§17): the
+ *  box's LEFT edge butts against the tick labels and the text extends
+ *  rightward into the chrome reserved for it; alignment slides the anchor
+ *  inside that fixed box. */
+const horizontalYTitleAnchorXFromLeft = (
+	align: Alignment,
+	leftEdge: number,
+	blockWidth: number
+): number =>
+	align === "left"
+		? leftEdge
+		: align === "center"
+			? leftEdge + blockWidth / 2
+			: leftEdge + blockWidth
+
+/** Clamp a right-side upright y-title's LEFT edge so its widest line stays
+ *  inside the canvas's right buffer (the mirror of `clampHorizontalYTitleX`). */
+const clampHorizontalYTitleLeftX = (
+	leftEdge: number,
+	textWidth: number,
+	canvasW: number,
+): number => {
+	const minX = VIEWPORT_BUFFER_PX
+	const maxX = canvasW - VIEWPORT_BUFFER_PX - textWidth
+	if (minX > maxX) return Math.max(0, (minX + maxX) / 2)
+	return Math.max(minX, Math.min(maxX, leftEdge))
+}
+
 /** Compute the per-side global margin floors that hold the SHARED axis
  *  titles. The left floor holds the y-title (lives to the left of the
  *  leftmost column); the bottom floor holds the x-title (lives below
- *  the bottom row). Only panels in the leftmost column / bottom row are
+ *  the bottom row). Both are MAGNITUDES named for the default edges: under
+ *  `yAxisRight` / `xAxisTop` the same floors are applied on the right /
+ *  top (see `cellMargins`). Only panels in the axis-edge column / row are
  *  visited, so a tall y-label inside an interior column doesn't inflate
  *  the title-to-plot gap of the leftmost panel (under shareY=ON every
  *  panel sees the full-dataset labels anyway, so the leftmost panel's
  *  labels already represent the widest label — taking the max here vs.
  *  the global max produces the same value). */
 /** For a sparse panel list (wrap mode can have an uneven last row), find
- *  the bottom-most filled row per column and leftmost filled col per row.
- *  Used to decide which panels carry the shared X / Y axis when the grid
- *  isn't fully populated — without this, a column whose bottom-most panel
- *  isn't on `row === rows-1` would lose its x-axis entirely.
+ *  the panel that carries each column's x axis and each row's y axis: the
+ *  filled row nearest the x axis's edge per column (bottom-most by default,
+ *  top-most under `xAxisTop`) and the filled column nearest the y axis's
+ *  edge per row (leftmost by default, rightmost under `yAxisRight`). Used
+ *  to decide which panels draw the shared X / Y axis when the grid isn't
+ *  fully populated — without this, a column whose bottom-most panel isn't
+ *  on `row === rows-1` would lose its x-axis entirely.
  *
  *  For grid mode (cross-product), every cell is present so this collapses
  *  to `{rows-1 for every col}` / `{0 for every row}` — same as the old
  *  `p.row === rows-1` / `p.col === 0` checks. */
-const computeEdgePositions = (panels: readonly SolverPanelInput[]) => {
-	const bottomMostRowPerCol = new Map<number, number>()
-	const leftmostColPerRow = new Map<number, number>()
+const computeEdgePositions = (
+	panels: readonly SolverPanelInput[],
+	xAxisTop: boolean,
+	yAxisRight: boolean
+) => {
+	const xAxisRowPerCol = new Map<number, number>()
+	const yAxisColPerRow = new Map<number, number>()
 	for (const p of panels) {
-		const curBottom = bottomMostRowPerCol.get(p.col)
-		if (curBottom == null || p.row > curBottom)
-			bottomMostRowPerCol.set(p.col, p.row)
-		const curLeft = leftmostColPerRow.get(p.row)
-		if (curLeft == null || p.col < curLeft)
-			leftmostColPerRow.set(p.row, p.col)
+		const curRow = xAxisRowPerCol.get(p.col)
+		if (curRow == null || (xAxisTop ? p.row < curRow : p.row > curRow))
+			xAxisRowPerCol.set(p.col, p.row)
+		const curCol = yAxisColPerRow.get(p.row)
+		if (curCol == null || (yAxisRight ? p.col > curCol : p.col < curCol))
+			yAxisColPerRow.set(p.row, p.col)
 	}
-	const rowsNeedingFullBottomChrome = new Set<number>()
-	for (const r of bottomMostRowPerCol.values()) rowsNeedingFullBottomChrome.add(r)
-	const colsNeedingFullLeftChrome = new Set<number>()
-	for (const c of leftmostColPerRow.values()) colsNeedingFullLeftChrome.add(c)
+	// A row carries full x chrome whenever ANY column's axis panel lands on
+	// it (uneven wrap: the last filled panel of one column may sit a row
+	// above another column's); likewise columns for the y axis.
+	const rowsCarryingXAxis = new Set<number>()
+	for (const r of xAxisRowPerCol.values()) rowsCarryingXAxis.add(r)
+	const colsCarryingYAxis = new Set<number>()
+	for (const c of yAxisColPerRow.values()) colsCarryingYAxis.add(c)
 	return {
-		bottomMostRowPerCol,
-		leftmostColPerRow,
-		rowsNeedingFullBottomChrome,
-		colsNeedingFullLeftChrome,
+		xAxisRowPerCol,
+		yAxisColPerRow,
+		rowsCarryingXAxis,
+		colsCarryingYAxis,
 	}
 }
 
@@ -600,7 +658,7 @@ const estimateGlobalFloors = (
 	let left = 0
 	let bottom = 0
 	for (const p of panels) {
-		if (p.col === edges.leftmostColPerRow.get(p.row)) {
+		if (p.col === edges.yAxisColPerRow.get(p.row)) {
 			const l = estimateExtraLeftMargin({
 				yLabels: p.yLabels,
 				yLabelFontSize: p.yLabelFontSize,
@@ -612,7 +670,7 @@ const estimateGlobalFloors = (
 			})
 			if (l > left) left = l
 		}
-		if (p.row === edges.bottomMostRowPerCol.get(p.col)) {
+		if (p.row === edges.xAxisRowPerCol.get(p.col)) {
 			const b = estimateExtraBottomMargin({
 				xLabels: p.xLabels,
 				xLabelFontSize: p.xLabelFontSize,
@@ -742,9 +800,13 @@ const computeOuterReserves = (
 		cellMargin.bottom + bottomFloor - VIEWPORT_BUFFER_PX,
 	)
 	const rawXTitleOffsetY = input.xTitle?.offsetY ?? 0
-	const bottomGrow = input.xTitle
-		? Math.max(-extensionRoom, rawXTitleOffsetY)
-		: 0
+	// Offsets stay in screen coordinates; with the x axis on TOP (§17)
+	// "away from the plot" is UP, so the away component is `-offsetY`, and
+	// the grow lands on the top reserve instead of the bottom one.
+	const xTitleAway = input.xAxisTop ? -rawXTitleOffsetY : rawXTitleOffsetY
+	const xTitleGrow = input.xTitle ? Math.max(-extensionRoom, xTitleAway) : 0
+	const bottomGrow = input.xAxisTop ? 0 : xTitleGrow
+	const xTitleTopGrow = input.xAxisTop ? xTitleGrow : 0
 	// LAYOUT.md §8 multi-phase y-title offset (symmetric to x-title).
 	// - Negative offsetX (title away from plot, to the left): leftGrow
 	//   positive → plot shrinks from left.
@@ -758,12 +820,17 @@ const computeOuterReserves = (
 	const rawYTitleOffsetX = input.yTitle?.offsetX ?? 0
 	// An outside y-title (left of the row strip) has no cell chrome to
 	// reclaim, so a toward-the-plot offset is a pure shift — no extension.
-	const leftGrow = input.yTitle
+	// With the y axis on the RIGHT (§17) "away" is +offsetX and the grow
+	// lands on the right reserve.
+	const yTitleAway = input.yAxisRight ? rawYTitleOffsetX : -rawYTitleOffsetX
+	const yTitleGrow = input.yTitle
 		? Math.max(
 				yTitleOutsideRowStrip(input) ? 0 : -leftExtensionRoom,
-				-rawYTitleOffsetX,
+				yTitleAway,
 			)
 		: 0
+	const leftGrow = input.yAxisRight ? 0 : yTitleGrow
+	const yTitleRightGrow = input.yAxisRight ? yTitleGrow : 0
 	const yTitleBand = yTitleOuterBand(input)
 	// Grid-mode header strips (Task 1.7). Column headers run across the
 	// top above row 0; row headers run down the left of col 0. The bands
@@ -787,7 +854,7 @@ const computeOuterReserves = (
 		input,
 		cellMargin,
 		leftFloor,
-		leftGrow + rowHeaderBand + yTitleBand,
+		yTitleGrow + rowHeaderBand + yTitleBand,
 	)
 	//
 	// Title-offset semantics (LAYOUT.md §8): canvas matches the
@@ -802,11 +869,12 @@ const computeOuterReserves = (
 			titleHeight +
 			subtitleHeight +
 			topGrow +
+			xTitleTopGrow +
 			columnHeaderBand +
 			(input.extraTopMargin ?? 0),
 		bottom: bottomGrow + (input.extraBottomMargin ?? 0),
 		left: leftGrow + labelReserve.left + rowHeaderBand + yTitleBand,
-		right: labelReserve.right,
+		right: labelReserve.right + yTitleRightGrow,
 		titleHeight,
 		subtitleHeight,
 		titleLinesGrow,
@@ -823,12 +891,16 @@ const computeOuterReserves = (
 	}
 }
 
-/** Resolve total chrome per cell side. Three regimes:
- *  - Bottom row / leftmost column: full margin (BASE_MARGIN + floor) because
+/** Resolve total chrome per cell side. Three regimes per axis:
+ *  - The axis-edge row / column: full margin (BASE_MARGIN + floor) because
  *    these rows/cols hold the shared axis title plus their own ticks+labels.
  *  - Interior + shared: small SHARED_INTERIOR_AXIS_RESERVE (axis spine only).
  *  - Interior + un-shared: just enough room for ticks + tick labels — NO
- *    title space, since the shared title is reserved by the edge row/col. */
+ *    title space, since the shared title is reserved by the edge row/col.
+ *  `cellMargin` is named for the DEFAULT edges (`.bottom` / `.left` are the
+ *  axis-side bases, `.top` / `.right` the far-side pads); under `xAxisTop` /
+ *  `yAxisRight` (§17) the x chrome lands on the cell's top, below the facet
+ *  label band, and the y chrome on its right, with the pads swapping over. */
 const cellMargins = (
 	row: number,
 	col: number,
@@ -842,28 +914,33 @@ const cellMargins = (
 	interiorBottomChromePerRow: readonly number[],
 	interiorLeftChromePerCol: readonly number[],
 	edges: ReturnType<typeof computeEdgePositions>,
-	cellMargin: CellMargin
+	cellMargin: CellMargin,
+	xAxisTop: boolean,
+	yAxisRight: boolean
 ): { top: number; right: number; bottom: number; left: number } => {
 	// Chrome is uniform across each row (height) and each col (width) so
-	// cells stay regular. A row carries full bottom chrome whenever ANY
-	// column's bottom-most-filled panel lands on it (e.g. uneven wrap
-	// where row 3 col 1 is the last filled panel of col 1 but row 4 col
-	// 0 still exists for col 0 — both rows 3 and 4 carry the axis).
-	const rowCarriesBottomAxis = edges.rowsNeedingFullBottomChrome.has(row)
-	const colCarriesLeftAxis = edges.colsNeedingFullLeftChrome.has(col)
-	const top = facetLabelHeight + cellMargin.top
-	const right = cellMargin.right
-	const bottom = rowCarriesBottomAxis
+	// cells stay regular. A row carries full x chrome whenever ANY
+	// column's axis panel lands on it (e.g. uneven wrap where row 3 col 1
+	// is the last filled panel of col 1 but row 4 col 0 still exists for
+	// col 0 — both rows 3 and 4 carry the axis).
+	const rowCarriesXAxis = edges.rowsCarryingXAxis.has(row)
+	const colCarriesYAxis = edges.colsCarryingYAxis.has(col)
+	const xChrome = rowCarriesXAxis
 		? cellMargin.bottom + bottomFloor
 		: shareX
 			? SHARED_INTERIOR_AXIS_RESERVE
 			: (interiorBottomChromePerRow[row] ?? 0)
-	const left = colCarriesLeftAxis
+	const yChrome = colCarriesYAxis
 		? cellMargin.left + leftFloor
 		: shareY
 			? SHARED_INTERIOR_AXIS_RESERVE
 			: (interiorLeftChromePerCol[col] ?? 0)
-	return { top, right, bottom, left }
+	return {
+		top: facetLabelHeight + (xAxisTop ? xChrome : cellMargin.top),
+		bottom: xAxisTop ? cellMargin.top : xChrome,
+		left: yAxisRight ? cellMargin.right : yChrome,
+		right: yAxisRight ? yChrome : cellMargin.right,
+	}
 }
 
 type CellMarginsAt = (
@@ -1201,7 +1278,13 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 					: BASE_MARGIN.left,
 	}
 
-	const edges = computeEdgePositions(input.panels)
+	const xAxisTop = input.xAxisTop === true
+	const yAxisRight = input.yAxisRight === true
+	const edges = computeEdgePositions(input.panels, xAxisTop, yAxisRight)
+	// The row / column whose panels sit beside the shared axis titles — the
+	// labels that size the title gaps come from there (LAYOUT.md §17).
+	const xAxisRow = xAxisTop ? 0 : input.rows - 1
+	const yAxisCol = yAxisRight ? input.cols - 1 : 0
 
 	// Tick-label position nudges move ONLY the labels (Axes.tsx labelDx/
 	// labelDy), so the labels' rendered edge shifts while the title's
@@ -1210,7 +1293,12 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	// each title keeps its fixed distance from where the labels actually
 	// draw. The away component is ignored — titles never chase labels
 	// inward.
-	const yLabelNudgeTowardTitle = Math.max(0, -(input.yTickLabelDx ?? 0))
+	// The toward-the-title direction follows the axis's side: y labels move
+	// toward a LEFT title when nudged left (-dx), toward a RIGHT one when
+	// nudged right (+dx); x labels toward a BOTTOM title when nudged down
+	// (+dy), toward a TOP one when nudged up (-dy).
+	const yTickLabelDx = input.yTickLabelDx ?? 0
+	const yLabelNudgeTowardTitle = Math.max(0, yAxisRight ? yTickLabelDx : -yTickLabelDx)
 	// A tick mark longer than the default pushes the labels outward by the
 	// difference (Axes.tsx insets labels by the tick length); fold that in
 	// alongside the nudge so the title still clears the labels. Never
@@ -1220,8 +1308,9 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		(input.xTickLength ?? DEFAULT_TICKMARK_CONFIG.length) -
 			DEFAULT_TICKMARK_CONFIG.length
 	)
+	const xTickLabelDy = input.xTickLabelDy ?? 0
 	const xLabelNudgeTowardTitle =
-		Math.max(0, input.xTickLabelDy ?? 0) + xTickExtra
+		Math.max(0, xAxisTop ? -xTickLabelDy : xTickLabelDy) + xTickExtra
 
 	const { left: estimatedLeftFloor, bottom: estimatedBottomFloor } =
 		estimateGlobalFloors(
@@ -1288,13 +1377,14 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	// (12pt → 16px, lib/fontUnit).
 	const xTickFontSize = input.panels[0]?.xLabelFontSize ?? 16
 	const yTickFontSize = input.panels[0]?.yLabelFontSize ?? 16
-	// The y-title sits to the left of the LEFTMOST column, so its gap to
-	// the plot is sized by that column's labels — not by a long label
-	// hiding in an interior column the title doesn't sit next to.
+	// The y-title sits beside the axis-edge column (leftmost, or rightmost
+	// under yAxisRight), so its gap to the plot is sized by that column's
+	// labels — not by a long label hiding in an interior column the title
+	// doesn't sit next to.
 	const longestYLabelChars = (() => {
 		let max = 0
 		for (const p of input.panels) {
-			if (p.col !== 0) continue
+			if (p.col !== yAxisCol) continue
 			// Wrapped labels arrive `\n`-joined; their rendered width is the
 			// widest LINE, so count per line rather than the joined string.
 			for (const l of p.yLabels)
@@ -1311,7 +1401,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	const measuredYLabelMaxPx = (() => {
 		let max = 0
 		for (const p of input.panels) {
-			if (p.col !== 0) continue
+			if (p.col !== yAxisCol) continue
 			if (p.yLabelMaxWidthPx != null && p.yLabelMaxWidthPx > max) {
 				max = p.yLabelMaxWidthPx
 			}
@@ -1357,15 +1447,16 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 							yTitleFontSize / 2
 			) + yLabelNudgeTowardTitle
 		: 0
-	// The x-title sits below the BOTTOM row, so the xTitleGap is sized
-	// from THAT row's x-tick labels — same logic as yTitleGap above.
+	// The x-title sits beyond the axis-edge row (bottom, or top under
+	// xAxisTop), so the xTitleGap is sized from THAT row's x-tick labels —
+	// same logic as yTitleGap above.
 	// The vertical extent depends on rotation: horizontal (0°) is just
 	// `fontSize × 1.4`; rotated labels are `labelWidth × |sin| +
 	// fontSize × 1.4 × |cos|` — much taller. xTitleGap must clear this.
 	const longestXLabelPx = (() => {
 		let measuredMax = 0
 		for (const p of input.panels) {
-			if (p.row !== input.rows - 1) continue
+			if (p.row !== xAxisRow) continue
 			if (p.xLabelMaxWidthPx != null && p.xLabelMaxWidthPx > measuredMax) {
 				measuredMax = p.xLabelMaxWidthPx
 			}
@@ -1373,7 +1464,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		if (measuredMax > 0) return measuredMax
 		let maxChars = 0
 		for (const p of input.panels) {
-			if (p.row !== input.rows - 1) continue
+			if (p.row !== xAxisRow) continue
 			// Widest LINE — wrapped labels are `\n`-joined multi-line strings.
 			for (const l of p.xLabels)
 				for (const line of l.split("\n"))
@@ -1384,7 +1475,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	const xLabelAngleDegMax = (() => {
 		let maxAbs = 0
 		for (const p of input.panels) {
-			if (p.row !== input.rows - 1) continue
+			if (p.row !== xAxisRow) continue
 			const a = Math.abs(p.xLabelAngleDeg)
 			if (a > maxAbs) maxAbs = a
 		}
@@ -1399,7 +1490,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		// `estimateExtraBottomMargin`.
 		let maxLines = 1
 		for (const p of input.panels) {
-			if (p.row !== input.rows - 1) continue
+			if (p.row !== xAxisRow) continue
 			for (const l of p.xLabels) {
 				const n = l.split("\n").length
 				if (n > maxLines) maxLines = n
@@ -1407,11 +1498,16 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		}
 		return longestXLabelPx * sin + xTickFontSize * 1.4 * maxLines * cos
 	})()
+	// The title's own extent between its baseline and the label band: below
+	// the plot the baseline sits an ascender (~fontSize) under the title's
+	// top edge; above the plot (xAxisTop) only the descender hangs below the
+	// baseline toward the labels.
+	const xTitleExtent = (input.xTitle?.fontSize ?? 0) * (xAxisTop ? 0.25 : 1)
 	const xTitleGap = input.xTitle
 		? TICK_LINE_PAD +
 			xLabelVerticalPx +
 			TITLE_LABEL_GAP_PX +
-			input.xTitle.fontSize +
+			xTitleExtent +
 			xLabelNudgeTowardTitle
 		: 0
 
@@ -1453,70 +1549,97 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		input.containerWidth,
 		outerReservesInitial.left + cellMargin.left + cellMargin.right + 20,
 	)
-	// For x-title: desired y = approxPlotBottom + xTitleGap + offsetY.
-	// If desired y < VIEWPORT_BUFFER + ascender, the title would clamp
-	// to the top — the excess becomes phase3 topGrow.
+	// x-title: with the axis at the bottom the title wants
+	// y = approxPlotBottom + xTitleGap + offsetY; if that lands above
+	// VIEWPORT_BUFFER + ascender it would clamp to the top, and the excess
+	// becomes a phase-3 TOP grow. With the axis on top (§17) the title wants
+	// y = approxPlotTop - xTitleGap + offsetY and the mirror check runs
+	// against the bottom edge (descender), growing the BOTTOM reserve.
+	const xChromePx = cellMargin.bottom + bottomFloor
 	const approxPlotBottom =
-		approxCanvasH -
-		outerReservesInitial.bottom -
-		(cellMargin.bottom + bottomFloor)
+		approxCanvasH - outerReservesInitial.bottom - (xAxisTop ? cellMargin.top : xChromePx)
+	const approxPlotTop =
+		outerReservesInitial.top + facetLabelHeight + (xAxisTop ? xChromePx : cellMargin.top)
 	const xTitleAscender = (input.xTitle?.fontSize ?? 0) * 0.8
-	const xTitleViewportTopMin = VIEWPORT_BUFFER_PX + xTitleAscender
-	const xTitleDesiredY =
-		approxPlotBottom + xTitleGap + (input.xTitle?.offsetY ?? 0)
-	const phase3TopGrowFromXTitle = input.xTitle
-		? Math.max(0, xTitleViewportTopMin - xTitleDesiredY)
-		: 0
+	const xTitleDescender = (input.xTitle?.fontSize ?? 0) * 0.2
+	const xTitleDesiredY = xAxisTop
+		? approxPlotTop - xTitleGap + (input.xTitle?.offsetY ?? 0)
+		: approxPlotBottom + xTitleGap + (input.xTitle?.offsetY ?? 0)
+	const phase3TopGrowFromXTitle =
+		input.xTitle && !xAxisTop
+			? Math.max(0, VIEWPORT_BUFFER_PX + xTitleAscender - xTitleDesiredY)
+			: 0
+	const phase3BottomGrowFromXTitle =
+		input.xTitle && xAxisTop
+			? Math.max(
+					0,
+					xTitleDesiredY + xTitleDescender - (approxCanvasH - VIEWPORT_BUFFER_PX)
+				)
+			: 0
 
-	// For y-title (rotated): desired anchor.x = approxPlotLeft - yTitleGap + offsetX.
-	// Rotated title's bbox right = anchor.x + fontSize/2. If that >
-	// canvasW - VIEWPORT_BUFFER_PX, the title would clamp to right →
-	// excess becomes phase3 rightGrow.
+	// y-title (rotated): on the left the anchor wants
+	// x = approxPlotLeft - yTitleGap + offsetX, and its bbox's right edge
+	// (anchor + fontSize/2) past canvasW - VIEWPORT_BUFFER_PX becomes a
+	// phase-3 RIGHT grow. On the right (§17) the anchor wants
+	// x = approxPlotRight + yTitleGap + offsetX and the bbox's LEFT edge
+	// short of the buffer becomes a LEFT grow.
+	const yChromePx = cellMargin.left + leftFloor
 	const approxPlotLeft =
-		outerReservesInitial.left + cellMargin.left + leftFloor
+		outerReservesInitial.left + (yAxisRight ? cellMargin.right : yChromePx)
+	const approxPlotRight =
+		approxCanvasW - outerReservesInitial.right - (yAxisRight ? yChromePx : cellMargin.right)
 	const yTitleHalfBbox = (input.yTitle?.fontSize ?? 0) / 2
-	const yTitleDesiredAnchor =
-		approxPlotLeft - yTitleGap + (input.yTitle?.offsetX ?? 0)
-	const yTitleDesiredRightEdge = yTitleDesiredAnchor + yTitleHalfBbox
-	const yTitleViewportRightMax = approxCanvasW - VIEWPORT_BUFFER_PX
-	const phase3RightGrowFromYTitle = input.yTitle && !yTitleOutside
-		? Math.max(0, yTitleDesiredRightEdge - yTitleViewportRightMax)
-		: 0
+	const yTitleDesiredAnchor = yAxisRight
+		? approxPlotRight + yTitleGap + (input.yTitle?.offsetX ?? 0)
+		: approxPlotLeft - yTitleGap + (input.yTitle?.offsetX ?? 0)
+	const phase3RightGrowFromYTitle =
+		input.yTitle && !yTitleOutside && !yAxisRight
+			? Math.max(
+					0,
+					yTitleDesiredAnchor + yTitleHalfBbox - (approxCanvasW - VIEWPORT_BUFFER_PX)
+				)
+			: 0
+	const phase3LeftGrowFromYTitle =
+		input.yTitle && yAxisRight
+			? Math.max(0, VIEWPORT_BUFFER_PX - (yTitleDesiredAnchor - yTitleHalfBbox))
+			: 0
 
-	// Continuous x-axes anchor their last tick at the plot's right edge, and
-	// the tick label is centered on it — so ~half the label width spills past
-	// `inner.x1`. The per-cell right chrome is only `cellMargin.right`
-	// (BASE_MARGIN.right = 24), which a wide label like "$140,000" overruns,
-	// clipping its last character. Reserve the overhang beyond that chrome so
-	// the plot shrinks (fit mode) enough for the label to render fully.
-	// Bottom-row panels only — interior rows don't draw x-axis labels under
-	// shareX.
-	const xTickRightOverhang = (() => {
+	// Continuous x-axes anchor their edge ticks at the plot's edges, and an
+	// unrotated tick label is centered on its tick — so ~half the label width
+	// spills past `inner.x1` (and `inner.x0`). The far-side pad is only
+	// `cellMargin.right` (BASE_MARGIN.right = 24), which a wide label like
+	// "$140,000" overruns, clipping its last character. Reserve the overhang
+	// beyond that pad so the plot shrinks (fit mode) enough for the label to
+	// render fully. By default the y chrome covers the left spill and the
+	// pad sits on the right; under yAxisRight (§17) they swap, so the LEFT
+	// spill is what needs the reserve. Axis-row panels only — interior rows
+	// don't draw x-axis labels under shareX.
+	const xTickOverhang = (() => {
 		let maxOverhang = 0
 		for (const p of input.panels) {
-			if (p.row !== input.rows - 1) continue
+			if (p.row !== xAxisRow) continue
 			if (!p.xAxisContinuous) continue
 			const w = p.xLabelMaxWidthPx ?? 0
 			if (w <= 0) continue
-			// How far the edge label reaches RIGHT of its tick. Unrotated
-			// labels are middle-anchored → half the width. Negative-angle
-			// labels are end-anchored (lean up-left, away from the right edge)
-			// → no right overhang. Positive-angle labels are start-anchored
-			// (lean down-right) → their full horizontal projection extends
-			// right. Mirrors the anchor logic in Axes.tsx.
+			// How far the edge label reaches past its tick on the pad side.
+			// Unrotated labels are middle-anchored → half the width. A rotated
+			// label hangs entirely to one side of its tick: below the axis a
+			// negative angle is end-anchored (leans up-left → all of its
+			// horizontal projection extends LEFT) and a positive one
+			// start-anchored (extends RIGHT); above the axis (xAxisTop) the
+			// anchors flip so the text still leans away from the axis.
+			// Mirrors the anchor logic in Axes.tsx.
 			const angle = p.xLabelAngleDeg
-			const rightExtentRaw =
-				angle === 0
-					? w / 2
-					: angle < 0
-						? 0
-						: w * Math.abs(Math.cos((angle * Math.PI) / 180))
+			const projection = w * Math.abs(Math.cos((angle * Math.PI) / 180))
+			const extendsRight = angle === 0 ? w / 2 : (angle > 0) !== xAxisTop ? projection : 0
+			const extendsLeft = angle === 0 ? w / 2 : (angle < 0) !== xAxisTop ? projection : 0
+			const extentRaw = yAxisRight ? extendsLeft : extendsRight
 			// A couple px of breathing room so the reserve never lands
 			// exactly on the last glyph's edge — measureText excludes the
 			// trailing side bearing, and subpixel/antialiased rendering can
 			// otherwise still nibble the final character.
-			const rightExtent = rightExtentRaw > 0 ? rightExtentRaw + 3 : 0
-			const overhang = Math.max(0, rightExtent - cellMargin.right)
+			const extent = extentRaw > 0 ? extentRaw + 3 : 0
+			const overhang = Math.max(0, extent - cellMargin.right)
 			if (overhang > maxOverhang) maxOverhang = overhang
 		}
 		return maxOverhang
@@ -1525,13 +1648,20 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	const outerReserves = {
 		...outerReservesInitial,
 		top: outerReservesInitial.top + phase3TopGrowFromXTitle,
+		bottom: outerReservesInitial.bottom + phase3BottomGrowFromXTitle,
 		// Take the max, not the sum: the data-label reserve, the y-title
-		// phase-3 grow, and the x-tick overhang all reserve canvas space to
-		// the RIGHT of the grid, so the largest single demand covers them all.
-		right: Math.max(
-			outerReservesInitial.right + phase3RightGrowFromYTitle,
-			xTickRightOverhang,
-		),
+		// phase-3 grow, and the x-tick overhang all reserve canvas space
+		// beside the grid, so the largest single demand covers them all.
+		// The overhang lands on whichever side carries the far pad; the
+		// y-title's side is left alone (its grow may be NEGATIVE — a
+		// toward-the-plot offset extends the plot into the title chrome,
+		// §8 — and a max would clamp that away).
+		left: yAxisRight
+			? Math.max(outerReservesInitial.left + phase3LeftGrowFromYTitle, xTickOverhang)
+			: outerReservesInitial.left + phase3LeftGrowFromYTitle,
+		right: yAxisRight
+			? outerReservesInitial.right + phase3RightGrowFromYTitle
+			: Math.max(outerReservesInitial.right + phase3RightGrowFromYTitle, xTickOverhang),
 	}
 
 	// Floor canvas dims: unmeasured (0×0) renders shouldn't compute negative
@@ -1560,7 +1690,9 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 			interiorBottomChromePerRow,
 			interiorLeftChromePerCol,
 			edges,
-			cellMargin
+			cellMargin,
+			xAxisTop,
+			yAxisRight
 		)
 	const gridChrome = computeGridChrome(
 		input.rows,
@@ -1896,15 +2028,16 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 			cell,
 			inner,
 			facetLabel,
-			// Under shareX, only the bottom-most filled panel of each column
-			// renders the x-axis. For a fully populated grid this is just
-			// the last row; for wrap with an uneven last row, the second-
-			// to-last row's panel takes over in columns whose last cell is
-			// empty. Mirror for showYTicks.
+			// Under shareX, only the filled panel nearest the x axis's edge in
+			// each column renders the x-axis (bottom-most by default, top-most
+			// under xAxisTop). For a fully populated grid this is just the
+			// edge row; for wrap with an uneven last row, the second-to-last
+			// row's panel takes over in columns whose last cell is empty.
+			// Mirror for showYTicks (leftmost / rightmost under yAxisRight).
 			showXTicks:
-				!input.shareX || p.row === edges.bottomMostRowPerCol.get(p.col),
+				!input.shareX || p.row === edges.xAxisRowPerCol.get(p.col),
 			showYTicks:
-				!input.shareY || p.col === edges.leftmostColPerRow.get(p.row),
+				!input.shareY || p.col === edges.yAxisColPerRow.get(p.row),
 			showXAxisTitle: false,
 			showYAxisTitle: false,
 		}
@@ -1912,14 +2045,13 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 
 	// Shared title rects, anchored to the plot-grid spans (so left/right
 	// alignment matches the actual plot edges, not the canvas edges).
-	const plotLeft =
-		min(panels, (p) => p.inner.x) ?? gridOriginX + cellMargin.left + leftFloor
+	const edgeMargins = marginsAt(0, 0)
+	const plotLeft = min(panels, (p) => p.inner.x) ?? gridOriginX + edgeMargins.left
 	const plotRight =
-		max(panels, (p) => p.inner.x + p.inner.width) ?? canvasW - cellMargin.right
-	const plotTop =
-		min(panels, (p) => p.inner.y) ?? gridOriginY + facetLabelHeight + cellMargin.top
+		max(panels, (p) => p.inner.x + p.inner.width) ?? canvasW - edgeMargins.right
+	const plotTop = min(panels, (p) => p.inner.y) ?? gridOriginY + edgeMargins.top
 	const plotBottom =
-		max(panels, (p) => p.inner.y + p.inner.height) ?? canvasH - cellMargin.bottom
+		max(panels, (p) => p.inner.y + p.inner.height) ?? canvasH - edgeMargins.bottom
 
 	// Title positions use the font-derived base reserves (titleReserve,
 	// etc. — the same bands computeOuterReserves reserved)
@@ -2023,7 +2155,29 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	// the sidebar still stacks on top of this default.
 
 	const xTitle: TextRect | null = input.xTitle
-		? {
+		? xAxisTop
+			? {
+					x:
+						xForAlignment(input.xTitle.align, plotLeft, plotRight) + xTOffsetX,
+					// §17: above the plot the title's LAST line sits `xTitleGap`
+					// above plotTop and earlier lines stack upward (`growUp`).
+					// The same offset compensation as below holds in mirror: a
+					// negative (away = up) offsetY grew the TOP reserve, so adding
+					// it here keeps the title's absolute y put while the plot
+					// moves down; a positive offset shifts the title down freely.
+					y: clampBaselineY(
+						plotTop - xTitleGap + xTOffsetY,
+						input.xTitle.fontSize,
+						canvasH,
+						extraLinesPx(input.xTitle.text, input.xTitle.fontSize),
+					),
+					textAnchor: textAnchorFor(input.xTitle.align),
+					rotation: 0,
+					width: plotRight - plotLeft,
+					height: outerReserves.xTitleHeight,
+					growUp: true,
+				}
+			: {
 				x:
 					xForAlignment(input.xTitle.align, plotLeft, plotRight) + xTOffsetX,
 				// LAYOUT.md §8: title stays at its natural screen position
@@ -2096,6 +2250,56 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 						width: input.yTitle.fontSize * 1.2,
 						height: plotBottom - plotTop,
 					}
+			: yAxisRight
+				? input.yTitle.horizontal
+					? {
+							// §17 right-side upright title: the block's LEFT edge lands
+							// at `plotRight + yTitleGap`, just right of the tick labels,
+							// and the text extends rightward into the reserved chrome.
+							// Alignment moves the anchor within that fixed box.
+							x: horizontalYTitleAnchorXFromLeft(
+								input.yTitle.align,
+								clampHorizontalYTitleLeftX(
+									plotRight + yTitleGap + yTOffsetX,
+									estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
+									canvasW,
+								),
+								estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
+							),
+							y:
+								horizontalYTitleBaselineY(
+									plotTop,
+									plotBottom,
+									input.yTitle.fontSize,
+									lineCount(input.yTitle.text),
+								) + yTOffsetY,
+							textAnchor: textAnchorFor(input.yTitle.align),
+							rotation: 0,
+							width: yTitleGap,
+							height: input.yTitle.fontSize * 1.2,
+						}
+					: {
+							// §17 right-side rotated title: still -90° (reads bottom-to-
+							// top on both sides, so "left" starts at the panel floor and
+							// "right" ends at the ceiling exactly as on the left), centered
+							// `yTitleGap` right of the plot. A positive (away) offsetX
+							// grew the right reserve, so adding it keeps the title put.
+							x: clampRotatedTitleX(
+								plotRight + yTitleGap + yTOffsetX,
+								input.yTitle.fontSize,
+								canvasW,
+							),
+							y:
+								(input.yTitle.align === "left"
+									? plotBottom
+									: input.yTitle.align === "right"
+										? plotTop
+										: (plotTop + plotBottom) / 2) + yTOffsetY,
+							textAnchor: textAnchorFor(input.yTitle.align),
+							rotation: -90,
+							width: input.yTitle.fontSize * 1.2,
+							height: plotBottom - plotTop,
+						}
 			: input.yTitle.horizontal
 			? {
 					// Horizontal title: the block's RIGHT EDGE lands at

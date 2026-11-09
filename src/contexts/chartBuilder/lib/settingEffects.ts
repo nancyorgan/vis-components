@@ -7,6 +7,7 @@
 import { barTotalFieldName } from "./barTotalLabel"
 import { canvasSizeToggled, aspectRatioToggled, MIN_CANVAS_DIM } from "./canvasSizeEdits"
 import {
+	axisFlipped,
 	DATA_LABELS_SINGLE_COLOR_ID,
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_HISTOGRAM_CONFIG,
@@ -500,6 +501,16 @@ export const applySettingEffects = (
 			if (has(patch, "dataLabelsEncodings", ch))
 				bad(`dataLabelsEncodings.${ch}`, `a ${mode.id} chart labels its nodes; it has no x / y label position`)
 
+	// An axis side belongs to its axis: x sits at the bottom or top, y at
+	// the left or right (`AxisConfig.side`).
+	for (const axis of ["x", "y"] as const) {
+		const side = sent(patch, "channelConfigs", axis, "side")
+		if (side === undefined || side === null) continue
+		const allowed = axis === "x" ? ["bottom", "top"] : ["left", "right"]
+		if (typeof side !== "string" || !allowed.includes(side))
+			bad(`channelConfigs.${axis}.side`, `the ${axis} axis sits at ${allowed.join(" or ")}`)
+	}
+
 	// Axis range and breaks apply to a continuous, unmirrored axis.
 	for (const axis of ["x", "y"] as const) {
 		const axisSent = sent(patch, "channelConfigs", axis)
@@ -538,6 +549,10 @@ export const applySettingEffects = (
 		}
 		// Mirror off drops the mirror block; an empty breaks list is unset.
 		if (sent(axisSent, "mirror", "enabled") === false) out = { ...out, mirror: undefined }
+		// The default side ("bottom" / "left", or null) is stored as unset,
+		// as the panel does.
+		if ("side" in axisSent && out.side !== undefined && !axisFlipped(axis, out.side))
+			out = { ...out, side: undefined }
 		if (Array.isArray(out.breaks) && out.breaks.length === 0 && "breaks" in axisSent) out = { ...out, breaks: undefined }
 		if (out.mirror && Array.isArray(out.mirror.breaks) && out.mirror.breaks.length === 0 && has(axisSent, "mirror", "breaks"))
 			out = { ...out, mirror: { ...out.mirror, breaks: undefined } }
