@@ -37,7 +37,7 @@ const mount = (init?: (store: TestStore) => void) => {
 }
 
 const openDialog = () => {
-	fireEvent.click(screen.getByText("Paste data"))
+	fireEvent.click(screen.getByText("Paste or type data"))
 	return screen.getByRole("dialog")
 }
 
@@ -203,11 +203,11 @@ describe("Tray header prompt", () => {
 				},
 			})
 		})
-		expect(screen.queryByText("Paste data")).toBeNull()
+		expect(screen.queryByText("Paste or type data")).toBeNull()
 		expect(screen.queryByText(/Drop a CSV to upload/)).toBeNull()
 		// The empty tray still invites.
 		cleanup()
 		mount()
-		expect(screen.getByText("Paste data")).toBeTruthy()
+		expect(screen.getByText("Paste or type data")).toBeTruthy()
 	})
 })

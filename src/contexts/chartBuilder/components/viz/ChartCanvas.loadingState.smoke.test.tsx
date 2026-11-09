@@ -28,7 +28,7 @@ describe("ChartBody — dataset load states", () => {
 		// animation), so the element is present but initially invisible.
 		expect(indicator?.className).toContain("opacity-0")
 		expect(container.textContent).toContain("Loading data")
-		expect(container.textContent).not.toContain("Upload a CSV")
+		expect(container.textContent).not.toContain("No data set loaded")
 	})
 
 	// The constraint that makes this a correctness matter rather than a
@@ -59,10 +59,10 @@ describe("ChartBody — dataset load states", () => {
 		expect(container.textContent).not.toContain("deleted")
 	})
 
-	it("still invites an upload when no dataset is bound at all", () => {
+	it("says no data set is loaded when none is bound at all", () => {
 		const { container } = mount((s) => {
 			s.set(currentDatasetIdAtom, null)
 		})
-		expect(container.textContent).toContain("Upload a CSV")
+		expect(container.textContent).toContain("No data set loaded")
 	})
 })
