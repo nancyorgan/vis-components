@@ -1,6 +1,7 @@
 import { useId } from "react"
 import type {
 	CircleAnnotation,
+	ImageAnnotation,
 	LineSegmentAnnotation,
 	RectangleAnnotation,
 	TextAnnotation,
@@ -17,6 +18,7 @@ import {
 	rectangleTextStyle,
 	type AnnotationAxisFields,
 	type PanelAnnotationScaleInputs,
+	type PlacedImage,
 	type PlacedRectangle,
 	type PlacedText,
 } from "./annotationLayout"
@@ -127,6 +129,43 @@ const TextAnnotationMark = ({
 	)
 }
 
+/** Draws one image annotation: the stored picture (a data URL) filling the
+ *  box the layout sized from its width / height (`preserveAspectRatio`
+ *  "none": with the ratio locked the box already has the picture's
+ *  proportions, unlocked the stretch is the point). `href` AND
+ *  `xlink:href` are both written — browsers read either, and desktop SVG
+ *  importers (PowerPoint) still want the xlink form. A description makes the
+ *  picture an `img` for assistive tech; without one it is decorative, hidden
+ *  like the annotation shapes. */
+const ImageAnnotationMark = ({
+	placed,
+	clipPath,
+}: {
+	placed: PlacedImage
+	clipPath: string | undefined
+}) => {
+	const { anno, left, top, width, height } = placed
+	const alt = anno.alt.trim()
+	return (
+		<image
+			data-annotation-image={anno.id}
+			data-annotation-coord={anno.coordSystem}
+			clipPath={clipPath}
+			href={anno.href}
+			xlinkHref={anno.href}
+			x={left}
+			y={top}
+			width={width}
+			height={height}
+			preserveAspectRatio="none"
+			opacity={anno.opacity < 1 ? anno.opacity : undefined}
+			role={alt ? "img" : undefined}
+			aria-label={alt || undefined}
+			aria-hidden={alt ? undefined : "true"}
+		/>
+	)
+}
+
 /** Renders user-defined annotations against a panel's inner rect.
  *  Percent-mode coordinates are plot-area-normalized:
  *    xMin=0 → left edge of plot   |   xMax=1 → right edge of plot
@@ -159,6 +198,7 @@ export const AnnotationRects = ({
 	circles,
 	lineSegments,
 	texts,
+	images,
 	inner,
 	layer,
 	xScaleRows,
@@ -175,6 +215,8 @@ export const AnnotationRects = ({
 	circles: readonly CircleAnnotation[]
 	lineSegments: readonly LineSegmentAnnotation[]
 	texts: readonly TextAnnotation[]
+	/** Optional for callers holding a config saved before images shipped. */
+	images?: readonly ImageAnnotation[]
 	inner: Rect
 	layer: "behind" | "front"
 	axisFields: AnnotationAxisFields
@@ -195,6 +237,7 @@ export const AnnotationRects = ({
 		circles: circles.filter((c) => c.zOrder === layer),
 		lineSegments: lineSegments.filter((l) => l.zOrder === layer),
 		texts: texts.filter((t) => t.zOrder === layer),
+		images: (images ?? []).filter((m) => m.zOrder === layer),
 		inner,
 		axisFields,
 		levelOrders,
@@ -222,8 +265,9 @@ export const AnnotationRects = ({
 			? `translate(${inner.x + inner.width / 2} ${inner.y + inner.height / 2}) scale(${s}) translate(${-(inner.x + inner.width / 2)} ${-(inner.y + inner.height / 2)})`
 			: undefined
 	return (
-		// The author's annotation TEXT stays readable; only the decorative
-		// shapes (rects, circles, lines, arrowheads, text boxes) are hidden.
+		// The author's annotation TEXT (and a described image) stays readable;
+		// only the decorative shapes (rects, circles, lines, arrowheads, text
+		// boxes, undescribed images) are hidden.
 		<g data-annotation-layer pointerEvents="none">
 			{needsClipDef && (
 				<defs>
@@ -345,6 +389,14 @@ export const AnnotationRects = ({
 						case "text":
 							return (
 								<TextAnnotationMark
+									key={a.anno.id}
+									placed={a}
+									clipPath={clipPath}
+								/>
+							)
+						case "image":
+							return (
+								<ImageAnnotationMark
 									key={a.anno.id}
 									placed={a}
 									clipPath={clipPath}

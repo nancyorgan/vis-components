@@ -162,7 +162,8 @@ const stripLegend = (l: LegendConfig | undefined): LegendConfig | undefined => {
 
 /** Annotations placed at data values go, text annotations go (custom
  * prose), survivors lose their panel scope (`facetKeys`, panel values) and
- * any typed text. */
+ * any typed text. Images STAY (minus value-mode placements, like the
+ * shapes): a logo in the corner is format, the thing a template is for. */
 const stripAnnotations = (
 	a: AnnotationsConfig | undefined,
 ): AnnotationsConfig | undefined => {
@@ -183,6 +184,7 @@ const stripAnnotations = (
 		circles: keep(a.circles),
 		lineSegments: keep(a.lineSegments),
 		texts: [],
+		images: keep(a.images),
 	}
 }
 

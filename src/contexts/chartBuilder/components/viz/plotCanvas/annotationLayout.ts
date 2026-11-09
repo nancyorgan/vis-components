@@ -1,6 +1,7 @@
 import {
 	DEFAULT_RECTANGLE_TEXT,
 	type CircleAnnotation,
+	type ImageAnnotation,
 	type LineCapStyle,
 	type LineSegmentAnnotation,
 	type RectangleAnnotation,
@@ -20,6 +21,11 @@ import {
 	type AnnotationCoordSystem,
 } from "../../../lib/annotationPixels"
 import { computeCirclePixels } from "../../../lib/circleAnnotationGeometry"
+import {
+	computeImageAnnotationAnchor,
+	imageAnnotationSizePx,
+	layoutImageAnnotationBox,
+} from "../../../lib/imageAnnotationGeometry"
 import { computeLineSegmentPixels } from "../../../lib/lineSegmentAnnotationGeometry"
 import {
 	computeTextAnnotationAnchor,
@@ -104,11 +110,21 @@ export type PlacedText = {
 	fontSizePx: number
 	bbox: BBox
 }
+export type PlacedImage = {
+	kind: "image"
+	anno: ImageAnnotation
+	left: number
+	top: number
+	width: number
+	height: number
+	bbox: BBox
+}
 export type PlacedAnnotation =
 	| PlacedRectangle
 	| PlacedCircle
 	| PlacedLine
 	| PlacedText
+	| PlacedImage
 
 /** Whether an annotation is drawn on the panel with the given key.
  *  `facetKeys` null/undefined ⇒ all facets (legacy default); an array
@@ -180,6 +196,8 @@ export type LayoutPanelAnnotationsInput = PanelAnnotationScaleInputs & {
 	circles: readonly CircleAnnotation[]
 	lineSegments: readonly LineSegmentAnnotation[]
 	texts: readonly TextAnnotation[]
+	/** Optional for callers holding a config saved before images shipped. */
+	images?: readonly ImageAnnotation[]
 	inner: Rect
 	axisFields: AnnotationAxisFields
 	levelOrders: Record<string, readonly string[]>
@@ -289,13 +307,15 @@ export const textAnnotationWidthPx = (
 
 /** Place every annotation of a panel in canvas px. Annotations that can't
  *  be projected (a value-mode coordinate the scale rejects, a blank text
- *  label, a radar value-mode shape) are omitted. Order is rectangles,
- *  circles, lines, texts — the renderer's paint order. */
+ *  label, an image with no picture yet, a radar value-mode shape) are
+ *  omitted. Order is rectangles, circles, lines, texts, images — the
+ *  renderer's paint order. */
 export const layoutPanelAnnotations = ({
 	rectangles,
 	circles,
 	lineSegments,
 	texts,
+	images = [],
 	inner,
 	axisFields,
 	levelOrders,
@@ -320,18 +340,24 @@ export const layoutPanelAnnotations = ({
 	const visibleTexts = texts.filter(
 		(t) => t.text.trim().length > 0 && !(isRadar && t.coordSystem === "values")
 	)
+	// An image annotation with no picture chosen yet draws nothing.
+	const visibleImages = images.filter(
+		(m) => m.href.length > 0 && !(isRadar && m.coordSystem === "values")
+	)
 	if (
 		rectangles.length === 0 &&
 		visibleCircles.length === 0 &&
 		visibleLines.length === 0 &&
-		visibleTexts.length === 0
+		visibleTexts.length === 0 &&
+		visibleImages.length === 0
 	)
 		return []
 	const needValues =
 		rectangles.some((r) => r.coordSystem === "values") ||
 		visibleCircles.some((c) => c.coordSystem === "values") ||
 		visibleLines.some((l) => l.coordSystem === "values") ||
-		visibleTexts.some((t) => t.coordSystem === "values")
+		visibleTexts.some((t) => t.coordSystem === "values") ||
+		visibleImages.some((m) => m.coordSystem === "values")
 	const { xScale, yScale } = buildAnnotationScales({
 		inner,
 		axisFields,
@@ -510,6 +536,28 @@ export const layoutPanelAnnotations = ({
 					box.top + box.height,
 					t.borderThickness
 				)
+			),
+		})
+	}
+	for (const m of visibleImages) {
+		const point = computeImageAnnotationAnchor(m, inner, ctx)
+		if (point === null) continue
+		const size = imageAnnotationSizePx(m)
+		const box = layoutImageAnnotationBox({
+			anchorX: point.x,
+			anchorY: point.y,
+			widthPx: size.width,
+			heightPx: size.height,
+			anchorH: m.anchorH,
+			anchorV: m.anchorV,
+		})
+		placed.push({
+			kind: "image",
+			anno: m,
+			...box,
+			// No stroke: the picture's own edge is its outermost ink.
+			bbox: finish(
+				strokeBBox(box.left, box.top, box.left + box.width, box.top + box.height, 0)
 			),
 		})
 	}

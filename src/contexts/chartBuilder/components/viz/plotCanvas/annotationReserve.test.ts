@@ -73,6 +73,7 @@ const emptyAnnotations = (): AnnotationsConfig => ({
 	circles: [],
 	lineSegments: [],
 	texts: [],
+	images: [],
 })
 
 const scaleInputs = (keys: string[]) =>

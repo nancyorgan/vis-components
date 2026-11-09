@@ -12,18 +12,19 @@ import { cleanNumber, temporalCoordMs, type AxisInfo } from "./axisInfo"
 
 /** Which annotation an editor card belongs to — drives the kind glyph in its
  *  header row. */
-export type AnnotationKind = "rectangle" | "circle" | "line" | "text"
+export type AnnotationKind = "rectangle" | "circle" | "line" | "text" | "image"
 
 const KIND_LABEL: Record<AnnotationKind, string> = {
 	rectangle: "Rectangle annotation",
 	circle: "Circle annotation",
 	line: "Line annotation",
 	text: "Text annotation",
+	image: "Image annotation",
 }
 
 /** Miniature of the annotation itself — a solid box / circle, a heavy
- *  diagonal stroke, a heavy "T" — so a collapsed list of cards is scannable by
- *  shape rather than by reading each name. Drawn on the same 14×14 grid as the
+ *  diagonal stroke, a heavy "T", a framed landscape — so a collapsed list of
+ *  cards is scannable by shape rather than by reading each name. Drawn on the same 14×14 grid as the
  *  sidebar's other glyphs (`AlignmentGlyph`), but the area shapes are FILLED
  *  and the stroked ones run heavier than that outline convention: at 13px an
  *  outline reads as a smudge next to the chevron, and these have to be
@@ -51,6 +52,14 @@ const AnnotationKindGlyph = ({ kind }: { kind: AnnotationKind }) => (
 			<>
 				<line x1={2.5} y1={3} x2={11.5} y2={3} />
 				<line x1={7} y1={3} x2={7} y2={11.5} />
+			</>
+		)}
+		{kind === "image" && (
+			<>
+				{/* Picture frame with a mountain skyline and a sun. */}
+				<rect x={1.5} y={2} width={11} height={10} rx={1} fill="none" strokeWidth={1.6} />
+				<path d="M2.5 10.5 L5.5 7 L7.5 9 L9 7.5 L11.5 10.5 Z" stroke="none" />
+				<circle cx={9.5} cy={5} r={1.2} stroke="none" />
 			</>
 		)}
 	</svg>

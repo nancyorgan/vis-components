@@ -4,6 +4,7 @@
 
 import {
 	newCircle,
+	newImageAnnotation,
 	newLineSegment,
 	newRectangle,
 	newTextAnnotation,
@@ -25,6 +26,7 @@ export const ANNOTATION_LISTS: readonly AnnotationList[] = [
 	"circles",
 	"lineSegments",
 	"texts",
+	"images",
 ]
 
 const BASE_NAME: Record<AnnotationList, string> = {
@@ -32,6 +34,7 @@ const BASE_NAME: Record<AnnotationList, string> = {
 	circles: "Circle",
 	lineSegments: "Line",
 	texts: "Text",
+	images: "Image",
 }
 
 const ID_PREFIX: Record<AnnotationList, string> = {
@@ -39,6 +42,7 @@ const ID_PREFIX: Record<AnnotationList, string> = {
 	circles: "circle",
 	lineSegments: "line",
 	texts: "text",
+	images: "image",
 }
 
 export const nameSuggestion = (base: string, index: number): string => `${base} ${index + 1}`
@@ -73,6 +77,9 @@ export const newAnnotation = <L extends AnnotationList>(
 			return { ...newCircle(id, theme ? boxAnnotationStyleFromTheme(theme) : undefined), name } as AnnotationEntry<L>
 		case "lineSegments":
 			return { ...newLineSegment(id, theme ? lineAnnotationStyleFromTheme(theme) : undefined), name } as AnnotationEntry<L>
+		case "images":
+			// Not theme-seeded: a picture brings its own ink.
+			return { ...newImageAnnotation(id), name } as AnnotationEntry<L>
 		default:
 			return { ...newTextAnnotation(id, theme ? textAnnotationStyleFromTheme(theme) : undefined), name } as AnnotationEntry<L>
 	}

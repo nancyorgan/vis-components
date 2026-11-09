@@ -85,6 +85,7 @@ export const measureAnnotationSpill = ({
 			circles: unclipped(annotations.circles),
 			lineSegments: unclipped(annotations.lineSegments),
 			texts: unclipped(annotations.texts),
+			images: unclipped(annotations.images),
 			inner: p.inner,
 			axisFields,
 			levelOrders,

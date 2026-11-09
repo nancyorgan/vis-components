@@ -1786,7 +1786,8 @@ swatches recolor by the implicit rules (a swatch has no rows for a
 `{Variable}` rule); a slot legend applies that slot's own rules. Any
 rule lights the subsection's and the menu's changed dot; an emptied
 list does not. Renaming a variable rewrites its `{token}` in every
-rule.
+rule. The X / Y axis panels carry the same link under their Tick
+labels Color row, for the labels themselves (§5.1 "Color rules").
 Every single-color swatch shown when "Vary by" is set to "— none —"
 (the Fill panel's default fill, each color slot, and the Shape panel's
 outline color) carries the same palette-icon palette-popover button
@@ -2480,6 +2481,25 @@ customizing a setting is. Chart-type toggles (line ↔ area) DO count.
 ### 5.1 Per-axis panel
 The X-axis and Y-axis panels (under Encodings) configure:
 
+- **Side** (Spine section, first row; shown only when the chart mode
+  draws that cartesian axis) — which plot edge the WHOLE axis sits on:
+  **Bottom** (default) / **Top** on the X panel, **Left** (default) /
+  **Right** on the Y panel. The spine, tick marks, tick labels and axis
+  title move together; the layout solver moves the axis chrome (the
+  tick-label band and the shared title's reserve) to that edge, and a
+  faceted chart draws its shared axis on that edge's row / column (the
+  TOP row for a top x axis, the RIGHTMOST filled panel of each row for
+  a right y axis). Gridlines stay at their data positions, and "Set
+  spine at 0" still moves only the spine. Tick labels keep their
+  natural alignment relative to the axis — a right-side y axis
+  left-aligns them, and rotated x labels on top flip their anchor so
+  the text still leans away from the axis; a right-side y title stays
+  rotated -90° (reads bottom-to-top on both sides, so its alignment
+  means the same thing). Title and tick-label "Adjust position" nudges
+  keep their screen-coordinate meaning, so "away from the plot" is up
+  for a top axis and right for a right axis (LAYOUT.md §8, §17).
+  Stored sparsely as `AxisConfig.side` (only `"top"` / `"right"`;
+  absent = the default edge; `axisFlipped` resolves it). Not themed.
 - **Spine** — color, thickness. **Set spine at 0** (checkbox): moves
   THIS panel's own spine — the same line the Color/Thickness rows
   style — to the PERPENDICULAR scale's zero instead of the plot edge.
@@ -2640,6 +2660,30 @@ The X-axis and Y-axis panels (under Encodings) configure:
   section on every axis, the radar r axis included — r's Ticks section
   holds only that control, since the radar draws no r tick marks; r
   has no Scale section (no r ranges or breaks).
+- **Color rules** (Tick labels) — a right-aligned **"+ Add color
+  rule"** link directly under the tick-label font editor's Color row
+  (x and y panels only; the radar r panel has none — its r ticks carry
+  no value to test). Each rule is a condition box plus a color, the
+  §4.1 "Color rules" grammar: `>`, `<`, `>=`, `<=` compare numbers;
+  `==` and `!=` also match text. A rule compares against each tick
+  label's OWN value — the category name on a categorical axis (`==
+  West`), the tick number on a quantitative one (`>= 80`; a mirrored
+  axis compares the magnitude the label shows) — and the first match
+  recolors just that label; every other label keeps the Color row's
+  color (or the inherited Text color). A tick has no dataset rows, so
+  the only `{Variable}` a rule can test here is a FACET variable: each
+  panel's axis evaluates its rules against that panel's facet values
+  as a one-row record (`facetPanelRow` — `{ Company: "Merck" }` in wrap
+  mode, the row and column variables in grid mode), so `== Cardiology
+  AND {Company} == Merck` recolors the Cardiology label in the Merck
+  panel alone, while any other `{Variable}` never fires. The help line
+  therefore omits the general `{Variable}` tip and gives that facet
+  example instead. Stored
+  sparsely as `AxisConfig.tickLabelColorRules`; removing the last rule
+  clears the field, so the Tick labels dot and the encoding row's dot
+  only light while a rule exists. Renaming a variable rewrites any
+  `{token}` in the conditions like every other rule list. Facet panels
+  that draw the axis apply the same rules.
 - **Wrap text** (Tick labels) — line-wraps long tick labels. X-axis
   labels wrap to their per-tick slot width; y-axis and radar r-axis
   labels wrap to a fixed font-relative max width (~8em). Wrapping
@@ -2656,19 +2700,23 @@ The X-axis and Y-axis panels (under Encodings) configure:
   single word longer than the target stays whole rather than being
   split. Applies to x, y and radar r axes; the solver pre-wraps with
   the same target so reserved room matches.
-- **Align** (Tick labels) — a left / center / right row (same
-  glyph buttons as the Labels panel), shown while Wrap text is on.
-  Wrapped labels align their lines within the wrapped
-  block; the block itself stays anchored to its tick. Unwrapped
+- **Align** (Tick labels, right after Angle) — a left / center / right
+  row (same glyph buttons as the Labels panel), always shown on x, y
+  and the radar r axis. Wrapped labels align their lines within the
+  wrapped block; the block itself stays anchored to its tick. Unwrapped
   (single-line) labels align within the axis's shared label column:
   y-axis labels align to a common edge of the column (as wide as the
   axis's widest label), radar r labels likewise right of the spoke,
   and x-axis labels — which have no column — anchor at their own tick
   (left starts the label at the tick, the time-axis style). The
   default is the axis's natural alignment — centered under an x tick,
-  right-aligned against the y axis, left-aligned at the radar spoke.
-  Rotated x labels flip that default with their anchor: negative
-  angles naturally right-align, positive left-align.
+  right-aligned against a left y axis (left-aligned against a
+  right-side one, see Side), left-aligned at the radar spoke. Rotated
+  x labels flip that default with their anchor: negative angles
+  naturally right-align, positive left-align (the reverse on a top x
+  axis). Picking the natural value stores nothing, so the "changed"
+  dot lights only for a real deviation. The stored field keeps its
+  historical `wrapTickLabelAlign` name.
 - **Tick label format** — the **Label format** row: a dropdown of preset d3-format strings,
   grouped **Numeric** (comma-separated thousands, whole numbers,
   percent), **Currency** (whole dollars, dollars and cents, and
@@ -3623,6 +3671,20 @@ check (`arcWrapLevels` in `DataLabelsConfig`).
   `{token}` in every rule. The condition box fills its row and wraps,
   growing to fit a long rule (Enter is ignored; a condition is one
   line).
+- **Compound conditions** (every conditional-rule list, including the
+  axis tick-label color rules). Several comparisons join with the
+  words `AND` / `OR`, any case — `{Region} == West AND {Profit} < 0`,
+  `{Region} == West OR {Region} == East`, `> 5 AND < 10` — the same
+  connectives as derived-variable If/else conditions; `&`, `&&`, `|`
+  and `||` are NOT operators. `AND` is applied before `OR`
+  (`a OR b AND c` = `a OR (b AND c)`); there is no parenthesized
+  grouping. `{Variable}` and implicit pieces mix freely in one rule,
+  and a multi-row mark passes only when EVERY row satisfies the whole
+  condition. A rule whose pieces don't each read as a comparison is
+  taken as ONE comparison, so `== Black and White` still matches that
+  text; quoting (`== "Black and White"`) makes it explicit. The grammar
+  note under each rule list says all of this (which words to use, that
+  `&` / `|` don't work, the precedence, and the quoting escape).
 - **Per-variable colors** (multi-field labels with 2+ variables) — the
   Color panel replaces the single base color stack with one color slot
   per label variable. Each variable's block also carries its own **Text
@@ -4785,15 +4847,18 @@ there is no content-version bump.
 ## 11. Annotations
 
 A top-level "Annotations" section in the sidebar. Users can add
-**rectangle**, **circle**, **line-segment**, and **text** annotations
-to highlight regions of the chart. Each annotation's editor is
+**rectangle**, **circle**, **line-segment**, **text**, and **image**
+annotations to highlight regions of the chart or place a picture on
+it. Each annotation's editor is
 individually collapsible: a chevron in its header row toggles the
-body, while a glyph of the kind (box / circle / diagonal stroke / "T"),
+body, while a glyph of the kind (box / circle / diagonal stroke / "T" /
+framed landscape),
 the name, and the remove link stay visible so a long list remains
 scannable by shape as well as by name. The name is plain text with a
 pencil beside it, not an input box — an open box in the first row was
 read as the annotation's content. A new annotation is named for its
-kind and position ("Rectangle 1", "Circle 2", "Line 1", "Text 3"),
+kind and position ("Rectangle 1", "Circle 2", "Line 1", "Text 3",
+"Image 1"),
 numbered one past the kind's current count and skipping any number a
 sibling already holds; the name is stored at creation, so it stays put
 when earlier siblings are removed. Clicking the pencil or
@@ -4964,6 +5029,53 @@ inner label inside its "Text" subsection — the same Align + font rows,
 plus Padding, since a rectangle has no Box — after its separate Fill
 and Border subsections, which circles share.)
 
+**Image annotations** (`lib/imageAnnotationGeometry.ts`,
+`lib/imageAnnotationFile.ts`) place a picture — a logo, an icon, a
+small figure — on the chart. The picture is chosen from a file (PNG,
+JPEG, GIF, WebP or SVG) and stored INLINE with the visual as a data
+URL, so it travels everywhere the visual does: exports, embeds,
+bundles, duplicates and templates (a logo survives "Save as template";
+value-mode placements are dropped like the shapes'). At import a
+raster is downscaled to 800 px on its longest side and the data URL
+capped near 400 KB — the visual's JSON carries it, and in browser-local
+mode every visual shares one localStorage blob, so a photo-sized upload
+is refused with a message rather than stored. A PNG over the cap that
+has no transparency is re-encoded as JPEG; an SVG is kept as-is (it
+stays crisp at any export size) and never rasterized. A fresh
+"+ Image" has no picture yet and draws nothing until one is chosen.
+
+Like a text annotation an image is a POINT: x / y are one anchor with
+the same Percent / Values / Pixels toggle, and an **Anchor** picker
+(Left / Center / Right × Top / Middle / Bottom) chooses which point of
+the picture sits there — the center by default, a corner to tuck a
+logo against the edge of the plot. Its size is a **Width** and a
+**Height** in one **Unit** — px, inches or centimeters (at the
+CSS-standard 96 px per inch, the same convention as the fixed canvas
+size and export dimensions, so "2 in" exports at true size), or a
+percent of the picture's own size (100% = the pixel size it was
+imported at). Switching the unit converts both numbers so the picture
+keeps its on-screen size. **Lock aspect ratio** (on by default) makes
+either dimension recompute the other through the picture's proportions,
+and the renderer derives the height from the width so the picture is
+never stretched; unlocked, both are honored and the picture stretches
+to fit. A **natural size** link beside Width (shown only while the
+picture is scaled) returns it to 100%. The first picture sizes the
+annotation to itself in px, capped at 200 px wide; a replacement keeps
+the width already set (a locked height follows the new proportions).
+**Opacity** fades the whole picture. A **Description** names it for screen readers — a described
+picture is exposed as an `img`, an undescribed one is decorative and
+hidden like the annotation shapes. Nothing about an image is
+theme-seeded: a picture brings its own ink.
+
+The editor leads with the picture itself — a preview and the Choose /
+Replace image button — directly under the header outside any
+subsection, then an **Image** subsection (Description · Width · Height ·
+Unit · Lock aspect ratio · Opacity), then Position, which carries the Anchor rows ahead of the
+layer toggle. The rendered `<image>` writes both `href` and
+`xlink:href`, so desktop SVG importers (PowerPoint) read it too, and it
+counts as ink for the fixed-canvas margins and the annotation reserve
+like any other annotation.
+
 New annotations seed their style (fill, border, text font, line
 stroke) from the active theme's **Annotations** defaults (§12), and
 each style control's reset link compares against and restores those
@@ -4972,7 +5084,7 @@ box defaults — separate from the shape fill so a text label can
 default to no background — and share the theme's annotation *text*
 font with the rectangle's inner label.
 
-All four kinds render per-panel in PlotCanvas, using each panel's own
+All five kinds render per-panel in PlotCanvas, using each panel's own
 position scales in Values mode. An annotation may sit **anywhere on the
 canvas**, not just inside the plot: Percent coordinates past 0–100 (or
 below 0), Pixels outside the plot, and, on a single-panel
@@ -4992,9 +5104,9 @@ falls outside a panel's (independent-axis) domain draws nothing there
 rather than spilling into a neighbor — it keeps its true geometry and
 only the in-bounds portion paints. The other exception is radar: value-mode circles are rendered inside
 RadarPlot itself (via `computePolarCirclePixels`, since RadarPlot owns
-the radial scales), and value-mode line segments and text annotations
-are skipped on radar entirely; percent-mode shapes still render
-normally there.
+the radial scales), and value-mode line segments, text and image
+annotations are skipped on radar entirely; percent-mode shapes still
+render normally there.
 
 Annotations are per-chart and persist with the visual.
 

@@ -43,7 +43,7 @@ export const FIELD_OVERRIDES_VERSION = 1
 export const FIELD_LEVEL_ORDERS_VERSION = 1
 export const FIELD_LEVEL_ORDER_SPECS_VERSION = 1
 export const FIELD_ORDER_VERSION = 1
-export const ANNOTATIONS_VERSION = 5
+export const ANNOTATIONS_VERSION = 6
 export const CAPTION_VERSION = 1
 export const MAP_CONFIG_VERSION = 8
 export const RESHAPE_CONFIG_VERSION = 1
@@ -1058,6 +1058,7 @@ export const fieldOrderMigrations = identityMigrations
  *  v4 → v5: grid facet scopes become `{ row, col }` pairs (the visuals
  *  v6→v7 step, for the draft slice — see `channelConfigsMigrations` for why
  *  full-grid keys wait for the next save).
+ *  v5 → v6: backfill the `images` list (pictures placed on the chart).
  *  Each step is idempotent — re-running on an already-shaped value leaves the
  *  existing array untouched. */
 export const annotationsMigrations: Migration[] = [
@@ -1081,6 +1082,11 @@ export const annotationsMigrations: Migration[] = [
 		return { ...o, texts: Array.isArray(o.texts) ? o.texts : [] }
 	},
 	(raw) => structureAnnotationKeys(raw, false),
+	(raw) => {
+		if (typeof raw !== "object" || raw === null) return raw
+		const o = raw as Record<string, unknown>
+		return { ...o, images: Array.isArray(o.images) ? o.images : [] }
+	},
 ]
 
 /** The content-schema registry for the adapter-backed collections, keyed by

@@ -3,6 +3,7 @@ import {
 	newCircle,
 	newLineSegment,
 	newRectangle,
+	newImageAnnotation,
 	newTextAnnotation,
 } from "../annotationsConfig"
 import { DEFAULT_CAPTION_CONFIG } from "../captionConfig"
@@ -175,6 +176,10 @@ const visual = (): Visual => {
 				{ ...newLineSegment("l2"), coordSystem: "values" },
 			],
 			texts: [newTextAnnotation("t1")],
+			images: [
+				{ ...newImageAnnotation("m1"), href: "data:image/png;base64,AA==", facetKeys: [] },
+				{ ...newImageAnnotation("m2"), href: "data:image/png;base64,AA==", coordSystem: "values" },
+			],
 		},
 		captionConfig: { ...DEFAULT_CAPTION_CONFIG, text: "Source: ACME", fontSize: 20 },
 		dataTableConfig: {
@@ -317,6 +322,10 @@ describe("buildTemplateBody — data-value strips", () => {
 		expect(a.circles[0]).not.toHaveProperty("facetKeys")
 		expect(a.lineSegments.map((l) => l.id)).toEqual(["l1"])
 		expect(a.texts).toEqual([])
+		// Pictures are format (a logo on every chart), so they stay — minus
+		// value-mode placements and panel scopes, like the shapes.
+		expect(a.images.map((m) => m.id)).toEqual(["m1"])
+		expect("facetKeys" in a.images[0]!).toBe(false)
 	})
 
 	it("drops data-label panel scope", () => {

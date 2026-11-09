@@ -194,6 +194,170 @@
 				"front"
 			]
 		},
+		"annotationsConfig.images": {
+			"doc": "Pictures placed on the chart. Optional-at-runtime for configs saved before images shipped (the v5→v6 migration backfills `[]`); readers guard with `?? []`.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"annotationsConfig.images[].alt": {
+			"doc": "Description for screen readers. Blank = decorative (hidden from the accessibility tree, like the annotation shapes).",
+			"kinds": [
+				"string"
+			]
+		},
+		"annotationsConfig.images[].anchorH": {
+			"doc": "Which point of the picture sits on the anchor.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"center",
+				"left",
+				"right"
+			]
+		},
+		"annotationsConfig.images[].anchorV": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"bottom",
+				"middle",
+				"top"
+			]
+		},
+		"annotationsConfig.images[].aspect": {
+			"doc": "Natural width / height of the stored picture; sizes the height when the aspect ratio is locked.",
+			"kinds": [
+				"number"
+			]
+		},
+		"annotationsConfig.images[].coordSystem": {
+			"doc": "How `x`/`y` are interpreted — see `RectangleAnnotation.coordSystem`.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"percent",
+				"percentBottomRight",
+				"percentTopLeft",
+				"percentTopRight",
+				"pixels",
+				"pixelsBottomLeft",
+				"pixelsBottomRight",
+				"pixelsTopRight",
+				"values"
+			]
+		},
+		"annotationsConfig.images[].facetKeys": {
+			"doc": "Which facet panels the annotation is drawn on — see `RectangleAnnotation.facetKeys`.",
+			"items": {
+				"kinds": [
+					"object",
+					"string"
+				]
+			},
+			"kinds": [
+				"list",
+				"null"
+			]
+		},
+		"annotationsConfig.images[].facetKeys[].col": {
+			"kinds": [
+				"string"
+			]
+		},
+		"annotationsConfig.images[].facetKeys[].row": {
+			"kinds": [
+				"string"
+			]
+		},
+		"annotationsConfig.images[].height": {
+			"kinds": [
+				"number"
+			]
+		},
+		"annotationsConfig.images[].href": {
+			"doc": "The picture as a data URL (PNG / JPEG / SVG…), downscaled at import to `MAX_IMAGE_ANNOTATION_PX`. Blank = no image chosen yet.",
+			"kinds": [
+				"string"
+			]
+		},
+		"annotationsConfig.images[].id": {
+			"doc": "Stable id for keying and removal.",
+			"kinds": [
+				"string"
+			]
+		},
+		"annotationsConfig.images[].lockAspect": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"annotationsConfig.images[].name": {
+			"doc": "Optional human label shown in the sidebar list.",
+			"kinds": [
+				"string"
+			]
+		},
+		"annotationsConfig.images[].naturalWidth": {
+			"doc": "Natural width of the stored picture in px (after the import downscale) — what a percent size is a percent OF.",
+			"kinds": [
+				"number"
+			]
+		},
+		"annotationsConfig.images[].opacity": {
+			"doc": "0..1 element opacity.",
+			"kinds": [
+				"number"
+			]
+		},
+		"annotationsConfig.images[].sizeUnit": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"cm",
+				"in",
+				"percent",
+				"px"
+			]
+		},
+		"annotationsConfig.images[].width": {
+			"doc": "Rendered width / height, read in `sizeUnit`. With `lockAspect` on the height is DERIVED from the width and `aspect` at render (the stored height is kept in step by the editor); off, both are honored and the picture stretches.",
+			"kinds": [
+				"number"
+			]
+		},
+		"annotationsConfig.images[].x": {
+			"doc": "Anchor x / y — same coordinate rules as `TextAnnotation.x` / `y`.",
+			"kinds": [
+				"number",
+				"string"
+			]
+		},
+		"annotationsConfig.images[].y": {
+			"kinds": [
+				"number",
+				"string"
+			]
+		},
+		"annotationsConfig.images[].zOrder": {
+			"doc": "\"behind\" draws under the chart marks; \"front\" draws above them.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"behind",
+				"front"
+			]
+		},
 		"annotationsConfig.lineSegments": {
 			"items": {
 				"kinds": [

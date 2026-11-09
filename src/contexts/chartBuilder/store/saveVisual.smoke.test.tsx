@@ -449,6 +449,7 @@ describe("useSaveVisual → useLoadVisual round-trip", () => {
 				circles: [],
 				lineSegments: [],
 				texts: [{ id: "t", facetKeys: ["a|b|x", "a|b|x|nope"] } as never],
+				images: [],
 			})
 		})
 		await act(async () => {

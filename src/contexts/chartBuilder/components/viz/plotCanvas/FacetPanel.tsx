@@ -4,7 +4,7 @@ import type { UniversalRendererProps } from "../../../lib/chartRendererProps"
 import type { SolverPanelOutput } from "../../../lib/facetLayoutSolver"
 import { facetTitleColorOf, type LabelsConfig } from "../../../lib/labelsConfig"
 import { AnnotationRects, annotationOnPanel } from "./annotations"
-import { FacetPanelContext } from "./FacetPanelContext"
+import { FacetPanelContext, FacetPanelRowContext } from "./FacetPanelContext"
 import type { resolveFacetTitleStyles } from "./facetTitleStyles"
 import { rectToInner } from "./panelGrouping"
 import { resolvePanelRenderInputs } from "./panelRenderInputs"
@@ -42,8 +42,12 @@ export const FacetPanel = ({
 	multiPanel,
 	labels,
 	facetTitles,
+	facetRow,
 }: {
 	p: SolverPanelOutput
+	/** This panel's facet variables as one row (`facetPanelRow`), provided
+	 *  to the renderer subtree for rules on row-less targets (tick labels). */
+	facetRow: Record<string, unknown> | undefined
 	/** The mode's renderer — `MODE_RENDERERS[modeId]`, resolved once by
 	 *  PlotCanvas so every panel dispatches through the same component. */
 	Renderer: ComponentType<UniversalRendererProps>
@@ -207,6 +211,9 @@ export const FacetPanel = ({
 	const panelTexts = (annotations.texts ?? []).filter((t) =>
 		annotationOnPanel(t, p.key),
 	)
+	const panelImages = (annotations.images ?? []).filter((m) =>
+		annotationOnPanel(m, p.key),
+	)
 	// Per-panel title text — the same text the solver sized the
 	// label band for (see `panelLabelTextOf`).
 	const facetLabelText = panelLabelTextOf(panelData, p.key)
@@ -255,6 +262,7 @@ export const FacetPanel = ({
 				circles={panelCircles}
 				lineSegments={panelLineSegments}
 				texts={panelTexts}
+				images={panelImages}
 				inner={p.inner}
 				layer="behind"
 				xScaleRows={annoXScaleRows}
@@ -276,13 +284,16 @@ export const FacetPanel = ({
 			    any renderer (Data Labels' "Label all facets" scope)
 			    know which facet they draw in. */}
 			<FacetPanelContext.Provider value={p.key}>
-				<Renderer {...rendererProps} />
+				<FacetPanelRowContext.Provider value={facetRow}>
+					<Renderer {...rendererProps} />
+				</FacetPanelRowContext.Provider>
 			</FacetPanelContext.Provider>
 			<AnnotationRects
 				rectangles={panelRectangles}
 				circles={panelCircles}
 				lineSegments={panelLineSegments}
 				texts={panelTexts}
+				images={panelImages}
 				inner={p.inner}
 				layer="front"
 				xScaleRows={annoXScaleRows}

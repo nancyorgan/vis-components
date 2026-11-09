@@ -127,6 +127,7 @@ export const assembleDraftVisual = (get: Getter): DraftVisual => {
 			circles: [...(annotationsConfig.circles ?? [])],
 			lineSegments: [...(annotationsConfig.lineSegments ?? [])],
 			texts: [...(annotationsConfig.texts ?? [])],
+			images: [...(annotationsConfig.images ?? [])],
 		},
 		captionConfig: { ...get(currentCaptionConfigAtom) },
 		dataTableConfig: { ...get(currentDataTableConfigAtom) },

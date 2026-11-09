@@ -92,7 +92,7 @@ describe("applySettings", () => {
 	it("keeps a sent id and mints one for an entry without", () => {
 		const text = { name: "", x: 0.5, y: 0.5, zOrder: "front", coordSystem: "percent", text: "Hi" }
 		const v = base({
-			annotationsConfig: { rectangles: [], circles: [], lineSegments: [], texts: [{ ...text, id: "text-1" } as never] },
+			annotationsConfig: { rectangles: [], circles: [], lineSegments: [], texts: [{ ...text, id: "text-1" } as never], images: [] },
 		})
 		const { visual, problems } = apply(
 			{ annotationsConfig: { texts: [{ ...text, id: "text-1", text: "Edited" }, text] } },

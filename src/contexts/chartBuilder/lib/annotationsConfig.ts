@@ -284,6 +284,100 @@ export type TextAnnotation = {
 	facetKeys?: FacetPanelRef[] | null
 }
 
+/** Built-in seed for IMAGE annotations: the sizing / anchoring / opacity a
+ *  fresh image arrives with. Not theme-driven — a theme styles ink, and an
+ *  image brings its own; the editor resets against these constants. */
+export const DEFAULT_IMAGE_ANNOTATION_STYLE = {
+	/** Rendered width / height in `sizeUnit` (px here). */
+	width: 120,
+	height: 120,
+	sizeUnit: "px" as ImageSizeUnit,
+	/** Height follows width through the picture's aspect ratio. */
+	lockAspect: true,
+	anchorH: "center" as ImageAnchorH,
+	anchorV: "middle" as ImageAnchorV,
+	/** 0..1 element opacity. */
+	opacity: 1,
+}
+
+/** The unit an image annotation's `width` / `height` are stored in: px, or
+ *  inches / centimeters at the CSS-standard 96 px per inch (the same
+ *  convention as the fixed canvas size and export dimensions, see
+ *  `lib/displayUnits.ts`), or a PERCENT of the picture's own natural size
+ *  (100 = the pixel size it was imported at). */
+export type ImageSizeUnit = "px" | "in" | "cm" | "percent"
+/** Which point of the picture sits on the anchor (`x`, `y`). */
+export type ImageAnchorH = "left" | "center" | "right"
+export type ImageAnchorV = "top" | "middle" | "bottom"
+
+/** The image annotation's sizing, anchoring and opacity. */
+export type ImageAnnotationStyle = typeof DEFAULT_IMAGE_ANNOTATION_STYLE
+
+/** Longest side (px) an imported annotation image is downscaled to, and the
+ *  cap on the stored data URL's length. The picture travels INSIDE the
+ *  visual's JSON (there is no side-table for it, unlike thumbnails), and in
+ *  browser-local mode every visual shares one localStorage blob, so a
+ *  photo-sized upload would crowd out the library. 800 px is plenty for a
+ *  logo or a small figure at any export size; ~400 KB of data URL is the
+ *  ceiling the editor enforces at import (see `lib/imageAnnotationFile.ts`). */
+export const MAX_IMAGE_ANNOTATION_PX = 800
+export const MAX_IMAGE_ANNOTATION_DATA_URL_CHARS = 400 * 1024
+
+/** A picture placed on the chart — a logo, an icon, a small figure. The
+ *  image itself is stored inline as a data URL (`href`), so the annotation
+ *  travels with the visual everywhere the visual does: exports, embeds,
+ *  bundles, duplicates, templates. An annotation with no image yet (`href`
+ *  blank — the state a fresh "+ Image" is in until a file is chosen) draws
+ *  nothing.
+ *
+ *  Like a text annotation it is a POINT: `x` / `y` are one anchor, and
+ *  `anchorH` / `anchorV` pick which point of the picture lands there (its
+ *  center by default; "bottom-right" to tuck a logo into a corner). Its size
+ *  is a `width` × `height` in `sizeUnit`; with the aspect ratio locked (the
+ *  default) the height follows the width through the image's own `aspect`,
+ *  so the picture is never stretched. See `lib/imageAnnotationGeometry.ts`. */
+export type ImageAnnotation = {
+	/** Stable id for keying and removal. */
+	id: string
+	/** Optional human label shown in the sidebar list. */
+	name: string
+	/** The picture as a data URL (PNG / JPEG / SVG…), downscaled at import
+	 *  to `MAX_IMAGE_ANNOTATION_PX`. Blank = no image chosen yet. */
+	href: string
+	/** Natural width / height of the stored picture; sizes the height when
+	 *  the aspect ratio is locked. */
+	aspect: number
+	/** Natural width of the stored picture in px (after the import
+	 *  downscale) — what a percent size is a percent OF. */
+	naturalWidth: number
+	/** Description for screen readers. Blank = decorative (hidden from the
+	 *  accessibility tree, like the annotation shapes). */
+	alt: string
+	/** Anchor x / y — same coordinate rules as `TextAnnotation.x` / `y`. */
+	x: number | string
+	y: number | string
+	/** Rendered width / height, read in `sizeUnit`. With `lockAspect` on
+	 *  the height is DERIVED from the width and `aspect` at render (the
+	 *  stored height is kept in step by the editor); off, both are honored
+	 *  and the picture stretches. */
+	width: number
+	height: number
+	sizeUnit: ImageSizeUnit
+	lockAspect: boolean
+	/** Which point of the picture sits on the anchor. */
+	anchorH: ImageAnchorH
+	anchorV: ImageAnchorV
+	/** 0..1 element opacity. */
+	opacity: number
+	/** "behind" draws under the chart marks; "front" draws above them. */
+	zOrder: "behind" | "front"
+	/** How `x`/`y` are interpreted — see `RectangleAnnotation.coordSystem`. */
+	coordSystem: AnnotationCoordSystem
+	/** Which facet panels the annotation is drawn on — see
+	 *  `RectangleAnnotation.facetKeys`. */
+	facetKeys?: FacetPanelRef[] | null
+}
+
 /** The axis-free units a circle's radius can be read in when its radius
  *  axis has no data units — see `CircleAnnotation.radiusUnit`. */
 export type RadiusUnit = "percent" | "px"
@@ -401,6 +495,10 @@ export type AnnotationsConfig = {
 	circles: CircleAnnotation[]
 	lineSegments: LineSegmentAnnotation[]
 	texts: TextAnnotation[]
+	/** Pictures placed on the chart. Optional-at-runtime for configs saved
+	 *  before images shipped (the v5→v6 migration backfills `[]`); readers
+	 *  guard with `?? []`. */
+	images: ImageAnnotation[]
 }
 
 export const DEFAULT_ANNOTATIONS_CONFIG: AnnotationsConfig = {
@@ -408,6 +506,7 @@ export const DEFAULT_ANNOTATIONS_CONFIG: AnnotationsConfig = {
 	circles: [],
 	lineSegments: [],
 	texts: [],
+	images: [],
 }
 
 /** Build a new rectangle with sensible defaults — placed in the
@@ -497,4 +596,24 @@ export const newTextAnnotation = (
 	...DEFAULT_RECTANGLE_TEXT,
 	...DEFAULT_TEXT_ANNOTATION_STYLE,
 	...style,
+})
+
+/** Build a new image annotation — anchored at the center of the plot with
+ *  NO picture yet, so the user's first move is choosing a file (the editor's
+ *  import sets `href` / `aspect`, and a width fitted to the picture). Draws
+ *  nothing until then. Sizing / anchoring / opacity seed from
+ *  `DEFAULT_IMAGE_ANNOTATION_STYLE`; nothing is theme-driven. */
+export const newImageAnnotation = (id: string): ImageAnnotation => ({
+	id,
+	// Blank — see `newRectangle` (the sidebar stamps the numbered default).
+	name: "",
+	href: "",
+	aspect: 1,
+	naturalWidth: 0,
+	alt: "",
+	x: 0.5,
+	y: 0.5,
+	zOrder: "front",
+	coordSystem: "percent",
+	...DEFAULT_IMAGE_ANNOTATION_STYLE,
 })

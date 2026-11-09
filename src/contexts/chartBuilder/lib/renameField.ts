@@ -944,6 +944,7 @@ const renameMeltedValueRefs = <T extends FieldNameConfigs>(
 
 	const dle = state.dataLabelsEncodings
 	const dlc = state.dataLabelsConfig
+					images: swapFacetKeys(ac.images),
 	const dataLabelsConfig =
 		dle && drives(dle.hue) && dlc
 			? patched(dlc, {

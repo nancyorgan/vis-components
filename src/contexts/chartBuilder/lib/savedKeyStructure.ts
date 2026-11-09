@@ -56,7 +56,7 @@ export const structureAnnotationKeys = <T>(
 ): T => {
 	if (!isRecord(config)) return config
 	let next: Record<string, unknown> | null = null
-	for (const list of ["rectangles", "circles", "lineSegments", "texts"]) {
+	for (const list of ["rectangles", "circles", "lineSegments", "texts", "images"]) {
 		const items = config[list]
 		if (!Array.isArray(items)) continue
 		let changed = false

@@ -32,7 +32,7 @@ import {
 	type CaptionConfig,
 } from "../../lib/captionConfig"
 import { type ExtraMargin } from "../../lib/plotLayout"
-import { resolveFacetPanels } from "../../lib/resolveFacetPanels"
+import { facetPanelRow, resolveFacetPanels } from "../../lib/resolveFacetPanels"
 import { PLOT_SVG_ID } from "../../lib/captureThumbnail"
 import {
 	chartAccessibleTitle,
@@ -596,7 +596,8 @@ export const PlotCanvas = ({
 		annotations.rectangles.length > 0 ||
 		(annotations.circles?.length ?? 0) > 0 ||
 		(annotations.lineSegments?.length ?? 0) > 0 ||
-		(annotations.texts?.length ?? 0) > 0
+		(annotations.texts?.length ?? 0) > 0 ||
+		(annotations.images?.length ?? 0) > 0
 	const annotationScaleInputsByPanel = useMemo(() => {
 		const map = new Map<string, PanelAnnotationScaleInputs>()
 		if (!hasAnnotations) return map
@@ -965,6 +966,12 @@ export const PlotCanvas = ({
 						multiPanel={spec.panels.length > 1}
 						labels={labels}
 						facetTitles={facetTitles}
+						facetRow={facetPanelRow(
+							panelData,
+							p.key,
+							p.row * panelData.grid.cols + p.col,
+							encodings
+						)}
 					/>
 				))}
 				{/* Shared axis titles and facet header strips — drawn AFTER the

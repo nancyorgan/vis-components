@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
@@ -292,9 +293,9 @@ export const EdgePositionSection = ({
 	)
 }
 
-/** The coordinate fields a single-anchor annotation stores. Only the text
- *  annotation uses this today: it's a point, not a region, because its box is
- *  auto-sized to the text. */
+/** The coordinate fields a single-anchor annotation stores. The text and
+ *  image annotations use this: each is a point, not a region, because its
+ *  box is sized from its content (measured text, the picture's width). */
 type PointCoords = {
 	coordSystem: AnnotationCoordSystem
 	x: number | string
@@ -313,6 +314,7 @@ export const PointPositionSection = ({
 	disableValues,
 	zOrder,
 	onZOrderChange,
+	children,
 }: {
 	coords: PointCoords
 	onChange: (patch: Partial<PointCoords>) => void
@@ -321,6 +323,10 @@ export const PointPositionSection = ({
 	/** Gray out "Values (data units)" on polar charts (radar / pie), which
 	 *  have no cartesian axes for the anchor to map against. */
 	disableValues?: boolean
+	/** Extra rows between the coordinate inputs and the layer toggle — the
+	 *  image annotation's anchor picker (which point of the picture sits on
+	 *  x / y), a position concern that belongs in this subsection. */
+	children?: ReactNode
 } & LayerProps) => {
 	const dims = usePlotDims()
 	return (
@@ -398,6 +404,7 @@ export const PointPositionSection = ({
 			{coordHelpFor(coords.coordSystem) && (
 				<p className="vc-help">{coordHelpFor(coords.coordSystem)}</p>
 			)}
+			{children}
 			<div className="vc-divider-group">
 				<LayerRow zOrder={zOrder} onChange={onZOrderChange} />
 			</div>

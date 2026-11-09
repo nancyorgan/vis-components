@@ -198,6 +198,7 @@ describe("DEFAULT_ANNOTATIONS_CONFIG", () => {
 		// against a store that never held annotations.
 		expect(Object.keys(DEFAULT_ANNOTATIONS_CONFIG).sort()).toEqual([
 			"circles",
+			"images",
 			"lineSegments",
 			"rectangles",
 			"texts",

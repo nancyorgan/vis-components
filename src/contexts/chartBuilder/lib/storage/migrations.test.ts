@@ -610,6 +610,28 @@ describe("visualsMigrations v6 -> v7 (joined saved keys → structure)", () => {
 	})
 })
 
+describe("annotationsMigrations v5 -> v6 (images list)", () => {
+	const upgrade = annotationsMigrations[5]!
+
+	it("backfills an empty images list and leaves the other kinds alone", () => {
+		expect(
+			upgrade({ rectangles: [{ id: "r" }], circles: [], lineSegments: [], texts: [] })
+		).toEqual({
+			rectangles: [{ id: "r" }],
+			circles: [],
+			lineSegments: [],
+			texts: [],
+			images: [],
+		})
+	})
+
+	it("is idempotent — an existing images list is kept", () => {
+		const images = [{ id: "m", href: "data:image/png;base64,AA==" }]
+		expect((upgrade({ rectangles: [], images }) as { images: unknown }).images).toBe(images)
+		expect(upgrade(null)).toBeNull()
+	})
+})
+
 describe("visualsMigrations v7 -> v8 (facet gaps measured plot edge to plot edge)", () => {
 	const upgrade = visualsMigrations[7]!
 

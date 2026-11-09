@@ -4,6 +4,7 @@ import { useAtom, useAtomValue } from "jotai"
 import {
 	type AnnotationsConfig,
 	type CircleAnnotation,
+	type ImageAnnotation,
 	type LineSegmentAnnotation,
 	type RectangleAnnotation,
 	type TextAnnotation,
@@ -38,6 +39,7 @@ import { addAnnotation, nameSuggestion } from "../../../lib/annotationAdd"
 import type { AxisInfo } from "./axisInfo"
 import { CircleEditor } from "./CircleEditor"
 import { FacetScopeControl } from "../FacetScopeControl"
+import { ImageAnnotationEditor } from "./ImageAnnotationEditor"
 import { LineSegmentEditor } from "./LineSegmentEditor"
 import { RectangleEditor } from "./RectangleEditor"
 import { TextAnnotationEditor } from "./TextAnnotationEditor"
@@ -171,6 +173,8 @@ export const AnnotationsPanel = () => {
 	const lineSegments = cfg.lineSegments ?? []
 	// …and for free-standing text labels, added after line segments.
 	const texts = cfg.texts ?? []
+	// …and for pictures, added after texts.
+	const images = cfg.images ?? []
 
 	const addRectangle = () => {
 		const { cfg: next, id } = addAnnotation(cfg, "rectangles", theme)
@@ -248,6 +252,24 @@ export const AnnotationsPanel = () => {
 		setExpanded(id, false)
 	}
 
+	const addImage = () => {
+		const { cfg: next, id } = addAnnotation(cfg, "images", theme)
+		update(next)
+		setExpanded(id, true)
+	}
+
+	const updateImage = (id: string, patch: Partial<ImageAnnotation>) => {
+		update({
+			...cfg,
+			images: images.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+		})
+	}
+
+	const removeImage = (id: string) => {
+		update({ ...cfg, images: images.filter((m) => m.id !== id) })
+		setExpanded(id, false)
+	}
+
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex flex-wrap gap-2">
@@ -274,6 +296,12 @@ export const AnnotationsPanel = () => {
 					className="self-start"
 				>
 					+ Text
+				</Button>
+				<Button compact
+					onClick={addImage}
+					className="self-start"
+				>
+					+ Image
 				</Button>
 			</div>
 			{cfg.rectangles.length === 0 &&
@@ -378,6 +406,31 @@ export const AnnotationsPanel = () => {
 								facetKeys={t.facetKeys}
 								facetOptions={facetOptions}
 								onChange={(next) => updateText(t.id, { facetKeys: next })}
+							/>
+						) : null
+					}
+				/>
+			))}
+			{images.map((m, i) => (
+				<ImageAnnotationEditor
+					key={m.id}
+					anno={m}
+					onChange={(patch) => updateImage(m.id, patch)}
+					onRemove={() => removeImage(m.id)}
+					open={expandedIds.has(m.id)}
+					onToggle={() => setExpanded(m.id, !expandedIds.has(m.id))}
+					xAxis={xAxis}
+					yAxis={yAxis}
+					disableValues={disableValues}
+					fallbackName={nameSuggestion("Image", i)}
+					facetScope={
+						isFaceted ? (
+							<FacetScopeControl
+								label="Apply to all facets"
+								className="px-2"
+								facetKeys={m.facetKeys}
+								facetOptions={facetOptions}
+								onChange={(next) => updateImage(m.id, { facetKeys: next })}
 							/>
 						) : null
 					}
