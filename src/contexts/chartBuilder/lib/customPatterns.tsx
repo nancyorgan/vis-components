@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react"
 
-import type { ChannelConfigs, PatternConfig } from "./channelConfig"
+import type { ChannelConfigs, CustomPattern, PatternConfig } from "./channelConfig"
 
 /**
  * Custom fill patterns — the "+" chip in the Pattern picker.
@@ -24,12 +24,11 @@ import type { ChannelConfigs, PatternConfig } from "./channelConfig"
  * draw the same tile.
  */
 
-/** A user-uploaded pattern.
- *  - `mask`: a grayscale PNG data URL, white = ink, black = background
- *    (the current format).
- *  - `size` / `bits`: an early on/off grid (row-major, `"1"` = ink) — still
- *    rendered so patterns uploaded before the mask format keep working. */
-export type CustomPattern = { mask: string } | { size: number; bits: string }
+/** A user-uploaded pattern. The type lives in `channelConfig.ts` (its only
+ *  structural home, `PatternConfig.customPatterns`) so the pure-lib / mcp
+ *  typecheck never has to read this React-bound file; re-exported here for
+ *  the editor and tests. */
+export type { CustomPattern }
 
 /** First pattern index that refers into `customPatterns`. A fixed constant
  * far past the built-in palette, so appending a built-in pattern never

@@ -2,12 +2,22 @@
 // isn't in the map, defaults are used. Each channel's shape is independent.
 
 import type { GradientInterpolation } from "./colorInterpolate"
-import type { CustomPattern } from "./customPatterns"
 import type { DisplayUnit } from "./displayUnits"
 import type { DrawOrderConfig } from "./drawOrder"
 import type { FacetPanelRef } from "./facetPanelRef"
 import type { FlowLabelNodes } from "./flowNodeLabels"
 import type { FontConfig, LabelAlignment } from "./labelsConfig"
+
+/** A user-uploaded fill pattern (see `lib/customPatterns` for the picker,
+ *  upload pipeline and tile renderer). Defined here, next to its only
+ *  consumer `PatternConfig.customPatterns`, so this pure-lib module never
+ *  imports the React/DOM-bound `customPatterns.tsx` — the `mcp/` typecheck
+ *  has no JSX or DOM lib and must stay able to read this file.
+ *  - `mask`: a grayscale PNG data URL, white = ink, black = background
+ *    (the current format).
+ *  - `size` / `bits`: an early on/off grid (row-major, `"1"` = ink) — still
+ *    rendered so patterns uploaded before the mask format keep working. */
+export type CustomPattern = { mask: string } | { size: number; bits: string }
 
 export type GridlineConfig = {
 	enabled: boolean
@@ -396,8 +406,35 @@ export type MirrorAxisConfig = {
 	breaks?: number[]
 }
 
+/** Which plot edge an axis sits on. The x axis is "bottom" by default and
+ * may move to "top"; the y axis is "left" by default and may move to
+ * "right". Stored SPARSELY: the panel writes only the non-default side and
+ * clears to absent for the default, so saved visuals stay byte-identical
+ * and the "changed" dot lights only for a real move. Read through
+ * `axisFlipped`, which also ignores a side that doesn't belong to the axis
+ * ("left" on x). */
+export type AxisSide = "bottom" | "top" | "left" | "right"
+
+/** True when `side` moves this axis off its default edge: x to the top of
+ * the plot, y to its right. Any other value (absent, the default side, or a
+ * side the axis can't take) reads as the default edge. The renderer
+ * (Axes.tsx), the layout solver and the sidebar all resolve through this so
+ * they can't disagree about where an axis is. */
+export const axisFlipped = (
+	channel: "x" | "y",
+	side: AxisSide | undefined
+): boolean => (channel === "x" ? side === "top" : side === "right")
+
 export type AxisConfig = {
 	tickCount: number // 3–12
+	/** Plot edge the whole axis — spine, tick marks, tick labels and title —
+	 * sits on ("Side" in the Spine section). x: "bottom" (default) or
+	 * "top"; y: "left" (default) or "right". Absent = the default edge; see
+	 * `axisFlipped`. The layout solver moves the axis chrome (tick-label
+	 * band + title reserve) to the chosen edge and faceted panels draw the
+	 * shared axis on that edge's row / column. "Set spine at 0" still moves
+	 * only the spine, from whichever edge the axis sits on. Not themed. */
+	side?: AxisSide
 	/** d3-format (quantitative) or d3-time-format (temporal) string. Empty
 	 * string means "use the scale's default formatter". The sidebar exposes
 	 * a dropdown of presets that populate this field; the user can refine
@@ -442,6 +479,18 @@ export type AxisConfig = {
 	 * style an individual axis's tick labels independently — e.g. a smaller
 	 * monospace y-axis. `color` here wins over the legacy `tickLabelColor`. */
 	tickLabelFont?: Partial<FontConfig>
+	/** Conditional tick-label colors ("+ Add color rule" under the Tick
+	 * labels Color row on the x / y panels). Same grammar and first-match
+	 * walk as every other color-rule list (`lib/textColorRules.ts`): an
+	 * implicit rule compares against the tick's own value — the category
+	 * text on a categorical axis (`== West`), the number on a quantitative
+	 * one (`> 50`; a mirrored axis compares the magnitude the label shows).
+	 * A matching rule's color replaces the font color for THAT label only;
+	 * the others keep `tickLabelFont.color` / the inherited Text color.
+	 * `{Variable}` rules never fire here (a tick has no rows). Absent /
+	 * empty = no rules; the panel stores `undefined` once the last rule is
+	 * removed so the "changed" dots stay honest. */
+	tickLabelColorRules?: TextColorRule[]
 	/** Line-wrap long tick labels ("Wrap text" in the Tick Labels section).
 	 * X-axis labels wrap to their per-tick slot width; y / r labels wrap to a
 	 * fixed font-relative max width (see `lib/tickLabelWrap.ts`). Wraps on
@@ -458,13 +507,17 @@ export type AxisConfig = {
 	 * `null` = auto (the slot / font-relative width wrap above). Only read
 	 * while `wrapTickLabels` is on. */
 	wrapTickLabelChars?: number | null
-	/** Horizontal alignment of the LINES within a wrapped tick label's block
-	 * (only meaningful while `wrapTickLabels` is on — single-line labels have
-	 * nothing to align). The block itself stays anchored to its tick; absent
-	 * means the axis's natural alignment: centered under an x tick,
-	 * right-aligned against the y axis, left-aligned at the radar spoke. The
-	 * panel stores a value only when the user picks a NON-natural alignment,
-	 * so the "changed" dot stays honest. */
+	/** Tick-label alignment ("Align" in the Tick labels section; the field
+	 * keeps its historical name from when it applied to wrapped labels
+	 * only). Single-line labels align within the axis's shared label column
+	 * (y / r: as wide as the widest label) or at their tick (x); a wrapped
+	 * label aligns its lines within its block, which stays anchored to its
+	 * tick. Absent means the axis's natural alignment: centered under an x
+	 * tick, right-aligned against a left y axis (left-aligned against a
+	 * right one — see `side`), left-aligned at the radar spoke; rotated x
+	 * labels follow their anchor. The panel stores a value only when the
+	 * user picks a NON-natural alignment, so the "changed" dot stays
+	 * honest. */
 	wrapTickLabelAlign?: LabelAlignment
 	/** User-pinned domain bounds for a continuous (quantitative / temporal)
 	 * axis. `null` / absent means "auto-fit from the data" (the default).
