@@ -48,26 +48,32 @@ export const ThemePanel = () => {
 
 	const applyTheme = useAtomCallback(
 		useCallback(
-			(_get, set, themeId: string) => {
+			(get, set, themeId: string) => {
 				const saved = themes.find((t) => t.id === themeId)
 				if (!saved) return
 				const theme = themeOf(saved)
+				// The theme the visual is on NOW, resolved the way
+				// `useCurrentTheme` does (the live entry, else the legacy
+				// snapshot): the baseline the changed dots compare against.
+				const current = themes.find((t) => t.id === get(currentThemeIdAtom))
+				const from = current ? themeOf(current) : get(themeAtom)
 				// Snapshot values into the live editor — when the user moves on
 				// from a chart and saves, these become part of the Visual.
 				//
 				// Preserve user customizations when switching themes: only the
-				// fields the theme drives change (lib/themeSwitch.ts, shared
-				// with editVisual), so switching back to a prior theme restores
-				// the user's customizations rather than starting over.
+				// fields the theme drives change, and only those still at the
+				// outgoing theme's value (lib/themeSwitch.ts, shared with
+				// editVisual) — a point size or legend position the user set
+				// stays, exactly as its changed dot says it would.
 				set(themeAtom, theme)
-				set(currentChannelConfigsAtom, (prev) => rethemeChannelConfigs(prev, theme))
-				set(currentLabelsAtom, (prev) => rethemeLabels(prev, theme))
-				set(currentLegendConfigAtom, (prev) => rethemeLegend(prev, theme))
-				set(currentDataLabelsConfigAtom, (prev) => rethemeDataLabels(prev, theme))
-				set(currentCaptionConfigAtom, (prev) => rethemeCaption(prev, theme))
-				set(currentTooltipConfigAtom, (prev) => rethemeTooltip(prev, theme))
-				set(currentDataTableConfigAtom, (prev) => rethemeDataTable(prev, theme))
-				set(currentMapConfigAtom, (prev) => rethemeMap(prev, theme))
+				set(currentChannelConfigsAtom, (prev) => rethemeChannelConfigs(prev, theme, from))
+				set(currentLabelsAtom, (prev) => rethemeLabels(prev, theme, from))
+				set(currentLegendConfigAtom, (prev) => rethemeLegend(prev, theme, from))
+				set(currentDataLabelsConfigAtom, (prev) => rethemeDataLabels(prev, theme, from))
+				set(currentCaptionConfigAtom, (prev) => rethemeCaption(prev, theme, from))
+				set(currentTooltipConfigAtom, (prev) => rethemeTooltip(prev, theme, from))
+				set(currentDataTableConfigAtom, (prev) => rethemeDataTable(prev, theme, from))
+				set(currentMapConfigAtom, (prev) => rethemeMap(prev, theme, from))
 				set(currentThemeIdAtom, themeId)
 			},
 			[themes]

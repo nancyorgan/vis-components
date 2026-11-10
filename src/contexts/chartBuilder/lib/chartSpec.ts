@@ -94,6 +94,12 @@ export type ComposeDeps = {
 	/** The theme the result is styled under: on an edit naming `themeId`,
 	 * the theme that id names. */
 	theme: Theme
+	/** On an edit naming `themeId`: the theme the visual is styled under
+	 * BEFORE the edit (the one its stored `themeId` names, else the
+	 * default). Lets the re-theme keep every setting the user moved off
+	 * that theme, as the Theme panel does; absent, every theme-driven
+	 * field follows the new theme. */
+	fromTheme?: Theme
 	/** When given, a `folderId` outside it is a problem. */
 	folderIds?: ReadonlySet<string>
 	/** The dataset's latest version, stamped as `createdAtVersionId` the way
@@ -491,18 +497,19 @@ export const editVisual = (
 	const stored = foldFlowNodeTitles(structureVisualKeys(base))
 	const hydrated = hydrateVisual(stored)
 	const theme = deps.theme
+	const from = deps.fromTheme ?? null
 	const draft =
 		typeof patch.themeId === "string"
 			? {
 					...hydrated,
-					channelConfigs: rethemeChannelConfigs(hydrated.channelConfigs, theme),
-					labelsConfig: rethemeLabels(hydrated.labelsConfig, theme),
-					legendConfig: rethemeLegend(hydrated.legendConfig, theme),
-					dataLabelsConfig: rethemeDataLabels(hydrated.dataLabelsConfig, theme),
-					captionConfig: rethemeCaption(hydrated.captionConfig, theme),
-					tooltipConfig: rethemeTooltip(hydrated.tooltipConfig, theme),
-					dataTableConfig: rethemeDataTable(hydrated.dataTableConfig, theme),
-					mapConfig: rethemeMap(hydrated.mapConfig, theme),
+					channelConfigs: rethemeChannelConfigs(hydrated.channelConfigs, theme, from),
+					labelsConfig: rethemeLabels(hydrated.labelsConfig, theme, from),
+					legendConfig: rethemeLegend(hydrated.legendConfig, theme, from),
+					dataLabelsConfig: rethemeDataLabels(hydrated.dataLabelsConfig, theme, from),
+					captionConfig: rethemeCaption(hydrated.captionConfig, theme, from),
+					tooltipConfig: rethemeTooltip(hydrated.tooltipConfig, theme, from),
+					dataTableConfig: rethemeDataTable(hydrated.dataTableConfig, theme, from),
+					mapConfig: rethemeMap(hydrated.mapConfig, theme, from),
 				}
 			: hydrated
 	const known = new Map(deps.fields.map((f) => [f.name, f.type]))

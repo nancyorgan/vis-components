@@ -254,6 +254,22 @@ describe("editVisual", () => {
 		expect(visual.channelConfigs.hue).toMatchObject({ colors: { North: "#ff0000" } })
 	})
 
+	it("with the stored theme as baseline, a themeId keeps the user's picks", () => {
+		const b = editVisual(
+			base(),
+			{ settings: { channelConfigs: { defaultRadius: 14 }, legendConfig: { position: "left" } } },
+			deps
+		).visual
+		const theme = { ...LIGHT_THEME_BASE, defaultRadius: 3, defaultFill: "#abcdef", legendPosition: "bottom" as const }
+		const { visual, problems } = editVisual(b, { themeId: "t-2" }, { ...deps, theme, fromTheme: LIGHT_THEME_BASE })
+		expect(problems).toEqual([])
+		expect(visual.channelConfigs.defaultRadius).toBe(14)
+		expect(visual.legendConfig?.position).toBe("left")
+		expect(visual.channelConfigs.defaultFill).toBe("#abcdef")
+		// No baseline: every theme-driven field follows, the old behavior.
+		expect(editVisual(b, { themeId: "t-2" }, { ...deps, theme }).visual.channelConfigs.defaultRadius).toBe(3)
+	})
+
 	it("refuses templates and trashed rows", () => {
 		const template = { ...base(), template: {} } as Visual
 		expect(editVisual(template, { title: "x" }, deps).problems).toHaveLength(1)

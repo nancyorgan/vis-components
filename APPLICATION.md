@@ -876,9 +876,11 @@ Templates share the visual name namespace. A template's thumbnail is
 copied from the visual it was saved from and never recaptured (no data
 set → nothing to draw).
 
-**Saving one.** Export → **Save as template** (beside Download JSON;
-the Export modal only exists for a saved visual) asks for a name and a
-destination folder through the same dialog New uses. The name box starts
+**Saving one.** The editor's Save button is a split button for a
+saved visual; its arrow ("More ways to save") opens a menu whose
+**Save as template…** item asks for a name and a destination folder
+through the same dialog New uses (a draft has no arrow — nothing is
+saved to build a template from). The name box starts
 as "<visual name> template" (templates share the visual namespace, so
 the bare name would always collide) and the folder list starts on the
 visual's own folder. When the open visual was started from a template
@@ -2534,8 +2536,11 @@ setting:
 active theme's value, or a built-in default for things not stored in
 the theme (e.g., stacked-vs-overlay, line-vs-area). The comparison is
 **live against the current theme**: switching themes re-evaluates every
-dot. Mapping a field to a channel is NOT a change (no dot) — only
-customizing a setting is. Chart-type toggles (line ↔ area) DO count.
+dot. The same comparison decides what a theme switch restyles (§12): a
+theme-driven control with no dot follows the new theme; one with a dot
+is the user's pick and keeps its value. Mapping a field to a channel is
+NOT a change (no dot) — only customizing a setting is. Chart-type
+toggles (line ↔ area) DO count.
 
 ---
 
@@ -4702,7 +4707,7 @@ the table existed has no config, which reads as off.
 **In image exports only on request.** By default an image export is the
 chart alone at the requested size: the export preview (and the library's
 thumbnail refresh) load the embed page with `table=off`. While the
-visual has a table on, Export image offers an **Include data table**
+visual has a table on, the Download image tab offers an **Include data table**
 checkbox (off by default, not saved). Checked, the preview loads the
 embed with `table=image`: the chart at the requested size and, under
 it, the table as a static "Below the chart" block whatever its
@@ -5274,6 +5279,20 @@ tooltip and a three-row data table drawn with the live renderers' own
 classes and style helpers, so the theme's Tooltips box and Data tables
 look (and the Auto colors' light / dark fallbacks) match a real chart.
 All three redraw live as fields are edited.
+
+**Switching the theme of a visual** (the Theme panel, or an API edit
+naming a `themeId`) changes the visual's defaults, never a setting the
+user made. Only theme-driven fields are touched at all (fonts, palettes,
+default fill / shape / size / opacity, chart background, panel border,
+legend placement and border, hover look, data-label and caption text,
+data-table flags, map no-data colors), and each of those follows the
+new theme only while it still sits at the outgoing theme's value: a
+point size, legend position or title family the user set stays, exactly
+as its changed dot (§4.6) says it would, and its reset link then
+restores the NEW theme's value. Titles, alignments, per-category
+overrides, hue configurations, annotations and every other user-driven
+field are never touched. An API edit that supplies no outgoing theme
+re-seeds every theme-driven field.
 Theme settings:
 
 - **Categorical palettes** — list of named palettes, each with colors
@@ -5448,8 +5467,8 @@ A small catch-all panel:
 - **Chart background color** — transparent, theme default, or custom.
   Fresh charts start on the theme default (transparent when the theme
   declares no background), and switching themes in the editor re-seeds
-  it from the new theme — replacing a custom pick — like the legend
-  background.
+  it from the new theme when it is still on the old theme's value — a
+  custom pick stays (§12) — like the legend background.
 - **Canvas size** — a "Set canvas size" checkbox that, when on, draws
   the chart inside a fixed Width × Height rectangle (starting at the
   theme's Exporting ▸ Canvas size, else 1000 × 600; px / in / cm display
@@ -5848,20 +5867,39 @@ the source visual's dataset version changes.
 ### Export & embed
 
 One modal ("Export this visualization", `components/ExportModal.tsx`)
-with two tabs and, at the left of the tab row, a **Download JSON**
-button. Download JSON isn't a tab — it writes this one visualization
-(with its data set, folder chain and custom theme) as a library bundle
-immediately, the same file the library page's bulk **Download**
-produces and Settings → Sharing imports, named after the *saved*
-visual. The build reads through the storage adapter, so it is correct
-in server mode too; failures report beside the button.
+with two tabs named by what the user wants: **Download image** (a
+file) and **Publish** (a public copy to link from slides, documents
+and web pages). An open lands on Publish when the visual is already
+published, Download image otherwise. The Download image tab ends with a **Zafiro
+bundle (.json)** row whose **Download bundle** button writes this one
+visualization (with its data set, folder chain and custom theme) as a
+library bundle immediately, the same file the library page's bulk
+**Download** produces and Settings → Sharing imports, named after the
+*saved* visual. The build reads through the storage adapter, so it is
+correct in server mode too; failures report beside the button.
 
-**Embed** produces `<iframe>` snippets pointing at
+**Publish** opens with the state of the pin it shows —
+"Not published yet", or "Published · latest data · Nov 10, 2:45 PM"
+(or "· pinned to v2, Nov 9 …") — with **Publish** / **Republish** and
+**Unpublish** beside it, then one line naming the figure size every
+publish captures and the iframe defaults to: the on-screen figure's,
+"from Aesthetics → Canvas size" when that is on, else "follows your
+window: W × H px now. Fix it under Aesthetics → Canvas size." A
+**Change…** link closes the dialog and jumps the sidebar to that
+subsection. The Download image tab's Width / Height never touch this size
+(its caption says so). Then **Data** (the pin choice, below), the
+Republish-on-every-save checkbox once something is published, and the
+two ways to use the copy, pictures first: **Picture link** (SVG then
+PNG, see "Linked pictures") and **Web page**, which holds the
+**Legend as a separate iframe** checkbox (it shapes the next publish),
+the `<iframe>` snippet(s) and **Open published page in new tab**.
+
+The web page is an `<iframe>` snippet pointing at
 `/embed/<visualId>` on the same origin (cross-origin embedding is not
-supported, and the tab says so). A **Pin behavior** radio chooses
+supported, and the tab says so). A **Data** radio chooses
 between *live updating* (always renders the dataset's latest version)
-and *pinned* (appends `?v=<versionId>`, frozen forever). A **Render
-legend as a separate iframe** checkbox splits the output into two
+and *pinned* (appends `?v=<versionId>`, frozen forever). The **Legend
+as a separate iframe** checkbox splits the output into two
 snippets — `?part=chart` and `?part=legend` — so the legend can be
 placed independently in the host page. Iframe dimensions are seeded
 by measuring the live on-screen chart / plot area / legend subtree, so
@@ -5894,8 +5932,8 @@ failed; a later success clears it). Pins publish one after another,
 never at once, because each publish captures the on-screen figure for
 its picture. Clicks that land mid-run never stack: a run that is asked
 again finishes and goes once more, so a burst ends with exactly one
-up-to-date publish. Once the visual has a published pin, the Embed tab
-adds a **Republish on every save** checkbox (whichever pin the tab is
+up-to-date publish. Once the visual has a published pin, the Publish
+tab adds a **Republish on every save** checkbox (whichever pin the tab is
 showing): every autosave this user makes then republishes EVERY
 published pin of the visual — "so edits reach embedded pages and decks
 as you make them" — through the same coalesced run. It is PER USER
@@ -5922,8 +5960,10 @@ for anything that keeps vectors sharp when zoomed or printed (slides,
 PDF, print). Both URLs are stable per published pin —
 `…/embeds/<publishId>/image.png` and `image.svg` — and both are
 replaced on every republish, so a link pasted into a deck shows the
-current chart. The Embed tab's **Linked picture (experimental)** block
-lists the two links with Copy buttons. Either upload may fail without
+current chart. The Publish tab's **Picture link** block ("For
+PowerPoint, Word, Google Slides, email") lists the SVG link ("Sharp at
+any size; best for PDF and print") above the PNG ("Looks the same
+everywhere"), each with a Copy button. Either upload may fail without
 failing the publish (the embed is already live); the block then says
 "Picture didn't publish. Republish to retry." for that format, with
 the reason underneath when this session saw it fail (for example "No
@@ -5955,8 +5995,11 @@ for a publish the user just made from the Export modal, and the frame
 costs no layout (an inset shadow, not a border) so it can't shift the
 export/embed size defaults measured off the viewport.
 
-**Export image** renders the chart in a preview iframe and saves
-it as **PNG**, **JPEG**, **SVG**, or **PDF**:
+**Download image** renders the chart in a preview iframe and saves it as
+**PNG**, **JPEG**, **SVG**, or **PDF** (the button reads "Download
+PNG" and so on); its Width / Height size the file only, and a caption
+under the controls says so and names where the published size comes
+from:
 
 - **Include data table** — shown only while the visual has a data
   table on; adds the table under the chart (§10b).
@@ -6108,7 +6151,7 @@ its arrow segment opens a menu — in the editor with a data set bound,
 **New with this data set** (keeps the data, clears encodings and
 styling) and **New with a new data set** (a clean slate, like the
 main segment), and everywhere **Import from JSON…**, which opens the
-file picker for a bundle or a single visual's Download JSON (the same
+file picker for a bundle or a single visual's Download bundle (the same
 format) and runs exactly the merge above (`store/importBundle.ts`,
 shared with the Sharing page).
 
@@ -6134,7 +6177,7 @@ root, never a dangling id. Until that first save the editor's folder
 breadcrumbs already show the pick. For the import, the file is chosen
 first (the native picker has no room for a question) and the dialog
 follows once there is something to place: the name box appears only
-when the file holds exactly ONE visual (a single "Download JSON"),
+when the file holds exactly ONE visual (a single "Download bundle"),
 seeded with that visual's name — a library bundle has nothing to call
 by one name — and a clash there only warns, since an import may
 duplicate by design. Both answers go to the merge as described above.

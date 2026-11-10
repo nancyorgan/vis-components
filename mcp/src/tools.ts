@@ -299,15 +299,19 @@ export const createHandlers = (api: Api) => {
 				return refused("the chart wasn't changed", [{ path: "", message: STOCK_FOLDER }])
 			const meta = await datasetMeta(base.datasetId)
 			// A new theme must exist; a visual whose stored theme is gone
-			// renders under the default, so edit against that too.
+			// renders under the default, so edit against that too. The
+			// stored theme is also the baseline a re-theme diffs against, so
+			// settings the user moved off it stay (as in the Theme panel).
 			const wanted = typeof patch.themeId === "string" ? await resolveTheme(patch.themeId) : null
 			if (wanted && !("id" in wanted)) return refused("the chart wasn't changed", [wanted])
-			const named = wanted ?? (await resolveTheme(base.themeId))
-			const theme = "id" in named ? named : await defaultTheme()
+			const stored = await resolveTheme(base.themeId)
+			const current = "id" in stored ? stored : await defaultTheme()
+			const theme = wanted ?? current
 			const edit = wanted ? { ...patch, themeId: theme.id } : patch
 			const { visual, problems, warnings } = editVisual(base, edit, {
 				fields: meta ? fieldsOf(meta) : [],
 				theme: themeOf(theme),
+				fromTheme: themeOf(current),
 				latestVersionId: meta?.latestVersionId ?? null,
 				rows: await rowsFor(meta, patch.settings),
 			})

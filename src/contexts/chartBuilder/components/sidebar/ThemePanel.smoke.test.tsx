@@ -33,13 +33,25 @@ const MINE: SavedTheme = {
 	managed: false,
 }
 
+/** Light with its own fill and point size, so a switch to it has a
+ *  visible "follows" case for each. */
+const OTHER: SavedTheme = {
+	...SYSTEM_LIGHT_THEME,
+	id: "th-other",
+	name: "Other theme",
+	isSystem: false,
+	managed: false,
+	defaultFill: "#123456",
+	defaultRadius: SYSTEM_LIGHT_THEME.defaultRadius + 20,
+}
+
 const mount = (activeThemeId: string) => {
 	installInMemoryLocalStorage()
 	let store: TestStore | null = null
 	const view = render(
 		<TestProvider
 			initializeState={(s) => {
-				s.set(themesAtom, [SYSTEM_LIGHT_THEME, SYSTEM_DARK_THEME, MINE])
+				s.set(themesAtom, [SYSTEM_LIGHT_THEME, SYSTEM_DARK_THEME, MINE, OTHER])
 				s.set(currentThemeIdAtom, activeThemeId)
 				s.set(userDefaultThemeIdAtom, SYSTEM_LIGHT_THEME.id)
 				store = s
@@ -105,11 +117,45 @@ describe("ThemePanel applyTheme chart background", () => {
 		const { store } = mount(SYSTEM_DARK_THEME.id)
 		store.set(currentChannelConfigsAtom, {
 			...store.get(currentChannelConfigsAtom),
-			backgroundColor: "#040038",
+			backgroundColor: SYSTEM_DARK_THEME.chartBackgroundColor,
 		})
 		fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
 			target: { value: SYSTEM_LIGHT_THEME.id },
 		})
 		expect(store.get(currentChannelConfigsAtom).backgroundColor).toBeNull()
+	})
+})
+
+/** The theme changes the defaults, never a setting the user made: a
+ * slot moved off the current theme's value is a pick and survives the
+ * switch (lib/themeSwitch.ts), while its untouched siblings follow. */
+describe("ThemePanel applyTheme keeps user picks", () => {
+	it("keeps a hand-set point size and custom background; follows the fill", () => {
+		const { store } = mount(SYSTEM_LIGHT_THEME.id)
+		store.set(currentChannelConfigsAtom, {
+			...store.get(currentChannelConfigsAtom),
+			defaultRadius: SYSTEM_LIGHT_THEME.defaultRadius + 5,
+			backgroundColor: "#fffbe6",
+			defaultFill: SYSTEM_LIGHT_THEME.defaultFill,
+		})
+		fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
+			target: { value: OTHER.id },
+		})
+		const next = store.get(currentChannelConfigsAtom)
+		expect(next.defaultRadius).toBe(SYSTEM_LIGHT_THEME.defaultRadius + 5)
+		expect(next.backgroundColor).toBe("#fffbe6")
+		expect(next.defaultFill).toBe("#123456")
+	})
+
+	it("follows the new point size when the old one was untouched", () => {
+		const { store } = mount(SYSTEM_LIGHT_THEME.id)
+		store.set(currentChannelConfigsAtom, {
+			...store.get(currentChannelConfigsAtom),
+			defaultRadius: SYSTEM_LIGHT_THEME.defaultRadius,
+		})
+		fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
+			target: { value: OTHER.id },
+		})
+		expect(store.get(currentChannelConfigsAtom).defaultRadius).toBe(OTHER.defaultRadius)
 	})
 })
