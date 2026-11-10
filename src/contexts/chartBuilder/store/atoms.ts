@@ -1093,6 +1093,12 @@ export type SidebarJumpTarget = {
 }
 export const sidebarJumpTargetAtom = atom<SidebarJumpTarget | null>(null)
 
+/** The Facet row's "Two variables…" pick, from the moment it's chosen
+ *  until a side is mapped or the dropdown leaves it. Keeps the Facet
+ *  panel's Row / Column pickers up while the pair is still
+ *  empty (nothing stored yet says "pair"). Session UI state, not saved. */
+export const facetPairOpenAtom = atom(false)
+
 /** Which library folders are collapsed. Missing id = expanded. Persisted so
  * the tree keeps its shape across editor round-trips and reloads, and synced
  * across tabs so a stale library tab can't save its old set over a newer one. */

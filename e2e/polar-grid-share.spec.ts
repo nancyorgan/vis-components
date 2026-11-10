@@ -6,7 +6,7 @@ import { seedFixtureScript, type SeedFixture } from "./seed"
  *  Grid mode = facetRow + facetCol both mapped. The wrap panel is
  *  hidden (it early-returns when its channel isn't mapped), so users
  *  can't directly set `shareR` from the polar 4-state picker. They use
- *  the cartesian Facet (row) picker which writes `shareY`. The polar
+ *  the cartesian Rows share picker which writes `shareY`. The polar
  *  runtime migrates `shareY` → `shareR` via `migratePolarShareValue`
  *  when `shareR` is unset.
  *

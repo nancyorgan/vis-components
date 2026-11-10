@@ -21,7 +21,15 @@ import { QuickStartIconBar } from "./QuickStartIconBar"
 // next to the universal outline color, rather than as its own shelf row —
 // see ShapeOptionsPanel. It stays a first-class channel for legend/scale
 // purposes; this just keeps it out of the main shelf.
-const HIDDEN_FROM_MAIN_SHELF = new Set<string>(["text", "outlineHue"])
+// `facetRow` / `facetCol` are the two sides of the Facet row's "Two
+// variables…" pair — the Facet row itself renders their Rows / Columns
+// pickers (see EncodingShelf), so they have no row of their own.
+const HIDDEN_FROM_MAIN_SHELF = new Set<string>([
+	"text",
+	"outlineHue",
+	"facetRow",
+	"facetCol",
+])
 
 export const EncodingShelves = () => {
 	return (

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 import { seedFixtureScript, type SeedFixture } from "./seed"
 
-/** Verify Size [rows/cols] by ___ toggles in the Facet (row) / Facet
+/** Verify Size [rows/cols] by ___ toggles in the two-variable Facet
  *  (col) panels:
  *
  *   1. Cartesian grid mode: row-panel sizing should fold row heights

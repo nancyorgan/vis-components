@@ -19,6 +19,12 @@ import {
 	packedSourceOf,
 } from "../../lib/packedMeasure"
 import { isBarModeId, isHierarchyModeId } from "../../lib/chartModes/families"
+import {
+	FACET_PAIR_OPTION_VALUE,
+	facetPairMapped,
+	withFacetPairEntered,
+	withSingleFacet,
+} from "../../lib/facetEncoding"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import {
 	channelHasCustomization,
@@ -30,6 +36,7 @@ import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
+	facetPairOpenAtom,
 	quickStartStateAtom,
 	sidebarJumpTargetAtom,
 } from "../../store/atoms"
@@ -72,6 +79,15 @@ export const EncodingShelf = ({ channel }: Props) => {
 	const theme = useCurrentTheme()
 	const setQuickStartState = useSetAtom(quickStartStateAtom)
 	const [pendingConflict, setPendingConflict] = useState<string | null>(null)
+	// The Facet row is ONE encoding over three stored channels: a field maps
+	// the wrap channel (`facet`); "Two variables…" hands the Row / Column
+	// pickers at the top of the Facet options panel `facetRow` /
+	// `facetCol` (lib/facetEncoding). The pair stays open while either side
+	// is mapped — and, through this atom, from the moment it's chosen until
+	// a side is picked or the dropdown leaves it, so an empty pair doesn't
+	// snap back to the single picker.
+	const [facetPairOpen, setFacetPairOpen] = useAtom(facetPairOpenAtom)
+	const setJumpTarget = useSetAtom(sidebarJumpTargetAtom)
 
 	// A manual channel edit means the current encoding state is no longer a
 	// pristine scaffold — clear the flag so the next quick-start icon click
@@ -87,6 +103,11 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// was added) may not have every channel key in `encodings`. Fall back to
 	// `null` rather than crashing on `.field`.
 	const value = encodings[channel]?.field ?? null
+	// An empty pair yields to a wrap variable mapped from elsewhere (a
+	// quick-start scaffold, a template) — the dropdown then shows the field.
+	const facetPair =
+		channel === "facet" &&
+		(facetPairMapped(encodings) || (facetPairOpen && !value))
 	// Packed-circles derived variables ("Top-level group" / "Nesting depth")
 	// appear right in this dropdown alongside dataset fields. They live in
 	// `measureSource` (mutually exclusive with `field` — assigning a field
@@ -197,6 +218,20 @@ export const EncodingShelf = ({ channel }: Props) => {
 			return
 		}
 		const newField = fieldName === "" ? null : fieldName
+		if (channel === "facet") {
+			if (fieldName === FACET_PAIR_OPTION_VALUE) {
+				setEncodings((prev) => withFacetPairEntered(prev))
+				setFacetPairOpen(true)
+				// The pickers live in the options panel — open it so the next
+				// step is in view (same path a sidebar jump link takes).
+				setJumpTarget({ section: "Encodings", channel: "facet" })
+			} else {
+				setEncodings((prev) => withSingleFacet(prev, newField))
+				setFacetPairOpen(false)
+			}
+			clearScaffoldFlag()
+			return
+		}
 		// Clearing never conflicts — only assigning a non-null field triggers
 		// the override dialog.
 		if (newField && hasConflictBlock) {
@@ -331,7 +366,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// can scan a long encoding list and immediately see which channels
 	// are in use without expanding each disclosure.
 	const selectClass = `min-w-0 flex-1 ${
-		value || derivedSource || hexbinSource
+		value || derivedSource || hexbinSource || facetPair
 			? "text-vc-section-header font-semibold"
 			: "vc-text"
 	}`
@@ -339,6 +374,9 @@ export const EncodingShelf = ({ channel }: Props) => {
 	const fieldOptions = [
 		{ value: "", label: "— none —" },
 		...constrainedEligible.map((f) => ({ value: f.name, label: f.name })),
+		...(channel === "facet"
+			? [{ value: FACET_PAIR_OPTION_VALUE, label: "Two variables…" }]
+			: []),
 		...derivedOptions.map(({ value: v, label }) => ({ value: v, label })),
 		// A derived selection can outlive its gating (e.g. connection was
 		// unmapped, dropping the chart out of packed mode). Keep the selected
@@ -393,11 +431,13 @@ export const EncodingShelf = ({ channel }: Props) => {
 				label={ENCODING_CHANNEL_LABELS[channel]}
 				labelClassName={blockedByConflict ? `${LABEL_COL} italic` : LABEL_COL}
 				value={
-					derivedSource
-						? PACKED_MEASURE_OPTION_VALUE[derivedSource]
-						: hexbinSource
-							? HEXBIN_MEASURE_OPTION_VALUE
-							: (value ?? "")
+					facetPair
+						? FACET_PAIR_OPTION_VALUE
+						: derivedSource
+							? PACKED_MEASURE_OPTION_VALUE[derivedSource]
+							: hexbinSource
+								? HEXBIN_MEASURE_OPTION_VALUE
+								: (value ?? "")
 				}
 				options={fieldOptions}
 				onChange={(next) => onChange(next)}

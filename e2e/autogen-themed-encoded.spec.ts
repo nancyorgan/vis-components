@@ -1014,12 +1014,7 @@ const setEncoding = async (
 	field: string,
 ): Promise<void> => {
 	const encodingsPanel = page.locator('[id="aside-section-encodings"]')
-	// The facet channel's control label is "Facet (wrap)" (see CHANNELS in
-	// lib/channels.ts); scenarios refer to it as "Facet" for brevity. Map it
-	// through so the exact-match getByLabel actually finds the select —
-	// otherwise the Facet field is silently never mapped and nothing facets.
-	const label = channel === "Facet" ? "Facet (wrap)" : channel
-	const select = encodingsPanel.getByLabel(label, { exact: true })
+	const select = encodingsPanel.getByLabel(channel, { exact: true })
 	if ((await select.count()) === 0) return
 	await select.selectOption(field).catch(() => {})
 }
@@ -1066,7 +1061,7 @@ const setTitle = async (
 const expandFacetOptions = async (page: Page): Promise<void> => {
 	const encodingsPanel = page.locator('[id="aside-section-encodings"]')
 	const btn = encodingsPanel.getByRole("button", {
-		name: /Toggle options for Facet \(wrap\)/,
+		name: "Toggle options for Facet",
 	})
 	if ((await btn.count()) === 0) return
 	const expanded = await btn.getAttribute("aria-expanded")

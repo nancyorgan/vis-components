@@ -136,7 +136,7 @@ export const resolvePanelRenderInputs = ({
 				? rowRowsByRowKey.get(panelRowKey) ?? undefined
 				: undefined
 	// Per-group axis-range overrides (Phase 2 refinement).
-	// Surfaced as inputs in Facet (row) / Facet (col) panels
+	// Surfaced as inputs in the Facet panel
 	// only when shareY/shareX === "perGroup" AND the variable
 	// is continuous; the same gate applies here so we don't
 	// silently constrain scales for a hidden control.

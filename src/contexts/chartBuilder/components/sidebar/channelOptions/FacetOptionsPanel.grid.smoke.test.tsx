@@ -20,15 +20,14 @@ import {
 	previewVersionIdAtom,
 } from "../../../store/atoms"
 
-import { FacetColOptionsPanel } from "./FacetColOptionsPanel"
-import { FacetRowOptionsPanel } from "./FacetRowOptionsPanel"
+import { FacetOptionsPanel } from "./FacetOptionsPanel"
 
-/** Smoke coverage for the shared `FacetAxisOptionsPanel` core behind the
- *  facetRow / facetCol wrappers: each panel carries BOTH axis
- *  subsections (own axis first) writing the grid-wide share bits, the
- *  per-group range editor keys off facet values, the panel-dim input
- *  follows the focus-fill pattern, and the intentional row/col
- *  asymmetry (pies have no row axis) survives. */
+/** Smoke coverage for the Facet panel's two-variable body
+ *  (`FacetGridPanel`, rendered while `facetRow` / `facetCol` is mapped):
+ *  Rows then Columns subsections writing the grid-wide share bits, the
+ *  per-group range editor keyed off facet values, the panel-dim inputs
+ *  following the focus-fill pattern, and the row/col asymmetry (pies
+ *  have no row axis). */
 
 // Explicit cleanup: this file imports vitest APIs directly (no globals), so
 // testing-library's automatic afterEach unmount never registers.
@@ -111,71 +110,48 @@ const expand = (
 	fireEvent.click(header)
 }
 
-describe("FacetAxisOptionsPanel — both axes on both panels", () => {
-	it("each panel offers Rows AND Columns, own axis first, writing the shared grid-wide share bits", () => {
+describe("FacetOptionsPanel (two variables) — both axes", () => {
+	it("offers Rows, then Columns, then spacing — one panel writing the grid-wide share bits", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs(),
-			<>
-				<FacetRowOptionsPanel />
-				<FacetColOptionsPanel />
-			</>,
+			<FacetOptionsPanel />,
 		)
-		// Own axis first: row panel = Rows, Columns, Panel spacing and sizing; col
-		// panel = Columns, Rows, Panel spacing and sizing.
 		const headers = utils
 			.getAllByRole("button", { name: /^(rows|columns|panel spacing and sizing)$/i })
 			.map((b) => b.textContent?.trim())
-		expect(headers).toEqual([
-			"Rows",
-			"Columns",
-			"Panel spacing and sizing",
-			"Columns",
-			"Rows",
-			"Panel spacing and sizing",
-		])
-		expand(utils, /rows/i, 0)
-		expand(utils, /rows/i, 1)
-		expand(utils, /columns/i, 0)
-		expand(utils, /columns/i, 1)
+		expect(headers).toEqual(["Rows", "Columns", "Panel spacing and sizing"])
+		expand(utils, /^rows$/i)
+		expand(utils, /^columns$/i)
 
-		// DOM order: row panel's Y picker, then the col panel's Y picker.
-		const yGroups = utils.getAllByRole("radiogroup", { name: "Share Y axis" })
-		const xGroups = utils.getAllByRole("radiogroup", { name: "Share X axis" })
-		expect(yGroups).toHaveLength(2)
-		expect(xGroups).toHaveLength(2)
+		const yGroup = utils.getByRole("radiogroup", { name: "Share Y axis" })
+		const xGroup = utils.getByRole("radiogroup", { name: "Share X axis" })
 		// 2x2 grid → the per-group option surfaces on both, axis-named.
-		expect(within(yGroups[0]!).getByRole("radio", { name: "Per row" })).toBeTruthy()
-		expect(
-			within(xGroups[1]!).getByRole("radio", { name: "Per column" }),
-		).toBeTruthy()
+		expect(within(yGroup).getByRole("radio", { name: "Per row" })).toBeTruthy()
+		expect(within(xGroup).getByRole("radio", { name: "Per column" })).toBeTruthy()
 
-		// Clicking "None" on the COL panel's Y picker writes shareY — the
-		// row panel's Y picker follows (one config bit) and neither X
-		// picker moves (they write shareX).
-		fireEvent.click(within(yGroups[1]!).getByRole("radio", { name: "None" }))
-		for (const g of yGroups) {
-			expect(
-				within(g).getByRole("radio", { name: "None" }).getAttribute("aria-checked"),
-			).toBe("true")
-		}
-		for (const g of xGroups) {
-			expect(
-				within(g)
-					.getByRole("radio", { name: "All panels" })
-					.getAttribute("aria-checked"),
-			).toBe("true")
-		}
+		// Clicking "None" on the Y picker writes shareY and leaves shareX.
+		fireEvent.click(within(yGroup).getByRole("radio", { name: "None" }))
+		expect(
+			within(yGroup).getByRole("radio", { name: "None" }).getAttribute("aria-checked"),
+		).toBe("true")
+		expect(
+			within(xGroup)
+				.getByRole("radio", { name: "All panels" })
+				.getAttribute("aria-checked"),
+		).toBe("true")
+		expect(lastStore!.get(currentChannelConfigsAtom).facet?.shareY).toBe("none")
+		expect(lastStore!.get(currentChannelConfigsAtom).facet?.shareX).toBe("all")
 	})
 
 	it("shows the overall range under share=all and the per-group editor under perGroup", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs({ shareY: "perGroup" }),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
-		expand(utils, /columns/i)
+		expand(utils, /^rows$/i)
+		expand(utils, /^columns$/i)
 
 		// Row axis (perGroup): per-row editor keyed by facet values.
 		expect(utils.getByText("Y axis range per row")).toBeTruthy()
@@ -192,9 +168,9 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 		const utils = mount(
 			scatterEncodings({ facetCol: { field: null } }),
 			facetConfigs({ shareX: "none" }),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /columns/i)
+		expand(utils, /^columns$/i)
 		expect(utils.getByText("X axis range per panel")).toBeTruthy()
 		expand(utils, /X axis range per panel/i)
 		expect(utils.getByText("North")).toBeTruthy()
@@ -210,9 +186,9 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs({ shareY: "none" }),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expect(utils.getByText("Y axis range per panel")).toBeTruthy()
 		expand(utils, /Y axis range per panel/i)
 		expect(utils.getByText("North · Left")).toBeTruthy()
@@ -228,9 +204,9 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 				// the first edit replaces it, so one source of truth remains.
 				panelAxisOverrides: { "North|Left": { yMax: 9 } },
 			}),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expand(utils, /Y axis range per panel/i)
 		const mins = utils.getAllByLabelText("Min") as HTMLInputElement[]
 		// Four panels (North/South × Left/Right), listed row-major.
@@ -249,9 +225,9 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs({ shareY: "none" }),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expand(utils, /Y axis range per panel/i)
 		// One checkbox per listed panel; no tick box until one is checked.
 		const boxes = utils.getAllByLabelText(/^Replace ticks for /)
@@ -279,9 +255,9 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs({ shareY: "all", overallYRange: { min: 0 } }),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		fireEvent.click(utils.getByRole("checkbox", { name: /replace ticks/i }))
 		const ticks = utils.getByLabelText("Ticks at") as HTMLInputElement
 		fireEvent.change(ticks, { target: { value: "0, 10" } })
@@ -296,7 +272,7 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs(),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
 		expand(utils, /panel spacing and sizing/i)
 		const input = utils.getByLabelText(/Panel height/) as HTMLInputElement
@@ -314,7 +290,7 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs(),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
 		expand(utils, /panel spacing and sizing/i)
 		// Auto (null) → no reset link to click.
@@ -334,8 +310,8 @@ describe("FacetAxisOptionsPanel — both axes on both panels", () => {
 	})
 })
 
-describe("FacetAxisOptionsPanel — preserved asymmetries", () => {
-	it("row panel shows the no-row-axis hint on pies but still offers the Columns (angle) picker", () => {
+describe("FacetOptionsPanel (two variables) — preserved asymmetries", () => {
+	it("shows the no-row-axis hint on pies but still offers the Columns (angle) picker", () => {
 		const utils = mount(
 			{
 				...emptyEncodings(),
@@ -344,61 +320,75 @@ describe("FacetAxisOptionsPanel — preserved asymmetries", () => {
 				facetCol: { field: "colcat" },
 			},
 			facetConfigs(),
-			<>
-				<FacetRowOptionsPanel />
-				<FacetColOptionsPanel />
-			</>,
+			<FacetOptionsPanel />,
 		)
 		expect(utils.getByText(/no row axis to configure/i)).toBeTruthy()
 		expect(utils.queryByRole("button", { name: /^rows$/i })).toBeNull()
-		// The row panel still surfaces Vertical gap (panel layout applies to pies).
-		expand(utils, /panel spacing and sizing/i, 0)
+		// Spacing still applies to pies.
+		expand(utils, /panel spacing and sizing/i)
 		expect(utils.getByLabelText(/Vertical gap/)).toBeTruthy()
-
-		// Both panels carry the Columns subsection with the angle picker:
-		// the row panel no longer has to point the user elsewhere.
-		expand(utils, /columns/i, 0)
-		expand(utils, /columns/i, 1)
-		expect(
-			utils.getAllByRole("radiogroup", { name: "Share Angle axis" }),
-		).toHaveLength(2)
+		expand(utils, /^columns$/i)
+		expect(utils.getByRole("radiogroup", { name: "Share Angle axis" })).toBeTruthy()
 	})
 
-	it("shows the map-a-field hint when the facet channel is unmapped", () => {
+	it("shows the map-a-variable hint when no facet channel is mapped", () => {
 		const utils = mount(
-			scatterEncodings({ facetRow: undefined }),
+			scatterEncodings({ facetRow: { field: null }, facetCol: { field: null } }),
 			facetConfigs(),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expect(utils.getByText(/Map a categorical field to Facet \(row\)/)).toBeTruthy()
+		expect(utils.getByText(/Map a categorical or ordinal variable to Facet/)).toBeTruthy()
+	})
+
+	it("the Row / Column pickers head the panel; Columns never offers Rows' variable", () => {
+		const utils = mount(scatterEncodings(), facetConfigs(), <FacetOptionsPanel />)
+		const rows = utils.getByLabelText("Row") as HTMLSelectElement
+		const cols = utils.getByLabelText("Column") as HTMLSelectElement
+		expect(rows.value).toBe("rowcat")
+		expect(cols.value).toBe("colcat")
+		expect(Array.from(cols.options).map((o) => o.textContent)).toEqual([
+			"— none —",
+			"colcat",
+		])
+		fireEvent.change(cols, { target: { value: "" } })
+		const after = lastStore!.get(currentEncodingsAtom)
+		expect([after.facet.field, after.facetRow.field, after.facetCol.field]).toEqual([
+			null,
+			"rowcat",
+			null,
+		])
+	})
+
+	it("a half pair (Rows only) still gets the full two-variable panel", () => {
+		const utils = mount(
+			scatterEncodings({ facetCol: { field: null } }),
+			facetConfigs(),
+			<FacetOptionsPanel />,
+		)
+		const headers = utils
+			.getAllByRole("button", { name: /^(rows|columns|dimension|panel spacing and sizing)$/i })
+			.map((b) => b.textContent?.trim())
+		expect(headers).toEqual(["Rows", "Columns", "Panel spacing and sizing"])
 	})
 })
 
-describe("FacetAxisOptionsPanel — hide empty panels", () => {
-	it("surfaces the checkbox in both mirrored panels when both facet channels are mapped", () => {
+describe("FacetOptionsPanel (two variables) — hide empty panels", () => {
+	it("surfaces the checkbox when both facet channels are mapped", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs(),
-			<>
-				<FacetRowOptionsPanel />
-				<FacetColOptionsPanel />
-			</>,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /panel spacing and sizing/i, 0)
-		expand(utils, /panel spacing and sizing/i, 1)
-		const boxes = utils.getAllByLabelText(
-			"Hide empty panels",
-		) as HTMLInputElement[]
-		// One code site, same config bit — the control mirrors by design.
-		expect(boxes).toHaveLength(2)
-		expect(boxes.every((b) => !b.checked)).toBe(true)
+		expand(utils, /panel spacing and sizing/i)
+		const box = utils.getByLabelText("Hide empty panels") as HTMLInputElement
+		expect(box.checked).toBe(false)
 	})
 
 	it("does NOT render when only one facet channel is mapped", () => {
 		const utils = mount(
-			scatterEncodings({ facetCol: undefined }),
+			scatterEncodings({ facetCol: { field: null } }),
 			facetConfigs(),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
 		expand(utils, /panel spacing and sizing/i)
 		// Empty cells only exist in the row × col cross-product; a single
@@ -407,25 +397,16 @@ describe("FacetAxisOptionsPanel — hide empty panels", () => {
 		expect(utils.queryByLabelText("Hide empty panels")).toBeNull()
 	})
 
-	it("clicking it writes channelConfigs.facet.hideEmptyPanels (shared bit — both panels flip)", () => {
+	it("clicking it writes channelConfigs.facet.hideEmptyPanels", () => {
 		const utils = mount(
 			scatterEncodings(),
 			facetConfigs(),
-			<>
-				<FacetRowOptionsPanel />
-				<FacetColOptionsPanel />
-			</>,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /panel spacing and sizing/i, 0)
-		expand(utils, /panel spacing and sizing/i, 1)
-		const [rowBox, colBox] = utils.getAllByLabelText(
-			"Hide empty panels",
-		) as HTMLInputElement[]
-		fireEvent.click(rowBox!)
-		// Checked state derives from cfg.hideEmptyPanels === true, so both
-		// mirrored panels flipping proves the write hit the shared
-		// channelConfigs.facet config bit (not local component state).
-		expect(rowBox!.checked).toBe(true)
-		expect(colBox!.checked).toBe(true)
+		expand(utils, /panel spacing and sizing/i)
+		const box = utils.getByLabelText("Hide empty panels") as HTMLInputElement
+		fireEvent.click(box)
+		expect(box.checked).toBe(true)
+		expect(lastStore!.get(currentChannelConfigsAtom).facet?.hideEmptyPanels).toBe(true)
 	})
 })

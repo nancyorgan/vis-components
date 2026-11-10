@@ -1,4 +1,7 @@
 import { useAtom, useAtomValue } from "jotai"
+import { facetPairMapped } from "../../../lib/facetEncoding"
+import { FacetGridPanel } from "./FacetGridPanel"
+import { FacetPairPickers } from "./FacetPairPickers"
 import {
 	DEFAULT_FACET_CONFIG,
 	migrateProportionalSizing,
@@ -25,6 +28,7 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentRenderedPanelInnerDimsAtom,
+	facetPairOpenAtom,
 } from "../../../store/atoms"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import {
@@ -43,7 +47,45 @@ import {
 	withTicksInMap,
 } from "./facetSharedControls"
 
+/** The Facet row's one options panel. Which body renders follows the
+ *  stored channels the row writes (lib/facetEncoding): the pair
+ *  (`facetRow` / `facetCol`, "Two variables…") gets the grid body —
+ *  Row / Column pickers first, then data-determined rows ×
+ *  columns, strips, Hide empty panels — and a single variable (`facet`)
+ *  gets the wrap body below — user-set Dimension, titles above each
+ *  panel. Share modes, sizing, gaps, panel size and the range editors
+ *  are the same `FacetConfig` either way. A pair just chosen with
+ *  nothing mapped yet shows only the pickers. */
 export const FacetOptionsPanel = () => {
+	const encodings = useAtomValue(currentEncodingsAtom)
+	const pairOpen = useAtomValue(facetPairOpenAtom)
+	if (facetPairMapped(encodings)) return <FacetGridPanel />
+	if (pairOpen && !encodings.facet?.field) {
+		return (
+			<div className="vc-option-panel">
+				<FacetPairPickers />
+				<p className="vc-help">
+					Pick a variable for rows, for columns, or one of each.
+				</p>
+			</div>
+		)
+	}
+	if (!encodings.facet?.field) {
+		return (
+			<div className="vc-option-panel vc-help">
+				Map a categorical or ordinal variable to Facet to split the chart
+				into panels — one variable wraps into a grid you size; Two
+				variables… lays one out by rows and the other by columns.
+			</div>
+		)
+	}
+	return <FacetWrapPanel />
+}
+
+/** Single-variable (wrap) body: the user sets the grid's rows / columns,
+ *  share modes read per LAYOUT row / column, and every panel carries its
+ *  own title. */
+const FacetWrapPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -323,21 +365,6 @@ export const FacetOptionsPanel = () => {
 	): Partial<FacetConfig> | null => {
 		if (raw.trim() === "") return { [axis]: null }
 		return facetGridPatch(cfg, axis, Number.parseInt(raw, 10), facetCount)
-	}
-
-	// When the wrap channel isn't mapped, surface only the empty-state
-	// hint. Same pattern the row / col panels use. Without this gate the
-	// wrap panel's sharing / sizing / range controls would still be
-	// interactive — they all write to the same `cfg.facet` config the row
-	// and col panels read, so user-reported edits made here could shadow
-	// or conflict with whichever facet channel is actually mapped.
-	if (!fieldName) {
-		return (
-			<div className="vc-option-panel vc-help">
-				Map a categorical field to Facet (wrap) to split the chart into
-				panels.
-			</div>
-		)
 	}
 
 	return (

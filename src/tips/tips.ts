@@ -818,7 +818,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "facets",
 				anchor: "shelf-facet",
-				body: "Map a field to Facet to split the chart into one panel per value.",
+				body: "Map a field to Facet to split the chart into one panel per value — or pick Two variables… for a rows × columns grid.",
 				placement: "right",
 			},
 			{

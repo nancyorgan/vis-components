@@ -6,9 +6,7 @@ import {
 } from "./AngleLengthPanel"
 import { AxisOptionsPanel } from "./AxisOptionsPanel"
 import { ConnectionOptionsPanel } from "./ConnectionOptionsPanel"
-import { FacetColOptionsPanel } from "./FacetColOptionsPanel"
 import { FacetOptionsPanel } from "./FacetOptionsPanel"
-import { FacetRowOptionsPanel } from "./FacetRowOptionsPanel"
 import {
 	PatternOptionsPanel,
 	ShapeOptionsPanel,
@@ -42,9 +40,12 @@ export const CHANNEL_PANELS: Record<EncodingChannel, ComponentType> = {
 	x: XAxisOptionsPanel,
 	y: YAxisOptionsPanel,
 	r: RAxisOptionsPanel,
+	// One Facet row, one panel: the pair channels have no shelf row of their
+	// own (EncodingShelves), so these two entries are never reached — they
+	// point at the same panel so the registry stays total.
 	facet: FacetOptionsPanel,
-	facetRow: FacetRowOptionsPanel,
-	facetCol: FacetColOptionsPanel,
+	facetRow: FacetOptionsPanel,
+	facetCol: FacetOptionsPanel,
 	hue: ColorPanel,
 	outlineHue: OutlineColorOptionsPanel,
 	length: LengthOptionsPanel,

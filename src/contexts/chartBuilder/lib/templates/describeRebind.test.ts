@@ -9,7 +9,7 @@ describe("describeRebind", () => {
 				unmatched: [{ field: "Region", channels: ["facet"] }],
 			}),
 		).toBe(
-			"Template applied: Date → Period, Spend → Rate · Facet (wrap): no match — pick a field",
+			"Template applied: Date → Period, Spend → Rate · Facet: no match — pick a field",
 		)
 	})
 

@@ -22,7 +22,6 @@ import {
 } from "../../../store/atoms"
 
 import { FacetOptionsPanel } from "./FacetOptionsPanel"
-import { FacetRowOptionsPanel } from "./FacetRowOptionsPanel"
 
 /** The facet panels' axis-RANGE editors must gate on the field the axis
  *  actually reads. A vertical bar chart puts its measure on Length and
@@ -109,7 +108,7 @@ describe("FacetOptionsPanel — Y range editors on a length-encoded bar chart", 
 			facetConfigs({ shareY: "none" }),
 			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expect(utils.getByText("Y axis range per panel")).toBeTruthy()
 		expand(utils, /Y axis range per panel/i)
 		expect(utils.getByText("Home")).toBeTruthy()
@@ -125,7 +124,7 @@ describe("FacetOptionsPanel — Y range editors on a length-encoded bar chart", 
 			facetConfigs({ shareY: "none" }),
 			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expand(utils, /Y axis range per panel/i)
 		fireEvent.click(utils.getByLabelText("Replace ticks for Home"))
 		const ticks = utils.getByLabelText("Ticks at") as HTMLInputElement
@@ -147,7 +146,7 @@ describe("FacetOptionsPanel — Y range editors on a length-encoded bar chart", 
 			facetConfigs({ shareY: "none", rows: 1, cols: 2 }),
 			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expect(utils.getByText("Size panel heights by unit range")).toBeTruthy()
 	})
 
@@ -157,20 +156,20 @@ describe("FacetOptionsPanel — Y range editors on a length-encoded bar chart", 
 			facetConfigs({ shareY: "all" }),
 			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expect(utils.getByText("Y axis range")).toBeTruthy()
 	})
 
-	it("grid row panel, Share Y = per row: per-row Y range editor surfaces", () => {
+	it("two variables, Share Y = per row: per-row Y range editor surfaces", () => {
 		const utils = mount(
 			lengthBarEncodings({
 				facetRow: { field: "panel" },
 				facetCol: { field: "band" },
 			}),
 			facetConfigs({ shareY: "perGroup" }),
-			<FacetRowOptionsPanel />,
+			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expect(utils.getByText("Y axis range per row")).toBeTruthy()
 		expect(utils.getByText("Home")).toBeTruthy()
 		expect(utils.getByText("Everything else")).toBeTruthy()
@@ -200,7 +199,7 @@ describe("FacetOptionsPanel — axis-less modes", () => {
 			facetConfigs({ shareY: "none" }),
 			<FacetOptionsPanel />,
 		)
-		expand(utils, /rows/i)
+		expand(utils, /^rows$/i)
 		expect(utils.getByLabelText(/share y axis/i)).toBeTruthy()
 	})
 })

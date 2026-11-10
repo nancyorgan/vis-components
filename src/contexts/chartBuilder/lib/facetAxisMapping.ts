@@ -15,10 +15,10 @@ import type { EncodingChannel } from "./types"
  *  the structure layouts) get neither — their panels have nothing to
  *  share or range, only a size. */
 export type FacetAxisMapping = {
-	/** Channel that the Facet (row) panel's axis controls target.
+	/** Channel that the Facet panel's Rows axis controls target.
 	 *  null means the row panel has no axis to control (pie). */
 	rowAxis: EncodingChannel | null
-	/** Channel that the Facet (col) panel's axis controls target.
+	/** Channel that the Facet panel's Columns axis controls target.
 	 *  null means the col panel has no axis to control. */
 	colAxis: EncodingChannel | null
 	/** User-facing axis label for the row panel (e.g. "Y axis", "R axis"). */

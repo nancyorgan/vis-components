@@ -74,21 +74,24 @@ describe("CHANNELS registry", () => {
 		}
 	})
 
-	it("registers facet with label 'Facet (wrap)' so all three facet channels read consistently", () => {
+	it("registers facet as the one 'Facet' shelf row, with no conflict against the pair it manages", () => {
 		expect(CHANNELS.facet).toBeDefined()
-		expect(CHANNELS.facet.label).toBe("Facet (wrap)")
+		expect(CHANNELS.facet.label).toBe("Facet")
 		expect(CHANNELS.facet.legendCandidate).toBe(false)
+		// The Facet row writes facetRow / facetCol itself (lib/facetEncoding);
+		// a declared conflict would dim the row whenever the pair is mapped.
+		expect(CHANNELS.facet.conflictsWith ?? []).toEqual([])
 	})
 
 	it("registers facetRow with accepts=DISCRETE_LIKE and shelfOrder ~2", () => {
 		expect(CHANNELS.facetRow).toBeDefined()
-		expect(CHANNELS.facetRow.label).toBe("Facet (row)")
+		expect(CHANNELS.facetRow.label).toBe("Facet rows")
 		expect(CHANNELS.facetRow.legendCandidate).toBe(false)
 	})
 
 	it("registers facetCol with accepts=DISCRETE_LIKE and shelfOrder ~2", () => {
 		expect(CHANNELS.facetCol).toBeDefined()
-		expect(CHANNELS.facetCol.label).toBe("Facet (col)")
+		expect(CHANNELS.facetCol.label).toBe("Facet columns")
 		expect(CHANNELS.facetCol.legendCandidate).toBe(false)
 	})
 })
@@ -112,11 +115,9 @@ describe("channelsConflict", () => {
 		}
 	})
 
-	it("facet conflicts with facetRow and facetCol (both directions)", () => {
-		expect(channelsConflict("facet", "facetRow")).toBe(true)
-		expect(channelsConflict("facetRow", "facet")).toBe(true)
-		expect(channelsConflict("facet", "facetCol")).toBe(true)
-		expect(channelsConflict("facetCol", "facet")).toBe(true)
+	it("facet declares no conflict with facetRow / facetCol — the Facet row keeps them exclusive itself", () => {
+		expect(channelsConflict("facet", "facetRow")).toBe(false)
+		expect(channelsConflict("facet", "facetCol")).toBe(false)
 	})
 
 	it("facetRow does NOT conflict with facetCol (they coexist in grid mode)", () => {

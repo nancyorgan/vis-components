@@ -1037,8 +1037,8 @@ example, a quantitative variable cannot be assigned to pattern.
   rows × cols, row and column header strips). The sidebar shows ONE
   "Facet" row over all three: its dropdown lists the fields plus
   **Two variables…**, which opens the row's options panel, whose first
-  block is a **Row variable** picker and a **Column variable** picker
-  (and a "⇄ Swap rows and columns" link) writing `facetRow` /
+  block is a **Row** picker and a **Column** picker
+  writing `facetRow` /
   `facetCol`; picking a field writes `facet`. The row keeps the wrap
   channel and the pair exclusive (`lib/facetEncoding.ts`), so they are
   never mapped together. Choosing Two variables… with a variable mapped
@@ -2356,7 +2356,7 @@ The Facet row's one options panel. Unmapped, it carries only the
 map-a-variable hint. With a single variable (`facet`) it shows the
 **wrap** body below (Dimension, the axis subsections, Panel spacing
 and sizing); with Two variables… (`facetRow` / `facetCol`) the
-**two-variable** body: the Row / Column variable pickers, the Rows
+**two-variable** body: the Row / Column pickers, the Rows
 subsection (y / r axis), the Columns subsection (x / angle axis), then
 Panel spacing and sizing with both
 gaps, both panel dimensions, Hide empty panels (§4.5a) and the titles

@@ -3,7 +3,7 @@ import type { RebindResult } from "./rebind"
 
 /** One-line banner text for a template snap: the renamed pairs, then the
  * encoding slots that found nothing, e.g.
- * "Template applied: Date → Period, Spend → Rate · Facet (wrap): no match — pick a field".
+ * "Template applied: Date → Period, Spend → Rate · Facet: no match — pick a field".
  * Same-name matches aren't listed; when every field matched by name (and
  * nothing is missing) it says so. Template fields referenced only outside
  * the encodings aren't slots, so an unmatched one isn't named. */

@@ -113,7 +113,7 @@ test.describe("templates", () => {
 		await expect(enc.getByLabel("X position", { exact: true })).toHaveValue("rate")
 		await expect(enc.getByLabel("Y position", { exact: true })).toHaveValue("period")
 		await expect(enc.getByLabel("Color", { exact: true })).toHaveValue("segment")
-		await expect(enc.getByLabel("Facet (wrap)", { exact: true })).toHaveValue("region")
+		await expect(enc.getByLabel("Facet", { exact: true })).toHaveValue("region")
 
 		// Custom prose was replaced by placeholders; the chart title reads "Title".
 		const svg = page.locator("svg#vc-scatter-svg").first()

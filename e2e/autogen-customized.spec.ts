@@ -113,7 +113,7 @@ const applyCustomizations = async (page: Page): Promise<void> => {
 				.map((s) => s.value)
 				.filter((v) => v !== ""),
 		)
-	const facetSelect = encodingsPanel.getByLabel("Facet (wrap)", { exact: true })
+	const facetSelect = encodingsPanel.getByLabel("Facet", { exact: true })
 	if ((await facetSelect.count()) > 0) {
 		const facetOptionValues = await facetSelect.locator("option").evaluateAll(
 			(opts) =>

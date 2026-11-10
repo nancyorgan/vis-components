@@ -50,11 +50,12 @@ import {
 	withTicks,
 	withTicksInMap,
 } from "./facetSharedControls"
+import { FacetPairPickers } from "./FacetPairPickers"
 
-/** Everything that differs between the facetRow and facetCol option
- *  panels, as data. The two panels are exact mirrors of each other under
- *  this renaming — `FacetAxisOptionsPanel` below implements the shared
- *  logic once and reads the axis-specific keys / copy from here. */
+/** Everything that differs between the Rows and Columns subsections of
+ *  the two-variable facet panel, as data. The two are exact mirrors of
+ *  each other under this renaming — `FacetAxisSubsection` below implements
+ *  the shared logic once and reads the axis-specific keys / copy from here. */
 type FacetAxisSpec = {
 	/** Facet channel this panel configures. */
 	facetChannel: "facetRow" | "facetCol"
@@ -95,8 +96,6 @@ type FacetAxisSpec = {
 	nounPlural: "rows" | "columns"
 	/** React key prefix for per-value override rows. */
 	valueKeyPrefix: string
-	/** Hint shown when the facet channel isn't mapped. */
-	emptyHint: string
 	/** Hint shown when the chart mode has no axis in this direction. */
 	noAxisHint: string
 }
@@ -124,8 +123,6 @@ const ROW_SPEC: FacetAxisSpec = {
 	noun: "row",
 	nounPlural: "rows",
 	valueKeyPrefix: "y-",
-	emptyHint:
-		"Map a categorical field to Facet (row) to control row-specific layout options.",
 	// Pie mode has no R-like channel — there are no row-axis controls to
 	// show. The Columns (angle axis) subsection still renders below.
 	noAxisHint: "This chart type has no row axis to configure.",
@@ -154,8 +151,6 @@ const COL_SPEC: FacetAxisSpec = {
 	noun: "column",
 	nounPlural: "columns",
 	valueKeyPrefix: "x-",
-	emptyHint:
-		"Map a categorical field to Facet (col) to control column-specific layout options.",
 	// Defensive fallback for hypothetical future modes with no col-axis
 	// channel — none of the current modes hit this branch (cartesian,
 	// radar, and pie all have one), but it keeps parity with the row
@@ -164,15 +159,14 @@ const COL_SPEC: FacetAxisSpec = {
 }
 
 /** The Rows / Columns subsection for ONE axis: share picker, sizing
- *  toggle, and range editors. Both facet panels render one of these per
- *  axis (own axis first, then the perpendicular one) so either panel can
- *  share or unshare either axis — the share modes are grid-wide bits in
- *  the single `facet` config, not per-channel state. Returns null when
- *  the chart mode has no axis in this direction (pie rows).
+ *  toggle, and range editors. The two-variable panel renders one per axis
+ *  (Rows, then Columns); the share modes are grid-wide bits in the single
+ *  `facet` config. Returns null when the chart mode has no axis in this
+ *  direction (pie rows).
  *
  *  `isOwnAxis` gates the polar "Size panels by unit" toggle: it's a
- *  single config bit, so only the panel's own subsection surfaces it
- *  (otherwise a radar panel would show it twice). */
+ *  single config bit, so only the Rows subsection surfaces it (otherwise
+ *  a radar panel would show it twice). */
 const FacetAxisSubsection = ({
 	spec,
 	cfg,
@@ -499,18 +493,18 @@ const FacetAxisSubsection = ({
 	)
 }
 
-/** Shared implementation of the facetRow / facetCol option panels.
- *  Each panel hosts BOTH axis subsections (its own axis first, then the
- *  perpendicular one) — share modes are grid-wide, so a user on the
- *  Facet (col) panel can unshare Y without hopping to Facet (row) — plus
- *  the "Panel spacing and sizing" block for its own direction: gap, panel
- *  dimension, and the hide-empty-panels toggle. The "own axis" channel
- *  depends on the chart mode (y / r for rows, x / angle for columns,
- *  none for pie rows) — see `facetAxisMapping`. The wrap panel
- *  (`FacetOptionsPanel`) surfaces both axes the same way. */
-export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
-	const spec = axis === "row" ? ROW_SPEC : COL_SPEC
-	const perpSpec = axis === "row" ? COL_SPEC : ROW_SPEC
+/** The Facet panel's two-variable ("Two variables…" — `facetRow` and / or
+ *  `facetCol` mapped) body: the Row / Column pickers, then the
+ *  Rows subsection (y / r axis — a hint on
+ *  pies, which have no row axis), the Columns subsection (x / angle), then
+ *  "Panel spacing and sizing": both gaps, the panel width / height (each
+ *  hidden while proportional sizing drives that dimension), "Hide empty
+ *  panels" when BOTH sides are mapped (the row × column cross-product is
+ *  the only source of empty panels), and the facet-titles link. A half
+ *  pair (one side mapped) is a row-only / column-only grid and still gets
+ *  the full panel. `FacetOptionsPanel` picks this or the wrap body by
+ *  which channels are mapped. */
+export const FacetGridPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -547,35 +541,24 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 	const mode = useChartModeDef()
 	const axisMap = facetAxisMapping(mode)
 
-	const ownField = encodings[spec.facetChannel]?.field ?? null
-	const perpField = encodings[spec.perpFacetChannel]?.field ?? null
-	const ownAxisChannel = axisMap[spec.axisMapKey]
+	const rowField = encodings.facetRow?.field ?? null
+	const colField = encodings.facetCol?.field ?? null
+	const rowCount = countUniqueFieldValues(dataset, rowField)
+	const colCount = countUniqueFieldValues(dataset, colField)
 
-	// Panel dimension conflicts with proportional sizing — hide it when
-	// "Size row heights / column widths by …" is actively driving sizes on this axis.
-	// Same gate the subsection uses for its sizing toggle.
-	const ownCount = countUniqueFieldValues(dataset, ownField)
-	const perpCount = countUniqueFieldValues(dataset, perpField)
-	const ownShare = migrateShareValue(cfg[spec.shareKey])
-	const ownSize = migrateProportionalSizing(
-		cfg[spec.sizingKey],
-		cfg.proportionalSizing,
-		cfg.proportionalSizingByUnit,
-	)
-	const ownSizingActive =
-		ownAxisChannel != null &&
-		ownSize !== "off" &&
-		rowSizingMeaningful(ownCount, perpCount, ownShare)
-
-	// Empty state: nothing meaningful to configure if the facet channel
-	// isn't mapped yet. Mirror the wrap panel's "map a field" hint copy.
-	if (!ownField) {
-		return (
-			<div className="vc-option-panel vc-help">
-				{spec.emptyHint}
-			</div>
-		)
-	}
+	// A panel dimension conflicts with proportional sizing on the same
+	// axis — hide the input while "Size row heights / column widths by …"
+	// is actively driving that dimension (same gate the subsections use).
+	const sizingActive = (spec: FacetAxisSpec, own: number, perp: number) =>
+		axisMap[spec.axisMapKey] != null &&
+		migrateProportionalSizing(
+			cfg[spec.sizingKey],
+			cfg.proportionalSizing,
+			cfg.proportionalSizingByUnit,
+		) !== "off" &&
+		rowSizingMeaningful(own, perp, migrateShareValue(cfg[spec.shareKey]))
+	const rowSizingActive = sizingActive(ROW_SPEC, rowCount, colCount)
+	const colSizingActive = sizingActive(COL_SPEC, colCount, rowCount)
 
 	const subsectionProps = {
 		cfg,
@@ -590,51 +573,51 @@ export const FacetAxisOptionsPanel = ({ axis }: { axis: "row" | "col" }) => {
 
 	return (
 		<div className="vc-option-panel">
-			{/* Own axis first. When the mode has no axis in this direction
-			 *  (pies on the row panel) surface a brief hint so the empty
-			 *  space isn't confusing; the perpendicular subsection below
+			<FacetPairPickers />
+			{/* Rows first. When the mode has no row axis (pies) surface a
+			 *  brief hint so the empty space isn't confusing; Columns below
 			 *  still renders. */}
-			{ownAxisChannel === null ? (
-				<div className="vc-help">{spec.noAxisHint}</div>
+			{axisMap.rowAxis === null ? (
+				<div className="vc-help">{ROW_SPEC.noAxisHint}</div>
 			) : (
-				<FacetAxisSubsection {...subsectionProps} spec={spec} isOwnAxis />
+				<FacetAxisSubsection {...subsectionProps} spec={ROW_SPEC} isOwnAxis />
 			)}
 			<FacetAxisSubsection
 				{...subsectionProps}
-				spec={perpSpec}
+				spec={COL_SPEC}
 				isOwnAxis={false}
 			/>
 
 			<CollapsibleSubsection title="Panel spacing and sizing">
 				<GapInput
-					label={spec.gapLabel}
-					value={cfg[spec.gapKey]}
-					defaultValue={DEFAULT_FACET_CONFIG[spec.gapKey]}
-					onChange={(n) =>
-						updateCfg({ [spec.gapKey]: n } as Partial<FacetConfig>)
-					}
+					label={COL_SPEC.gapLabel}
+					value={cfg.gapX}
+					defaultValue={DEFAULT_FACET_CONFIG.gapX}
+					onChange={(n) => updateCfg({ gapX: n })}
 				/>
-
-				{axisMap.showPanelSize && !ownSizingActive && (
+				<GapInput
+					label={ROW_SPEC.gapLabel}
+					value={cfg.gapY}
+					defaultValue={DEFAULT_FACET_CONFIG.gapY}
+					onChange={(n) => updateCfg({ gapY: n })}
+				/>
+				{axisMap.showPanelSize && !colSizingActive && (
 					<PanelDimInput
-						label={spec.panelDimLabel}
-						value={cfg[spec.panelDimKey]}
-						autoPx={renderedPanelDims?.[spec.renderedDimKey]}
-						onCommit={(next) =>
-							updateCfg({
-								[spec.panelDimKey]: next,
-							} as Partial<FacetConfig>)
-						}
+						label={COL_SPEC.panelDimLabel}
+						value={cfg.panelWidth}
+						autoPx={renderedPanelDims?.widthPx}
+						onCommit={(next) => updateCfg({ panelWidth: next })}
 					/>
 				)}
-
-				{/* Grid mode only (both facet channels mapped) — the row × col
-				 *  cross-product is the only source of empty panels. ownField is
-				 *  already non-null here (the map-a-field hint early-returns
-				 *  above), so the perpendicular channel is the whole gate. One
-				 *  code site, same config bit: the control mirrors into both
-				 *  the row and col panels by design. */}
-				{perpField != null && (
+				{axisMap.showPanelSize && !rowSizingActive && (
+					<PanelDimInput
+						label={ROW_SPEC.panelDimLabel}
+						value={cfg.panelHeight}
+						autoPx={renderedPanelDims?.heightPx}
+						onCommit={(next) => updateCfg({ panelHeight: next })}
+					/>
+				)}
+				{rowField != null && colField != null && (
 					<SizeByCheckboxRow
 						label="Hide empty panels"
 						checked={cfg.hideEmptyPanels === true}

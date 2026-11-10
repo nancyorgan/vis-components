@@ -60,10 +60,10 @@ const setup4x1 = async (page: Page): Promise<void> => {
 	await enc.getByLabel("X position", { exact: true }).selectOption("Group")
 	await enc.getByLabel("Length", { exact: true }).selectOption("Value")
 	await enc.getByLabel("Color", { exact: true }).selectOption("Year")
-	await enc.getByLabel("Facet (wrap)", { exact: true }).selectOption("Facet")
+	await enc.getByLabel("Facet", { exact: true }).selectOption("Facet")
 	await page.waitForTimeout(400)
 	const facetBtn = enc.getByRole("button", {
-		name: /Toggle options for Facet \(wrap\)/,
+		name: "Toggle options for Facet",
 	})
 	await facetBtn.click()
 	await expandSubsection(page, "Dimension")
@@ -236,10 +236,10 @@ test("panel-width override: 4 cols × 250 px wide on a 1×4 layout", async ({
 	const enc = page.locator('[id="aside-section-encodings"]')
 	await enc.getByLabel("X position", { exact: true }).selectOption("Group")
 	await enc.getByLabel("Length", { exact: true }).selectOption("Value")
-	await enc.getByLabel("Facet (wrap)", { exact: true }).selectOption("Facet")
+	await enc.getByLabel("Facet", { exact: true }).selectOption("Facet")
 	await page.waitForTimeout(400)
 	const facetBtn = enc.getByRole("button", {
-		name: /Toggle options for Facet \(wrap\)/,
+		name: "Toggle options for Facet",
 	})
 	await facetBtn.click()
 	await expandSubsection(page, "Dimension")

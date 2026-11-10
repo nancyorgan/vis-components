@@ -57,24 +57,33 @@ export const CHANNELS: Record<EncodingChannel, ChannelDef> = {
 		legendCandidate: false,
 		shelfOrder: 1.5,
 	},
+	// Faceting is ONE shelf row ("Facet") over three stored channels: a
+	// single variable maps `facet` (titles above each panel, user-set rows ×
+	// columns), "Two variables…" maps `facetRow` + `facetCol` (a
+	// data-determined grid with row and column strips). The row keeps the
+	// wrap channel and the pair exclusive (`lib/facetEncoding.ts`), so no
+	// `conflictsWith` is declared — a declared conflict would dim the
+	// unified row whenever the pair is mapped. `facetRow` / `facetCol` are
+	// hidden from the main shelf (EncodingShelves) and surface as the row's
+	// Rows / Columns pickers; their labels name those pickers in prose
+	// (template rebind notes, the accessibility summary).
 	facet: {
 		id: "facet",
-		label: "Facet (wrap)",
+		label: "Facet",
 		accepts: DISCRETE_LIKE,
-		conflictsWith: ["facetRow", "facetCol"],
 		legendCandidate: false,
 		shelfOrder: 2,
 	},
 	facetRow: {
 		id: "facetRow",
-		label: "Facet (row)",
+		label: "Facet rows",
 		accepts: DISCRETE_LIKE,
 		legendCandidate: false,
 		shelfOrder: 2.1,
 	},
 	facetCol: {
 		id: "facetCol",
-		label: "Facet (col)",
+		label: "Facet columns",
 		accepts: DISCRETE_LIKE,
 		legendCandidate: false,
 		shelfOrder: 2.2,
