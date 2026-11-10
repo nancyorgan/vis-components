@@ -31,4 +31,10 @@ describe("LinkedPictureRow", () => {
 		expect(screen.queryByText(LINKED_PICTURE_HELP)).toBeNull()
 		expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull()
 	})
+
+	it("shows the reason under the retry hint when this session saw the failure", () => {
+		render(<LinkedPictureRow url={undefined} reason="Publishing the picture failed (HTTP 403)." />)
+		expect(screen.getByText(LINKED_PICTURE_RETRY)).toBeTruthy()
+		expect(screen.getByText("Publishing the picture failed (HTTP 403).")).toBeTruthy()
+	})
 })

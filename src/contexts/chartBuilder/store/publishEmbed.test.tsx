@@ -9,7 +9,11 @@ import { emptyEncodings, type Visual } from "../lib/types"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 import { TestProvider, type TestStore } from "../../../testSupport/TestProvider"
 import { embedInstancesAtom, visualsAtom } from "./atoms"
-import { usePublishEmbed } from "./publishEmbed"
+import {
+	embedPictureFailuresAtom,
+	PICTURE_NO_FIGURE,
+	usePublishEmbed,
+} from "./publishEmbed"
 
 /** The linked picture is a best-effort second step of a publish: success
  *  adds `image` to the recorded urls; a failed capture or upload still
@@ -86,7 +90,7 @@ const setup = () => {
 	const recordedUrls = () =>
 		Object.values(store.get(embedInstancesAtom)).find((i) => i.visualId === "dv-1")
 			?.publishedUrls
-	return { publish, recordedUrls }
+	return { publish, recordedUrls, store }
 }
 
 describe("usePublishEmbed linked picture", () => {
@@ -128,5 +132,27 @@ describe("usePublishEmbed linked picture", () => {
 		expect(render).not.toHaveBeenCalled()
 		expect(publishImage).not.toHaveBeenCalled()
 		expect(recordedUrls()).toEqual(HTML_URLS)
+	})
+})
+
+describe("usePublishEmbed picture failure reason", () => {
+	const failureFor = (store: TestStore) => store.get(embedPictureFailuresAtom)["dv-1"]
+
+	it("records why the upload failed, and clears it when a later publish lands the picture", async () => {
+		mountFigure()
+		render.mockResolvedValue(PNG_BLOB)
+		const { publish, store } = setup()
+		publishImage.mockRejectedValue(new Error("Publishing the picture failed (HTTP 403)."))
+		await publish()
+		expect(failureFor(store)).toBe("Publishing the picture failed (HTTP 403).")
+		publishImage.mockResolvedValue(IMAGE_URL)
+		await publish()
+		expect(failureFor(store)).toBeUndefined()
+	})
+
+	it("names the missing figure when nothing is on screen to capture", async () => {
+		const { publish, store } = setup()
+		await publish()
+		expect(failureFor(store)).toBe(PICTURE_NO_FIGURE)
 	})
 })

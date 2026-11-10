@@ -37,7 +37,11 @@ import {
 	withRepublishOnSave,
 } from "../store/atoms"
 import { migrateDataTableConfig } from "../lib/dataTableConfig"
-import { usePublishEmbed, useUnpublishEmbed } from "../store/publishEmbed"
+import {
+	embedPictureFailuresAtom,
+	usePublishEmbed,
+	useUnpublishEmbed,
+} from "../store/publishEmbed"
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
 import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
 import { LinkedPictureRow } from "./LinkedPictureRow"
@@ -452,6 +456,7 @@ const EmbedTab = ({
 		republishOnSaveVisualsAtom
 	)
 	const publishEmbed = usePublishEmbed()
+	const pictureFailures = useAtomValue(embedPictureFailuresAtom)
 	const unpublishEmbed = useUnpublishEmbed()
 	// ZIP-level maps inline their boundary topology into the payload — the
 	// published file fetches nothing. Derived here (not in the publish hook)
@@ -800,7 +805,12 @@ const EmbedTab = ({
 				</div>
 			)}
 
-			{published && <LinkedPictureRow url={published.publishedUrls?.image} />}
+			{published && (
+				<LinkedPictureRow
+					url={published.publishedUrls?.image}
+					reason={pictureFailures[visualId]}
+				/>
+			)}
 
 			{published && embedUrl !== null && (
 				<div className="flex items-center">

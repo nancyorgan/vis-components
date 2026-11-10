@@ -8,6 +8,7 @@
  *  public URLs never change once copied. */
 
 import { useCallback } from "react"
+import { atom } from "jotai"
 import { useAtomCallback } from "jotai/utils"
 
 import {
@@ -49,6 +50,12 @@ export type PublishEmbedArgs = {
 	 *  hook over the live atoms. */
 	includeZctaTopology?: boolean
 }
+
+/** Why the linked picture of a visual's last publish didn't make it, by
+ *  visual id — session-only, never saved. The Export tab shows it under the
+ *  retry hint so a silent failure (capture or upload) has a cause attached.
+ *  A publish that lands its picture clears the visual's entry. */
+export const embedPictureFailuresAtom = atom<Record<string, string>>({})
 
 export const usePublishEmbed = () =>
 	useAtomCallback(
@@ -136,11 +143,19 @@ export const usePublishEmbed = () =>
 				// an `image` url (the Export tab offers a retry) rather than failing
 				// it. The urls object is built fresh, so a stale `image` from an
 				// earlier publish never survives a failed picture step.
-				const image = await publishEmbedImage(publishId)
+				const picture = await publishEmbedImage(publishId)
 				const urls: EmbedPublishUrls = {
 					...htmlUrls,
-					...(image !== null ? { image } : {}),
+					...("url" in picture ? { image: picture.url } : {}),
 				}
+				set(embedPictureFailuresAtom, (prev) => {
+					if ("url" in picture) {
+						if (!(args.visualId in prev)) return prev
+						const { [args.visualId]: _cleared, ...rest } = prev
+						return rest
+					}
+					return { ...prev, [args.visualId]: picture.failure }
+				})
 
 				set(embedInstancesAtom, (prev) =>
 					recordEmbedPublish(prev, args.visualId, args.versionId, {
@@ -167,15 +182,20 @@ export const usePublishEmbed = () =>
  *  stamped with that resolution so a consumer places it at its true size —
  *  12pt in the app is 12pt on the slide. The export capture waits for the
  *  layout to settle, which is where a "Republish on every save" lands, 800
- *  ms after an edit. Resolves to the picture's public url, or null on any
- *  failure (no figure on screen, a capture that never settled, an upload
- *  that failed). */
+ *  ms after an edit. Resolves to the picture's public url, or to the reason
+ *  it failed (no figure on screen, a capture that never settled, an upload
+ *  that failed) — a reason, never a throw, so the publish itself still
+ *  lands and the Export tab can say what went wrong. */
 const EMBED_IMAGE_SCALE = 2
-const publishEmbedImage = async (publishId: string): Promise<string | null> => {
+export const PICTURE_NO_FIGURE = "No figure on screen to capture — publish from the editor."
+type PictureOutcome = { url: string } | { failure: string }
+const publishEmbedImage = async (publishId: string): Promise<PictureOutcome> => {
 	try {
 		// Layout size (offsetWidth) ignores the editor's display-only zoom.
 		const root = document.querySelector<HTMLElement>("[data-chart-root]")
-		if (!root || root.offsetWidth === 0 || root.offsetHeight === 0) return null
+		if (!root || root.offsetWidth === 0 || root.offsetHeight === 0) {
+			return { failure: PICTURE_NO_FIGURE }
+		}
 		const width = root.offsetWidth
 		const height = root.offsetHeight
 		const blob = await renderExport(
@@ -187,9 +207,9 @@ const publishEmbedImage = async (publishId: string): Promise<string | null> => {
 			{ root, opaqueBackground: true }
 		)
 		const png = new File([blob], "image.png", { type: "image/png" })
-		return await publishEmbedImageRequest(publishId, png)
-	} catch {
-		return null
+		return { url: await publishEmbedImageRequest(publishId, png) }
+	} catch (error) {
+		return { failure: error instanceof Error && error.message ? error.message : String(error) }
 	}
 }
 
