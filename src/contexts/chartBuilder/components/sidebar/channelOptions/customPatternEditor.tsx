@@ -87,8 +87,8 @@ export const CustomPatternChips = ({
 	</>
 )
 
-/** Inline editor opened by the "+" chip: upload a black-and-white PNG /
- *  JPEG. Creation goes through `onCreate`, which also selects the new
+/** Inline editor opened by the "+" chip: upload a black-and-white SVG,
+ *  PNG or JPEG. Creation goes through `onCreate`, which also selects the new
  *  pattern for the row that opened the editor. */
 export const CustomPatternEditor = ({
 	onCreate,
@@ -136,9 +136,10 @@ export const CustomPatternEditor = ({
 				</button>
 			</div>
 			<span className="vc-help">
-				A black-and-white PNG or JPEG, used as one repeating tile. Black
-				takes the ink color, white the background. Non-square images are
-				squeezed to a square. Use Scale to size the tile.
+				A black-and-white SVG, PNG or JPEG, used as one repeating tile.
+				Black takes the ink color, white the background. An SVG stays
+				sharp at any size. Non-square images are squeezed to a square.
+				Use Scale to size the tile.
 			</span>
 			{error && (
 				<span className="text-red-600 dark:text-red-400">{error}</span>

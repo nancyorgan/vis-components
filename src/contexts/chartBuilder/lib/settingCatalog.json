@@ -6605,7 +6605,7 @@
 			]
 		},
 		"channelConfigs.pattern.customPatterns": {
-			"doc": "Per-chart custom fill patterns (uploaded black-and-white images reduced to a small ink/background grid — see `lib/customPatterns`).",
+			"doc": "Per-chart custom fill patterns (uploaded black-and-white images: an SVG kept as vector, a PNG / JPEG reduced to a grayscale ink mask — see `lib/customPatterns`).",
 			"items": {
 				"kinds": [
 					"null",
@@ -6629,6 +6629,11 @@
 		"channelConfigs.pattern.customPatterns[].size": {
 			"kinds": [
 				"number"
+			]
+		},
+		"channelConfigs.pattern.customPatterns[].svg": {
+			"kinds": [
+				"string"
 			]
 		},
 		"channelConfigs.pattern.customPointOutlineDash": {

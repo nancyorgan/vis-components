@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 import type { ChannelConfigs } from "./channelConfig"
 import {
 	CUSTOM_PATTERN_BASE,
+	CUSTOM_PATTERN_SVG_MAX_CHARS,
 	CustomPatternsContext,
 	customPatternPath,
 	insertCustomPattern,
@@ -92,6 +93,14 @@ describe("isCustomPattern", () => {
 		expect(isCustomPattern({ size: 2, bits: "10a1" })).toBe(false)
 		expect(isCustomPattern({ mask: "data:image/png;base64,AAAA" })).toBe(true)
 		expect(isCustomPattern({ mask: "https://example.com/x.png" })).toBe(false)
+		expect(isCustomPattern({ svg: "data:image/svg+xml;base64,PHN2Zy8+" })).toBe(true)
+		expect(isCustomPattern({ svg: "data:image/png;base64,AAAA" })).toBe(false)
+		expect(isCustomPattern({ svg: "https://example.com/x.svg" })).toBe(false)
+		expect(
+			isCustomPattern({
+				svg: "data:image/svg+xml;base64," + "A".repeat(CUSTOM_PATTERN_SVG_MAX_CHARS),
+			})
+		).toBe(false)
 		expect(isCustomPattern(null)).toBe(false)
 	})
 })
@@ -176,6 +185,44 @@ describe("PatternTile with a custom pattern", () => {
 		expect(html).toContain(`href="${mask}"`)
 		expect(html).toContain('fill="#112233" mask="url(#m-mask)"')
 		expect(html).toContain('width="32"')
+	})
+
+	it("paints an SVG pattern through an inverted vector mask", () => {
+		const svg = "data:image/svg+xml;base64,PHN2Zy8+"
+		const html = renderToStaticMarkup(
+			<svg>
+				<CustomPatternsContext.Provider value={[{ svg }]}>
+					<PatternTile
+						id="v"
+						paletteIdx={CUSTOM_PATTERN_BASE}
+						bgColor="#ffeecc"
+						inkColor="#112233"
+						scale={2}
+					/>
+				</CustomPatternsContext.Provider>
+			</svg>
+		)
+		// The upload itself is the mask image — no rasterized copy.
+		expect(html).toContain(`href="${svg}"`)
+		expect(html).toContain('filter="url(#v-invert)"')
+		expect(html).toContain('<filter id="v-invert"')
+		expect(html).toContain('color-interpolation-filters="sRGB"')
+		expect(html).toContain("<feColorMatrix")
+		expect(html).toContain('<mask id="v-mask"')
+		expect(html).toContain('fill="#112233" mask="url(#v-mask)"')
+		expect(html).toContain('width="64"')
+	})
+
+	it("does not emit the invert filter for a raster mask", () => {
+		const html = renderToStaticMarkup(
+			<svg>
+				<CustomPatternsContext.Provider value={[{ mask: "data:image/png;base64,AAAA" }]}>
+					<PatternTile id="m" paletteIdx={CUSTOM_PATTERN_BASE} bgColor="#fff" inkColor="#000" />
+				</CustomPatternsContext.Provider>
+			</svg>
+		)
+		expect(html).not.toContain("<filter")
+		expect(html).not.toContain("filter=")
 	})
 
 	it("falls back to the first built-in pattern for a missing slot", () => {

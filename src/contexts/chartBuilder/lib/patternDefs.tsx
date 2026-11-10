@@ -63,6 +63,78 @@ export const patternTileSide = (
 	return Number((def.size * s ** def.spacingExponent).toFixed(3))
 }
 
+
+/** Inverts RGB and keeps alpha — turns an upload's black-on-white drawing
+ * into the white-is-ink luminance mask. Interpolated in sRGB so antialiased
+ * grays invert exactly (the filter default, linearRGB, would shift them). */
+const INVERT_MATRIX = "-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"
+
+/** A custom-pattern tile whose ink is painted through an image used as a
+ * luminance mask (white = ink, black / transparent = background) over the
+ * background rect. The mask and its optional invert filter are defined
+ * inside the pattern so each def carries its own ids. */
+const MaskedInkTile = ({
+	id,
+	side,
+	patternTransform,
+	href,
+	bgColor,
+	inkColor,
+	invert = false,
+}: {
+	id: string
+	side: number
+	patternTransform: string | undefined
+	href: string
+	bgColor: string
+	inkColor: string
+	invert?: boolean
+}) => {
+	const maskId = `${id}-mask`
+	const filterId = `${id}-invert`
+	return (
+		<pattern
+			id={id}
+			patternUnits="userSpaceOnUse"
+			width={side}
+			height={side}
+			patternTransform={patternTransform}
+		>
+			{invert && (
+				<filter
+					id={filterId}
+					x={0}
+					y={0}
+					width={side}
+					height={side}
+					filterUnits="userSpaceOnUse"
+					colorInterpolationFilters="sRGB"
+				>
+					<feColorMatrix type="matrix" values={INVERT_MATRIX} />
+				</filter>
+			)}
+			<mask
+				id={maskId}
+				maskUnits="userSpaceOnUse"
+				x={0}
+				y={0}
+				width={side}
+				height={side}
+			>
+				<image
+					href={href}
+					width={side}
+					height={side}
+					preserveAspectRatio="none"
+					filter={invert ? `url(#${filterId})` : undefined}
+				/>
+			</mask>
+			<rect width={side} height={side} fill={bgColor} />
+			<rect width={side} height={side} fill={inkColor} mask={`url(#${maskId})`} />
+		</pattern>
+	)
+}
+
 /** The `patternTransform` that turns a tile by `rotation` degrees
  * (clockwise, about the user-space origin — the grid as a whole turns, so
  * stripes change direction without the tile seams drifting per mark);
@@ -109,43 +181,37 @@ export const PatternTile = ({
 			)
 		}
 		const side = patternTileSide(paletteIdx, scale)
+		if ("svg" in custom) {
+			// The upload's own SVG paints the mask — vector, so the tile is
+			// crisp at any Scale / export DPI. Uploads draw black = ink, the
+			// luminance mask reads white = ink, so the image is inverted on
+			// the way in; transparent regions keep alpha 0 and stay
+			// background either way.
+			return (
+				<MaskedInkTile
+					id={id}
+					side={side}
+					patternTransform={patternTransform}
+					href={custom.svg}
+					bgColor={bgColor}
+					inkColor={inkColor}
+					invert
+				/>
+			)
+		}
 		if ("mask" in custom) {
 			// The stored grayscale mask paints the ink: white = ink, black =
 			// background, grays (antialiased edges) blend — so the upload's
-			// curves stay smooth at any Scale. Defined inside the pattern so
-			// each def carries its own mask id.
-			const maskId = `${id}-mask`
+			// curves stay smooth at any Scale.
 			return (
-				<pattern
+				<MaskedInkTile
 					id={id}
-					patternUnits="userSpaceOnUse"
-					width={side}
-					height={side}
+					side={side}
 					patternTransform={patternTransform}
-				>
-					<mask
-						id={maskId}
-						maskUnits="userSpaceOnUse"
-						x={0}
-						y={0}
-						width={side}
-						height={side}
-					>
-						<image
-							href={custom.mask}
-							width={side}
-							height={side}
-							preserveAspectRatio="none"
-						/>
-					</mask>
-					<rect width={side} height={side} fill={bgColor} />
-					<rect
-						width={side}
-						height={side}
-						fill={inkColor}
-						mask={`url(#${maskId})`}
-					/>
-				</pattern>
+					href={custom.mask}
+					bgColor={bgColor}
+					inkColor={inkColor}
+				/>
 			)
 		}
 		return (

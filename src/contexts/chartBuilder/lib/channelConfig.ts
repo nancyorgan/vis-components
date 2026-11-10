@@ -13,11 +13,17 @@ import type { FontConfig, LabelAlignment } from "./labelsConfig"
  *  consumer `PatternConfig.customPatterns`, so this pure-lib module never
  *  imports the React/DOM-bound `customPatterns.tsx` — the `mcp/` typecheck
  *  has no JSX or DOM lib and must stay able to read this file.
- *  - `mask`: a grayscale PNG data URL, white = ink, black = background
- *    (the current format).
+ *  - `svg`: an uploaded SVG kept as its own data URL (black = ink, white /
+ *    transparent = background, as drawn). Vector, so the tile stays crisp
+ *    at any Scale and export size.
+ *  - `mask`: a grayscale PNG data URL rasterized from a PNG / JPEG upload,
+ *    white = ink, black = background.
  *  - `size` / `bits`: an early on/off grid (row-major, `"1"` = ink) — still
  *    rendered so patterns uploaded before the mask format keep working. */
-export type CustomPattern = { mask: string } | { size: number; bits: string }
+export type CustomPattern =
+	| { svg: string }
+	| { mask: string }
+	| { size: number; bits: string }
 
 export type GridlineConfig = {
 	enabled: boolean
@@ -1100,8 +1106,9 @@ export type PatternConfig = {
 	 * (`resolveSegmentPatternMode`), else dash. The Pattern menu's
 	 * "Segments" toggle writes it; its reset clears the key. */
 	segmentPattern?: SegmentPatternMode
-	/** Per-chart custom fill patterns (uploaded black-and-white images
-	 * reduced to a small ink/background grid — see `lib/customPatterns`).
+	/** Per-chart custom fill patterns (uploaded black-and-white images: an
+	 * SVG kept as vector, a PNG / JPEG reduced to a grayscale ink mask — see
+	 * `lib/customPatterns`).
 	 * A pattern index `i >= CUSTOM_PATTERN_BASE` in any of the pick fields
 	 * above (`overrides`, `defaultPattern`, the polygon / violin twins)
 	 * refers to `customPatterns[i - CUSTOM_PATTERN_BASE]`. Deleted slots

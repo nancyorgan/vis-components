@@ -5,15 +5,20 @@ import type { ChannelConfigs, CustomPattern, PatternConfig } from "./channelConf
 /**
  * Custom fill patterns — the "+" chip in the Pattern picker.
  *
- * The user uploads a black-and-white PNG / JPEG. It's squashed to a square
- * (no cropping — a non-square image is compressed along its long side) and
- * resampled to `CUSTOM_PATTERN_MASK_PX`, then stored as a grayscale
- * LUMINANCE MASK: dark pixels of the upload become white in the mask (they
- * show the pattern's INK color), light pixels black (the tile's BACKGROUND
- * shows through). Edge pixels keep their in-between gray, so curves stay
- * antialiased at any zoom instead of stair-stepping. A custom pattern
- * recolors exactly like a built-in one — ink pick, palette-paired ink,
- * background, Scale.
+ * The user uploads a black-and-white SVG, PNG or JPEG. Either way the tile
+ * is drawn through an SVG LUMINANCE MASK over an ink-colored rect, so a
+ * custom pattern recolors exactly like a built-in one — ink pick,
+ * palette-paired ink, background, Scale — and a non-square upload is
+ * squashed to the square tile (no cropping).
+ *
+ * - An SVG is stored AS-IS (its own data URL) and painted into the mask
+ *   through an invert filter (black ink → white = ink in the mask;
+ *   white / transparent → black = background). It stays vector, so the
+ *   tile is crisp at any Scale, zoom and export DPI.
+ * - A PNG / JPEG is resampled to `CUSTOM_PATTERN_MASK_PX` and stored as a
+ *   grayscale mask PNG: dark pixels become white (ink), light pixels black
+ *   (background). Edge pixels keep their in-between gray, so curves stay
+ *   antialiased at any zoom instead of stair-stepping.
  *
  * Pattern references stay numeric palette indices tool-wide; an index
  * `i >= CUSTOM_PATTERN_BASE` refers to the chart's
@@ -46,7 +51,12 @@ export const CUSTOM_PATTERN_MASK_PX = 256
 export const CUSTOM_PATTERN_TILE_PX = 32
 
 /** Image types the upload accepts. */
-export const CUSTOM_PATTERN_ACCEPT = "image/png,image/jpeg"
+export const CUSTOM_PATTERN_ACCEPT = "image/svg+xml,image/png,image/jpeg"
+
+/** Longest SVG data URL a custom pattern stores (same cap as an image
+ * annotation). A pattern tile is a small drawing; this only stops a
+ * megabyte-scale export from being written into every save. */
+export const CUSTOM_PATTERN_SVG_MAX_CHARS = 400 * 1024
 
 /** Levels applied to the ink amount: at or below `INK_LO` reads as pure
  * background, at or above `INK_HI` as pure ink, linear between. Cleans JPEG
@@ -109,6 +119,14 @@ export const customPatternPath = (p: { size: number; bits: string }): string => 
 /** Validate a stored value (saved visuals, imports) as a custom pattern. */
 export const isCustomPattern = (v: unknown): v is CustomPattern => {
 	if (!v || typeof v !== "object") return false
+	if ("svg" in v) {
+		const { svg } = v as { svg: unknown }
+		return (
+			typeof svg === "string" &&
+			svg.startsWith("data:image/svg+xml") &&
+			svg.length <= CUSTOM_PATTERN_SVG_MAX_CHARS
+		)
+	}
 	if ("mask" in v) {
 		const { mask } = v as { mask: unknown }
 		return typeof mask === "string" && mask.startsWith("data:image/png;base64,")
@@ -159,58 +177,89 @@ export const pixelsToInk = (
 	return ink
 }
 
-/** Read an uploaded PNG / JPEG into a custom pattern: squash to a square
- * `CUSTOM_PATTERN_MASK_PX` canvas, `pixelsToInk`, and encode the ink amounts
- * as a grayscale PNG mask. Rejects (with a message for the picker's inline
- * error) on other file types, decode failures, color and solid images. */
-export const fileToCustomPattern = (file: File): Promise<CustomPattern> =>
+const TOO_LARGE_MESSAGE =
+	"That SVG is too large to store with the chart — try a simpler one."
+
+const readAsDataUrl = (file: Blob): Promise<string> =>
 	new Promise((resolve, reject) => {
-		if (file.type !== "image/png" && file.type !== "image/jpeg") {
-			reject(new Error("Upload a PNG or JPEG"))
-			return
-		}
-		const url = URL.createObjectURL(file)
-		const img = new Image()
-		img.onload = () => {
-			URL.revokeObjectURL(url)
-			const side = CUSTOM_PATTERN_MASK_PX
-			const canvas = document.createElement("canvas")
-			canvas.width = side
-			canvas.height = side
-			const ctx = canvas.getContext("2d")
-			if (!ctx) {
-				reject(new Error("Couldn't process that image"))
-				return
-			}
-			ctx.imageSmoothingEnabled = true
-			ctx.imageSmoothingQuality = "high"
-			// Stretch to the square — a non-square upload is compressed, not
-			// cropped.
-			ctx.drawImage(img, 0, 0, side, side)
-			try {
-				const pixels = ctx.getImageData(0, 0, side, side)
-				const ink = pixelsToInk(pixels.data, side, side)
-				for (let i = 0; i < ink.length; i++) {
-					const o = i * 4
-					pixels.data[o] = ink[i]
-					pixels.data[o + 1] = ink[i]
-					pixels.data[o + 2] = ink[i]
-					pixels.data[o + 3] = 255
-				}
-				ctx.putImageData(pixels, 0, 0)
-				resolve({ mask: canvas.toDataURL("image/png") })
-			} catch (err) {
-				reject(
-					err instanceof Error ? err : new Error("Couldn't process that image")
-				)
-			}
-		}
-		img.onerror = () => {
-			URL.revokeObjectURL(url)
+		const reader = new FileReader()
+		reader.addEventListener("load", () => resolve(String(reader.result)))
+		reader.addEventListener("error", () =>
 			reject(new Error("Couldn't read that image"))
-		}
+		)
+		reader.readAsDataURL(file)
+	})
+
+const loadImage = (url: string): Promise<HTMLImageElement> =>
+	new Promise((resolve, reject) => {
+		const img = new Image()
+		img.onload = () => resolve(img)
+		img.onerror = () => reject(new Error("Couldn't read that image"))
 		img.src = url
 	})
+
+/** Draw `img` squashed onto a square `CUSTOM_PATTERN_MASK_PX` canvas and
+ * return its ink amounts (`pixelsToInk`, which throws for color / solid
+ * images) together with the canvas. */
+const rasterizeToInk = (
+	img: HTMLImageElement
+): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; ink: Uint8ClampedArray } => {
+	const side = CUSTOM_PATTERN_MASK_PX
+	const canvas = document.createElement("canvas")
+	canvas.width = side
+	canvas.height = side
+	const ctx = canvas.getContext("2d")
+	if (!ctx) throw new Error("Couldn't process that image")
+	ctx.imageSmoothingEnabled = true
+	ctx.imageSmoothingQuality = "high"
+	// Stretch to the square — a non-square upload is compressed, not
+	// cropped.
+	ctx.drawImage(img, 0, 0, side, side)
+	const pixels = ctx.getImageData(0, 0, side, side)
+	return { canvas, ctx, ink: pixelsToInk(pixels.data, side, side) }
+}
+
+/** Read an uploaded image into a custom pattern.
+ *
+ * - SVG: kept as its own data URL (`{ svg }`), so the tile stays vector. It
+ *   is still rasterized once, to a scratch canvas, for the same
+ *   black-and-white / not-solid check the raster path applies.
+ * - PNG / JPEG: squashed to a square `CUSTOM_PATTERN_MASK_PX` canvas,
+ *   `pixelsToInk`, and the ink amounts encoded as a grayscale PNG mask
+ *   (`{ mask }`).
+ *
+ * Rejects (with a message for the picker's inline error) on other file
+ * types, decode failures, color and solid images, and oversize SVGs. */
+export const fileToCustomPattern = async (file: File): Promise<CustomPattern> => {
+	const isSvg = file.type === "image/svg+xml"
+	if (!isSvg && file.type !== "image/png" && file.type !== "image/jpeg") {
+		throw new Error("Upload an SVG, PNG or JPEG")
+	}
+	const dataUrl = await readAsDataUrl(file)
+	if (isSvg && dataUrl.length > CUSTOM_PATTERN_SVG_MAX_CHARS) {
+		throw new Error(TOO_LARGE_MESSAGE)
+	}
+	const img = await loadImage(dataUrl)
+	let raster: ReturnType<typeof rasterizeToInk>
+	try {
+		raster = rasterizeToInk(img)
+	} catch (err) {
+		throw err instanceof Error ? err : new Error("Couldn't process that image")
+	}
+	if (isSvg) return { svg: dataUrl }
+	const { canvas, ctx, ink } = raster
+	const side = CUSTOM_PATTERN_MASK_PX
+	const pixels = ctx.getImageData(0, 0, side, side)
+	for (let i = 0; i < ink.length; i++) {
+		const o = i * 4
+		pixels.data[o] = ink[i]
+		pixels.data[o + 1] = ink[i]
+		pixels.data[o + 2] = ink[i]
+		pixels.data[o + 3] = 255
+	}
+	ctx.putImageData(pixels, 0, 0)
+	return { mask: canvas.toDataURL("image/png") }
+}
 
 // ----- Config edits ---------------------------------------------------------
 
