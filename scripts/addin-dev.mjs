@@ -19,6 +19,12 @@
 // Ports: VIS_ADDIN_DEV_PORT (default 8443) and VIS_EMBED_DEV_STATIC_PORT
 // (default 8098, the same variable embed-dev.mjs reads).
 //
+// Testing against a real deployment: set VIS_ADDIN_EMBEDS_URL to that
+// server's VIS_PUBLISH_BASE_URL (e.g. https://publish.example.com) and
+// /embeds/* is proxied there instead of :8098 — `pnpm embed:dev` is then
+// not needed. The add-in still loads from localhost, so only a machine that
+// has sideloaded the manifest and runs this script can use it.
+//
 // Sideloading the manifest (addin/manifest-taskpane.xml):
 //   - PowerPoint for Mac: copy the .xml into
 //       ~/Library/Containers/com.microsoft.Powerpoint/Data/Documents/wef/
@@ -29,6 +35,7 @@
 // Either way the Home tab gains a "Zafiro" button that opens the task pane.
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { request as httpRequest } from "node:http"
+import { request as httpsRequest } from "node:https"
 import { createServer } from "node:https"
 import { dirname, extname, join, normalize, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -36,6 +43,26 @@ import { fileURLToPath } from "node:url"
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const port = Number(process.env.VIS_ADDIN_DEV_PORT ?? 8443)
 const staticPort = Number(process.env.VIS_EMBED_DEV_STATIC_PORT ?? 8098)
+
+// Where /embeds/* goes: a deployment's publish base URL, or the local
+// embed:dev static server. Any path on the base URL is kept as a prefix.
+const parseUpstream = (raw) => {
+	let url
+	try {
+		url = new URL(raw)
+	} catch {
+		url = null
+	}
+	if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) {
+		console.error(`[addin-dev] VIS_ADDIN_EMBEDS_URL must be an http(s) URL, got: ${raw}`)
+		process.exit(1)
+	}
+	return url
+}
+const rawUpstream = process.env.VIS_ADDIN_EMBEDS_URL?.trim()
+const upstreamUrl = rawUpstream ? parseUpstream(rawUpstream) : new URL(`http://localhost:${staticPort}`)
+const upstreamPrefix = upstreamUrl.pathname.replace(/\/+$/, "")
+const upstreamLabel = `${upstreamUrl.origin}${upstreamPrefix}`
 
 const addinDir = join(root, "addin")
 const certPath = join(root, ".addin-dev", "localhost.crt")
@@ -92,12 +119,14 @@ const serveAddin = (req, res, rest) => {
 }
 
 const proxyEmbeds = (req, res) => {
-	const upstream = httpRequest(
+	const send = upstreamUrl.protocol === "https:" ? httpsRequest : httpRequest
+	const upstream = send(
 		{
-			host: "localhost",
-			port: staticPort,
+			protocol: upstreamUrl.protocol,
+			hostname: upstreamUrl.hostname,
+			port: upstreamUrl.port || undefined,
 			method: req.method,
-			path: req.url,
+			path: `${upstreamPrefix}${req.url}`,
 			headers: { accept: req.headers.accept ?? "*/*" },
 		},
 		(up) => {
@@ -111,7 +140,8 @@ const proxyEmbeds = (req, res) => {
 	)
 	upstream.on("error", (error) => {
 		res.writeHead(502, { "content-type": "text/plain; charset=utf-8" })
-		res.end(`embed static server (:${staticPort}) unreachable: ${error.message}\nIs \`pnpm embed:dev\` running?`)
+		const hint = rawUpstream ? "Check VIS_ADDIN_EMBEDS_URL." : "Is `pnpm embed:dev` running?"
+		res.end(`embed server (${upstreamLabel}) unreachable: ${error.message}\n${hint}`)
 		log(req, 502)
 	})
 	upstream.end()
@@ -136,7 +166,7 @@ server.listen(port, () => {
 	console.log(`
 [addin-dev] Add-in pages:     https://localhost:${port}/addin/taskpane.html
 [addin-dev] Manifest:         ${join(addinDir, "manifest-taskpane.xml")}
-[addin-dev] Embed proxy:      https://localhost:${port}/embeds/* → http://localhost:${staticPort}
+[addin-dev] Embed proxy:      https://localhost:${port}/embeds/* → ${upstreamLabel}/embeds/*
 [addin-dev] Sideload the manifest (see the header of this file), then Home → Zafiro.
 [addin-dev] Ctrl-C stops.
 `)
