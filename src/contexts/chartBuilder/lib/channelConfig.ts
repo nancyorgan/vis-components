@@ -464,6 +464,12 @@ export type AxisConfig = {
 	 * fraction of the per-category band width: 0 = no jitter (default), 1 =
 	 * fills the full band. Ignored on quantitative/temporal axes. */
 	jitterAmount: number
+	/** "Only jitter overlapping points": when true, `jitterAmount` moves only
+	 * the points that share their exact pre-jitter position (same category
+	 * AND same value) with at least one other point; a point that sits
+	 * alone stays on the band center. Absent / false (default) jitters
+	 * every point. Inert while `jitterAmount` is 0. */
+	jitterOverlappingOnly?: boolean
 	/** Distribution overlays — meaningful only when this axis is quantitative
 	 * and the other axis is categorical. */
 	distributionOverlay: DistributionOverlayConfig

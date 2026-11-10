@@ -145,13 +145,21 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 		),
 		regression: valueChanged(configs[channel]?.regression, themeAxis.regression),
 		jitter: valueChanged(configs[channel]?.jitterAmount, themeAxis.jitterAmount),
+		jitterOverlappingOnly: valueChanged(
+			configs[channel]?.jitterOverlappingOnly,
+			undefined
+		),
 		offset:
 			valueChanged(configs[channel]?.offset, undefined) ||
 			valueChanged(configs[channel]?.offsetX, undefined) ||
 			valueChanged(configs[channel]?.offsetY, undefined),
 	}
 	const sectionChanged = {
-		Distribution: ch.histogram || ch.distributionOverlay || ch.jitter,
+		Distribution:
+			ch.histogram ||
+			ch.distributionOverlay ||
+			ch.jitter ||
+			ch.jitterOverlappingOnly,
 		Regression: ch.regression,
 		// Ticks = tick density + tick marks. The r axis's Ticks section holds
 		// the density control only (the radar draws no r tick marks).
@@ -536,6 +544,8 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						{isCategoricalSide && (
 							<JitterControl
 								jitterAmount={config.jitterAmount ?? 0}
+								overlappingOnly={config.jitterOverlappingOnly === true}
+								overlappingOnlyChanged={ch.jitterOverlappingOnly}
 								onChange={(next) => update(next)}
 							/>
 						)}
@@ -1829,29 +1839,51 @@ const TickLabelAlignmentControl = ({
 }
 
 /** Jitter slider — shown on the CATEGORICAL side of a strip plot. Spreads
- * points within each category band; 0 keeps them stacked on the band center. */
+ * points within each category band; 0 keeps them stacked on the band center.
+ * "Only jitter overlapping points" (offered once there is any jitter, since
+ * it is inert at 0) limits the spread to points that share an exact
+ * position with another point. */
 const JitterControl = ({
 	jitterAmount,
+	overlappingOnly,
+	overlappingOnlyChanged,
 	onChange,
 }: {
 	jitterAmount: number
-	onChange: (next: { jitterAmount?: number }) => void
+	overlappingOnly: boolean
+	overlappingOnlyChanged?: boolean
+	onChange: (next: {
+		jitterAmount?: number
+		jitterOverlappingOnly?: boolean
+	}) => void
 }) => (
-	<label className="flex items-center gap-2 text-sm">
-		<span className={LABEL_COL}>Jitter</span>
-		<input
-			type="range"
-			min={0}
-			max={1}
-			step={0.05}
-			value={jitterAmount}
-			onChange={(e) => onChange({ jitterAmount: Number(e.target.value) })}
-			className="min-w-0 flex-1"
-		/>
-		<span className="w-10 text-right text-sm vc-muted">
-			{Math.round(jitterAmount * 100)}%
-		</span>
-	</label>
+	<div className="flex flex-col gap-2">
+		<label className="flex items-center gap-2 text-sm">
+			<span className={LABEL_COL}>Jitter</span>
+			<input
+				type="range"
+				min={0}
+				max={1}
+				step={0.05}
+				value={jitterAmount}
+				onChange={(e) => onChange({ jitterAmount: Number(e.target.value) })}
+				className="min-w-0 flex-1"
+			/>
+			<span className="w-10 text-right text-sm vc-muted">
+				{Math.round(jitterAmount * 100)}%
+			</span>
+		</label>
+		{jitterAmount > 0 && (
+			<Checkbox
+				label="Only jitter overlapping points"
+				checked={overlappingOnly}
+				onChange={(next) =>
+					onChange({ jitterOverlappingOnly: next ? true : undefined })
+				}
+				changed={overlappingOnlyChanged}
+			/>
+		)}
+	</div>
 )
 
 const DEFAULT_RUG_TICK_LENGTH = DEFAULT_HISTOGRAM_CONFIG.rugTickLength ?? 10

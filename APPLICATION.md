@@ -1031,9 +1031,24 @@ example, a quantitative variable cannot be assigned to pattern.
 ### 3.2 The channels
 - **x, y** — position
 - **r** — radial distance from center (radar / spider charts)
-- **facet** — small multiples grid (single-variable wrap)
+- **facet** — small multiples grid (single-variable wrap: titles above
+  each panel, user-set rows × columns)
 - **facetRow, facetCol** — two-variable facet grid (data-determined
-  rows × cols); mutually exclusive with `facet` in the UI
+  rows × cols, row and column header strips). The sidebar shows ONE
+  "Facet" row over all three: its dropdown lists the fields plus
+  **Two variables…**, which opens the row's options panel, whose first
+  block is a **Row variable** picker and a **Column variable** picker
+  (and a "⇄ Swap rows and columns" link) writing `facetRow` /
+  `facetCol`; picking a field writes `facet`. The row keeps the wrap
+  channel and the pair exclusive (`lib/facetEncoding.ts`), so they are
+  never mapped together. Choosing Two variables… with a variable mapped
+  moves it to Rows (the chart stays faceted, now with a row strip,
+  while Columns waits); with nothing mapped the panel shows only the
+  pickers until a side is picked (`facetPairOpenAtom`, session UI
+  state); a half-filled pair is a row-only / column-only grid. The
+  stored shape is unchanged — saved visuals, templates,
+  examples and chart specs keep their three keys; a saved row-only /
+  column-only visual opens in two-variable mode with one side filled.
 - **hue** — fill color (UI label: "Color")
 - **outlineHue** — outline/stroke color (UI label: "Outline color");
   coexists with hue since fill and outline are independent color
@@ -2337,7 +2352,16 @@ a hint to map one (the Layout radio stays — it applies to the flat
 signature too).
 
 ### 4.5 Facet panel
-Visible when `facet` is mapped. Controls:
+The Facet row's one options panel. Unmapped, it carries only the
+map-a-variable hint. With a single variable (`facet`) it shows the
+**wrap** body below (Dimension, the axis subsections, Panel spacing
+and sizing); with Two variables… (`facetRow` / `facetCol`) the
+**two-variable** body: the Row / Column variable pickers, the Rows
+subsection (y / r axis), the Columns subsection (x / angle axis), then
+Panel spacing and sizing with both
+gaps, both panel dimensions, Hide empty panels (§4.5a) and the titles
+link. Share modes, sizing, gaps, panel size and the range editors are
+the same `FacetConfig` either way. Controls:
 
 - **Rows / columns** — explicit grid dimensions. Max for each is the
   number of levels in the facet variable.
@@ -2348,12 +2372,10 @@ Visible when `facet` is mapped. Controls:
   Default is shared. Only for axes the mode draws (`canvas.cartesianAxes`
   — radar / pies swap in R / angle pickers; maps and the structure
   layouts draw no axis, so their facet panel has no share rows or range
-  editors, only the panel size inputs). In grid mode the Facet (row)
-  and Facet (col) panels EACH carry both a "Rows" and a "Columns"
-  subsection (own axis listed first) — the share modes are grid-wide
-  bits, so either panel can share or unshare either axis without
-  hopping to the other. Pie rows have no axis: the row panel shows a
-  one-line hint in place of "Rows" and still offers "Columns".
+  editors, only the panel size inputs). The two-variable body carries
+  the "Rows" and then the "Columns" subsection — the share modes are
+  grid-wide bits. Pie rows have no axis: a one-line hint stands in for
+  "Rows" and "Columns" still renders.
 - **Size row heights / column widths by category count** — when
   checked, panels with more categories on the relevant axis get
   proportionally more height / width so categories stay evenly spaced
@@ -2417,8 +2439,8 @@ Visible when `facet` is mapped. Controls:
   and only overlap. (Before 2026-10-20 the gap ran between whole cells,
   plot plus axis chrome; saved visuals and imported bundles move onto the
   new measure by adding 30px — visuals v8.)
-- **Edit facet titles →** — the last item of the facet Row / Column /
-  wrap panels' "Panel spacing and sizing" subsection: a right-aligned
+- **Edit facet titles →** — the last item of the Facet panel's "Panel
+  spacing and sizing" subsection (both bodies): a right-aligned
   text link that jumps to Titles → **Facet titles** (in a grid split,
   the first of the "(row)" / "(column)" / "(panel)" subsections that is
   rendered). It opens the Titles section and that subsection and scrolls
@@ -2428,12 +2450,12 @@ Visible when `facet` is mapped. Controls:
   levels.
 
 ### 4.5a Hide empty panels (facet grid)
-The facet Row and Column option panels each carry a **Hide empty
-panels** checkbox in their "Panel spacing and sizing" subsection — one config
-bit (`FacetConfig.hideEmptyPanels`) mirrored into both panels, shown
-only when BOTH `facetRow` and `facetCol` are mapped (the row × col
-cross-product is the only source of empty panels). Pie mode included:
-the row panel's "no row axis" hint replaces only its Rows subsection,
+The Facet panel's two-variable body carries a **Hide empty panels**
+checkbox in its "Panel spacing and sizing" subsection — one config bit
+(`FacetConfig.hideEmptyPanels`), shown only when BOTH `facetRow` and
+`facetCol` are mapped (the row × col cross-product is the only source
+of empty panels). Pie mode included:
+the "no row axis" hint replaces only the Rows subsection,
 not the Panel spacing and sizing block.
 
 Default off. Off — or on with no empty cross-product cell — the grid
@@ -2823,6 +2845,22 @@ The X-axis and Y-axis panels (under Encodings) configure:
   themes, undo, and the "changed" dot need no new fields; the dollar /
   percent cell hints (§ 2.2) fill the *spec* half when it is Auto and
   keep the text.
+- **Jitter** (the categorical side of a strip plot) — spreads each
+  category's points sideways within the band by a fraction of the band
+  width; 0 (the default) stacks them on the band center. The offset is
+  a stable hash of the row index, so points never dance between
+  renders. **Only jitter overlapping points** (shown once Jitter is
+  above 0, since it does nothing at 0) keeps every point that sits
+  alone on the band center and jitters only the points that share an
+  exact position — same category AND same value — with at least one
+  other point. Near-but-distinct values are not "overlapping" and stay
+  put. A stack splits evenly between the two sides of the band center
+  (two points go one each way; three go two and one, which side gets
+  the extra being a stable per-stack coin flip), and within a side the
+  points take evenly spaced distances out to the jitter width, each
+  nudged by a stable per-row amount, so stacked points never move
+  together or land on each other. The "Mark mean" point is never
+  jittered.
 - **Distribution overlay** — adds a violin or box plot on the value
   axis of strip plots (categorical × quantitative). The box draws its
   Tukey outliers as small open circles only while the underlying data

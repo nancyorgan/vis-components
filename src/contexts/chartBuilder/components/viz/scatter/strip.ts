@@ -22,6 +22,9 @@ export type StripAxes = {
 	categoryScale: { (cat: unknown): number | undefined; step: () => number }
 	valueScale: PositionScale
 	jitterAmount: number
+	/** Jitter only the marks that share a pre-jitter position with another
+	 * mark (`AxisConfig.jitterOverlappingOnly`). */
+	jitterOverlappingOnly: boolean
 	overlay: DistributionOverlayConfig
 }
 
@@ -157,6 +160,7 @@ export const resolveStripAxes = (args: {
 		categoryScale,
 		valueScale,
 		jitterAmount: cfg?.jitterAmount ?? 0,
+		jitterOverlappingOnly: cfg?.jitterOverlappingOnly === true,
 		overlay,
 	}
 }
@@ -171,14 +175,71 @@ const stableRandom = (i: number): number => {
 	return ((x ^ (x >>> 16)) >>> 0) / 4294967295
 }
 
+/** Signed jitter fraction (-1..1 of the max offset) for every mark that
+ * shares its exact pre-jitter position (same `cx` AND `cy`) with at least
+ * one other mark; marks that sit alone are absent. Two rows with the same
+ * category and the same value land on identical pixels, so an exact pixel
+ * match is the same test as an exact data match; nearby-but-distinct
+ * values stay distinct.
+ *
+ * A stack splits EVENLY between the two sides of the band center: walking
+ * the group in draw order, members alternate side (2 → one each way; 3 →
+ * two one way, one the other; which side gets the extra is a stable coin
+ * flip per group so it doesn't always lean the same way). Within a side
+ * the members take evenly spaced slots out to the max offset, each
+ * wobbled by a stable per-row amount, so no two land on the same spot and
+ * none hugs the center. In-memory lookup only — the key is never
+ * persisted. */
+const overlappingJitter = (marks: Mark[]): Map<number, number> => {
+	const groups = new Map<string, Mark[]>()
+	for (const m of marks) {
+		const key = `${m.cx},${m.cy}`
+		const g = groups.get(key)
+		if (g) g.push(m)
+		else groups.set(key, [m])
+	}
+	const out = new Map<number, number>()
+	for (const group of groups.values()) {
+		if (group.length < 2) continue
+		const members = [...group].sort((a, b) => a.i - b.i)
+		const first = members[0]
+		if (!first) continue
+		const firstSign = stableRandom(first.i) < 0.5 ? -1 : 1
+		const perSide: [number, number] = [
+			Math.ceil(members.length / 2),
+			Math.floor(members.length / 2),
+		]
+		const placed: [number, number] = [0, 0]
+		members.forEach((m, k) => {
+			const side = k % 2 === 0 ? 0 : 1
+			const slots = perSide[side]
+			const j = placed[side]
+			placed[side] = j + 1
+			// Slot center (j + 0.5) / slots, wobbled by up to ±0.3 of a slot.
+			const t = (j + 0.5 + (stableRandom(m.i) - 0.5) * 0.6) / slots
+			out.set(m.i, (side === 0 ? firstSign : -firstSign) * t)
+		})
+	}
+	return out
+}
+
 export const applyJitter = (marks: Mark[], strip: StripAxes | null): Mark[] => {
 	if (!strip || strip.jitterAmount <= 0) return marks
 	const step = strip.categoryScale.step()
 	if (!step) return marks
 	const maxOffset = step * 0.5 * strip.jitterAmount
 	const axis = strip.categoryAxis
+	// "Only jitter overlapping points": a mark that sits alone keeps its
+	// band-center position; only stacked marks spread, split evenly
+	// between the two sides of the center.
+	const stacked = strip.jitterOverlappingOnly ? overlappingJitter(marks) : null
 	return marks.map((m) => {
-		const delta = (stableRandom(m.i) - 0.5) * 2 * maxOffset
+		const fraction = stacked ? stacked.get(m.i) : undefined
+		if (stacked && fraction === undefined) return m
+		const delta =
+			fraction !== undefined
+				? fraction * maxOffset
+				: (stableRandom(m.i) - 0.5) * 2 * maxOffset
 		if (axis === "x") {
 			const cx = m.cx + delta
 			const line = m.line

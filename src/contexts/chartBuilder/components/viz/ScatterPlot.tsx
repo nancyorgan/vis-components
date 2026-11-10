@@ -444,6 +444,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 				categoryScale,
 				valueScale,
 				jitterAmount: 0,
+				jitterOverlappingOnly: false,
 				overlay,
 			}
 			// Underlying data points, gated on "Show points". There's no
