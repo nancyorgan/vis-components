@@ -123,6 +123,17 @@ const VIEWPORT_MARGIN = 48
 // left edge.
 const MIN_PANEL_WIDTH = 420
 const ANCHOR_WIDTH = 960
+// The popup's width comes from the PREVIEW alone (see `FILL_WIDTH`), never
+// from either tab's text or controls, so switching tabs never changes it.
+// This floor keeps a small preview's popup wide enough for the Download
+// tab's controls row (Width / Height / Units / Lock aspect ratio / Format /
+// Resolution) on one line.
+const MIN_CONTENT_WIDTH = 600
+// Fills the width the preview sets but adds nothing to it: width 0 drops the
+// element's own intrinsic width out of the fit-content popup's sizing, and
+// min-width 100% stretches it back to the column. Long prose (the Publish
+// intro), link rows and the controls row wrap instead of widening the popup.
+const FILL_WIDTH = "w-0 min-w-full"
 
 /** Measure an on-screen element's rendered size, clamped to the export
  *  bounds. Returns integer px dims, or `null` when the element is absent or
@@ -326,6 +337,12 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	const availW = Math.max(240, slotWidth - anchorOffset - PREVIEW_CHROME_X)
 	const availH = Math.max(160, viewport.h - PREVIEW_CHROME_Y)
 	const previewScale = Math.min(1, availW / width, availH / imageHeight)
+	// The width floor, capped to what the slot can hold (a phone): the slot
+	// less the anchor indent, the body's p-4 and the panel's 1px border.
+	const minContentWidth = Math.min(
+		MIN_CONTENT_WIDTH,
+		slotWidth - anchorOffset - 34
+	)
 
 	const figure: FigureProps = {
 		width,
@@ -365,7 +382,7 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 			fitWidth
 			fitWidthOffsetPx={anchorOffset}
 		>
-			<div className="flex flex-col gap-4">
+			<div className="flex flex-col gap-4" style={{ minWidth: minContentWidth }}>
 				<div
 					role="tablist"
 					className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700"
@@ -488,7 +505,7 @@ const FigureBlock = ({
 			{/* One left-packed row of controls (labels above, controls bottom-
 			    aligned). Left-packing keeps every control pinned in place while
 			    the panel grows/shrinks with the preview. */}
-			<div className="flex flex-wrap items-end gap-3">
+			<div className={`flex flex-wrap items-end gap-3 ${FILL_WIDTH}`}>
 				<NumberInput
 					label={`Width (${unit})`}
 					labelClassName="vc-heading font-medium"
@@ -545,7 +562,7 @@ const FigureBlock = ({
 				{trailing}
 			</div>
 			<div className="flex flex-col gap-2">
-				<div className="flex flex-col text-sm">
+				<div className={`flex flex-col text-sm ${FILL_WIDTH}`}>
 					<span className="vc-muted">
 						Preview ({pxToUnit(width, unit)} × {pxToUnit(height, unit)}
 						{unit === "px" ? "" : ` ${unit}`}
@@ -837,7 +854,9 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 	if (!canPublish) {
 		return (
 			<div className="flex flex-col gap-4">
-				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+				<div
+					className={`rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200 ${FILL_WIDTH}`}
+				>
 					Publishing embeds requires the self-host server — this session is
 					running browser-local, so there is nowhere public to publish to.
 					Use the Download image tab for a file.
@@ -923,138 +942,142 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 	return (
 		<div className="flex flex-col gap-4">
 			<FigureBlock figure={figure} note="Same size as Download image" />
-			{stateRows}
+			{/* Everything under the preview fills its width and wraps, so the
+			    popup is the same width as on Download image. */}
+			<div className={`flex flex-col gap-4 ${FILL_WIDTH}`}>
+				{stateRows}
 
-			{/* The data version settings fold away; most publishes never need
-			    them. A purple option panel like the sidebar's, with the
-			    sidebar's purple group header and chevron. */}
-			<div className="vc-option-panel">
-				<button
-					type="button"
-					onClick={() => setSettingsOpen((o) => !o)}
-					aria-expanded={settingsOpen}
-					className="text-vc-section-header flex w-full items-center gap-2 text-left"
-				>
-					<SectionChevron open={settingsOpen} />
-					<span className="vc-group-header">Data version settings</span>
-				</button>
-				{settingsOpen && (
-<div className="vc-subsection-card grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-md p-2 text-sm">
-						<span className="vc-muted pt-0.5">Data</span>
-						<fieldset className="flex flex-col gap-2">
-							<legend className="sr-only">Data</legend>
-							{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-							<label className="flex items-center gap-2">
-								<input
-									type="radio"
-									checked={mode === "live"}
-									onChange={() => setMode("live")}
-								/>
-								<span>
-									<span className="vc-heading font-medium">Latest at publish</span>
-									<span className="vc-muted"> — each republish takes the newest data</span>
-								</span>
-							</label>
-							{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-							<label className="flex items-center gap-2">
-								<input
-									type="radio"
-									checked={mode === "pinned"}
-									onChange={() => setMode("pinned")}
-									disabled={!view}
-								/>
-								<span>
-									<span className="vc-heading font-medium">
-										Pin to current version{view ? ` (${versionLabel})` : ""}
+				{/* The data version settings fold away; most publishes never need
+				    them. A purple option panel like the sidebar's, with the
+				    sidebar's purple group header and chevron. */}
+				<div className="vc-option-panel">
+					<button
+						type="button"
+						onClick={() => setSettingsOpen((o) => !o)}
+						aria-expanded={settingsOpen}
+						className="text-vc-section-header flex w-full items-center gap-2 text-left"
+					>
+						<SectionChevron open={settingsOpen} />
+						<span className="vc-group-header">Data version settings</span>
+					</button>
+					{settingsOpen && (
+	<div className="vc-subsection-card grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-md p-2 text-sm">
+							<span className="vc-muted pt-0.5">Data</span>
+							<fieldset className="flex flex-col gap-2">
+								<legend className="sr-only">Data</legend>
+								{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+								<label className="flex items-center gap-2">
+									<input
+										type="radio"
+										checked={mode === "live"}
+										onChange={() => setMode("live")}
+									/>
+									<span>
+										<span className="vc-heading font-medium">Latest at publish</span>
+										<span className="vc-muted"> — each republish takes the newest data</span>
 									</span>
-									<span className="vc-muted"> — republishing keeps this data</span>
-								</span>
-							</label>
-						</fieldset>
-						{/* Per VISUAL (every published pin, whichever pin this tab
-						    shows) and per user on this browser: each of this user's
-						    autosaves republishes (`useAutoSave`). Only meaningful once
-						    something is published. */}
-						{hasPublishedPin && (
-							<>
-								<span className="vc-muted pt-0.5">Updates</span>
-								<Checkbox
-									label="Republish automatically whenever I save (this browser only)"
-									checked={republishOnSave}
-									onChange={(on) =>
-										setRepublishOnSaveVisuals((prev) =>
-											withRepublishOnSave(prev, visualId, on)
-										)
-									}
-								/>
-							</>
-						)}
-					</div>
-				)}
-			</div>
-
-			{publishError !== null && (
-				<div className="rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200">
-					{publishError}
-				</div>
-			)}
-
-			{/* The two ways to use the published copy, one at a time, pictures
-			    first (most users want a slide or a document, not an iframe).
-			    Links exist only once a publish has succeeded (0016 rule 4). */}
-			{published && (
-				<>
-					<div className="flex items-center gap-3">
-						<span className="vc-heading text-sm font-medium">Get a link for</span>
-						<Segmented
-							ariaLabel="Link destination"
-							value={linkFor}
-							segments={LINK_FOR_SEGMENTS}
-							onChange={setLinkFor}
-						/>
-					</div>
-
-					{linkFor === "slides" ? (
-						<LinkedPictureRow
-							imageUrl={published.publishedUrls?.image}
-							vectorUrl={published.publishedUrls?.vector}
-							failures={pictureFailures[visualId]}
-						/>
-					) : (
-						<div className="flex flex-col gap-3">
-							{snippets
-								.filter((s) => s.key === "main")
-								.map(renderSnippet)}
-							{/* Iframe-only, so it lives here; it shapes what the NEXT
-							    publish writes (one page, or chart + legend pages). */}
-							<label className="flex items-center gap-2 text-sm">
-								<input
-									type="checkbox"
-									checked={splitLegend}
-									onChange={(e) => setSplitLegend(e.target.checked)}
-								/>
-								<span>
-									Legend as a separate iframe{" "}
-									<span className="vc-muted">(takes effect on republish)</span>
-								</span>
-							</label>
-							{snippets
-								.filter((s) => s.key === "legend")
-								.map(renderSnippet)}
-							{embedUrl !== null && (
-								<a
-									href={embedUrl}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="w-fit text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
-								>
-									Open published page in new tab
-								</a>
+								</label>
+								{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+								<label className="flex items-center gap-2">
+									<input
+										type="radio"
+										checked={mode === "pinned"}
+										onChange={() => setMode("pinned")}
+										disabled={!view}
+									/>
+									<span>
+										<span className="vc-heading font-medium">
+											Pin to current version{view ? ` (${versionLabel})` : ""}
+										</span>
+										<span className="vc-muted"> — republishing keeps this data</span>
+									</span>
+								</label>
+							</fieldset>
+							{/* Per VISUAL (every published pin, whichever pin this tab
+							    shows) and per user on this browser: each of this user's
+							    autosaves republishes (`useAutoSave`). Only meaningful once
+							    something is published. */}
+							{hasPublishedPin && (
+								<>
+									<span className="vc-muted pt-0.5">Updates</span>
+									<Checkbox
+										label="Republish automatically whenever I save (this browser only)"
+										checked={republishOnSave}
+										onChange={(on) =>
+											setRepublishOnSaveVisuals((prev) =>
+												withRepublishOnSave(prev, visualId, on)
+											)
+										}
+									/>
+								</>
 							)}
 						</div>
 					)}
-				</>
-			)}
+				</div>
+
+				{publishError !== null && (
+					<div className="rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200">
+						{publishError}
+					</div>
+				)}
+
+				{/* The two ways to use the published copy, one at a time, pictures
+				    first (most users want a slide or a document, not an iframe).
+				    Links exist only once a publish has succeeded (0016 rule 4). */}
+				{published && (
+					<>
+						<div className="flex items-center gap-3">
+							<span className="vc-heading text-sm font-medium">Get a link for</span>
+							<Segmented
+								ariaLabel="Link destination"
+								value={linkFor}
+								segments={LINK_FOR_SEGMENTS}
+								onChange={setLinkFor}
+							/>
+						</div>
+
+						{linkFor === "slides" ? (
+							<LinkedPictureRow
+								imageUrl={published.publishedUrls?.image}
+								vectorUrl={published.publishedUrls?.vector}
+								failures={pictureFailures[visualId]}
+							/>
+						) : (
+							<div className="flex flex-col gap-3">
+								{snippets
+									.filter((s) => s.key === "main")
+									.map(renderSnippet)}
+								{/* Iframe-only, so it lives here; it shapes what the NEXT
+								    publish writes (one page, or chart + legend pages). */}
+								<label className="flex items-center gap-2 text-sm">
+									<input
+										type="checkbox"
+										checked={splitLegend}
+										onChange={(e) => setSplitLegend(e.target.checked)}
+									/>
+									<span>
+										Legend as a separate iframe{" "}
+										<span className="vc-muted">(takes effect on republish)</span>
+									</span>
+								</label>
+								{snippets
+									.filter((s) => s.key === "legend")
+									.map(renderSnippet)}
+								{embedUrl !== null && (
+									<a
+										href={embedUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="w-fit text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+									>
+										Open published page in new tab
+									</a>
+								)}
+							</div>
+						)}
+					</>
+				)}
+			</div>
 		</div>
 	)
 }
@@ -1180,14 +1203,16 @@ const DownloadTab = ({
 			<FigureBlock figure={figure} trailing={trailing} note={note} />
 
 			{error && (
-				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+				<div
+					className={`rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300 ${FILL_WIDTH}`}
+				>
 					{error}
 				</div>
 			)}
 
 			{/* Actions ride the popup's bottom-right corner, below the preview —
 			    they move as the popup resizes with the image, by design. */}
-			<div className="flex justify-end gap-2">
+			<div className={`flex justify-end gap-2 ${FILL_WIDTH}`}>
 				<Button compact onClick={onDownload} disabled={busy}>
 					{busy ? "Exporting…" : `Download ${format.toUpperCase()}`}
 				</Button>
