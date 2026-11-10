@@ -19,12 +19,16 @@ import {
 	type LabelAlignment,
 	type LabelFontKey,
 	type LegendChannel,
+	type TitlePlacement,
+	type TitlePlacementSide,
 	type TitlePrefixConfig,
 	type TitlesFontConfig,
 	type VerticalAlignment,
+	DEFAULT_TITLE_PLACEMENT,
 	mirroredVisualName,
 	titleAlignmentPatch,
 	titleAnglePatch,
+	titlePlacementPatch,
 	titleVerticalAlignmentPatch,
 } from "../../lib/labelsConfig"
 import { UNTITLED_VISUAL_NAME } from "../../lib/nameUniqueness"
@@ -142,6 +146,8 @@ export const LabelsPanel = () => {
 		setLabels((prev) => ({ ...prev, ...titleVerticalAlignmentPatch(prev, key, value) }))
 	const setAngle = (key: LabelFontKey, value: number) =>
 		setLabels((prev) => ({ ...prev, ...titleAnglePatch(prev, key, value) }))
+	const setPlacement = (key: LabelFontKey, value: TitlePlacement) =>
+		setLabels((prev) => ({ ...prev, ...titlePlacementPatch(prev, key, value) }))
 	const setYAxisHorizontal = (value: boolean) => {
 		setLabels((prev) => ({ ...prev, yAxisTitleHorizontal: value }))
 	}
@@ -306,6 +312,10 @@ export const LabelsPanel = () => {
 
 	const titleAngles = labels.titleAngles ?? {}
 
+	const titlePlacements = labels.titlePlacements ?? {}
+	const sidePlaced = (key: LabelFontKey) =>
+		(titlePlacements[key]?.side ?? "top") !== "top"
+
 	// The facet-title control(s) only render when the visual is actually
 	// faceted — wrap (`facet`) or grid (`facetRow` / `facetCol`). There are no
 	// facet titles to style otherwise, so the control would be dead UI.
@@ -324,6 +334,10 @@ export const LabelsPanel = () => {
 	// only / wrap facets put their titles in a thin band where top/bottom is
 	// meaningless, so they don't.
 	const facetRowOnly = !!encodings.facetRow?.field && !encodings.facetCol?.field
+	// Single-variable (wrap) facets title each panel in its own band, so they
+	// get the Placement control (Top / Left / Right); the half-pair strips
+	// keep their fixed top / left positions.
+	const facetWrap = !!encodings.facet?.field
 	// "Panel titles" row gate: hide-empty compacted grids give each panel its
 	// own title band (styled by the `facetPanelTitle` slot). Gated on the
 	// CONFIG (matches the "Hide empty panels" checkbox in the facet axis
@@ -384,6 +398,7 @@ export const LabelsPanel = () => {
 		(titleVerticalAlignments[key] !== undefined &&
 			titleVerticalAlignments[key] !== "middle") ||
 		!!titleAngles[key] ||
+		sidePlaced(key) ||
 		!!labels.titleOffsets?.[key]
 	// An axis title the chart can't draw greys out: flow diagrams, the tree
 	// layouts and maps have no x / y axes. Polar charts stay live — the pie
@@ -892,8 +907,20 @@ export const LabelsPanel = () => {
 							<LabelStyleControls
 								override={overrides.facetPanelTitle}
 								onOverride={(patch) => setOverride("facetPanelTitle", patch)}
+								placement={titlePlacements.facetPanelTitle ?? DEFAULT_TITLE_PLACEMENT}
+								onPlacement={(p) => setPlacement("facetPanelTitle", p)}
 								alignment={titleAlignments.facetPanelTitle}
 								onAlignment={(a) => setAlignment("facetPanelTitle", a)}
+								verticalAlignment={
+									sidePlaced("facetPanelTitle")
+										? titleVerticalAlignments.facetPanelTitle
+										: undefined
+								}
+								onVerticalAlignment={
+									sidePlaced("facetPanelTitle")
+										? (a) => setVerticalAlignment("facetPanelTitle", a)
+										: undefined
+								}
 								angle={titleAngles.facetPanelTitle}
 								onAngle={(deg) => setAngle("facetPanelTitle", deg)}
 								baseColor={
@@ -934,13 +961,23 @@ export const LabelsPanel = () => {
 					<LabelStyleControls
 						override={overrides.facetTitle}
 						onOverride={(patch) => setOverride("facetTitle", patch)}
+						placement={
+							facetWrap
+								? titlePlacements.facetTitle ?? DEFAULT_TITLE_PLACEMENT
+								: undefined
+						}
+						onPlacement={
+							facetWrap ? (p) => setPlacement("facetTitle", p) : undefined
+						}
 						alignment={titleAlignments.facetTitle}
 						onAlignment={(a) => setAlignment("facetTitle", a)}
 						verticalAlignment={
-							facetRowOnly ? titleVerticalAlignments.facetTitle : undefined
+							facetRowOnly || (facetWrap && sidePlaced("facetTitle"))
+								? titleVerticalAlignments.facetTitle
+								: undefined
 						}
 						onVerticalAlignment={
-							facetRowOnly
+							facetRowOnly || (facetWrap && sidePlaced("facetTitle"))
 								? (a) => setVerticalAlignment("facetTitle", a)
 								: undefined
 						}
@@ -1414,6 +1451,14 @@ type LabelStyleControlsProps = {
 	 * renderers that honor `titleAngles` today. */
 	angle?: number
 	onAngle?: (deg: number) => void
+	/** When provided, a "Placement" select (Top / Left / Right) leads the
+	 * controls, with a "Read title horizontally" checkbox under it for a
+	 * side placement. Only the per-panel facet-title slots (wrap panel
+	 * titles, compact-grid panel titles) are placeable; a vertical side
+	 * title hides the horizontal Align and Angle rows, which can't apply
+	 * to it (its along-panel position is the Vertical align row). */
+	placement?: TitlePlacement
+	onPlacement?: (p: TitlePlacement) => void
 	baseColor: string
 	/** Inherited size (pt) shown as the Size box's placeholder. */
 	baseSize: number
@@ -1440,6 +1485,8 @@ const LabelStyleControls = ({
 	onVerticalAlignment,
 	angle,
 	onAngle,
+	placement,
+	onPlacement,
 	baseColor,
 	baseSize,
 	baseFamily,
@@ -1448,12 +1495,44 @@ const LabelStyleControls = ({
 	hideColor,
 	extraControls,
 }: LabelStyleControlsProps) => {
+	const side: TitlePlacementSide = placement?.side ?? "top"
+	// A side-placed title reads vertically unless "Read title horizontally"
+	// is on; the horizontal Align and Angle rows are inert for it and hide.
+	const sideVertical = side !== "top" && !placement?.horizontal
 	// No box of its own: these controls always render inside a subsection's
 	// white card (inline or expanded from a LabelRow), where another panel
 	// would read as box-in-box.
 	return (
 		<div className="flex flex-col gap-2">
-			{onAlignment && (
+			{onPlacement && (
+				<>
+					<label className="flex items-center gap-2 text-sm">
+						<span className={LABEL_COL}>Placement</span>
+						<Select
+							value={side}
+							onChange={(e) =>
+								onPlacement({
+									side: e.target.value as TitlePlacementSide,
+									horizontal: placement?.horizontal,
+								})
+							}
+							className="w-24"
+						>
+							<option value="top">Top</option>
+							<option value="left">Left</option>
+							<option value="right">Right</option>
+						</Select>
+					</label>
+					{side !== "top" && (
+						<Checkbox
+							label="Read title horizontally"
+							checked={placement?.horizontal === true}
+							onChange={(horizontal) => onPlacement({ side, horizontal })}
+						/>
+					)}
+				</>
+			)}
+			{onAlignment && !sideVertical && (
 				/* div, not label: AlignmentControl is a button group, not a form control */
 				<div className="flex items-center gap-2 text-sm">
 					<span className={LABEL_COL}>
@@ -1474,7 +1553,7 @@ const LabelStyleControls = ({
 					/>
 				</div>
 			)}
-			{onAngle && (
+			{onAngle && !sideVertical && (
 				<NumberInput
 					label="Angle"
 					labelClassName={LABEL_COL}

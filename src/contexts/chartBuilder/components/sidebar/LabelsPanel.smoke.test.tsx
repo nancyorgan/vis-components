@@ -188,6 +188,102 @@ describe("LabelsPanel — Facet titles (panel) subsection (hide-empty per-panel 
 })
 
 // ---------------------------------------------------------------------------
+// Facet-title Placement
+// ---------------------------------------------------------------------------
+
+/** The per-panel facet-title rows (wrap "Facet titles", compact-grid "Facet
+ *  titles (panel)") lead with a Placement select; a side placement adds the
+ *  "Read title horizontally" box, swaps the horizontal Align + Angle rows for
+ *  Vertical align while the title reads vertically, and lights the dot. The
+ *  half-pair strips (row-only / column-only) are not placeable. */
+describe("LabelsPanel — facet-title placement", () => {
+	afterEach(cleanup)
+
+	const PlacementProbe = () => {
+		const labels = useAtomValue(currentLabelsAtom)
+		return (
+			<div
+				data-testid="placement-probe"
+				data-placement={stringifyJsonDangerous(labels.titlePlacements ?? {})}
+			/>
+		)
+	}
+	const placementSelect = (container: HTMLElement) =>
+		[...container.querySelectorAll<HTMLLabelElement>("label")]
+			.find((l) => l.textContent?.startsWith("Placement"))
+			?.querySelector("select") ?? null
+	const horizontalBox = (container: HTMLElement) =>
+		[...container.querySelectorAll<HTMLLabelElement>("label")].find(
+			(l) => l.textContent === "Read title horizontally"
+		) ?? null
+	const rowLabel = (container: HTMLElement, text: string) =>
+		[...container.querySelectorAll<HTMLSpanElement>("span")].find(
+			(s) => s.textContent === text
+		) ?? null
+
+	it("wrap facet: Placement leads the row; Left adds the checkbox, hides Align + Angle, shows Vertical align, and writes titlePlacements", () => {
+		seedStorage({ encodings: { ...emptyEncodings(), facet: { field: "g" } } })
+		const { container } = renderPanel(PlacementProbe)
+		expandSection(container, "Facet titles")
+		const select = placementSelect(container)
+		expect(select).not.toBeNull()
+		expect(select!.value).toBe("top")
+		expect(horizontalBox(container)).toBeNull()
+		expect(rowLabel(container, "Align")).not.toBeNull()
+		expect(rowLabel(container, "Vertical align")).toBeNull()
+
+		fireEvent.change(select!, { target: { value: "left" } })
+		const probe = container.querySelector<HTMLElement>('[data-testid="placement-probe"]')!
+		expect(probe.dataset.placement).toBe(stringifyJsonDangerous({ facetTitle: { side: "left" } }))
+		expect(horizontalBox(container)).not.toBeNull()
+		expect(rowLabel(container, "Align")).toBeNull()
+		expect(rowLabel(container, "Horizontal align")).toBeNull()
+		expect(rowLabel(container, "Vertical align")).not.toBeNull()
+		expect(headerDot(container, "Facet titles")).not.toBeNull()
+
+		// Reading horizontally brings the horizontal align back (relabeled).
+		fireEvent.click(horizontalBox(container)!)
+		expect(probe.dataset.placement).toBe(
+			stringifyJsonDangerous({ facetTitle: { side: "left", horizontal: true } })
+		)
+		expect(rowLabel(container, "Horizontal align")).not.toBeNull()
+		expect(rowLabel(container, "Vertical align")).not.toBeNull()
+
+		// Back to Top clears the entry and the dot.
+		fireEvent.change(placementSelect(container)!, { target: { value: "top" } })
+		expect(probe.dataset.placement).toBe(stringifyJsonDangerous({}))
+		expect(headerDot(container, "Facet titles")).toBeNull()
+	})
+
+	it("row-only and column-only facets (strips) offer no Placement", () => {
+		seedStorage({ encodings: { ...emptyEncodings(), facetRow: { field: "region" } } })
+		const { container } = renderPanel()
+		expandSection(container, "Facet titles")
+		expect(placementSelect(container)).toBeNull()
+	})
+
+	it("compact-grid panel titles are placeable too", () => {
+		seedStorage({ encodings: gridEncodings(), hideEmptyPanels: true })
+		const { container } = renderPanel(PlacementProbe)
+		expandSection(container, "Facet titles (panel)")
+		const select = placementSelect(container)
+		expect(select).not.toBeNull()
+		fireEvent.change(select!, { target: { value: "right" } })
+		const probe = container.querySelector<HTMLElement>('[data-testid="placement-probe"]')!
+		expect(probe.dataset.placement).toBe(
+			stringifyJsonDangerous({ facetPanelTitle: { side: "right" } })
+		)
+		// The strips' rows stay un-placeable.
+		expandSection(container, "Facet titles (column)")
+		expect(
+			[...container.querySelectorAll("label")].filter((l) =>
+				l.textContent?.startsWith("Placement")
+			).length
+		).toBe(1)
+	})
+})
+
+// ---------------------------------------------------------------------------
 // Collapsible subsections
 // ---------------------------------------------------------------------------
 

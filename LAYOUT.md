@@ -101,6 +101,13 @@ Canvas
 └─ Per-cell chrome (subtracted from each cell to get inner plot rect)
    ├─ top:    facetLabelBand (FACET_LABEL_HEIGHT_PX = 20, + 1.2em per extra
    │            line of the tallest multi-line panel label — §7)
+   │            Only under Placement "Top". A Left / Right placement
+   │            (`FacetLabelInput.side`) reserves NO top band and instead
+   │            adds `facetSideWidth` to the cell's left / right chrome at
+   │            its OUTER edge (outside the y chrome): the same single-line
+   │            band for a vertical title (+ 1.2em per extra line, stacking
+   │            outward), or the widest title + 2·FACET_SIDE_BAND_PAD for an
+   │            upright one (`FacetLabelInput.width`, caller-measured).
    │          + BASE_MARGIN.top (16)
    ├─ bottom: BASE_MARGIN.bottom (64) + bottomFloor
    │            For interior rows under shareX: SHARED_INTERIOR_AXIS_RESERVE (4)
@@ -623,6 +630,33 @@ clamping fires — the title just stays at the buffer position. (A
 fully integrated response — where the plot also adjusts when the
 title would clamp — is part of the multi-phase open follow-up below.)
 
+### Facet-title keep-in-view (implemented 2026-11-10)
+
+Facet titles get the integrated response the chart titles above do
+not: `solveFacetLayout` is now `solveOnce` run once, then
+`facetTitleOverflow` measures every facet title's drawn extent — the
+per-panel labels (`FacetLabelInput.textWidth`, canvas-measured by
+`buildSolverInput`, with the folded-in `offsetX/Y` and either the
+structural ±90 of a side placement or the paint-time `angleDeg`) and
+the column / row header strips (`SharedTitleInput.textWidth` /
+`angleDeg`) — via `textExtent` (anchor-relative line box, rotated about
+the anchor). Any ink past a canvas edge (flush is fine; there is no
+buffer) adds its overshoot, rounded up, to that side's
+`extraTop/Bottom/Left/RightMargin`, and `solveOnce` runs once more. The
+edge row / column moves inward by exactly the overshoot, so one extra
+pass clears it; the left / right additions share the data-label
+reserve's fit-mode clamp. The title keeps its place relative to its
+panel and the plot shrinks (fit) or the canvas grows (scroll) — the
+asymmetric-offset contract of §8, now also covering a title nudged
+sideways or rotated out of its band. The per-panel offsets moved INTO
+the solver for this (`FacetPanel` draws `p.facetLabel` as-is); the
+strip offsets already were.
+
+One visible consequence: a toward-the-plot x-title offset under
+`xAxisTop` (§17) with no chart title above used to pull the facet band
+off the top of the canvas; the pass now gives that overshoot back, so
+the plot extends by the remainder only.
+
 ---
 
 ## 9. Canvas sizing
@@ -837,6 +871,7 @@ explicit justification in the doc but materially affect layout:
 | `BASE_MARGIN.bottom` | 64 | plotLayout.ts | Below plot — accommodates tick labels + some title room |
 | `BASE_MARGIN.left` | 76 | plotLayout.ts | Left of plot — accommodates tick labels + some y-title room |
 | `FACET_LABEL_HEIGHT_PX` | 20 | PlotCanvas.tsx | Per-panel facet-label band |
+| `FACET_SIDE_BAND_PAD` | 8 | facetLayoutSolver.ts | Padding each side of an upright Left / Right facet-title band |
 | `TITLE_RESERVE` | 36 | plotLayout.ts | Above chart, for chart title |
 | `SUBTITLE_RESERVE` | 22 | plotLayout.ts | Below chart title, for subtitle |
 | `SHARED_INTERIOR_AXIS_RESERVE` | 4 | facetLayoutSolver.ts | Interior row/col chrome under share-axes |

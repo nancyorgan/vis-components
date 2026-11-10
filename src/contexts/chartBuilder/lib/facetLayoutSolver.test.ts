@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
 	solveFacetLayout,
 	type FacetLabelInput,
+	type SharedTitleInput,
 	type SolverInput,
 	type SolverPanelInput,
 	type VerticalAlignment,
@@ -3144,8 +3145,23 @@ describe("solveFacetLayout — axis sides (LAYOUT.md §17)", () => {
 		expect(away.panels[0]!.inner.height).toBe(without.panels[0]!.inner.height - 12)
 		expect(away.panels[0]!.inner.y).toBe(without.panels[0]!.inner.y + 12)
 		expect(away.xTitle!.y).toBeCloseTo(without.xTitle!.y, 5)
+		// Toward (positive) extends the plot upward — but the facet label
+		// band rides the cell top, and with nothing above it the extension
+		// would push the label off the canvas; the facet-title keep-in-view
+		// pass gives that overshoot back, so the plot grows by the rest.
 		const toward = top({ xTitle: { ...xt, offsetY: 12 } })
-		expect(toward.panels[0]!.inner.height).toBe(without.panels[0]!.inner.height + 12)
+		expect(toward.panels[0]!.inner.height).toBeGreaterThan(
+			without.panels[0]!.inner.height,
+		)
+		expect(toward.panels[0]!.inner.height).toBeLessThanOrEqual(
+			without.panels[0]!.inner.height + 12,
+		)
+		expect(toward.panels[0]!.facetLabel!.y - FACET_LABEL.fontSize * 0.8).toBeGreaterThanOrEqual(0)
+		const towardNoFacet = top({ xTitle: { ...xt, offsetY: 12 }, facetLabel: undefined })
+		const withoutNoFacet = top({ facetLabel: undefined })
+		expect(towardNoFacet.panels[0]!.inner.height).toBe(
+			withoutNoFacet.panels[0]!.inner.height + 12,
+		)
 	})
 
 	it("xAxisTop: an upward tick-label nudge widens the title gap; a downward one is ignored", () => {
@@ -3177,5 +3193,218 @@ describe("solveFacetLayout — axis sides (LAYOUT.md §17)", () => {
 		// Row 0 carries the axis: a tall top chrome. Row 1: facet band + 4px.
 		expect(r0.inner.y - r0.cell.y).toBeGreaterThan(FACET_LABEL.height + 40)
 		expect(r1.inner.y - r1.cell.y).toBe(FACET_LABEL.height + 4)
+	})
+})
+
+describe("solveFacetLayout — facet-title placement (side bands)", () => {
+	const left = (over: Partial<FacetLabelInput> = {}, input: Partial<SolverInput> = {}) =>
+		solveFacetLayout(
+			baseline({
+				rows: 1,
+				cols: 2,
+				panels: makePanels(1, 2),
+				facetLabel: { ...FACET_LABEL, side: "left", width: 20, ...over },
+				...input,
+			}),
+		)
+	const right = (over: Partial<FacetLabelInput> = {}, input: Partial<SolverInput> = {}) =>
+		solveFacetLayout(
+			baseline({
+				rows: 1,
+				cols: 2,
+				panels: makePanels(1, 2),
+				facetLabel: { ...FACET_LABEL, side: "right", width: 20, ...over },
+				...input,
+			}),
+		)
+	const topBand = () =>
+		solveFacetLayout(
+			baseline({ rows: 1, cols: 2, panels: makePanels(1, 2), facetLabel: FACET_LABEL }),
+		)
+
+	it("left: the top band is not reserved and the band joins the cell's left chrome at its outer edge", () => {
+		const t = topBand()
+		const l = left()
+		for (const p of l.panels) {
+			const tp = t.panels.find((q) => q.key === p.key)!
+			// No top band: the plot rect starts BASE_MARGIN.top below the cell.
+			expect(p.inner.y - p.cell.y).toBe(BASE_MARGIN.top)
+			expect(tp.inner.y - tp.cell.y).toBe(BASE_MARGIN.top + FACET_LABEL.height)
+			// 20px more left chrome than the top-band layout.
+			expect(p.inner.x - p.cell.x).toBe(tp.inner.x - tp.cell.x + 20)
+			// The label sits inside the 20px band at the cell's left edge,
+			// rotated -90 (reads bottom-to-top), centered on the plot rect.
+			const fl = p.facetLabel!
+			expect(fl.rotation).toBe(-90)
+			expect(fl.x).toBeGreaterThanOrEqual(p.cell.x)
+			expect(fl.x).toBeLessThanOrEqual(p.cell.x + 20)
+			expect(fl.y).toBeCloseTo(p.inner.y + p.inner.height / 2, 5)
+			expect(fl.textAnchor).toBe("middle")
+		}
+	})
+
+	it("right: the band joins the cell's right chrome, rotated 90 (reads top-to-bottom)", () => {
+		const t = topBand()
+		const r = right()
+		for (const p of r.panels) {
+			const tp = t.panels.find((q) => q.key === p.key)!
+			expect(p.inner.x - p.cell.x).toBe(tp.inner.x - tp.cell.x)
+			expect(p.cell.x + p.cell.width - (p.inner.x + p.inner.width)).toBe(
+				tp.cell.x + tp.cell.width - (tp.inner.x + tp.inner.width) + 20,
+			)
+			const fl = p.facetLabel!
+			expect(fl.rotation).toBe(90)
+			expect(fl.x).toBeGreaterThanOrEqual(p.cell.x + p.cell.width - 20)
+			expect(fl.x).toBeLessThanOrEqual(p.cell.x + p.cell.width)
+		}
+	})
+
+	it("vertical align pins which panel edge a vertical side title starts from", () => {
+		const lt = left({ verticalAlign: "top" }).panels[0]!
+		expect(lt.facetLabel!.y).toBe(lt.inner.y)
+		expect(lt.facetLabel!.textAnchor).toBe("end")
+		const lb = left({ verticalAlign: "bottom" }).panels[0]!
+		expect(lb.facetLabel!.y).toBe(lb.inner.y + lb.inner.height)
+		expect(lb.facetLabel!.textAnchor).toBe("start")
+		const rt = right({ verticalAlign: "top" }).panels[0]!
+		expect(rt.facetLabel!.textAnchor).toBe("start")
+		const rb = right({ verticalAlign: "bottom" }).panels[0]!
+		expect(rb.facetLabel!.textAnchor).toBe("end")
+	})
+
+	it("upright side title: no rotation, aligned inside the padded band, line box anchored to the chosen edge", () => {
+		const spec = left({ horizontal: true, width: 100, align: "left", verticalAlign: "top" })
+		const p = spec.panels[0]!
+		const fl = p.facetLabel!
+		expect(fl.rotation).toBe(0)
+		expect(fl.verticalAnchor).toBe("top")
+		expect(fl.x).toBe(p.cell.x + 8)
+		expect(fl.y).toBe(p.inner.y)
+		expect(fl.textAnchor).toBe("start")
+		expect(p.inner.x - p.cell.x).toBeGreaterThanOrEqual(100)
+		const rightAligned = left({ horizontal: true, width: 100, align: "right" }).panels[0]!
+		expect(rightAligned.facetLabel!.x).toBe(rightAligned.cell.x + 100 - 8)
+		expect(rightAligned.facetLabel!.textAnchor).toBe("end")
+	})
+
+	it("offsets are folded into the rect", () => {
+		const base = left().panels[0]!.facetLabel!
+		const nudged = left({ offsetX: 3, offsetY: -4 }).panels[0]!.facetLabel!
+		expect(nudged.x).toBeCloseTo(base.x + 3, 5)
+		expect(nudged.y).toBeCloseTo(base.y - 4, 5)
+		const t = topBand().panels[0]!.facetLabel!
+		const tn = solveFacetLayout(
+			baseline({
+				rows: 1,
+				cols: 2,
+				panels: makePanels(1, 2),
+				facetLabel: { ...FACET_LABEL, offsetX: 5, offsetY: 6 },
+			}),
+		).panels[0]!.facetLabel!
+		expect(tn.x).toBeCloseTo(t.x + 5, 5)
+		expect(tn.y).toBeCloseTo(t.y + 6, 5)
+	})
+
+	it("extra lines of a vertical side title widen the band outward", () => {
+		const one = left().panels[0]!
+		const two = left({ lines: 2 }).panels[0]!
+		expect(two.inner.x - two.cell.x).toBeCloseTo(
+			one.inner.x - one.cell.x + 1.2 * FACET_LABEL.fontSize,
+			5,
+		)
+	})
+})
+
+describe("solveFacetLayout — facet-title keep-in-view (LAYOUT.md §8)", () => {
+	const wrap = (over: Partial<FacetLabelInput> = {}, input: Partial<SolverInput> = {}) =>
+		solveFacetLayout(
+			baseline({
+				rows: 2,
+				cols: 2,
+				panels: makePanels(2, 2),
+				facetLabel: { ...FACET_LABEL, textWidth: 60, ...over },
+				...input,
+			}),
+		)
+
+	it("default top band never trips the pass (the untouched layout is unchanged)", () => {
+		const measured = wrap()
+		const unmeasured = wrap({ textWidth: undefined })
+		expect(measured).toEqual(unmeasured)
+		const topRow = measured.panels.filter((p) => p.row === 0)
+		for (const p of topRow) expect(p.facetLabel!.y - FACET_LABEL.fontSize * 0.8).toBeGreaterThanOrEqual(0)
+	})
+
+	it("a label nudged above the canvas grows the top reserve so it stays in view, and the figure shrinks", () => {
+		const base = wrap()
+		const nudged = wrap({ offsetY: -40 })
+		const top = nudged.panels.find((p) => p.row === 0)!
+		// The ascender of the top row's label is on the canvas…
+		expect(top.facetLabel!.y - FACET_LABEL.fontSize * 0.8).toBeGreaterThanOrEqual(0)
+		// …because the grid moved down by the overshoot (canvas size unchanged, fit mode).
+		expect(nudged.canvas).toEqual(base.canvas)
+		expect(top.cell.y).toBeGreaterThan(base.panels.find((p) => p.row === 0)!.cell.y)
+		expect(top.inner.height).toBeLessThan(base.panels.find((p) => p.row === 0)!.inner.height)
+	})
+
+	it("a label nudged past the right edge grows the right reserve", () => {
+		const base = wrap()
+		const nudged = wrap({ offsetX: 300, align: "right" })
+		const rightCol = nudged.panels.find((p) => p.col === 1)!
+		// Right-aligned label: its right edge is the anchor x.
+		expect(rightCol.facetLabel!.x).toBeLessThanOrEqual(nudged.canvas.width)
+		expect(rightCol.inner.x + rightCol.inner.width).toBeLessThan(
+			base.panels.find((p) => p.col === 1)!.inner.x + base.panels.find((p) => p.col === 1)!.inner.width,
+		)
+	})
+
+	it("a steeply angled top-band label counts its rotated extent", () => {
+		// 90°: a 60px label standing on its anchor reaches 60px UP from
+		// the band — well past the canvas top in the first row.
+		const spec = wrap({ angleDeg: -90, align: "left" })
+		const top = spec.panels.find((p) => p.row === 0)!
+		expect(top.facetLabel!.y - 60).toBeGreaterThanOrEqual(0)
+	})
+
+	it("a side-placed vertical label that is longer than the panel is tall is kept inside the canvas", () => {
+		const spec = solveFacetLayout(
+			baseline({
+				containerHeight: 160,
+				rows: 1,
+				cols: 1,
+				facetLabel: {
+					...FACET_LABEL,
+					side: "left",
+					width: 20,
+					textWidth: 400,
+					verticalAlign: "bottom",
+				},
+			}),
+		)
+		const p = spec.panels[0]!
+		// Bottom-anchored, reads upward 400px from the plot bottom: the
+		// top reserve grew to fit it (scroll mode is off → canvas height is
+		// the container's, so the plot shrank).
+		expect(p.inner.y + p.inner.height - 400).toBeGreaterThanOrEqual(0)
+	})
+
+	it("header strips: a column header nudged above the canvas grows the top reserve", () => {
+		const hdr = (over: Partial<SharedTitleInput> = {}) =>
+			solveFacetLayout(
+				baseline({
+					rows: 1,
+					cols: 2,
+					panels: makePanels(1, 2),
+					facetLabel: undefined,
+					columnHeaders: [
+						{ text: "A", fontSize: 14, align: "center", ...over },
+						{ text: "B", fontSize: 14, align: "center", ...over },
+					],
+				}),
+			)
+		const base = hdr()
+		const nudged = hdr({ offsetY: -50 })
+		for (const h of nudged.columnHeaders) expect(h.y - 7).toBeGreaterThanOrEqual(0)
+		expect(nudged.panels[0]!.inner.y).toBeGreaterThan(base.panels[0]!.inner.y)
 	})
 })

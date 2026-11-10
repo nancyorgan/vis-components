@@ -71,9 +71,18 @@ export type TextRect = {
 	readonly x: number
 	readonly y: number
 	readonly textAnchor: TextAnchorSpec
-	readonly rotation: 0 | -90
+	/** Structural rotation about (x, y): -90 for the rotated y-title and a
+	 *  LEFT-side facet title (reads bottom-to-top), 90 for a RIGHT-side facet
+	 *  title (reads top-to-bottom). A user "Angle" applies only at 0. */
+	readonly rotation: 0 | -90 | 90
 	readonly width: number
 	readonly height: number
+	/** Vertical anchoring the renderer applies via SVG dominant-baseline.
+	 *  Set on row headers with a non-default (top / bottom) vertical
+	 *  alignment and on upright side-band facet titles; omitted → the
+	 *  renderer's default (row headers: center; others: the alphabetic
+	 *  baseline). */
+	readonly verticalAnchor?: VerticalAlignment
 	/** Multi-line text stacks its extra lines ABOVE `y` — which is then the
 	 *  LAST line's baseline — instead of below it. Set on the chart title,
 	 *  subtitle and facet panel labels, whose bands grow upward so a wrapped
@@ -101,6 +110,12 @@ export type SharedTitleInput = {
 	 *  strip honors this today (it positions the title at the top / center /
 	 *  bottom of the row's plot rect). Omit = "middle" (legacy centering). */
 	readonly verticalAlign?: VerticalAlignment
+	/** Paint-time rotation the renderer applies about the anchor (facet-title
+	 *  "Angle"). The solver doesn't rotate the rect for it; it only reads it
+	 *  in the facet-title keep-in-view pass (LAYOUT.md §8) so a steeply
+	 *  rotated header's extent counts when deciding whether it leaves the
+	 *  canvas. Only the header strips carry it. Omit = 0. */
+	readonly angleDeg?: number
 }
 
 export type SharedYTitleInput = SharedTitleInput & {
@@ -122,7 +137,42 @@ export type FacetLabelInput = {
 	 *  the single-line position, so a wrapped label grows up into the added
 	 *  room rather than down into the panel. Omit = 1. */
 	readonly lines?: number
+	/** Which side of the panel the band sits on (Labels → Facet titles →
+	 *  Placement). `top` (the default) is the band above the plot rect
+	 *  described above. `left` / `right` move it beside the plot rect, at the
+	 *  cell's OUTER edge (outside the y-axis chrome), `width` px wide; the
+	 *  top band is then not reserved at all. */
+	readonly side?: FacetLabelSide
+	/** Band width (px) for a side placement — the caller pins it like
+	 *  `height`: the single-line band for a vertical title, or the widest
+	 *  title plus padding for an upright one. Ignored for `top`. */
+	readonly width?: number
+	/** Side placement only: read the title upright instead of rotated
+	 *  (-90° on the left, 90° on the right). */
+	readonly horizontal?: boolean
+	/** Side placement only: where along the panel the title sits — level
+	 *  with the plot rect's top edge, its vertical center (default) or its
+	 *  bottom edge. */
+	readonly verticalAlign?: VerticalAlignment
+	/** Widest title line, px (canvas-measured by the caller), for the
+	 *  keep-in-view pass. Omit = the pass sees a zero-width title. */
+	readonly textWidth?: number
+	/** "Adjust position" nudge (screen px: +x right, +y down), folded into
+	 *  every panel's rect by the solver. The keep-in-view pass then grows the
+	 *  outer reserves when a nudged title would leave the canvas. Omit = 0. */
+	readonly offsetX?: number
+	readonly offsetY?: number
+	/** Paint-time rotation (facet-title "Angle"); see
+	 *  `SharedTitleInput.angleDeg`. Ignored by the renderer for a vertical
+	 *  side band (the structural ±90 wins), and the pass mirrors that. */
+	readonly angleDeg?: number
 }
+
+export type FacetLabelSide = "top" | "left" | "right"
+
+/** Side padding inside an upright side band, between the band's edges and
+ *  the title text. */
+export const FACET_SIDE_BAND_PAD = 8
 
 export type SolverPanelInput = {
 	readonly key: string
@@ -321,10 +371,6 @@ export type SolverPanelOutput = {
  *  label) keep text in their `SolverInput` source. */
 export type StripHeaderRect = TextRect & {
 	readonly text: string
-	/** Vertical anchoring the renderer should apply via SVG dominant-baseline.
-	 *  Set on row headers when a non-default (top / bottom) vertical alignment
-	 *  is chosen; omitted (→ renderer defaults to center) otherwise. */
-	readonly verticalAnchor?: VerticalAlignment
 }
 
 export type FacetLayoutSpec = {
@@ -909,6 +955,8 @@ const cellMargins = (
 	shareX: boolean,
 	shareY: boolean,
 	facetLabelHeight: number,
+	facetSideLeft: number,
+	facetSideRight: number,
 	leftFloor: number,
 	bottomFloor: number,
 	interiorBottomChromePerRow: readonly number[],
@@ -935,11 +983,15 @@ const cellMargins = (
 		: shareY
 			? SHARED_INTERIOR_AXIS_RESERVE
 			: (interiorLeftChromePerCol[col] ?? 0)
+	// A side-placed facet title band sits at the cell's OUTER edge, outside
+	// the y chrome, so the title clears the tick labels whichever side the
+	// axis is on (facetSideLeft / facetSideRight: one is 0, both under a
+	// top placement).
 	return {
 		top: facetLabelHeight + (xAxisTop ? xChrome : cellMargin.top),
 		bottom: xAxisTop ? cellMargin.top : xChrome,
-		left: yAxisRight ? cellMargin.right : yChrome,
-		right: yAxisRight ? yChrome : cellMargin.right,
+		left: facetSideLeft + (yAxisRight ? cellMargin.right : yChrome),
+		right: facetSideRight + (yAxisRight ? yChrome : cellMargin.right),
 	}
 }
 
@@ -1102,6 +1154,7 @@ const estimateNaturalDims = (
 	leftFloor: number,
 	bottomFloor: number,
 	facetLabelHeight: number,
+	facetSideWidth: number,
 	cellMargin: CellMargin,
 	marginsAt: CellMarginsAt,
 	gridChrome: GridChrome
@@ -1112,7 +1165,8 @@ const estimateNaturalDims = (
 	const minPxPerCat = input.minPxPerCategory ?? DEFAULT_MIN_PX_PER_CATEGORY
 	// Per-cell horizontal chrome (using leftmost-col chrome as a floor —
 	// scroll computation is a worst-case sizing).
-	const horizChrome = cellMargin.left + leftFloor + cellMargin.right
+	const horizChrome =
+		cellMargin.left + leftFloor + cellMargin.right + facetSideWidth
 	const vertChrome =
 		facetLabelHeight + cellMargin.top + cellMargin.bottom + bottomFloor
 	// Natural inner widths/heights, per cell. Axis-aware: x weights only
@@ -1214,7 +1268,247 @@ const estimateNaturalDims = (
 }
 
 /** The big one. Pure function: SolverInput → FacetLayoutSpec. */
+/** The per-panel facet title's rect for its placement, offsets folded in.
+ *  Top: the band above the plot rect (`topY` is the resolved baseline —
+ *  the single-line spot, or the polar mark hug). Left / right: the band at
+ *  the cell's outer edge. A vertical side title reads bottom-to-top on the
+ *  left (rotate -90) and top-to-bottom on the right (rotate 90), its
+ *  baseline a quarter of the single-line band in from the band's inner
+ *  edge so ascenders face outward; `verticalAlign` pins which end of the
+ *  panel the text starts from. An upright side title aligns inside the
+ *  padded band like a row-strip header and anchors its line box to the
+ *  chosen panel edge (`verticalAnchor`). */
+const placeFacetLabel = (
+	fl: FacetLabelInput,
+	side: FacetLabelSide,
+	cell: Rect,
+	inner: Rect,
+	topY: number,
+	facetLabelHeight: number,
+	sideWidth: number,
+	sideSingle: number,
+	linesGrow: number,
+): TextRect => {
+	const ox = fl.offsetX ?? 0
+	const oy = fl.offsetY ?? 0
+	if (side === "top") {
+		return {
+			x: xForAlignment(fl.align, inner.x, inner.x + inner.width) + ox,
+			y: topY + oy,
+			textAnchor: textAnchorFor(fl.align),
+			rotation: 0,
+			width: inner.width,
+			height: facetLabelHeight,
+			growUp: true,
+		}
+	}
+	const vAlign = fl.verticalAlign ?? "middle"
+	const bandX = side === "left" ? cell.x : cell.x + cell.width - sideWidth
+	const edgeY =
+		vAlign === "top"
+			? inner.y
+			: vAlign === "bottom"
+				? inner.y + inner.height
+				: inner.y + inner.height / 2
+	if (!fl.horizontal) {
+		const x =
+			side === "left"
+				? bandX + sideWidth - sideSingle * 0.25
+				: bandX + sideSingle * 0.25
+		// rotate(-90) runs the text UP the panel, rotate(90) DOWN it, so the
+		// anchor that pins the title to the panel's top edge is "end" on the
+		// left and "start" on the right (and the reverse at the bottom).
+		const textAnchor: TextAnchorSpec =
+			vAlign === "middle"
+				? "middle"
+				: (side === "right") === (vAlign === "top")
+					? "start"
+					: "end"
+		return {
+			x: x + ox,
+			y: edgeY + oy,
+			textAnchor,
+			rotation: side === "left" ? -90 : 90,
+			width: sideWidth,
+			height: inner.height,
+			growUp: true,
+		}
+	}
+	const x = xForAlignment(
+		fl.align,
+		bandX + FACET_SIDE_BAND_PAD,
+		bandX + sideWidth - FACET_SIDE_BAND_PAD,
+	)
+	// Extra lines of an upright title stack along the panel: a top-anchored
+	// title hangs its lines below, a bottom-anchored one stacks them up, and
+	// a centered one drops by half the extra so the block stays centered.
+	return {
+		x: x + ox,
+		y: edgeY + (vAlign === "middle" ? linesGrow / 2 : 0) + oy,
+		textAnchor: textAnchorFor(fl.align),
+		rotation: 0,
+		width: sideWidth,
+		height: inner.height,
+		verticalAnchor: vAlign,
+		growUp: vAlign !== "top",
+	}
+}
+
+/** Axis-aligned extent of a title as the renderer draws it: `textWidth`
+ *  wide from its anchor, one line box tall per line, rotated about (x, y)
+ *  by the structural rotation or, at 0, the paint-time angle — the same
+ *  precedence SharedText / StripHeaders apply. `vAnchor` is how the
+ *  renderer anchors the line box vertically ("baseline" = the alphabetic
+ *  baseline). The line box is the browser's glyph cell, not the ink —
+ *  about 1em above an alphabetic baseline and 0.25em below for the
+ *  system fonts (measured 0.98 / 0.23 in Chromium) — so the extents here
+ *  use 1em / 0.3em and err on the side of keeping the title in. */
+const textExtent = (
+	rect: TextRect,
+	textWidth: number,
+	fontSize: number,
+	lines: number,
+	angleDeg: number,
+	vAnchor: VerticalAlignment | "baseline",
+): { minX: number; maxX: number; minY: number; maxY: number } => {
+	const x0 =
+		rect.textAnchor === "start"
+			? rect.x
+			: rect.textAnchor === "end"
+				? rect.x - textWidth
+				: rect.x - textWidth / 2
+	const x1 = x0 + textWidth
+	const extra = fontSize * TITLE_LINE_STEP_EM * Math.max(0, lines - 1)
+	const block = fontSize + extra
+	let y0: number
+	let y1: number
+	if (vAnchor === "top") {
+		y0 = rect.y
+		y1 = rect.y + block + fontSize * 0.3
+	} else if (vAnchor === "middle") {
+		y0 = rect.y - block / 2 - fontSize * 0.15
+		y1 = rect.y + block / 2 + fontSize * 0.15
+	} else {
+		y0 = rect.y - fontSize - (rect.growUp ? extra : 0)
+		y1 = rect.y + fontSize * 0.3 + (rect.growUp ? 0 : extra)
+	}
+	const angle = rect.rotation !== 0 ? rect.rotation : angleDeg
+	if (!angle) return { minX: x0, maxX: x1, minY: y0, maxY: y1 }
+	const rad = (angle * Math.PI) / 180
+	const cos = Math.cos(rad)
+	const sin = Math.sin(rad)
+	let minX = Infinity
+	let maxX = -Infinity
+	let minY = Infinity
+	let maxY = -Infinity
+	for (const [cx, cy] of [
+		[x0, y0],
+		[x1, y0],
+		[x0, y1],
+		[x1, y1],
+	]) {
+		const dx = cx - rect.x
+		const dy = cy - rect.y
+		const rx = rect.x + dx * cos - dy * sin
+		const ry = rect.y + dx * sin + dy * cos
+		if (rx < minX) minX = rx
+		if (rx > maxX) maxX = rx
+		if (ry < minY) minY = ry
+		if (ry > maxY) maxY = ry
+	}
+	return { minX, maxX, minY, maxY }
+}
+
+/** How far past each canvas edge any facet title (per-panel labels, the
+ *  column / row header strips) would paint, or null when they all fit.
+ *  Flush with an edge is fine — only ink past it counts. */
+const facetTitleOverflow = (
+	input: SolverInput,
+	spec: FacetLayoutSpec,
+): { top: number; bottom: number; left: number; right: number } | null => {
+	let top = 0
+	let bottom = 0
+	let left = 0
+	let right = 0
+	const take = (e: ReturnType<typeof textExtent>) => {
+		left = Math.max(left, -e.minX)
+		right = Math.max(right, e.maxX - spec.canvas.width)
+		top = Math.max(top, -e.minY)
+		bottom = Math.max(bottom, e.maxY - spec.canvas.height)
+	}
+	const fl = input.facetLabel
+	if (fl) {
+		for (const p of spec.panels) {
+			if (!p.facetLabel) continue
+			take(
+				textExtent(
+					p.facetLabel,
+					fl.textWidth ?? 0,
+					fl.fontSize,
+					fl.lines ?? 1,
+					fl.angleDeg ?? 0,
+					p.facetLabel.verticalAnchor ?? "baseline",
+				),
+			)
+		}
+	}
+	input.columnHeaders?.forEach((h, i) => {
+		const r = spec.columnHeaders[i]
+		if (!r || r.width <= 0) return
+		take(
+			textExtent(
+				r,
+				h.textWidth ?? estimateLongestLineWidth(h.text, h.fontSize),
+				h.fontSize,
+				lineCount(h.text),
+				h.angleDeg ?? 0,
+				"middle",
+			),
+		)
+	})
+	input.rowHeaders?.forEach((h, i) => {
+		const r = spec.rowHeaders[i]
+		if (!r || r.height <= 0) return
+		take(
+			textExtent(
+				r,
+				h.textWidth ?? estimateLongestLineWidth(h.text, h.fontSize),
+				h.fontSize,
+				lineCount(h.text),
+				h.angleDeg ?? 0,
+				r.verticalAnchor ?? "middle",
+			),
+		)
+	})
+	const ceil = (n: number) => (n > 0.5 ? Math.ceil(n) : 0)
+	const out = { top: ceil(top), bottom: ceil(bottom), left: ceil(left), right: ceil(right) }
+	return out.top || out.bottom || out.left || out.right ? out : null
+}
+
+/** Solve the layout, keeping every facet title on the canvas (LAYOUT.md
+ *  §8, "Facet-title keep-in-view"): after a first solve, any per-panel
+ *  label or header-strip title whose drawn extent — offsets and rotation
+ *  included — would leave the canvas grows the outer reserve on that side
+ *  by the overshoot, and the layout is solved once more. The title keeps
+ *  its place relative to its panel; the figure shrinks (fit mode) or the
+ *  canvas grows (scroll mode) to make room, exactly like an axis title
+ *  nudged away from the plot. */
 export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
+	const first = solveOnce(rawInput)
+	const over = facetTitleOverflow(rawInput, first)
+	if (!over) return first
+	return solveOnce({
+		...rawInput,
+		extraTopMargin: (rawInput.extraTopMargin ?? 0) + over.top,
+		extraBottomMargin: (rawInput.extraBottomMargin ?? 0) + over.bottom,
+		extraLeftMargin: (rawInput.extraLeftMargin ?? 0) + over.left,
+		extraRightMargin: (rawInput.extraRightMargin ?? 0) + over.right,
+	})
+}
+
+/** One solve. `solveFacetLayout` runs it once, then once more with grown
+ *  outer reserves if a facet title would leave the canvas (keep-in-view). */
+const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 	// Fixed aspect ratio: RATIO WINS (see SolverInput.aspectRatio). Shadow
 	// the input once so every downstream reader — including
 	// estimateNaturalDims — sees the pixel overrides, proportional flags,
@@ -1239,13 +1533,33 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	// grown by one line step per extra line of the tallest panel label so a
 	// wrapped label grows UP into the band rather than down into the panel
 	// (every label's bottom line sits at the single-line position).
-	const facetBandSingle = input.facetLabel?.height ?? 0
+	// A side placement (Labels → Facet titles → Placement left / right)
+	// moves the band beside the plot rect instead: the top band is not
+	// reserved at all, and `facetSideWidth` joins the cell's left / right
+	// chrome at its outer edge (see `cellMargins`). A vertical side title
+	// grows the band OUTWARD by the same line step (its earlier lines stack
+	// away from the plot); an upright one sits in a band the caller already
+	// sized to its widest line, so extra lines stack along the panel.
+	const facetSide: FacetLabelSide = input.facetLabel?.side ?? "top"
 	const facetLabelLinesGrow = input.facetLabel
 		? TITLE_LINE_STEP_EM *
 			input.facetLabel.fontSize *
 			Math.max(0, (input.facetLabel.lines ?? 1) - 1)
 		: 0
-	const facetLabelHeight = facetBandSingle + facetLabelLinesGrow
+	const facetBandSingle =
+		facetSide === "top" ? (input.facetLabel?.height ?? 0) : 0
+	const facetLabelHeight = facetBandSingle + facetLabelLinesGrow * (facetSide === "top" ? 1 : 0)
+	const facetSideSingle =
+		facetSide === "top"
+			? 0
+			: (input.facetLabel?.width ?? input.facetLabel?.height ?? 0)
+	const facetSideWidth =
+		facetSideSingle +
+		(facetSide !== "top" && !input.facetLabel?.horizontal
+			? facetLabelLinesGrow
+			: 0)
+	const facetSideLeft = facetSide === "left" ? facetSideWidth : 0
+	const facetSideRight = facetSide === "right" ? facetSideWidth : 0
 	const yTitleHorizontal = input.yTitle?.horizontal ?? false
 	const yTitleText = input.yTitle?.text ?? ""
 	const yTitleFontSize = input.yTitle?.fontSize ?? 0
@@ -1547,7 +1861,11 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	)
 	const approxCanvasW = Math.max(
 		input.containerWidth,
-		outerReservesInitial.left + cellMargin.left + cellMargin.right + 20,
+		outerReservesInitial.left +
+			cellMargin.left +
+			cellMargin.right +
+			facetSideWidth +
+			20,
 	)
 	// x-title: with the axis at the bottom the title wants
 	// y = approxPlotBottom + xTitleGap + offsetY; if that lands above
@@ -1667,7 +1985,8 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 	// Floor canvas dims: unmeasured (0×0) renders shouldn't compute negative
 	// inner rects. Mirror the floors in computePlotLayout: just-above margin
 	// sum so the panel renders an empty plot rather than crashing.
-	const minCanvasW = outerReserves.left + cellMargin.left + cellMargin.right + 20
+	const minCanvasW =
+		outerReserves.left + cellMargin.left + cellMargin.right + facetSideWidth + 20
 	const minCanvasH =
 		outerReserves.top +
 		outerReserves.bottom +
@@ -1685,6 +2004,8 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 			input.shareX,
 			input.shareY,
 			facetLabelHeight,
+			facetSideLeft,
+			facetSideRight,
 			leftFloor,
 			bottomFloor,
 			interiorBottomChromePerRow,
@@ -1710,6 +2031,7 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		leftFloor,
 		bottomFloor,
 		facetLabelHeight,
+		facetSideWidth,
 		cellMargin,
 		marginsAt,
 		gridChrome
@@ -2007,19 +2329,17 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 				)
 			: naturalFacetLabelY
 		const facetLabel: TextRect | null = input.facetLabel
-			? {
-					x: xForAlignment(
-						input.facetLabel.align,
-						inner.x,
-						inner.x + inner.width
-					),
-					y: facetLabelY,
-					textAnchor: textAnchorFor(input.facetLabel.align),
-					rotation: 0,
-					width: inner.width,
-					height: facetLabelHeight,
-					growUp: true,
-				}
+			? placeFacetLabel(
+					input.facetLabel,
+					facetSide,
+					cell,
+					inner,
+					facetLabelY,
+					facetLabelHeight,
+					facetSideWidth,
+					facetSideSingle,
+					facetLabelLinesGrow,
+				)
 			: null
 		return {
 			key: p.key,

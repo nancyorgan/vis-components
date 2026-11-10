@@ -1,8 +1,10 @@
 import {
+	DEFAULT_TITLE_PLACEMENT,
 	layerFacetOverride,
 	resolveTitleFont,
 	type LabelAlignment,
 	type LabelsConfig,
+	type TitlePlacement,
 	type VerticalAlignment,
 } from "../../../lib/labelsConfig"
 import type { Encodings } from "../../../lib/types"
@@ -160,6 +162,28 @@ export const resolveFacetTitleStyles = (
 			labels.titleAngles?.facetTitle ??
 			0)
 		: facetTitleAngle
+	// Placement of the PER-PANEL title band (Labels → Facet titles →
+	// Placement): the band above each panel, or a band beside it on the
+	// left / right. Only the per-panel slots consume it — the grid's column
+	// / row header strips keep their top / left positions. The compact-grid
+	// panel slot layers over the shared facet placement like everything
+	// else above. The solver reserves the side band in each cell's chrome
+	// (`FacetLabelInput.side`), so unlike the angle this is NOT paint-only.
+	const facetTitlePlacement: TitlePlacement =
+		labels.titlePlacements?.facetTitle ?? DEFAULT_TITLE_PLACEMENT
+	const facetPanelTitlePlacement: TitlePlacement = facetGridSplit
+		? (labels.titlePlacements?.facetPanelTitle ??
+			labels.titlePlacements?.facetTitle ??
+			DEFAULT_TITLE_PLACEMENT)
+		: facetTitlePlacement
+	// Vertical placement along the panel for a SIDE band (top / middle /
+	// bottom of the panel's plot rect), read from the same
+	// `titleVerticalAlignments` slot the row strip uses.
+	const facetPanelTitleVAlign: VerticalAlignment = facetGridSplit
+		? (labels.titleVerticalAlignments?.facetPanelTitle ??
+			labels.titleVerticalAlignments?.facetTitle ??
+			"middle")
+		: facetTitleVAlign
 	return {
 		facetTitleFont,
 		facetTitleOffset,
@@ -179,5 +203,8 @@ export const resolveFacetTitleStyles = (
 		facetColTitleAngle,
 		facetRowTitleAngle,
 		facetPanelTitleAngle,
+		facetTitlePlacement,
+		facetPanelTitlePlacement,
+		facetPanelTitleVAlign,
 	}
 }

@@ -32,25 +32,37 @@ export const SharedText = ({
 	italic?: boolean
 	underline?: boolean
 	/** User-chosen rotation in degrees about the anchor point (facet-title
-	 * Orientation). Ignored when the rect carries its own structural
-	 * `rotation` (the -90 rotated y-title). */
+	 * Angle). Ignored when the rect carries its own structural `rotation`
+	 * (the -90 rotated y-title, a vertical side-placed facet title). */
 	angleDeg?: number
 	/** Styled run in front of the first line (chart-title prefix); shares
 	 * the line's text chunk so `rect.textAnchor` aligns both together. */
 	prefix?: TextPrefix
 }) => {
 	const transform =
-		rect.rotation === -90
-			? `rotate(-90, ${rect.x}, ${rect.y})`
+		rect.rotation !== 0
+			? `rotate(${rect.rotation}, ${rect.x}, ${rect.y})`
 			: angleDeg
 				? `rotate(${angleDeg}, ${rect.x}, ${rect.y})`
 				: undefined
+	// Upright side-placed facet titles anchor their line box to the panel
+	// edge they align to (`TextRect.verticalAnchor`); everything else keeps
+	// the alphabetic baseline.
+	const dominantBaseline =
+		rect.verticalAnchor === "top"
+			? "hanging"
+			: rect.verticalAnchor === "middle"
+				? "middle"
+				: rect.verticalAnchor === "bottom"
+					? "auto"
+					: undefined
 	return (
 		<text
 			x={rect.x}
 			y={rect.y}
 			textAnchor={rect.textAnchor}
 			transform={transform}
+			dominantBaseline={dominantBaseline}
 			fontFamily={fontFamily}
 			fontSize={fontSize}
 			fontWeight={weight ?? fontWeight}

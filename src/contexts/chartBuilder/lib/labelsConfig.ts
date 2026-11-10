@@ -1189,6 +1189,24 @@ export type LabelAlignment = "left" | "center" | "right"
  * entries fall back to "middle" (the previous hard-coded default). */
 export type VerticalAlignment = "top" | "middle" | "bottom"
 
+/** Which side of its panel a per-panel facet title sits on ("Placement" in
+ * the Facet titles row). `top` is the band above the panel (the default and
+ * the only placement before Nov 2026); `left` / `right` reserve a band
+ * beside the panel instead. */
+export type TitlePlacementSide = "top" | "left" | "right"
+
+/** A per-panel facet title's placement. A side band reads the title
+ * VERTICALLY by default (rotated -90° on the left, 90° on the right, like a
+ * y-axis title); `horizontal` ("Read title horizontally") keeps it upright,
+ * and the band widens to the widest title. Meaningless on `top`, where the
+ * title always reads upright. */
+export type TitlePlacement = {
+	side: TitlePlacementSide
+	horizontal?: boolean
+}
+
+export const DEFAULT_TITLE_PLACEMENT: TitlePlacement = { side: "top" }
+
 /** See `LabelsConfig.titlePrefix`. `font` fields fall back to the TITLE's
  * resolved font (not the theme base), so an untouched prefix matches the
  * title exactly; sizes are points like every other FontConfig. */
@@ -1235,6 +1253,13 @@ export type LabelsConfig = {
 	 * vertically beside their panels, typically paired with an offset since
 	 * the solver's band reserve doesn't grow for the rotated extent. */
 	titleAngles?: Partial<Record<LabelFontKey, number>>
+	/** Placement per title slot — only the per-panel facet-title slots
+	 * (`facetTitle` for wrap panels, `facetPanelTitle` for compacted grids)
+	 * consume it. Sparse: an entry is stored only for a side placement
+	 * (`top` is deleted on write), so absent = the top band. The layout
+	 * solver reserves the side band in every cell's chrome
+	 * (`FacetLabelInput.side`), so a side title never overlaps the plot. */
+	titlePlacements?: Partial<Record<LabelFontKey, TitlePlacement>>
 	/** "Color by facet": when true, each facet title is colored per facet
 	 * VALUE via `facetTitleColors`. The stored colors stay put when this is
 	 * off — unchecking reverts every title to its slot's resolved color
@@ -1296,6 +1321,7 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	titleAlignments: {},
 	titleVerticalAlignments: {},
 	titleAngles: {},
+	titlePlacements: {},
 	facetTitleColorByValue: false,
 	facetTitleColors: {},
 	yAxisTitleHorizontal: false,
@@ -1684,6 +1710,7 @@ export const migrateLabelsConfig = (
 		yAxisTitleHorizontal: raw.yAxisTitleHorizontal ?? false,
 		titleOffsets: raw.titleOffsets ?? {},
 		titleAngles: raw.titleAngles ?? {},
+		titlePlacements: raw.titlePlacements ?? {},
 		facetTitleColorByValue: raw.facetTitleColorByValue ?? false,
 		facetTitleColors: raw.facetTitleColors ?? {},
 		// Sparse: only carried when the visual stored one (same dropped-on-
@@ -1745,6 +1772,32 @@ export const titleAnglePatch = (
 	else next[key] = value
 	return { titleAngles: next }
 }
+
+/** A facet-title placement as the Labels panel stores it: sparse against
+ * the top band (the default), so a visual that never touched Placement
+ * carries no entry. A side placement stores `horizontal` only when it is
+ * on, so `{ side: "left" }` and `{ side: "left", horizontal: false }` save
+ * the same way. */
+export const titlePlacementPatch = (
+	labels: Pick<LabelsConfig, "titlePlacements">,
+	key: LabelFontKey,
+	value: TitlePlacement
+): Pick<LabelsConfig, "titlePlacements"> => {
+	const next = { ...labels.titlePlacements }
+	if (value.side === "top") delete next[key]
+	else
+		next[key] = value.horizontal
+			? { side: value.side, horizontal: true }
+			: { side: value.side }
+	return { titlePlacements: next }
+}
+
+/** The stored placement of a title slot, `DEFAULT_TITLE_PLACEMENT` (top)
+ * when unset. */
+export const titlePlacementOf = (
+	labels: Pick<LabelsConfig, "titlePlacements">,
+	key: LabelFontKey
+): TitlePlacement => labels.titlePlacements?.[key] ?? DEFAULT_TITLE_PLACEMENT
 
 /** The legend channels one title row writes: every channel mapped to the
  * same field as `channel`, while legends combine by variable. */

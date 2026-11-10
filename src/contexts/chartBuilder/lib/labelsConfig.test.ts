@@ -26,6 +26,8 @@ import {
 	resolveLegendSwatchSize,
 	legendSwatchSize,
 	migrateLabelsConfig,
+	titlePlacementOf,
+	titlePlacementPatch,
 	resolveLegendHidden,
 	resolveGradientBarStyle,
 	resolveLegendTextFont,
@@ -1061,5 +1063,43 @@ describe("resolveTooltipBox", () => {
 		expect(box.shadowSize).toBe(0)
 		expect(box.cornerRadius).toBe(6)
 		expect(hasTooltipBoxOverride({ tooltipBackgroundColor: null })).toBe(true)
+	})
+})
+
+describe("titlePlacementPatch / titlePlacementOf", () => {
+	it("stores a side placement sparsely and deletes the entry for top", () => {
+		const left = titlePlacementPatch({ titlePlacements: {} }, "facetTitle", { side: "left" })
+		expect(left.titlePlacements).toEqual({ facetTitle: { side: "left" } })
+		expect(titlePlacementOf(left, "facetTitle")).toEqual({ side: "left" })
+		const back = titlePlacementPatch(left, "facetTitle", { side: "top" })
+		expect(back.titlePlacements).toEqual({})
+		expect(titlePlacementOf(back, "facetTitle")).toEqual({ side: "top" })
+	})
+
+	it("keeps `horizontal` only when on, so off and absent save the same", () => {
+		const off = titlePlacementPatch({ titlePlacements: {} }, "facetTitle", {
+			side: "right",
+			horizontal: false,
+		})
+		expect(off.titlePlacements).toEqual({ facetTitle: { side: "right" } })
+		const on = titlePlacementPatch(off, "facetTitle", { side: "right", horizontal: true })
+		expect(on.titlePlacements).toEqual({ facetTitle: { side: "right", horizontal: true } })
+	})
+
+	it("other slots are untouched", () => {
+		const next = titlePlacementPatch(
+			{ titlePlacements: { facetPanelTitle: { side: "left" } } },
+			"facetTitle",
+			{ side: "right" },
+		)
+		expect(next.titlePlacements).toEqual({
+			facetPanelTitle: { side: "left" },
+			facetTitle: { side: "right" },
+		})
+	})
+
+	it("migration seeds an empty map for older visuals", () => {
+		const migrated = migrateLabelsConfig({ ...DEFAULT_LABELS_CONFIG, titlePlacements: undefined } as never)
+		expect(migrated.titlePlacements).toEqual({})
 	})
 })

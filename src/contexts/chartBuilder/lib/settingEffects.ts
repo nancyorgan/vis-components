@@ -39,11 +39,13 @@ import {
 	mirroredVisualName,
 	titleAlignmentPatch,
 	titleAnglePatch,
+	titlePlacementPatch,
 	titleVerticalAlignmentPatch,
 	tooltipBoxPatch,
 	TOOLTIP_BOX_KEYS,
 	type EncodingLegendChannel,
 	type LabelFontKey,
+	type TitlePlacement,
 	type LegendChannel,
 	type SwatchShapeChannel,
 	type TooltipBoxKey,
@@ -624,6 +626,11 @@ export const applySettingEffects = (
 		for (const key of Object.keys(isObj(labelsSent.titleAngles) ? labelsSent.titleAngles : {}) as LabelFontKey[]) {
 			const value = labels.titleAngles?.[key]
 			if (typeof value === "number") labels = { ...labels, ...titleAnglePatch(labels, key, value) }
+		}
+		for (const key of Object.keys(isObj(labelsSent.titlePlacements) ? labelsSent.titlePlacements : {}) as LabelFontKey[]) {
+			const value = labels.titlePlacements?.[key]
+			if (isObj(value) && typeof value.side === "string")
+				labels = { ...labels, ...titlePlacementPatch(labels, key, value as TitlePlacement) }
 		}
 		v.labelsConfig = labels
 	}

@@ -68,20 +68,16 @@ export const FacetPanel = ({
 	facetTitles: Pick<
 		ReturnType<typeof resolveFacetTitleStyles>,
 		| "facetTitleFont"
-		| "facetTitleOffset"
 		| "facetTitleAngle"
 		| "facetPanelTitleFont"
-		| "facetPanelTitleOffset"
 		| "facetPanelTitleAngle"
 	>
 }) => {
 	const { panelData, measureAxis, axisFields } = shared
 	const {
 		facetTitleFont,
-		facetTitleOffset,
 		facetTitleAngle,
 		facetPanelTitleFont,
-		facetPanelTitleOffset,
 		facetPanelTitleAngle,
 	} = facetTitles
 	const rows = panelData.rowsByValue.get(p.key) ?? []
@@ -224,9 +220,6 @@ export const FacetPanel = ({
 	const panelLabelFont = isCompactPanelLabel
 		? facetPanelTitleFont
 		: facetTitleFont
-	const panelLabelOffset = isCompactPanelLabel
-		? facetPanelTitleOffset
-		: facetTitleOffset
 	const panelLabelAngle = isCompactPanelLabel
 		? facetPanelTitleAngle
 		: facetTitleAngle
@@ -307,19 +300,14 @@ export const FacetPanel = ({
 				multiPanel={multiPanel}
 			/>
 			{/* Drawn AFTER the marks so a facet label nudged over the
-			    panel (Labels panel offset) paints on top of them. */}
+			    panel (Labels panel offset) paints on top of them. The
+			    solver already folded the offset and the Placement side into
+			    the rect (`FacetLabelInput.offsetX/Y`, `.side`), so it is
+			    drawn as-is. */}
 			{p.facetLabel && (
 				<g data-facet-label>
 					<SharedText
-						rect={
-							panelLabelOffset.x || panelLabelOffset.y
-								? {
-										...p.facetLabel,
-										x: p.facetLabel.x + panelLabelOffset.x,
-										y: p.facetLabel.y + panelLabelOffset.y,
-									}
-								: p.facetLabel
-						}
+						rect={p.facetLabel}
 						text={facetLabelText}
 						fontFamily={panelLabelFont.family}
 						fontSize={panelLabelFont.size}

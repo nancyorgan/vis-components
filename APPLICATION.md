@@ -3982,9 +3982,46 @@ one row per legend, a shared-field group counting as one, with a
 hairline divider between rows when there is more than one).
 Each subsection header carries the standard changed dot (§4.6) when
 any row inside deviates in STYLING — a font override, a non-center
-alignment, a non-zero orientation, a position offset, or the y-axis
-"Read horizontally" toggle. Typed title TEXT is content, not styling,
-and never lights a dot.
+alignment, a non-zero orientation, a side placement, a position
+offset, or the y-axis "Read horizontally" toggle. Typed title TEXT is
+content, not styling, and never lights a dot.
+
+**Placement.** The per-panel facet-title rows — the single **Facet
+titles** row of a one-variable (wrap) facet, and the compact-grid
+**Facet titles (panel)** row — lead with a **Placement** select:
+**Top** (default), **Left** or **Right**. Top is the band above each
+panel. Left / Right move the title into a band beside its panel, at the
+cell's outer edge (outside the y-axis tick labels, whichever side that
+axis is on), where it reads VERTICALLY by default — bottom-to-top on
+the left, top-to-bottom on the right, like a y-axis title. A side
+placement adds a **Read title horizontally** checkbox under the select;
+checked, the title stays upright and the band widens to the widest
+title (plus padding) so it never clips. While the title reads
+vertically the horizontal Align and Angle rows are hidden (they cannot
+apply to it); its position along the panel is the **Vertical align**
+row (top / middle / bottom of the panel's plot rect), which a side
+placement always shows. An upright side title shows both Horizontal
+align (within the band) and Vertical align. The band is real layout —
+the solver reserves it in every cell's chrome, so a side title never
+overlaps the plot and the panels shrink to make room. The compact-grid
+panel row layers over the shared facet placement like its other
+settings. The half-pair strips (row-only / column-only grids) and the
+two-variable grid's column / row header strips keep their fixed top /
+left positions and offer no Placement. A side placement lights the
+changed dot; stored sparsely (`labelsConfig.titlePlacements`, absent =
+top).
+
+**Facet titles stay on the canvas.** Whatever a facet title's
+placement, position offset or angle, it never runs off the canvas:
+after laying the chart out, the solver measures every facet title's
+drawn extent (per-panel labels and the grid's header strips, offsets
+and rotation included) and, if any would leave the canvas, grows the
+outer reserve on that side by the overshoot and lays out once more
+(LAYOUT.md §8, "Facet-title keep-in-view"). The title keeps its place
+relative to its panel; the figure shrinks (fit mode) or the canvas
+grows (scroll mode) to make room — the same contract as an axis title
+nudged away from the plot. Inside a fixed canvas (Aesthetics → Canvas
+size) the same reserve keeps the titles inside the canvas rect.
 
 Facet **row** titles (the left-strip labels — the grid-split Row
 titles row, and the single Facet title row when only the facet-row
@@ -4001,7 +4038,7 @@ value lights the changed dot like any other styling deviation. Column
 and panel titles sit in thin bands where top/bottom is meaningless, so
 they keep the single "Align" control only.
 
-Every facet-title row additionally exposes an **Orientation** number
+Every facet-title row additionally exposes an **Angle** number
 input (degrees, clamped to -180…180, default 0, "°" suffix) directly
 below the alignment control(s). It rotates the facet titles about
 their anchor point — e.g. 90° reads a wrap panel's title vertically so
@@ -4012,10 +4049,13 @@ angle exactly like alignment (a per-strip value wins; unset falls back
 to the shared facet-title angle). The rotation is paint-time only: the
 layout solver's title band does NOT grow for the rotated extent, so
 steep angles are typically paired with a position offset to place the
-title where it should sit (same contract as facet-title offsets). A
-non-zero orientation lights the changed dot. Non-facet titles do not
-offer the control (the y-axis title keeps its dedicated "Read
-horizontally" toggle instead).
+title where it should sit — but the rotated extent does count toward
+the keep-in-view pass above, so an angled title can never leave the
+canvas. A vertical side-placed title (Placement Left / Right without
+"Read title horizontally") hides the Angle row: its structural ±90°
+rotation wins. A non-zero angle lights the changed dot. Non-facet
+titles do not offer the control (the y-axis title keeps its dedicated
+"Read horizontally" toggle instead).
 
 ---
 

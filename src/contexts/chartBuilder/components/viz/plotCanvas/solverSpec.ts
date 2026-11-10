@@ -10,10 +10,13 @@ import {
 	type ChannelConfigs,
 	type FacetConfig,
 } from "../../../lib/channelConfig"
-import type {
-	SolverInput,
-	SolverPanelInput,
-	TitleOverhang,
+import { estimateLongestLineWidth } from "../../../lib/estimateMargins"
+import {
+	FACET_SIDE_BAND_PAD,
+	type FacetLabelInput,
+	type SolverInput,
+	type SolverPanelInput,
+	type TitleOverhang,
 } from "../../../lib/facetLayoutSolver"
 import {
 	chartTitlePrefixOf,
@@ -108,15 +111,25 @@ export const buildSolverInput = ({
 }): SolverInput => {
 	const {
 		facetTitleFont,
+		facetTitleOffset,
+		facetTitleAngle,
+		facetTitlePlacement,
+		facetTitleVAlign,
 		facetColTitleFont,
 		facetColTitleAlign,
 		facetColTitleOffset,
+		facetColTitleAngle,
 		facetRowTitleFont,
 		facetRowTitleAlign,
 		facetRowTitleVAlign,
 		facetRowTitleOffset,
+		facetRowTitleAngle,
 		facetPanelTitleFont,
 		facetPanelTitleAlign,
+		facetPanelTitleOffset,
+		facetPanelTitleAngle,
+		facetPanelTitlePlacement,
+		facetPanelTitleVAlign,
 	} = facetTitles
 	// Recompute share modes and per-axis sizing flags at this scope
 	// (panelInputs scopes them privately). We need them to gate the
@@ -177,35 +190,94 @@ export const buildSolverInput = ({
 	// per extra line; every label's bottom line at the single-line position),
 	// and the band is per-cell chrome shared by every panel, so size it for
 	// the tallest label.
+	const panelLabelTexts = panelInputs.map((p) => panelLabelTextOf(panelData, p.key))
 	const facetLabelLines = Math.max(
 		1,
-		max(panelInputs, (p) => lineCount(panelLabelTextOf(panelData, p.key))) ?? 1,
+		max(panelLabelTexts, (t) => lineCount(t)) ?? 1,
 	)
-	const facetLabelInput = {
-		fontSize: facetTitleFont.size,
-		lines: facetLabelLines,
-		// Grow the band so a larger user-chosen font doesn't
-		// clip into the panel; small fonts keep the pinned
-		// default that defeats font-metric drift.
-		height: Math.max(
+	// Widest title line at the slot's font, for the solver's keep-in-view
+	// pass and the upright side band's width. Canvas-measured like the row
+	// strip, at the weight the title DRAWS at (every facet-title render
+	// site defaults an unset weight to 500 — measuring at 400 under-reads
+	// a long title by a few px); the character estimate stands in where
+	// no canvas exists.
+	const FACET_TITLE_DEFAULT_WEIGHT = 500
+	const widestPanelLabel = (font: FontConfig): number =>
+		measureMaxLabelWidth(
+			panelLabelTexts,
+			font.family,
+			font.size,
+			font.weight ?? FACET_TITLE_DEFAULT_WEIGHT,
+			font.italic,
+		) || (max(panelLabelTexts, (t) => estimateLongestLineWidth(t, font.size)) ?? 0)
+	// Grow the band so a larger user-chosen font doesn't clip into the
+	// panel; small fonts keep the pinned default that defeats font-metric
+	// drift. The same single-line band is the width of a VERTICAL side band
+	// (Placement left / right); an upright side band is as wide as the
+	// widest title plus its padding, so the title never runs off the canvas.
+	const facetLabelBand = (font: FontConfig): number =>
+		Math.max(
 			isPolar ? FACET_LABEL_HEIGHT_PX_POLAR : FACET_LABEL_HEIGHT_PX,
-			Math.ceil(facetTitleFont.size * 1.4)
-		),
-		align:
-			(labels.titleAlignments?.facetTitle as LabelAlignment) ?? "center",
+			Math.ceil(font.size * 1.4),
+		)
+	const facetLabelInputFor = (
+		font: FontConfig,
+		align: LabelAlignment,
+		placement: typeof facetTitlePlacement,
+		verticalAlign: typeof facetTitleVAlign,
+		offset: { x: number; y: number },
+		angle: number,
+	): FacetLabelInput => {
+		const textWidth = widestPanelLabel(font)
+		return {
+			fontSize: font.size,
+			lines: facetLabelLines,
+			height: facetLabelBand(font),
+			align,
+			side: placement.side,
+			width:
+				placement.side === "top"
+					? undefined
+					: placement.horizontal
+						? Math.ceil(textWidth) + 2 * FACET_SIDE_BAND_PAD
+						: facetLabelBand(font),
+			horizontal: placement.side !== "top" && placement.horizontal === true,
+			verticalAlign,
+			textWidth,
+			offsetX: offset.x,
+			offsetY: offset.y,
+			angleDeg: angle,
+		}
 	}
+	const facetLabelInput = facetLabelInputFor(
+		facetTitleFont,
+		(labels.titleAlignments?.facetTitle as LabelAlignment) ?? "center",
+		facetTitlePlacement,
+		facetTitleVAlign,
+		facetTitleOffset,
+		facetTitleAngle,
+	)
 	// Compacted-grid variant of the band above: same shape, but styled by
 	// the `facetPanelTitle` slot (layered over `facetTitle`), so compact
 	// per-panel titles can diverge from the wrap-mode / strip styling.
-	const facetPanelLabelInput = {
-		fontSize: facetPanelTitleFont.size,
-		lines: facetLabelLines,
-		height: Math.max(
-			isPolar ? FACET_LABEL_HEIGHT_PX_POLAR : FACET_LABEL_HEIGHT_PX,
-			Math.ceil(facetPanelTitleFont.size * 1.4)
-		),
-		align: facetPanelTitleAlign,
-	}
+	const facetPanelLabelInput = facetLabelInputFor(
+		facetPanelTitleFont,
+		facetPanelTitleAlign,
+		facetPanelTitlePlacement,
+		facetPanelTitleVAlign,
+		facetPanelTitleOffset,
+		facetPanelTitleAngle,
+	)
+	// Header-strip titles carry their measured width + paint-time angle for
+	// the same keep-in-view pass.
+	const stripTextWidth = (text: string, font: FontConfig): number =>
+		measureMaxLabelWidth(
+			[text],
+			font.family,
+			font.size,
+			font.weight ?? FACET_TITLE_DEFAULT_WEIGHT,
+			font.italic,
+		) || estimateLongestLineWidth(text, font.size)
 	// Hide-empty compaction: which header strips SURVIVE. Undefined
 	// compactStrip (grid without compaction, or non-grid modes) keeps
 	// both; strip "none" suppresses both. The strip inputs below still
@@ -338,6 +410,8 @@ export const buildSolverInput = ({
 						align: facetColTitleAlign,
 						offsetX: facetColTitleOffset.x,
 						offsetY: facetColTitleOffset.y,
+						textWidth: stripTextWidth(v, facetColTitleFont),
+						angleDeg: facetColTitleAngle,
 					}))
 				: undefined,
 		rowHeaders:
@@ -352,6 +426,8 @@ export const buildSolverInput = ({
 						verticalAlign: facetRowTitleVAlign,
 						offsetX: facetRowTitleOffset.x,
 						offsetY: facetRowTitleOffset.y,
+						textWidth: stripTextWidth(v, facetRowTitleFont),
+						angleDeg: facetRowTitleAngle,
 					}))
 				: undefined,
 		// Grow the strip bands so a larger user-chosen facet-title font

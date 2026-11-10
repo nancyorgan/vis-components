@@ -13175,6 +13175,432 @@
 				"number"
 			]
 		},
+		"labelsConfig.titlePlacements": {
+			"doc": "Placement per title slot — only the per-panel facet-title slots (`facetTitle` for wrap panels, `facetPanelTitle` for compacted grids) consume it. Sparse: an entry is stored only for a side placement (`top` is deleted on write), so absent = the top band.",
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.facetColTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.facetColTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.facetColTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.facetPanelTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.facetPanelTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.facetPanelTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.facetRowTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.facetRowTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.facetRowTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.facetTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.facetTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.facetTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:angle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:angle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:angle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:area": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:area.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:area.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:brightness": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:brightness.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:brightness.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:densityCurve": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:densityCurve.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:densityCurve.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:hue": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:hue.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:hue.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:length": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:length.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:length.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:opacity.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:opacity.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:outlineHue": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:outlineHue.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:outlineHue.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:pattern": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:pattern.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:pattern.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:rug": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:rug.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:rug.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:saturation": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:saturation.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:saturation.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:shape": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:shape.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.legend:shape.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.nodeTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.nodeTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.nodeTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.subtitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.subtitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.subtitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.title": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.title.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.title.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.xAxisTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.xAxisTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.xAxisTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
+		"labelsConfig.titlePlacements.yAxisTitle": {
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titlePlacements.yAxisTitle.horizontal": {
+			"kinds": [
+				"boolean"
+			]
+		},
+		"labelsConfig.titlePlacements.yAxisTitle.side": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"left",
+				"right",
+				"top"
+			]
+		},
 		"labelsConfig.titlePrefix": {
 			"doc": "Optional run of text drawn in front of the chart title — the \"FIGURE 5.\" in \"FIGURE 5. Distribution of …\" — with its own font so it can be bold / colored / sized apart from the title proper.",
 			"kinds": [

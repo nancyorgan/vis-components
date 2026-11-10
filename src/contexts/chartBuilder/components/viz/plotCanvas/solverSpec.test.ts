@@ -255,7 +255,56 @@ describe("buildSolverInput", () => {
 			height: Math.max(20, Math.ceil(size * 1.4)),
 			align: "center",
 			lines: 1,
+			// Default placement: the top band, upright, no nudge, no angle.
+			side: "top",
+			width: undefined,
+			horizontal: false,
+			verticalAlign: "middle",
+			textWidth: expect.any(Number),
+			offsetX: 0,
+			offsetY: 0,
+			angleDeg: 0,
 		})
+	})
+
+	it("a side placement pins the band width and carries the per-panel offset / angle", () => {
+		const e = emptyEncodings()
+		e.x = { field: "cat" }
+		e.y = { field: "val" }
+		e.facet = { field: "r" }
+		const labels = {
+			...DEFAULT_LABELS_CONFIG,
+			titlePlacements: { facetTitle: { side: "left" as const } },
+			titleOffsets: { facetTitle: { x: 4, y: -2 } },
+			titleAngles: { facetTitle: 30 },
+			titleVerticalAlignments: { facetTitle: "top" as const },
+		}
+		const input = build({ encodings: e, isFaceted: true, labels })
+		const size = resolveFacetTitleStyles(labels, e).facetTitleFont.size
+		const band = Math.max(20, Math.ceil(size * 1.4))
+		expect(input.facetLabel).toMatchObject({
+			side: "left",
+			width: band,
+			horizontal: false,
+			verticalAlign: "top",
+			offsetX: 4,
+			offsetY: -2,
+			angleDeg: 30,
+		})
+		// Upright: the band is the widest title plus 8px padding each side.
+		const upright = build({
+			encodings: e,
+			isFaceted: true,
+			labels: {
+				...labels,
+				titlePlacements: { facetTitle: { side: "right" as const, horizontal: true } },
+			},
+		})
+		expect(upright.facetLabel!.side).toBe("right")
+		expect(upright.facetLabel!.horizontal).toBe(true)
+		expect(upright.facetLabel!.width).toBe(
+			Math.ceil(upright.facetLabel!.textWidth!) + 16,
+		)
 	})
 
 	it("sizes the per-panel label band for the tallest multi-line panel label", () => {

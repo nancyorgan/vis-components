@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react"
+import { cleanup, render } from "@testing-library/react"
 import { TestProvider } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { describe, expect, it } from "vitest"
@@ -642,6 +642,64 @@ describe("PlotCanvas — facet-title orientation", () => {
 		}
 		for (const h of container.querySelectorAll("[data-row-header]")) {
 			expect(h.getAttribute("transform")).toMatch(/^rotate\(-45, /)
+		}
+	})
+})
+
+/** Facet-title Placement (labels.titlePlacements): a wrap panel's title
+ *  can sit in a band beside the panel instead of above it. The solver
+ *  reserves the band; the renderer draws the structural ±90 rotation. */
+describe("PlotCanvas — facet-title placement", () => {
+	const labelTexts = (container: HTMLElement) =>
+		[...container.querySelectorAll("[data-facet-label] text")]
+
+	it("left: every per-panel label is rotated -90 and sits left of its panel's plot rect", () => {
+		seed({ faceted: true, labels: { titlePlacements: { facetTitle: { side: "left" } } } })
+		const { container } = mountChartCanvas()
+		const texts = labelTexts(container)
+		expect(texts.length).toBe(3)
+		for (const t of texts) {
+			expect(t.getAttribute("transform")).toMatch(/^rotate\(-90, /)
+			const panel = t.closest("[data-panel]")!
+			const innerRight = Number(panel.getAttribute("data-inner-right"))
+			expect(Number(t.getAttribute("x"))).toBeLessThan(innerRight)
+		}
+	})
+
+	it("right: rotated 90; 'Read title horizontally' drops the rotation and anchors the line box", () => {
+		seed({ faceted: true, labels: { titlePlacements: { facetTitle: { side: "right" } } } })
+		const { container } = mountChartCanvas()
+		for (const t of labelTexts(container)) {
+			expect(t.getAttribute("transform")).toMatch(/^rotate\(90, /)
+		}
+		cleanup()
+		seed({
+			faceted: true,
+			labels: {
+				titlePlacements: { facetTitle: { side: "right", horizontal: true } },
+				titleVerticalAlignments: { facetTitle: "top" },
+			},
+		})
+		const { container: upright } = mountChartCanvas()
+		const texts = labelTexts(upright)
+		expect(texts.length).toBe(3)
+		for (const t of texts) {
+			expect(t.getAttribute("transform")).toBeNull()
+			expect(t.getAttribute("dominant-baseline")).toBe("hanging")
+		}
+	})
+
+	it("a vertical side title ignores the paint-time Angle (the structural rotation wins)", () => {
+		seed({
+			faceted: true,
+			labels: {
+				titlePlacements: { facetTitle: { side: "left" } },
+				titleAngles: { facetTitle: 45 },
+			},
+		})
+		const { container } = mountChartCanvas()
+		for (const t of labelTexts(container)) {
+			expect(t.getAttribute("transform")).toMatch(/^rotate\(-90, /)
 		}
 	})
 })
