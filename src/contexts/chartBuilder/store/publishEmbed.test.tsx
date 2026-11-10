@@ -39,11 +39,13 @@ const mountFigure = (width = 1100, height = 700): HTMLElement => {
 }
 const publishHtml = vi.fn()
 const publishImage = vi.fn<(id: string, png: File) => Promise<string>>()
+const publishVector = vi.fn<(id: string, svg: File) => Promise<string>>()
 vi.mock("../lib/embedPublish", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../lib/embedPublish")>()),
 	collectEmbedFonts: async () => [],
 	publishEmbedRequest: (...args: unknown[]) => publishHtml(...args),
 	publishEmbedImageRequest: (id: string, png: File) => publishImage(id, png),
+	publishEmbedVectorRequest: (id: string, svg: File) => publishVector(id, svg),
 }))
 
 const VISUAL: Visual = {
@@ -63,6 +65,7 @@ const VISUAL: Visual = {
 
 const HTML_URLS = { full: "https://x/embeds/p/index.html" }
 const IMAGE_URL = "https://x/embeds/p/image.png"
+const VECTOR_URL = "https://x/embeds/p/image.svg"
 
 beforeEach(() => {
 	installInMemoryLocalStorage()
@@ -70,6 +73,7 @@ beforeEach(() => {
 	render.mockReset()
 	publishHtml.mockReset().mockResolvedValue(HTML_URLS)
 	publishImage.mockReset().mockResolvedValue(IMAGE_URL)
+	publishVector.mockReset().mockResolvedValue(VECTOR_URL)
 })
 
 const setup = () => {
@@ -103,7 +107,7 @@ describe("usePublishEmbed linked picture", () => {
 		const [, png] = publishImage.mock.calls[0]
 		expect(png.name).toBe("image.png")
 		expect(png.type).toBe("image/png")
-		expect(recordedUrls()).toEqual({ ...HTML_URLS, image: IMAGE_URL })
+		expect(recordedUrls()).toEqual({ ...HTML_URLS, image: IMAGE_URL, vector: VECTOR_URL })
 	})
 
 	it("a republish whose upload fails records the HTML urls without the old image", async () => {
@@ -114,7 +118,7 @@ describe("usePublishEmbed linked picture", () => {
 		expect(recordedUrls()?.image).toBe(IMAGE_URL)
 		publishImage.mockRejectedValue(new Error("HTTP 500"))
 		await publish()
-		expect(recordedUrls()).toEqual(HTML_URLS)
+		expect(recordedUrls()).toEqual({ ...HTML_URLS, vector: VECTOR_URL })
 	})
 
 	it("a capture that never settles still records the publish, with no upload", async () => {
@@ -144,15 +148,31 @@ describe("usePublishEmbed picture failure reason", () => {
 		const { publish, store } = setup()
 		publishImage.mockRejectedValue(new Error("Publishing the picture failed (HTTP 403)."))
 		await publish()
-		expect(failureFor(store)).toBe("Publishing the picture failed (HTTP 403).")
+		expect(failureFor(store)).toEqual({ image: "Publishing the picture failed (HTTP 403)." })
 		publishImage.mockResolvedValue(IMAGE_URL)
 		await publish()
 		expect(failureFor(store)).toBeUndefined()
 	})
 
+	it("a refused vector keeps the PNG url and names only the vector", async () => {
+		mountFigure()
+		render.mockResolvedValue(PNG_BLOB)
+		const { publish, recordedUrls, store } = setup()
+		publishVector.mockRejectedValue(new Error("Publishing the picture failed (HTTP 400)."))
+		await publish()
+		expect(recordedUrls()).toEqual({ ...HTML_URLS, image: IMAGE_URL })
+		expect(failureFor(store)).toEqual({ vector: "Publishing the picture failed (HTTP 400)." })
+		const [, svg] = publishVector.mock.calls[0]
+		expect(svg.name).toBe("image.svg")
+		expect(svg.type).toBe("image/svg+xml")
+		// The SVG is captured through the same pipeline, at 1× (vectors have no raster scale).
+		const svgRender = render.mock.calls.find((c) => c[1] === "svg")
+		expect(svgRender?.[4]).toBe(1)
+	})
+
 	it("names the missing figure when nothing is on screen to capture", async () => {
 		const { publish, store } = setup()
 		await publish()
-		expect(failureFor(store)).toBe(PICTURE_NO_FIGURE)
+		expect(failureFor(store)).toEqual({ image: PICTURE_NO_FIGURE, vector: PICTURE_NO_FIGURE })
 	})
 })

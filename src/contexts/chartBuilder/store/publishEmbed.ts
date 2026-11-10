@@ -21,6 +21,7 @@ import {
 	newPublishId,
 	publishEmbedImageRequest,
 	publishEmbedRequest,
+	publishEmbedVectorRequest,
 	unpublishEmbedRequest,
 	type EmbedPublishUrls,
 } from "../lib/embedPublish"
@@ -51,11 +52,15 @@ export type PublishEmbedArgs = {
 	includeZctaTopology?: boolean
 }
 
-/** Why the linked picture of a visual's last publish didn't make it, by
- *  visual id — session-only, never saved. The Export tab shows it under the
- *  retry hint so a silent failure (capture or upload) has a cause attached.
- *  A publish that lands its picture clears the visual's entry. */
-export const embedPictureFailuresAtom = atom<Record<string, string>>({})
+/** Why a linked picture of a visual's last publish didn't make it, per
+ *  format. */
+export type PictureFailures = { image?: string; vector?: string }
+
+/** The picture failures of each visual's last publish, by visual id —
+ *  session-only, never saved. The Export tab shows them under the retry
+ *  hints so a silent failure (capture or upload) has a cause attached. A
+ *  publish that lands both pictures clears the visual's entry. */
+export const embedPictureFailuresAtom = atom<Record<string, PictureFailures>>({})
 
 export const usePublishEmbed = () =>
 	useAtomCallback(
@@ -137,24 +142,29 @@ export const usePublishEmbed = () =>
 					...(zctaTopology !== undefined ? { zctaTopology } : {}),
 				})
 
-				// The linked picture rides a second request (the server 404s it
+				// The linked pictures ride further requests (the server 404s them
 				// until the HTML publish exists). Best-effort: the embed is already
 				// live, so a failed capture or upload records the publish without
-				// an `image` url (the Export tab offers a retry) rather than failing
-				// it. The urls object is built fresh, so a stale `image` from an
+				// that url (the Export tab offers a retry) rather than failing it.
+				// The urls object is built fresh, so a stale picture url from an
 				// earlier publish never survives a failed picture step.
-				const picture = await publishEmbedImage(publishId)
+				const pictures = await publishEmbedPictures(publishId)
 				const urls: EmbedPublishUrls = {
 					...htmlUrls,
-					...("url" in picture ? { image: picture.url } : {}),
+					...("url" in pictures.image ? { image: pictures.image.url } : {}),
+					...("url" in pictures.vector ? { vector: pictures.vector.url } : {}),
+				}
+				const failures: PictureFailures = {
+					...("failure" in pictures.image ? { image: pictures.image.failure } : {}),
+					...("failure" in pictures.vector ? { vector: pictures.vector.failure } : {}),
 				}
 				set(embedPictureFailuresAtom, (prev) => {
-					if ("url" in picture) {
+					if (Object.keys(failures).length === 0) {
 						if (!(args.visualId in prev)) return prev
 						const { [args.visualId]: _cleared, ...rest } = prev
 						return rest
 					}
-					return { ...prev, [args.visualId]: picture.failure }
+					return { ...prev, [args.visualId]: failures }
 				})
 
 				set(embedInstancesAtom, (prev) =>
@@ -177,27 +187,40 @@ export const usePublishEmbed = () =>
 	)
 
 /** Capture the on-screen figure (chart + legend + canvas colour) through
- *  the export pipeline and upload it as the embed's picture: the figure at
- *  its laid-out size, 2 raster px per CSS px so it stays crisp projected,
- *  stamped with that resolution so a consumer places it at its true size —
- *  12pt in the app is 12pt on the slide. The export capture waits for the
- *  layout to settle, which is where a "Republish on every save" lands, 800
- *  ms after an edit. Resolves to the picture's public url, or to the reason
- *  it failed (no figure on screen, a capture that never settled, an upload
- *  that failed) — a reason, never a throw, so the publish itself still
- *  lands and the Export tab can say what went wrong. */
+ *  the export pipeline and upload it as the embed's pictures: a PNG of the
+ *  figure at its laid-out size, 2 raster px per CSS px so it stays crisp
+ *  projected, stamped with that resolution so a consumer places it at its
+ *  true size — 12pt in the app is 12pt on the slide — and the portable SVG
+ *  of the same figure, which stays sharp at any zoom and in print. The
+ *  export capture waits for the layout to settle, which is where a
+ *  "Republish on every save" lands, 800 ms after an edit. Each format
+ *  resolves to its public url or to the reason it failed (no figure on
+ *  screen, a capture that never settled, an upload that failed) — a
+ *  reason, never a throw, so the publish itself still lands and the Export
+ *  tab can say what went wrong; one format failing never costs the other. */
 const EMBED_IMAGE_SCALE = 2
 export const PICTURE_NO_FIGURE = "No figure on screen to capture — publish from the editor."
 type PictureOutcome = { url: string } | { failure: string }
-const publishEmbedImage = async (publishId: string): Promise<PictureOutcome> => {
+type PictureOutcomes = { image: PictureOutcome; vector: PictureOutcome }
+
+const attemptPicture = async (run: () => Promise<string>): Promise<PictureOutcome> => {
 	try {
-		// Layout size (offsetWidth) ignores the editor's display-only zoom.
-		const root = document.querySelector<HTMLElement>("[data-chart-root]")
-		if (!root || root.offsetWidth === 0 || root.offsetHeight === 0) {
-			return { failure: PICTURE_NO_FIGURE }
-		}
-		const width = root.offsetWidth
-		const height = root.offsetHeight
+		return { url: await run() }
+	} catch (error) {
+		return { failure: error instanceof Error && error.message ? error.message : String(error) }
+	}
+}
+
+const publishEmbedPictures = async (publishId: string): Promise<PictureOutcomes> => {
+	// Layout size (offsetWidth) ignores the editor's display-only zoom.
+	const root = document.querySelector<HTMLElement>("[data-chart-root]")
+	if (!root || root.offsetWidth === 0 || root.offsetHeight === 0) {
+		const failure = { failure: PICTURE_NO_FIGURE }
+		return { image: failure, vector: failure }
+	}
+	const width = root.offsetWidth
+	const height = root.offsetHeight
+	const image = await attemptPicture(async () => {
 		const blob = await renderExport(
 			document,
 			"png",
@@ -206,11 +229,16 @@ const publishEmbedImage = async (publishId: string): Promise<PictureOutcome> => 
 			clampPixelRatio(width, height, EMBED_IMAGE_SCALE),
 			{ root, opaqueBackground: true }
 		)
-		const png = new File([blob], "image.png", { type: "image/png" })
-		return { url: await publishEmbedImageRequest(publishId, png) }
-	} catch (error) {
-		return { failure: error instanceof Error && error.message ? error.message : String(error) }
-	}
+		return publishEmbedImageRequest(publishId, new File([blob], "image.png", { type: "image/png" }))
+	})
+	const vector = await attemptPicture(async () => {
+		const blob = await renderExport(document, "svg", width, height, 1, { root })
+		return publishEmbedVectorRequest(
+			publishId,
+			new File([blob], "image.svg", { type: "image/svg+xml" })
+		)
+	})
+	return { image, vector }
 }
 
 /** Unpublish one instance: delete its public files, then clear its publish

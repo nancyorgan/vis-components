@@ -46,8 +46,16 @@ export type EmbedPublishRecord = {
 	publishedAt: number
 	publishedParts: Array<"full" | "chart" | "legend">
 	/** Replaced WHOLE on each publish, so a republish whose picture step
-	 * failed drops the previous `image`. */
-	publishedUrls: { full?: string; chart?: string; legend?: string; image?: string }
+	 * failed drops the previous `image` / `vector`. */
+	publishedUrls: {
+		full?: string
+		chart?: string
+		legend?: string
+		/** The PNG picture (`image.png`). */
+		image?: string
+		/** The SVG picture (`image.svg`). */
+		vector?: string
+	}
 	publishedVersionId: string | null
 }
 

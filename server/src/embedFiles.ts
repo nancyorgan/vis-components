@@ -3,9 +3,9 @@
  *  A publish writes one self-contained HTML file per requested part into
  *  `$VIS_PUBLISH_DIR/embeds/<publishId>/`, where a dumb static server makes
  *  it public at `$VIS_PUBLISH_BASE_URL/embeds/<publishId>/<file>`. The client
- *  then uploads a PNG picture of the chart as `image.png` in the same folder
- *  (a separate request, so it can be linked as a picture that refreshes on
- *  republish). Everything
+ *  then uploads pictures of the chart into the same folder — a PNG as
+ *  `image.png` and a vector SVG as `image.svg` — each a separate request, so
+ *  either can be linked as a picture that refreshes on republish. Everything
  *  in the publish dir is fully public; nothing there is ever needed by this
  *  server again except to rewrite or delete it.
  *
@@ -15,12 +15,12 @@
  *   - no URL is reported until its file is written AND read back intact —
  *     the caller only builds URLs from what this module returns
  *   - unpublish deletes the embed's files (idempotent)
- *   - the filenames are a closed set — the part files plus `image.png` — so
- *     no manifest file is needed (and nothing non-content ever sits in the
- *     public dir)
- *   - an HTML (re)publish deletes `image.png`, so the stable picture URL
- *     never shows a stale chart; the client's trailing upload restores it
- *   - the picture is only ever written into an existing embed dir: an upload
+ *   - the filenames are a closed set — the part files plus `image.png` and
+ *     `image.svg` — so no manifest file is needed (and nothing non-content
+ *     ever sits in the public dir)
+ *   - an HTML (re)publish deletes both pictures, so the stable picture URLs
+ *     never show a stale chart; the client's trailing uploads restore them
+ *   - a picture is only ever written into an existing embed dir: an upload
  *     that trails a DELETE must not resurrect the embed */
 
 import { promises as fs } from "node:fs"
@@ -43,6 +43,11 @@ const PART_FILES: Record<EmbedPart, string> = {
 /** The embed's picture file — not a part (it is uploaded separately, never
  *  composed from the template), but part of the closed filename set. */
 export const IMAGE_FILE = "image.png"
+/** The vector picture beside it: the same figure as a portable SVG, for
+ *  consumers that keep vectors sharp at any zoom (slides, print, PDF). */
+export const VECTOR_FILE = "image.svg"
+/** The picture files, as the client uploads them: PNG raster, SVG vector. */
+export type PictureFile = typeof IMAGE_FILE | typeof VECTOR_FILE
 
 /** Publish ids are minted client-side with crypto.randomUUID() — lowercase
  *  hyphenated UUID, nothing else. They come from URLs, so they gate all path
@@ -93,6 +98,14 @@ export const embedImagePath = (publishId: string): string => {
 		throw new Error(`Unsafe publish id: ${JSON.stringify(publishId)}`)
 	}
 	return `embeds/${publishId}/${IMAGE_FILE}`
+}
+
+/** `embeds/<publishId>/image.svg` — the vector picture's public path. */
+export const embedVectorPath = (publishId: string): string => {
+	if (!isPublishId(publishId)) {
+		throw new Error(`Unsafe publish id: ${JSON.stringify(publishId)}`)
+	}
+	return `embeds/${publishId}/${VECTOR_FILE}`
 }
 
 /** Compose one part's finished page: the wrapper JSON replaces the template
@@ -193,33 +206,49 @@ export const publishEmbedFiles = async (
 	// The picture shows the PREVIOUS content now; retire it rather than serve
 	// a stale chart at the stable URL until the client's upload lands.
 	await deleteIfPresent(join(dir, IMAGE_FILE))
+	await deleteIfPresent(join(dir, VECTOR_FILE))
 	return paths
 }
 
-/** Write the embed's picture (`image.png`) into an already-published embed.
+/** Write one of the embed's pictures into an already-published embed.
  *  Returns its public path (relative to VIS_PUBLISH_BASE_URL), or `null`
  *  when the embed is not published — the directory is never created here,
  *  so an upload that trails an unpublish cannot resurrect it. Throws on any
  *  other failure. The bytes are stored as given; the caller validates them. */
-export const publishEmbedImage = async (
+const publishEmbedPicture = async (
 	publishDir: string,
 	publishId: string,
-	png: Buffer
+	file: PictureFile,
+	bytes: Buffer
 ): Promise<string | null> => {
 	const dir = embedDir(publishDir, publishId)
 	try {
 		if (!(await fs.stat(dir)).isDirectory()) return null
-		await writeAndVerify(dir, IMAGE_FILE, png)
+		await writeAndVerify(dir, file, bytes)
 	} catch (error) {
 		// ENOENT covers both "never published" and an unpublish racing the
 		// write (the dir vanished before the temp file was opened).
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
 		throw error
 	}
-	return embedImagePath(publishId)
+	return file === IMAGE_FILE ? embedImagePath(publishId) : embedVectorPath(publishId)
 }
 
-/** Unpublish: delete every part file and the picture, then the now-empty
+/** The raster picture (`image.png`); see {@link publishEmbedPicture}. */
+export const publishEmbedImage = (
+	publishDir: string,
+	publishId: string,
+	png: Buffer
+): Promise<string | null> => publishEmbedPicture(publishDir, publishId, IMAGE_FILE, png)
+
+/** The vector picture (`image.svg`); see {@link publishEmbedPicture}. */
+export const publishEmbedVector = (
+	publishDir: string,
+	publishId: string,
+	svg: Buffer
+): Promise<string | null> => publishEmbedPicture(publishDir, publishId, VECTOR_FILE, svg)
+
+/** Unpublish: delete every part file and both pictures, then the now-empty
  *  directory.
  *  Idempotent — unpublishing an unknown or already-gone embed is a no-op. */
 export const unpublishEmbedFiles = async (
@@ -231,6 +260,7 @@ export const unpublishEmbedFiles = async (
 		await deleteIfPresent(join(dir, PART_FILES[part]))
 	}
 	await deleteIfPresent(join(dir, IMAGE_FILE))
+	await deleteIfPresent(join(dir, VECTOR_FILE))
 	// Leftover temp files from a crashed publish are the only other thing
 	// that can exist here; sweep them so the rmdir below succeeds.
 	try {

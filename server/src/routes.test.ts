@@ -896,6 +896,74 @@ describe("published embeds over HTTP", () => {
 			expect(existsSync(join(publishDir, "embeds", id))).toBe(false)
 		})
 	})
+
+	describe("vector picture upload (PUT /api/embeds/<id>/vector)", () => {
+		const SVG = Buffer.from(
+			'<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4"/></svg>',
+			"utf-8"
+		)
+
+		const publish = (id: string) =>
+			fetch(`${base}/api/embeds/${id}`, {
+				method: "PUT",
+				body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+			})
+
+		const upload = (id: string, bytes: Buffer, name = "vector") => {
+			const form = new FormData()
+			form.append(name, new Blob([new Uint8Array(bytes)], { type: "image/svg+xml" }), "image.svg")
+			return fetch(`${base}/api/embeds/${id}/vector`, { method: "PUT", body: form })
+		}
+
+		const vectorFile = (id: string) => join(publishDir, "embeds", id, "image.svg")
+
+		it("writes image.svg and answers with its public URL", async () => {
+			const id = uuid("2aaaa")
+			await publish(id)
+			const res = await upload(id, SVG)
+			expect(res.status).toBe(200)
+			expect(await res.json()).toEqual({
+				v: 1,
+				url: `https://embeds.example.com/embeds/${id}/image.svg`,
+			})
+			expect(readFileSync(vectorFile(id)).equals(SVG)).toBe(true)
+		})
+
+		it("refuses a scripted or fetching SVG, a PNG, and a wrong part name with 400", async () => {
+			const id = uuid("2bbbb")
+			await publish(id)
+			expect((await upload(id, SVG, "image")).status).toBe(400)
+			expect((await upload(id, Buffer.from([0x89, 0x50, 0x4e, 0x47]))).status).toBe(400)
+			expect(
+				(await upload(id, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'))).status
+			).toBe(400)
+			expect(
+				(
+					await upload(
+						id,
+						Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://x/y.png"/></svg>')
+					)
+				).status
+			).toBe(400)
+			expect(existsSync(vectorFile(id))).toBe(false)
+		})
+
+		it("404s for an embed that is not published; a republish retires the vector", async () => {
+			const id = uuid("2cccc")
+			expect((await upload(id, SVG)).status).toBe(404)
+			expect(existsSync(join(publishDir, "embeds", id))).toBe(false)
+			await publish(id)
+			await upload(id, SVG)
+			await publish(id)
+			expect(existsSync(vectorFile(id))).toBe(false)
+		})
+
+		it("405s methods other than PUT", async () => {
+			const id = uuid("2dddd")
+			await publish(id)
+			expect((await fetch(`${base}/api/embeds/${id}/vector`)).status).toBe(405)
+		})
+	})
 })
 
 describe("multipart thumbnail uploads", () => {

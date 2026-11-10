@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { publishEmbedImageRequest, publishEmbedRequest } from "./embedPublish"
+import {
+	publishEmbedImageRequest,
+	publishEmbedRequest,
+	publishEmbedVectorRequest,
+} from "./embedPublish"
 import { pngFileFromDataUrl } from "./storage/thumbnailUpload"
 
 afterEach(() => {
@@ -98,5 +102,40 @@ describe("publishEmbedImageRequest", () => {
 			)
 		)
 		await expect(publishEmbedImageRequest("pub-1", png)).rejects.toThrow()
+	})
+})
+
+describe("publishEmbedVectorRequest", () => {
+	const svgFile = () =>
+		new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], "image.svg", { type: "image/svg+xml" })
+
+	it("PUTs one multipart file part named vector to the sibling route and returns the url", async () => {
+		const mock = vi.fn(
+			async (_path: string, _init?: RequestInit) =>
+				({
+					ok: true,
+					status: 200,
+					json: async () => ({ v: 1, url: "https://x/embeds/pub-1/image.svg" }),
+				}) as unknown as Response
+		)
+		vi.stubGlobal("fetch", mock)
+		expect(await publishEmbedVectorRequest("pub-1", svgFile())).toBe(
+			"https://x/embeds/pub-1/image.svg"
+		)
+		const [path, init] = mock.mock.calls[0]
+		expect(path).toBe("/api/embeds/pub-1/vector")
+		expect(init!.method).toBe("PUT")
+		const entries = [...(init!.body as FormData).entries()]
+		expect(entries).toHaveLength(1)
+		expect(entries[0][0]).toBe("vector")
+		expect((entries[0][1] as File).type).toBe("image/svg+xml")
+	})
+
+	it("throws on a refused vector (400)", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => ({ ok: false, status: 400 }) as unknown as Response)
+		)
+		await expect(publishEmbedVectorRequest("pub-1", svgFile())).rejects.toThrow(/HTTP 400/)
 	})
 })

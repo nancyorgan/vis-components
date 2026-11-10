@@ -5913,6 +5913,25 @@ auto" — with the title "Republishes on every save (your setting)";
 pin there. A failed autosave republish never breaks the save — the
 error shows beside the header's Republish button.
 
+**Linked pictures.** Every publish also captures the on-screen figure
+(plot, legend and canvas colour — the `[data-chart-root]` element,
+which every legend layout carries) and uploads it twice beside the
+HTML: a PNG at 2 raster px per CSS px, stamped with that resolution so
+a slide places it at true size, and a portable SVG of the same figure
+for anything that keeps vectors sharp when zoomed or printed (slides,
+PDF, print). Both URLs are stable per published pin —
+`…/embeds/<publishId>/image.png` and `image.svg` — and both are
+replaced on every republish, so a link pasted into a deck shows the
+current chart. The Embed tab's **Linked picture (experimental)** block
+lists the two links with Copy buttons. Either upload may fail without
+failing the publish (the embed is already live); the block then says
+"Picture didn't publish. Republish to retry." for that format, with
+the reason underneath when this session saw it fail (for example "No
+figure on screen to capture — publish from the editor."). The vector
+upload is gated server-side to the export pipeline's own plain SVG:
+anything that scripts, fetches or isn't an SVG document is refused,
+because the publish host serves the file as a document.
+
 **Editing a published visual is flagged twice.** The landing page's
 Pin State column reports publish reality per instance; the editor
 adds the two signals a user in the middle of editing actually sees.

@@ -807,8 +807,9 @@ const EmbedTab = ({
 
 			{published && (
 				<LinkedPictureRow
-					url={published.publishedUrls?.image}
-					reason={pictureFailures[visualId]}
+					imageUrl={published.publishedUrls?.image}
+					vectorUrl={published.publishedUrls?.vector}
+					failures={pictureFailures[visualId]}
 				/>
 			)}
 

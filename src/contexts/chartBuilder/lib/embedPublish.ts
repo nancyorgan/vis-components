@@ -31,6 +31,8 @@ export type EmbedPublishUrls = {
 	/** The linked-picture PNG, published by a second request after the HTML
 	 *  files (`publishEmbedImageRequest`). Absent when that step failed. */
 	image?: string
+	/** The linked-picture SVG (`publishEmbedVectorRequest`), likewise. */
+	vector?: string
 }
 
 /** Compose the single-version Dataset an embed payload carries: the bound
@@ -132,15 +134,26 @@ export const publishEmbedRequest = async (
  *  (`storage/thumbnailUpload.ts`); NO content-type header, so the browser
  *  writes the multipart boundary. Resolves to the picture's public URL;
  *  throws on any failure. */
-export const publishEmbedImageRequest = async (
+export const publishEmbedImageRequest = (publishId: string, png: File): Promise<string> =>
+	publishEmbedPictureRequest(publishId, "image", png)
+
+/** PUT the published embed's vector picture (`<publishId>/image.svg`): the
+ *  export pipeline's portable SVG, as one `vector` file part on the sibling
+ *  route. Same contract as the PNG; the server refuses anything that isn't a
+ *  plain SVG (400). */
+export const publishEmbedVectorRequest = (publishId: string, svg: File): Promise<string> =>
+	publishEmbedPictureRequest(publishId, "vector", svg)
+
+const publishEmbedPictureRequest = async (
 	publishId: string,
-	png: File
+	kind: "image" | "vector",
+	file: File
 ): Promise<string> => {
 	assertNotStale("publish")
 	const form = new FormData()
-	form.append("image", png)
+	form.append(kind, file)
 	const response = await fetch(
-		`/api/embeds/${encodeURIComponent(publishId)}/image`,
+		`/api/embeds/${encodeURIComponent(publishId)}/${kind}`,
 		{
 			method: "PUT",
 			headers: contentVersionHeader("embeds"),

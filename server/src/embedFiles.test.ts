@@ -10,16 +10,19 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { beforeEach, describe, expect, it } from "vitest"
 import {
-	PAYLOAD_MARKER,
-	IMAGE_FILE,
 	composePartHtml,
 	embedImagePath,
 	embedPartPath,
+	embedVectorPath,
+	IMAGE_FILE,
 	isEmbedPart,
 	isPublishId,
+	PAYLOAD_MARKER,
 	publishEmbedFiles,
 	publishEmbedImage,
+	publishEmbedVector,
 	unpublishEmbedFiles,
+	VECTOR_FILE,
 } from "./embedFiles.js"
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02])
@@ -204,5 +207,40 @@ describe("embedImagePath", () => {
 	it("names image.png in the embed's folder and guards the id", () => {
 		expect(embedImagePath(ID)).toBe(`embeds/${ID}/image.png`)
 		expect(() => embedImagePath("../escape")).toThrow(/Unsafe publish id/)
+	})
+})
+
+describe("publishEmbedVector", () => {
+	const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>', "utf-8")
+
+	it("writes image.svg beside image.png and returns its path", async () => {
+		await publishEmbedFiles(publishDir, ID, TEMPLATE, "{}", ["full"])
+		await publishEmbedImage(publishDir, ID, PNG)
+		expect(await publishEmbedVector(publishDir, ID, SVG)).toBe(`embeds/${ID}/image.svg`)
+		const dir = join(publishDir, "embeds", ID)
+		expect(readFileSync(join(dir, VECTOR_FILE)).equals(SVG)).toBe(true)
+		expect(readdirSync(dir).sort()).toEqual(["image.png", "image.svg", "index.html"])
+	})
+
+	it("signals not-published with null and creates nothing", async () => {
+		expect(await publishEmbedVector(publishDir, ID, SVG)).toBeNull()
+		expect(existsSync(join(publishDir, "embeds"))).toBe(false)
+	})
+
+	it("a republish retires both pictures; an unpublish sweeps a lone vector", async () => {
+		await publishEmbedFiles(publishDir, ID, TEMPLATE, "{}", ["full"])
+		await publishEmbedImage(publishDir, ID, PNG)
+		await publishEmbedVector(publishDir, ID, SVG)
+		await publishEmbedFiles(publishDir, ID, TEMPLATE, "{}", ["full"])
+		const dir = join(publishDir, "embeds", ID)
+		expect(readdirSync(dir)).toEqual(["index.html"])
+		writeFileSync(join(dir, VECTOR_FILE), SVG)
+		await unpublishEmbedFiles(publishDir, ID)
+		expect(existsSync(dir)).toBe(false)
+	})
+
+	it("names image.svg in the embed's folder and guards the id", () => {
+		expect(embedVectorPath(ID)).toBe(`embeds/${ID}/image.svg`)
+		expect(() => embedVectorPath("../escape")).toThrow(/Unsafe publish id/)
 	})
 })

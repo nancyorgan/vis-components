@@ -53,10 +53,12 @@ import {
 	isPublishId,
 	publishEmbedFiles,
 	publishEmbedImage,
+	publishEmbedVector,
 	readEmbedTemplate,
 	unpublishEmbedFiles,
 	type EmbedPart,
 } from "./embedFiles.js"
+import { isSafeSvg } from "./svgCheck.js"
 import { HttpError, readBody, sendEmpty, sendError, sendJson } from "./http.js"
 import {
 	requestUser,
@@ -282,13 +284,16 @@ const handleApi = async (
 	// never needs VIS_PUBLISH_BASE_URL (and /api/config stays untouched).
 	if (collection === "embeds") {
 		if (!id) throw new HttpError(404, "Not found")
-		if (rest.length > 0 && !(rest.length === 1 && rest[0] === "image")) {
+		const picture = rest.length === 1 && (rest[0] === "image" || rest[0] === "vector") ? rest[0] : null
+		if (rest.length > 0 && picture === null) {
 			throw new HttpError(404, "Not found")
 		}
 		if (!isPublishId(id)) throw new HttpError(400, "Invalid publish id")
-		if (rest.length === 1 && rest[0] === "image") {
+		if (picture !== null) {
 			if (method !== "PUT") throw new HttpError(405, "Method not allowed")
-			return await putEmbedImage(req, res, config, id)
+			return picture === "image"
+				? await putEmbedImage(req, res, config, id)
+				: await putEmbedVector(req, res, config, id)
 		}
 		if (method === "PUT") {
 			return await publishEmbed(req, res, config, distDir, id)
@@ -517,6 +522,29 @@ const putEmbedImage = async (
 	const png = await readSingleFilePart(req, EMBED_IMAGE_BODY_CAP_BYTES, "image")
 	if (!isPng(png)) throw new HttpError(400, "Image must be a PNG")
 	const path = await publishEmbedImage(config.publishDir, publishId, png)
+	if (path === null) throw new HttpError(404, "Not found")
+	return sendJson(
+		res,
+		200,
+		JSON.stringify({ v: 1, url: `${config.publishBaseUrl}/${path}` })
+	)
+}
+
+/** PUT /api/embeds/<publishId>/vector — the embed's vector picture, the
+ *  export pipeline's portable SVG of the same figure: exactly one `vector`
+ *  file part. Gated by `isSafeSvg` (the publish dir serves it as a document,
+ *  so nothing that scripts or fetches is stored), written as `image.svg`
+ *  beside the PNG and answered with its public URL, `{ v: 1, url }`. 404
+ *  when the embed is not published. */
+const putEmbedVector = async (
+	req: IncomingMessage,
+	res: ServerResponse,
+	config: ServerConfig,
+	publishId: string
+): Promise<void> => {
+	const svg = await readSingleFilePart(req, EMBED_IMAGE_BODY_CAP_BYTES, "vector")
+	if (!isSafeSvg(svg)) throw new HttpError(400, "Vector must be a plain SVG")
+	const path = await publishEmbedVector(config.publishDir, publishId, svg)
 	if (path === null) throw new HttpError(404, "Not found")
 	return sendJson(
 		res,
