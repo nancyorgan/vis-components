@@ -860,6 +860,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 				</label>
 				{/* Copy is a purple chip in the field's corner, shown on hover. */}
 				<div className="relative group/copy">
+					{/* DM Mono Regular, like the picture links (see LinkedPictureRow). */}
 					<Textarea
 						id={`${snippetIdBase}-${s.key}`}
 						value={value}
@@ -867,7 +868,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 							setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
 						}
 						rows={3}
-						className="w-full font-mono pr-9"
+						className="w-full font-mono font-[400] pr-9"
 						onFocus={(e) => e.currentTarget.select()}
 					/>
 					<CopyButton value={value} label="Copy snippet" onCopied={onCopied} ghost />

@@ -117,7 +117,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "new-visual",
 				anchor: "new-visual",
-				body: "New visualization opens the editor on a blank canvas. You'll bring in your data there.",
+				body: "New visualization opens the editor on a blank canvas. Import your data there.",
 				placement: "bottom",
 			},
 			{
@@ -129,7 +129,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "new-folder",
 				anchor: "new-folder",
-				body: "Click + to make a folder. Your visualizations live here; open one to see what's inside.",
+				body: "Click + to make a folder. Your visualizations live here; click one to see what's inside.",
 				placement: "right",
 			},
 		],
@@ -149,13 +149,13 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "paste-data",
 				anchor: "paste-data",
-				body: "Copy rows from a spreadsheet and paste them here, or press ⌘V / Ctrl+V anywhere.",
+				body: "Copy-paste rows from a spreadsheet and paste them here.",
 				placement: "top",
 			},
 			{
 				id: "visual-title",
 				anchor: "visual-title",
-				body: "Give your visualization a name. Save keeps it in your library.",
+				body: "Give your visualization a name, then hit save to keep it in your library.",
 				placement: "bottom",
 			},
 		],
@@ -169,19 +169,19 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "fields",
 				anchor: "section-fields",
-				body: "Each column becomes a field. The badge shows its type — numeric, categorical, date. Change it if we guessed wrong.",
+				body: "Each column has a specific data type: quantitative, categorical, ordinal, or temporal. Change types to make the data behave differently.",
 				placement: "right",
 			},
 			{
 				id: "quickstart",
 				anchor: "quickstart",
-				body: "Not sure where to begin? Click a chart icon to fill in a chart for you. Click it again for different fields.",
+				body: "Not sure where to begin? Use Quickstart to randomly generate a chart using your data, then tweak it to your liking.",
 				placement: "right",
 			},
 			{
 				id: "encodings",
 				anchor: "section-encodings",
-				body: "Pick a field for X, Y, Color, Length and more. The chart type follows from what you map.",
+				body: "Assign variables to X, Y, Color, Length and more. The chart type follows from the variables you encode.",
 				placement: "right",
 			},
 		],
@@ -195,13 +195,13 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "encoding-options",
 				anchor: "encoding-options",
-				body: "Open a row's arrow for its options: axis, palette, scale and more.",
+				body: "Open a row's main menu to see the full options.",
 				placement: "right",
 			},
 			{
 				id: "titles",
 				anchor: "section-titles",
-				body: "Add a title, subtitle and axis titles here.",
+				body: "Add a title, subtitle, and axis titles here.",
 				placement: "right",
 			},
 			{
@@ -221,19 +221,19 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "edit-grid",
 				anchor: "edit-grid",
-				body: "Click a cell to edit it, just like a spreadsheet. Blocks copied from Excel or Sheets paste straight in.",
+				body: "Click a cell to edit it, just like in a spreadsheet.",
 				placement: "top",
 			},
 			{
 				id: "edit-add-column",
 				anchor: "edit-add-column",
-				body: "Add a column with +, or a row on the blank line at the bottom. Right-click to delete rows or columns.",
+				body: "Add a column or a row with the +. Right-click to delete rows or columns.",
 				placement: "left",
 			},
 			{
 				id: "edit-data-name",
 				anchor: "edit-data-name",
-				body: "Edits save as a new data set, so your original data stays untouched.",
+				body: "Edits save as a new data set version, so your original data stays untouched. See the versions in the page header.",
 				placement: "top",
 			},
 		],

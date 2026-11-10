@@ -4,7 +4,7 @@
 	--accent-hover: #3443f7; /* brand-600 */
 	--muted: #6b7280;
 	--border: #d4d4d8;
-	--ok: #15803d;
+	--ok: var(--accent); /* notes in the brand color; red stays for errors */
 	--err: #b91c1c;
 }
 * {
