@@ -106,6 +106,24 @@ export const stampResolvedFonts = (root: Element): void => {
 	}
 }
 
+/** Rewrite paints the chart uses for invisible geometry into their SVG
+ * spelling. The hover hit-areas are wide lines painted `transparent` — a
+ * CSS colour every browser accepts but SVG importers outside the browser
+ * (PowerPoint, and its PDF export) don't know, so they fall back to black
+ * and the picture grows 12px black bars. `none` renders identically here
+ * and is what every importer understands. `pointer-events` goes too: it
+ * means nothing in a picture and trips strict parsers. */
+export const dropInvisiblePaints = (root: Element): void => {
+	for (const el of root.querySelectorAll<Element>("[fill], [stroke], [pointer-events]")) {
+		for (const attr of ["fill", "stroke"]) {
+			if (el.getAttribute(attr)?.trim().toLowerCase() === "transparent") {
+				el.setAttribute(attr, "none")
+			}
+		}
+		el.removeAttribute("pointer-events")
+	}
+}
+
 /** Legacy (OpenType nameID 1) suffixes static font families use for weights
  * outside the Regular/Bold pair — what Office matches a face by. */
 const WEIGHT_FACE_NAMES: Record<number, string> = {

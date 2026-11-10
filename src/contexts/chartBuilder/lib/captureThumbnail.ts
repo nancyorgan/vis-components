@@ -1,5 +1,5 @@
 import { embedFontsInSvg } from "./fontEmbed"
-import { flattenTextBaselines, stampResolvedFonts } from "./portableSvg"
+import { dropInvisiblePaints, flattenTextBaselines, stampResolvedFonts } from "./portableSvg"
 
 export const PLOT_SVG_ID = "vc-scatter-svg"
 
@@ -625,6 +625,7 @@ export const serializeEmbedCapture = (
 		try {
 			stampResolvedFonts(wrapper)
 			flattenTextBaselines(wrapper)
+			dropInvisiblePaints(wrapper)
 		} finally {
 			wrapper.remove()
 			wrapper.removeAttribute("style")

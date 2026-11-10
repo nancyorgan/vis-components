@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { flattenTextBaselines, nameWeightedFaces } from "./portableSvg"
+import { dropInvisiblePaints, flattenTextBaselines, nameWeightedFaces } from "./portableSvg"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
 
@@ -105,5 +105,24 @@ describe("flattenTextBaselines", () => {
 		stubText(text, { charYs: [99, 99], shift: 0 })
 		flattenTextBaselines(svg)
 		expect(text.getAttribute("y")).toBe("50")
+	})
+})
+
+describe("dropInvisiblePaints", () => {
+	it("spells transparent paints as none and strips pointer-events, leaving real paints alone", () => {
+		const root = mount(
+			`<polyline class="vc-line-hit" fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>` +
+				`<rect fill="Transparent" stroke="#0A1E33"/>` +
+				`<circle fill="#ffffff" stroke="rgb(226, 232, 240)"/>`
+		)
+		dropInvisiblePaints(root)
+		const [hit, rect, circle] = [...root.children]
+		expect(hit.getAttribute("stroke")).toBe("none")
+		expect(hit.getAttribute("stroke-width")).toBe("12")
+		expect(hit.hasAttribute("pointer-events")).toBe(false)
+		expect(rect.getAttribute("fill")).toBe("none")
+		expect(rect.getAttribute("stroke")).toBe("#0A1E33")
+		expect(circle.getAttribute("fill")).toBe("#ffffff")
+		expect(circle.getAttribute("stroke")).toBe("rgb(226, 232, 240)")
 	})
 })
