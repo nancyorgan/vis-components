@@ -508,8 +508,13 @@ const InsideLegendLayout = ({
 		return () => setRenderedAutoX(null)
 	}, [autoX, setRenderedAutoX])
 	return (
+		// data-chart-root here too: with the legend overlaid, this canvas IS
+		// the whole figure the published picture captures. Without the marker
+		// the picture step found "no figure on screen" for every inside-legend
+		// chart.
 		<div
 			ref={canvasRef}
+			data-chart-root
 			className="relative h-full w-full overflow-hidden"
 			style={bgStyle}
 		>
