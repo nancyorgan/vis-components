@@ -155,7 +155,7 @@ describe("LibraryPage templates", () => {
 	it("says how to make one when the library has no templates", () => {
 		mount([mkVisual("Chart")], { kind: "templates" })
 		const empty = screen.getByText(
-			"No templates yet. Save one from a visual's Export dialog."
+			"No templates yet. Save one from the editor's Save menu."
 		)
 		expect(empty.className).toContain("vc-faint")
 	})
@@ -163,7 +163,7 @@ describe("LibraryPage templates", () => {
 	it("the table says the same", () => {
 		mount([mkVisual("Chart")], { kind: "templates", view: "table" })
 		const empty = screen.getByText(
-			"No templates yet. Save one from a visual's Export dialog."
+			"No templates yet. Save one from the editor's Save menu."
 		)
 		expect(empty.className).toContain("vc-faint")
 	})

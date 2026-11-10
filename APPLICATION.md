@@ -5870,29 +5870,44 @@ One modal ("Export this visualization", `components/ExportModal.tsx`)
 with two tabs named by what the user wants: **Download image** (a
 file) and **Publish** (a public copy to link from slides, documents
 and web pages). An open lands on Publish when the visual is already
-published, Download image otherwise. The Download image tab ends with a **Zafiro
-bundle (.json)** row whose **Download bundle** button writes this one
+published, Download image otherwise.
+
+**One figure, on both tabs.** Each tab opens with the same block,
+always visible and in the same place on both: Width / Height / Units /
+Lock aspect ratio (+ Include data table while the visual has a table
+on), then the tab's own controls on the same row (Download image adds
+Format and Resolution), over a live preview of the embed laid out at that size, with drag handles on its
+edges and corner. That figure is what a download captures AND what a
+publish captures and sizes its iframe to — resizing in the dialog is
+how users see how it all fits. The size is seeded on open (fixed
+canvas size → the size this visual was last exported or published at
+→ the editor's on-screen chart → the default), remembered per visual
+on every successful download or publish, and shared by both tabs.
+Aesthetics → Canvas size is never required: it only seeds.
+
+On **Publish**, under the preview (where Download image has its
+button, so the controls and the preview stay put when switching
+tabs), sits the state of the pin it shows — "Not published yet" (with one sentence on
+what publishing does), or "Published · latest data · Nov 10, 2:45 PM"
+(or "· pinned to v2, Nov 9 …") — with **Publish** / **Republish**
+beside it and, once published, a quiet **Unpublish** link that asks
+twice. Then a collapsed **Data version settings** purple
+option panel (purple header and chevron, like the sidebar's) holds
+**Data** (the pin choice, below; one line per option) and, once
+something is published, **Updates**: "Republish automatically whenever
+I save (this browser only)". Then, once published, **Get a link for**
+— the sidebar's purple segmented toggle, **Slides & documents**
+(default) or **Web page**, showing one at a time: the SVG and PNG
+picture links (see "Linked pictures"), or the `<iframe>` snippet sized
+to the figure, the **Legend as a separate iframe** checkbox under it
+(it shapes the next publish), the legend's own snippet after that once
+a split publish exists, and **Open published page in new tab**. The Zafiro bundle download and
+Save as template live in the editor's **Save** menu, not here: the
+menu's **Download as Zafiro file (.json)** writes this one
 visualization (with its data set, folder chain and custom theme) as a
 library bundle immediately, the same file the library page's bulk
 **Download** produces and Settings → Sharing imports, named after the
-*saved* visual. The build reads through the storage adapter, so it is
-correct in server mode too; failures report beside the button.
-
-**Publish** opens with the state of the pin it shows —
-"Not published yet", or "Published · latest data · Nov 10, 2:45 PM"
-(or "· pinned to v2, Nov 9 …") — with **Publish** / **Republish** and
-**Unpublish** beside it, then one line naming the figure size every
-publish captures and the iframe defaults to: the on-screen figure's,
-"from Aesthetics → Canvas size" when that is on, else "follows your
-window: W × H px now. Fix it under Aesthetics → Canvas size." A
-**Change…** link closes the dialog and jumps the sidebar to that
-subsection. The Download image tab's Width / Height never touch this size
-(its caption says so). Then **Data** (the pin choice, below), the
-Republish-on-every-save checkbox once something is published, and the
-two ways to use the copy, pictures first: **Picture link** (SVG then
-PNG, see "Linked pictures") and **Web page**, which holds the
-**Legend as a separate iframe** checkbox (it shapes the next publish),
-the `<iframe>` snippet(s) and **Open published page in new tab**.
+*saved* visual.
 
 The web page is an `<iframe>` snippet pointing at
 `/embed/<visualId>` on the same origin (cross-origin embedding is not
@@ -5951,19 +5966,20 @@ auto" — with the title "Republishes on every save (your setting)";
 pin there. A failed autosave republish never breaks the save — the
 error shows beside the header's Republish button.
 
-**Linked pictures.** Every publish also captures the on-screen figure
-(plot, legend and canvas colour — the `[data-chart-root]` element,
-which every legend layout carries) and uploads it twice beside the
-HTML: a PNG at 2 raster px per CSS px, stamped with that resolution so
+**Linked pictures.** Every publish also captures the figure and
+uploads it twice beside the HTML. The capture source is an embed laid
+out at the dialog's figure size: the dialog's own preview when the
+publish is clicked there, else — the header's Republish, "Republish on
+every save" — an embed booted off-screen at the visual's remembered
+size (`lib/offscreenEmbed.ts`), so every path publishes the same
+figure: a PNG at 2 raster px per CSS px, stamped with that resolution so
 a slide places it at true size, and a portable SVG of the same figure
 for anything that keeps vectors sharp when zoomed or printed (slides,
 PDF, print). Both URLs are stable per published pin —
 `…/embeds/<publishId>/image.png` and `image.svg` — and both are
 replaced on every republish, so a link pasted into a deck shows the
-current chart. The Publish tab's **Picture link** block ("For
-PowerPoint, Word, Google Slides, email") lists the SVG link ("Sharp at
-any size; best for PDF and print") above the PNG ("Looks the same
-everywhere"), each with a Copy button. Either upload may fail without
+current chart. The Publish tab's Slides & documents view lists the SVG
+link above the PNG, each with a Copy button. Either upload may fail without
 failing the publish (the embed is already live); the block then says
 "Picture didn't publish. Republish to retry." for that format, with
 the reason underneath when this session saw it fail (for example "No
@@ -5995,11 +6011,13 @@ for a publish the user just made from the Export modal, and the frame
 costs no layout (an inset shadow, not a border) so it can't shift the
 export/embed size defaults measured off the viewport.
 
-**Download image** renders the chart in a preview iframe and saves it as
-**PNG**, **JPEG**, **SVG**, or **PDF** (the button reads "Download
-PNG" and so on); its Width / Height size the file only, and a caption
-under the controls says so and names where the published size comes
-from:
+**Download image** saves the figure block's preview as **PNG**,
+**JPEG**, **SVG**, or **PDF** (the button reads "Download PNG" and so
+on), with **Format** and, for raster formats, **Resolution** after the
+shared size controls, and the export size ("Exports at W × H px", or
+"Vector — sharp at any size" for SVG) as the second line of the
+preview caption, so the caption is two lines on both tabs and the
+preview never moves:
 
 - **Include data table** — shown only while the visual has a data
   table on; adds the table under the chart (§10b).
@@ -6151,7 +6169,7 @@ its arrow segment opens a menu — in the editor with a data set bound,
 **New with this data set** (keeps the data, clears encodings and
 styling) and **New with a new data set** (a clean slate, like the
 main segment), and everywhere **Import from JSON…**, which opens the
-file picker for a bundle or a single visual's Download bundle (the same
+file picker for a bundle or a single visual's "Download as Zafiro file" (the same
 format) and runs exactly the merge above (`store/importBundle.ts`,
 shared with the Sharing page).
 
@@ -6177,7 +6195,7 @@ root, never a dangling id. Until that first save the editor's folder
 breadcrumbs already show the pick. For the import, the file is chosen
 first (the native picker has no room for a question) and the dialog
 follows once there is something to place: the name box appears only
-when the file holds exactly ONE visual (a single "Download bundle"),
+when the file holds exactly ONE visual (a single "Download as Zafiro file"),
 seeded with that visual's name — a library bundle has nothing to call
 by one name — and a clash there only warns, since an import may
 duplicate by design. Both answers go to the merge as described above.

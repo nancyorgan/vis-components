@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
@@ -66,5 +66,43 @@ describe("EditorActions Save while a template is pending", () => {
 		const save = screen.getByRole("button", { name: "Save visualization" })
 		expect((save as HTMLButtonElement).disabled).toBe(false)
 		expect(save.getAttribute("title")).toBeNull()
+	})
+})
+
+/** Save is a split button for a SAVED visual: the arrow opens a menu whose
+ *  one item today is "Save as template…" (the dialog is
+ *  SaveTemplateButton's test). A draft has no arrow — nothing saved to
+ *  build a template from. */
+describe("EditorActions Save menu", () => {
+	const SAVED: Visual = { ...TEMPLATE, id: "dv-1", name: "Sales", template: undefined }
+
+	const renderSaved = (visualId: string | null) =>
+		render(
+			<TestProvider
+				initializeState={(store) => {
+					store.set(visualsAtom, [SAVED])
+					store.set(currentVisualIdAtom, visualId)
+					store.set(currentTemplateIdAtom, null)
+					store.set(currentDatasetIdAtom, "ds-1")
+				}}
+			>
+				<EditorActions />
+			</TestProvider>
+		)
+
+	it("opens Save as template… from the arrow beside Save", () => {
+		renderSaved("dv-1")
+		expect(screen.queryByRole("menu")).toBeNull()
+		fireEvent.click(screen.getByRole("button", { name: "More ways to save" }))
+		expect(screen.getByRole("menuitem", { name: /Save as template…/ })).toBeTruthy()
+		expect(screen.getByRole("menuitem", { name: /Download as Zafiro file/ })).toBeTruthy()
+		fireEvent.click(screen.getByRole("menuitem", { name: /Save as template…/ }))
+		expect(screen.queryByRole("menu")).toBeNull()
+		expect(screen.getByLabelText("Template name")).toBeTruthy()
+	})
+
+	it("has no arrow while the visual is unsaved", () => {
+		renderSaved(null)
+		expect(screen.queryByRole("button", { name: "More ways to save" })).toBeNull()
 	})
 })

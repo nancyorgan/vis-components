@@ -207,7 +207,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "export",
 				anchor: "export",
-				body: "Export downloads an image, or gives you a code to embed it on a page.",
+				body: "Export downloads a visualization as an image or publishes the chart for slides and web pages.",
 				placement: "bottom",
 			},
 		],
@@ -247,19 +247,13 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "export-embed-tab",
 				anchor: "export-embed-tab",
-				body: "Embed gives you a snippet that puts this chart on a web page.",
+				body: "Publish puts the chart online: picture links for slides and documents, or an iframe for a page.",
 				placement: "bottom",
 			},
 			{
 				id: "export-image-tab",
 				anchor: "export-image-tab",
-				body: "Export image downloads a PNG, JPEG, SVG or PDF at the size you choose.",
-				placement: "bottom",
-			},
-			{
-				id: "save-template",
-				anchor: "save-template",
-				body: "Save as template keeps this design so you can reuse it with new data.",
+				body: "Download image saves a PNG, JPEG, SVG or PDF at the size you choose.",
 				placement: "bottom",
 			},
 		],

@@ -24,7 +24,7 @@ const openExportTab = async (page: import("@playwright/test").Page) => {
 	await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
 
 	await page.getByRole("button", { name: "Export" }).click()
-	// The modal opens on the "Export image" tab by default.
+	// The modal opens on the "Download image" tab by default.
 
 	// The preview iframe cold-boots the embed app; wait for its chart AND
 	// legend so the capture has both to serialize.
@@ -41,7 +41,7 @@ test.describe("Export image", () => {
 
 		await page.getByLabel("Format").selectOption("svg")
 		const downloadPromise = page.waitForEvent("download")
-		await page.getByRole("button", { name: "Save SVG" }).click()
+		await page.getByRole("button", { name: "Download SVG" }).click()
 		const download = await downloadPromise
 		// Named after the visual ("Seeded fixture"), not its id.
 		expect(download.suggestedFilename()).toBe("seeded-fixture.svg")
@@ -120,9 +120,9 @@ test.describe("Export image", () => {
 
 		// Both tabs share the pinned top-left layout: toggling between them
 		// must not move the popup's top-left corner or the tab buttons. The
-		// modal opens on "Export image", so toggle to Embed and back.
+		// modal opens on "Download image", so toggle to Publish and back.
 		const dialog = page.locator('[role="dialog"]')
-		const embedTab = page.getByRole("button", { name: "Embed" })
+		const embedTab = page.getByRole("tab", { name: "Publish" })
 		const dialogBefore = (await dialog.boundingBox())!
 		const tabBefore = (await embedTab.boundingBox())!
 
@@ -134,7 +134,7 @@ test.describe("Export image", () => {
 		expect(tabExport.x).toBe(tabBefore.x)
 		expect(tabExport.y).toBe(tabBefore.y)
 
-		await page.getByRole("button", { name: "Export image" }).click()
+		await page.getByRole("tab", { name: "Download image" }).click()
 		const dialogBack = (await dialog.boundingBox())!
 		const tabBack = (await embedTab.boundingBox())!
 		expect(dialogBack.x).toBe(dialogBefore.x)
@@ -173,7 +173,7 @@ test.describe("Export image", () => {
 
 		// The action buttons sit BELOW the preview.
 		const save = (await page
-			.getByRole("button", { name: "Save PNG" })
+			.getByRole("button", { name: "Download PNG" })
 			.boundingBox())!
 		const preview = (await page
 			.locator('iframe[title="Export preview"]')
@@ -219,7 +219,7 @@ test.describe("Export image", () => {
 		// Only a successful export persists the size.
 		await page.getByLabel("Format").selectOption("svg")
 		const downloadPromise = page.waitForEvent("download")
-		await page.getByRole("button", { name: "Save SVG" }).click()
+		await page.getByRole("button", { name: "Download SVG" }).click()
 		await downloadPromise
 		// A successful save closes the modal.
 		await expect(page.locator('[role="dialog"]')).toBeHidden()
@@ -228,7 +228,7 @@ test.describe("Export image", () => {
 		await page.reload({ waitUntil: "networkidle" })
 		await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
 		await page.getByRole("button", { name: "Export" }).click()
-		await page.getByRole("button", { name: "Export image" }).click()
+		await page.getByRole("tab", { name: "Download image" }).click()
 
 		await expect(page.getByLabel("Width (px)")).toHaveValue("800")
 		await expect(page.getByLabel("Height (px)")).toHaveValue("500")
@@ -242,7 +242,7 @@ test.describe("Export image", () => {
 		await page.getByLabel("Width (px)").fill("650")
 		await page.getByLabel("Height (px)").fill("400")
 		const downloadPromise = page.waitForEvent("download")
-		await page.getByRole("button", { name: "Save PNG" }).click()
+		await page.getByRole("button", { name: "Download PNG" }).click()
 		const download = await downloadPromise
 		const png = readFileSync((await download.path())!)
 

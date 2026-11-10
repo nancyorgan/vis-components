@@ -17,9 +17,9 @@ import {
 } from "../store/atoms"
 import { ExportModal } from "./ExportModal"
 
-/** The Export modal's header row: Download JSON and Save as template sit
- *  beside the two tabs (the dialog itself is SaveTemplateButton's test) —
- *  and which tab an open lands on. */
+/** The Export modal's two tabs — Download image and Publish — and which
+ *  tab an open lands on. Save as template and the Zafiro bundle download
+ *  live in the editor's Save menu (EditorActions' test). */
 
 const VISUAL: Visual = {
 	id: "dv-1",
@@ -76,36 +76,42 @@ const renderModal = (open: boolean, instances: EmbedInstance[] = []) =>
 		</TestProvider>
 	)
 
-describe("Export modal header", () => {
-	it("offers Save as template beside Download JSON", () => {
+describe("Export modal tabs", () => {
+	it("offers Download image and Publish, with the figure size controls on the open tab", () => {
 		renderModal(true)
-		expect(screen.getByRole("button", { name: "Download JSON" })).toBeTruthy()
-		expect(screen.getByRole("button", { name: "Save as template" })).toBeTruthy()
+		expect(screen.getByRole("tab", { name: "Download image" })).toBeTruthy()
+		expect(screen.getByRole("tab", { name: "Publish" })).toBeTruthy()
+		expect(screen.getByLabelText("Width (px)")).toBeTruthy()
+		expect(screen.getByRole("button", { name: "Download PNG" })).toBeTruthy()
+		expect(screen.queryByRole("button", { name: "Save as template" })).toBeNull()
+		expect(screen.queryByRole("button", { name: /Download bundle|Download JSON/ })).toBeNull()
 	})
 })
 
-/** Browser-local sessions (this test env) render the Embed pane as a
- *  "requires the self-host server" notice, so that text is the Embed pane's
- *  fingerprint here. */
+/** Browser-local sessions (this test env) render the Publish pane as a
+ *  "requires the self-host server" notice, so that text is the Publish
+ *  pane's fingerprint here. */
 const EMBED_PANE_TEXT = /Publishing embeds requires the self-host server/
 
 describe("Export modal opening tab", () => {
-	it("opens on Export image for an unpublished visual", () => {
+	it("opens on Download for an unpublished visual", () => {
 		renderModal(true)
 		expect(screen.queryByText(EMBED_PANE_TEXT)).toBeNull()
 	})
 
-	it("opens on Embed when the visual is already published", () => {
+	it("opens on Publish when the visual is already published", () => {
 		renderModal(true, [PUBLISHED])
 		expect(screen.getByText(EMBED_PANE_TEXT)).toBeTruthy()
 	})
 })
 
-/** Embed tab, server mode: "Republish on every save" is this user's
- *  per-visual, per-browser flag (`republishOnSaveVisualsAtom`, never the
- *  shared instances), offered once the visual has a published pin. */
-describe("Export modal Embed tab: Republish on every save", () => {
-	const LABEL = "Republish on every save"
+/** Publish tab, server mode: "Republish automatically whenever I save" is
+ *  this user's per-visual, per-browser flag (`republishOnSaveVisualsAtom`,
+ *  never the shared instances), offered under Settings once the visual has
+ *  a published pin. */
+describe("Export modal Publish tab: Republish on every save", () => {
+	const LABEL = "Republish automatically whenever I save (this browser only)"
+	const openSettings = () => fireEvent.click(screen.getByRole("button", { name: /^Data version settings/ }))
 
 	const renderServerMode = (instances: EmbedInstance[]) => {
 		setStorageAdapter({ ...localStorageAdapter, capabilities: { remoteLoad: true } })
@@ -132,6 +138,7 @@ describe("Export modal Embed tab: Republish on every save", () => {
 
 	it("offers the checkbox once a pin is published and toggles this visual's device-local flag", () => {
 		const store = renderServerMode([PUBLISHED])
+		openSettings()
 		const box = screen.getByRole("checkbox", { name: LABEL }) as HTMLInputElement
 		expect(box.checked).toBe(false)
 		fireEvent.click(box)
@@ -146,15 +153,18 @@ describe("Export modal Embed tab: Republish on every save", () => {
 	it("shows the checkbox for a published pin other than the one the tab is on", () => {
 		// The tab opens on the "latest" pin; the published one is pinned to v1.
 		renderServerMode([{ ...PUBLISHED, versionId: "v1", publishedVersionId: "v1" }])
+		openSettings()
 		expect(screen.getByRole("checkbox", { name: LABEL })).toBeTruthy()
 	})
 
 	it("does not exist before the pin is published", () => {
-		// Open on the Embed tab by hand: an unpublished visual lands on Export
-		// image.
+		// Open on the Publish tab by hand: an unpublished visual lands on
+		// Download.
 		renderServerMode([{ ...PUBLISHED, publishId: undefined, publishedUrls: undefined }])
-		fireEvent.click(screen.getByRole("button", { name: "Embed" }))
-		expect(screen.getByRole("button", { name: "Publish embed" })).toBeTruthy()
+		fireEvent.click(screen.getByRole("tab", { name: "Publish" }))
+		expect(screen.getByRole("status").textContent).toBe("Not published yet")
+		expect(screen.getByRole("button", { name: /^Publish$/ })).toBeTruthy()
+		openSettings()
 		expect(screen.queryByRole("checkbox", { name: LABEL })).toBeNull()
 	})
 })

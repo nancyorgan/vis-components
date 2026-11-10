@@ -1,7 +1,7 @@
 /** Download visualizations as a standard library bundle (the same JSON
  *  Settings → Sharing produces and imports), so one chart can be handed to a
  *  colleague without exporting the whole library. Used by the library page's
- *  bulk "Download" and by the editor's Export popup ("Download JSON"). Like
+ *  bulk "Download" and by the editor's Export dialog ("Download bundle"). Like
  *  image export, it offers the browser's Save-as dialog (./saveFile.ts).
  *
  *  The bundle build itself lives in ./libraryBundle.ts and reads through the

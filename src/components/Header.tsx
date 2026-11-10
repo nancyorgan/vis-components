@@ -28,6 +28,13 @@ import {
 } from "../contexts/chartBuilder/lib/nameUniqueness"
 import { ImportProblemList } from "./ImportProblemList"
 import {
+	MENU_HINT,
+	MENU_ITEM,
+	MENU_ITEM_DIVIDED,
+	MENU_PANEL,
+	MENU_TITLE,
+} from "./ui/menuStyles"
+import {
 	useImportLibraryBundle,
 	type ImportBundleOutcome,
 } from "../contexts/chartBuilder/store/importBundle"
@@ -169,11 +176,6 @@ const NewVisualizationLabel = () => (
 	</>
 )
 
-const MENU_ITEM =
-	"block w-full px-3 py-2 text-left text-sm hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-stone-700"
-const MENU_ITEM_DIVIDED = `${MENU_ITEM} border-t border-stone-200 dark:border-stone-700`
-const MENU_TITLE = "vc-heading font-medium"
-const MENU_HINT = "text-sm vc-muted"
 
 /** What a menu item is waiting on: the destination-and-name dialog that
  *  precedes it. An import holds the file already chosen, and the name of
@@ -200,7 +202,7 @@ const singleVisualNameIn = (text: string): string | null => {
  * editor with a dataset bound, carrying that dataset forward or starting
  * clean, and everywhere, starting from a template (a picker first,
  * optionally carrying the editor's data set along) or importing a JSON
- * file — one visual's "Download JSON" or a whole library bundle (the same
+ * file — one visual's "Download bundle" or a whole library bundle (the same
  * format), merged additively
  * exactly as Settings → Sharing does. Each menu item first asks what to
  * call the result and where it should go (the Move/Duplicate folder
@@ -473,10 +475,7 @@ const NewVisualizationButton = () => {
 				</Button>
 			</div>
 			{open && (
-				<div
-					className="absolute top-full right-0 z-20 mt-1 w-64 overflow-hidden rounded-md border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-800"
-					role="menu"
-				>
+				<div className={MENU_PANEL} role="menu">
 					{currentDataset && (
 						<>
 							<button
@@ -513,7 +512,7 @@ const NewVisualizationButton = () => {
 						title={
 							hasTemplates
 								? undefined
-								: "Save a template from a visual's Export dialog first"
+								: "Save a template from the editor's Save menu first"
 						}
 						className={currentDataset ? MENU_ITEM_DIVIDED : MENU_ITEM}
 					>

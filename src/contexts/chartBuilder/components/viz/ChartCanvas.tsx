@@ -397,13 +397,8 @@ const ChartCanvasBody = ({
 	)
 
 	return (
-		// data-chart-root: the figure as a whole — plot panels, HTML legend and
-		// the canvas background — which the published picture captures
-		// (`renderExport(document, …, { root })`) the same way the export root
-		// is captured on an embed page.
 		<div
 			ref={rowRef}
-			data-chart-root
 			className={`flex h-full w-full ${flexDirection}`}
 			style={bgStyle}
 		>
@@ -508,13 +503,8 @@ const InsideLegendLayout = ({
 		return () => setRenderedAutoX(null)
 	}, [autoX, setRenderedAutoX])
 	return (
-		// data-chart-root here too: with the legend overlaid, this canvas IS
-		// the whole figure the published picture captures. Without the marker
-		// the picture step found "no figure on screen" for every inside-legend
-		// chart.
 		<div
 			ref={canvasRef}
-			data-chart-root
 			className="relative h-full w-full overflow-hidden"
 			style={bgStyle}
 		>

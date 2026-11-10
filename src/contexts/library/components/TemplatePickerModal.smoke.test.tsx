@@ -148,7 +148,7 @@ describe("TemplatePickerModal", () => {
 		mount([VISUALS[2]!, VISUALS[3]!], { currentDatasetName: "Q3 Sales" })
 		expect(
 			screen.getByText(
-				"No templates yet. Save one from a visual's Export dialog."
+				"No templates yet. Save one from the editor's Save menu."
 			)
 		).toBeTruthy()
 		expect(screen.queryByRole("navigation")).toBeNull()

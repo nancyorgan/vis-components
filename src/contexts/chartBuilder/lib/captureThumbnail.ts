@@ -549,7 +549,7 @@ export const serializeEmbedCapture = (
 	doc: Document,
 	opts: { portable?: boolean; root?: HTMLElement | null } = {}
 ): string | null => {
-	// `root` lets the editor capture its own figure (`[data-chart-root]`,
+	// `root` captures one subtree instead of the page (tests, callers that
 	// see ChartCanvas) with the same composition an embed page gets from
 	// `[data-export-root]`.
 	const root = opts.root ?? doc.querySelector<HTMLElement>("[data-export-root]")

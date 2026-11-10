@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
 import { EMPTY_CHANNEL_CONFIGS } from "../lib/channelConfig"
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH } from "../lib/exportImage"
 import { SYSTEM_LIGHT_THEME } from "../lib/systemThemes"
 import { labelsFromTheme } from "../lib/themeConfig"
 import { emptyEncodings, type Visual } from "../lib/types"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
 import { TestProvider, type TestStore } from "../../../testSupport/TestProvider"
-import { embedInstancesAtom, visualsAtom } from "./atoms"
+import { embedInstancesAtom, exportSizesAtom, visualsAtom } from "./atoms"
 import {
 	embedPictureFailuresAtom,
-	PICTURE_NO_FIGURE,
+	type PublishCapture,
+	publishSizeFor,
 	usePublishEmbed,
 } from "./publishEmbed"
 
@@ -28,15 +30,28 @@ vi.mock("../lib/exportImage", async (importOriginal) => ({
 	renderExport: (...args: unknown[]) => render(...args),
 }))
 
-/** The editor's figure root, sized as layout would size it. */
-const mountFigure = (width = 1100, height = 700): HTMLElement => {
-	const root = document.createElement("div")
-	root.setAttribute("data-chart-root", "")
-	Object.defineProperty(root, "offsetWidth", { value: width })
-	Object.defineProperty(root, "offsetHeight", { value: height })
-	document.body.appendChild(root)
-	return root
-}
+/** Stand-ins for the capture sources: the dialog's preview iframe, and the
+ *  off-screen embed `withOffscreenEmbed` would boot (mocked: it hands the
+ *  callback this frame at once and reports the size it was asked for). */
+const PREVIEW = { preview: true } as unknown as HTMLIFrameElement
+const OFFSCREEN = { offscreen: true } as unknown as HTMLIFrameElement
+const offscreen = vi.fn<
+	(
+		visualId: string,
+		versionId: string | null,
+		size: { width: number; height: number },
+		run: (iframe: HTMLIFrameElement) => Promise<unknown>
+	) => Promise<unknown>
+>()
+vi.mock("../lib/offscreenEmbed", () => ({
+	withOffscreenEmbed: (
+		visualId: string,
+		versionId: string | null,
+		size: { width: number; height: number },
+		run: (iframe: HTMLIFrameElement) => Promise<unknown>
+	) => offscreen(visualId, versionId, size, run),
+}))
+
 const publishHtml = vi.fn()
 const publishImage = vi.fn<(id: string, png: File) => Promise<string>>()
 const publishVector = vi.fn<(id: string, svg: File) => Promise<string>>()
@@ -71,6 +86,7 @@ beforeEach(() => {
 	installInMemoryLocalStorage()
 	document.body.innerHTML = ""
 	render.mockReset()
+	offscreen.mockReset().mockImplementation((_v, _ver, _size, run) => run(OFFSCREEN))
 	publishHtml.mockReset().mockResolvedValue(HTML_URLS)
 	publishImage.mockReset().mockResolvedValue(IMAGE_URL)
 	publishVector.mockReset().mockResolvedValue(VECTOR_URL)
@@ -89,29 +105,48 @@ const setup = () => {
 		</TestProvider>
 	)
 	const { result } = renderHook(() => usePublishEmbed(), { wrapper })
-	const publish = () =>
-		act(() => result.current({ visualId: "dv-1", versionId: null, split: false }))
+	const publish = (capture?: PublishCapture) =>
+		act(() =>
+			result.current({ visualId: "dv-1", versionId: null, split: false, capture })
+		)
 	const recordedUrls = () =>
 		Object.values(store.get(embedInstancesAtom)).find((i) => i.visualId === "dv-1")
 			?.publishedUrls
 	return { publish, recordedUrls, store }
 }
 
-describe("usePublishEmbed linked picture", () => {
-	it("renders the figure root at its laid-out size, 2× and opaque, and records the image url", async () => {
-		const root = mountFigure(1100, 700)
+describe("usePublishEmbed linked pictures", () => {
+	it("captures the preview at the dialog's size, 2× and opaque, and records both urls", async () => {
 		render.mockResolvedValue(PNG_BLOB)
 		const { publish, recordedUrls } = setup()
-		await publish()
-		expect(render).toHaveBeenCalledWith(document, "png", 1100, 700, 2, { root, opaqueBackground: true })
+		await publish({ source: PREVIEW, width: 1100, height: 700 })
+		expect(render).toHaveBeenCalledWith(PREVIEW, "png", 1100, 700, 2, { opaqueBackground: true })
+		expect(render).toHaveBeenCalledWith(PREVIEW, "svg", 1100, 700, 1)
+		expect(offscreen).not.toHaveBeenCalled()
 		const [, png] = publishImage.mock.calls[0]
 		expect(png.name).toBe("image.png")
 		expect(png.type).toBe("image/png")
 		expect(recordedUrls()).toEqual({ ...HTML_URLS, image: IMAGE_URL, vector: VECTOR_URL })
 	})
 
+	it("without a preview, boots an off-screen embed at the visual's publish size", async () => {
+		render.mockResolvedValue(PNG_BLOB)
+		const { publish, recordedUrls, store } = setup()
+		store.set(exportSizesAtom, { "dv-1": { width: 900, height: 600, aspectLocked: true } })
+		await publish()
+		expect(offscreen).toHaveBeenCalledWith("dv-1", null, { width: 900, height: 600 }, expect.any(Function))
+		expect(render).toHaveBeenCalledWith(OFFSCREEN, "png", 900, 600, 2, { opaqueBackground: true })
+		expect(recordedUrls()).toEqual({ ...HTML_URLS, image: IMAGE_URL, vector: VECTOR_URL })
+	})
+
+	it("remembers the size a publish went out at as the visual's export size", async () => {
+		render.mockResolvedValue(PNG_BLOB)
+		const { publish, store } = setup()
+		await publish({ source: PREVIEW, width: 1100, height: 700 })
+		expect(store.get(exportSizesAtom)["dv-1"]).toEqual({ width: 1100, height: 700, aspectLocked: false })
+	})
+
 	it("a republish whose upload fails records the HTML urls without the old image", async () => {
-		mountFigure()
 		render.mockResolvedValue(PNG_BLOB)
 		const { publish, recordedUrls } = setup()
 		await publish()
@@ -122,20 +157,22 @@ describe("usePublishEmbed linked picture", () => {
 	})
 
 	it("a capture that never settles still records the publish, with no upload", async () => {
-		mountFigure()
 		render.mockRejectedValue(new Error("Couldn't capture the chart"))
 		const { publish, recordedUrls } = setup()
 		await publish()
 		expect(publishImage).not.toHaveBeenCalled()
 		expect(recordedUrls()).toEqual(HTML_URLS)
 	})
+})
 
-	it("no figure on screen: nothing to render, the publish still lands", async () => {
-		const { publish, recordedUrls } = setup()
-		await publish()
-		expect(render).not.toHaveBeenCalled()
-		expect(publishImage).not.toHaveBeenCalled()
-		expect(recordedUrls()).toEqual(HTML_URLS)
+describe("publishSizeFor", () => {
+	const visual = (canvasSize?: { enabled: boolean; width: number; height: number }) =>
+		({ id: "dv-1", channelConfigs: { ...EMPTY_CHANNEL_CONFIGS, ...(canvasSize ? { canvasSize } : {}) } }) as Parameters<typeof publishSizeFor>[0]
+
+	it("prefers the remembered export size, then the fixed canvas, then the default", () => {
+		expect(publishSizeFor(visual({ enabled: true, width: 500, height: 400 }), { "dv-1": { width: 900, height: 600, aspectLocked: false } })).toEqual({ width: 900, height: 600 })
+		expect(publishSizeFor(visual({ enabled: true, width: 500, height: 400 }), {})).toEqual({ width: 500, height: 400 })
+		expect(publishSizeFor(visual({ enabled: false, width: 500, height: 400 }), {})).toEqual({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
 	})
 })
 
@@ -143,7 +180,6 @@ describe("usePublishEmbed picture failure reason", () => {
 	const failureFor = (store: TestStore) => store.get(embedPictureFailuresAtom)["dv-1"]
 
 	it("records why the upload failed, and clears it when a later publish lands the picture", async () => {
-		mountFigure()
 		render.mockResolvedValue(PNG_BLOB)
 		const { publish, store } = setup()
 		publishImage.mockRejectedValue(new Error("Publishing the picture failed (HTTP 403)."))
@@ -155,7 +191,6 @@ describe("usePublishEmbed picture failure reason", () => {
 	})
 
 	it("a refused vector keeps the PNG url and names only the vector", async () => {
-		mountFigure()
 		render.mockResolvedValue(PNG_BLOB)
 		const { publish, recordedUrls, store } = setup()
 		publishVector.mockRejectedValue(new Error("Publishing the picture failed (HTTP 400)."))
@@ -165,14 +200,15 @@ describe("usePublishEmbed picture failure reason", () => {
 		const [, svg] = publishVector.mock.calls[0]
 		expect(svg.name).toBe("image.svg")
 		expect(svg.type).toBe("image/svg+xml")
-		// The SVG is captured through the same pipeline, at 1× (vectors have no raster scale).
-		const svgRender = render.mock.calls.find((c) => c[1] === "svg")
-		expect(svgRender?.[4]).toBe(1)
 	})
 
-	it("names the missing figure when nothing is on screen to capture", async () => {
+	it("names a capture that never settled, for both formats", async () => {
+		render.mockRejectedValue(new Error("Couldn't capture the chart"))
 		const { publish, store } = setup()
 		await publish()
-		expect(failureFor(store)).toEqual({ image: PICTURE_NO_FIGURE, vector: PICTURE_NO_FIGURE })
+		expect(failureFor(store)).toEqual({
+			image: "Couldn't capture the chart",
+			vector: "Couldn't capture the chart",
+		})
 	})
 })

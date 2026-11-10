@@ -166,7 +166,7 @@ export const VisualsTable = ({
 			<div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-stone-300 bg-white px-8 py-20 text-center dark:border-stone-700 dark:bg-stone-800">
 				{noTemplatesYet ? (
 					<p className="max-w-md text-sm vc-faint">
-						No templates yet. Save one from a visual&apos;s Export dialog.
+						No templates yet. Save one from the editor&apos;s Save menu.
 					</p>
 				) : (
 					<p className="max-w-md text-sm vc-muted">

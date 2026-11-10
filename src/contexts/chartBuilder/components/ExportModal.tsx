@@ -1,9 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import {
-	downloadVisualsBundle,
-	sanitizeVisualFilename,
-} from "../lib/downloadVisuals"
+import { sanitizeVisualFilename } from "../lib/downloadVisuals"
 import { publishedInstancesOf, upsertEmbedInstance } from "../lib/embedInstances"
 import {
 	DEFAULT_HEIGHT,
@@ -45,14 +42,15 @@ import {
 import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
 import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
 import { LinkedPictureRow } from "./LinkedPictureRow"
-import { SaveTemplateButton } from "./SaveTemplateButton"
 import { EXPORT_TABLE_HEIGHT_MESSAGE } from "./viz/DataTableBlock"
 
 import { Button } from "../../../components/ui/Button"
 import { Checkbox } from "../../../components/ui/Checkbox"
+import { SectionChevron } from "../../../components/ui/Chevron"
 import { CopyButton } from "../../../components/ui/CopyButton"
 import { Modal } from "../../../components/ui/Modal"
 import { NumberInput } from "../../../components/ui/NumberInput"
+import { Segmented } from "../../../components/ui/Segmented"
 import { Select } from "../../../components/ui/Select"
 import { Textarea } from "../../../components/ui/Input"
 
@@ -63,7 +61,9 @@ type Props = {
 }
 
 type PinMode = "live" | "pinned"
-type Tab = "embed" | "export"
+/** The two tabs, named by what the user wants: an image file, or a
+ *  published copy to link from slides, documents and web pages. */
+type Tab = "download" | "publish"
 
 /** What the Save-as dialog offers for each format. The first extension is
  *  the one the suggested filename carries. */
@@ -98,7 +98,6 @@ const RESOLUTION_OPTIONS = [1, 2, 3, 4]
 // Fallback iframe dimensions for the embed snippets, used only when the
 // on-screen chart / legend can't be measured (e.g. modal opened before the
 // chart mounted).
-const EMBED_FALLBACK_FULL = { width: 800, height: 500 }
 const EMBED_FALLBACK_CHART = { width: 650, height: 400 }
 const EMBED_FALLBACK_LEGEND = { width: 220, height: 400 }
 
@@ -124,9 +123,6 @@ const VIEWPORT_MARGIN = 48
 // left edge.
 const MIN_PANEL_WIDTH = 420
 const ANCHOR_WIDTH = 960
-// Content width of the Embed tab (the panel hugs its content in fitWidth
-// mode, and prose would otherwise stretch it to the slot).
-const EMBED_TAB_WIDTH = 640
 
 /** Measure an on-screen element's rendered size, clamped to the export
  *  bounds. Returns integer px dims, or `null` when the element is absent or
@@ -171,14 +167,14 @@ const useViewportSize = () => {
 }
 
 export const ExportModal = ({ open, onClose, visualId }: Props) => {
-	const [tab, setTab] = useState<Tab>("export")
-	// Each open lands on the tab with work in it: Embed when this visual is
-	// already published (its snippets and republish live there, and the
-	// editor is showing the published-content warning), Export image
+	const [tab, setTab] = useState<Tab>("download")
+	// Each open lands on the tab with work in it: Publish when this
+	// visual is already published (its links and republish live there, and
+	// the editor is showing the published-content warning), Download image
 	// otherwise. Tab state survives while the modal sits mounted but closed,
 	// so the choice is remade on the open transition — and only then, so
-	// publishing or unpublishing from the Embed tab never yanks the user off
-	// it. Same adjust-state-on-prop-change pattern as the snippet drafts.
+	// publishing or unpublishing from the Publish tab never yanks the user
+	// off it. Same adjust-state-on-prop-change pattern as the snippet drafts.
 	const embedInstances = useAtomValue(embedInstancesAtom)
 	const isPublished = Object.values(embedInstances).some(
 		(i) =>
@@ -189,8 +185,11 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	const [seenOpen, setSeenOpen] = useState(false)
 	if (open !== seenOpen) {
 		setSeenOpen(open)
-		if (open) setTab(isPublished ? "embed" : "export")
+		if (open) setTab(isPublished ? "publish" : "download")
 	}
+	// ONE figure size for the whole dialog: the downloaded file and the
+	// published pictures / iframe are all the embed laid out at this size,
+	// shown live in the preview under the controls on both tabs.
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [height, setHeight] = useState(DEFAULT_HEIGHT)
 	const [aspectLocked, setAspectLocked] = useState(false)
@@ -198,14 +197,15 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	const ratioRef = useRef<number>(DEFAULT_WIDTH / DEFAULT_HEIGHT)
 	const viewport = useViewportSize()
 	const exportSizes = useAtomValue(exportSizesAtom)
+	const view = useCurrentDatasetView()
 	// The modal always opens for the CURRENT visual (SaveBar), so the current
 	// channel configs are this visual's. A fixed canvas size prescribes the
-	// export dimensions outright — see the open effect below.
+	// figure size outright — see the open effect below.
 	const canvasSizeCfg = useAtomValue(currentChannelConfigsAtom).canvasSize
 	const fixedCanvas = canvasSizeCfg?.enabled ? canvasSizeCfg : null
-	const setUnit = useSetAtom(exportUnitAtom)
+	const [unit, setUnit] = useAtom(exportUnitAtom)
 	// "Include data table" (offered only while the visual has a table on):
-	// the image is the chart at the chosen size with the table added below,
+	// the figure is the chart at the chosen size with the table added below,
 	// so the preview grows by the table's height, which the embed reports.
 	const hasDataTable = migrateDataTableConfig(
 		useAtomValue(currentDataTableConfigAtom)
@@ -214,18 +214,21 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	const includeTable = hasDataTable && includeTableChoice
 	const [tableHeight, setTableHeight] = useState(0)
 	const extraHeight = includeTable ? tableHeight : 0
+	// The whole figure: the chart, plus the data table under it if included.
+	const imageHeight = height + extraHeight
+	const iframeRef = useRef<HTMLIFrameElement>(null)
 
 	useEffect(() => {
 		if (aspectLocked) ratioRef.current = width / height
 	}, [aspectLocked, width, height])
 
-	// On open, seed the export size. A fixed canvas size (Aesthetics → Canvas
+	// On open, seed the figure size. A fixed canvas size (Aesthetics → Canvas
 	// size) wins outright — the user prescribed exact dimensions, so exports
 	// carry them through (including the unit they were set in), regardless of
 	// what any previous export used. Otherwise restore the size this visual
-	// was last exported at; with no saved size, default to the editor's
-	// CURRENT on-screen chart size (not a fixed 650×400): the export embed
-	// then solves the same layout, so absolute-pixel title offsets export
+	// was last exported or published at; with no saved size, default to the
+	// editor's CURRENT on-screen chart size (not a fixed 650×400): the embed
+	// then solves the same layout, so absolute-pixel title offsets land
 	// exactly where the user placed them. Falls back to the fixed default
 	// only when the editor chart isn't measurable (e.g. modal opened before
 	// the chart mounted).
@@ -257,6 +260,41 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 		setAspectLocked(saved?.aspectLocked ?? false)
 	}, [open, visualId, exportSizes, fixedCanvas, setUnit])
 
+	// The preview: the embed page at the chosen size — what a download
+	// captures and what a publish captures.
+	const previewUrl = useMemo(() => {
+		if (!visualId) return ""
+		const origin = typeof window === "undefined" ? "" : window.location.origin
+		const params = new URLSearchParams()
+		if (view) params.set("v", view.versionId)
+		// Without the table, the figure is the chart alone at the requested
+		// size. With it (`table=image`), the embed lays the table out under
+		// the chart and reports its height, and the iframe grows by that
+		// much so the chart keeps the requested size.
+		params.set("table", includeTable ? "image" : "off")
+		return `${origin}/embed/${visualId}?${params.toString()}`
+	}, [visualId, view, includeTable])
+
+	useEffect(() => {
+		if (!includeTable) return
+		const onMessage = (e: MessageEvent<unknown>) => {
+			if (e.source !== iframeRef.current?.contentWindow) return
+			const data = e.data
+			if (
+				typeof data === "object" &&
+				data !== null &&
+				"type" in data &&
+				data.type === EXPORT_TABLE_HEIGHT_MESSAGE &&
+				"height" in data &&
+				typeof data.height === "number"
+			) {
+				setTableHeight(data.height)
+			}
+		}
+		window.addEventListener("message", onMessage)
+		return () => window.removeEventListener("message", onMessage)
+	}, [includeTable])
+
 	if (!visualId) return null
 
 	const onWidthChange = (v: number) => {
@@ -287,11 +325,30 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 	const anchorOffset = Math.max(0, (slotWidth - ANCHOR_WIDTH) / 2)
 	const availW = Math.max(240, slotWidth - anchorOffset - PREVIEW_CHROME_X)
 	const availH = Math.max(160, viewport.h - PREVIEW_CHROME_Y)
-	const previewScale = Math.min(
-		1,
-		availW / width,
-		availH / (height + extraHeight)
-	)
+	const previewScale = Math.min(1, availW / width, availH / imageHeight)
+
+	const figure: FigureProps = {
+		width,
+		height,
+		imageHeight,
+		unit,
+		setUnit,
+		aspectLocked,
+		onWidthChange,
+		onHeightChange,
+		onAspectLockedChange: setAspectLocked,
+		hasDataTable,
+		includeTable,
+		onIncludeTableChange: (on) => {
+			setIncludeTable(on)
+			// The preview reloads; its table reports a fresh height.
+			setTableHeight(0)
+		},
+		tableHeight: extraHeight,
+		previewScale,
+		previewUrl,
+		iframeRef,
+	}
 
 	return (
 		// Both tabs use the same pinned top-left slot layout, so switching tabs
@@ -309,106 +366,32 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 			fitWidthOffsetPx={anchorOffset}
 		>
 			<div className="flex flex-col gap-4">
-				<div className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700">
+				<div
+					role="tablist"
+					className="flex items-stretch gap-3 border-b border-stone-200 dark:border-stone-700"
+				>
 					<TabButton
-						active={tab === "embed"}
-						onClick={() => setTab("embed")}
-						tipAnchor="export-embed-tab"
-					>
-						Embed
-					</TabButton>
-					<TabButton
-						active={tab === "export"}
-						onClick={() => setTab("export")}
+						active={tab === "download"}
+						onClick={() => setTab("download")}
 						tipAnchor="export-image-tab"
 					>
-						Export image
+						Download image
 					</TabButton>
-					{/* Not tabs: the JSON bundle downloads straight away and the
-					    template saves straight away, so they sit at the row's right
-					    end rather than opening a pane. Wrapped so the buttons center
-					    vertically while the tabs stay full height and keep their
-					    active underline flush with the row's border. */}
-					<div className="ml-auto flex items-center gap-2 pb-2">
-						<DownloadJsonButton visualId={visualId} />
-						<SaveTemplateButton visualId={visualId} />
-					</div>
+					<TabButton
+						active={tab === "publish"}
+						onClick={() => setTab("publish")}
+						tipAnchor="export-embed-tab"
+					>
+						Publish
+					</TabButton>
 				</div>
-				{tab === "embed" ? (
-					// Fixed content width (the panel hugs its content in fitWidth
-					// mode): matches the max-w-2xl (672px) panel this tab used to
-					// get, minus the panel's p-4 padding.
-					<div className="max-w-full" style={{ width: EMBED_TAB_WIDTH }}>
-						<EmbedTab visualId={visualId} />
-					</div>
+				{tab === "publish" ? (
+					<PublishTab visualId={visualId} figure={figure} />
 				) : (
-					<ExportTab
-						visualId={visualId}
-						onClose={onClose}
-						width={width}
-						height={height}
-						aspectLocked={aspectLocked}
-						onWidthChange={onWidthChange}
-						onHeightChange={onHeightChange}
-						onAspectLockedChange={setAspectLocked}
-						previewScale={previewScale}
-						hasDataTable={hasDataTable}
-						includeTable={includeTable}
-						onIncludeTableChange={(on) => {
-							setIncludeTable(on)
-							// The preview reloads; its table reports a fresh height.
-							setTableHeight(0)
-						}}
-						tableHeight={extraHeight}
-						onTableHeight={setTableHeight}
-					/>
+					<DownloadTab visualId={visualId} onClose={onClose} figure={figure} />
 				)}
 			</div>
 		</Modal>
-	)
-}
-
-/** Download this visualization as a library bundle (JSON) — the same file
- *  Settings → Sharing writes and imports, so the recipient gets the chart,
- *  its data set, its folder, and its custom theme in one file. Named after
- *  the SAVED visual (an unsaved rename isn't in the bundle either). */
-const DownloadJsonButton = ({ visualId }: { visualId: string }) => {
-	const visuals = useAtomValue(visualsAtom)
-	const [busy, setBusy] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const name = visuals.find((v) => v.id === visualId)?.name ?? "visualization"
-
-	const onDownload = async () => {
-		if (busy) return
-		setBusy(true)
-		setError(null)
-		try {
-			await downloadVisualsBundle([{ id: visualId, name }])
-		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e))
-		} finally {
-			setBusy(false)
-		}
-	}
-
-	return (
-		<>
-			<Button
-				compact
-				disabled={busy}
-				onClick={() => {
-					void onDownload()
-				}}
-				title="Download this visualization as a JSON bundle someone else can import"
-			>
-				{busy ? "Downloading…" : "Download JSON"}
-			</Button>
-			{error !== null && (
-				<span className="self-center text-sm text-red-700 dark:text-red-300">
-					{error}
-				</span>
-			)}
-		</>
 	)
 }
 
@@ -426,6 +409,8 @@ const TabButton = ({
 }) => (
 	<button
 		type="button"
+		role="tab"
+		aria-selected={active}
 		onClick={onClick}
 		data-tip={tipAnchor}
 		className={`px-4 py-2 text-sm font-medium transition-colors ${
@@ -439,14 +424,198 @@ const TabButton = ({
 )
 
 // ---------------------------------------------------------------------------
-// Embed tab
+// The figure: size controls + live preview, the same on both tabs
 // ---------------------------------------------------------------------------
 
-const EmbedTab = ({
-	visualId,
+type FigureProps = {
+	width: number
+	/** The CHART's height; an included table adds `tableHeight` below it. */
+	height: number
+	/** The whole figure's height (chart + included table). */
+	imageHeight: number
+	unit: ExportUnit
+	setUnit: (u: ExportUnit) => void
+	aspectLocked: boolean
+	onWidthChange: (v: number) => void
+	onHeightChange: (v: number) => void
+	onAspectLockedChange: (v: boolean) => void
+	hasDataTable: boolean
+	includeTable: boolean
+	onIncludeTableChange: (v: boolean) => void
+	/** The included table's height in px (0 when not included). */
+	tableHeight: number
+	previewScale: number
+	previewUrl: string
+	iframeRef: React.RefObject<HTMLIFrameElement>
+}
+
+/** Width / Height / Units / Lock aspect ratio (+ Include data table) over
+ *  the live preview with its drag handles. Rendered by BOTH tabs, always
+ *  visible and always FIRST: this is the figure the file, the pictures and
+ *  the iframe will be, so resizing here is how users see how it all fits,
+ *  and the shared controls sit in the same place whichever tab is open. */
+const FigureBlock = ({
+	figure,
+	trailing,
+	note,
 }: {
-	visualId: string
+	figure: FigureProps
+	/** The tab's own controls, after the shared ones (Format / Resolution). */
+	trailing?: React.ReactNode
+	/** The tab's own line under the Preview caption (the export size). */
+	note?: React.ReactNode
 }) => {
+	const {
+		width,
+		height,
+		imageHeight,
+		unit,
+		setUnit,
+		aspectLocked,
+		onWidthChange,
+		onHeightChange,
+		onAspectLockedChange,
+		hasDataTable,
+		includeTable,
+		onIncludeTableChange,
+		tableHeight,
+		previewScale,
+		previewUrl,
+		iframeRef,
+	} = figure
+	return (
+		<div className="flex flex-col gap-3">
+			{/* One left-packed row of controls (labels above, controls bottom-
+			    aligned). Left-packing keeps every control pinned in place while
+			    the panel grows/shrinks with the preview. */}
+			<div className="flex flex-wrap items-end gap-3">
+				<NumberInput
+					label={`Width (${unit})`}
+					labelClassName="vc-heading font-medium"
+					inline={false}
+					value={pxToUnit(width, unit)}
+					min={pxToUnit(MIN_EXPORT_DIM, unit)}
+					max={pxToUnit(MAX_EXPORT_DIM, unit)}
+					step={UNIT_STEP[unit]}
+					// Preserve the raw input's guard: an all-cleared / zero entry
+					// falls back to the default rather than committing 0.
+					onChange={(v) => onWidthChange(unitToPx(v, unit) || DEFAULT_WIDTH)}
+					inputClassName="w-24"
+				/>
+				<NumberInput
+					label={`Height (${unit})`}
+					labelClassName="vc-heading font-medium"
+					inline={false}
+					value={pxToUnit(height, unit)}
+					min={pxToUnit(MIN_EXPORT_DIM, unit)}
+					max={pxToUnit(MAX_EXPORT_DIM, unit)}
+					step={UNIT_STEP[unit]}
+					onChange={(v) => onHeightChange(unitToPx(v, unit) || DEFAULT_HEIGHT)}
+					inputClassName="w-24"
+				/>
+				<label className="flex flex-col gap-1 text-sm">
+					<span className="vc-heading font-medium">Units</span>
+					<Select value={unit} onChange={(e) => setUnit(e.target.value as ExportUnit)}>
+						{UNIT_OPTIONS.map((u) => (
+							<option key={u} value={u}>
+								{u}
+							</option>
+						))}
+					</Select>
+				</label>
+				{/* Bottom padding centers the checkboxes against the input row. */}
+				<label className="flex items-center gap-2 pb-1.5 text-sm">
+					<input
+						type="checkbox"
+						checked={aspectLocked}
+						onChange={(e) => onAspectLockedChange(e.target.checked)}
+					/>
+					<span className="vc-heading font-medium">Lock aspect ratio</span>
+				</label>
+				{hasDataTable && (
+					<label className="flex items-center gap-2 pb-1.5 text-sm">
+						<input
+							type="checkbox"
+							checked={includeTable}
+							onChange={(e) => onIncludeTableChange(e.target.checked)}
+						/>
+						<span className="vc-heading font-medium">Include data table</span>
+					</label>
+				)}
+				{trailing}
+			</div>
+			<div className="flex flex-col gap-2">
+				<div className="flex flex-col text-sm">
+					<span className="vc-muted">
+						Preview ({pxToUnit(width, unit)} × {pxToUnit(height, unit)}
+						{unit === "px" ? "" : ` ${unit}`}
+						{includeTable && ", plus the data table"})
+						{previewScale < 1 && (
+							<span className="vc-faint">
+								{" "}
+								— shown at {Math.round(previewScale * 100)}%
+							</span>
+						)}
+					</span>
+					{/* The tab's own line under it: the raster export size, say. */}
+					{note !== undefined && <span className="vc-faint">{note}</span>}
+				</div>
+				<div className="w-fit rounded border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
+					{/* The box hugs the preview, so the popup resizes WITH the image —
+					    growing down/right only (the popup is pinned top-left), keeping
+					    the controls above in place and the drag handles tracking the
+					    cursor 1:1. The iframe still renders at the true size (the
+					    transform is display-only and doesn't affect capture). */}
+					<div
+						className="relative"
+						style={{
+							width: width * previewScale,
+							height: imageHeight * previewScale,
+						}}
+					>
+						<iframe
+							ref={iframeRef}
+							src={previewUrl}
+							width={width}
+							height={imageHeight}
+							title="Export preview"
+							className="block bg-white shadow-sm dark:bg-stone-900"
+							style={{
+								transform: `scale(${previewScale})`,
+								transformOrigin: "top left",
+							}}
+						/>
+						{/* The handles frame the whole image; a height drag resizes
+						    the chart (the table's height is its own). */}
+						<ResizeHandles
+							width={width}
+							height={imageHeight}
+							previewScale={previewScale}
+							aspectLocked={aspectLocked}
+							onWidthChange={onWidthChange}
+							onHeightChange={(v) =>
+								onHeightChange(Math.max(MIN_EXPORT_DIM, v - tableHeight))
+							}
+						/>
+					</div>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+// ---------------------------------------------------------------------------
+// Publish tab
+// ---------------------------------------------------------------------------
+
+type LinkFor = "slides" | "web"
+
+const LINK_FOR_SEGMENTS: ReadonlyArray<{ key: LinkFor; label: string }> = [
+	{ key: "slides", label: "Slides & documents" },
+	{ key: "web", label: "Web page" },
+]
+
+const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProps }) => {
 	const view = useCurrentDatasetView()
 	const instances = useAtomValue(embedInstancesAtom)
 	const setEmbedInstances = useSetAtom(embedInstancesAtom)
@@ -477,9 +646,11 @@ const EmbedTab = ({
 		.replaceAll(">", "&gt;")
 	const [mode, setMode] = useState<PinMode>("live")
 	const [splitLegend, setSplitLegend] = useState(false)
+	const [settingsOpen, setSettingsOpen] = useState(false)
+	const [linkFor, setLinkFor] = useState<LinkFor>("slides")
 	const [busy, setBusy] = useState<"publish" | "unpublish" | null>(null)
 	const [publishError, setPublishError] = useState<string | null>(null)
-	// Unpublishing kills public URLs, so the button asks twice (inline).
+	// Unpublishing kills public URLs, so the link asks twice (inline).
 	const [confirmUnpublish, setConfirmUnpublish] = useState(false)
 	// User-edited snippet text, keyed by snippet. Seeded from the generated
 	// value and reset whenever the underlying publish changes, so tweaking
@@ -502,21 +673,19 @@ const EmbedTab = ({
 			? instance
 			: null
 
-	// Seed the iframe dimensions from the live on-screen chart so the embed
-	// inherits the size the user sees. Measured once when the tab mounts (the
-	// editor sits behind the modal, so its DOM is still present); the split
-	// "chart" iframe measures the plot area alone and the legend iframe the
-	// legend subtree, so each snippet matches its part. Falls back to fixed
-	// sizes when a piece can't be measured.
+	// The iframe snippets' dimensions: the figure's, for the combined page;
+	// the split chart / legend iframes measure the on-screen plot area and
+	// legend subtree so each snippet matches its part (fixed fallbacks when a
+	// piece can't be measured).
 	const embedSizes = useMemo(
 		() => ({
-			full: measureEditorChartSize() ?? EMBED_FALLBACK_FULL,
+			full: { width: figure.width, height: figure.imageHeight },
 			chart:
 				measureElementSize("[data-editor-chart-plot]") ?? EMBED_FALLBACK_CHART,
 			legend:
 				measureElementSize("[data-legend-root]") ?? EMBED_FALLBACK_LEGEND,
 		}),
-		[]
+		[figure.width, figure.imageHeight]
 	)
 
 	// Snippets come from the PUBLISHED urls — there is no URL to offer until
@@ -589,6 +758,13 @@ const EmbedTab = ({
 				versionId,
 				split: splitLegend,
 				includeZctaTopology: geographyLevel === "zcta",
+				// The pictures are captured from the preview: the figure the user
+				// is looking at, at the size above.
+				capture: {
+					source: figure.iframeRef.current,
+					width: figure.width,
+					height: figure.imageHeight,
+				},
 			})
 		} catch (e) {
 			setPublishError(e instanceof Error ? e.message : String(e))
@@ -640,7 +816,23 @@ const EmbedTab = ({
 			? "Publishing…"
 			: published
 				? "Republish"
-				: "Publish embed"
+				: "Publish"
+
+	// The state line: what is live for the pin this tab is on.
+	const publishedAt =
+		published?.publishedAt === undefined
+			? null
+			: new Date(published.publishedAt).toLocaleString(undefined, {
+					month: "short",
+					day: "numeric",
+					hour: "numeric",
+					minute: "2-digit",
+				})
+	const stateLine = published
+		? `Published · ${mode === "pinned" ? `pinned to ${versionLabel}` : "latest data"} · ${publishedAt}`
+		: "Not published yet"
+	const republishOnSave = republishOnSaveFor(republishOnSaveVisuals, visualId)
+	const hasPublishedPin = publishedInstancesOf(instances, visualId).length > 0
 
 	if (!canPublish) {
 		return (
@@ -648,119 +840,157 @@ const EmbedTab = ({
 				<div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
 					Publishing embeds requires the self-host server — this session is
 					running browser-local, so there is nowhere public to publish to.
+					Use the Download image tab for a file.
+				</div>
+				<FigureBlock figure={figure} />
+			</div>
+		)
+	}
+
+	// One editable iframe snippet with its copy chip.
+	const renderSnippet = (s: { key: "main" | "legend"; label: string; value: string }) => {
+		const value = drafts[s.key] ?? s.value
+		return (
+			<div key={s.key} className="flex flex-col gap-2">
+				<label
+					htmlFor={`${snippetIdBase}-${s.key}`}
+					className="vc-heading text-sm font-medium"
+				>
+					{s.label}
+				</label>
+				{/* Copy is a purple chip in the field's corner, shown on hover. */}
+				<div className="relative group/copy">
+					<Textarea
+						id={`${snippetIdBase}-${s.key}`}
+						value={value}
+						onChange={(e) =>
+							setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
+						}
+						rows={3}
+						className="w-full font-mono pr-9"
+						onFocus={(e) => e.currentTarget.select()}
+					/>
+					<CopyButton value={value} label="Copy snippet" onCopied={onCopied} ghost />
 				</div>
 			</div>
 		)
 	}
 
+	// Whether this pin is live, and since when, with the actions beside it.
+	// It sits UNDER the preview (where Download image has its button), so
+	// the controls and the preview stay put when switching tabs. Unpublish
+	// is a quiet link — it kills the public URL, so it asks twice.
+	const stateRows = (
+		<>
+			<div className="flex items-center justify-between gap-3">
+				<span
+					role="status"
+					className={`text-sm font-medium ${published ? "vc-heading" : "vc-muted"}`}
+				>
+					{stateLine}
+				</span>
+				<div className="flex items-center gap-3">
+					<Button compact disabled={busy !== null} onClick={() => void onPublish()}>
+						{publishLabel}
+					</Button>
+					{published && (
+						<button
+							type="button"
+							disabled={busy !== null}
+							onClick={() => void onUnpublish()}
+							className="text-sm vc-muted underline hover:text-stone-900 disabled:opacity-60 dark:hover:text-white"
+						>
+							{busy === "unpublish"
+								? "Unpublishing…"
+								: confirmUnpublish
+									? "Really unpublish? The public URL will stop working"
+									: "Unpublish"}
+						</button>
+					)}
+				</div>
+			</div>
+			{!published && (
+				<p className="text-sm vc-muted">
+					Publishing puts a copy of this chart online, at this size, and
+					gives you links to paste into slides, documents and web pages.
+					Republish any time to update them in place.
+				</p>
+			)}
+		</>
+	)
+
 	return (
 		<div className="flex flex-col gap-4">
-			<fieldset className="flex flex-col gap-3">
-				<legend className="text-sm font-medium text-stone-900 dark:text-stone-100">
-					Pin behavior
-				</legend>
-				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-				<label className="flex items-start gap-2 text-sm">
-					<input
-						type="radio"
-						className="mt-1"
-						checked={mode === "live"}
-						onChange={() => setMode("live")}
-					/>
-					<div>
-						<div className="font-medium text-stone-900 dark:text-stone-100">
-							Latest at publish
-						</div>
-						<div className="text-sm vc-muted">
-							Publishes a snapshot of the latest data. Republish any time to
-							update the embed in place — the URL never changes.
-						</div>
-					</div>
-				</label>
-				{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-				<label className="flex items-start gap-2 text-sm">
-					<input
-						type="radio"
-						className="mt-1"
-						checked={mode === "pinned"}
-						onChange={() => setMode("pinned")}
-						disabled={!view}
-					/>
-					<div>
-						<div className="font-medium text-stone-900 dark:text-stone-100">
-							Pin to current version{view ? ` (${versionLabel})` : ""}
-						</div>
-						<div className="text-sm vc-muted">
-							The embed stays on this data version; republishing refreshes the
-							styling but keeps the pinned data.
-						</div>
-					</div>
-				</label>
-			</fieldset>
+			<FigureBlock figure={figure} note="Same size as Download image" />
+			{stateRows}
 
-			{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the checkbox; its text sits below the rule's depth-2 scan */}
-			<label className="my-2 flex items-start gap-2 text-sm">
-				<input
-					type="checkbox"
-					className="mt-0.5"
-					checked={splitLegend}
-					onChange={(e) => setSplitLegend(e.target.checked)}
-				/>
-				<div>
-					<div className="font-medium text-stone-900 dark:text-stone-100">
-						Publish legend as a separate iframe
-					</div>
-					<div className="text-sm vc-muted">
-						Get two snippets — chart and legend in independently sized iframes,
-						so you can place the legend wherever it fits your page layout.
-					</div>
-				</div>
-			</label>
-
-			<div className="flex items-center justify-end gap-2">
-				<Button compact disabled={busy !== null} onClick={() => void onPublish()}>
-					{publishLabel}
-				</Button>
-				{/* Always present so the row doesn't reflow on publish; greyed
-				    until there is something to unpublish. Red: it kills the
-				    public URL. */}
-				<Button
-					compact
-					danger
-					disabled={busy !== null || !published}
-					onClick={() => void onUnpublish()}
+			{/* The data version settings fold away; most publishes never need
+			    them. A purple option panel like the sidebar's, with the
+			    sidebar's purple group header and chevron. */}
+			<div className="vc-option-panel">
+				<button
+					type="button"
+					onClick={() => setSettingsOpen((o) => !o)}
+					aria-expanded={settingsOpen}
+					className="text-vc-section-header flex w-full items-center gap-2 text-left"
 				>
-					{busy === "unpublish"
-						? "Unpublishing…"
-						: confirmUnpublish
-							? "Really unpublish? The public URL will stop working"
-							: "Unpublish"}
-				</Button>
-			</div>
-
-			{/* Per VISUAL (every published pin, whichever pin this tab shows)
-			    and per user on this browser: each of this user's autosaves
-			    republishes (`useAutoSave`). Only meaningful once something is
-			    published. */}
-			{publishedInstancesOf(instances, visualId).length > 0 && (
-				<div className="flex flex-col gap-1">
-					<Checkbox
-						label="Republish on every save"
-						checked={republishOnSaveFor(republishOnSaveVisuals, visualId)}
-						onChange={(on) =>
-							setRepublishOnSaveVisuals((prev) =>
-								withRepublishOnSave(prev, visualId, on)
-							)
-						}
-					/>
-					<div className="pl-6 text-sm vc-muted">
-						Every autosave you make republishes every published pin of this
-						visual, so edits reach embedded pages and decks as you make them.
-						This is your setting, on this browser — it doesn&rsquo;t change
-						what happens when someone else edits the visual.
+					<SectionChevron open={settingsOpen} />
+					<span className="vc-group-header">Data version settings</span>
+				</button>
+				{settingsOpen && (
+<div className="vc-subsection-card grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-md p-2 text-sm">
+						<span className="vc-muted pt-0.5">Data</span>
+						<fieldset className="flex flex-col gap-2">
+							<legend className="sr-only">Data</legend>
+							{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+							<label className="flex items-center gap-2">
+								<input
+									type="radio"
+									checked={mode === "live"}
+									onChange={() => setMode("live")}
+								/>
+								<span>
+									<span className="vc-heading font-medium">Latest at publish</span>
+									<span className="vc-muted"> — each republish takes the newest data</span>
+								</span>
+							</label>
+							{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
+							<label className="flex items-center gap-2">
+								<input
+									type="radio"
+									checked={mode === "pinned"}
+									onChange={() => setMode("pinned")}
+									disabled={!view}
+								/>
+								<span>
+									<span className="vc-heading font-medium">
+										Pin to current version{view ? ` (${versionLabel})` : ""}
+									</span>
+									<span className="vc-muted"> — republishing keeps this data</span>
+								</span>
+							</label>
+						</fieldset>
+						{/* Per VISUAL (every published pin, whichever pin this tab
+						    shows) and per user on this browser: each of this user's
+						    autosaves republishes (`useAutoSave`). Only meaningful once
+						    something is published. */}
+						{hasPublishedPin && (
+							<>
+								<span className="vc-muted pt-0.5">Updates</span>
+								<Checkbox
+									label="Republish automatically whenever I save (this browser only)"
+									checked={republishOnSave}
+									onChange={(on) =>
+										setRepublishOnSaveVisuals((prev) =>
+											withRepublishOnSave(prev, visualId, on)
+										)
+									}
+								/>
+							</>
+						)}
 					</div>
-				</div>
-			)}
+				)}
+			</div>
 
 			{publishError !== null && (
 				<div className="rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200">
@@ -768,155 +998,93 @@ const EmbedTab = ({
 				</div>
 			)}
 
-			{published && snippets.length > 0 && (
-				<div className="flex flex-col gap-3">
-					{snippets.map((s) => {
-						const value = drafts[s.key] ?? s.value
-						return (
-							<div key={s.key} className="flex flex-col gap-2">
-								<label
-									htmlFor={`${snippetIdBase}-${s.key}`}
-									className="text-sm font-medium text-stone-900 dark:text-stone-100"
-								>
-									{s.label}
-								</label>
-								{/* Copy is a purple chip in the field's corner, shown on hover. */}
-								<div className="relative group/copy">
-									<Textarea
-										id={`${snippetIdBase}-${s.key}`}
-										value={value}
-										onChange={(e) =>
-											setDrafts((prev) => ({ ...prev, [s.key]: e.target.value }))
-										}
-										rows={3}
-										className="w-full font-mono pr-9"
-										onFocus={(e) => e.currentTarget.select()}
-									/>
-									<CopyButton
-										value={value}
-										label="Copy snippet"
-										onCopied={onCopied}
-										ghost
-									/>
-								</div>
-							</div>
-						)
-					})}
-				</div>
-			)}
-
+			{/* The two ways to use the published copy, one at a time, pictures
+			    first (most users want a slide or a document, not an iframe).
+			    Links exist only once a publish has succeeded (0016 rule 4). */}
 			{published && (
-				<LinkedPictureRow
-					imageUrl={published.publishedUrls?.image}
-					vectorUrl={published.publishedUrls?.vector}
-					failures={pictureFailures[visualId]}
-				/>
-			)}
+				<>
+					<div className="flex items-center gap-3">
+						<span className="vc-heading text-sm font-medium">Get a link for</span>
+						<Segmented
+							ariaLabel="Link destination"
+							value={linkFor}
+							segments={LINK_FOR_SEGMENTS}
+							onChange={setLinkFor}
+						/>
+					</div>
 
-			{published && embedUrl !== null && (
-				<div className="flex items-center">
-					<a
-						href={embedUrl}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
-					>
-						Open embed in new tab
-					</a>
-				</div>
+					{linkFor === "slides" ? (
+						<LinkedPictureRow
+							imageUrl={published.publishedUrls?.image}
+							vectorUrl={published.publishedUrls?.vector}
+							failures={pictureFailures[visualId]}
+						/>
+					) : (
+						<div className="flex flex-col gap-3">
+							{snippets
+								.filter((s) => s.key === "main")
+								.map(renderSnippet)}
+							{/* Iframe-only, so it lives here; it shapes what the NEXT
+							    publish writes (one page, or chart + legend pages). */}
+							<label className="flex items-center gap-2 text-sm">
+								<input
+									type="checkbox"
+									checked={splitLegend}
+									onChange={(e) => setSplitLegend(e.target.checked)}
+								/>
+								<span>
+									Legend as a separate iframe{" "}
+									<span className="vc-muted">(takes effect on republish)</span>
+								</span>
+							</label>
+							{snippets
+								.filter((s) => s.key === "legend")
+								.map(renderSnippet)}
+							{embedUrl !== null && (
+								<a
+									href={embedUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="w-fit text-sm text-blue-700 underline hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+								>
+									Open published page in new tab
+								</a>
+							)}
+						</div>
+					)}
+				</>
 			)}
 		</div>
 	)
 }
 
 // ---------------------------------------------------------------------------
-// Export tab
+// Download image tab
 // ---------------------------------------------------------------------------
 
-const ExportTab = ({
+const DownloadTab = ({
 	visualId,
 	onClose,
-	width,
-	height,
-	aspectLocked,
-	onWidthChange,
-	onHeightChange,
-	onAspectLockedChange,
-	previewScale,
-	hasDataTable,
-	includeTable,
-	onIncludeTableChange,
-	tableHeight,
-	onTableHeight,
+	figure,
 }: {
 	visualId: string
 	onClose: () => void
-	width: number
-	/** The CHART's height; an included table adds `tableHeight` below it. */
-	height: number
-	aspectLocked: boolean
-	onWidthChange: (v: number) => void
-	onHeightChange: (v: number) => void
-	onAspectLockedChange: (v: boolean) => void
-	previewScale: number
-	hasDataTable: boolean
-	includeTable: boolean
-	onIncludeTableChange: (v: boolean) => void
-	/** The included table's height in px (0 when not included). */
-	tableHeight: number
-	onTableHeight: (v: number) => void
+	figure: FigureProps
 }) => {
-	const view = useCurrentDatasetView()
 	const setExportSizes = useSetAtom(exportSizesAtom)
 	const visuals = useAtomValue(visualsAtom)
-	// The file is named after the SAVED visual, like the JSON download.
+	// The file is named after the SAVED visual, like the bundle download.
 	const visualName =
 		visuals.find((v) => v.id === visualId)?.name ?? "visualization"
-	// Persists on change, so the unit picked here is the default next export.
-	const [unit, setUnit] = useAtom(exportUnitAtom)
 	const [format, setFormat] = useState<ImageFormat>("png")
 	const [pixelRatio, setPixelRatio] = useState(DEFAULT_PIXEL_RATIO)
 	const [busy, setBusy] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	const iframeRef = useRef<HTMLIFrameElement>(null)
+	const { width, height, imageHeight, unit, aspectLocked, iframeRef } = figure
 
-	// The whole image: the chart, plus the data table under it if included.
-	const imageHeight = height + tableHeight
 	// SVG is vector — resolution doesn't apply.
 	const rasterized = format !== "svg"
 	const effectiveRatio = clampPixelRatio(width, imageHeight, pixelRatio)
-
-	const previewUrl = useMemo(() => {
-		const origin = typeof window === "undefined" ? "" : window.location.origin
-		const params = new URLSearchParams()
-		if (view) params.set("v", view.versionId)
-		// Without the table, the image is the chart alone at the requested
-		// size. With it (`table=image`), the embed lays the table out under
-		// the chart and reports its height, and the iframe grows by that
-		// much so the chart keeps the requested size.
-		params.set("table", includeTable ? "image" : "off")
-		return `${origin}/embed/${visualId}?${params.toString()}`
-	}, [visualId, view, includeTable])
-
-	useEffect(() => {
-		if (!includeTable) return
-		const onMessage = (e: MessageEvent<unknown>) => {
-			if (e.source !== iframeRef.current?.contentWindow) return
-			const data = e.data
-			if (
-				typeof data === "object" &&
-				data !== null &&
-				"type" in data &&
-				data.type === EXPORT_TABLE_HEIGHT_MESSAGE &&
-				"height" in data &&
-				typeof data.height === "number"
-			) {
-				onTableHeight(data.height)
-			}
-		}
-		window.addEventListener("message", onMessage)
-		return () => window.removeEventListener("message", onMessage)
-	}, [includeTable, onTableHeight])
 
 	const onDownload = async () => {
 		setError(null)
@@ -962,104 +1130,53 @@ const ExportTab = ({
 		}
 	}
 
-	return (
-		<div className="flex flex-col gap-4">
-			{/* One left-packed row of controls (labels above, controls bottom-
-			    aligned). Left-packing keeps every control pinned in place while
-			    the panel grows/shrinks with the preview. Resolution sits LAST so
-			    hiding it (SVG) doesn't shift its neighbors. */}
-			<div className="flex flex-wrap items-end gap-3">
-				<NumberInput
-					label={`Width (${unit})`}
-					labelClassName="vc-muted"
-					inline={false}
-					value={pxToUnit(width, unit)}
-					min={pxToUnit(MIN_EXPORT_DIM, unit)}
-					max={pxToUnit(MAX_EXPORT_DIM, unit)}
-					step={UNIT_STEP[unit]}
-					// Preserve the raw input's guard: an all-cleared / zero entry
-					// falls back to the default rather than committing 0.
-					onChange={(v) => onWidthChange(unitToPx(v, unit) || DEFAULT_WIDTH)}
-					inputClassName="w-24"
-				/>
-				<NumberInput
-					label={`Height (${unit})`}
-					labelClassName="vc-muted"
-					inline={false}
-					value={pxToUnit(height, unit)}
-					min={pxToUnit(MIN_EXPORT_DIM, unit)}
-					max={pxToUnit(MAX_EXPORT_DIM, unit)}
-					step={UNIT_STEP[unit]}
-					onChange={(v) => onHeightChange(unitToPx(v, unit) || DEFAULT_HEIGHT)}
-					inputClassName="w-24"
-				/>
+	// The export size line under the Preview caption — always present, so
+	// the caption is two lines on both tabs and the preview never moves.
+	const note = rasterized
+		? `Exports at ${Math.round(width * effectiveRatio)} × ${Math.round(imageHeight * effectiveRatio)} px${
+				unit !== "px" ? ` (${Math.round(96 * effectiveRatio)} dpi)` : ""
+			}`
+		: "Vector — sharp at any size"
+
+	// Format and Resolution follow the shared size controls — one line.
+	const trailing = (
+		<>
+			<label className="flex flex-col gap-1 text-sm">
+				<span className="vc-heading font-medium">Format</span>
+				<Select
+					value={format}
+					onChange={(e) => setFormat(e.target.value as ImageFormat)}
+				>
+					{FORMAT_OPTIONS.map((o) => (
+						<option key={o.value} value={o.value}>
+							{o.label}
+						</option>
+					))}
+				</Select>
+			</label>
+			{rasterized && (
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="vc-muted">Units</span>
+					<span className="vc-heading font-medium">Resolution</span>
 					<Select
-						value={unit}
-						onChange={(e) => setUnit(e.target.value as ExportUnit)}
+						value={pixelRatio}
+						onChange={(e) => setPixelRatio(Number(e.target.value))}
 					>
-						{UNIT_OPTIONS.map((u) => (
-							<option key={u} value={u}>
-								{u}
+						{RESOLUTION_OPTIONS.map((r) => (
+							<option key={r} value={r}>
+								{r}×
 							</option>
 						))}
 					</Select>
-				</label>
-				{/* Bottom padding centers the checkbox against the input row. */}
-				<label className="flex items-center gap-2 pb-1.5 text-sm">
-					<input
-						type="checkbox"
-						checked={aspectLocked}
-						onChange={(e) => onAspectLockedChange(e.target.checked)}
-					/>
-					<span className="vc-muted">
-						Lock aspect ratio
-					</span>
-				</label>
-				<label className="flex flex-col gap-1 text-sm">
-					<span className="vc-muted">Format</span>
-					<Select
-						value={format}
-						onChange={(e) => setFormat(e.target.value as ImageFormat)}
-					>
-						{FORMAT_OPTIONS.map((o) => (
-							<option key={o.value} value={o.value}>
-								{o.label}
-							</option>
-						))}
-					</Select>
-				</label>
-				{rasterized && (
-					<label className="flex flex-col gap-1 text-sm">
-						<span className="vc-muted">
-							Resolution
-						</span>
-						<Select
-							value={pixelRatio}
-							onChange={(e) => setPixelRatio(Number(e.target.value))}
-						>
-							{RESOLUTION_OPTIONS.map((r) => (
-								<option key={r} value={r}>
-									{r}×
-								</option>
-							))}
-						</Select>
-					</label>
-				)}
-			</div>
-			{/* Its own row, under Width — tucked up to the controls (the
-			    column's gap-4 would read as a separate group). */}
-			{hasDataTable && (
-				<label className="-mt-2 flex w-fit items-center gap-2 text-sm">
-					<input
-						type="checkbox"
-						checked={includeTable}
-						onChange={(e) => onIncludeTableChange(e.target.checked)}
-					/>
-					<span className="vc-muted">Include data table</span>
 				</label>
 			)}
+		</>
+	)
+
+	return (
+		<div className="flex flex-col gap-4">
+			{/* The file is DPI-stamped, so physical-size consumers (PowerPoint,
+			    Word) insert it at the chosen in/cm. */}
+			<FigureBlock figure={figure} trailing={trailing} note={note} />
 
 			{error && (
 				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
@@ -1067,76 +1184,11 @@ const ExportTab = ({
 				</div>
 			)}
 
-			<div className="flex flex-col gap-2">
-				<span className="text-sm vc-muted">
-					Preview ({pxToUnit(width, unit)} × {pxToUnit(height, unit)}
-					{unit === "px" ? "" : ` ${unit}`}
-					{includeTable && ", plus the data table"})
-					{(format === "png" || format === "jpeg") &&
-						(effectiveRatio > 1 || unit !== "px" || includeTable) && (
-							<span className="vc-faint">
-								{" "}
-								— exports at {Math.round(width * effectiveRatio)} ×{" "}
-								{Math.round(imageHeight * effectiveRatio)} px
-								{/* The file is DPI-stamped, so physical-size consumers
-								    (PowerPoint, Word) insert it at the chosen in/cm. */}
-								{unit !== "px" && ` (${Math.round(96 * effectiveRatio)} dpi)`}
-							</span>
-						)}
-					{previewScale < 1 && (
-						<span className="vc-faint">
-							{" "}
-							— shown at {Math.round(previewScale * 100)}%
-						</span>
-					)}
-				</span>
-				<div className="w-fit rounded border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
-					{/* The box hugs the preview, so the popup resizes WITH the image —
-					    growing down/right only (the popup is pinned top-left), keeping
-					    the controls above in place and the drag handles tracking the
-					    cursor 1:1. The iframe still renders at the true export
-					    resolution (the transform is display-only and doesn't affect
-					    capture). */}
-					<div
-						className="relative"
-						style={{
-							width: width * previewScale,
-							height: imageHeight * previewScale,
-						}}
-					>
-						<iframe
-							ref={iframeRef}
-							src={previewUrl}
-							width={width}
-							height={imageHeight}
-							title="Export preview"
-							className="block bg-white shadow-sm dark:bg-stone-900"
-							style={{
-								transform: `scale(${previewScale})`,
-								transformOrigin: "top left",
-							}}
-						/>
-						{/* The handles frame the whole image; a height drag resizes
-						    the chart (the table's height is its own). */}
-						<ResizeHandles
-							width={width}
-							height={imageHeight}
-							previewScale={previewScale}
-							aspectLocked={aspectLocked}
-							onWidthChange={onWidthChange}
-							onHeightChange={(v) =>
-								onHeightChange(Math.max(MIN_EXPORT_DIM, v - tableHeight))
-							}
-						/>
-					</div>
-				</div>
-			</div>
-
 			{/* Actions ride the popup's bottom-right corner, below the preview —
 			    they move as the popup resizes with the image, by design. */}
 			<div className="flex justify-end gap-2">
 				<Button compact onClick={onDownload} disabled={busy}>
-					{busy ? "Exporting…" : `Save ${format.toUpperCase()}`}
+					{busy ? "Exporting…" : `Download ${format.toUpperCase()}`}
 				</Button>
 			</div>
 		</div>

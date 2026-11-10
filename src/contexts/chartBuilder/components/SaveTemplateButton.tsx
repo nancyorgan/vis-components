@@ -16,12 +16,20 @@ import { UpdateTemplateModal } from "./UpdateTemplateModal"
 /** How long the "Saved as template" note stays beside the button. */
 const CONFIRMATION_MS = 3000
 
-/** Export modal → "Save as template": the name + folder dialog New uses,
- *  plus "Update template "<name>"" when the open visual came from (or was
- *  last saved as) a template that still exists live — that one hands off to
- *  the header's section-by-section update dialog. A short confirmation
- *  shows beside the button after a save; it unmounts with the Export modal. */
-export const SaveTemplateButton = ({ visualId }: { visualId: string }) => {
+/** "Save as template" (the editor's Save menu): the name + folder dialog
+ *  New uses, plus "Update template "<name>"" when the open visual came from
+ *  (or was last saved as) a template that still exists live — that one
+ *  hands off to the header's section-by-section update dialog. A short
+ *  confirmation shows beside the trigger after a save. `trigger` renders
+ *  the control that opens the dialog (a menu item, say); without it a plain
+ *  button is rendered. */
+export const SaveTemplateButton = ({
+	visualId,
+	trigger,
+}: {
+	visualId: string
+	trigger?: (open: () => void) => React.ReactNode
+}) => {
 	const visuals = useAtomValue(visualsAtom)
 	// Templates share the visual namespace; a trashed name is free to reuse.
 	const liveVisuals = useAtomValue(liveVisualsAtom)
@@ -62,19 +70,25 @@ export const SaveTemplateButton = ({ visualId }: { visualId: string }) => {
 		}
 	}
 
+	const openDialog = () => {
+		setError(null)
+		setOpen(true)
+	}
+
 	return (
 		<>
-			<Button
-				compact
-				data-tip="save-template"
-				onClick={() => {
-					setError(null)
-					setOpen(true)
-				}}
-				title="Save this design as a template to start new visualizations from"
-			>
-				Save as template
-			</Button>
+			{trigger ? (
+				trigger(openDialog)
+			) : (
+				<Button
+					compact
+					data-tip="save-template"
+					onClick={openDialog}
+					title="Save this design as a template to start new visualizations from"
+				>
+					Save as template
+				</Button>
+			)}
 			{confirmation !== null && (
 				<span role="status" className="self-center text-sm vc-muted">
 					{confirmation}

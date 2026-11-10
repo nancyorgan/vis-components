@@ -105,7 +105,7 @@ const PickerBody = ({
 		<>
 			{templates.length === 0 ? (
 				<p className="flex flex-1 items-center justify-center text-sm vc-faint">
-					No templates yet. Save one from a visual&apos;s Export dialog.
+					No templates yet. Save one from the editor&apos;s Save menu.
 				</p>
 			) : (
 				<div className="flex min-h-0 flex-1 gap-4">

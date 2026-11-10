@@ -463,7 +463,7 @@ describe("Header → New from template…", () => {
 		openMenu()
 		const item = templateItem()!
 		expect(item.disabled).toBe(true)
-		expect(item.title).toBe("Save a template from a visual's Export dialog first")
+		expect(item.title).toBe("Save a template from the editor's Save menu first")
 		fireEvent.click(item)
 		expect(screen.queryByText("New from template")).toBeNull()
 	})

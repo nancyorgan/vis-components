@@ -25,8 +25,19 @@ import {
 	unpublishEmbedRequest,
 	type EmbedPublishUrls,
 } from "../lib/embedPublish"
-import { clampPixelRatio, renderExport } from "../lib/exportImage"
+import {
+	DEFAULT_HEIGHT,
+	DEFAULT_WIDTH,
+	MAX_EXPORT_DIM,
+	MIN_EXPORT_DIM,
+	clampPixelRatio,
+	renderExport,
+	type ExportSource,
+} from "../lib/exportImage"
 import { loadZctaTopology } from "../lib/geo/zctaTopology"
+import { withOffscreenEmbed } from "../lib/offscreenEmbed"
+import type { ExportSize } from "../lib/storage"
+import type { Visual } from "../lib/types"
 import { getStorageAdapter } from "../lib/storage/registry"
 import type { Dataset, SavedTheme } from "../lib/types"
 import { isTemplate } from "../lib/visualTrash"
@@ -34,11 +45,39 @@ import type { EmbedPart } from "../../../embedRuntime/payload"
 import {
 	datasetIndexAtom,
 	embedInstancesAtom,
+	exportSizesAtom,
 	publishedEditAckAtom,
 	themeAtom,
 	themesAtom,
 	visualsAtom,
 } from "./atoms"
+
+/** Where the publish pictures are captured from: a mounted embed (the
+ *  Export dialog's preview iframe) laid out at `width` × `height` CSS px.
+ *  Absent, the publish boots the embed off-screen at the visual's publish
+ *  size ({@link publishSizeFor}) and captures that. */
+export type PublishCapture = {
+	source: ExportSource
+	width: number
+	height: number
+}
+
+/** The size a visual publishes at when no dialog preview is open: the
+ *  size it was last exported or published at, else its fixed canvas size,
+ *  else the export default — the same seeding order the Export dialog
+ *  uses, so a header Republish matches what the dialog showed. */
+export const publishSizeFor = (
+	visual: Pick<Visual, "id" | "channelConfigs">,
+	exportSizes: Record<string, ExportSize>
+): { width: number; height: number } => {
+	const clamp = (n: number) =>
+		Math.min(MAX_EXPORT_DIM, Math.max(MIN_EXPORT_DIM, Math.round(n)))
+	const saved = exportSizes[visual.id]
+	if (saved) return { width: clamp(saved.width), height: clamp(saved.height) }
+	const canvas = visual.channelConfigs.canvasSize
+	if (canvas?.enabled) return { width: clamp(canvas.width), height: clamp(canvas.height) }
+	return { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }
+}
 
 export type PublishEmbedArgs = {
 	visualId: string
@@ -50,6 +89,9 @@ export type PublishEmbedArgs = {
 	 *  — it sits in the editor, where the effective geography level is a
 	 *  hook over the live atoms. */
 	includeZctaTopology?: boolean
+	/** The mounted embed to capture the pictures from (the dialog's
+	 *  preview). Absent: an off-screen embed at the visual's publish size. */
+	capture?: PublishCapture
 }
 
 /** Why a linked picture of a visual's last publish didn't make it, per
@@ -148,7 +190,24 @@ export const usePublishEmbed = () =>
 				// that url (the Export tab offers a retry) rather than failing it.
 				// The urls object is built fresh, so a stale picture url from an
 				// earlier publish never survives a failed picture step.
-				const pictures = await publishEmbedPictures(publishId)
+				const size = args.capture
+					? { width: args.capture.width, height: args.capture.height }
+					: publishSizeFor(visual, get(exportSizesAtom))
+				const pictures = args.capture
+					? await publishEmbedPictures(publishId, args.capture)
+					: await withOffscreenEmbed(args.visualId, publishedVersionId, size, (iframe) =>
+							publishEmbedPictures(publishId, { source: iframe, ...size })
+						)
+				// The size this publish went out at becomes the visual's size: the
+				// dialog reopens on it, and the next header or autosave republish
+				// renders at it, so every path publishes the same figure.
+				set(exportSizesAtom, (prev) => ({
+					...prev,
+					[args.visualId]: {
+						...size,
+						aspectLocked: prev[args.visualId]?.aspectLocked ?? false,
+					},
+				}))
 				const urls: EmbedPublishUrls = {
 					...htmlUrls,
 					...("url" in pictures.image ? { image: pictures.image.url } : {}),
@@ -187,19 +246,18 @@ export const usePublishEmbed = () =>
 	)
 
 /** Capture the on-screen figure (chart + legend + canvas colour) through
- *  the export pipeline and upload it as the embed's pictures: a PNG of the
- *  figure at its laid-out size, 2 raster px per CSS px so it stays crisp
- *  projected, stamped with that resolution so a consumer places it at its
- *  true size — 12pt in the app is 12pt on the slide — and the portable SVG
- *  of the same figure, which stays sharp at any zoom and in print. The
- *  export capture waits for the layout to settle, which is where a
- *  "Republish on every save" lands, 800 ms after an edit. Each format
- *  resolves to its public url or to the reason it failed (no figure on
- *  screen, a capture that never settled, an upload that failed) — a
+ *  the export pipeline and upload them as the embed's pictures: a PNG of
+ *  the figure at the capture's size, 2 raster px per CSS px so it stays
+ *  crisp projected, stamped with that resolution so a consumer places it at
+ *  its true size — 12pt in the app is 12pt on the slide — and the portable
+ *  SVG of the same figure, which stays sharp at any zoom and in print. The
+ *  capture source is an embed laid out at that size: the Export dialog's
+ *  preview, or an off-screen one. The export capture waits for its layout
+ *  to settle. Each format resolves to its public url or to the reason it
+ *  failed (a capture that never settled, an upload that failed) — a
  *  reason, never a throw, so the publish itself still lands and the Export
  *  tab can say what went wrong; one format failing never costs the other. */
 const EMBED_IMAGE_SCALE = 2
-export const PICTURE_NO_FIGURE = "No figure on screen to capture — publish from the editor."
 type PictureOutcome = { url: string } | { failure: string }
 type PictureOutcomes = { image: PictureOutcome; vector: PictureOutcome }
 
@@ -211,28 +269,24 @@ const attemptPicture = async (run: () => Promise<string>): Promise<PictureOutcom
 	}
 }
 
-const publishEmbedPictures = async (publishId: string): Promise<PictureOutcomes> => {
-	// Layout size (offsetWidth) ignores the editor's display-only zoom.
-	const root = document.querySelector<HTMLElement>("[data-chart-root]")
-	if (!root || root.offsetWidth === 0 || root.offsetHeight === 0) {
-		const failure = { failure: PICTURE_NO_FIGURE }
-		return { image: failure, vector: failure }
-	}
-	const width = root.offsetWidth
-	const height = root.offsetHeight
+const publishEmbedPictures = async (
+	publishId: string,
+	capture: PublishCapture
+): Promise<PictureOutcomes> => {
+	const { source, width, height } = capture
 	const image = await attemptPicture(async () => {
 		const blob = await renderExport(
-			document,
+			source,
 			"png",
 			width,
 			height,
 			clampPixelRatio(width, height, EMBED_IMAGE_SCALE),
-			{ root, opaqueBackground: true }
+			{ opaqueBackground: true }
 		)
 		return publishEmbedImageRequest(publishId, new File([blob], "image.png", { type: "image/png" }))
 	})
 	const vector = await attemptPicture(async () => {
-		const blob = await renderExport(document, "svg", width, height, 1, { root })
+		const blob = await renderExport(source, "svg", width, height, 1)
 		return publishEmbedVectorRequest(
 			publishId,
 			new File([blob], "image.svg", { type: "image/svg+xml" })

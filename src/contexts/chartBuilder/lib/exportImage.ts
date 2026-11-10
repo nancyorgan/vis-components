@@ -60,9 +60,6 @@ export const resolveExportSize = (opts: {
 }
 
 export type RenderExportOptions = {
-	/** The element to capture instead of the page's export root: the
-	 *  editor's own figure (`[data-chart-root]`) for the published picture. */
-	root?: HTMLElement | null
 	/** Paint white under the chart (a JPEG always is). A picture that stands
 	 *  alone on a slide wants it; a PNG download keeps its transparency. */
 	opaqueBackground?: boolean
@@ -86,14 +83,14 @@ export const renderExport = async (
 	// as data: @font-face rules — the raster path loads the SVG through
 	// an <img>, which can't fetch external stylesheets, and downloaded
 	// SVGs must render on machines without the fonts installed.
-	const captured = await waitForChartSvg(source, opts.root)
+	const captured = await waitForChartSvg(source)
 	// The SVG download is opened in PowerPoint & co., which ignore
 	// baselines, dy and webfonts — re-serialize the now-stable layout
 	// with text flattened for them (lib/portableSvg.ts).
 	const doc = source ? documentOf(source) : null
 	const portable =
 		format === "svg" && doc
-			? serializeEmbedCapture(doc, { portable: true, root: opts.root })
+			? serializeEmbedCapture(doc, { portable: true })
 			: null
 	const svgText = await embedFontsInSvg(portable ?? captured)
 	return format === "svg"
@@ -127,7 +124,7 @@ export const renderExport = async (
 const CAPTURE_TIMEOUT_MS = 15_000
 const POLL_INTERVAL_MS = 100
 
-const waitForChartSvg = async (source: ExportSource, root?: HTMLElement | null): Promise<string> => {
+const waitForChartSvg = async (source: ExportSource): Promise<string> => {
 	if (!source) {
 		throw new Error("Preview not ready yet — try again in a moment.")
 	}
@@ -142,7 +139,7 @@ const waitForChartSvg = async (source: ExportSource, root?: HTMLElement | null):
 		const fontsSettled = !doc?.fonts || doc.fonts.status !== "loading"
 		const svgText =
 			doc && fontsSettled && chartLayoutReady(doc)
-				? withoutDisplayScale(doc, () => serializeEmbedCapture(doc, { root }))
+				? withoutDisplayScale(doc, () => serializeEmbedCapture(doc))
 				: null
 		if (svgText !== null && svgText === lastSvgText) {
 			matchingPolls++

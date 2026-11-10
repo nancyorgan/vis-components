@@ -61,11 +61,11 @@ test.describe("templates", () => {
 	})
 
 	test("save as template → new from template → snap on upload", async ({ page }) => {
-		// --- Save the seeded visual as a template (Export modal). ---
+		// --- Save the seeded visual as a template (Save menu). ---
 		await page.goto(`/editor/${SOURCE.visualId}`, { waitUntil: "networkidle" })
 		await waitForChart(page)
-		await page.getByRole("button", { name: "Export" }).click()
-		await page.getByRole("button", { name: "Save as template" }).click()
+		await page.getByRole("button", { name: "More ways to save" }).click()
+		await page.getByRole("menuitem", { name: /Save as template/ }).click()
 		const nameBox = page.getByLabel("Template name")
 		await nameBox.fill(TEMPLATE_NAME)
 		await page.getByRole("button", { name: "Save template" }).click()

@@ -619,7 +619,7 @@ export const LibraryPage = () => {
 								{query
 									? `No visualizations match "${query}".`
 									: noTemplatesYet
-										? "No templates yet. Save one from a visual's Export dialog."
+										? "No templates yet. Save one from the editor's Save menu."
 										: kind === "templates"
 											? "No templates match the current filters."
 											: selectedFolderId === UNFILED_FOLDER_ID

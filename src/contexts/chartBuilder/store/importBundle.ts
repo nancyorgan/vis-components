@@ -35,7 +35,7 @@ const errorText = (error: unknown): string =>
 	error instanceof Error ? error.message : String(error)
 
 /** Import a library bundle file (the JSON Settings → Sharing exports, which
- *  is also what a single visual's "Download JSON" produces) additively into
+ *  is also what a single visual's "Download bundle" produces) additively into
  *  the live library. Shared by Settings → Sharing and the header's
  *  "New visualization → Import" item so both land identical results.
  *
