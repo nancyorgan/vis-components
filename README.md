@@ -63,7 +63,8 @@ node server/dist/main.js
 ```
 
 All six environment variables are required; the server refuses to start with
-a one-line reason per missing/invalid value.
+a one-line reason per missing/invalid value. `VIS_AUTH_MODE` is the one
+optional variable.
 
 | Variable | Meaning |
 |---|---|
@@ -73,6 +74,7 @@ a one-line reason per missing/invalid value.
 | `VIS_PORT` | Port to listen on. Plain HTTP — put TLS termination in front. |
 | `VIS_PUBLISH_DIR` | Directory published embeds are written into. Serve it publicly with a separate dumb static file server (e.g. `python3 -m http.server`); everything in it is fully public, and published embeds keep working with the app server off. |
 | `VIS_PUBLISH_BASE_URL` | Public base URL that static server serves `VIS_PUBLISH_DIR` at — a file at `$VIS_PUBLISH_DIR/<path>` must be reachable at `$VIS_PUBLISH_BASE_URL/<path>`. |
+| `VIS_AUTH_MODE` | Optional. Unset, empty or `none`: nobody is identified and identity headers are ignored (today's behavior). `header`: a sign-in proxy in front of the server names the person on every request — `X-Forwarded-User` (stable account id, compared and never shown) and `X-Forwarded-Email` (display name; `X-Forwarded-Preferred-Username` when there is no email) — and presence, "Saved by" and `/api/config`'s `user` switch on. In `header` mode a request without `X-Forwarded-User` gets a plain 401, except `GET /alive`; the proxy must set these headers itself and replace any a client sent. Any other value fails startup. |
 
 Each published embed's folder also holds `image.png`, a picture of the chart
 that is rewritten on every republish (so it can be linked into a slide deck
@@ -85,11 +87,15 @@ stdout/stderr; SIGTERM drains in-flight requests and closes the database
 cleanly; run exactly one replica (SQLite is embedded). The same build served
 without the server behaves exactly like the local editor — the frontend
 detects the server at boot via `GET /api/config`. Users on the same server
-share one library; edits are last-write-wins per item. A host that runs the
-handler (`createHandler` in `server/src/routes.ts`) behind its own sign-in can
-pass an `identify(req) → { id, name } | null` hook; with it, the editor shows
-who else has the same visual open and the top bar says who saved last. The
-standalone server has no accounts and leaves this off. Dataset uploads warn
+share one library; edits are last-write-wins per item. The server has no
+accounts of its own. Run it behind a sign-in proxy with `VIS_AUTH_MODE=header`
+(above), or run the handler (`createHandler` in `server/src/routes.ts`) from
+your own code and pass an `identify(req) → { id, name } | null` hook; either
+way the editor then shows who else has the same visual open and the top bar
+says who saved last. There is no sign-out: behind single sign-on it would sign
+the person straight back in. When a sign-in lapses, the API answers 401 and
+the app shows a banner asking for a reload. Without either, identity stays
+off. Dataset uploads warn
 above 25 MB and are rejected above 100 MB (browser performance is the real
 constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
 startup; it's expected.

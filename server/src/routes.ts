@@ -85,6 +85,12 @@ export type HandlerDeps = {
 	 *  who is in which editor, and a visual's `updatedBy` is stamped from it.
 	 *  Without it (the standalone server) all three stay off. */
 	identify?: IdentifyUser
+	/** With `identify`: refuse every request `identify` can't name with a
+	 *  plain 401 (no redirect, no page — the proxy in front owns sign-in).
+	 *  `GET /alive` is exempt: liveness probes carry no identity. Set by
+	 *  `VIS_AUTH_MODE=header`, where the sign-in proxy guarantees headers on
+	 *  every request, so a bare one means the session lapsed. */
+	requireUser?: boolean
 }
 
 type ApiDeps = HandlerDeps & { presence: PresenceTracker }
@@ -101,6 +107,9 @@ export const createHandler = (deps: HandlerDeps) => {
 				res.writeHead(200, { "content-type": "text/plain" })
 				res.end("ok")
 				return
+			}
+			if (deps.requireUser && requestUser(deps.identify, req) === null) {
+				return sendError(res, 401, "Unauthorized")
 			}
 			if (path === "/api/config" || path === "/api/config/") {
 				if (method !== "GET") return sendError(res, 405, "Method not allowed")
@@ -332,7 +341,7 @@ const handleApi = async (
 		const parsed = assertItemJson(body, id)
 		const stamped =
 			collection === "visuals" && identify
-				? stampSaver(parsed, storedUpdatedBy(db, id), requestUser(identify, req))
+				? stampSaver(parsed, storedVisual(db, id), requestUser(identify, req))
 				: null
 		upsertBody(db, collection, id, stamped ? JSON.stringify(stamped) : body)
 		return sendEmpty(res, 204)
@@ -346,13 +355,15 @@ const handleApi = async (
 
 /** The stored visual's `updatedBy`, undefined when there is no stored
  *  visual or it names no saver. */
-const storedUpdatedBy = (db: DatabaseSync, id: string): unknown => {
+/** The visual stored under `id`, or null when the PUT is a create. A stored
+ *  body that won't parse reads as a visual with no saver, not as a create. */
+const storedVisual = (db: DatabaseSync, id: string): Record<string, unknown> | null => {
 	const stored = getBody(db, "visuals", id)
-	if (stored === null) return undefined
+	if (stored === null) return null
 	try {
-		return (JSON.parse(stored) as Record<string, unknown>).updatedBy
+		return JSON.parse(stored) as Record<string, unknown>
 	} catch {
-		return undefined
+		return {}
 	}
 }
 

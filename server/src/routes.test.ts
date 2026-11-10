@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { openDb } from "./db.js"
 import { PAYLOAD_MARKER } from "./embedFiles.js"
 import { EMBED_IMAGE_BODY_CAP_BYTES, THUMBNAIL_BODY_CAP_BYTES } from "./limits.js"
+import { identifyFromForwardedHeaders } from "./identity.js"
 import { createHandler } from "./routes.js"
 
 let server: Server
@@ -41,6 +42,7 @@ beforeAll(async () => {
 			port: 0,
 			publishDir,
 			publishBaseUrl: "https://embeds.example.com",
+			authMode: "none",
 		},
 		db: openDb(dbDir),
 		distDir,
@@ -1044,6 +1046,7 @@ describe("writes from a build behind the content schema", () => {
 				port: 0,
 				publishDir: mkdtempSync(join(tmpdir(), "vis-routes-stale-publish-")),
 				publishBaseUrl: "https://embeds.example.com",
+				authMode: "none",
 			},
 			db: openDb(dbDir),
 			distDir,
@@ -1188,6 +1191,7 @@ describe("identity from the host: config user, presence, saver stamps", () => {
 				port: 0,
 				publishDir: mkdtempSync(join(tmpdir(), "vis-routes-identity-publish-")),
 				publishBaseUrl: "https://embeds.example.com",
+				authMode: "none",
 			},
 			db: openDb(dbDir),
 			distDir,
@@ -1277,6 +1281,14 @@ describe("identity from the host: config user, presence, saver stamps", () => {
 		expect((await storedVisual("v-stamp"))?.updatedBy).toEqual(NANCY)
 	})
 
+	it("a create with no updatedBy (an API client or agent) is credited to the requester", async () => {
+		await putVisual({ id: "v-agent", name: "x", updatedAt: 1 }, NANCY)
+		expect((await storedVisual("v-agent"))?.updatedBy).toEqual(NANCY)
+		// A later move by someone else still keeps that saver.
+		await putVisual({ id: "v-agent", name: "x", folderId: "f1", updatedAt: 1, updatedBy: NANCY }, JANE)
+		expect((await storedVisual("v-agent"))?.updatedBy).toEqual(NANCY)
+	})
+
 	it("a write that leaves updatedBy alone (move, trash) keeps the saver", async () => {
 		await putVisual({ id: "v-move", name: "x", updatedAt: 1, updatedBy: JANE }, JANE)
 		// Nancy moves Jane's chart into a folder: same updatedBy as stored.
@@ -1303,5 +1315,102 @@ describe("identity off (no identify hook)", () => {
 			body: JSON.stringify({ visualId: "v1" }),
 		})
 		expect(res.status).toBe(404)
+	})
+})
+
+describe("VIS_AUTH_MODE=header: proxy headers name the user, bare requests get 401", () => {
+	// The standalone server wired as main.ts wires it in header mode: the
+	// forwarded-header hook plus `requireUser`. A proxy in front sets the
+	// headers on every request it forwards, so a request without them is a
+	// lapsed session — not an anonymous visitor to serve.
+	let own: Server
+	let base: string
+	beforeAll(async () => {
+		const dbDir = mkdtempSync(join(tmpdir(), "vis-routes-header-db-"))
+		const distDir = mkdtempSync(join(tmpdir(), "vis-routes-header-dist-"))
+		writeFileSync(join(distDir, "index.html"), "<title>spa</title>")
+		const handler = createHandler({
+			config: {
+				baseUrl: "https://charts.example.com",
+				dbDir,
+				dataDir: mkdtempSync(join(tmpdir(), "vis-routes-header-data-")),
+				port: 0,
+				publishDir: mkdtempSync(join(tmpdir(), "vis-routes-header-publish-")),
+				publishBaseUrl: "https://embeds.example.com",
+				authMode: "header",
+			},
+			db: openDb(dbDir),
+			distDir,
+			identify: identifyFromForwardedHeaders,
+			requireUser: true,
+		})
+		own = createServer((req, res) => void handler(req, res))
+		await new Promise<void>((resolve) => own.listen(0, resolve))
+		base = `http://127.0.0.1:${(own.address() as AddressInfo).port}`
+	})
+	afterAll(() => {
+		own.close()
+	})
+
+	const GUID = "3f2a9c1e-8d4b-4e6f-9a0b-1c2d3e4f5a6b"
+	const EMAIL = "jane.doe@example.com"
+	const forwarded = { "x-forwarded-user": GUID, "x-forwarded-email": EMAIL }
+
+	it("GET /alive answers without identity; everything else is a plain 401", async () => {
+		expect((await fetch(`${base}/alive`)).status).toBe(200)
+		for (const path of ["/api/config", "/api/visuals", "/", "/editor/abc"]) {
+			const res = await fetch(`${base}${path}`, { redirect: "manual" })
+			expect(res.status, path).toBe(401)
+			expect(res.headers.get("location")).toBeNull()
+		}
+		const write = await fetch(`${base}/api/visuals/v1`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ id: "v1", name: "x" }),
+		})
+		expect(write.status).toBe(401)
+		// Nothing was stored by the refused write.
+		const listed = await fetch(`${base}/api/visuals?thumbnails=0`, { headers: forwarded })
+		expect(await listed.json()).toEqual([])
+	})
+
+	it("/api/config names the person from the forwarded headers, with no sign-out", async () => {
+		const res = await fetch(`${base}/api/config`, { headers: forwarded })
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({
+			v: 1,
+			baseUrl: "https://charts.example.com",
+			user: { id: GUID, name: EMAIL },
+		})
+	})
+
+	it("presence and saver stamps run on the forwarded identity", async () => {
+		const beat = await fetch(`${base}/api/presence/tab-1`, {
+			method: "PUT",
+			headers: { "content-type": "application/json", ...forwarded },
+			body: JSON.stringify({ visualId: "v-h" }),
+		})
+		expect(await beat.json()).toEqual({ editors: [{ id: GUID, name: EMAIL }] })
+
+		await fetch(`${base}/api/visuals/v-h`, {
+			method: "PUT",
+			headers: { "content-type": "application/json", ...forwarded },
+			body: JSON.stringify({
+				id: "v-h",
+				name: "x",
+				updatedAt: 1,
+				updatedBy: { id: "client-claim", name: "Someone Else" },
+			}),
+		})
+		const stored = ((await (
+			await fetch(`${base}/api/visuals?thumbnails=0`, { headers: forwarded })
+		).json()) as { id: string; updatedBy?: unknown }[]).find((v) => v.id === "v-h")
+		expect(stored?.updatedBy).toEqual({ id: GUID, name: EMAIL })
+	})
+
+	it("static pages serve to an identified request", async () => {
+		const res = await fetch(`${base}/editor/abc`, { headers: forwarded })
+		expect(res.status).toBe(200)
+		expect(await res.text()).toContain("<title>spa</title>")
 	})
 })

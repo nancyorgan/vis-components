@@ -73,6 +73,7 @@ import {
 	writeDatasetTriplet,
 } from "./datasetTriplet"
 import { CONTENT_MIGRATIONS } from "./migrations"
+import { noteSignIn } from "./signInLapsed"
 import {
 	assertNotStale,
 	contentVersionHeader,
@@ -94,6 +95,12 @@ const serialize = (value: unknown): string =>
  *  version this build writes (`contentVersionHeader`); a 409 is the server
  *  refusing a build behind its schema (`staleBuild.ts`), after which no
  *  further write is attempted until the page reloads. */
+/** Every call to the API goes through here so a 401 — the sign-in proxy
+ *  saying the session lapsed — raises the banner (`signInLapsed.ts`),
+ *  whatever the caller then does with the failure. */
+const apiFetch = async (input: string, init?: RequestInit): Promise<Response> =>
+	noteSignIn(await fetch(input, init))
+
 const request = async (
 	method: "PUT" | "DELETE",
 	collection: string,
@@ -103,7 +110,7 @@ const request = async (
 ): Promise<void> => {
 	const what = `${method} /api/${collection}/${id}`
 	assertNotStale(what)
-	const response = await fetch(
+	const response = await apiFetch(
 		`/api/${collection}/${encodeURIComponent(id)}`,
 		{ method, body, headers: { ...contentVersionHeader(collection), ...headers } }
 	)
@@ -113,7 +120,7 @@ const request = async (
 }
 
 const loadCollection = async <T>(collection: string): Promise<T> => {
-	const response = await fetch(`/api/${collection}`)
+	const response = await apiFetch(`/api/${collection}`)
 	if (!response.ok) {
 		throw new Error(`GET /api/${collection} failed: ${response.status}`)
 	}
@@ -234,7 +241,7 @@ const stampAction = (
  *  covers both a brand-new server and one older than this bundle (the route
  *  404s). `upgraded` treats both the same way. */
 const fetchContentVersions = async (): Promise<Record<string, number>> => {
-	const response = await fetch("/api/content-versions")
+	const response = await apiFetch("/api/content-versions")
 	if (response.status === 404) return {}
 	if (!response.ok) {
 		throw new Error(`GET /api/content-versions failed: ${response.status}`)
@@ -420,7 +427,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 	 *  later save will diff against, so recording it here means an unchanged
 	 *  dataset is never re-uploaded. */
 	const loadWholeDataset = async (id: string): Promise<Dataset | null> => {
-		const response = await fetch(`/api/datasets/${encodeURIComponent(id)}`)
+		const response = await apiFetch(`/api/datasets/${encodeURIComponent(id)}`)
 		if (response.status === 404) return null
 		if (!response.ok) {
 			throw new Error(`GET /api/datasets/${id} failed: ${response.status}`)
@@ -776,7 +783,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 				)
 			}
 			await ensureDatasetsCurrent()
-			const response = await fetch(
+			const response = await apiFetch(
 				`/api/datasets/${encodeURIComponent(id)}/versions/${encodeURIComponent(versionId)}`
 			)
 			if (response.ok) {

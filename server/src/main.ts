@@ -8,6 +8,13 @@
  *  static file server (e.g. `python3 -m http.server`) serves it publicly at
  *  VIS_PUBLISH_BASE_URL. Embeds must load with this server completely off.
  *
+ *  Optional VIS_AUTH_MODE=header trusts a sign-in proxy in front of the
+ *  server: X-Forwarded-User / X-Forwarded-Email name the person on every
+ *  request, a request without them gets a 401 (GET /alive excepted), and
+ *  presence, "Saved by" and /api/config's `user` switch on. Unset is
+ *  today's anonymous behavior. There is no sign-out: single sign-on would
+ *  sign the person straight back in, so `signOutUrl` stays unset.
+ *
  *  Lifecycle: fail-fast on bad config or malformed DB state; SIGTERM/SIGINT
  *  stop accepting, drain in-flight requests (10 s hard cap), close SQLite
  *  cleanly, exit 0. */
@@ -23,6 +30,7 @@ import {
 	listDatasetVersionFiles,
 } from "./datasetFiles.js"
 import { listAllDatasetVersionRows, listDatasetIds, openDb } from "./db.js"
+import { identifyFromForwardedHeaders } from "./identity.js"
 import { logError, logInfo } from "./log.js"
 import { createHandler } from "./routes.js"
 
@@ -91,7 +99,14 @@ const main = (): void => {
 		}
 	})()
 
-	const handler = createHandler({ config, db, distDir })
+	const handler = createHandler({
+		config,
+		db,
+		distDir,
+		...(config.authMode === "header"
+			? { identify: identifyFromForwardedHeaders, requireUser: true }
+			: {}),
+	})
 	const server = createServer((req, res) => {
 		const started = Date.now()
 		res.on("finish", () => {
@@ -103,7 +118,9 @@ const main = (): void => {
 	})
 
 	server.listen(config.port, () => {
-		logInfo(`listening on port ${config.port} (base URL ${config.baseUrl})`)
+		logInfo(
+			`listening on port ${config.port} (base URL ${config.baseUrl}, auth mode ${config.authMode})`
+		)
 	})
 
 	let shuttingDown = false

@@ -25,6 +25,7 @@ export const startTestServer = async (): Promise<TestServer> => {
 			port: 0,
 			publishDir: dir("publish"),
 			publishBaseUrl: "https://embeds.example.com",
+			authMode: "none",
 		},
 		db: openDb(dbDir),
 		distDir,

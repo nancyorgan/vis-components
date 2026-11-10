@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { stringifyJsonDangerous } from "../lib/json"
 import { TestProvider } from "../testSupport/TestProvider"
 import { currentVisualIdAtom } from "../contexts/chartBuilder/store/atoms"
+import {
+	isSignInLapsed,
+	resetSignInLapsedForTests,
+} from "../contexts/chartBuilder/lib/storage/signInLapsed"
 
 let pathname = "/editor/v1"
 vi.mock("@tanstack/react-router", () => ({
@@ -27,6 +31,8 @@ const { EditorPresence } = await import("./EditorPresence")
 afterEach(() => {
 	cleanup()
 	vi.unstubAllGlobals()
+	vi.useRealTimers()
+	resetSignInLapsedForTests()
 	pathname = "/editor/v1"
 	user = NANCY
 })
@@ -43,6 +49,31 @@ const stubPresence = (editors: { id: string; name: string }[], status = 200) => 
 	vi.stubGlobal("fetch", fetchMock)
 	return fetchMock
 }
+
+/** A presence server whose answer the test changes mid-run. */
+const stubPresenceServer = () => {
+	let respond = (): Response => new Response(stringifyJsonDangerous({ editors: [] }), { status: 200 })
+	const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+		init?.method === "DELETE" ? new Response(null, { status: 204 }) : respond()
+	)
+	vi.stubGlobal("fetch", fetchMock)
+	return {
+		fetchMock,
+		answer: (editors: { id: string; name: string }[]) => {
+			respond = () =>
+				new Response(stringifyJsonDangerous({ editors }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				})
+		},
+		fail: (status: number) => {
+			respond = () => new Response(null, { status })
+		},
+	}
+}
+
+const titles = () => screen.getAllByRole("listitem").map((li) => li.getAttribute("title"))
+const tick = (ms: number) => act(async () => vi.advanceTimersByTimeAsync(ms).then(() => {}))
 
 const renderIn = (visualId: string | null) =>
 	render(
@@ -98,6 +129,58 @@ describe("EditorPresence", () => {
 		await act(async () => {})
 		unmount()
 		expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE")
+	})
+
+	it("fades the others once heartbeats have failed past the server's TTL, and drops them after two minutes", async () => {
+		vi.useFakeTimers()
+		const server = stubPresenceServer()
+		server.answer([JANE, NANCY])
+		renderIn("v1")
+		await tick(0)
+		expect(titles()).toEqual(["Jane Doe", "Nancy Organ (you)"])
+
+		server.fail(500)
+		await tick(30_000)
+		expect(titles()).toEqual(["Jane Doe", "Nancy Organ (you)"])
+		const jane = () => screen.getAllByRole("listitem")[0]
+		expect(jane().className).not.toContain("opacity-50")
+
+		await tick(15_000)
+		expect(titles()).toEqual(["Jane Doe (may have left)", "Nancy Organ (you)"])
+		expect(jane().className).toContain("opacity-50")
+
+		// A heartbeat that gets through un-fades them…
+		server.answer([JANE, NANCY])
+		await tick(15_000)
+		expect(titles()).toEqual(["Jane Doe", "Nancy Organ (you)"])
+
+		// …and a long outage drops them.
+		server.fail(500)
+		await tick(120_000)
+		expect(titles()).toEqual(["Nancy Organ (you)"])
+		expect(isSignInLapsed()).toBe(false)
+	})
+
+	it("on a 401 drops the others at once, raises the sign-in banner, and stops for good", async () => {
+		vi.useFakeTimers()
+		const server = stubPresenceServer()
+		server.answer([JANE, NANCY])
+		renderIn("v1")
+		await tick(0)
+		expect(titles()).toEqual(["Jane Doe", "Nancy Organ (you)"])
+
+		server.fail(401)
+		await tick(15_000)
+		expect(titles()).toEqual(["Nancy Organ (you)"])
+		expect(isSignInLapsed()).toBe(true)
+
+		// No more heartbeats: not on the timer, and not when the tab comes
+		// back to the front either. Only a reload signs back in.
+		const calls = server.fetchMock.mock.calls.length
+		await tick(60_000)
+		document.dispatchEvent(new Event("visibilitychange"))
+		await tick(0)
+		expect(server.fetchMock.mock.calls.length).toBe(calls)
 	})
 
 	it("folds a crowd into +N", async () => {

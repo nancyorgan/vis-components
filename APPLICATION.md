@@ -710,10 +710,18 @@ the server identifies its users (below); otherwise, and for visuals
 saved before that, it reads "Saved · 9:25 AM". Hovering shows the full
 name and date. An unsaved draft shows nothing.
 
-**Who's here, and who saved.** When the app runs under a host with its
-own sign-in, the host hands the server an `identify` hook
-(`server/src/identity.ts`) and three things switch on; on the standalone
-server and in browser-local mode none of them exist.
+**Who's here, and who saved.** When the server knows who each request
+is from, three things switch on; in browser-local mode and on a server
+that identifies nobody none of them exist. The server learns identity one
+of two ways (`server/src/identity.ts`): `VIS_AUTH_MODE=header`, where a
+sign-in proxy in front of the standalone server names the person on every
+request (`X-Forwarded-User` is the stable id, `X-Forwarded-Email` the
+display name, `X-Forwarded-Preferred-Username` the fallback) and a request
+without the id header gets a plain 401 (`GET /alive` excepted); or a host
+that runs `createHandler` itself and passes an `identify` hook. There is
+no sign-out in header mode — single sign-on would sign the person straight
+back in — so the header's Log out button only appears when a host passes
+`signOutUrl`.
 - `/api/config` names the signed-in user (`{ id, name }`), and the boot
   probe installs it (`lib/currentUser.ts`).
 - **Presence.** The header shows an initials circle ("JD", "NO") left of
@@ -724,13 +732,26 @@ server and in browser-local mode none of them exist.
   forgets a tab after 45 s of silence or when it closes. A never-saved
   draft is private: it shows only you and sends nothing. Hidden on
   phones, where the header has no room. Presence is a heads-up only —
-  two people editing one visual are still last-write-wins.
+  two people editing one visual are still last-write-wins. A failed
+  heartbeat keeps the last answer: once it is older than the server's
+  45 s the others fade (hover: "may have left"), and after two minutes
+  they drop. A 401 drops them at once and stops the heartbeat until a
+  reload.
+- **Sign-in lapsed.** Behind a sign-in proxy an expired session makes
+  every `/api/` request answer 401 — saves, loads, heartbeats — and the
+  app flips a one-way flag (`storage/signInLapsed.ts`, read from every
+  adapter fetch and the heartbeat) that shows a banner beside the
+  stale-build one: "Your sign-in has expired … Reload to sign in again",
+  with a Reload button. A reload signs the person back in without a
+  prompt; the editor draft is kept in localStorage.
 - **`updatedBy`.** A save stamps the visual with its saver, and the
   server overwrites the client's claim with the requesting user. Only a
   write that CHANGES `updatedBy` is a save: a folder move or trash sends
   the stored saver back unchanged and keeps it, so moving Jane's chart
   doesn't credit you with her save. A duplicate is credited to whoever
-  made it. Someone else's save while you have the visual open shows up on
+  made it, and so is a create that names nobody (an API client or agent
+  sends no `updatedBy`): the first write under a new id is always
+  stamped with the requester. Someone else's save while you have the visual open shows up on
   your next load, not live.
 
 ### 2.4 Dataset versions & cleanup

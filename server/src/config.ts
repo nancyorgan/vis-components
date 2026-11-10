@@ -1,10 +1,21 @@
 /** Server configuration, read entirely from environment variables.
  *
- *  All six variables are required and validated up front: a misconfigured
- *  deployment must die at startup with a clear reason, never limp along
- *  writing data to a default path nobody chose. Publishing is normal
- *  behavior, not a feature flag, so the publish pair is as mandatory as
- *  the rest. */
+ *  All six path/URL variables are required and validated up front: a
+ *  misconfigured deployment must die at startup with a clear reason, never
+ *  limp along writing data to a default path nobody chose. Publishing is
+ *  normal behavior, not a feature flag, so the publish pair is as mandatory
+ *  as the rest. The one optional variable, VIS_AUTH_MODE, defaults to
+ *  today's anonymous behavior and fails startup on any value it doesn't
+ *  know. */
+
+/** How the server learns who a request is from.
+ *  - `none` (default): nobody is identified; identity headers are ignored
+ *    and every identity feature stays off.
+ *  - `header`: a sign-in proxy in front of the server names the person on
+ *    every request via `X-Forwarded-User` (stable account id) and
+ *    `X-Forwarded-Email` (display). A request without `X-Forwarded-User`
+ *    gets a plain 401, except `GET /alive`. */
+export type AuthMode = "none" | "header"
 
 export type ServerConfig = {
 	/** Absolute origin the app is reached at (behind any proxies). Used for
@@ -22,6 +33,8 @@ export type ServerConfig = {
 	/** Public base URL that static server serves `publishDir` at. A file at
 	 *  `$publishDir/<path>` is reachable at `$publishBaseUrl/<path>`. */
 	publishBaseUrl: string
+	/** Identity source; see `AuthMode`. */
+	authMode: AuthMode
 	/** Optional same-origin path that ends the session, owned by whatever
 	 *  hosts this handler. When set, the header shows a "Log out" button that
 	 *  posts a plain form to it and expects a redirect back. The standalone
@@ -83,6 +96,16 @@ export const loadConfig = (
 	const baseUrl = validateUrl("VIS_BASE_URL")
 	const publishBaseUrl = validateUrl("VIS_PUBLISH_BASE_URL")
 
+	// Unset or blank means today's behavior. Anything but the two known
+	// modes is a typo in a deployment, and a typo must not silently run the
+	// server open.
+	const rawAuthMode = env.VIS_AUTH_MODE?.trim() ?? ""
+	let authMode: AuthMode = "none"
+	if (rawAuthMode === "header") authMode = "header"
+	else if (rawAuthMode && rawAuthMode !== "none") {
+		problems.push(`VIS_AUTH_MODE must be "none" or "header", got "${rawAuthMode}"`)
+	}
+
 	if (problems.length > 0) throw new Error(problems.join("\n"))
 	return {
 		baseUrl,
@@ -91,5 +114,6 @@ export const loadConfig = (
 		port,
 		publishDir: (env.VIS_PUBLISH_DIR ?? "").trim(),
 		publishBaseUrl,
+		authMode,
 	}
 }

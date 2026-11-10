@@ -4,6 +4,7 @@ import { Outlet, useRouterState } from "@tanstack/react-router"
 
 import { Footer } from "../components/Footer"
 import { Header } from "../components/Header"
+import { SignInLapsedBanner } from "../components/SignInLapsedBanner"
 import { StaleBuildBanner } from "../components/StaleBuildBanner"
 import { EMBED_PATH_PREFIX } from "../lib/embedPath"
 import { pageTitle, useDocumentTitle } from "../lib/documentTitle"
@@ -96,6 +97,7 @@ export const RootLayout = () => {
 		<div className="flex min-h-screen flex-col bg-white text-stone-900 dark:bg-stone-900 dark:text-stone-100">
 			{!isEmbed && <SkipLink />}
 			{!isEmbed && <StaleBuildBanner />}
+			{!isEmbed && <SignInLapsedBanner />}
 			{!isEmbed && <Header />}
 			<main id={MAIN_ID} className="flex-1">
 				<Outlet />

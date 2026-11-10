@@ -20,7 +20,17 @@ describe("loadConfig", () => {
 			port: 8080,
 			publishDir: "/tmp/publish",
 			publishBaseUrl: "https://embeds.example.com",
+			authMode: "none",
 		})
+	})
+
+	it("VIS_AUTH_MODE: unset or blank is none, header is header, anything else fails", () => {
+		expect(loadConfig(VALID).authMode).toBe("none")
+		expect(loadConfig({ ...VALID, VIS_AUTH_MODE: "  " }).authMode).toBe("none")
+		expect(loadConfig({ ...VALID, VIS_AUTH_MODE: "none" }).authMode).toBe("none")
+		expect(loadConfig({ ...VALID, VIS_AUTH_MODE: " header " }).authMode).toBe("header")
+		expect(() => loadConfig({ ...VALID, VIS_AUTH_MODE: "oidc" })).toThrow(/VIS_AUTH_MODE/)
+		expect(() => loadConfig({ ...VALID, VIS_AUTH_MODE: "Header" })).toThrow(/VIS_AUTH_MODE/)
 	})
 
 	it("strips trailing slashes from both base URLs", () => {
