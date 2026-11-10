@@ -22,6 +22,10 @@
 	// for the add-in origin — fetch() from a task pane is a normal browser
 	// cross-origin request. The ?t= defeats any intermediate cache.
 	const imageUrl = (id) => `${location.origin}/embeds/${id}/image.png?t=${Date.now()}`
+	// The vector picture published beside the PNG (the editor's portable SVG
+	// of the same figure). 404 when the publish predates vector pictures or
+	// that upload failed — callers fall back to the PNG.
+	const vectorUrl = (id) => `${location.origin}/embeds/${id}/image.svg?t=${Date.now()}`
 	const embedUrl = (id) => `${location.origin}/embeds/${id}/index.html`
 
 	const bytesToBase64 = (bytes) => {
@@ -86,13 +90,62 @@
 	// Base64 string WITHOUT the data: prefix (what Office.js wants).
 	const fetchImageBase64 = async (id) => (await fetchImage(id)).base64
 
+	// CSS-px size of an SVG document from its root width/height (the export
+	// pipeline writes both, unitless = px), else from the viewBox; null when
+	// neither is there. Text-level, no parser: the root tag is the first tag.
+	const svgSize = (text) => {
+		const root = /<svg\b[^>]*>/i.exec(text)
+		if (!root) return null
+		const attr = (name) => {
+			const m = new RegExp(`\\s${name}\\s*=\\s*["']\\s*([\\d.]+)(px)?\\s*["']`, "i").exec(root[0])
+			return m ? Number(m[1]) : null
+		}
+		const width = attr("width")
+		const height = attr("height")
+		if (width && height) return { width, height }
+		const box = /\sviewBox\s*=\s*["']\s*[\d.-]+[\s,]+[\d.-]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*["']/i.exec(root[0])
+		return box ? { width: Number(box[1]), height: Number(box[2]) } : null
+	}
+
+	// → { text, width, height, dpi: 96 }. The SVG is CSS px at 96 dpi by
+	// construction, so it places at true size like a stamped PNG. Throws with
+	// the HTTP status so a 404 (no vector published) can fall back to the PNG.
+	const fetchVector = async (id) => {
+		const url = vectorUrl(id)
+		let response
+		try {
+			response = await fetch(url, { cache: "no-store" })
+		} catch (error) {
+			throw new Error(`Couldn't reach ${url}: ${error.message}`)
+		}
+		if (!response.ok) {
+			const error = new Error(`Vector picture for ${id} returned HTTP ${response.status} (${url})`)
+			error.status = response.status
+			throw error
+		}
+		const text = await response.text()
+		if (!/^\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(text)) {
+			throw new Error(`Vector picture for ${id} is not an SVG document (${url})`)
+		}
+		const size = svgSize(text)
+		return {
+			text,
+			width: size ? size.width : null,
+			height: size ? size.height : null,
+			dpi: 96,
+		}
+	}
+
 	window.Zafiro = {
 		TAG_KEY,
 		parseEmbedId,
 		imageUrl,
+		vectorUrl,
 		embedUrl,
 		fetchImage,
 		fetchImageBase64,
+		fetchVector,
+		svgSize,
 		pngSize,
 		pngDpi,
 	}

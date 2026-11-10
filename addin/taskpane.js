@@ -28,6 +28,17 @@
 //   insert at the old geometry, delete the old shape (z-order NOT kept).
 //   This path is written but UNTESTED — the dev machine has 1.10.
 //
+//   VECTOR (default when available): the published image.svg is inserted as
+//   a native vector picture with setSelectedDataAsync(svgText, {coercionType:
+//   XmlSvg, imageLeft/Top/Width/Height}) (ImageCoercion 1.2 —
+//   https://learn.microsoft.com/en-us/javascript/api/requirement-sets/common/image-coercion-requirement-sets),
+//   then tagged like the PNG path plus ZAFIRO_FORMAT=svg. A picture FILL
+//   can't hold an SVG, so vector figures always refresh by re-insertion at
+//   the old geometry + delete of the old shape (z-order not kept). The
+//   format sticks per figure: a vector figure stays vector on refresh, a PNG
+//   figure stays PNG. No image.svg (older publish, failed upload) → PNG, and
+//   the status says so.
+//
 //   Other sets used: tags add/getItemOrNullObject/delete 1.3; shape
 //   left/top/width/height/name/type/lineFormat/textFrame 1.4; delete() 1.3;
 //   getSelectedSlides/getSelectedShapes 1.5; Office.addin.setStartupBehavior
@@ -43,6 +54,7 @@
 		link: $("link"),
 		insert: $("insert"),
 		insertStatus: $("insert-status"),
+		vector: $("vector"),
 		refresh: $("refresh"),
 		refreshStatus: $("refresh-status"),
 		autoRefresh: $("auto-refresh"),
@@ -51,7 +63,14 @@
 		log: $("log"),
 	}
 
-	const PREFS = { autoRefresh: "zafiro.autoRefresh", autoConvert: "zafiro.autoConvert" }
+	const PREFS = {
+		autoRefresh: "zafiro.autoRefresh",
+		autoConvert: "zafiro.autoConvert",
+		vector: "zafiro.vector",
+	}
+	// Second tag on every figure: which picture it holds, "png" or "svg"
+	// (absent on figures from before vector pictures = png).
+	const FORMAT_TAG = "ZAFIRO_FORMAT"
 	const REFRESH_EVERY_MS = 30_000
 	const CONVERT_POLL_MS = 2_000
 	// The published picture carries its dpi in a pHYs chunk (96 × the raster
@@ -68,7 +87,7 @@
 	// Shape types that own a text frame; reading textFrame on an Image throws.
 	const TEXT_TYPES = new Set(["TextBox", "GeometricShape", "Placeholder"])
 
-	const api = { fillImage: false, selectedShapes: false, shared: false }
+	const api = { fillImage: false, selectedShapes: false, shared: false, svgCoercion: false }
 
 	// ---- UI helpers ---------------------------------------------------------
 
@@ -132,27 +151,52 @@
 
 	const shapeName = (id) => `Zafiro ${id}`
 
-	// ---- placing a picture (preferred path, PowerPointApi 1.8) ---------------
+	// ---- which picture ------------------------------------------------------
+
+	const wantVector = () => els.vector.checked && api.svgCoercion
+
+	/** The picture to place for `id`, as the user's choice and the publish
+	 *  allow: `{ format: "svg", text, … }` or `{ format: "png", base64, … }`,
+	 *  plus `note` when the vector was wanted but the PNG had to stand in. */
+	const fetchPicture = async (id, format) => {
+		const vector = format ? format === "svg" : wantVector()
+		if (vector) {
+			try {
+				return { format: "svg", ...(await Zafiro.fetchVector(id)) }
+			} catch (error) {
+				const why = error.status === 404 ? "no vector picture is published for it" : errorText(error)
+				log(`vector ${id} unavailable (${why}); using the PNG`)
+				return { format: "png", ...(await Zafiro.fetchImage(id)), note: `PNG instead of vector: ${why}.` }
+			}
+		}
+		return { format: "png", ...(await Zafiro.fetchImage(id)) }
+	}
+
+	const formatLabel = (picture) => (picture.format === "svg" ? "vector (SVG)" : "picture (PNG)")
+
+	// ---- placing a picture (preferred PNG path, PowerPointApi 1.8) -----------
 
 	/** Add a picture-filled rectangle to `slide` inside an open context. The
-	 *  caller syncs. */
+	 *  caller syncs. PNG only — a fill can't hold an SVG. */
 	const addPictureShape = (slide, id, img, geometry) => {
 		const shape = slide.shapes.addGeometricShape(PowerPoint.GeometricShapeType.rectangle, geometry)
 		shape.fill.setImage(img.base64)
 		shape.lineFormat.visible = false
 		shape.name = shapeName(id)
 		shape.tags.add(Zafiro.TAG_KEY, id)
+		shape.tags.add(FORMAT_TAG, "png")
 		return shape
 	}
 
-	// ---- placing a picture (fallback path, ImageCoercion + 1.5) -------------
+	// ---- placing a picture by coercion (vector path; PNG fallback < 1.8) -----
 
-	const setSelectedImage = (img, geometry) =>
+	const setSelectedPicture = (picture, geometry) =>
 		new Promise((resolve, reject) => {
+			const svg = picture.format === "svg"
 			Office.context.document.setSelectedDataAsync(
-				img.base64,
+				svg ? picture.text : picture.base64,
 				{
-					coercionType: Office.CoercionType.Image,
+					coercionType: svg ? Office.CoercionType.XmlSvg : Office.CoercionType.Image,
 					imageLeft: geometry.left,
 					imageTop: geometry.top,
 					imageWidth: geometry.width,
@@ -165,18 +209,33 @@
 			)
 		})
 
-	const goToSlide = (slideId) =>
-		new Promise((resolve, reject) => {
-			Office.context.document.goToByIdAsync(slideId, Office.GoToType.Slide, (result) => {
+	/** Make `slideId` (a PowerPointApi id, "slideId#creationId") the current
+	 *  slide, so a coercion insert lands on it. setSelectedSlides takes that
+	 *  id form directly (PowerPointApi 1.5); the common-API goToByIdAsync
+	 *  fallback wants only the numeric part — handing it the full id is "An
+	 *  internal error has occurred". */
+	const goToSlide = async (slideId) => {
+		try {
+			await PowerPoint.run(async (context) => {
+				context.presentation.setSelectedSlides([slideId])
+				await context.sync()
+			})
+			return
+		} catch (error) {
+			log(`setSelectedSlides failed (${errorText(error)}); trying goToByIdAsync`)
+		}
+		await new Promise((resolve, reject) => {
+			Office.context.document.goToByIdAsync(String(slideId).split("#")[0], Office.GoToType.Slide, (result) => {
 				if (result.status === Office.AsyncResultStatus.Failed) reject(result.error)
 				else resolve()
 			})
 		})
+	}
 
-	/** Fallback insert on the CURRENT slide: coerce the image in, then tag
+	/** Coercion insert on the CURRENT slide: coerce the picture in, then tag
 	 *  whatever got selected (or, failing that, the slide's last shape). */
-	const insertViaCoercion = async (id, img, geometry) => {
-		await setSelectedImage(img, geometry)
+	const insertViaCoercion = async (id, picture, geometry) => {
+		await setSelectedPicture(picture, geometry)
 		await PowerPoint.run(async (context) => {
 			const selected = context.presentation.getSelectedShapes()
 			const count = selected.getCount()
@@ -192,8 +251,27 @@
 			}
 			shape.name = shapeName(id)
 			shape.tags.add(Zafiro.TAG_KEY, id)
+			shape.tags.add(FORMAT_TAG, picture.format)
 			await context.sync()
 		})
+	}
+
+	/** Place `picture` for `id` on the current slide by whichever path fits
+	 *  its format and this PowerPoint; `slideId` (optional) names the slide
+	 *  for the fill path, which can address a slide without selecting it. */
+	const placePicture = async (id, picture, geometry, slideId) => {
+		if (picture.format === "png" && api.fillImage) {
+			await PowerPoint.run(async (context) => {
+				const slide = slideId
+					? context.presentation.slides.getItem(slideId)
+					: context.presentation.getSelectedSlides().getItemAt(0)
+				addPictureShape(slide, id, picture, geometry)
+				await context.sync()
+			})
+			return
+		}
+		if (slideId) await goToSlide(slideId)
+		await insertViaCoercion(id, picture, geometry)
 	}
 
 	// ---- Insert -------------------------------------------------------------
@@ -207,26 +285,19 @@
 		els.insert.disabled = true
 		setStatus(els.insertStatus, `Fetching picture ${id}…`)
 		try {
-			const img = await Zafiro.fetchImage(id)
-			const geometry = defaultGeometry(img)
-			if (api.fillImage) {
-				await PowerPoint.run(async (context) => {
-					const slide = context.presentation.getSelectedSlides().getItemAt(0)
-					addPictureShape(slide, id, img, geometry)
-					await context.sync()
-				})
-			} else {
-				await insertViaCoercion(id, img, geometry)
-			}
+			const picture = await fetchPicture(id)
+			const geometry = defaultGeometry(picture)
+			await placePicture(id, picture, geometry)
 			setStatus(
 				els.insertStatus,
-				`Inserted at 100%: ${describeSize(geometry)}.` +
+				`Inserted ${formatLabel(picture)} at 100%: ${describeSize(geometry)}.` +
+					(picture.note ? ` ${picture.note}` : "") +
 					(fitsSlide(geometry)
 						? ""
 						: " That is larger than a 16:9 slide. To shrink it on the slide, drag a corner handle (text shrinks with it). To keep text at its Zafiro size, give the visual a smaller canvas in Zafiro — Aesthetics → Canvas size — and Republish."),
 				"ok",
 			)
-			log(`insert ${id} ok`)
+			log(`insert ${id} ok (${picture.format})`)
 			els.link.value = ""
 		} catch (error) {
 			setStatus(els.insertStatus, `Insert failed: ${errorText(error)}`, "err")
@@ -238,7 +309,9 @@
 
 	// ---- Refresh ------------------------------------------------------------
 
-	/** Every tagged figure in the deck: { slideId, shapeId, id, geometry }. */
+	/** Every tagged figure in the deck: { slideId, shapeId, id, format,
+	 *  geometry }; `format` is the figure's picture format tag, "png" when
+	 *  the figure predates it. */
 	const collectFigures = () =>
 		PowerPoint.run(async (context) => {
 			const slides = context.presentation.slides
@@ -250,17 +323,21 @@
 				shapes.load("items/id,items/left,items/top,items/width,items/height")
 				await context.sync()
 				const tags = shapes.items.map((shape) => shape.tags.getItemOrNullObject(Zafiro.TAG_KEY))
+				const formats = shapes.items.map((shape) => shape.tags.getItemOrNullObject(FORMAT_TAG))
 				tags.forEach((tag) => tag.load("value"))
+				formats.forEach((tag) => tag.load("value"))
 				await context.sync()
 				shapes.items.forEach((shape, i) => {
 					const tag = tags[i]
 					if (tag.isNullObject) return
 					const id = Zafiro.parseEmbedId(tag.value)
 					if (!id) return
+					const format = !formats[i].isNullObject && formats[i].value === "svg" ? "svg" : "png"
 					figures.push({
 						slideId: slide.id,
 						shapeId: shape.id,
 						id,
+						format,
 						geometry: { left: shape.left, top: shape.top, width: shape.width, height: shape.height },
 					})
 				})
@@ -268,25 +345,29 @@
 			return figures
 		})
 
-	const refreshOne = async (figure, img) => {
+	const refreshOne = async (figure, picture) => {
 		const { geometry } = figure
-		const wantHeight = geometry.width * aspect(img)
+		const wantHeight = geometry.width * aspect(picture)
 		const aspectChanged = Math.abs(wantHeight - geometry.height) / Math.max(geometry.height, 1) > 0.01
-		if (api.fillImage) {
+		// A PNG figure on a PNG-capable fill: swap the fill in place (keeps
+		// z-order, name, tags). Everything else — a vector figure, a PNG
+		// standing in for a vector, no 1.8 — re-inserts at the old geometry
+		// on that slide, then drops the old shape.
+		if (figure.format === "png" && picture.format === "png" && api.fillImage) {
 			await PowerPoint.run(async (context) => {
 				const shape = context.presentation.slides.getItem(figure.slideId).shapes.getItem(figure.shapeId)
-				shape.fill.setImage(img.base64)
+				shape.fill.setImage(picture.base64)
 				if (aspectChanged) shape.height = wantHeight
 				await context.sync()
 			})
 			return
 		}
-		// Fallback: re-insert at the old geometry on that slide, then drop the old one.
-		await goToSlide(figure.slideId)
-		await insertViaCoercion(figure.id, img, {
-			...geometry,
-			height: aspectChanged ? wantHeight : geometry.height,
-		})
+		await placePicture(
+			figure.id,
+			picture,
+			{ ...geometry, height: aspectChanged ? wantHeight : geometry.height },
+			figure.slideId,
+		)
 		await PowerPoint.run(async (context) => {
 			context.presentation.slides.getItem(figure.slideId).shapes.getItem(figure.shapeId).delete()
 			await context.sync()
@@ -305,23 +386,26 @@
 				setStatus(els.refreshStatus, "No Zafiro figures in this deck.")
 				return
 			}
-			const ids = [...new Set(figures.map((f) => f.id))]
-			setStatus(els.refreshStatus, `Fetching ${ids.length} picture${ids.length === 1 ? "" : "s"}…`)
-			const images = new Map()
+			// One fetch per (id, format): a vector figure wants image.svg, a PNG
+			// figure image.png; the format sticks to the figure.
+			const wanted = [...new Set(figures.map((f) => `${f.format}:${f.id}`))]
+			setStatus(els.refreshStatus, `Fetching ${wanted.length} picture${wanted.length === 1 ? "" : "s"}…`)
+			const pictures = new Map()
 			const failures = []
-			for (const id of ids) {
+			for (const key of wanted) {
+				const [format, id] = key.split(":")
 				try {
-					images.set(id, await Zafiro.fetchImage(id))
+					pictures.set(key, await fetchPicture(id, format))
 				} catch (error) {
 					failures.push(`${id}: ${errorText(error)}`)
 				}
 			}
 			let done = 0
 			for (const figure of figures) {
-				const img = images.get(figure.id)
-				if (!img) continue
+				const picture = pictures.get(`${figure.format}:${figure.id}`)
+				if (!picture) continue
 				try {
-					await refreshOne(figure, img)
+					await refreshOne(figure, picture)
 					done += 1
 				} catch (error) {
 					failures.push(`${figure.id} on slide ${figure.slideId}: ${errorText(error)}`)
@@ -400,24 +484,19 @@
 			for (const candidate of candidates) {
 				const { id, geometry } = candidate
 				try {
-					const img = await Zafiro.fetchImage(id)
-					const placed = { left: geometry.left, top: geometry.top, width: geometry.width, height: geometry.width * aspect(img) }
-					if (api.fillImage) {
-						await PowerPoint.run(async (context) => {
-							const slide = context.presentation.slides.getItem(candidate.slideId)
-							addPictureShape(slide, id, img, placed)
-							slide.shapes.getItem(candidate.shapeId).delete()
-							await context.sync()
-						})
-					} else {
-						await insertViaCoercion(id, img, placed)
-						await PowerPoint.run(async (context) => {
-							context.presentation.slides.getItem(candidate.slideId).shapes.getItem(candidate.shapeId).delete()
-							await context.sync()
-						})
-					}
-					setStatus(els.convertStatus, `Converted a pasted link into ${shapeName(id)}.`, "ok")
-					log(`convert ${id} ok`)
+					const picture = await fetchPicture(id)
+					const placed = { left: geometry.left, top: geometry.top, width: geometry.width, height: geometry.width * aspect(picture) }
+					await placePicture(id, picture, placed, candidate.slideId)
+					await PowerPoint.run(async (context) => {
+						context.presentation.slides.getItem(candidate.slideId).shapes.getItem(candidate.shapeId).delete()
+						await context.sync()
+					})
+					setStatus(
+						els.convertStatus,
+						`Converted a pasted link into ${shapeName(id)} (${formatLabel(picture)}).${picture.note ? ` ${picture.note}` : ""}`,
+						"ok",
+					)
+					log(`convert ${id} ok (${picture.format})`)
 				} catch (error) {
 					setStatus(els.convertStatus, `Couldn't convert ${id}: ${errorText(error)}`, "err")
 					log(`convert ${id} FAILED: ${errorText(error)}`)
@@ -466,6 +545,7 @@
 		api.fillImage = req.isSetSupported("PowerPointApi", "1.8")
 		api.selectedShapes = req.isSetSupported("PowerPointApi", "1.5")
 		api.shared = req.isSetSupported("SharedRuntime", "1.1")
+		api.svgCoercion = req.isSetSupported("ImageCoercion", "1.2")
 		if (!api.fillImage && !api.selectedShapes) {
 			els.env.textContent = "This PowerPoint is too old (needs PowerPointApi 1.5; 1.8 preferred)."
 			return
@@ -473,7 +553,9 @@
 		els.env.textContent =
 			`PowerPoint on ${info.platform}. ` +
 			(api.fillImage ? "Picture-fill refresh (PowerPointApi 1.8)." : "Fallback: re-insert refresh (PowerPointApi 1.5).") +
+			(api.svgCoercion ? " Vector pictures available (ImageCoercion 1.2)." : " No vector pictures here (ImageCoercion 1.2 missing): PNG only.") +
 			(api.shared ? " Shared runtime." : " No shared runtime: watchers stop when the pane closes.")
+		els.vector.disabled = !api.svgCoercion
 
 		els.insert.disabled = false
 		els.refresh.disabled = false
@@ -485,6 +567,11 @@
 		els.autoRefresh.addEventListener("change", () => setAutoRefresh(els.autoRefresh.checked))
 		els.autoConvert.addEventListener("change", () => setAutoConvert(els.autoConvert.checked))
 
+		els.vector.checked = api.svgCoercion && readPref(PREFS.vector, true)
+		els.vector.addEventListener("change", () => {
+			writePref(PREFS.vector, els.vector.checked)
+			log(`vector pictures ${els.vector.checked ? "on" : "off"}`)
+		})
 		els.autoRefresh.checked = readPref(PREFS.autoRefresh, false)
 		if (els.autoRefresh.checked) setAutoRefresh(true)
 		els.autoConvert.checked = readPref(PREFS.autoConvert, true)

@@ -17,6 +17,11 @@
 		<input type="text" id="link" placeholder="Paste a Zafiro link" autocomplete="off" spellcheck="false" />
 		<button id="insert" disabled>Insert</button>
 		<div class="status" id="insert-status"></div>
+		<label class="check"><input type="checkbox" id="vector" /> Insert as vector (SVG) when available</label>
+		<p class="hint">
+			A vector picture stays sharp at any zoom and in PDF or print, drawn with the fonts installed on this
+			computer. Off, or when no vector was published, the PNG picture is inserted instead.
+		</p>
 
 		<h2>Refresh</h2>
 		<button id="refresh" disabled>Refresh figures</button>
@@ -34,6 +39,6 @@
 		<div class="log" id="log"></div>
 
 		<script src="taskpane.js"></script>
-		<p class="hint" id="build">build 2026-11-03d · dpi-aware insert</p>
+		<p class="hint" id="build">build 2026-11-10b · vector pictures, slide select on refresh</p>
 	</body>
 </html>
