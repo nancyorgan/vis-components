@@ -1603,11 +1603,18 @@ export const currentRenderedCaptionBoxAtom = atom<{
 export type QuickStartState = {
 	cyclePositions: Record<string, number>
 	lastSetByScaffold: boolean
+	/** The most recent scaffold: which button made it and the exact encodings
+	 * object it wrote. The icon bar draws that button in brand purple only
+	 * while `currentEncodingsAtom` still holds this same object, so the
+	 * highlight drops on any hand edit of the encodings and on opening or
+	 * starting another visual (both replace the object). */
+	lastScaffold: { chartType: string; encodings: unknown } | null
 }
 
 const EMPTY_QUICK_START_STATE: QuickStartState = {
 	cyclePositions: {},
 	lastSetByScaffold: false,
+	lastScaffold: null,
 }
 
 export const quickStartStateAtom = atom<QuickStartState>(

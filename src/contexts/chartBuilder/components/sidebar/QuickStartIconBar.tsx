@@ -508,6 +508,7 @@ export const QuickStartIconBar = () => {
 				[chartType]: (prev.cyclePositions[chartType] ?? 0) + 1,
 			},
 			lastSetByScaffold: true,
+			lastScaffold: { chartType, encodings: nextEncodings },
 		}))
 	}
 
@@ -556,6 +557,13 @@ export const QuickStartIconBar = () => {
 					// Without a data set there's no reason to give — truly disabled.
 					const unavailable = disabled && !!dataset
 					const reasonId = `${reasonIdPrefix}-${chartType}`
+					// The button the current encodings came from draws its
+					// illustration (and border) in brand purple. Identity check:
+					// a hand edit or another visual replaces the encodings object,
+					// which drops the highlight.
+					const isLastUsed =
+						quickState.lastScaffold?.chartType === chartType &&
+						quickState.lastScaffold.encodings === encodings
 					const showTip = (el: HTMLElement) => {
 						const rect = el.getBoundingClientRect()
 						setHovered({
@@ -582,7 +590,12 @@ export const QuickStartIconBar = () => {
 							}}
 							onBlur={() => setHovered(null)}
 							aria-label={LABELS[chartType]}
-							className={`flex h-8 w-full items-center justify-center rounded border border-stone-300 bg-white ring-2 ring-white dark:ring-stone-900 transition disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-800 vc-text ${
+							data-last-used={isLastUsed || undefined}
+							className={`flex h-8 w-full items-center justify-center rounded border bg-white ring-2 ring-white dark:ring-stone-900 transition disabled:cursor-not-allowed disabled:opacity-40 dark:bg-stone-800 ${
+								isLastUsed
+									? "border-vc-brand-text text-vc-brand-text dark:border-brand-300 dark:text-brand-200"
+									: "border-stone-300 dark:border-stone-700 vc-text"
+							} ${
 								unavailable
 									? "cursor-not-allowed opacity-40"
 									: "hover:enabled:scale-125"
