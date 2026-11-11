@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { contentVersionHeader } from "../../src/contexts/chartBuilder/lib/storage/contentVersionHeader"
 import type { Folder, Visual } from "../../src/contexts/chartBuilder/lib/types"
 import { createApi } from "./api"
-import { startTestServer, type TestServer } from "./testServer"
+import { fakeRenderer, startTestServer, type TestServer } from "./testServer"
 import { createHandlers, type Handlers } from "./tools"
 
 let server: TestServer
@@ -42,7 +42,7 @@ const FOLDERS: Folder[] = [
 
 beforeAll(async () => {
 	server = await startTestServer()
-	tools = createHandlers(createApi(server.base))
+	tools = createHandlers(createApi(server.base), { renderer: fakeRenderer() })
 	for (const f of FOLDERS) await put("folders", f)
 	drinks = okOut(await tools.create_dataset({ name: "Drink sales", rows: [{ drink: "Tea", sales: 3 }] })).id
 	weather = okOut(await tools.create_dataset({ name: "Weather", rows: [{ day: "Mon", temp: 3 }] })).id

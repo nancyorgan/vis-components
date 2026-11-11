@@ -2,7 +2,14 @@
  *  (`chartSpec.ts`, `datasetFromRows.ts`); this file resolves what those
  *  functions need from the API and writes their result back. Every result
  *  and refusal is compact JSON; the three chart writes also return it as
- *  `structuredContent` under a declared `outputSchema`. */
+ *  `structuredContent` under a declared `outputSchema`.
+ *
+ *  Pictures: every chart write that lands (and get_chart, unless asked not
+ *  to) takes a picture through the injected Renderer AFTER the save, and
+ *  returns it as an image block after the summary. A picture that fails
+ *  never fails the write: a second text block says why and names the
+ *  editor link. Each picture is also held by key (`pictureKey` in
+ *  structuredContent) for the chart card's own tool, chart_picture. */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
@@ -28,6 +35,8 @@ import type { DatasetMeta, FieldType, SavedTheme, Visual } from "../../src/conte
 import { RefusalError, StaleVisualError, type Api } from "./api"
 import { TOOL_TEXT } from "./guide"
 import { chartListing, librarySummary } from "./library"
+import { CARD_URI, createPictureStore, RESULT_LIMIT, type PictureStore } from "./pictures"
+import { checkFileName, type ExportFormat, type PictureOutcome, type Renderer } from "./render"
 import { resolveDataset, resolveFolder, resolveThemeName, rowCountOf } from "./resolve"
 import { searchSettings } from "./settingSearch"
 
@@ -45,6 +54,11 @@ const STOCK_FOLDER =
 /** The collections a chart write reads from and writes to. */
 const CHART_COLLECTIONS = ["visuals", "datasets", "themes"] as const
 
+/** One block of a tool result. */
+type Block = CallToolResult["content"][number]
+
+const textBlock = (text: string): Block => ({ type: "text", text: plain(text) })
+
 const ok = (value: unknown): CallToolResult => ({
 	content: [{ type: "text", text: plain(JSON.stringify(value)) }],
 })
@@ -55,9 +69,9 @@ const written = (value: ChartWrite): CallToolResult => {
 	return { content: [{ type: "text", text }], structuredContent: JSON.parse(text) }
 }
 
-const refused = (message: string, problems?: SpecProblem[]): CallToolResult => ({
+const refused = (message: string, problems?: SpecProblem[], about?: Record<string, unknown>): CallToolResult => ({
 	isError: true,
-	content: [{ type: "text", text: plain(JSON.stringify(problems ? { message, problems } : { message })) }],
+	content: [{ type: "text", text: plain(JSON.stringify({ message, ...(problems ? { problems } : {}), ...about })) }],
 })
 
 /** A thrown error (HTTP failure, content-version mismatch) as tool output. */
@@ -126,6 +140,45 @@ const withNearestSettings = (problems: SpecProblem[]): SpecProblem[] =>
 			: { ...p, message: `${p.message}; nearest settings: ${list.join(", ")}` }
 	})
 
+/** A result's size as the client receives it. */
+const serializedLength = (result: CallToolResult) => JSON.stringify(result).length
+
+/** Said in place of a picture left out so the result reaches the card. */
+const CARD_ONLY =
+	"The person sees this chart in the card; its picture was too large to send you too, so you did not see it. Describe only what you set."
+
+/** get_chart's text stays this far under the result limit, leaving room
+ *  for its structuredContent and a no-picture line. */
+const SETTINGS_BUDGET = RESULT_LIMIT - 4_000
+
+const SETTINGS_LEFT_OUT =
+	"The settings were too large to send whole; get_chart with slice returns one left out, in full."
+
+/** A chart's name as the default export file name: a name holding a
+ *  slash is still a name, so separators become spaces (checkFileName then
+ *  takes out what else a file name can't hold). */
+const defaultFileName = (name: string): string => name.replace(/[/\\]+/g, " ").replace(/\s+/g, " ").trim() || "chart"
+
+/** get_chart's summary within SETTINGS_BUDGET: whole when it fits, else
+ *  the settings slices that fit (in catalog order), the ones left out
+ *  named, and a note that `slice` returns one in full. */
+const fitSettings = (summary: Record<string, unknown> & { settings: Record<string, unknown> }) => {
+	if (JSON.stringify(summary).length <= SETTINGS_BUDGET) return summary
+	const kept: Record<string, unknown> = {}
+	const leftOut: string[] = []
+	const names = Object.keys(summary.settings)
+	let used =
+		JSON.stringify({ ...summary, settings: {}, settingsLeftOut: names, note: SETTINGS_LEFT_OUT }).length
+	for (const name of names) {
+		const size = JSON.stringify(summary.settings[name]).length + name.length + 4
+		if (used + size <= SETTINGS_BUDGET) {
+			kept[name] = summary.settings[name]
+			used += size
+		} else leftOut.push(name)
+	}
+	return { ...summary, settings: kept, settingsLeftOut: leftOut, note: SETTINGS_LEFT_OUT }
+}
+
 /** What a chart write returns. */
 type ChartWrite = {
 	id: string
@@ -143,6 +196,7 @@ const chartWriteShape = {
 	embedUrl: z.string(),
 	warnings: z.array(z.string()),
 	revision: z.string().nullable(),
+	pictureKey: z.string().optional(),
 }
 
 /** A stored chart as a save left it (or a read found it): its ETag, null
@@ -156,9 +210,36 @@ export type CreateChartArgs = Omit<ChartSpec, "datasetId" | "folderId"> & {
 	datasetId?: string
 	folder?: string | null
 	folderId?: string | null
+	/** Not a create_chart key: a write always returns its picture. Taken
+	 *  off before the spec, so a client that sends it isn't refused. */
+	picture?: unknown
 }
 
-export const createHandlers = (api: Api) => {
+export type GetChartArgs = { id: string; picture?: boolean; slice?: string }
+
+export type ExportChartArgs = {
+	id: string
+	format: ExportFormat
+	width?: number
+	height?: number
+	pixelRatio?: number
+	fileName?: string
+}
+
+export type HandlerDeps = {
+	/** Takes the pictures and writes the exports. */
+	renderer: Renderer
+	/** Whether this connection's client shows the chart card (it announced
+	 *  MCP Apps). Read per call; absent = no. */
+	showsCards?: () => boolean
+	/** Where pictures wait for chart_picture; one per process by default. */
+	pictures?: PictureStore
+}
+
+export const createHandlers = (api: Api, deps: HandlerDeps) => {
+	const pictures = deps.pictures ?? createPictureStore()
+	const showsCards = deps.showsCards ?? (() => false)
+
 	/** Per chart: the visual each edit replaced, and what that edit wrote. */
 	const undo = new Map<string, Array<{ previous: Visual; wrote: Written }>>()
 	/** Per chart: the stored copy this session last wrote or read. An edit
@@ -189,9 +270,68 @@ export const createHandlers = (api: Api) => {
 		}
 	}
 
+	/** The blocks after a summary: the picture (and, when it shows only part
+	 *  of the plot, a line saying how much), or a line saying there is
+	 *  none, why, and that the chart is saved; plus the picture's key. */
+	const pictureBlocks = async (id: string, editorUrl: string): Promise<{ blocks: Block[]; key?: string }> => {
+		let outcome: PictureOutcome
+		try {
+			outcome = await deps.renderer.picture(id)
+		} catch (error) {
+			outcome = { ok: false, reason: error instanceof Error ? error.message : String(error) }
+		}
+		if (!outcome.ok) {
+			const why = outcome.reason.trim().replace(/\.$/, "")
+			return {
+				blocks: [
+					textBlock(
+						outcome.tooLarge
+							? `The picture was too large to send. The chart is saved; open it in the editor: ${editorUrl}`
+							: `No picture this time${why ? ` (${why})` : ""}. The chart is saved; the editor link opens it: ${editorUrl}`
+					),
+				],
+			}
+		}
+		const { picture } = outcome
+		const blocks: Block[] = [{ type: "image", data: picture.data, mimeType: picture.mimeType }]
+		if (typeof picture.shownShare === "number" && picture.shownShare < 1)
+			blocks.push(
+				textBlock(
+					`The picture shows ${Math.max(1, Math.round(picture.shownShare * 100))}% of the plot; the editor shows all of it: ${editorUrl}`
+				)
+			)
+		return { blocks, key: pictures.put(picture) }
+	}
+
+	/** `result` with the chart's picture after it, its key in
+	 *  structuredContent, and sized to reach a card: past RESULT_LIMIT, a
+	 *  client that shows cards gets no image block (the card loads it by
+	 *  key) and a line saying so. A client without cards keeps the image. */
+	const withPicture = async (result: CallToolResult, id: string, editorUrl: string): Promise<CallToolResult> => {
+		const { blocks, key } = await pictureBlocks(id, editorUrl)
+		const content: Block[] = result.content.concat(blocks)
+		const full: CallToolResult = {
+			...result,
+			content,
+			...(key ? { structuredContent: { ...(result.structuredContent ?? {}), pictureKey: key } } : {}),
+		}
+		if (!showsCards() || serializedLength(full) <= RESULT_LIMIT) return full
+		const lean: Block[] = content.filter((b) => b.type !== "image")
+		if (lean.length === content.length) return full
+		lean.push(textBlock(CARD_ONLY))
+		return { ...full, content: lean }
+	}
+
+	/** A refusal about a chart that exists, naming it and its editor link,
+	 *  so the card can still open it. (In the text: a client checks any
+	 *  structuredContent against the tool's output schema, even on an error.) */
+	const refusedAbout = async (visual: Visual, message: string, problems?: SpecProblem[]): Promise<CallToolResult> =>
+		refused(message, problems, { name: visual.name, editorUrl: (await links(visual.id)).editorUrl })
+
 	const chartWrite = async (visual: Visual, warnings: string[], wrote: Written) => {
 		seen.set(visual.id, wrote)
-		return written({ id: visual.id, name: visual.name, ...(await links(visual.id)), warnings, revision: wrote.tag })
+		const summary: ChartWrite = { id: visual.id, name: visual.name, ...(await links(visual.id)), warnings, revision: wrote.tag }
+		return withPicture(written(summary), visual.id, summary.editorUrl)
 	}
 
 	const defaultTheme = async (themes?: SavedTheme[]): Promise<SavedTheme> => {
@@ -263,7 +403,7 @@ export const createHandlers = (api: Api) => {
 
 		create_chart: guarded(async (args: CreateChartArgs) => {
 			await api.assertCurrent(CHART_COLLECTIONS)
-			const { dataset: datasetName, datasetId, folder, folderId, ...spec } = args
+			const { dataset: datasetName, datasetId, folder, folderId, picture: _picture, ...spec } = args
 			const [index, themes, folders] = await Promise.all([api.datasetIndex(), api.themes(), api.folders()])
 			const pre: SpecProblem[] = []
 			const meta = resolveDataset(datasetName ?? datasetId, index)
@@ -301,29 +441,46 @@ export const createHandlers = (api: Api) => {
 			return chartWrite(visual, warnings, { tag, updatedAt: visual.updatedAt })
 		}),
 
-		get_chart: guarded(async ({ id }: { id: string }) => {
+		get_chart: guarded(async ({ id, picture, slice }: GetChartArgs) => {
 			const read = await api.taggedVisual(id)
 			if (!read) return noChart(id)
 			const { visual } = read
+			if (slice !== undefined && !SETTING_CATALOG.slices.includes(slice))
+				return refusedAbout(visual, `"${slice}" is not a settings slice. Give one of: ${SETTING_CATALOG.slices.join(", ")}.`)
 			seen.set(id, { tag: read.tag, updatedAt: visual.updatedAt })
-			const encodings = Object.fromEntries(
-				Object.entries(visual.encodings ?? {}).flatMap(([ch, enc]) => (enc?.field ? [[ch, enc.field]] : []))
-			)
-			return ok({
-				id: visual.id,
-				name: visual.name,
-				folderId: visual.folderId,
-				datasetId: visual.datasetId,
-				themeId: visual.themeId ?? null,
-				encodings,
-				fieldTypes: visual.fieldTypeOverrides ?? {},
-				title: visual.labelsConfig?.title ?? "",
-				subtitle: visual.labelsConfig?.subtitle ?? "",
-				...(typeof visual.deletedAt === "number" ? { trashed: true } : {}),
-				...(await links(visual.id)),
-				revision: read.tag,
-				settings: settingsOf(visual),
-			})
+			const chartLinks = await links(visual.id)
+			const settings = settingsOf(visual)
+			let summary: Record<string, unknown>
+			if (slice !== undefined) {
+				summary = {
+					id: visual.id,
+					name: visual.name,
+					...chartLinks,
+					revision: read.tag,
+					settings: { [slice]: settings[slice] ?? null },
+				}
+			} else {
+				const encodings = Object.fromEntries(
+					Object.entries(visual.encodings ?? {}).flatMap(([ch, enc]) => (enc?.field ? [[ch, enc.field]] : []))
+				)
+				summary = fitSettings({
+					id: visual.id,
+					name: visual.name,
+					folderId: visual.folderId,
+					datasetId: visual.datasetId,
+					themeId: visual.themeId ?? null,
+					encodings,
+					fieldTypes: visual.fieldTypeOverrides ?? {},
+					title: visual.labelsConfig?.title ?? "",
+					subtitle: visual.labelsConfig?.subtitle ?? "",
+					...(typeof visual.deletedAt === "number" ? { trashed: true } : {}),
+					...chartLinks,
+					revision: read.tag,
+					settings,
+				})
+			}
+			const result = ok(summary)
+			return picture === false ? result : withPicture(result, visual.id, chartLinks.editorUrl)
 		}),
 
 		list_charts: guarded(async (args: { folder?: string | null; dataset?: string; query?: string }) => {
@@ -398,9 +555,9 @@ export const createHandlers = (api: Api) => {
 			// The copy this edit builds on: the revision sent, else the one this
 			// session last saw. A server with no tags can't be held to one.
 			const expected = revision ?? seen.get(id)?.tag ?? undefined
-			if (read.tag !== null && expected !== undefined && expected !== read.tag) return refused(STALE)
+			if (read.tag !== null && expected !== undefined && expected !== read.tag) return refusedAbout(base, STALE)
 			if (PUBLIC_SEED_FOLDER_IDS.includes(base.folderId ?? ""))
-				return refused("The chart wasn't changed.", [{ path: "", message: STOCK_FOLDER }])
+				return refusedAbout(base, "The chart wasn't changed.", [{ path: "", message: STOCK_FOLDER }])
 			const meta = await datasetMeta(base.datasetId)
 			// A new theme must exist; a visual whose stored theme is gone
 			// renders under the default, so edit against that too. The
@@ -408,7 +565,8 @@ export const createHandlers = (api: Api) => {
 			// settings the user moved off it stay (as in the Theme panel).
 			const themes = await api.themes()
 			const wanted = typeof patch?.themeId === "string" ? resolveThemeName(patch.themeId, themes) : null
-			if (wanted && !wanted.ok) return refused("The chart wasn't changed.", [{ path: "themeId", message: wanted.message }])
+			if (wanted && !wanted.ok)
+				return refusedAbout(base, "The chart wasn't changed.", [{ path: "themeId", message: wanted.message }])
 			const current = await storedTheme(base.themeId)
 			const theme = wanted?.ok && wanted.value ? wanted.value : current
 			const edit = wanted?.ok && wanted.value ? { ...patch, themeId: theme.id } : (patch ?? {})
@@ -420,12 +578,13 @@ export const createHandlers = (api: Api) => {
 				rows: await rowsFor(meta, edit, base),
 			})
 			if (problems.length > 0)
-				return refused(
+				return refusedAbout(
+					base,
 					"The chart wasn't changed; fix what each problem names and send the edit again.",
 					withNearestSettings(problems)
 				)
 			const wrote = await saveIfUnchanged(visual, { tag: read.tag, updatedAt: base.updatedAt })
-			if (!wrote) return refused(STALE)
+			if (!wrote) return refusedAbout(base, STALE)
 			const stack = undo.get(id) ?? []
 			stack.push({ previous: base, wrote })
 			if (stack.length > UNDO_DEPTH) stack.shift()
@@ -451,7 +610,7 @@ export const createHandlers = (api: Api) => {
 			}
 			if (!wrote) {
 				stack.push(entry)
-				return refused(STALE)
+				return refusedAbout(entry.previous, STALE)
 			}
 			// The next entry's edit wrote the chart this undo just put back, so
 			// it is now checked against this write.
@@ -459,6 +618,53 @@ export const createHandlers = (api: Api) => {
 			if (below) below.wrote = wrote
 			return chartWrite(restored, [], wrote)
 		}),
+
+		export_chart: guarded(async (args: ExportChartArgs) => {
+			const visual = await api.visual(args.id)
+			if (!visual) return noChart(args.id)
+			// The name is checked before the renderer runs: a refused one starts
+			// no browser and makes no folder.
+			const named = checkFileName(args.fileName ?? defaultFileName(visual.name ?? ""))
+			if (!named.ok)
+				return refused(
+					`${named.reason.replace(/\.$/, "")}. Give a plain file name with no folder, or leave fileName out for the chart's name.`
+				)
+			const out = await deps.renderer.exportChart(visual.id, {
+				format: args.format,
+				...(args.width !== undefined ? { width: args.width } : {}),
+				...(args.height !== undefined ? { height: args.height } : {}),
+				...(args.pixelRatio !== undefined ? { pixelRatio: args.pixelRatio } : {}),
+				fileName: named.name,
+			})
+			if (!out.ok) {
+				const { editorUrl } = await links(visual.id)
+				return refused(
+					`No file was written: ${out.reason.trim().replace(/\.$/, "")}. Tell the person; the editor's Export still saves it: ${editorUrl}`
+				)
+			}
+			return ok({
+				path: out.path,
+				format: out.format,
+				bytes: out.bytes,
+				width: out.width,
+				height: out.height,
+				pixelRatio: out.pixelRatio,
+			})
+		}),
+
+		/** The card's own tool: a held picture's base64, one slice at a time. */
+		chart_picture: async ({ picture_key, offset }: { picture_key: string; offset?: number }): Promise<CallToolResult> => {
+			const slice = pictures.slice(picture_key, offset ?? 0)
+			if (!slice)
+				return refused("That picture is no longer held. Show the chart again (get_chart) to see its picture.")
+			// The text names the slice without repeating its data, so the
+			// result stays one slice in size.
+			const { data, ...about } = slice
+			return {
+				content: [{ type: "text", text: JSON.stringify({ ...about, length: data.length }) }],
+				structuredContent: slice,
+			}
+		},
 	}
 }
 
@@ -467,6 +673,8 @@ export type Handlers = ReturnType<typeof createHandlers>
 const T = TOOL_TEXT
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const
+/** Draws its result in the chart card on a client with MCP Apps. */
+const CARD = { ui: { resourceUri: CARD_URI } }
 const CHART_WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const
 
 const fieldType = z.enum(["quantitative", "categorical", "temporal", "ordinal"])
@@ -512,7 +720,11 @@ const patchShape = {
 /** Register every tool on `server`. Unknown keys pass through to the lib,
  *  whose problems name them (with a did-you-mean) instead of zod dropping
  *  them silently. */
-export const registerTools = (server: McpServer, handlers: Handlers): void => {
+export const registerTools = (
+	server: McpServer,
+	handlers: Handlers,
+	{ showsCards = () => false }: { showsCards?: () => boolean } = {}
+): void => {
 	server.registerTool(
 		"create_dataset",
 		{
@@ -533,6 +745,7 @@ export const registerTools = (server: McpServer, handlers: Handlers): void => {
 			inputSchema: z.object(createShape).passthrough(),
 			outputSchema: chartWriteShape,
 			annotations: CHART_WRITE,
+			_meta: CARD,
 		},
 		(args) => handlers.create_chart(args as unknown as CreateChartArgs)
 	)
@@ -547,6 +760,7 @@ export const registerTools = (server: McpServer, handlers: Handlers): void => {
 			},
 			outputSchema: chartWriteShape,
 			annotations: CHART_WRITE,
+			_meta: CARD,
 		},
 		(args) => handlers.edit_chart(args as unknown as { id: string; revision?: string; patch: ChartSpecEdit })
 	)
@@ -557,6 +771,7 @@ export const registerTools = (server: McpServer, handlers: Handlers): void => {
 			inputSchema: { id: z.string().describe(T.undo_chart_edit.params.id) },
 			outputSchema: chartWriteShape,
 			annotations: CHART_WRITE,
+			_meta: CARD,
 		},
 		(args) => handlers.undo_chart_edit(args)
 	)
@@ -564,8 +779,13 @@ export const registerTools = (server: McpServer, handlers: Handlers): void => {
 		"get_chart",
 		{
 			description: T.get_chart.description,
-			inputSchema: { id: z.string().describe(T.get_chart.params.id) },
+			inputSchema: {
+				id: z.string().describe(T.get_chart.params.id),
+				picture: z.boolean().optional().describe(T.get_chart.params.picture),
+				slice: z.string().optional().describe(T.get_chart.params.slice),
+			},
 			annotations: READ_ONLY,
+			_meta: CARD,
 		},
 		(args) => handlers.get_chart(args)
 	)
@@ -608,4 +828,44 @@ export const registerTools = (server: McpServer, handlers: Handlers): void => {
 		},
 		(args) => handlers.list_settings(args)
 	)
+	server.registerTool(
+		"export_chart",
+		{
+			description: T.export_chart.description,
+			inputSchema: {
+				id: z.string().describe(T.export_chart.params.id),
+				format: z.enum(["png", "jpeg", "svg", "pdf"]).describe(T.export_chart.params.format),
+				width: z.number().int().positive().optional().describe(T.export_chart.params.width),
+				height: z.number().int().positive().optional().describe(T.export_chart.params.height),
+				pixelRatio: z.number().positive().optional().describe(T.export_chart.params.pixelRatio),
+				fileName: z.string().optional().describe(T.export_chart.params.fileName),
+			},
+			// It writes a local file, not a chart: no output schema.
+			annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+		},
+		(args) => handlers.export_chart(args)
+	)
+	// The card's own tool, never offered to the model, and listed (and
+	// callable) only on a connection whose client announced MCP Apps.
+	const picture = server.registerTool(
+		"chart_picture",
+		{
+			description:
+				"The chart card's own tool: a chart picture's base64 from offset, at most 100,000 characters per call.",
+			inputSchema: {
+				picture_key: z.string().describe("The pictureKey from a chart result."),
+				offset: z.number().int().min(0).optional().describe("Where this slice starts; 0 when left out."),
+			},
+			outputSchema: {
+				data: z.string(),
+				offset: z.number(),
+				total: z.number(),
+				mimeType: z.string(),
+			},
+			annotations: READ_ONLY,
+			_meta: { ui: { visibility: ["app"] } },
+		},
+		(args) => handlers.chart_picture(args)
+	)
+	Object.defineProperty(picture, "enabled", { get: showsCards, set: () => {}, configurable: true })
 }

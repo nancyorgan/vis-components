@@ -8,6 +8,7 @@ import { SYSTEM_THEMES, themeOf } from "../../src/contexts/chartBuilder/lib/syst
 import type { DatasetMeta, SavedTheme, Visual } from "../../src/contexts/chartBuilder/lib/types"
 import { createApi } from "./api"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/chartSpec"
+import { fakeRenderer } from "./testServer"
 import { createHandlers } from "./tools"
 
 type Call = { method: string; path: string; headers: Record<string, string>; body?: string }
@@ -100,7 +101,7 @@ const parsed = (result: CallToolResult) =>
 
 const setup = (stamps?: Record<string, number>, options?: { legacy?: boolean }) => {
 	const fake = fakeServer(stamps, options)
-	return { ...fake, tools: createHandlers(createApi("http://api.test/", fake.fetchImpl)) }
+	return { ...fake, tools: createHandlers(createApi("http://api.test/", fake.fetchImpl), { renderer: fakeRenderer() }) }
 }
 
 const ROWS = [
@@ -172,7 +173,7 @@ describe("create_chart", () => {
 		expect(out.embedUrl).toBe(`https://charts.example.com/embed/${out.id}`)
 		expect(out).not.toHaveProperty("pictureUrl")
 		expect(out.revision).toMatch(/^"t\d+"$/)
-		expect(result.structuredContent).toEqual(out)
+		expect(result.structuredContent).toEqual({ ...out, pictureKey: expect.any(String) })
 		expect(s.visuals.get(out.id)?.themeId).toBeDefined()
 	})
 

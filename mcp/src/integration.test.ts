@@ -9,7 +9,7 @@ import type { Dataset, Visual } from "../../src/contexts/chartBuilder/lib/types"
 import { contentVersionHeader } from "../../src/contexts/chartBuilder/lib/storage/contentVersionHeader"
 import { createApi } from "./api"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/chartSpec"
-import { startTestServer, type TestServer } from "./testServer"
+import { fakeRenderer, startTestServer, type TestServer } from "./testServer"
 import { createHandlers } from "./tools"
 
 let server: TestServer
@@ -38,7 +38,7 @@ const storedVisual = async (id: string): Promise<Visual | undefined> =>
 
 describe("MCP tools over the real HTTP API", () => {
 	it("create_dataset → create_chart → get_chart → edit_chart → undo round-trips", async () => {
-		const tools = createHandlers(createApi(base))
+		const tools = createHandlers(createApi(base), { renderer: fakeRenderer() })
 		const ds = parsed(
 			await tools.create_dataset({
 				name: "Fruit",
@@ -104,7 +104,7 @@ describe("MCP tools over the real HTTP API", () => {
 		})
 
 	it("edit, edit, undo, undo restores both earlier states", async () => {
-		const tools = createHandlers(createApi(base))
+		const tools = createHandlers(createApi(base), { renderer: fakeRenderer() })
 		const id = await barChart(tools)
 		const original = await storedVisual(id)
 		parsed(await tools.edit_chart({ id, patch: { title: "One" } }))
@@ -128,7 +128,7 @@ describe("MCP tools over the real HTTP API", () => {
 			}
 			return fetch(input, init)
 		}) as typeof fetch
-		const tools = createHandlers(createApi(base, fetchImpl))
+		const tools = createHandlers(createApi(base, fetchImpl), { renderer: fakeRenderer() })
 		const id = await barChart(tools)
 		const before = (await storedVisual(id)) as Visual
 		const editorCopy = { ...before, name: "Editor", updatedAt: before.updatedAt + 1 }
@@ -144,7 +144,7 @@ describe("MCP tools over the real HTTP API", () => {
 	})
 
 	it("a chart stored with a null themeId reads, edits and lists settings", async () => {
-		const tools = createHandlers(createApi(base))
+		const tools = createHandlers(createApi(base), { renderer: fakeRenderer() })
 		const id = await barChart(tools)
 		const stored = (await storedVisual(id)) as Visual
 		expect((await outsideSave({ ...stored, themeId: null } as unknown as Visual)).status).toBe(204)
@@ -158,7 +158,7 @@ describe("MCP tools over the real HTTP API", () => {
 	})
 
 	it("get_chart marks a chart trashed only when deletedAt is a time (null reads live)", async () => {
-		const tools = createHandlers(createApi(base))
+		const tools = createHandlers(createApi(base), { renderer: fakeRenderer() })
 		const id = await barChart(tools)
 		const stored = (await storedVisual(id)) as Visual
 		await outsideSave({ ...stored, deletedAt: null } as unknown as Visual)

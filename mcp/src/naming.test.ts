@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import type { Folder, Visual } from "../../src/contexts/chartBuilder/lib/types"
 import { createApi } from "./api"
 import { closestNames } from "./resolve"
-import { startTestServer, type TestServer } from "./testServer"
+import { fakeRenderer, startTestServer, type TestServer } from "./testServer"
 import { createHandlers, type Handlers } from "./tools"
 
 let server: TestServer
@@ -36,7 +36,7 @@ const ROWS = [
 
 beforeAll(async () => {
 	server = await startTestServer()
-	tools = createHandlers(createApi(server.base))
+	tools = createHandlers(createApi(server.base), { renderer: fakeRenderer() })
 	for (const f of [
 		{ id: "fl-mcp", name: "MCP Tests", parentId: null, createdAt: 1 },
 		{ id: "fl-research", name: "Research", parentId: null, createdAt: 1 },

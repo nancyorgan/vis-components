@@ -137,9 +137,32 @@ first). The server's instructions carry the charting rules; the long-form
 - `list_charts`: library counts and every folder by path; or one folder's charts (newest first, at most 50), narrowed by data set or name words. Trash and templates are left out, as in the library's Visuals view.
 - `list_datasets`: data sets with row counts; `fields: true` adds field types.
 - `list_settings`: search the stored settings a `settings` patch can set (`*` = a level, field or panel key; `[]` = a list entry; lists replace whole), a page at a time. With a `chartId`, each row shows the chart's current value, plus its theme's palette ids.
+- `export_chart`: write the chart as a png, jpeg, svg or pdf file through the app's own Export pipeline into the person's Export folder (never another folder, never over an existing file).
+
+Pictures: every successful `create_chart`, `edit_chart` and `undo_chart_edit`
+(and `get_chart`, unless `picture: false`) returns a picture of the stored
+chart after its text, so the model sees what it made. The MCP takes it with
+the Chrome or Edge already installed on the machine, run headless on the
+chart's `/embed` page with a fresh temporary profile, reads only (any
+non-GET request from the page is failed), one render at a time, and
+encoded as WebP under 120,000 base64 characters. No browser, or a browser
+that fails, never fails a saved write: the result says there is no picture
+and why. For hosts that support MCP Apps (Claude Desktop), the chart also
+shows in the conversation as a card (`ui://zafiro/chart.html`) with the
+chart's name, its picture, "Open in editor" and "Full screen"; the card
+loads its picture through `chart_picture`, a tool listed only to such
+hosts and never offered to the model.
+
+Optional environment variables: `VIS_EXPORT_DIR`, the folder exports go to
+(default `~/Downloads/Zafiro`; a leading `~` or `${HOME}` is the home
+folder; a blank or relative value means the default); `VIS_BROWSER_PATH`,
+the browser to use instead of the standard Chrome / Edge install paths. A
+change takes effect when the host restarts the MCP. With
+`VIS_TEST_REAL_BROWSER=1` (after `pnpm build`),
+`pnpm vitest run mcp/src/render/realBrowser` exercises the real browser.
 
 The three chart writes declare an output schema and return the same JSON as
-`structuredContent`. `mcp/src/__snapshots__/surface.json` is the served
+`structuredContent` (plus the card's `pictureKey`). `mcp/src/__snapshots__/surface.json` is the served
 surface (instructions, descriptions, schemas, annotations); a test keeps the
 instructions plus every description under 8,000 characters, and the
 snapshot changes only on purpose (`pnpm vitest run mcp/src/surface.test.ts -u`).

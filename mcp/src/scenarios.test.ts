@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import type { SpecProblem } from "../../src/contexts/chartBuilder/lib/chartSpec"
 import type { Visual } from "../../src/contexts/chartBuilder/lib/types"
 import { createApi } from "./api"
-import { startTestServer, type TestServer } from "./testServer"
+import { fakeRenderer, startTestServer, type TestServer } from "./testServer"
 import { createHandlers, type Handlers } from "./tools"
 
 let server: TestServer
@@ -18,7 +18,7 @@ let tools: Handlers
 
 beforeAll(async () => {
 	server = await startTestServer()
-	tools = createHandlers(createApi(server.base))
+	tools = createHandlers(createApi(server.base), { renderer: fakeRenderer() })
 })
 afterAll(() => server.close())
 
