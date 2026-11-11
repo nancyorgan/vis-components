@@ -1504,7 +1504,10 @@ const buildAreas = ({
 		const d = `${topD} ${bottomD} Z`
 		const fillEl = (
 			<path
-				key={layerKey || "__layer__"}
+				// Its own key: the layer's line path below is keyed by the bare
+				// layer key, and the two are siblings — a shared key makes React
+				// leave stale copies of a previous render on the canvas.
+				key={`${layerKey || "__layer__"}__fill`}
 				d={d}
 				fill={mh.fill ?? fillProp}
 				fillOpacity={layerResolved.opacity * mh.opacityMul}

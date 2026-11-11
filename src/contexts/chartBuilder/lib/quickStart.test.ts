@@ -310,6 +310,25 @@ describe("assignFields", () => {
 			expect(channels.has("area")).toBe(false)
 		})
 
+		it("showcase fill never adds a color modulation to an AREA chart", () => {
+			// Reported: the Area quick start mapped Saturation to the measure,
+			// which splits every series into one layer per value — a tangle
+			// that reads as two overlaid figures. random()=0 passes every roll.
+			const areaFields = [
+				field("year", "temporal"),
+				field("category", "categorical"),
+				field("value", "quantitative"),
+			]
+			for (const variation of QUICK_START_VARIATIONS.area) {
+				const result = assignFields(variation, areaFields, {}, () => 0, "area", () => 0)
+				expect(result).not.toBeNull()
+				const channels = new Set<string>(result!.map((a) => a.channel))
+				for (const mod of ["brightness", "saturation", "opacity"]) {
+					expect(channels.has(mod), `${variation.name}: ${mod}`).toBe(false)
+				}
+			}
+		})
+
 		it("showcase fill (random→0.99) adds no optional aesthetics", () => {
 			// Every roll fails → just the required angle (no pattern, no color-mod).
 			const result = assignFields(

@@ -74,7 +74,8 @@ const AUTOGEN_FILL_WEIGHTS = {
  *   - `decorativeCat`: categorical glyph channels, each rolled by its weight.
  *   - `colorModQuant`: brightness/saturation/opacity — at most one is chosen.
  * Tile omits opacity/shape/area (glyph channels flip it to scatter); the
- * non-point families (bar/area/pie/radar) omit shape/area (no point marks). */
+ * non-point families (bar/area/pie/radar) omit shape/area (no point marks);
+ * area also omits the color modulations (they would split its layers). */
 const AESTHETIC_FILL: Record<
 	QuickStartChartType,
 	{
@@ -113,10 +114,15 @@ const AESTHETIC_FILL: Record<
 		decorativeCat: ["pattern", "shape"],
 		colorModQuant: ["brightness", "saturation", "opacity"],
 	},
+	// Area: NO color modulation. An area layer is one series across the
+	// whole category axis, and brightness / saturation / opacity are GROUP
+	// channels there — a quantitative field on one splits every series into
+	// a layer per value (each a spike at one x, zero elsewhere), which draws
+	// as a tangle of overlaid figures.
 	area: {
 		alwaysQuant: [],
 		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
+		colorModQuant: [],
 	},
 	pie: {
 		alwaysQuant: [],

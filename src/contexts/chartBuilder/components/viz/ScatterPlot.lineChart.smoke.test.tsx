@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_RADIUS,
@@ -531,6 +531,35 @@ describe("Line chart (scatter + connection) — points + line render together", 
 				strokeOpacity: "0.25",
 			}))
 		)
+	})
+
+	it("a filled area gives every drawn element a unique key (no stale copies on re-render)", () => {
+		// Reported: clicking the Area quick start a few times left a second,
+		// stale figure on the canvas. The body and its line shared a React
+		// key, so React kept old nodes around when the chart re-rendered.
+		seedAreaChartStorage({ connectionField: "region", hueField: "region" })
+		seedConnectionCfg({ ...DEFAULT_CONNECTION_CONFIG, fill: "area" })
+		const errors: string[] = []
+		const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+			errors.push(args.map(String).join(" "))
+		})
+		try {
+			render(
+				<TestProvider
+					initializeState={initAreaChartState({
+						connectionField: "region",
+						hueField: "region",
+					})}
+				>
+					<div style={{ width: 600, height: 400 }}>
+						<AreaPlot />
+					</div>
+				</TestProvider>
+			)
+		} finally {
+			spy.mockRestore()
+		}
+		expect(errors.filter((e) => e.includes("same key"))).toEqual([])
 	})
 
 	it("a filled area takes line, area-fill and point-fill patterns separately", () => {
