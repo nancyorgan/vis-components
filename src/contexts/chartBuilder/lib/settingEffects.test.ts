@@ -229,9 +229,12 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 	it("fills the label x / y from the chart's axes when a value is set without them", () => {
 		const v = ok({ dataLabelsEncodings: { value: { field: "sales" } } }, bars())
 		expect(v.dataLabelsEncodings!.x).toEqual({ field: "region" })
-		expect(v.dataLabelsEncodings!.y).toEqual({ field: null })
+		// Bars: the value axis takes the Length variable, so the labels draw.
+		expect(v.dataLabelsEncodings!.y).toEqual({ field: "sales" })
 		const own = ok({ dataLabelsEncodings: { value: { field: "sales" }, x: { field: "year" } } }, bars())
 		expect(own.dataLabelsEncodings!.x).toEqual({ field: "year" })
+		const none = ok({ dataLabelsEncodings: { value: { field: "sales" }, y: { field: null, none: true } } }, bars())
+		expect(none.dataLabelsEncodings!.y).toEqual({ field: null, none: true })
 	})
 
 	it("refuses another position field where the labels are locked to the axes", () => {

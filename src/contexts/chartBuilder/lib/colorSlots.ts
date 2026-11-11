@@ -4,6 +4,7 @@ import type {
 	ColorSlotKey,
 } from "./channelConfig"
 import type { ChartMode } from "./chartMode"
+import { CATEGORICAL_HUE_PALETTE } from "./scales"
 import type { Encodings, Theme } from "./types"
 
 /** Static description of one color-slot target: its label, which chart modes
@@ -343,6 +344,46 @@ export const legacySlotColor = (
 	}
 }
 
+const sameValue = (a: unknown, b: unknown): boolean => {
+	if (a === b) return true
+	if (Array.isArray(a) || Array.isArray(b)) {
+		if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+		return a.every((x, i) => sameValue(x, b[i]))
+	}
+	if (typeof a !== "object" || typeof b !== "object" || !a || !b) return false
+	const ka = Object.keys(a)
+	const rb = b as Record<string, unknown>
+	return (
+		ka.length === Object.keys(b).length &&
+		ka.every((k) => sameValue((a as Record<string, unknown>)[k], rb[k]))
+	)
+}
+
+/** A Line slot that says no more than "vary by the Color variable, on the
+ * Color mapping's own palette or gradient": what mapping Color on a line
+ * chart seeds (`lib/lineFollowsColor.ts`), so it reads as untouched. A
+ * per-value color, a rule, or another palette is an edit. */
+export const lineSlotFollowsHue = (
+	slot: ColorSlotConfig,
+	configs: ChannelConfigs,
+	hueField: string | null
+): boolean => {
+	if (!hueField || slot.field !== hueField) return false
+	if ((slot.colorRules?.length ?? 0) > 0) return false
+	const hue = slot.hue
+	if (hue?.kind === "quantitative")
+		return configs.hue?.kind === "quantitative" && sameValue(hue, configs.hue)
+	if (hue && Object.keys(hue.colors ?? {}).length > 0) return false
+	const palette = slot.palette
+	if (!palette) return false
+	// With no palette stored, the Color mapping draws the hue scale's
+	// built-in palette, which is what a follow-seeded line took.
+	return [
+		configs.categoricalPalette ?? CATEGORICAL_HUE_PALETTE,
+		configs.ordinalPalette,
+	].some((p) => !!p && sameValue(p, palette))
+}
+
 /** This slot deviates from its untouched state: a field mapped, a palette
  * picked, or its single color moved off the slot's default (the legacy
  * per-feature color, else the theme color). A slot OBJECT merely existing is
@@ -354,9 +395,14 @@ export const colorSlotEdited = (
 	key: ColorSlotKey,
 	slotCfg: ColorSlotConfig | undefined,
 	configs: ChannelConfigs,
-	theme: Theme
+	theme: Theme,
+	/** The Color (hue) variable, when the caller knows it: a Line slot that
+	 *  only follows it (`lineSlotFollowsHue`) is what mapping Color on a line
+	 *  chart seeds, not an edit. */
+	hueField?: string | null
 ): boolean => {
 	if (!slotCfg) return false
+	if (key === "line" && lineSlotFollowsHue(slotCfg, configs, hueField ?? null)) return false
 	// An inherit-capable slot's untouched state is "Automatic" (no stored
 	// config; renderers follow the Color mapping). There the panel stores a
 	// config only on an explicit choice — "Single color" or a field — and

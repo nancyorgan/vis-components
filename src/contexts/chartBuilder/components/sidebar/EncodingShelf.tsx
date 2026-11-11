@@ -3,6 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { channelAccepts, conflictsFor } from "../../lib/channels"
 import { effectiveType } from "../../lib/fieldType"
 import { buildQuantHueConfigFromTheme } from "../../lib/hueDefaults"
+import { withLineFollowingColor } from "../../lib/lineFollowsColor"
 import { seedHueChannel } from "../../lib/seedColorSlot"
 import {
 	HEXBIN_COUNT_LABEL,
@@ -263,6 +264,19 @@ export const EncodingShelf = ({ channel }: Props) => {
 			const t = effectiveType(dataset, newField, overrides)
 			setConfigs((prev) => seedHueChannel(prev, t, theme))
 		}
+		// Lines follow Color: mapping Color on a line chart (or Connection
+		// while Color is mapped) sets Color > Line > Vary by to the Color
+		// variable, unless a line color was already chosen; lines that still
+		// follow the previous Color variable move to the new one. The same lib
+		// call the chart spec makes (`lib/lineFollowsColor.ts`). `configs` is
+		// the render's snapshot: the Color mapping before this pick re-seeded it.
+		if ((channel === "hue" || channel === "connection") && newField && dataset) {
+			const next = { ...encodings, [channel]: { field: newField } }
+			const hueField = next.hue?.field
+			const hueType = hueField ? effectiveType(dataset, hueField, overrides) : null
+			const previous = { hueField: encodings.hue?.field ?? null, configs }
+			setConfigs((prev) => withLineFollowingColor(prev, next, hueType, theme, previous))
+		}
 	}
 
 	const confirmOverride = () => {
@@ -340,8 +354,15 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// theme baseline so we can mark the disclosure with a "changed" badge
 	// the moment the user has tuned anything inside the options panel.
 	const hasCustomization = useMemo(
-		() => channelHasCustomization(channel, configs, theme, !!value),
-		[channel, configs, theme, value]
+		() =>
+			channelHasCustomization(
+				channel,
+				configs,
+				theme,
+				!!value,
+				encodings.hue?.field ?? null
+			),
+		[channel, configs, theme, value, encodings.hue?.field]
 	)
 
 	// DEV-only diagnostic: when a "changed" dot is lit, log exactly which config
@@ -352,14 +373,20 @@ export const EncodingShelf = ({ channel }: Props) => {
 		const isDev =
 			(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true
 		if (isDev && hasCustomization) {
-			const why = explainChannelCustomization(channel, configs, theme, !!value)
+			const why = explainChannelCustomization(
+				channel,
+				configs,
+				theme,
+				!!value,
+				encodings.hue?.field ?? null
+			)
 			// eslint-disable-next-line no-console
 			console.log(
 				`[changed-dot] ${ENCODING_CHANNEL_LABELS[channel]} (${channel}):`,
 				why.length ? why : "(special-cased, see helper)"
 			)
 		}
-	}, [hasCustomization, channel, configs, theme, value])
+	}, [hasCustomization, channel, configs, theme, value, encodings.hue?.field])
 
 	// Once a field is selected, render the variable name in the section
 	// accent color (matching `AsideSection` titles) and bold so the user

@@ -1783,6 +1783,29 @@ histogram or density display to be on). Resolution is
 (e.g. `connection.strokeColor`, `histogram.rugColor`), so saved
 visuals keep their colors unchanged until the user touches the slot.
 
+**Lines follow Color** — on a line chart (X and Y mapped, a series
+variable on Connection that is neither of them, nothing on Length:
+not a dumbbell, bars, an area chart, or a "line" whose Connection is
+its X), mapping a variable on Color also sets **Line → Vary by** to that
+variable, stored exactly as the person picking it would store it, on
+Color's own palette (the categorical palette for a categorical
+variable, the ordinal ramp for an ordinal one, Color's gradient for a
+quantitative one), so each line draws in its points' color. Mapping
+Connection while Color is mapped does the same. It happens at the
+pick only (`lib/lineFollowsColor.ts`, called by the encoding shelf
+and by chart specs; a spec's result carries a note saying so): saved
+charts don't change on load, unmapping Color leaves the slot as it is,
+and it never overrides a line color someone chose: a Line slot on
+another variable, a Line single color off the theme default, or an
+older connection line color (global, per value, or a line palette).
+Moving Color from one variable to another moves lines that still
+follow the old one (varying by it with only the seeded state) to the
+new variable, re-seeded on Color's palette; a Line slot someone edited
+(another variable, a picked palette, a rule, per-value colors) stays. A
+Line slot that only follows Color this way is the untouched state, so
+it lights no "changed" dot; a per-value line color, a rule, or another
+palette does.
+
 **Color-following slots** — Violin / box fill, Violin / box outline and
 Density curve fill have no "Auto" option. Untouched, each one varies by
 the Color variable: its "Vary by" shows that variable and its Palette
@@ -3275,6 +3298,20 @@ again). The inherited value is resolved at read time
 `renderDataLabelsEncodingsAtom`) and never written into the visual.
 Labels still draw only once a **Value** is mapped, so nothing appears
 until the user picks one.
+
+On a bar chart (Length with X for vertical bars, Length with Y for
+horizontal ones; not a chart with fields on both X and Y besides
+Length, such as a combo or a vector field), the value axis has no
+chart field to inherit, so the moment labels get a Value (a Value
+pick, a first checked variable, or a settings patch setting one) the
+unset value-axis row (Y on vertical bars, X on horizontal) is set to
+the Length variable and stored, and the labels draw on their bars at
+once, stacked or grouped bars included
+(`withBarLabelPosition`, `lib/dataLabelsPosition.ts`). A row already
+set, to another field or to **— none —**, stays. A chart spec that
+turns labels on this way gets a note naming the position and
+`dataLabelsConfig.barLabelPosition`, the setting that moves them along
+the bar.
 
 The layer also has these controls:
 

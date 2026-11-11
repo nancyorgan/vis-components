@@ -44,7 +44,8 @@ import {
 	resolveGradientToConfig,
 } from "../../../lib/hueDefaults"
 import { pickHuePalette } from "../../../lib/paletteEdits"
-import { seedQuantHue } from "../../../lib/seedColorSlot"
+import { keepLineFollowingColor, withLineFollowingColor } from "../../../lib/lineFollowsColor"
+import { seedHueChannel, seedQuantHue } from "../../../lib/seedColorSlot"
 import { resolveCategoricalPalette } from "../../../lib/themeConfig"
 import { rgb as d3Rgb } from "d3-color"
 import { StackModeRow } from "./StackModeRow"
@@ -205,7 +206,7 @@ export const ColorOptionsPanel = ({
 } = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
-	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
+	const [configs, setRawConfigs] = useAtom(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
 
 	const dataset = useCurrentDatasetView()
@@ -263,6 +264,21 @@ export const ColorOptionsPanel = ({
 	const type = hueFieldName
 		? effectiveFieldType(field?.inferredType, overrides[hueFieldName])
 		: "categorical"
+	// Lines follow Color: a change made here to Color's own palette or
+	// gradient carries a Line slot that was following Color along with it
+	// (`lib/lineFollowsColor.ts`), so the lines keep their points' colors.
+	const setConfigs: SetterOrUpdater<AtomValueType<typeof currentChannelConfigsAtom>> = (
+		action
+	) =>
+		setRawConfigs((prev) =>
+			keepLineFollowingColor(
+				prev,
+				typeof action === "function" ? action(prev) : action,
+				hueFieldName,
+				type,
+				theme
+			)
+		)
 	// Count / Density are quantitative scales; both packed derived sources
 	// color through the palette machinery (Top-level group = categorical,
 	// Nesting depth = ORDINAL — discrete levels, not a gradient).
@@ -369,6 +385,16 @@ export const ColorOptionsPanel = ({
 				measureSource: undefined,
 			},
 		}))
+		// As the Color shelf pick does: seed the Color scale for the field's
+		// kind, and on a line chart the lines follow the new Color variable.
+		if (value !== "" && dataset) {
+			const t = effectiveType(dataset, value, overrides)
+			const next = { ...encodings, hue: { field: value } }
+			const previous = { hueField: hueFieldName, configs }
+			setRawConfigs((prev) =>
+				withLineFollowingColor(seedHueChannel(prev, t, theme), next, t, theme, previous)
+			)
+		}
 	}
 
 	const varyByValue = histSource

@@ -103,6 +103,7 @@ import { DataLabelChannelRow } from "./dataLabels/DataLabelChannelRow"
 import {
 	DATA_LABEL_POSITION_CHANNELS,
 	resolveDataLabelPositions,
+	withBarLabelPosition,
 } from "../../lib/dataLabelsPosition"
 import { LabelColorPanel } from "./dataLabels/LabelColorPanel"
 import { PositionRulesEditor } from "./dataLabels/PositionRulesEditor"
@@ -898,17 +899,24 @@ export const DataLabelsPanel = () => {
 			}))
 			return
 		}
-		setEncodings((prev) => ({
-			...prev,
-			value: {
-				field: v === "" ? null : v,
-				multiField: false,
-				fields: prev.value?.fields ?? [],
-				// Flows and trees: "— none —" is a deliberate "no labels",
-				// distinct from the unset default (the node names).
-				...(defaultValueField && v === "" ? { none: true } : {}),
-			},
-		}))
+		// On bars, a Value with no value-axis position sits each label on
+		// its bar: the position takes the Length variable (lib).
+		setEncodings((prev) =>
+			withBarLabelPosition(
+				{
+					...prev,
+					value: {
+						field: v === "" ? null : v,
+						multiField: false,
+						fields: prev.value?.fields ?? [],
+						// Flows and trees: "— none —" is a deliberate "no labels",
+						// distinct from the unset default (the node names).
+						...(defaultValueField && v === "" ? { none: true } : {}),
+					},
+				},
+				chartEncodings
+			)
+		)
 		// A total reads as the bar's once per bar, past its end: a fresh Bar
 		// total starts on the last layer of each stack, outside its end —
 		// movable like any label.
@@ -916,10 +924,12 @@ export const DataLabelsPanel = () => {
 	}
 	const setValueFields = (fields: string[]) => {
 		const prev = encodings.value.fields ?? []
-		setEncodings((p) => ({
-			...p,
-			value: { field: null, multiField: true, fields },
-		}))
+		setEncodings((p) =>
+			withBarLabelPosition(
+				{ ...p, value: { field: null, multiField: true, fields } },
+				chartEncodings
+			)
+		)
 		// The labels follow the checklist (and a newly checked Bar total seeds
 		// its placement): see `valueFieldsPatch`. This persists the list on
 		// the first change, legacy-derived or not.

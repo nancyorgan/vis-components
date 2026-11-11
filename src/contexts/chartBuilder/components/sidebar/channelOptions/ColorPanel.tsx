@@ -525,7 +525,7 @@ const ColorSlotSubsection = ({
 	// This slot deviates when it has a field mapped, a picked palette, or a
 	// single color moved off the slot's default — shared with the top-level
 	// Color dot so they can't drift.
-	const slotChanged = colorSlotEdited(def.key, storedCfg, configs, theme)
+	const slotChanged = colorSlotEdited(def.key, storedCfg, configs, theme, hueField)
 
 	return (
 		<CollapsibleSubsection

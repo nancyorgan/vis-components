@@ -25,7 +25,12 @@ import { COLOR_SLOT_DEFS } from "./colorSlots"
 import { axisStemPatch, switchConnectionFill, withConnectionConfig } from "./connectionEdits"
 import { resolveDashGapFill } from "./dashGapFill"
 import { seedLabelTextPalette } from "./dataLabelsHue"
-import { DATA_LABEL_POSITION_CHANNELS, resolveDataLabelPositions } from "./dataLabelsPosition"
+import {
+	barValueAxis,
+	DATA_LABEL_POSITION_CHANNELS,
+	resolveDataLabelPositions,
+	withBarLabelPosition,
+} from "./dataLabelsPosition"
 import { BAR_TOTAL_SEED, valueFieldsPatch } from "./dataLabelsValueFields"
 import { columnAlignPatch, resolveDataTableStyle } from "./dataTableConfig"
 import { distributionTypeOf, distributionTypePatch, type DistributionType } from "./distributionType"
@@ -261,6 +266,11 @@ export const applySettingEffects = (
 			let next = labels
 			for (const ch of DATA_LABEL_POSITION_CHANNELS)
 				if (filled[ch] !== labels[ch] && !has(patch, "dataLabelsEncodings", ch)) next = { ...next, [ch]: filled[ch] }
+			// On bars, the value axis takes the Length variable, as the
+			// panel's Value pick sets it, unless the patch sends that slot.
+			const barAxis = barValueAxis(v.encodings)
+			if (barAxis && !has(patch, "dataLabelsEncodings", barAxis))
+				next = withBarLabelPosition(next, v.encodings)
 			v.dataLabelsEncodings = next
 		}
 		if (labels && mode.labels.positionLockedToAxes)

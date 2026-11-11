@@ -742,6 +742,9 @@ type DotCtx = {
 	 *  as a deviation when the encoding is active — e.g. a palette colors nothing
 	 *  without a hue field). */
 	fieldMapped: boolean
+	/** The Color (hue) variable: a Line slot that only follows it is the
+	 *  seeded state of a line chart, not an edit (`lineSlotFollowsHue`). */
+	hueField?: string | null
 }
 
 /** A live value differs from its default. An absent/empty live value falls back
@@ -847,14 +850,14 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 			changed: differs(configs.angle?.spine, angleConfigFromTheme(theme).spine),
 		},
 	],
-	hue: ({ configs, theme, fieldMapped }) => [
+	hue: ({ configs, theme, fieldMapped, hueField }) => [
 		{ label: "default fill", changed: differs(configs.defaultFill, theme.defaultFill) },
 		// Per-slot deviation, NOT mere presence: the panel writes a well-formed
 		// default slot object on any touch (a reset included), which must not dot.
 		{
 			label: "color slots",
 			changed: Object.entries(configs.colorSlots ?? {}).some(([key, slot]) =>
-				colorSlotEdited(key as ColorSlotKey, slot, configs, theme)
+				colorSlotEdited(key as ColorSlotKey, slot, configs, theme, hueField)
 			),
 		},
 		{ label: "fill scale edits", changed: hueScaleEdited(configs.hue) },
@@ -1195,10 +1198,11 @@ export const channelHasCustomization = (
 	channel: string,
 	configs: ChannelConfigs,
 	theme: Theme,
-	fieldMapped = false
+	fieldMapped = false,
+	hueField: string | null = null
 ): boolean => {
 	const spec = CHANNEL_DOT_CONTROLS[channel]
-	return spec ? spec({ configs, theme, fieldMapped }).some((c) => c.changed) : false
+	return spec ? spec({ configs, theme, fieldMapped, hueField }).some((c) => c.changed) : false
 }
 
 /** DEV diagnostic: the labels of the controls that are non-default for this
@@ -1207,11 +1211,12 @@ export const explainChannelCustomization = (
 	channel: string,
 	configs: ChannelConfigs,
 	theme: Theme,
-	fieldMapped = false
+	fieldMapped = false,
+	hueField: string | null = null
 ): string[] => {
 	const spec = CHANNEL_DOT_CONTROLS[channel]
 	if (!spec) return []
-	return spec({ configs, theme, fieldMapped })
+	return spec({ configs, theme, fieldMapped, hueField })
 		.filter((c) => c.changed)
 		.map((c) => c.label)
 }
