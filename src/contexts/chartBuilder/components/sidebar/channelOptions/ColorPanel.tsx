@@ -82,14 +82,20 @@ export const ColorPanel = () => {
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const modeDef = useChartModeDef()
 	const mode = modeDef.id as ChartMode
-	const slots = applicableColorSlots(mode, encodings, configs)
+	const allSlots = applicableColorSlots(mode, encodings, configs)
+	// Area charts read Line, Area fill, Point fill, Point outline: the Point
+	// fill slot renders right after the Fill, ahead of the Point outline and
+	// the rest of the slot list.
+	const pointFillSlot = allSlots.find((d) => d.key === "areaPointFill")
+	const slots = allSlots.filter((d) => d !== pointFillSlot)
 	// PURE density curve (standalone "Density" display, marks suppressed) → the
 	// mark Fill / Outline groups have nothing to style and are hidden; the
 	// Density Curve slots take over. Histogram + curve keeps them (bars render).
 	const pureDensityCurve = usePureDensityCurve()
 	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
-	// where a second body sits beside the marks (radar polygon, violin / box).
-	const titles = markPartTitles(modeDef, configs)
+	// where the marks are points beside another part (radar polygon, violin /
+	// box, a line chart's line).
+	const titles = markPartTitles(modeDef, configs, encodings)
 	// The area modes color the layer OUTLINE per layer by the same hue field
 	// as the fill (linked), via `connection`-based palettes — the dedicated
 	// `AreaRadarOutlinePanel`, in place of the independent-field
@@ -127,8 +133,17 @@ export const ColorPanel = () => {
 			!!encodings.outlineHue?.field
 		).length > 0
 
+	// Area charts lead with the Line (the linked outline editor), then the
+	// Area fill, Point fill and Point outline.
+	const areaLineSection = useLinkedOutline && (
+		<CollapsibleSubsection title={titles.outline} changed={outlineAreaChanged}>
+			<AreaRadarOutlinePanel />
+		</CollapsibleSubsection>
+	)
+
 	return (
 		<div className="vc-option-panel">
+			{areaLineSection}
 			{!pureDensityCurve && (
 				<CollapsibleSubsection
 					title={titles.fill}
@@ -149,9 +164,12 @@ export const ColorPanel = () => {
 					<OutlineColorRow />
 				</CollapsibleSubsection>
 			)}
-			{useLinkedOutline && (
-				<CollapsibleSubsection title="Outline" changed={outlineAreaChanged}>
-					<AreaRadarOutlinePanel />
+			{pointFillSlot && <ColorSlotSubsection def={pointFillSlot} />}
+			{/* Area-chart points carry the marks' own outline, the same
+			 *  control (and theme defaults) as a scatter / line chart's. */}
+			{pointFillSlot && !pureDensityCurve && (
+				<CollapsibleSubsection title="Point outline" changed={outlineScatterChanged}>
+					<OutlineColorRow />
 				</CollapsibleSubsection>
 			)}
 			{slots.map((def) => (

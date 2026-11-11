@@ -38,6 +38,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import type { ModulationSlotConfig } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
+import { isAreaModeId } from "../../../lib/chartModes/families"
 import { markPartTitles } from "../../../lib/markPartTitles"
 import type { ChartMode } from "../../../lib/chartMode"
 import {
@@ -329,8 +330,9 @@ const ModulationPartsPanel = ({
 		(d) => !(pureDensityCurve && d.key === "outline")
 	)
 	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
-	// where a second body sits beside the marks (radar polygon, violin / box).
-	const titles = markPartTitles(modeDef, configs)
+	// where the marks are points beside another part (radar polygon, violin /
+	// box, a line chart's line).
+	const titles = markPartTitles(modeDef, configs, encodings)
 
 	// Fill dot — the SAME change data the encoding-row dot uses (so the two
 	// can't disagree), minus the part slots, which dot their own subsections.
@@ -341,8 +343,29 @@ const ModulationPartsPanel = ({
 		!!encodings[channel]?.field
 	).some((label) => label !== `${channel} slots`)
 
+	const slotSection = (def: (typeof slots)[number]) => (
+		<ModulationSlotSubsection
+			key={def.key}
+			channel={channel}
+			// The Outline slot is the marks' outline and the Line slot the
+			// connection line — titled per mode, like the Fill.
+			def={
+				def.key === "outline"
+					? { ...def, label: titles.outline }
+					: def.key === "line"
+						? { ...def, label: titles.line }
+						: def
+			}
+		/>
+	)
+	// Area charts lead with the Line, then the Area fill, Point fill and
+	// Point outline.
+	const leadSlots = isAreaModeId(mode) ? slots.filter((d) => d.key === "line") : []
+	const restSlots = slots.filter((d) => !leadSlots.includes(d))
+
 	return (
 		<div className="vc-option-panel">
+			{leadSlots.map(slotSection)}
 			<CollapsibleSubsection
 				title={titles.fill}
 				defaultOpen
@@ -351,21 +374,7 @@ const ModulationPartsPanel = ({
 				<FillVaryBy channel={channel} />
 				{fill}
 			</CollapsibleSubsection>
-			{slots.map((def) => (
-				<ModulationSlotSubsection
-					key={def.key}
-					channel={channel}
-					// The Outline slot is the marks' outline and the Line slot the
-					// connection line — titled per mode, like the Fill above.
-					def={
-						def.key === "outline"
-							? { ...def, label: titles.outline }
-							: def.key === "line"
-								? { ...def, label: titles.line }
-								: def
-					}
-				/>
-			))}
+			{restSlots.map(slotSection)}
 		</div>
 	)
 }

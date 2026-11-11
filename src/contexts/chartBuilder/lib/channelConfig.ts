@@ -823,6 +823,7 @@ export type ColorSlotKey =
 	| "regressionCiFill" // scatter regression confidence band
 	| "comboPointFill" // bar + marks combo: the marks-layer point FILL (unconfigured = the line color)
 	| "polygonFill" // filled radar: the series polygon BODY (unconfigured = the series' point color)
+	| "areaPointFill" // area / line-mode area charts: the point markers' FILL (unconfigured = the line color)
 
 /** One color target's full state. Mirrors how `hue`/`outlineHue` work: an
  * optional field mapping with a palette + per-level overrides, or — when
@@ -863,6 +864,8 @@ export type OpacitySlotKey =
 	| "densityCurveStroke"
 	| "stem"
 	| "polygonFill"
+	| "areaPointFill"
+	| "areaPointOutline"
 	| "node"
 	| "ribbon"
 	| "regressionStroke"
@@ -890,6 +893,8 @@ export type ModulationSlotKey =
 	| "violinFill"
 	| "violinStroke"
 	| "polygonFill" // filled radar: the series polygon body
+	| "areaPointFill" // area charts: the point markers' fill
+	| "areaPointOutline" // area charts: the point markers' outline ring
 
 /** One saturation / brightness target's state. Levels are anchored like
  * `SaturationConfig` (0.5 = the part's color untouched). `level: null` = off
@@ -1086,6 +1091,20 @@ export type PatternConfig = {
 	/** The violin / box-fill twins of `rotations` / `defaultRotation`. */
 	violinRotations?: Record<string, number>
 	defaultViolinRotation?: number | null
+	/** AREA-CHART POINT FILL — the point markers on an area chart's layer
+	 * lines take their own pattern pick, separate from the area body (which
+	 * reads the base `overrides` / `inkColors` / `defaultPattern`, as the
+	 * marks' fill always has). The Pattern menu's "Point fill" subsection
+	 * on area charts writes these eight; all sparse: absent = plain points.
+	 * Same semantics as the polygon / violin fields above. */
+	areaPointOverrides?: Record<string, PatternOverride>
+	areaPointInkColors?: Record<string, string>
+	areaPointScales?: Record<string, number>
+	areaPointRotations?: Record<string, number>
+	defaultAreaPointPattern?: number | null
+	defaultAreaPointPatternInk?: string | null
+	defaultAreaPointScale?: number | null
+	defaultAreaPointRotation?: number | null
 	/** What the violin / box body's pattern VARIES BY — the subsection's
 	 * "Vary by", the analogue of a color slot's field. Absent = Auto: the
 	 * Pattern variable, as for the points (per-level picks in

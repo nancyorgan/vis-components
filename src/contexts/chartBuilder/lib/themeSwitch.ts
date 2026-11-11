@@ -14,6 +14,7 @@
  * a spec matches one re-themed by hand. Pure. */
 
 import type { CaptionConfig } from "./captionConfig"
+import { followAreaPaletteDefaults } from "./connectionEdits"
 import type { ChannelConfigs, DataLabelsConfig } from "./channelConfig"
 import type { DataTableConfig } from "./dataTableConfig"
 import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
@@ -90,7 +91,7 @@ export const rethemeChannelConfigs = (
 	const incoming = configsFromTheme(theme)
 	const outgoing = from && configsFromTheme(from)
 	const diffable = outgoing !== null
-	return {
+	const rethemed: ChannelConfigs = {
 		...followKeys(prev, outgoing, incoming, CHANNEL_THEME_KEYS),
 		// Nested configs merge so the user's other fields survive; inside
 		// them only the theme-driven knobs follow.
@@ -142,6 +143,9 @@ export const rethemeChannelConfigs = (
 				}
 			: incoming.text,
 	}
+	// A filled area still on the outgoing theme's area palettes (fill
+	// palette body, categorical Line) takes the incoming theme's.
+	return followAreaPaletteDefaults(prev, rethemed, theme, from)
 }
 
 /** Every base-font knob is theme-driven and follows one by one, so a

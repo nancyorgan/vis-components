@@ -21,7 +21,7 @@ import {
 
 import { OpacityOptionsPanel } from "./OpacityOptionsPanel"
 
-/** The Opacity menu for area/radar mirrors the Color menu: "Fill" and "Outline"
+/** The Opacity menu for area/radar mirrors the Color menu: the fill ("Area fill") and outline ("Line")
  *  are separate sibling subheaders, neither carrying a redundant "Vary by" —
  *  fill and outline are linked to the series. */
 
@@ -92,15 +92,26 @@ const subheaders = (c: HTMLElement): string[] =>
 	)
 
 describe("OpacityOptionsPanel — area outline organization", () => {
+	it("names the four parts of a filled area with points, in order", () => {
+		// Fill and Outline are the area's body and its layer edge; the point
+		// markers on that edge are targets of their own.
+		expect(subheaders(mount().container)).toEqual([
+			"Line",
+			"Area fill",
+			"Point fill",
+			"Point outline",
+		])
+	})
+
 	it("shows Fill and Outline as sibling subheaders", () => {
 		const { container } = mount()
 		const headers = subheaders(container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
+		expect(headers).toContain("Area fill")
+		expect(headers).toContain("Line")
 		// Outline must not be nested inside the Fill subsection.
 		const all = [...container.querySelectorAll("button[aria-expanded]")]
-		const fillBtn = all.find((b) => b.textContent?.trim() === "Fill")!
-		const outlineBtn = all.find((b) => b.textContent?.trim() === "Outline")!
+		const fillBtn = all.find((b) => b.textContent?.trim() === "Area fill")!
+		const outlineBtn = all.find((b) => b.textContent?.trim() === "Line")!
 		const fillSubsection = fillBtn.closest("div")?.parentElement
 		expect(fillSubsection?.contains(outlineBtn)).toBe(false)
 	})
@@ -110,7 +121,7 @@ describe("OpacityOptionsPanel — area outline organization", () => {
 		// Fill is open by default; expand Outline too.
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
-		].find((b) => b.textContent?.trim() === "Outline")!
+		].find((b) => b.textContent?.trim() === "Line")!
 		fireEvent.click(outlineBtn)
 		expect(queryAllByText("Vary by")).toHaveLength(0)
 	})

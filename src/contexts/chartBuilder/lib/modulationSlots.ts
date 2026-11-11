@@ -4,7 +4,7 @@ import type {
 	ModulationSlotKey,
 } from "./channelConfig"
 import type { ChartMode } from "./chartMode"
-import { filledRadarOn, overlayOn } from "./colorSlots"
+import { areaPointsOn, filledRadarOn, overlayOn } from "./colorSlots"
 import type { Encodings } from "./types"
 
 /** The two color modulations that split by mark part. */
@@ -31,13 +31,21 @@ const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
 /** Registry of every modulation slot, in display order. Fill is NOT here — it
  * reuses the overall `saturation` / `brightness` encoding. Only the scatter
  * and radar renderers (points, connection lines / polygon outlines, the
- * violin / box overlay, the polygon body) read these parts today, so the
- * gates keep the menu from offering a control that would do nothing
- * elsewhere. The violin / box pair mirrors the Color and Opacity menus' slots
+ * violin / box overlay, the polygon body) and the area renderer (the layer
+ * Line and its point markers) read these parts today, so the gates keep
+ * the menu from offering a control that would do nothing elsewhere. Area
+ * charts read Line, Area fill, Point fill, Point outline (the panel hoists
+ * the Line above the Fill there). The violin / box pair mirrors the Color and Opacity menus' slots
  * of the same names (`overlayOn` gate); the polygon body likewise
  * (`filledRadarOn`). In polygon mode the menus title Outline / Line "Point
  * outline" / "Connection line" (see `markPartTitles`). */
 export const MODULATION_SLOT_REGISTRY: readonly ModulationSlotDef[] = [
+	{
+		key: "areaPointFill",
+		label: "Point fill",
+		modes: m("areas-x", "areas-y"),
+		isApplicable: areaPointsOn,
+	},
 	{
 		key: "outline",
 		label: "Outline",
@@ -47,8 +55,14 @@ export const MODULATION_SLOT_REGISTRY: readonly ModulationSlotDef[] = [
 	{
 		key: "line",
 		label: "Line",
-		modes: m("scatter", "radar"),
+		modes: m("scatter", "radar", "areas-x", "areas-y"),
 		isApplicable: (encodings) => !!encodings.connection?.field,
+	},
+	{
+		key: "areaPointOutline",
+		label: "Point outline",
+		modes: m("areas-x", "areas-y"),
+		isApplicable: areaPointsOn,
 	},
 	{
 		key: "violinFill",

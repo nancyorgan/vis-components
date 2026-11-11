@@ -48,12 +48,12 @@ const setOutlineColorViaUI = async (
 	await page.waitForTimeout(300)
 	await page.getByRole("button", { name: /Toggle options for Color/i }).click()
 	await page.waitForTimeout(200)
-	await page.getByText("Outline", { exact: true }).click()
+	await page.getByText("Line", { exact: true }).click()
 	await page.waitForTimeout(200)
-	// Fill = 1st ColorInput, Outline = 2nd.
+	// Line (the layer outline) leads the menu = 1st ColorInput; Area fill = 2nd.
 	const hexInputs = page.locator('.vc-option-panel input[type="text"]')
-	await hexInputs.nth(1).fill(hex)
-	await hexInputs.nth(1).blur()
+	await hexInputs.nth(0).fill(hex)
+	await hexInputs.nth(0).blur()
 	await page.waitForTimeout(300)
 }
 

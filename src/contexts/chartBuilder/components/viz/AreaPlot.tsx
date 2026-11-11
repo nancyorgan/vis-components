@@ -17,6 +17,8 @@ import {
 import { buildLinePath } from "../../lib/linePath"
 import {
 	DEFAULT_CONNECTION_CONFIG,
+	DEFAULT_RADIUS,
+	DEFAULT_SHAPE_CONFIG,
 	type ChannelConfigs,
 	type LineDashPattern,
 	type StackMode,
@@ -45,14 +47,19 @@ import { sampleConnectionPointIndices } from "../../lib/dataLabelsLayout"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
-import type { PatternDefSpec } from "../../lib/patternDefs"
+import { PatternDefs, type PatternDefSpec } from "../../lib/patternDefs"
 import { inkPaletteForHue } from "../../lib/patterns"
 import {
+	resolveAreaPointPatternDef,
 	resolveLayerColor,
+	resolveSlotColor,
+	slotModulationResolver,
+	slotModulationUnitsResolver,
 	slotOpacityResolver,
 } from "../../lib/resolveLayerColor"
 import {
 	makePositionScale,
+	modulateColor,
 	parseNumericCell,
 	parseValue,
 	type PositionScale,
@@ -940,6 +947,43 @@ const buildAreas = ({
 		channelConfigs,
 		aestheticScales
 	)({})
+	// The four parts the aesthetic menus name on an area chart: the Area
+	// fill (the hue / opacity / saturation / brightness encodings), the
+	// Line (the layer edge: Outline color, Border opacity, Line saturation /
+	// brightness slots), and the point markers' own Point fill / Point
+	// outline. Untouched, a point is its line's color, ringed by the marks'
+	// outline exactly as a scatter / line-chart point is (`shape.outlineColor`
+	// / `outlineWidth`, the `outlineHue` mapping and the outline color rules).
+	const lineModulation = slotModulationResolver("line", channelConfigs, aestheticScales)
+	const pointFillCfg = channelConfigs.colorSlots?.areaPointFill
+	const pointFillSlot = aestheticScales.colorSlots.areaPointFill ?? null
+	const pointFillUnits = slotModulationUnitsResolver(
+		"areaPointFill",
+		channelConfigs,
+		aestheticScales
+	)
+	const pointFillOpacity = slotOpacityResolver(
+		"areaPointFill",
+		channelConfigs,
+		aestheticScales
+	)
+	// Point size: the marks' default size (Area menu → "Point size",
+	// theme-seeded), the same value a scatter / line-chart point draws at.
+	const pointRadius = channelConfigs.defaultRadius ?? DEFAULT_RADIUS
+	const pointOutlineColor =
+		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
+	const pointOutlineModulation = slotModulationResolver(
+		"areaPointOutline",
+		channelConfigs,
+		aestheticScales
+	)
+	const pointOutlineOpacity = slotOpacityResolver(
+		"areaPointOutline",
+		channelConfigs,
+		aestheticScales
+	)
+	const pointOutlineWidth =
+		channelConfigs.shape?.outlineWidth ?? DEFAULT_SHAPE_CONFIG.outlineWidth
 	// Areas have no meaningful "group" mode — degrade to overlay.
 	const effectiveStackMode: "stack" | "overlay" =
 		stackMode === "stack" ? "stack" : "overlay"
@@ -1050,6 +1094,11 @@ const buildAreas = ({
 	const fills: React.ReactNode[] = []
 	const edges: React.ReactNode[] = []
 	const interleaved: React.ReactNode[] = []
+	// Filled, stacked: the point markers, drawn above every separator.
+	const pointMarks: React.ReactNode[] = []
+	// `<pattern>` defs for the points' own fill pattern (the Pattern menu's
+	// "Point fill" on area charts), emitted beside the marks that use them.
+	const pointPatternDefs = new Map<string, PatternDefSpec>()
 
 	layerKeys.forEach((layerKey, layerIdx) => {
 		const meta = layerMeta.get(layerKey)
@@ -1137,7 +1186,32 @@ const buildAreas = ({
 		// outline (and thicken) it when outline is on, and fade non-matched
 		// layers. `effStroke` covers both the line-mode stroke and the area
 		// edge; the area fill and point markers read `mh.fill` directly.
-		const effStroke = mh.outline ?? mh.fill ?? layerStroke
+		// One layer = one series: a part's mapped variable resolves off the
+		// layer's representative row (its first row, plus the group values).
+		const repRow: Record<string, unknown> = { ...layerRows[0], ...slotRow }
+		// The Line's saturation / brightness slots shade the edge color.
+		const lineColor = lineModulation(layerStroke, repRow)
+		const effStroke = mh.outline ?? mh.fill ?? lineColor
+		// Point fill: its own color slot when set (shaded only by its own
+		// saturation / brightness), else the line's color — as drawn, unless
+		// the points carry their own shading, which then replaces the line's.
+		const pointBase = pointFillCfg
+			? resolveSlotColor(pointFillSlot, pointFillCfg, repRow, layerStroke, layerRows)
+			: layerStroke
+		const pointUnits = pointFillUnits ? pointFillUnits(repRow) : null
+		const pointFill = pointUnits
+			? pointUnits.sat === null && pointUnits.bri === null
+				? pointBase
+				: modulateColor(pointBase, pointUnits.sat, pointUnits.bri)
+			: pointFillCfg
+				? pointBase
+				: lineColor
+		// Point outline: the marks' outline (mapped / rule color, else the
+		// single outline color), shaded by its own saturation / brightness.
+		const pointOutline =
+			pointOutlineWidth > 0
+				? pointOutlineModulation(layerResolved.outline ?? pointOutlineColor, repRow)
+				: null
 		// Per-layer thickness: a per-value override (keyed by the Vary-by
 		// field's value off the layer's group row, else by the hue value,
 		// matching the stroke/dash per-value maps) when set, else the single
@@ -1170,170 +1244,223 @@ const buildAreas = ({
 			? (e: React.MouseEvent) => onLayerHover(groupValues, e)
 			: undefined
 
-		if (fillMode === "line") {
-			// Per-layer dash: the pattern channel's per-category resolution
-			// when a pattern field is mapped (its group value is constant per
-			// layer), behind the legacy per-line override; falls back to the
-			// global default (also defaults to "solid"). Mirrors ScatterPlot's
-			// renderConnectionLines so the same UI controls drive both
-			// renderers.
-			const layerDashKey = hueValue ?? layerKey
-			const patternValue =
-				patternField && groupValues.pattern !== undefined
-					? String(groupValues.pattern)
-					: null
-			const patternSpec =
-				patternValue !== null
-					? dashSpecForPatternValue(
-							patternValue,
-							patternDashOverrides,
-							patternCustomDashOverrides,
-							patternDomain
-						)
-					: null
-			const layerDash = dashPatterns[layerDashKey ?? ""]
-			const dashArray =
-				patternSpec?.kind === "custom"
-					? patternSpec.dasharray
-					: layerDash !== undefined
-						? dashArrayFor(layerDash ?? "solid")
-						: patternSpec?.kind === "pattern"
-							? dashArrayFor(patternSpec.pattern)
-							: defaultDashArray
-			// "Blank" only means anything while the range gates the dash — a
-			// mapped pattern field ignores the range (and never offers blank).
-			const layerBlank =
-				!patternField &&
-				(layerDash !== undefined ? layerDash === "blank" : defaultBlank)
-			// Solid → one path. Dashed → underlay (alternate color) +
-			// dashed top, so the gaps render as the alternate color
-			// instead of transparent. Blank-in-range → the range branch
-			// below draws no top line inside the window.
-			const lineEls: React.ReactNode[] = []
-			if (dashArray === null && !(layerBlank && rangeActive)) {
-				lineEls.push(
-					<path
-						key={layerKey || "__layer__"}
-						d={topD}
-						fill="none"
-						stroke={effStroke}
-						strokeWidth={effThickness}
-						strokeLinejoin="round"
-						strokeLinecap={strokeCap}
-						opacity={borderOpacity * mh.opacityMul}
-						onMouseEnter={onMouseEnter}
-					/>
+		// Point markers on the layer's top edge — filtered by the user's
+		// `pointSampling` preference (mirrors ScatterPlot's behavior), in
+		// line mode and on filled areas alike. The edge itself always
+		// passes through every point regardless of sampling.
+		// The points' own pattern tiles over the point fill.
+		const pointPatternDef = resolveAreaPointPatternDef(
+			{
+				patternValue: groupValues.pattern,
+				fill: pointFill,
+				preModulationHue: pointBase,
+			},
+			aestheticScales,
+			channelConfigs,
+			patternBgOverride
+		)
+		const pointFillProp = pointPatternDef ? `url(#${pointPatternDef.svgId})` : pointFill
+		const buildPointEls = (): React.ReactNode[] => {
+			if (pointPatternDef && pointSampling !== "none")
+				pointPatternDefs.set(pointPatternDef.svgId, pointPatternDef)
+			const sampledIndices = new Set(
+				sampleConnectionPointIndices(
+					top.length,
+					pointSampling,
+					pointEveryN,
+					pointIndices
 				)
-			} else {
-				const altColor = resolveDashGapColor({
-					// The hue value IS the panel's gap-swatch key; the layer key
-					// covers hue-less layers and legacy saved visuals.
-					overrideKeys: [hueValue, layerDashKey],
-					patternValue,
-					// Pair on the color encoding's pre-modulation color first
-					// (what bar/area pattern inks key on), then the layer's
-					// pre-highlight stroke for hue-less layers.
-					hueColor: hueValue != null ? layerResolved.preModulationHue : null,
-					lineColor: layerStroke,
-					overrides: dashAlternateColors,
-					singleOverride: channelConfigs.connection?.dashGapColor ?? null,
-					inkColors: patternInkColors,
-					palette: inkPalette,
-					patternInks: palettePatternInks,
-					themeInkFallback: aestheticScales.themeInkFallback,
-					defaultInk: defaultPatternInk,
-				})
-				const lineProps = {
-					fill: "none",
-					strokeWidth: effThickness,
-					strokeLinejoin: "round",
-					strokeLinecap: strokeCap,
-					opacity: borderOpacity * mh.opacityMul,
-				} as const
-				// "Apply pattern to range": dash only within [From, To] along
-				// the category axis, solid outside (known vs forecast). The
-				// alternate-color underlay only backs the dashed segment.
-				// IGNORED when a pattern field is mapped — the pattern variable
-				// already says where each dash applies, and the two windows
-				// would conflict (the panel hides the range rows there too).
-				if (rangeActive && !patternField) {
-					const segs = splitPolylineAtRange(
-						top.map(([x, y]) => ({ x: x ?? 0, y: y ?? 0 })),
-						rangeMinPx,
-						rangeMaxPx,
-						rangeAxis
+			)
+			return top.flatMap(([x, y], i) => {
+				if (!sampledIndices.has(i)) return []
+				return [
+					<circle
+						// eslint-disable-next-line react/no-array-index-key -- one circle per point in this layer; index is stable per render
+						key={`${layerKey || "__layer__"}__pt-${i}`}
+						data-area-point="true"
+						cx={x}
+						cy={y}
+						r={pointRadius}
+						fill={mh.fill ?? pointFillProp}
+						fillOpacity={pointFillOpacity(repRow) * mh.opacityMul}
+						stroke={pointOutline ?? "none"}
+						strokeWidth={pointOutline ? pointOutlineWidth : undefined}
+						strokeOpacity={
+							pointOutline ? pointOutlineOpacity(repRow) * mh.opacityMul : undefined
+						}
+						pointerEvents="none"
+					/>,
+				]
+			})
+		}
+
+		// The layer's LINE, drawn the same whether the area under it is filled
+		// or not — so the Pattern menu's line dash (per layer, by pattern
+		// category, within a range, with painted gaps) applies to both.
+		// Per-layer dash: the pattern channel's per-category resolution
+		// when a pattern field is mapped (its group value is constant per
+		// layer), behind the legacy per-line override; falls back to the
+		// global default (also defaults to "solid"). Mirrors ScatterPlot's
+		// renderConnectionLines so the same UI controls drive both
+		// renderers.
+		const layerDashKey = hueValue ?? layerKey
+		const patternValue =
+			patternField && groupValues.pattern !== undefined
+				? String(groupValues.pattern)
+				: null
+		const patternSpec =
+			patternValue !== null
+				? dashSpecForPatternValue(
+						patternValue,
+						patternDashOverrides,
+						patternCustomDashOverrides,
+						patternDomain
 					)
-					const dOf = (seg: Array<{ x: number; y: number }>): string =>
-						linePathD(seg)
-					for (const [part, seg] of [
-						["pre", segs.before],
-						["post", segs.after],
-					] as const) {
-						if (seg.length < 2) continue
-						lineEls.push(
-							<path
-								key={`${layerKey || "__layer__"}__${part}`}
-								d={dOf(seg)}
-								stroke={effStroke}
-								onMouseEnter={onMouseEnter}
-								{...lineProps}
-							/>
-						)
-					}
-					if (segs.inside.length >= 2) {
-						// The underlay (painted gaps) is gated on `gapFill` —
-						// off = truly dashed segments with empty gaps.
-						if (gapFill) {
-							lineEls.push(
-								<path
-									key={`${layerKey || "__layer__"}__bg`}
-									d={dOf(segs.inside)}
-									stroke={altColor}
-									{...lineProps}
-								/>
-							)
-						}
-						// Blank = the window is ALL gap: no top line, just the
-						// underlay above (when on).
-						if (!layerBlank && dashArray !== null) {
-							lineEls.push(
-								<path
-									key={layerKey || "__layer__"}
-									d={dOf(segs.inside)}
-									stroke={effStroke}
-									strokeDasharray={dashArray}
-									onMouseEnter={onMouseEnter}
-									{...lineProps}
-								/>
-							)
-						}
-					}
-				} else {
-					if (gapFill) {
-						lineEls.push(
-							<path
-								key={`${layerKey || "__layer__"}__bg`}
-								d={topD}
-								stroke={altColor}
-								{...lineProps}
-							/>
-						)
-					}
+				: null
+		const layerDash = dashPatterns[layerDashKey ?? ""]
+		const dashArray =
+			patternSpec?.kind === "custom"
+				? patternSpec.dasharray
+				: layerDash !== undefined
+					? dashArrayFor(layerDash ?? "solid")
+					: patternSpec?.kind === "pattern"
+						? dashArrayFor(patternSpec.pattern)
+						: defaultDashArray
+		// "Blank" only means anything while the range gates the dash — a
+		// mapped pattern field ignores the range (and never offers blank).
+		const layerBlank =
+			!patternField &&
+			(layerDash !== undefined ? layerDash === "blank" : defaultBlank)
+		// Solid → one path. Dashed → underlay (alternate color) +
+		// dashed top, so the gaps render as the alternate color
+		// instead of transparent. Blank-in-range → the range branch
+		// below draws no top line inside the window.
+		const lineEls: React.ReactNode[] = []
+		if (dashArray === null && !(layerBlank && rangeActive)) {
+			lineEls.push(
+				<path
+					key={layerKey || "__layer__"}
+					d={topD}
+					fill="none"
+					stroke={effStroke}
+					strokeWidth={effThickness}
+					strokeLinejoin="round"
+					strokeLinecap={strokeCap}
+					opacity={borderOpacity * mh.opacityMul}
+					onMouseEnter={onMouseEnter}
+				/>
+			)
+		} else {
+			const altColor = resolveDashGapColor({
+				// The hue value IS the panel's gap-swatch key; the layer key
+				// covers hue-less layers and legacy saved visuals.
+				overrideKeys: [hueValue, layerDashKey],
+				patternValue,
+				// Pair on the color encoding's pre-modulation color first
+				// (what bar/area pattern inks key on), then the layer's
+				// pre-highlight stroke for hue-less layers.
+				hueColor: hueValue != null ? layerResolved.preModulationHue : null,
+				lineColor: layerStroke,
+				overrides: dashAlternateColors,
+				singleOverride: channelConfigs.connection?.dashGapColor ?? null,
+				inkColors: patternInkColors,
+				palette: inkPalette,
+				patternInks: palettePatternInks,
+				themeInkFallback: aestheticScales.themeInkFallback,
+				defaultInk: defaultPatternInk,
+			})
+			const lineProps = {
+				fill: "none",
+				strokeWidth: effThickness,
+				strokeLinejoin: "round",
+				strokeLinecap: strokeCap,
+				opacity: borderOpacity * mh.opacityMul,
+			} as const
+			// "Apply pattern to range": dash only within [From, To] along
+			// the category axis, solid outside (known vs forecast). The
+			// alternate-color underlay only backs the dashed segment.
+			// IGNORED when a pattern field is mapped — the pattern variable
+			// already says where each dash applies, and the two windows
+			// would conflict (the panel hides the range rows there too).
+			if (rangeActive && !patternField) {
+				const segs = splitPolylineAtRange(
+					top.map(([x, y]) => ({ x: x ?? 0, y: y ?? 0 })),
+					rangeMinPx,
+					rangeMaxPx,
+					rangeAxis
+				)
+				const dOf = (seg: Array<{ x: number; y: number }>): string =>
+					linePathD(seg)
+				for (const [part, seg] of [
+					["pre", segs.before],
+					["post", segs.after],
+				] as const) {
+					if (seg.length < 2) continue
 					lineEls.push(
 						<path
-							key={layerKey || "__layer__"}
-							d={topD}
+							key={`${layerKey || "__layer__"}__${part}`}
+							d={dOf(seg)}
 							stroke={effStroke}
-							// Non-null whenever this branch runs (blank requires an
-							// active range, which takes the branch above) — the
-							// fallback only satisfies the widened type.
-							strokeDasharray={dashArray ?? undefined}
 							onMouseEnter={onMouseEnter}
 							{...lineProps}
 						/>
 					)
 				}
+				if (segs.inside.length >= 2) {
+					// The underlay (painted gaps) is gated on `gapFill` —
+					// off = truly dashed segments with empty gaps.
+					if (gapFill) {
+						lineEls.push(
+							<path
+								key={`${layerKey || "__layer__"}__bg`}
+								d={dOf(segs.inside)}
+								stroke={altColor}
+								{...lineProps}
+							/>
+						)
+					}
+					// Blank = the window is ALL gap: no top line, just the
+					// underlay above (when on).
+					if (!layerBlank && dashArray !== null) {
+						lineEls.push(
+							<path
+								key={layerKey || "__layer__"}
+								d={dOf(segs.inside)}
+								stroke={effStroke}
+								strokeDasharray={dashArray}
+								onMouseEnter={onMouseEnter}
+								{...lineProps}
+							/>
+						)
+					}
+				}
+			} else {
+				if (gapFill) {
+					lineEls.push(
+						<path
+							key={`${layerKey || "__layer__"}__bg`}
+							d={topD}
+							stroke={altColor}
+							{...lineProps}
+						/>
+					)
+				}
+				lineEls.push(
+					<path
+						key={layerKey || "__layer__"}
+						d={topD}
+						stroke={effStroke}
+						// Non-null whenever this branch runs (blank requires an
+						// active range, which takes the branch above) — the
+						// fallback only satisfies the widened type.
+						strokeDasharray={dashArray ?? undefined}
+						onMouseEnter={onMouseEnter}
+						{...lineProps}
+					/>
+				)
 			}
+		}
+		if (fillMode === "line") {
 			// "Tick" line cap: a perpendicular mark centered on each open end
 			// of the layer's edge, in the edge's stroke / thickness /
 			// highlight treatment. Once per layer (not per range segment).
@@ -1361,35 +1488,7 @@ const buildAreas = ({
 				))
 				for (const tick of ticks) lineEls.push(tick)
 			}
-			// Point markers — filtered by the user's `pointSampling`
-			// preference (mirrors ScatterPlot's behavior). The line
-			// itself always passes through every point regardless of
-			// sampling.
-			const sampledIndices = new Set(
-				sampleConnectionPointIndices(
-					top.length,
-					pointSampling,
-					pointEveryN,
-					pointIndices
-				)
-			)
-			const pointEls = top.flatMap(([x, y], i) => {
-				if (!sampledIndices.has(i)) return []
-				return [
-					<circle
-						// eslint-disable-next-line react/no-array-index-key -- one circle per point in this layer; index is stable per render
-						key={`${layerKey || "__layer__"}__pt-${i}`}
-						data-area-point="true"
-						cx={x}
-						cy={y}
-						r={Math.max(2, thickness + 1)}
-						fill={mh.fill ?? layerStroke}
-						stroke="none"
-						opacity={borderOpacity * mh.opacityMul}
-						pointerEvents="none"
-					/>,
-				]
-			})
+			const pointEls = buildPointEls()
 			if (effectiveStackMode === "overlay") {
 				for (const el of [...lineEls, ...pointEls]) interleaved.push(el)
 			} else {
@@ -1413,27 +1512,29 @@ const buildAreas = ({
 				onMouseEnter={onMouseEnter}
 			/>
 		)
-		const edgeEl = (
-			<path
-				key={`${layerKey || "__layer__"}__edge`}
-				d={topD}
-				fill="none"
-				stroke={effStroke}
-				strokeWidth={effThickness}
-				strokeLinejoin="round"
-				strokeLinecap={strokeCap}
-				strokeOpacity={borderOpacity * mh.opacityMul}
-			/>
-		)
+		// Filled areas draw the same sampled points as line mode, on top of
+		// the edge they sit on. Stacked: after every fill and separator, so a
+		// layer above never covers the points on its baseline.
+		const pointEls = buildPointEls()
 		if (effectiveStackMode === "overlay") {
-			interleaved.push(fillEl, edgeEl)
+			interleaved.push(fillEl)
+			for (const el of lineEls) interleaved.push(el)
+			for (const el of pointEls) interleaved.push(el)
 		} else {
 			fills.push(fillEl)
-			edges.push(edgeEl)
+			for (const el of lineEls) edges.push(el)
+			for (const el of pointEls) pointMarks.push(el)
 		}
 	})
 
-	return effectiveStackMode === "overlay" ? interleaved : [...fills, ...edges]
+	const marks =
+		effectiveStackMode === "overlay" ? interleaved : [...fills, ...edges, ...pointMarks]
+	return pointPatternDefs.size > 0
+		? [
+				<PatternDefs key="__area-point-pattern-defs" defs={[...pointPatternDefs.values()]} />,
+				...marks,
+			]
+		: marks
 }
 
 /** Build per-layer-per-stack data label anchors that respect stackMode.

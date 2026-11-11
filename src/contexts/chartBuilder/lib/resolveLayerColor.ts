@@ -295,14 +295,18 @@ export const resolvePatternDefForItem = (
  *  the point fill's `overrides` / `inkColors` / `scales` / `defaultPattern`
  *  so no two targets ever share an index. */
 export type FillTargetPatternKeys = {
-	overrides: "polygonOverrides" | "violinOverrides"
-	inkColors: "polygonInkColors" | "violinInkColors"
-	scales: "polygonScales" | "violinScales"
-	rotations: "polygonRotations" | "violinRotations"
-	defaultPattern: "defaultPolygonPattern" | "defaultViolinPattern"
-	defaultInk: "defaultPolygonPatternInk" | "defaultViolinPatternInk"
-	defaultScale: "defaultPolygonScale" | "defaultViolinScale"
-	defaultRotation: "defaultPolygonRotation" | "defaultViolinRotation"
+	overrides: "polygonOverrides" | "violinOverrides" | "areaPointOverrides"
+	inkColors: "polygonInkColors" | "violinInkColors" | "areaPointInkColors"
+	scales: "polygonScales" | "violinScales" | "areaPointScales"
+	rotations: "polygonRotations" | "violinRotations" | "areaPointRotations"
+	defaultPattern: "defaultPolygonPattern" | "defaultViolinPattern" | "defaultAreaPointPattern"
+	defaultInk: "defaultPolygonPatternInk"
+		| "defaultViolinPatternInk"
+		| "defaultAreaPointPatternInk"
+	defaultScale: "defaultPolygonScale" | "defaultViolinScale" | "defaultAreaPointScale"
+	defaultRotation: "defaultPolygonRotation"
+		| "defaultViolinRotation"
+		| "defaultAreaPointRotation"
 }
 export const POLYGON_PATTERN_KEYS: FillTargetPatternKeys = {
 	overrides: "polygonOverrides",
@@ -323,6 +327,16 @@ export const VIOLIN_PATTERN_KEYS: FillTargetPatternKeys = {
 	defaultInk: "defaultViolinPatternInk",
 	defaultScale: "defaultViolinScale",
 	defaultRotation: "defaultViolinRotation",
+}
+export const AREA_POINT_PATTERN_KEYS: FillTargetPatternKeys = {
+	overrides: "areaPointOverrides",
+	inkColors: "areaPointInkColors",
+	scales: "areaPointScales",
+	rotations: "areaPointRotations",
+	defaultPattern: "defaultAreaPointPattern",
+	defaultInk: "defaultAreaPointPatternInk",
+	defaultScale: "defaultAreaPointScale",
+	defaultRotation: "defaultAreaPointRotation",
 }
 
 type FillTargetPatternView = {
@@ -425,6 +439,24 @@ export const resolveViolinPatternDef = (
 		channelConfigs,
 		patternBgOverride,
 		VIOLIN_PATTERN_KEYS
+	)
+
+/** The def for an AREA-CHART POINT marker (the Pattern menu's "Point
+ *  fill" subsection on area charts), tiled over the point's own fill —
+ *  separate from the area body's pattern. Callers gate on the points
+ *  drawing (`areaPointsOn`). */
+export const resolveAreaPointPatternDef = (
+	item: PatternDefItem,
+	aestheticScales: AestheticScales,
+	channelConfigs: ChannelConfigs,
+	patternBgOverride: string | null
+): PatternDefSpec | null =>
+	resolveFillTargetPatternDef(
+		item,
+		aestheticScales,
+		channelConfigs,
+		patternBgOverride,
+		AREA_POINT_PATTERN_KEYS
 	)
 
 /** Single source of truth for "what color does this slice/layer/row draw

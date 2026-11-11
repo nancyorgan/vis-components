@@ -1280,6 +1280,114 @@
 				"object"
 			]
 		},
+		"channelConfigs.brightnessSlots.areaPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.areaPointOutline.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
 		"channelConfigs.brightnessSlots.line": {
 			"kinds": [
 				"object"
@@ -1642,6 +1750,201 @@
 			"doc": "Generic color targets beyond fill (`hue`) and outline (`outlineHue`): line, rug, violin/box stroke + fill, lollipop stem, radar spine. Each is an independent optional color encoding surfaced as a subheader in the Color menu.",
 			"kinds": [
 				"object"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.colorRules": {
+			"doc": "Conditional color rules (the Color menu's \"+ Add color rule\" rows; the Line slot is the one that surfaces them). An implicit rule (`> 0`) tests the slot's mapped variable's value; a `{Variable}` rule tests that variable in the mark's rows.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.colorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.colorRules[].condition": {
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.field": {
+			"doc": "Dataset column driving this slot's color, or null = single color.",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue": {
+			"doc": "Reuses the hue union (categorical {colors} | quantitative gradient). NOTE: `stackMode` inside this union is inert for slots — never feed a slot's stackMode to `resolveStackMode`; only `hue`/`pattern` own layout.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.colors": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.colors.*": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.customStops": {
+			"doc": "N-stop user-defined custom gradient — read only when palette is `\"custom\"`. The first/last stops anchor the gradient; any number of additional middle stops are allowed. The legacy `lowColor`/`midColor`/`highColor` fields stay for backwards compatibility with saved charts that pre-date this field.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.customStops[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.customStops[].value": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.highColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.highValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.interpolation": {
+			"doc": "Color space used to blend between gradient stops — \"rgb\" (matches CSS gradients), \"hsb\", or \"oklch\" (perceptually uniform). Read only by the custom-gradient paths (customLinear / customDiverging / manual stops); presets are fully-specified ramps with nothing left to blend.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"hsb",
+				"oklch",
+				"rgb"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.lowColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.lowValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.midColor": {
+			"color": true,
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.midValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.palette": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"BrBG",
+				"PRGn",
+				"PiYG",
+				"PuOr",
+				"RdBu",
+				"RdYlBu",
+				"Spectral",
+				"blues",
+				"custom",
+				"customDiverging",
+				"customLinear",
+				"inferno",
+				"magma",
+				"plasma",
+				"viridis"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.sourcePaletteId": {
+			"doc": "Records the dropdown selection that originated this config — a preset name (`\"viridis\"`), a saved gradient ID, `\"custom\"`, etc. Survives color edits so a \"Reset colors\" action can re-resolve to the originating palette's defaults instead of switching the whole palette type.",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.hue.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.palette": {
+			"color": true,
+			"items": {
+				"kinds": [
+					"string"
+				]
+			},
+			"kinds": [
+				"list",
+				"null"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.paletteId": {
+			"doc": "Categorical palette selection (mirrors `categoricalPaletteId`).",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.areaPointFill.singleColor": {
+			"color": true,
+			"doc": "The \"None\" single color, theme-seeded per slot.",
+			"kinds": [
+				"string"
 			]
 		},
 		"channelConfigs.colorSlots.comboPointFill": {
@@ -5581,6 +5884,126 @@
 				"object"
 			]
 		},
+		"channelConfigs.opacitySlots.areaPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointFill.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.areaPointOutline.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
 		"channelConfigs.opacitySlots.border": {
 			"kinds": [
 				"object"
@@ -6585,6 +7008,52 @@
 				"object"
 			]
 		},
+		"channelConfigs.pattern.areaPointInkColors": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.areaPointInkColors.*": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.pattern.areaPointOverrides": {
+			"doc": "AREA-CHART POINT FILL — the point markers on an area chart's layer lines take their own pattern pick, separate from the area body (which reads the base `overrides` / `inkColors` / `defaultPattern`, as the marks' fill always has).",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.areaPointOverrides.*": {
+			"kinds": [
+				"number",
+				"string"
+			],
+			"values": [
+				"none"
+			]
+		},
+		"channelConfigs.pattern.areaPointRotations": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.areaPointRotations.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.pattern.areaPointScales": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.pattern.areaPointScales.*": {
+			"kinds": [
+				"number"
+			]
+		},
 		"channelConfigs.pattern.backgroundColor": {
 			"color": true,
 			"doc": "The tile color under a pattern when hue does NOT drive the mark's fill. `null` (the default) = the mark's own fill, so a patterned bar keeps its color and the pattern ink pairs with that color through the palette; a hex is an explicit override.",
@@ -6655,6 +7124,30 @@
 			],
 			"values": [
 				"none"
+			]
+		},
+		"channelConfigs.pattern.defaultAreaPointPattern": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.pattern.defaultAreaPointPatternInk": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.pattern.defaultAreaPointRotation": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.pattern.defaultAreaPointScale": {
+			"kinds": [
+				"null",
+				"number"
 			]
 		},
 		"channelConfigs.pattern.defaultPolygonPattern": {
@@ -7575,6 +8068,114 @@
 			"doc": "Per-part saturation targets (outline / line) beyond the Fill, which reuses the `saturation` encoding. Sparse — an absent slot means that part isn't modulated. Surfaced as subheaders in the Saturation menu.",
 			"kinds": [
 				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.areaPointOutline.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
 			]
 		},
 		"channelConfigs.saturationSlots.line": {

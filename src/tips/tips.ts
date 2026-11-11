@@ -478,7 +478,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "area-fill",
 				anchor: "area-fill",
-				body: "Fill polygon turns your lines into filled areas.",
+				body: "Check this to turn your lines into filled areas.",
 				placement: "right",
 			},
 		],

@@ -19,6 +19,7 @@ import {
 	rebaseCustomGlyphRefs,
 	retireStraightStripes,
 	retireStraightStripesInVisual,
+	hidePointsOnLegacyFilledArea,
 	resetVisualFontSizesV1ToV2,
 	themesMigrations,
 	visualsMigrations,
@@ -1032,5 +1033,56 @@ describe("straight stripes retire into the turned diagonal (visuals v13 -> v14, 
 		expect(a!.mapConfig).toEqual({ noDataPattern: 1 })
 		expect(b).toBe(untouched)
 		expect(retireStraightStripesInVisual(untouched)).toBe(untouched)
+	})
+})
+
+describe("visuals v14 -> v15: filled areas saved before they drew points", () => {
+	const visual = (
+		encodings: Record<string, { field: string | null }>,
+		connection: Record<string, unknown>
+	) => ({ id: "v", encodings, channelConfigs: { connection } })
+	const AREA = { x: { field: "month" }, length: { field: "sales" }, connection: { field: "region" } }
+
+	it("turns a filled area's points off, whatever sampling it stored", () => {
+		for (const pointSampling of ["all", "first-and-last", undefined]) {
+			const out = hidePointsOnLegacyFilledArea(
+				visual(AREA, { fill: "area", thickness: 2, pointSampling })
+			)
+			expect(out.channelConfigs.connection).toEqual({
+				fill: "area",
+				thickness: 2,
+				pointSampling: "none",
+			})
+		}
+	})
+
+	it("leaves everything that is not a filled area alone (same reference)", () => {
+		const untouched = [
+			// A line-mode area chart: its points always drew.
+			visual(AREA, { fill: "line", pointSampling: "all" }),
+			// A scatter line chart carrying a stale `fill: "area"`.
+			visual(
+				{ x: { field: "month" }, y: { field: "sales" }, connection: { field: "region" } },
+				{ fill: "area", pointSampling: "all" }
+			),
+			// The bar + line combo (x + y + length).
+			visual({ ...AREA, y: { field: "units" } }, { fill: "area", pointSampling: "all" }),
+			// Bars with a stale connection config and no Connection field.
+			visual(
+				{ x: { field: "month" }, length: { field: "sales" }, connection: { field: null } },
+				{ fill: "area", pointSampling: "all" }
+			),
+			// Already hidden.
+			visual(AREA, { fill: "area", pointSampling: "none" }),
+		]
+		for (const v of untouched) expect(hidePointsOnLegacyFilledArea(v)).toBe(v)
+		expect(hidePointsOnLegacyFilledArea(null)).toBeNull()
+	})
+
+	it("is the visuals v14 step", () => {
+		const out = visualsMigrations[14]!([
+			visual(AREA, { fill: "area", pointSampling: "all" }),
+		]) as Array<{ channelConfigs: { connection: { pointSampling: string } } }>
+		expect(out[0]!.channelConfigs.connection.pointSampling).toBe("none")
 	})
 })

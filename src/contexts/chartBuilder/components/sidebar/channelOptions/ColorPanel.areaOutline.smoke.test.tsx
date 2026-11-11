@@ -21,7 +21,7 @@ import {
 
 import { ColorPanel } from "./ColorPanel"
 
-/** The Color menu for area/radar should show "Fill" and "Outline" as SEPARATE
+/** The Color menu for area/radar should show the fill ("Area fill") and outline ("Line") as SEPARATE
  *  sibling subheaders — not "Outline" nested inside "Fill". */
 
 const ID = "ds-color-area"
@@ -92,21 +92,33 @@ const subheaders = (c: HTMLElement): string[] =>
 	)
 
 describe("ColorPanel — area outline organization", () => {
+	it("names the four parts of a filled area with points, in order", () => {
+		// Fill and Outline are the area's body and its layer edge; the point
+		// markers on that edge are targets of their own.
+		// (Untitled entries are the swatch pickers' own disclosure buttons.)
+		expect(subheaders(mount().container).filter((h) => h !== "")).toEqual([
+			"Line",
+			"Area fill",
+			"Point fill",
+			"Point outline",
+		])
+	})
+
 	it("shows Fill and Outline as separate sibling subheaders (no nested Fill)", () => {
 		const { container } = mount()
 		const headers = subheaders(container)
 		// Exactly one Fill and one Outline header — the old layout nested a second
 		// Fill (and the Outline) inside the outer Fill.
-		expect(headers.filter((h) => h === "Fill")).toHaveLength(1)
-		expect(headers.filter((h) => h === "Outline")).toHaveLength(1)
+		expect(headers.filter((h) => h === "Area fill")).toHaveLength(1)
+		expect(headers.filter((h) => h === "Line")).toHaveLength(1)
 
 		// Sibling check: the Outline header is NOT inside the Fill subsection.
 		const fillBtn = [...container.querySelectorAll("button[aria-expanded]")].find(
-			(b) => b.textContent?.trim() === "Fill"
+			(b) => b.textContent?.trim() === "Area fill"
 		)!
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
-		].find((b) => b.textContent?.trim() === "Outline")!
+		].find((b) => b.textContent?.trim() === "Line")!
 		// The Fill subsection root is the button's grandparent (button → header row
 		// → subsection div). Outline must not live within it.
 		const fillSubsection = fillBtn.closest("div")?.parentElement
@@ -124,7 +136,7 @@ describe("ColorPanel — area outline organization", () => {
 		const { container, getByText } = mount()
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
-		].find((b) => b.textContent?.trim() === "Outline")!
+		].find((b) => b.textContent?.trim() === "Line")!
 		fireEvent.click(outlineBtn) // expand
 		// The line-palette dropdown offers "Match fill" as the linked default.
 		expect(getByText("Match fill")).toBeTruthy()
@@ -134,7 +146,7 @@ describe("ColorPanel — area outline organization", () => {
 		const { container, getByLabelText, queryByLabelText } = mount()
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
-		].find((b) => b.textContent?.trim() === "Outline")!
+		].find((b) => b.textContent?.trim() === "Line")!
 		fireEvent.click(outlineBtn) // expand
 		// The outline Palette dropdown is the one carrying the "Single color"
 		// sentinel option (Fill has its own Palette dropdown).
@@ -166,7 +178,7 @@ describe("ColorPanel — area outline organization", () => {
 		const { container } = mount()
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
-		].find((b) => b.textContent?.trim() === "Outline")!
+		].find((b) => b.textContent?.trim() === "Line")!
 		fireEvent.click(outlineBtn) // expand
 		// Override one level while in Match-fill mode.
 		const hexA = hexBox(container, "Line color for A")!

@@ -90,6 +90,14 @@ export const densityCurveFillOn = (configs: ChannelConfigs): boolean => {
 export const filledRadarOn = (mode: ChartMode, configs: ChannelConfigs): boolean =>
 	mode === "radar" && configs.connection?.fillPolygon === true
 
+/** True when an area chart draws point markers on its layer edges: a
+ * Connection field mapped and Connection → "Show points" not "No points".
+ * The gate for the area modes' Point fill / Point outline targets in every
+ * aesthetic menu — with no points there is nothing for them to style. */
+export const areaPointsOn = (encodings: Encodings, configs: ChannelConfigs): boolean =>
+	!!encodings.connection?.field &&
+	(configs.connection?.pointSampling ?? "all") !== "none"
+
 /** True when the scatter regression-line overlay is on. Exported so the
  * opacity-slot registry and the renderer reuse the same gate. */
 export const regressionOn = (configs: ChannelConfigs): boolean =>
@@ -125,6 +133,27 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (encodings) => !!encodings.connection?.field,
 		themeColor: (t) => t.connectionColor,
 		acceptsFieldMapping: true,
+	},
+	{
+		key: "areaPointFill",
+		label: "Point fill",
+		// Area charts (filled or line mode): the point markers on each
+		// layer's edge. Unconfigured, a point takes its LINE's color (and
+		// the Line's saturation / brightness shading). "Vary by" (resolved
+		// off the layer's representative row) / a single color recolor the
+		// points on their own. The Color panel renders this one right after
+		// the Area fill, so the four parts read line, area fill, point fill,
+		// point outline. (The Point outline is NOT a slot: it is the
+		// marks' outline — `shape.outlineColor` / the `outlineHue` encoding —
+		// exactly as on a scatter or line chart.)
+		modes: m("areas-x", "areas-y"),
+		isApplicable: areaPointsOn,
+		themeColor: (t) => t.connectionColor,
+		acceptsFieldMapping: true,
+		inherit: {
+			label: "Match line",
+			help: "Each point takes its line's color.",
+		},
 	},
 	{
 		key: "rug",
@@ -301,6 +330,7 @@ export const legacySlotColor = (
 		case "stem":
 		case "comboPointFill":
 		case "polygonFill":
+		case "areaPointFill":
 			// No legacy per-feature color field to seed from; the slot's
 			// theme-seeded singleColor is the source of truth.
 			return undefined

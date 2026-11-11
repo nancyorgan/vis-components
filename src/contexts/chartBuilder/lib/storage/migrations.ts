@@ -28,7 +28,7 @@ import type { Migration } from "./versioning"
  *   v0 = pre-versioning (unwrapped JSON; no `_v` field). Existing user
  *        data lives here, so the v0→v1 migration must be tolerant of
  *        the existing on-disk shape. */
-export const VISUALS_VERSION = 14
+export const VISUALS_VERSION = 15
 export const DATASETS_VERSION = 1
 export const CHANNEL_CONFIGS_VERSION = 8
 export const LABELS_VERSION = 1
@@ -451,7 +451,45 @@ export const visualsMigrations: Migration[] = [
 		if (!Array.isArray(raw)) return raw
 		return raw.map((v) => retireStraightStripesInVisual(v))
 	},
+	// v14 -> v15: filled area charts start drawing the Connection panel's
+	// "Show points"; charts saved while they didn't keep their point-free
+	// look — see `hidePointsOnLegacyFilledArea`.
+	(raw) => {
+		if (!Array.isArray(raw)) return raw
+		return raw.map((v) => hidePointsOnLegacyFilledArea(v))
+	},
 ]
+
+/** Until v15 a FILLED area chart never drew point markers, whatever
+ *  Connection → "Show points" said — and nearly every save stored the
+ *  default, "all". Filled areas now honor the setting, so a filled area
+ *  saved before then gets "none": it keeps drawing what it drew. Only a
+ *  visual that IS a filled area moves (`connection.fill: "area"` alone is
+ *  not enough — scatter and bar visuals carry a stale one): Length and
+ *  Connection mapped, and not both X and Y (that is the bar + line combo,
+ *  whose points always drew). Storage-version step ONLY: bundle imports
+ *  and seeds carry no version, and a chart saved at v15+ with points
+ *  shown must keep them. Returns the input reference when nothing
+ *  changed. */
+export const hidePointsOnLegacyFilledArea = <T>(visual: T): T => {
+	const vis = recordOrNull(visual)
+	if (!vis) return visual
+	const cc = recordOrNull(vis.channelConfigs)
+	const connection = cc ? recordOrNull(cc.connection) : null
+	if (!cc || !connection || connection.fill !== "area") return visual
+	if (connection.pointSampling === "none") return visual
+	const encodings = recordOrNull(vis.encodings)
+	const mapped = (channel: string): boolean => {
+		const field = recordOrNull(encodings?.[channel])?.field
+		return typeof field === "string" && field !== ""
+	}
+	if (!mapped("length") || !mapped("connection")) return visual
+	if (mapped("x") && mapped("y")) return visual
+	return {
+		...vis,
+		channelConfigs: { ...cc, connection: { ...connection, pointSampling: "none" } },
+	} as T
+}
 
 /** Pattern palette slots 2 and 3 held the vertical and horizontal
  *  stripes until 2026-11-09, when the wave and zig-zag took them over:

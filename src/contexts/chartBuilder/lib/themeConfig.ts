@@ -107,6 +107,41 @@ export const resolveTextPalettePick = (
 	}
 }
 
+/** The palette a FILLED AREA chart's body defaults to: the theme's
+ * designated fill palette, when it sets one distinct from its default
+ * categorical palette (which the area's Line — and so its points — then
+ * takes, see `withAreaPaletteDefaults`). `null` = the theme has no separate
+ * fill palette, so an area keeps the categorical palette for both. */
+export const areaFillPalette = (
+	t: Theme
+): { id: string; colors: string[]; patternInks: Array<string | null> } | null => {
+	const pal = t.defaultFillPaletteId
+		? t.categoricalPalettes.find((p) => p.id === t.defaultFillPaletteId)
+		: undefined
+	const categorical =
+		t.categoricalPalettes.find((p) => p.id === t.defaultCategoricalPaletteId) ??
+		t.categoricalPalettes[0]
+	if (!pal || pal.colors.length === 0 || pal.id === categorical?.id) return null
+	const inks = pal.patternInks ?? []
+	return {
+		id: pal.id,
+		colors: [...pal.colors],
+		patternInks: pal.colors.map((_, i) => inks[i] ?? null),
+	}
+}
+
+/** The id of the palette a filled area's Line defaults to (the theme's
+ * default categorical palette), or `null` when the theme has no separate
+ * fill palette — then the Line's default is "Match fill". */
+export const areaLinePaletteId = (t: Theme): string | null => {
+	if (!areaFillPalette(t)) return null
+	return (
+		t.categoricalPalettes.find((p) => p.id === t.defaultCategoricalPaletteId)?.id ??
+		t.categoricalPalettes[0]?.id ??
+		null
+	)
+}
+
 /** The SAVED palette a filled secondary body (violin / box, density-curve
  * fill) seeds when it follows the Color variable: the theme's designated
  * fill palette when one is set, else its default categorical palette. Same
@@ -777,12 +812,19 @@ const opacityScaleEdited = (opacity: OpacityConfig | undefined): boolean => {
  *  outline into the `connection` config (it's the only place that does), so
  *  those edits belong to the Color (hue) dot. Default: null `strokeColor`
  *  ("match fill"), no per-layer overrides, no outline palette. */
-const areaOutlineColorEdited = (conn: ChannelConfigs["connection"]): boolean => {
+const areaOutlineColorEdited = (
+	conn: ChannelConfigs["connection"],
+	theme: Theme
+): boolean => {
 	if (!conn) return false
+	// A filled area's Line defaults to the categorical palette (beside the
+	// fill-palette body), so that pick is the untouched state there.
+	const lineAtAreaDefault =
+		conn.fill === "area" && conn.linePaletteId === areaLinePaletteId(theme)
 	return (
 		conn.strokeColor != null ||
 		Object.keys(conn.lineColors ?? {}).length > 0 ||
-		conn.linePaletteId != null
+		(conn.linePaletteId != null && !lineAtAreaDefault)
 	)
 }
 
@@ -835,11 +877,16 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 			label: "palette pick",
 			changed:
 				fieldMapped &&
-				(palettePicked(
+				((palettePicked(
 					configs.categoricalPaletteId,
 					theme.defaultCategoricalPaletteId,
 					theme.categoricalPalettes
-				) ||
+				) &&
+					// A filled area's body defaults to the theme's fill palette.
+					!(
+						configs.connection?.fill === "area" &&
+						configs.categoricalPaletteId === areaFillPalette(theme)?.id
+					)) ||
 					palettePicked(
 						configs.ordinalPaletteId,
 						theme.defaultOrdinalPaletteId,
@@ -847,7 +894,7 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 					)),
 		},
 		// The Color menu styles the area/radar outline via the connection config.
-		{ label: "outline color", changed: areaOutlineColorEdited(configs.connection) },
+		{ label: "outline color", changed: areaOutlineColorEdited(configs.connection, theme) },
 	],
 	outlineHue: ({ configs, theme, fieldMapped }) => [
 		{ label: "outline scale edits", changed: hueScaleEdited(configs.outlineHue) },
@@ -1052,7 +1099,7 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 	connection: ({ configs, theme, fieldMapped }) => {
 		const c = configs.connection
 		return [
-			// "Fill polygon" and point-sampling controls only APPEAR in the panel
+			// "Fill area under line" and point-sampling controls only APPEAR in the panel
 			// when a connection field is mapped (the Polygon / sampling sections are
 			// gated on it). Without one, `fill: "area"` is the chart TYPE, not a
 			// dropdown edit the user can clear here → don't dot. With a connection

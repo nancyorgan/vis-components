@@ -1899,7 +1899,46 @@ While a violin / box overlay is on, the Color, Opacity, Saturation and
 Brightness panels title their marks' Fill and Outline subheaders
 **Point fill** and **Point outline** (as the Pattern menu always names
 its point target beside its body subsection), so the point and body
-targets read as peers.
+targets read as peers. A line chart (scatter with a Connection field)
+does the same: its Fill and Outline style the points on the line, so
+they read **Point fill** and **Point outline** beside **Line**. The
+bar + line combo keeps the plain names — there the Fill is the bars'
+(`lib/markPartTitles.ts`).
+
+An area chart names four parts in the Color, Opacity, Saturation and
+Brightness menus, in this order: **Line** (the layer edge: the linked
+outline editor in Color, the Border slot in Opacity, the Line slot in
+Saturation / Brightness), **Area fill** (the body — plain **Fill**
+while the area is unfilled), **Point fill** and **Point outline**. The point parts show only while the chart draws points
+(`areaPointsOn`: a Connection field mapped and Show points not `none`).
+Point fill is a slot (`areaPointFill`, in `colorSlots` / `opacitySlots`
+/ `saturationSlots` / `brightnessSlots`); untouched, a point takes its
+line's color as drawn (**Match line**) at full opacity. Point outline
+is the marks' outline, the same as on a scatter or line chart: the
+Color menu shows the shared outline control (`shape.outlineColor`,
+theme-seeded; "Vary by" = the `outlineHue` encoding; color rules), the
+ring's width is Shape → outline width (0 = no ring), and only its
+opacity / saturation / brightness are slots (`areaPointOutline`), since
+the Border slot is the area's Line. A variable mapped to a point slot
+resolves off the layer's representative row (one layer = one series).
+The points no longer follow the Line's opacity. Their size is the
+marks' default size (Area menu → **Point size**, `defaultRadius`,
+theme-seeded), as for a scatter or line-chart point; a variable mapped
+to Area does not size them (layers are aggregated).
+
+**Area palette defaults.** When the theme designates a fill palette
+(Settings → Themes → Palettes; distinct from its default categorical
+palette) and the Color variable is categorical, a chart that BECOMES a
+filled area — "Fill area under line", an area quick start, or the
+settings patch — takes the fill palette for the Area fill and the
+regular categorical palette for the Line (which Point fill matches).
+Only untouched picks move (`withAreaPaletteDefaults` in
+`lib/connectionEdits.ts`); unfilling, or a non-area quick start,
+returns picks still at those defaults to the regular ones
+(`withoutAreaPaletteDefaults`), and a theme switch follows the new
+theme's pair (`followAreaPaletteDefaults`). They count as the area's
+untouched state for the Color dot. Charts already saved as filled
+areas are not changed.
 
 ### 4.2 Pattern panel
 Behavior depends on chart context:
@@ -1990,6 +2029,17 @@ Behavior depends on chart context:
   BOTH a "Line dash" row and a "Point fill" row appear. Each row
   writes to independent overrides so picking a dash style doesn't
   apply a point fill. Points default to "None" until explicitly chosen.
+- **Area charts** name three targets, in the other aesthetic menus'
+  order: **Line** (the layer edge's dash — the same default / per-
+  category / range / gap-fill dash controls as a line chart, drawn on
+  filled areas as on unfilled ones), **Area fill** (the body: the base
+  fill picks, `defaultPattern` / `pattern.overrides`; hidden while the
+  area is unfilled, shown even with "No points") and **Point fill**
+  (the point markers' OWN pattern, tiled over the point fill:
+  `pattern.defaultAreaPointPattern` / `defaultAreaPointPatternInk` /
+  `areaPointOverrides` / `areaPointInkColors` / scales / rotations;
+  shown while points draw, "None" until picked). The three never
+  share a pick.
 - **Filled radar** (radar mode with the Connection panel's "Fill
   polygon" on): a **Polygon fill** subsection joins Line dash and Point
   fill, with its OWN pattern pick — the series polygon body and its
@@ -2291,8 +2341,9 @@ size legend, and the Area panel's per-category default sizes together
 ### 4.4 Connection panel
 Connection is the line/area glue. Controls:
 
-- **Chart type toggle** (Line / Area) — visible whenever connection is
-  mapped. Switching to Area swaps `y → length` so the existing
+- **Line fill** ▸ "Fill area under line" (the Line / Area chart
+  switch; radar's equivalent stays **Polygon** ▸ "Fill polygon") —
+  visible whenever connection is mapped. Switching to Area swaps `y → length` so the existing
   area-detection fires, and sets `connection.fill = "area"`. Switching
   to Line reverses the swap. Auto-sets hue stackMode to "stack" when
   switching to Area.
@@ -2332,7 +2383,11 @@ Connection is the line/area glue. Controls:
   each line, counting from 1 at the first point (stored structured as
   `connection.pointIndices: number[]`). Custom adds no endpoint anchors
   and ignores positions past a line's end. Drives marker visibility
-  along each line.
+  along each line — on filled area charts too, where the markers sit on
+  each layer's top edge, styled by the Point fill / Point outline parts
+  (§4.1; untouched = the line's color), above the fills (and, when stacked, above every separator). Filled areas
+  saved before they drew points were set to `none` once (visuals v15,
+  `hidePointsOnLegacyFilledArea`), so they look as they did.
 
 Thickness, smoothing, and line cap share the panel's **Line
 properties** subsection, which is shown in line and area modes only.

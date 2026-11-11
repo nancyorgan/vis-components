@@ -82,8 +82,9 @@ export const OpacityOptionsPanel = () => {
 	// off the series' representative row, so the selectors stay.)
 	const linkedOutline = isAreaModeId(mode)
 	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
-	// where a second body sits beside the marks (radar polygon, violin / box).
-	const titles = markPartTitles(modeDef, configs)
+	// where the marks are points beside another part (radar polygon, violin /
+	// box, a line chart's line).
+	const titles = markPartTitles(modeDef, configs, encodings)
 
 	const theme = useCurrentTheme()
 	// Fill subsection changed = no-field default opacity moved, or the mapped
@@ -110,8 +111,29 @@ export const OpacityOptionsPanel = () => {
 	// Fill slot, not the overall mark opacity.
 	const hideFill = isFlowModeId(mode) || pureDensityCurve
 
+	const slotSection = (def: (typeof slots)[number]) => (
+		<OpacitySlotSubsection
+			key={def.key}
+			// The Border slot is the marks' outline and the Line slot the
+			// connection line — titled per mode, like the Fill.
+			def={
+				def.key === "border"
+					? { ...def, label: titles.outline }
+					: def.key === "line"
+						? { ...def, label: titles.line }
+						: def
+			}
+			hideVaryBy={linkedOutline}
+		/>
+	)
+	// Area charts lead with the Line (their Border slot), then the Area
+	// fill, Point fill and Point outline.
+	const leadSlots = linkedOutline ? slots.filter((d) => d.key === "border") : []
+	const restSlots = slots.filter((d) => !leadSlots.includes(d))
+
 	return (
 		<div className="vc-option-panel">
+			{leadSlots.map(slotSection)}
 			{!hideFill && (
 				<CollapsibleSubsection
 					title={titles.fill}
@@ -126,21 +148,7 @@ export const OpacityOptionsPanel = () => {
 					</div>
 				</CollapsibleSubsection>
 			)}
-			{slots.map((def) => (
-				<OpacitySlotSubsection
-					key={def.key}
-					// The Border slot is the marks' outline and the Line slot the
-					// connection line — titled per mode, like the Fill above.
-					def={
-						def.key === "border"
-							? { ...def, label: titles.outline }
-							: def.key === "line"
-								? { ...def, label: titles.line }
-								: def
-					}
-					hideVaryBy={linkedOutline}
-				/>
-			))}
+			{restSlots.map(slotSection)}
 		</div>
 	)
 }

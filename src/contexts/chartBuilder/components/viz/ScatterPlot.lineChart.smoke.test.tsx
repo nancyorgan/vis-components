@@ -4,6 +4,8 @@ import { installInMemoryLocalStorage } from "../../../../testSupport/localStorag
 import { describe, expect, it } from "vitest"
 import {
 	DEFAULT_CONNECTION_CONFIG,
+	DEFAULT_RADIUS,
+	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_DATA_LABELS_CONFIG,
 } from "../../lib/channelConfig"
 import { getChartMode } from "../../lib/chartMode"
@@ -418,6 +420,179 @@ describe("Line chart (scatter + connection) — points + line render together", 
 		const points = container.querySelectorAll('circle[data-area-point="true"]')
 		// 2 layers (north/south) × 2 markers each = 4.
 		expect(points.length).toBe(4)
+	})
+
+	it("a FILLED AreaPlot honors point sampling too (all → every vertex, first-and-last → 2 per layer, none → 0)", () => {
+		// Reported: checking "Fill area under line" dropped the points,
+		// whatever Show points said — the filled branch never drew them.
+		const count = (pointSampling: "all" | "first-and-last" | "none"): number => {
+			seedAreaChartStorage({ connectionField: "region", hueField: "region" })
+			seedConnectionCfg({
+				...DEFAULT_CONNECTION_CONFIG,
+				fill: "area",
+				pointSampling,
+			})
+			const { container, unmount } = render(
+				<TestProvider
+					initializeState={initAreaChartState({
+						connectionField: "region",
+						hueField: "region",
+					})}
+				>
+					<div style={{ width: 600, height: 400 }}>
+						<AreaPlot />
+					</div>
+				</TestProvider>
+			)
+			const n = container.querySelectorAll('circle[data-area-point="true"]').length
+			unmount()
+			return n
+		}
+		expect(count("all")).toBe(8)
+		expect(count("first-and-last")).toBe(4)
+		expect(count("none")).toBe(0)
+	})
+
+	it("area points take their own Point fill / Point outline colors and opacities", () => {
+		seedAreaChartStorage({ connectionField: "region", hueField: "region" })
+		/* eslint-disable @vc/use-wrapped-json-functions */
+		const seed = (extra: object) =>
+			globalThis.localStorage.setItem(
+				"vis-components:currentChannelConfigs",
+				JSON.stringify({
+					connection: { ...DEFAULT_CONNECTION_CONFIG, fill: "area" },
+					...extra,
+				})
+			)
+		/* eslint-enable @vc/use-wrapped-json-functions */
+		const points = () => {
+			const { container, unmount } = render(
+				<TestProvider
+					initializeState={initAreaChartState({
+						connectionField: "region",
+						hueField: "region",
+					})}
+				>
+					<div style={{ width: 600, height: 400 }}>
+						<AreaPlot />
+					</div>
+				</TestProvider>
+			)
+			const attrs = [
+				...container.querySelectorAll('circle[data-area-point="true"]'),
+			].map((c) => ({
+				r: c.getAttribute("r"),
+				fill: c.getAttribute("fill"),
+				fillOpacity: c.getAttribute("fill-opacity"),
+				stroke: c.getAttribute("stroke"),
+				strokeOpacity: c.getAttribute("stroke-opacity"),
+			}))
+			unmount()
+			return attrs
+		}
+		// Untouched: fully opaque, in the line's color, ringed by the marks'
+		// default outline — like a scatter / line-chart point.
+		seed({})
+		const plain = points()
+		expect(plain.length).toBe(8)
+		expect(
+			plain.every(
+				(p) =>
+					p.stroke === DEFAULT_SHAPE_CONFIG.outlineColor &&
+					p.fillOpacity === "1" &&
+					p.strokeOpacity === "1"
+			)
+		).toBe(true)
+		expect(plain.every((p) => p.fill !== "#123456")).toBe(true)
+		// Point size is the marks' default size (Area menu → Point size).
+		expect(plain.every((p) => p.r === String(DEFAULT_RADIUS))).toBe(true)
+		seed({ defaultRadius: 7 })
+		expect(points().every((p) => p.r === "7")).toBe(true)
+		// Outline width 0 = no ring, as on any other point.
+		seed({ shape: { ...DEFAULT_SHAPE_CONFIG, outlineWidth: 0 } })
+		expect(points().every((p) => p.stroke === "none")).toBe(true)
+		// Slots set: every point takes them, independent of the line.
+		seed({
+			colorSlots: {
+				areaPointFill: { field: null, singleColor: "#123456" },
+			},
+			shape: { ...DEFAULT_SHAPE_CONFIG, outlineColor: "#abcdef" },
+			opacitySlots: {
+				areaPointFill: { field: null, level: 0.5 },
+				areaPointOutline: { field: null, level: 0.25 },
+			},
+		})
+		expect(points()).toEqual(
+			Array.from({ length: 8 }, () => ({
+				r: String(DEFAULT_RADIUS),
+				fill: "#123456",
+				fillOpacity: "0.5",
+				stroke: "#abcdef",
+				strokeOpacity: "0.25",
+			}))
+		)
+	})
+
+	it("a filled area takes line, area-fill and point-fill patterns separately", () => {
+		/* eslint-disable @vc/use-wrapped-json-functions */
+		const mountWith = (extra: object, connection: object = {}) => {
+			seedAreaChartStorage({ connectionField: "region", hueField: "region" })
+			globalThis.localStorage.setItem(
+				"vis-components:currentChannelConfigs",
+				JSON.stringify({
+					connection: { ...DEFAULT_CONNECTION_CONFIG, fill: "area", ...connection },
+					...extra,
+				})
+			)
+			const { container, unmount } = render(
+				<TestProvider
+					initializeState={initAreaChartState({
+						connectionField: "region",
+						hueField: "region",
+					})}
+				>
+					<div style={{ width: 600, height: 400 }}>
+						<AreaPlot />
+					</div>
+				</TestProvider>
+			)
+			const paths = [...container.querySelectorAll("path:not(.vc-line-hit)")]
+			const out = {
+				dashedLines: paths.filter(
+					(el) => el.getAttribute("fill") === "none" && el.getAttribute("stroke-dasharray")
+				).length,
+				patternedBodies: paths.filter((el) =>
+					(el.getAttribute("fill") ?? "").startsWith("url(#")
+				).length,
+				patternedPoints: [
+					...container.querySelectorAll('circle[data-area-point="true"]'),
+				].filter((el) => (el.getAttribute("fill") ?? "").startsWith("url(#")).length,
+			}
+			unmount()
+			return out
+		}
+		/* eslint-enable @vc/use-wrapped-json-functions */
+		// Nothing picked: plain everywhere.
+		expect(mountWith({})).toEqual({ dashedLines: 0, patternedBodies: 0, patternedPoints: 0 })
+		// Line dash alone: both layer lines dash (reported: a filled area's
+		// edge ignored the dash), bodies and points stay plain.
+		expect(mountWith({}, { defaultDashPattern: "dashed" })).toEqual({
+			dashedLines: 2,
+			patternedBodies: 0,
+			patternedPoints: 0,
+		})
+		// The base fill pattern is the AREA body's, not the points'.
+		expect(mountWith({ defaultPattern: 1 })).toEqual({
+			dashedLines: 0,
+			patternedBodies: 2,
+			patternedPoints: 0,
+		})
+		// The points' own pattern leaves the bodies plain.
+		expect(mountWith({ pattern: { defaultAreaPointPattern: 1 } })).toEqual({
+			dashedLines: 0,
+			patternedBodies: 0,
+			patternedPoints: 8,
+		})
 	})
 
 	it("AreaPlot in line-fill mode honors dash patterns (dashed → underlay + dasharray top)", () => {

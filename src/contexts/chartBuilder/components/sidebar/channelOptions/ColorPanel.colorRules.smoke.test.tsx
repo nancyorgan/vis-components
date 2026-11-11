@@ -17,7 +17,8 @@ import {
 
 import { ColorPanel } from "./ColorPanel"
 
-/** Conditional color rules on the Color menu: Fill, Outline, and Line each
+/** Conditional color rules on the Color menu: Fill, Outline, and Line (on
+ *  this line chart, titled Point fill / Point outline / Line) each
  *  carry the same "+ Add color rule" link (no standing subsection), offered
  *  with or without a variable mapped, and each writes its own store slot —
  *  `fillColorRules`, `shape.outlineColorRules`, `colorSlots.line.colorRules`. */
@@ -96,9 +97,9 @@ const condition = (container: HTMLElement, name: string) =>
 	)
 
 describe("ColorPanel — conditional color rules", () => {
-	it("offers one '+ Add color rule' link each under Fill, Outline, and Line", () => {
+	it("offers one '+ Add color rule' link each under Point fill, Point outline, and Line", () => {
 		const { container } = mount()
-		expandSubheader(container, "Outline")
+		expandSubheader(container, "Point outline")
 		expandSubheader(container, "Line")
 		expect(addLinks(container)).toHaveLength(3)
 		// No standing "rules" subsection header anywhere — the link is the
@@ -135,7 +136,7 @@ describe("ColorPanel — conditional color rules", () => {
 
 	it("Outline's link writes `shape.outlineColorRules`", () => {
 		const { container, configs } = mount()
-		expandSubheader(container, "Outline")
+		expandSubheader(container, "Point outline")
 		const [, outlineLink] = addLinks(container)
 		fireEvent.click(outlineLink)
 		fireEvent.change(condition(container, "outline")!, {

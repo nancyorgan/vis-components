@@ -320,7 +320,14 @@ export const applySettingEffects = (
 	if (has(patch, "channelConfigs", "connection")) {
 		const fill = sent(patch, "channelConfigs", "connection", "fill")
 		if (theme && (fill === "area" || fill === "line") && fill !== prev.channelConfigs?.connection?.fill) {
-			const switched = switchConnectionFill(v.encodings, configs(), fill, theme)
+			const hueField = v.encodings.hue?.field ?? null
+			const switched = switchConnectionFill(
+				v.encodings,
+				configs(),
+				fill,
+				theme,
+				hueField ? (typeOf(hueField) ?? "categorical") : null
+			)
 			v.encodings = switched.encodings
 			setConfigs(switched.configs)
 		}

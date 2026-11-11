@@ -8,6 +8,7 @@ import {
 	type AxisConfig,
 	type ChannelConfigs,
 } from "./channelConfig"
+import { withAreaPaletteDefaults, withoutAreaPaletteDefaults } from "./connectionEdits"
 import type {
 	DetectedGeoLevel,
 	GeoFieldDetection,
@@ -703,6 +704,17 @@ export const scaffoldVariation = (
 	) {
 		scaffold.configs.hue = buildQuantHueConfigFromTheme(theme)
 	}
+	// A filled-area scaffold takes the area palette defaults (fill palette
+	// body, categorical Line); any other scaffold drops them if a previous
+	// area chart left them behind.
+	scaffold.configs =
+		variation.connectionFill === "area"
+			? withAreaPaletteDefaults(
+					scaffold.configs,
+					theme,
+					hueAssign ? hueAssign.field.inferredType : null
+				)
+			: withoutAreaPaletteDefaults(scaffold.configs, theme)
 	return scaffold
 }
 

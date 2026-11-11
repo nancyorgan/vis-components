@@ -769,6 +769,17 @@ const renameMeltedValueRefs = <T extends FieldNameConfigs>(
 							newName
 						),
 						violinScales: renameKey(cc.pattern.violinScales, oldName, newName),
+						areaPointOverrides: renameKey(
+							cc.pattern.areaPointOverrides,
+							oldName,
+							newName
+						),
+						areaPointInkColors: renameKey(
+							cc.pattern.areaPointInkColors,
+							oldName,
+							newName
+						),
+						areaPointScales: renameKey(cc.pattern.areaPointScales, oldName, newName),
 					})
 				: cc.pattern,
 		shape:

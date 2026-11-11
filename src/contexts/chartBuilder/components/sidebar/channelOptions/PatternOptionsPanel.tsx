@@ -17,6 +17,7 @@ import {
 } from "../../../lib/channelConfig"
 import { overlayOn, regressionOn } from "../../../lib/colorSlots"
 import {
+	AREA_POINT_PATTERN_KEYS,
 	POLYGON_PATTERN_KEYS,
 	VIOLIN_PATTERN_KEYS,
 	type FillTargetPatternKeys,
@@ -24,6 +25,7 @@ import {
 import { DASH_CYCLE, resolveDashGapFill } from "../../../lib/dashPatterns"
 import { resolveSegmentPatternContext } from "../../../lib/segmentPattern"
 import { combine as c } from "../../../../../lib/cls"
+import { isAreaModeId } from "../../../lib/chartModes/families"
 import { effectiveType } from "../../../lib/fieldType"
 import {
 	PACKED_MEASURE_OPTION_VALUE,
@@ -293,7 +295,20 @@ export const PatternOptionsPanel = () => {
 	// Polygon mode names its targets as the other aesthetic menus do
 	// (`markPartTitles`): the line dash is the polygon outline — the
 	// "Connection line" — beside Point fill, Point outline and Polygon fill.
-	const lineDashTitle = isPolygonMode ? "Connection line" : "Line dash"
+	// AREA CHARTS name three pattern targets, as the other aesthetic menus
+	// do: the "Line" (the layer edge's dash), the "Area fill" (the body —
+	// the base fill picks, as it always was) and, while points draw, their
+	// own "Point fill" (`pattern.areaPoint*`). An unfilled area has no body,
+	// so its Area fill section stands down.
+	const isAreaMode = isAreaModeId(modeDef.id)
+	const areaFilled = isAreaMode && configs.connection?.fill === "area"
+	const areaPointsShown = isAreaMode && connectionMapped && !pointsHidden
+	const baseFillTitle = isAreaMode ? "Area fill" : "Point fill"
+	const lineDashTitle = isPolygonMode
+		? "Connection line"
+		: isAreaMode
+			? "Line"
+			: "Line dash"
 	// POINT OUTLINE DASH (polygon mode): the glyphs' outline ring takes a dash
 	// of its own — one pick for every point, stored sparsely on the pattern
 	// config (`pointOutlineDash` / `customPointOutlineDash`; absent = solid).
@@ -751,6 +766,7 @@ export const PatternOptionsPanel = () => {
 	type FillTargetState = ReturnType<typeof fillTargetState>
 	const polygon = fillTargetState(POLYGON_PATTERN_KEYS)
 	const violin = fillTargetState(VIOLIN_PATTERN_KEYS)
+	const areaPoint = fillTargetState(AREA_POINT_PATTERN_KEYS)
 	// PATTERN SCALE — the "Scale" box under each Color picker zooms that
 	// category's tile (×1 = the palette's native size). Sparse maps like
 	// `inkColors`: a blank box inherits ×1. (The fill targets above carry
@@ -876,6 +892,7 @@ export const PatternOptionsPanel = () => {
 				t.defaultScale !== null ||
 				t.defaultRotation !== null
 	const polygonSubsectionChanged = targetSubsectionChanged(polygon, patternFieldMapped)
+	const areaPointSubsectionChanged = targetSubsectionChanged(areaPoint, patternFieldMapped)
 	// Any explicit Vary by (a variable OR "none") is a deviation from Auto.
 	const violinSubsectionChanged =
 		violinVaryBy !== undefined || targetSubsectionChanged(violin, violinFieldMapped)
@@ -924,6 +941,7 @@ export const PatternOptionsPanel = () => {
 		fillSubsectionChanged ||
 		(patternMode !== "fill" && dashSubsectionChanged) ||
 		(radarPolygonFilled && polygonSubsectionChanged) ||
+		(areaPointsShown && areaPointSubsectionChanged) ||
 		(isPolygonMode && pointOutlineChanged) ||
 		(violinFilled && violinSubsectionChanged) ||
 		segmentPatternSet
@@ -1164,6 +1182,15 @@ export const PatternOptionsPanel = () => {
 			"Polygon pattern option",
 			"polygon fill",
 			polygonSubsectionChanged
+		)
+	const areaPointSubsection =
+		areaPointsShown &&
+		targetSubsection(
+			areaPoint,
+			"Point fill",
+			"Point pattern option",
+			"point fill",
+			areaPointSubsectionChanged
 		)
 	// The Point outline dash picker (polygon mode, while points draw).
 	const pointOutlineSubsection = isPolygonMode && !pointsHidden && (
@@ -1571,6 +1598,15 @@ export const PatternOptionsPanel = () => {
 			polygonSubsectionChanged
 		)
 
+	const areaPointCategorySubsection =
+		areaPointsShown &&
+		targetCategorySubsection(
+			areaPoint,
+			"Point fill",
+			{ kind: "point pattern", context: "point fill" },
+			areaPointSubsectionChanged
+		)
+
 	// Point fill's "Vary by" — two-way bound to the TOP-LEVEL pattern
 	// encoding (the field the shelf row shows), so changing it here changes
 	// the shelf and vice-versa. Mirrors Color's / Opacity's Fill. Shown in
@@ -1734,7 +1770,7 @@ export const PatternOptionsPanel = () => {
 	)
 	const pointFillSubsection = (
 		<CollapsibleSubsection
-			title="Point fill"
+			title={baseFillTitle}
 			defaultOpen
 			changed={fillSubsectionChanged}
 		>
@@ -1758,6 +1794,13 @@ export const PatternOptionsPanel = () => {
 							{polygonSubsection}
 							{violinSubsection}
 						</>
+					) : isAreaMode ? (
+						// Line, Area fill, Point fill — the other menus' order.
+						<>
+							{lineDashSubsection}
+							{areaFilled && pointFillSubsection}
+							{areaPointSubsection}
+						</>
 					) : (
 						<>
 							{lineDashSubsection}
@@ -1778,6 +1821,8 @@ export const PatternOptionsPanel = () => {
 						<div className="px-2">{gapFillRow}</div>
 						{polygonSubsection}
 						{violinSubsection}
+						{/* No points, but a filled area still has a body to pattern. */}
+						{areaFilled && pointFillSubsection}
 					</>
 				) : patternMode === "segmentDash" ? (
 					// Thin segments: Pattern is the segment dash. No range window
@@ -1865,6 +1910,7 @@ export const PatternOptionsPanel = () => {
 								// only touched where the Polygon fill section exists, so
 								// other charts' saves don't grow null keys.
 								...(radarPolygonFilled ? polygon.clearDefaults : {}),
+								...(areaPointsShown ? areaPoint.clearDefaults : {}),
 								...(violinFilled
 									? { ...violin.clearDefaults, violinField: undefined }
 									: {}),
@@ -1904,7 +1950,7 @@ export const PatternOptionsPanel = () => {
 	)
 	const pointFillCategories = fieldValues && (
 		<CollapsibleSubsection
-			title="Point fill"
+			title={baseFillTitle}
 			defaultOpen
 			changed={fillSubsectionChanged}
 		>
@@ -1936,6 +1982,12 @@ export const PatternOptionsPanel = () => {
 							{lineDashCategories}
 							{polygonCategorySubsection}
 							{violinSubsection}
+						</>
+					) : isAreaMode ? (
+						<>
+							{lineDashCategories}
+							{areaFilled && pointFillCategories}
+							{areaPointCategorySubsection}
 						</>
 					) : (
 						<>
@@ -1989,6 +2041,7 @@ export const PatternOptionsPanel = () => {
 								gapFillRow}
 						</div>
 						{patternMode === "dashOnly" && polygonCategorySubsection}
+						{patternMode === "dashOnly" && areaFilled && pointFillCategories}
 						{violinSubsection}
 					</>
 				))}

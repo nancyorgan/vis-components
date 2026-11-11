@@ -283,8 +283,17 @@ export const insertCustomPattern = (
 
 /** The per-category pick maps and the no-variable default picks that can
  * reference a custom pattern. */
-const PICK_MAP_KEYS = ["overrides", "polygonOverrides", "violinOverrides"] as const
-const PICK_DEFAULT_KEYS = ["defaultPolygonPattern", "defaultViolinPattern"] as const
+const PICK_MAP_KEYS = [
+	"overrides",
+	"polygonOverrides",
+	"violinOverrides",
+	"areaPointOverrides",
+] as const
+const PICK_DEFAULT_KEYS = [
+	"defaultPolygonPattern",
+	"defaultViolinPattern",
+	"defaultAreaPointPattern",
+] as const
 
 /** Delete the custom pattern in `slot`: tombstone it (never splice, so the
  * other slots' indices stay stable) and drop every pick that pointed at it

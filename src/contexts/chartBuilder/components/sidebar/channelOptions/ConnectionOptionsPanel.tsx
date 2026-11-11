@@ -206,8 +206,8 @@ export const ConnectionOptionsPanel = () => {
 	const axisStem = cfg.axisStem ?? "none"
 
 	// Point-sampling controls show whenever connection is mapped in a mode
-	// that draws lines — scatter (renderConnectionLines), areas-line mode
-	// (the per-row markers AreaPlot adds in line mode), and radar polygons.
+	// that draws lines — scatter (renderConnectionLines), area charts (the
+	// per-vertex markers AreaPlot adds, filled or not), and radar polygons.
 	const showPointSampling = !!connectionFieldName && drawsConnectionLines
 
 	// Line-thickness "Vary by" state. Only scatter connection lines and radar
@@ -427,18 +427,31 @@ export const ConnectionOptionsPanel = () => {
 		singleThicknessRow
 	)
 
-	// Line/Area chart switch — surfaced as the "Fill polygon" checkbox in
-	// the Polygon subsection. Filling the polygon IS an area chart: checking
+	// Line/Area chart switch — surfaced as the "Fill area under line"
+	// checkbox in the Line fill subsection (radar keeps its own "Polygon" /
+	// "Fill polygon"). Filling under the line IS an area chart: checking
 	// it swaps `y → length` so the existing areas-x detection (which keys off
 	// `length`) fires; unchecking reverses the swap. The user's measure field
 	// is preserved across the swap, so the toggle is non-destructive.
 	const switchFill = (fill: "area" | "line") => {
-		const next = switchConnectionFill(encodings, configs, fill, theme)
+		const hueField = encodings.hue?.field ?? null
+		const next = switchConnectionFill(
+			encodings,
+			configs,
+			fill,
+			theme,
+			hueField ? typeOf(hueField) : null
+		)
 		setEncodings(next.encodings)
 		setConfigs(next.configs)
 	}
 	const switchToArea = () => switchFill("area")
 	const switchToLine = () => switchFill("line")
+	// The box reports what is DRAWN, not the mode: mapping x + length +
+	// connection by hand (a bar chart plus a connection field) lands in
+	// areas mode with the stored fill still "line", which renders stacked
+	// lines. Checking it then fills in place (no y → length swap needed).
+	const polygonFilled = isAreaMode && cfg.fill === "area"
 
 	return (
 		<div className="vc-option-panel">
@@ -744,14 +757,14 @@ export const ConnectionOptionsPanel = () => {
 			)}
 			{isLineOrAreaMode && !!connectionFieldName && (
 				<CollapsibleSubsection
-					title="Polygon"
+					title="Line fill"
 					changed={ch.fill}
 					tipAnchor="area-fill"
 				>
 					<div className="flex flex-col gap-2">
 						<Checkbox
-							label="Fill polygon"
-							checked={isAreaMode}
+							label="Fill area under line"
+							checked={polygonFilled}
 							onChange={(on) => (on ? switchToArea() : switchToLine())}
 							changed={ch.fill}
 						/>

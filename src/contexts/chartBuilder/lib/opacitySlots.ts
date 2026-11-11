@@ -5,6 +5,7 @@ import type {
 } from "./channelConfig"
 import type { ChartMode } from "./chartMode"
 import {
+	areaPointsOn,
 	densityCurveFillOn,
 	densityCurveOn,
 	histogramOn,
@@ -45,12 +46,35 @@ const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
  * slots mirror `COLOR_SLOT_REGISTRY`'s gates exactly. */
 export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	{
+		// Area charts: the point markers' fill. The Opacity panel hoists the
+		// Border slot (the area's Line) above the Fill there, so the menu
+		// reads Line, Area fill, Point fill, Point outline. Level only in
+		// practice: the Opacity panel
+		// drops the Vary by on area charts (one layer = one value).
+		key: "areaPointFill",
+		label: "Point fill",
+		modes: m("areas-x", "areas-y"),
+		isApplicable: areaPointsOn,
+		defaultLevel: 1,
+		acceptsFieldMapping: true,
+	},
+	{
 		// Stroke/outline opacity. Labeled "Outline" to match the Color menu's
 		// outline subheader; the storage key stays `border` for back-compat.
 		key: "border",
 		label: "Outline",
 		modes: null,
 		isApplicable: () => true,
+		defaultLevel: 1,
+		acceptsFieldMapping: true,
+	},
+	{
+		// Area charts: the ring around each point marker. (The Border slot
+		// is the area's Line there, so the points' ring gets its own.)
+		key: "areaPointOutline",
+		label: "Point outline",
+		modes: m("areas-x", "areas-y"),
+		isApplicable: areaPointsOn,
 		defaultLevel: 1,
 		acceptsFieldMapping: true,
 	},
