@@ -14,6 +14,8 @@ import {
 	composeVisual,
 	editVisual,
 	SPEC_KEYS,
+	specReadsRows,
+	specVariationNames,
 	type ChartSpec,
 	type ChartSpecEdit,
 	type ComposeDeps,
@@ -147,9 +149,16 @@ export const createHandlers = (api: Api) => {
 		return all.find((t) => t.id === defaultId) ?? all[0]
 	}
 
-	/** The latest version's rows, only for a settings patch that reads them. */
-	const rowsFor = async (meta: DatasetMeta | undefined, settings: unknown) => {
-		if (!meta || !settingsReadRows(settings)) return undefined
+	/** The latest version's rows, only for a spec that reads them: a settings
+	 *  patch whose effects read them, a map or flow variation (a map finds
+	 *  its region column from the values, a flow its target column), or an
+	 *  edit naming a region column on a stored map (`stored`). */
+	const rowsFor = async (
+		meta: DatasetMeta | undefined,
+		spec: { family?: unknown; variation?: unknown; encodings?: unknown; settings?: unknown },
+		stored?: Visual
+	) => {
+		if (!meta || !(settingsReadRows(spec.settings) || specReadsRows(spec, stored))) return undefined
 		const body = await api.dataset(meta.id)
 		return body.versions.find((v) => v.id === meta.latestVersionId)?.rows
 	}
@@ -227,7 +236,7 @@ export const createHandlers = (api: Api) => {
 				theme: themeOf(theme),
 				folderIds: new Set(folders.map((f) => f.id)),
 				latestVersionId: meta.latestVersionId,
-				rows: await rowsFor(meta, spec.settings),
+				rows: await rowsFor(meta, spec),
 			}
 			const { visual, problems, warnings } = composeVisual({ ...spec, themeId: theme.id }, deps)
 			if (problems.length > 0) return refused("the chart wasn't created", problems)
@@ -329,7 +338,7 @@ export const createHandlers = (api: Api) => {
 				theme: themeOf(theme),
 				fromTheme: themeOf(current),
 				latestVersionId: meta?.latestVersionId ?? null,
-				rows: await rowsFor(meta, patch.settings),
+				rows: await rowsFor(meta, patch, base),
 			})
 			if (problems.length > 0) return refused("the chart wasn't changed", problems)
 			return saveEdit(base, read.tag, visual, warnings)
@@ -374,7 +383,10 @@ const specShape = {
 	folderId: z.string().nullable().describe(SPEC_KEYS.folderId),
 	name: z.string().optional().describe(SPEC_KEYS.name),
 	family: z.string().optional().describe(SPEC_KEYS.family),
-	variation: z.string().optional().describe(SPEC_KEYS.variation),
+	variation: z
+		.string()
+		.optional()
+		.describe(`${SPEC_KEYS.variation} One of: ${specVariationNames().map((n) => `"${n}"`).join(", ")}.`),
 	encodings: z.record(z.string(), z.string()).describe(SPEC_KEYS.encodings),
 	fieldTypes: z.record(z.string(), z.string()).optional().describe(SPEC_KEYS.fieldTypes),
 	title: z.string().optional().describe(SPEC_KEYS.title),
@@ -385,7 +397,7 @@ const specShape = {
 	settings: z.record(z.string(), z.unknown()).optional().describe(SPEC_KEYS.settings),
 }
 
-const { datasetId: _d, folderId: _f, variation: _v, ...editShape } = specShape
+const { datasetId: _d, folderId: _f, ...editShape } = specShape
 
 const SETTINGS_RULES =
 	"`settings` sets any stored setting by list_settings paths: objects merge, lists replace whole (send every entry; a new entry leaves out id). A setting behaves as the editor's panel does: a new annotation gets the theme's style and a name, data-label value fields get their labels, an Order by spec computes the order, a palette id brings its colors, thickness by field seeds every level, numbers clamp to the input's range, and a value equal to its default is stored as unset."
@@ -453,7 +465,7 @@ export const registerTools = (server: McpServer, handlers: Handlers): void => {
 	server.registerTool(
 		"edit_chart",
 		{
-			description: `Change a Zafiro chart: only the keys the patch names change (a null encoding unmaps the channel, a null axis bound clears it; a themeId re-themes it, keeping user overrides). ${ENCODINGS_FIRST} ${SETTINGS_RULES} Refused if the chart changed in the editor since it was read.`,
+			description: `Change a Zafiro chart: only the keys the patch names change (a null encoding unmaps the channel, a null axis bound clears it; a themeId re-themes it, keeping user overrides; a variation re-shapes it as that variation, keeping titles, legend, labels and theme). ${ENCODINGS_FIRST} ${SETTINGS_RULES} Refused if the chart changed in the editor since it was read.`,
 			inputSchema: {
 				id: z.string().describe("The chart id."),
 				patch: z

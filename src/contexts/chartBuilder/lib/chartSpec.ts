@@ -5,14 +5,17 @@
  * config keys the sidebar panels write. Pure: no store, no server. */
 
 import { applySettings } from "./applySettings"
+import { explicitFlowTargetField, resolveFlowTargetField } from "./buildFlowGraph"
+import { withSpecPickEffects } from "./chartSpecPicks"
 import type { AxisConfig, ChannelConfigs, StackMode } from "./channelConfig"
 import { ALL_ENCODING_CHANNELS, CHANNELS, channelsConflict } from "./channels"
 import { didYouMean } from "./didYouMean"
 import { foldFlowNodeTitles } from "./foldFlowNodeTitles"
 import { formatSpecProblem } from "./formatTick"
+import { detectGeoFields, type GeoFieldDetection } from "./geo/detectGeoFields"
 import { parseLocalDate } from "./localDate"
 import { UNTITLED_VISUAL_NAME } from "./nameUniqueness"
-import { scaffoldVariation, type ChannelAssignment } from "./quickStart"
+import { mapConfigForVariation, scaffoldVariation, type ChannelAssignment } from "./quickStart"
 import {
 	QUICK_START_CHART_TYPES,
 	QUICK_START_VARIATIONS,
@@ -21,7 +24,7 @@ import {
 } from "./quickStartVariations"
 import { structureVisualKeys } from "./savedKeyStructure"
 import { seedHueChannel, seedOutlineHueChannel } from "./seedColorSlot"
-import { axisConfigFromTheme } from "./themeConfig"
+import { axisConfigFromTheme, mapConfigFromTheme } from "./themeConfig"
 import {
 	rethemeCaption,
 	rethemeChannelConfigs,
@@ -74,7 +77,7 @@ export type ChartSpec = {
  * encoding unmaps the channel; a null bound clears it; a `themeId`
  * re-themes the chart the way the Theme panel does. */
 export type ChartSpecEdit = Partial<
-	Omit<ChartSpec, "datasetId" | "folderId" | "variation" | "encodings" | "axes">
+	Omit<ChartSpec, "datasetId" | "folderId" | "encodings" | "axes">
 > & {
 	encodings?: Partial<Record<SpecChannel, string | null>>
 	axes?: Partial<
@@ -107,7 +110,9 @@ export type ComposeDeps = {
 	latestVersionId?: string | null
 	/** The data set's rows, for the settings whose effects read them (an
 	 * "Order by" spec, thickness by field, facet counts; see
-	 * `settingsReadRows`). */
+	 * `settingsReadRows`) and for the variations that read the data (a map
+	 * finds its region or lat/long columns from their values, a flow its
+	 * target column; see `specReadsRows`). */
 	rows?: ReadonlyArray<Record<string, string>>
 	now?: number
 }
@@ -123,7 +128,8 @@ export const SPEC_KEYS: Readonly<Record<keyof ChartSpec, string>> = {
 	folderId: "Required. A folder id, or null for the library root.",
 	name: `The visual's name; falls back to title, then "${UNTITLED_VISUAL_NAME}".`,
 	family: "A quick-start chart family the encodings should make.",
-	variation: "One of the family's variations, by name.",
+	variation:
+		"A quick-start variation by name (it implies its family). A map finds its region (or longitude / latitude) columns from their values; a flow its target column. On an edit, re-shapes the chart as that variation, keeping titles, legend, labels and theme.",
 	encodings: "Required. Channel → field name (null unmaps, in an edit).",
 	fieldTypes: "Field → type overrides, as the Fields panel sets them.",
 	title: "The chart title.",
@@ -135,12 +141,9 @@ export const SPEC_KEYS: Readonly<Record<keyof ChartSpec, string>> = {
 	settings:
 		"Any stored setting: slice → nested values, by list_settings paths. Objects merge; lists replace whole. Applied last.",
 }
-const CREATE_ONLY = new Set(["datasetId", "folderId", "variation"])
+const CREATE_ONLY = new Set(["datasetId", "folderId"])
 
-/** Maps need value-based region detection and flows a target column, which
- * only the editor sets up. */
-const UNSUPPORTED_FAMILIES: readonly QuickStartChartType[] = ["map", "sankey", "chord"]
-const SPEC_FAMILIES = QUICK_START_CHART_TYPES.filter((f) => !UNSUPPORTED_FAMILIES.includes(f))
+const SPEC_FAMILIES = QUICK_START_CHART_TYPES
 const SPEC_CHANNELS = ALL_ENCODING_CHANNELS.filter((c): c is SpecChannel => c !== "text")
 const FIELD_TYPES: readonly FieldType[] = ["quantitative", "categorical", "temporal", "ordinal"]
 const STACK_MODES: readonly StackMode[] = ["stack", "group", "overlay"]
@@ -159,6 +162,47 @@ export const chartSpecVocabulary = () => ({
 	})),
 	specKeys: { ...SPEC_KEYS } as Record<string, string>,
 })
+
+/** Every quick-start variation with its family. Names are unique across
+ * families, so a variation name alone names its family. */
+const ALL_VARIATIONS = QUICK_START_CHART_TYPES.flatMap((family) =>
+	QUICK_START_VARIATIONS[family].map((variation) => ({ family, variation }))
+)
+
+/** The variation names a spec accepts (`variation`), in quick-start bar
+ * order: every chart type the product makes. */
+export const specVariationNames = (): string[] => ALL_VARIATIONS.map((e) => e.variation.name)
+
+const variationNamed = (name: string) =>
+	ALL_VARIATIONS.find((e) => e.variation.name.toLowerCase() === name.trim().toLowerCase())
+
+const familyOfVariation = (name: string): QuickStartChartType | undefined =>
+	variationNamed(name)?.family
+
+/** Families whose variations read the data set's rows: a map finds its
+ * geography from the values, a flow its target column. */
+const ROW_READING_FAMILIES: readonly QuickStartChartType[] = ["map", "sankey", "chord"]
+
+/** Whether composing (or editing with) this spec reads the data set's rows,
+ * so a caller fetches them into `ComposeDeps.rows`. */
+export const specReadsRows = (
+	spec: { family?: unknown; variation?: unknown; encodings?: unknown },
+	stored?: Pick<Visual, "mapConfig">
+): boolean =>
+	[spec.family, typeof spec.variation === "string" ? familyOfVariation(spec.variation) : undefined].some(
+		(f) => ROW_READING_FAMILIES.includes(f as QuickStartChartType)
+	) || (!!stored && editsStoredMapRegion(stored, spec))
+
+/** An edit that names a `connection` column on a chart already drawn as a
+ * geographic map: the column is checked as a region column, as on create. */
+const editsStoredMapRegion = (
+	stored: Pick<Visual, "mapConfig">,
+	patch: { encodings?: unknown }
+): boolean =>
+	stored.mapConfig?.coordSystem === "geographic" &&
+	typeof patch.encodings === "object" &&
+	patch.encodings !== null &&
+	typeof (patch.encodings as Record<string, unknown>).connection === "string"
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
 	typeof v === "object" && v !== null && !Array.isArray(v)
@@ -186,11 +230,6 @@ const shapeProblems = (input: unknown, edit: boolean): SpecProblem[] => {
 	}
 	if (input.family !== undefined && !oneOf(QUICK_START_CHART_TYPES, input.family))
 		bad("family", `unknown family; families are ${quoted(SPEC_FAMILIES)}`)
-	else if (UNSUPPORTED_FAMILIES.includes(input.family as QuickStartChartType))
-		bad(
-			"family",
-			`a "${String(input.family)}" chart can't be made from a spec yet; build it in the editor`
-		)
 	if (input.stack !== undefined && !oneOf(STACK_MODES, input.stack))
 		bad("stack", `"stack" must be one of ${quoted(STACK_MODES)}`)
 	if (input.encodings !== undefined && !isObj(input.encodings))
@@ -239,8 +278,34 @@ const shapeProblems = (input: unknown, edit: boolean): SpecProblem[] => {
 	return out
 }
 
+/** What `connection` is to a family, for a refusal that names it. */
+const CONNECTION_ROLE: Partial<Record<QuickStartChartType, string>> = {
+	line: "the series field, one line per level",
+	area: "the series field, one area per level",
+	radar: "the series field, one polygon per level",
+	circles: "the group field",
+	treemap: "the group field",
+	sunburst: "the group field",
+	sankey: "the flow source column",
+	chord: "the flow source column",
+}
+
+/** Channels a variation needs EMPTY: the geo and the tree / flow chart modes
+ * detect off which channels are unmapped (an `area` turns a choropleth into
+ * a bubble map; a position channel takes a tree or flow off its layout). */
+const mustBeEmpty = (v: QuickStartVariation): SpecChannel[] =>
+	v.geo === "choropleth"
+		? ["x", "y", "area"]
+		: v.geo === "symbols"
+			? ["x", "y"]
+			: v.hierarchyLayout
+				? ["x", "y", "r", "angle", "length"]
+				: []
+
 /** The family's variation: by name, else the one these encodings fill with
- * the most channels (ties to the first listed, as on the quick-start bar). */
+ * the most channels (ties to the first listed, as on the quick-start bar).
+ * A map's geo channels aren't checked here: they come from the data
+ * (`placeGeo`). */
 const pickVariation = (
 	family: QuickStartChartType,
 	name: string | undefined,
@@ -255,16 +320,25 @@ const pickVariation = (
 				const t = typeOf(fields[ch])
 				return !t || !types.includes(t)
 			})
-			.map(([ch, types]) => `"${ch}" (${types.join(" or ")})`)
+			.map(
+				([ch, types]) =>
+					`"${ch}" (${types.join(" or ")}${ch === "connection" && CONNECTION_ROLE[family] ? `: ${CONNECTION_ROLE[family]}` : ""})`
+			)
+	const crowded = (v: QuickStartVariation) => mustBeEmpty(v).filter((ch) => fields[ch])
 	if (name !== undefined) {
 		const v = all.find((x) => x.name.toLowerCase() === name.trim().toLowerCase())
 		const names = all.map((x) => x.name)
 		if (!v)
 			return `no "${name}" variation of "${family}"${didYouMean(name, names)} (variations: ${quoted(names)})`
 		const missing = unfilled(v)
-		return missing.length > 0 ? `"${v.name}" needs ${missing.join(", ")}` : v
+		const extra = crowded(v)
+		const why = [
+			...(missing.length > 0 ? [`needs ${missing.join(", ")}`] : []),
+			...(extra.length > 0 ? [`leaves ${quoted(extra)} unmapped`] : []),
+		]
+		return why.length > 0 ? `"${v.name}" ${why.join(" and ")}` : v
 	}
-	const fits = all.filter((v) => unfilled(v).length === 0)
+	const fits = all.filter((v) => unfilled(v).length === 0 && crowded(v).length === 0)
 	const best = fits.reduce<QuickStartVariation | undefined>(
 		(a, v) => (!a || Object.keys(v.channels).length > Object.keys(a.channels).length ? v : a),
 		undefined
@@ -275,13 +349,229 @@ const pickVariation = (
 	)
 }
 
+type PickedVariation = {
+	variation: QuickStartVariation
+	/** Where a problem with it is reported. */
+	path: "family" | "variation"
+}
+
+/** The spec's variation: named (its family implied, or checked against a
+ * named family), else the family's best fit; undefined with neither. A
+ * variation these encodings can't make is a problem. Mutates `out`. */
+const resolveVariation = (
+	spec: { family?: unknown; variation?: unknown },
+	fields: Partial<Record<SpecChannel, string>>,
+	typeOf: (f: string) => FieldType | undefined,
+	out: { problems: SpecProblem[] }
+): PickedVariation | undefined => {
+	const name = typeof spec.variation === "string" ? spec.variation : undefined
+	if (spec.family !== undefined && !oneOf(QUICK_START_CHART_TYPES, spec.family)) return undefined
+	const family = (spec.family as QuickStartChartType | undefined) ?? (name !== undefined ? familyOfVariation(name) : undefined)
+	if (name !== undefined && family === undefined) {
+		out.problems.push({
+			path: "variation",
+			message: `no "${name}" variation${didYouMean(name, specVariationNames())}`,
+		})
+		return undefined
+	}
+	if (family === undefined) return undefined
+	const path = name !== undefined ? "variation" : "family"
+	const picked = pickVariation(family, name, fields, typeOf)
+	if (typeof picked === "string") {
+		out.problems.push({ path, message: picked })
+		return undefined
+	}
+	return { variation: picked, path }
+}
+
+/** What a region column's values must be for a map to find it
+ * (`detectGeoFields`, as the quick-start bar uses it). */
+const REGION_VALUES =
+	'US state names, USPS abbreviations or state FIPS codes; county FIPS codes ("06037") or county names ("Cook County" or "Cook County, IL"); or country names or ISO codes. A column of number codes also needs a name that says what they are (FIPS, state, county, ISO, …). ZIP codes (ZCTAs) aren\'t found from values: map the column on "connection" and set settings.mapConfig.geographyLevel to "zcta"'
+
+/** A concrete geography level the spec's settings pin (not "auto"). */
+const pinnedGeographyLevel = (settings: unknown): boolean => {
+	const level = isObj(settings) && isObj(settings.mapConfig) ? settings.mapConfig.geographyLevel : undefined
+	return typeof level === "string" && level !== "auto"
+}
+
+/** The data set's geo columns, as the quick-start bar detects them. */
+const detectGeo = (
+	deps: ComposeDeps,
+	typeOf: (f: string) => FieldType | undefined
+): GeoFieldDetection | null =>
+	deps.rows
+		? detectGeoFields(
+				deps.fields.map((f) => ({ name: f.name, inferredType: typeOf(f.name) ?? f.type })),
+				deps.rows
+			)
+		: null
+
+/** The column named on `connection` when it is a region column
+ * `detectGeoFields` finds for a region map (Choropleth, Bubble map). Such a
+ * column may be stored as numbers (county FIPS read as quantitative), which
+ * `connection` otherwise refuses; the field check lets this one through, as
+ * it does the same column placed from the data. */
+const regionColumnOnConnection = (
+	geoKind: QuickStartVariation["geo"],
+	named: string | null | undefined,
+	geo: GeoFieldDetection | null
+): string | null =>
+	(geoKind === "choropleth" || geoKind === "symbols") &&
+	named &&
+	geo?.regionFields.some((r) => r.field.name === named)
+		? named
+		: null
+
+/** A map variation's geo channels, found from the data the way the
+ * quick-start bar finds them (`detectGeoFields`): the region column on
+ * `connection` (the one named, which must be a region column, else the
+ * first found), or longitude on `x` and latitude on `y`. Returns the
+ * channels to add and the detection `mapConfigForVariation` reads, or
+ * undefined after recording a problem. Mutates `out`. */
+const placeGeo = (
+	picked: PickedVariation,
+	mapped: Partial<Record<SpecChannel, string>>,
+	deps: ComposeDeps,
+	typeOf: (f: string) => FieldType | undefined,
+	levelPinned: boolean,
+	out: { problems: SpecProblem[]; warnings: string[] }
+): { add: ChannelAssignment[]; geo: GeoFieldDetection } | undefined => {
+	const { variation: v, path } = picked
+	const bad = (where: string, message: string) => {
+		out.problems.push({ path: where, message })
+		return undefined
+	}
+	const geo = detectGeo(deps, typeOf)
+	if (!geo) return bad(path, `a ${v.name} finds its geography from the data set's rows, which weren't given`)
+	const field = (name: string) => ({ name, inferredType: typeOf(name) ?? "categorical" })
+	if (v.geo === "points") {
+		const lon = geo.lonField
+		const lat = geo.latField
+		if (!lon || !lat)
+			return bad(
+				path,
+				`a ${v.name} needs longitude and latitude columns: quantitative, named like "lon", "lng" or "longitude" and "lat" or "latitude", with values in range; none were found`
+			)
+		if (mapped.x && mapped.x !== lon.name)
+			return bad("encodings.x", `a ${v.name} puts longitude on "x"; the longitude column is "${lon.name}"`)
+		if (mapped.y && mapped.y !== lat.name)
+			return bad("encodings.y", `a ${v.name} puts latitude on "y"; the latitude column is "${lat.name}"`)
+		const add: ChannelAssignment[] = []
+		if (!mapped.x) add.push({ channel: "x", field: field(lon.name) })
+		if (!mapped.y) add.push({ channel: "y", field: field(lat.name) })
+		if (add.length > 0)
+			out.warnings.push(`longitude "${lon.name}" is on "x" and latitude "${lat.name}" on "y", found from their values`)
+		return { add, geo }
+	}
+	const named = mapped.connection
+	if (named) {
+		if (!levelPinned && !geo.regionFields.some((r) => r.field.name === named))
+			return bad(
+				"encodings.connection",
+				`"${named}" isn't a region column a map can join: its values should be ${REGION_VALUES}`
+			)
+		return { add: [], geo }
+	}
+	const found = geo.regionFields[0]
+	if (!found)
+		return bad(
+			path,
+			`a ${v.name} needs a region column on "connection", and no field's values name places a map knows; expected ${REGION_VALUES}`
+		)
+	out.warnings.push(
+		`"connection" maps "${found.field.name}", the region column found from its values (${found.level})`
+	)
+	return { add: [{ channel: "connection", field: field(found.field.name) }], geo }
+}
+
+/** The quick-start scaffold over exactly the channels the spec maps: the
+ * variation's knobs (stacking, area fill, layouts, overlays, derived hue,
+ * data labels) minus the ones that would overwrite a field the spec
+ * picked itself. */
+const scaffoldFor = (
+	picked: QuickStartVariation | undefined,
+	assignments: readonly ChannelAssignment[],
+	configs: ChannelConfigs,
+	theme: Theme,
+	stack: StackMode | undefined
+) => {
+	const {
+		name: _n,
+		channels: _c,
+		allowOpportunisticHue: _o,
+		...knobs
+	} = picked ?? ({ name: "", channels: {} } as QuickStartVariation)
+	if (assignments.some((a) => a.channel === "hue")) {
+		delete knobs.hueFrom
+		delete knobs.hueMeasureSource
+	}
+	if (assignments.some((a) => a.channel === "connection")) delete knobs.connectionFrom
+	return scaffoldVariation(
+		{
+			...knobs,
+			name: "spec",
+			channels: Object.fromEntries(assignments.map((a) => [a.channel, [a.field.inferredType]])),
+			...(stack ? { stackMode: stack } : {}),
+		},
+		assignments,
+		configs,
+		theme
+	)
+}
+
+/** A flow draws the rows from its source column to a target column it
+ * resolves from the data at render time (`resolveFlowTargetField`); with
+ * no target it draws nothing, so that is a problem. Mutates `out`. */
+const checkFlowTarget = (
+	visual: Visual,
+	picked: PickedVariation | undefined,
+	deps: ComposeDeps,
+	out: { problems: SpecProblem[]; warnings: string[] }
+) => {
+	if (!picked?.variation.requiresFlowTarget) return
+	const source = visual.encodings.connection?.field
+	if (!source) return
+	const value = visual.encodings.area?.field ?? null
+	const explicit = visual.channelConfigs.connection?.flowTargetField
+	const fields = deps.fields.map((f) => ({
+		name: f.name,
+		inferredType: visual.fieldTypeOverrides?.[f.name] ?? f.type,
+	}))
+	const target = resolveFlowTargetField(explicit, deps.rows ?? [], fields, source, value)
+	if (!target)
+		out.problems.push({
+			path: picked.path,
+			message: `a ${picked.variation.name} needs a target column: a categorical field besides the source "${source}"${value ? ` and the value "${value}"` : ""}`,
+		})
+	else if (!explicitFlowTargetField(explicit, source))
+		out.warnings.push(
+			`the flows run from "${source}" to "${target}", the target column found from the data; settings.channelConfigs.connection.flowTargetField picks another`
+		)
+}
+
+/** The channels a visual maps to fields, as scaffold assignments. */
+const assignmentsOf = (
+	fields: Partial<Record<SpecChannel, string>>,
+	typeOf: (f: string) => FieldType | undefined
+): ChannelAssignment[] =>
+	(Object.entries(fields) as Array<[SpecChannel, string]>).flatMap(([channel, name]) => {
+		const type = typeof name === "string" ? typeOf(name) : undefined
+		return type && SPEC_CHANNELS.includes(channel)
+			? [{ channel, field: { name, inferredType: type } }]
+			: []
+	})
+
 /** Checks and writes shared by create and edit: field existence and type fit,
- * channel conflicts, stack, titles, axes. Mutates `out`. */
+ * channel conflicts, stack, titles, axes. `regionColumn` is a map's detected
+ * region column named on `connection` (`regionColumnOnConnection`), taken
+ * whatever its type. Mutates `out`. */
 const applyCommon = (
 	spec: ChartSpecEdit,
 	visual: Visual,
 	deps: ComposeDeps,
-	out: { problems: SpecProblem[]; warnings: string[] }
+	out: { problems: SpecProblem[]; warnings: string[] },
+	regionColumn: string | null = null
 ): Visual => {
 	const known = new Map(deps.fields.map((f) => [f.name, f.type]))
 	const names = [...known.keys()]
@@ -301,7 +591,7 @@ const applyCommon = (
 		if (!field) continue
 		const type = typeOf(field)
 		if (type === undefined) bad(`encodings.${ch}`, `no field "${field}"${didYouMean(field, names)}`)
-		else if (!CHANNELS[ch].accepts.includes(type))
+		else if (!CHANNELS[ch].accepts.includes(type) && !(ch === "connection" && field === regionColumn))
 			bad(
 				`encodings.${ch}`,
 				`"${ch}" takes ${CHANNELS[ch].accepts.join(" or ")}; "${field}" is ${type}`
@@ -374,15 +664,88 @@ const applyCommon = (
 	if (spec.axes?.x?.title !== undefined) labelsConfig.xAxisTitle = spec.axes.x.title
 	if (spec.axes?.y?.title !== undefined) labelsConfig.yAxisTitle = spec.axes.y.title
 
-	if (spec.family !== undefined && SPEC_FAMILIES.includes(spec.family)) {
-		const fields = Object.fromEntries(
-			SPEC_CHANNELS.flatMap((ch) => (encodings[ch]?.field ? [[ch, encodings[ch].field]] : []))
-		)
-		const picked = pickVariation(spec.family, (spec as ChartSpec).variation, fields, typeOf)
-		if (typeof picked === "string")
-			bad((spec as ChartSpec).variation !== undefined ? "variation" : "family", picked)
-	}
 	return { ...visual, encodings, channelConfigs: configs, labelsConfig, fieldTypeOverrides: overrides }
+}
+
+/** The channels a visual maps to fields. */
+const mappedOf = (visual: Visual): Partial<Record<SpecChannel, string>> =>
+	Object.fromEntries(
+		SPEC_CHANNELS.flatMap((ch) => {
+			const field = visual.encodings[ch]?.field
+			return field ? [[ch, field]] : []
+		})
+	)
+
+/** An edit naming a variation re-shapes the chart as the quick-start bar
+ * scaffolds that variation over the chart's (edited) encodings: its knobs
+ * apply (stacking, area or line fill, tree / flow layout, overlays, the
+ * map's coord system and geography) while titles, legend, data labels,
+ * annotations, theme, the hue colors and the line's styling stay. A map
+ * variation finds its geo channels from the data, as on create. Mutates
+ * `out`. */
+const reshape = (
+	visual: Visual,
+	pick: PickedVariation,
+	patch: ChartSpecEdit,
+	deps: ComposeDeps,
+	typeOf: (f: string) => FieldType | undefined,
+	out: { problems: SpecProblem[]; warnings: string[] }
+): Visual => {
+	const mapped = mappedOf(visual)
+	const assignments = assignmentsOf(mapped, typeOf)
+	let geo: GeoFieldDetection | null = null
+	if (pick.variation.geo) {
+		const placed = placeGeo(pick, mapped, deps, typeOf, pinnedGeographyLevel(patch.settings), out)
+		if (!placed) return visual
+		for (const a of placed.add) assignments.push(a)
+		geo = placed.geo
+	}
+	const before = visual.channelConfigs
+	const scaffold = scaffoldFor(pick.variation, assignments, before, deps.theme, patch.stack)
+	const configs: ChannelConfigs = { ...scaffold.configs }
+	const hueWas = visual.encodings.hue
+	const hueIs = scaffold.encodings.hue
+	if (
+		before.hue &&
+		configs.hue &&
+		before.hue.kind === configs.hue.kind &&
+		hueWas?.field === hueIs?.field &&
+		hueWas?.measureSource === hueIs?.measureSource
+	)
+		configs.hue =
+			before.hue.kind === "categorical" && configs.hue.kind === "categorical"
+				? { ...before.hue, stackMode: configs.hue.stackMode }
+				: before.hue
+	const line = configs.connection
+	if (before.connection && line && line !== before.connection)
+		configs.connection = {
+			...before.connection,
+			fill: line.fill,
+			hierarchyLayout: line.hierarchyLayout,
+			fillPolygon: line.fillPolygon,
+		}
+	const text = visual.encodings.text
+	const edits = isObj(patch.encodings) ? patch.encodings : {}
+	const sameGeography =
+		pick.variation.geo !== undefined &&
+		visual.mapConfig?.coordSystem === "geographic" &&
+		!["connection", "x", "y"].some((ch) => ch in edits)
+	return {
+		...visual,
+		encodings: text?.field ? { ...scaffold.encodings, text } : scaffold.encodings,
+		channelConfigs: configs,
+		dataLabelsEncodings: pick.variation.dataLabelsValueFrom
+			? { ...(visual.dataLabelsEncodings ?? scaffold.dataLabels), value: scaffold.dataLabels.value }
+			: visual.dataLabelsEncodings,
+		mapConfig: sameGeography
+			? visual.mapConfig
+			: mapConfigForVariation(
+					pick.variation,
+					assignments,
+					geo,
+					visual.mapConfig ?? mapConfigFromTheme(deps.theme)
+				),
+	}
 }
 
 /** The spec's `settings`, applied last; their problems are prefixed
@@ -419,39 +782,18 @@ export const composeVisual = (spec: ChartSpec, deps: ComposeDeps): ComposeResult
 	const encs = (isObj(spec.encodings) ? spec.encodings : {}) as Partial<Record<SpecChannel, string>>
 	const known = new Map(deps.fields.map((f) => [f.name, f.type]))
 	const typeOf = (f: string) => spec.fieldTypes?.[f] ?? known.get(f)
-	const assignments: ChannelAssignment[] = []
-	for (const [channel, name] of Object.entries(encs) as Array<[SpecChannel, string]>) {
-		const type = typeof name === "string" ? typeOf(name) : undefined
-		if (type && SPEC_CHANNELS.includes(channel))
-			assignments.push({ channel, field: { name, inferredType: type } })
+	const assignments = assignmentsOf(encs, typeOf)
+	// The variation's problems follow the field checks (`applyCommon`).
+	const later = { problems: [] as SpecProblem[], warnings: [] as string[] }
+	const pick = resolveVariation(spec, encs, typeOf, later)
+	// A map's geo channels come from the data, as on the quick-start bar.
+	let geo: GeoFieldDetection | null = null
+	if (pick?.variation.geo) {
+		const placed = placeGeo(pick, encs, deps, typeOf, pinnedGeographyLevel(spec.settings), later)
+		for (const a of placed?.add ?? []) assignments.push(a)
+		geo = placed?.geo ?? null
 	}
-	const picked =
-		spec.family && SPEC_FAMILIES.includes(spec.family)
-			? pickVariation(spec.family, spec.variation, encs, typeOf)
-			: undefined
-	// The variation's knobs, minus field picks the spec made itself.
-	const {
-		name: _n,
-		channels: _c,
-		allowOpportunisticHue: _o,
-		...knobs
-	} = typeof picked === "object" ? picked : ({ name: "", channels: {} } as QuickStartVariation)
-	if (encs.hue !== undefined) {
-		delete knobs.hueFrom
-		delete knobs.hueMeasureSource
-	}
-	if (encs.connection !== undefined) delete knobs.connectionFrom
-	const scaffold = scaffoldVariation(
-		{
-			...knobs,
-			name: "spec",
-			channels: Object.fromEntries(assignments.map((a) => [a.channel, [a.field.inferredType]])),
-			...(spec.stack ? { stackMode: spec.stack } : {}),
-		},
-		assignments,
-		draft.channelConfigs,
-		theme
-	)
+	const scaffold = scaffoldFor(pick?.variation, assignments, draft.channelConfigs, theme, spec.stack)
 	const outline = assignments.find((a) => a.channel === "outlineHue")
 	const configs = outline
 		? seedOutlineHueChannel(scaffold.configs, outline.field.inferredType, theme)
@@ -467,6 +809,9 @@ export const composeVisual = (spec: ChartSpec, deps: ComposeDeps): ComposeResult
 		encodings: scaffold.encodings,
 		channelConfigs: configs,
 		dataLabelsEncodings: scaffold.dataLabels,
+		mapConfig: pick
+			? mapConfigForVariation(pick.variation, assignments, geo, draft.mapConfig)
+			: draft.mapConfig,
 		...(spec.themeId ? { themeId: spec.themeId } : {}),
 		thumbnail: null,
 		createdAt: now,
@@ -478,9 +823,28 @@ export const composeVisual = (spec: ChartSpec, deps: ComposeDeps): ComposeResult
 		if (SPEC_CHANNELS.includes(ch as SpecChannel) && typeof f === "string" && !known.has(f))
 			base.encodings = { ...base.encodings, [ch]: { field: f } }
 	}
-	const visual = applyCommon(spec, base, deps, out)
+	const visual = applyCommon(
+		spec,
+		base,
+		deps,
+		out,
+		regionColumnOnConnection(pick?.variation.geo, encs.connection, geo)
+	)
+	for (const p of later.problems) out.problems.push(p)
+	for (const w of later.warnings) out.warnings.push(w)
 	visual.name = spec.name?.trim() || spec.title?.trim() || UNTITLED_VISUAL_NAME
-	return { visual: intake(withSettings(visual, spec.settings, out, deps)), ...out }
+	const picked = withSpecPickEffects(
+		withSettings(visual, spec.settings, out, deps),
+		{
+			theme,
+			typeOf,
+			mapsColorOrSeries: typeof encs.hue === "string" || typeof encs.connection === "string",
+			settings: spec.settings,
+		},
+		out.warnings
+	)
+	checkFlowTarget(picked, pick, deps, out)
+	return { visual: intake(picked), ...out }
 }
 
 /** An edit of a stored chart: only the keys the edit names change. */
@@ -527,7 +891,21 @@ export const editVisual = (
 		if (type && ch === "hue") configs = seedHueChannel(configs, type, deps.theme)
 		if (type && ch === "outlineHue") configs = seedOutlineHueChannel(configs, type, deps.theme)
 	}
-	const visual = applyCommon(
+	// A named region-map variation takes its detected region column on
+	// `connection` whatever its type, as on create.
+	// So does an edit naming the map family, or naming a region column on a
+	// chart already drawn as a geographic map.
+	const namedGeo =
+		typeof patch.variation === "string"
+			? variationNamed(patch.variation)?.variation.geo
+			: patch.family === "map" || editsStoredMapRegion(stored, patch)
+				? "choropleth"
+				: undefined
+	const regionColumn =
+		namedGeo === "choropleth" || namedGeo === "symbols"
+			? regionColumnOnConnection(namedGeo, encodings.connection?.field, detectGeo(deps, typeOf))
+			: null
+	const common = applyCommon(
 		patch,
 		{
 			...stored,
@@ -538,8 +916,29 @@ export const editVisual = (
 			updatedAt: deps.now ?? Date.now(),
 		},
 		deps,
-		out
+		out,
+		regionColumn
 	)
+	// A family is checked against the encodings; a named variation also
+	// re-shapes the chart as that variation.
+	const pick = resolveVariation(patch, mappedOf(common), typeOf, out)
+	const visual =
+		pick && typeof patch.variation === "string"
+			? reshape(common, pick, patch, deps, typeOf, out)
+			: common
 	if (patch.name !== undefined) visual.name = patch.name.trim() || stored.name
-	return { visual: intake(withSettings(visual, patch.settings, out, deps)), ...out }
+	const edits = isObj(patch.encodings) ? patch.encodings : {}
+	const picked = withSpecPickEffects(
+		withSettings(visual, patch.settings, out, deps),
+		{
+			theme,
+			typeOf,
+			mapsColorOrSeries: typeof edits.hue === "string" || typeof edits.connection === "string",
+			previousColor: { hueField: draft.encodings.hue?.field ?? null, configs: draft.channelConfigs },
+			settings: patch.settings,
+		},
+		out.warnings
+	)
+	checkFlowTarget(picked, pick, deps, out)
+	return { visual: intake(picked), ...out }
 }

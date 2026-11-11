@@ -288,11 +288,11 @@ describe("editVisual", () => {
 })
 
 describe("chartSpecVocabulary", () => {
-	it("lists channels without text, the families a spec can make, and the keys", () => {
+	it("lists channels without text, every family, and the keys", () => {
 		const vocab = chartSpecVocabulary()
 		expect(vocab.channels.map((c) => c.name)).not.toContain("text")
 		expect(vocab.families.map((f) => f.name)).toContain("bar")
-		expect(vocab.families.map((f) => f.name)).not.toContain("map")
+		expect(vocab.families.map((f) => f.name)).toEqual(expect.arrayContaining(["map", "sankey", "chord"]))
 		expect(Object.keys(vocab.specKeys)).toContain("encodings")
 	})
 })

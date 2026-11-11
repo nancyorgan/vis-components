@@ -12,8 +12,12 @@ A channel is a visual property a field can drive. The channels are `x`, `y`,
 `connection` (lines joining points, or a hierarchy), `angle`, `r`, `opacity`,
 `saturation`, `brightness`, `facet`, `facetRow`, `facetCol`. Each accepts some
 data types; `chart_vocabulary` lists them, with the quick-start families and
-their exact variations. `family` (and `variation`) in a spec picks a
-variation's seeding; the encodings still decide what draws.
+their exact variations. `family` (or a `variation` by name, which implies
+its family) in a spec picks a variation's seeding; the encodings still
+decide what draws. In `edit_chart`, a `variation` re-shapes the chart as
+that variation (stacked to grouped bars, a sankey to a chord) and keeps its
+titles, legend, labels and theme; one the encodings can't make is refused
+with what it needs.
 
 What a set of encodings draws. A setting named here goes in the spec's
 `settings`.
@@ -37,9 +41,11 @@ What a set of encodings draws. A setting named here goes in the spec's
 | `angle` (+ `hue` for the slices) | pie; `x` or `y` categorical makes one pie per level |
 | pie + `channelConfigs.angle.donutHoleRadius` (5–90, percent of the radius) | donut |
 | `angle` + `r` + `connection` | radar; `family: "radar"` variations fill it or draw dots |
-| `area` + `connection` | packed circles; `channelConfigs.connection.hierarchyLayout` picks `"treemap"`, `"sunburst"`, `"chord"` or `"sankey"` (flows also take `flowTargetField`, the target column) |
-| `connection` (the region column) + `settings: {mapConfig: {coordSystem: "geographic"}}` | choropleth; add `hue` for the value, `area` instead for symbols on the map |
-| `x` + `y` (longitude, latitude) + geographic `mapConfig` | points on a map |
+| `area` + `connection` | packed circles; `variation: "Treemap"` or `"Sunburst"` for those |
+| `area` (the flow value) + `connection` (the source column), `variation: "Sankey diagram"` or `"Chord diagram"` | flows; the target column is found from the data (a warning names it; `channelConfigs.connection.flowTargetField` picks another) |
+| `hue` (the value), `variation: "Choropleth"` | regions colored by value; the region column (US states, counties or countries) is found from its values and goes on `connection`, or name it there yourself |
+| `area`, `variation: "Bubble map"` | sized circles on the regions, as for a choropleth |
+| `variation: "Dot map"` | points on a map: longitude and latitude columns are found and go on `x` and `y` |
 | any of these + `facet` (or `facetRow` + `facetCol`) | small multiples |
 
 A bar's value goes on `length`, not `y`. A category on `x` with a measure on

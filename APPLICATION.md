@@ -6225,6 +6225,29 @@ every save" does not see it, and the published-visual edit gate is not
 asked. A published chart changed through the API shows the change in the
 editor and at its embed URL only after someone republishes it there.
 
+**Chart types through the API.** A spec (`lib/chartSpec.ts`) can make
+every chart type the Quick Start bar makes: it names a family, a
+variation (by its Quick Start name, which implies the family), or both,
+and the result is what that variation's scaffold makes over the spec's
+own field picks. Maps find their geography the way the Map icon does
+(`detectGeoFields`, from the data set's rows): a Choropleth or Bubble
+map puts the region column on `connection` (the one the spec names,
+which must join US states, counties or countries, else the first column
+found) and sets the geographic coord system at that column's level; a
+Dot map puts the detected longitude / latitude on `x` / `y`. A region
+column whose values join nothing is refused with the value forms
+expected, unless the spec's settings pin `mapConfig.geographyLevel` (the
+way to name a ZIP / ZCTA column). Sankey and chord diagrams take the
+source on `connection` and the value on `area`; their target column
+resolves from the data as the renderer resolves it, and a flow with no
+target is refused. An edit naming a variation re-shapes the chart as
+that variation's scaffold over its current encodings (stacking, fills,
+tree / flow layout, overlays, map coord system), keeping titles, legend,
+data labels, annotations, theme, the hue colors and the line's styling;
+one the encodings can't make (a line chart without a series field on
+`connection`, a choropleth with `x` still mapped) is refused naming what
+it needs. A family alone on an edit is only checked, not applied.
+
 ### Single-file distribution & library bundles
 
 `pnpm build` emits ONE self-contained `dist/index.html` (JS + CSS

@@ -308,3 +308,76 @@ describe("scenarios: what a model should be able to do", () => {
 		expect(out.problems[0].message).toContain('"channelConfigs.facet.shareY"')
 	})
 })
+
+describe("variations a model names: maps and flows, and re-shaping an edit", () => {
+	it("a choropleth by variation finds its region column, then becomes a bubble map", async () => {
+		const ds = await dataset("uninsured", [
+			{ State: "California", Rate: 6.5 },
+			{ State: "Texas", Rate: 16.6 },
+			{ State: "New York", Rate: 4.9 },
+			{ State: "Florida", Rate: 11.2 },
+		])
+		const chart = parsed(
+			await tools.create_chart({
+				datasetId: ds,
+				folderId: null,
+				variation: "Choropleth",
+				encodings: { hue: "Rate" },
+				title: "Uninsured rate",
+			})
+		)
+		const map = await stored(chart.id)
+		expect(map.mapConfig).toMatchObject({ coordSystem: "geographic", geographyLevel: "states" })
+		expect(map.encodings.connection).toEqual({ field: "State" })
+		expect(map.encodings.hue).toEqual({ field: "Rate" })
+		parsed(
+			await tools.edit_chart({
+				id: chart.id,
+				patch: { variation: "Bubble map", encodings: { hue: null, area: "Rate" } },
+			})
+		)
+		const bubbles = await stored(chart.id)
+		expect(bubbles.encodings.area).toEqual({ field: "Rate" })
+		expect(bubbles.mapConfig?.coordSystem).toBe("geographic")
+		expect(bubbles.labelsConfig.title).toBe("Uninsured rate")
+	})
+
+	it("a region column that names no places is refused and nothing is saved", async () => {
+		const ds = await dataset("fruit", [
+			{ Fruit: "apple", n: 3 },
+			{ Fruit: "pear", n: 5 },
+		])
+		const before = (await (await fetch(`${server.base}/api/visuals?thumbnails=0`)).json()) as Visual[]
+		const out = refusal(
+			await tools.create_chart({
+				datasetId: ds,
+				folderId: null,
+				variation: "Choropleth",
+				encodings: { connection: "Fruit", hue: "n" },
+			})
+		)
+		expect(out.problems[0].path).toBe("encodings.connection")
+		const after = (await (await fetch(`${server.base}/api/visuals?thumbnails=0`)).json()) as Visual[]
+		expect(after).toHaveLength(before.length)
+	})
+
+	it("a sankey by variation, then the same flows as a chord", async () => {
+		const ds = await dataset("referrals", [
+			{ From: "Primary care", To: "Cardiology", Patients: 40 },
+			{ From: "Primary care", To: "Orthopedics", Patients: 25 },
+			{ From: "Urgent care", To: "Cardiology", Patients: 12 },
+		])
+		const created = parsed(
+			await tools.create_chart({
+				datasetId: ds,
+				folderId: null,
+				variation: "Sankey diagram",
+				encodings: { connection: "From", area: "Patients" },
+			})
+		)
+		expect(created.warnings?.join(" ")).toContain('"To"')
+		expect((await stored(created.id)).channelConfigs.connection?.hierarchyLayout).toBe("sankey")
+		parsed(await tools.edit_chart({ id: created.id, patch: { variation: "Chord diagram" } }))
+		expect((await stored(created.id)).channelConfigs.connection?.hierarchyLayout).toBe("chord")
+	})
+})
