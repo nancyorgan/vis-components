@@ -128,7 +128,7 @@ describe("served surface", () => {
 			/Search list_settings before saying there is no setting/,
 			/When a request could mean more than one thing, ask which/,
 			/"Flip the axes" swaps the x and y fields with their axis settings and titles/,
-			/refused as changed elsewhere \(in the editor, a tab, or by someone\), tell the person and ask what they want before trying again/,
+			/When an edit or undo pauses because someone changed the same setting, tell the person each change and its choices \(keep theirs, go ahead, leave it, or a combined value\) and do what they pick/,
 			/Every chart gets a title and axis titles, in the person's words or from the field names, in sentence case, with a unit only when the person or data states one/,
 			/Set nothing else they didn't ask for; offer it/,
 			/A setting asked for is set even when it won't show yet; say when it will/,
@@ -139,6 +139,24 @@ describe("served surface", () => {
 			/Asked for another folder, say files go to their Export folder setting \(VIS_EXPORT_DIR in the MCP's config; change it there and restart\), and write nothing elsewhere/,
 		])
 			expect(instructions).toMatch(rule)
+	})
+
+	it("describes the pause on edit and undo, the undo history on this computer, and keepTheirs and revision on both", () => {
+		const by = Object.fromEntries(tools.map((t) => [t.name, t]))
+		expect(by.edit_chart.description).toMatch(
+			/A change someone else made to the same setting pauses the edit and lists the choices/
+		)
+		expect(by.undo_chart_edit.description).toMatch(/edits made through this MCP on this computer, kept across restarts/)
+		expect(by.undo_chart_edit.description).toMatch(/Restores only the edit's own settings; one changed since pauses/)
+		for (const name of ["edit_chart", "undo_chart_edit"]) {
+			const props = by[name].inputSchema.properties as Record<string, { type?: string; description?: string }>
+			expect(props.keepTheirs).toMatchObject({ type: "boolean", description: expect.stringMatching(/pause/) })
+			expect(props.revision).toMatchObject({ type: "string" })
+			expect(by[name].inputSchema.required).toEqual(name === "edit_chart" ? ["id", "patch"] : ["id"])
+		}
+		expect((by.undo_chart_edit.inputSchema.properties as Record<string, { description?: string }>).revision.description).toMatch(
+			/pause.*over their change/
+		)
 	})
 
 	it("takes exactly one of rows, csv or path on create_dataset, with the path rules and expectedRows", () => {

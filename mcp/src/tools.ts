@@ -13,6 +13,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import { randomUUID } from "node:crypto"
 import { z } from "zod"
 
 import { SETTING_CATALOG } from "../../src/contexts/chartBuilder/lib/applySettings"
@@ -36,22 +37,74 @@ import { settingsReadRows } from "../../src/contexts/chartBuilder/lib/settingEff
 import { PUBLIC_SEED_FOLDER_IDS } from "../../src/contexts/chartBuilder/lib/stockFolders"
 import { themeOf } from "../../src/contexts/chartBuilder/lib/systemThemes"
 import type { DatasetMeta, FieldType, SavedTheme, Visual } from "../../src/contexts/chartBuilder/lib/types"
-import { RefusalError, StaleVisualError, type Api } from "./api"
+import { CONTENT_MIGRATIONS } from "../../src/contexts/chartBuilder/lib/storage/migrations"
+import { RefusalError, StaleVisualError, type Api, type TaggedVisual } from "./api"
 import { TOOL_TEXT } from "./guide"
+import {
+	createHistory,
+	HistoryBusyError,
+	recordNamed,
+	recordReturned,
+	resolveStateDir,
+	STEPS_KEPT,
+	type History,
+	type Session,
+} from "./history"
 import { chartListing, librarySummary } from "./library"
 import { CARD_URI, createPictureStore, RESULT_LIMIT, type PictureStore } from "./pictures"
 import { checkFileName, type ExportFormat, type PictureOutcome, type Renderer } from "./render"
 import { resolveDataset, resolveFolder, resolveThemeName, rowCountOf } from "./resolve"
 import { searchSettings } from "./settingSearch"
 import { csvText, MAX_CELLS, MAX_ROWS, parseSource, readSourceFile, uploadName, type ReadHooks } from "./source"
-
-const UNDO_DEPTH = 20
+import {
+	changedPaths,
+	conflictRoots,
+	conflictsOf,
+	describeChanges,
+	normalizeVisual,
+	overlaps,
+	restoreAt,
+	type SettingPath,
+} from "./visualDiff"
 
 /** Served text never carries an em dash (lib docs and messages may). */
 const plain = (text: string) => text.replace(/\s*—\s*/g, "; ")
 
-const STALE =
-	"The chart was changed elsewhere (in the editor, another tab, or by someone) since it was read; nothing was saved. Tell the person and ask what they want. To go ahead, read it again with get_chart and send the edit with that revision."
+const ASK =
+	"Tell the person each change below and ask what they want, then do it in one call:"
+
+/** An edit paused over someone's change to the same setting. */
+const EDIT_PAUSED = `Paused, nothing saved: since you last saw this chart someone (in the editor, a tab, or another chat) changed a setting this edit changes. ${ASK} keep theirs (this edit_chart again with keepTheirs: true, applying only your other settings); go ahead (this edit with this revision, replacing their change); leave it (no call); or a combined value (edit_chart with this revision and the combined value).`
+
+/** An undo paused over someone's later change to a setting it restores. */
+const UNDO_PAUSED = `Paused, nothing undone: since that edit someone changed a setting it would restore, and undoing would lose their change. ${ASK} keep theirs (undo_chart_edit with keepTheirs: true, undoing only the edit's other settings); undo over theirs (undo_chart_edit with this revision); leave it (no call); or a combined value (edit_chart with this revision and the combined value).`
+
+const UNKNOWN_REVISION =
+	"Nothing was saved: that revision was never returned for this chart; read it again with get_chart and send the edit with no revision (or the revision it returns)."
+
+const BASELINE_GONE =
+	"Nothing was saved: the MCP no longer has the copy of this chart it last showed you, so it can't tell what changed since. Read it again with get_chart, then send the edit."
+
+const CHANGED_WHILE_SAVING =
+	"Nothing was saved: the chart was saved elsewhere twice while this call ran. Read it again with get_chart, tell the person it is being changed, and ask what they want."
+
+const UNDO_CHANGED_WHILE_SAVING =
+	"Nothing was undone and the step is kept: the chart was saved elsewhere while this undo ran. Call undo_chart_edit again to see what changed."
+
+const SPENT_YES =
+	"Nothing was undone: that revision answered an earlier pause and was already used, or was for another step. Tell the person; call undo_chart_edit with no revision to see what the next undo would do."
+
+const BUSY =
+	"Nothing was saved: another copy of the Zafiro MCP on this computer is busy with a chart. Try again in a moment."
+
+const NO_UNDO_STEP =
+	"Saved, but without an undo step: the MCP could not write its history on this computer, so undo_chart_edit can't step back this edit. Tell the person if they ask to undo it."
+
+const UNDO_NOT_RECORDED =
+	"Undone, but the MCP could not write its history on this computer: the next undo_chart_edit may ask about this same edit again. Tell the person if it does."
+
+const NOTHING_LEFT =
+	"Nothing is left to undo for this chart: no edit made through this MCP on this computer in the last 30 days is still undone. Change it back with edit_chart instead."
 
 const STOCK_FOLDER =
 	"The stock Examples folder is read-only. Save the chart in another folder or at the library root, or duplicate the example in the editor first."
@@ -251,28 +304,69 @@ export type HandlerDeps = {
 	showsCards?: () => boolean
 	/** Where pictures wait for chart_picture; one per process by default. */
 	pictures?: PictureStore
+	/** The state folder for the history; VIS_STATE_DIR or the platform's
+	 *  by default (history.ts). */
+	stateDir?: string
+	/** The history itself, made from stateDir when absent. */
+	history?: History
+	/** The data format the history is keyed by; this build's by default. */
+	formatVersion?: number
 }
+
+/** edit_chart's input. */
+export type EditChartArgs = { id: string; revision?: string; keepTheirs?: boolean; patch: ChartSpecEdit }
+
+/** undo_chart_edit's input. */
+export type UndoChartArgs = { id: string; revision?: string; keepTheirs?: boolean }
 
 export const createHandlers = (api: Api, deps: HandlerDeps) => {
 	const pictures = deps.pictures ?? createPictureStore()
 	const showsCards = deps.showsCards ?? (() => false)
 
-	/** Per chart: the visual each edit replaced, and what that edit wrote. */
-	const undo = new Map<string, Array<{ previous: Visual; wrote: Written }>>()
-	/** Per chart: the stored copy this session last wrote or read. An edit
-	 *  with no revision builds on it, so a change made elsewhere since then
-	 *  pauses the edit instead of being built over unseen. */
-	const seen = new Map<string, Written>()
+	/** The baselines and undo steps, shared by every copy on this computer. */
+	const history =
+		deps.history ??
+		createHistory({
+			dir: deps.stateDir ?? resolveStateDir(process.env),
+			server: api.serverUrl,
+			version: deps.formatVersion ?? CONTENT_MIGRATIONS.visuals.currentVersion,
+		})
+	/** Trimmed on start. */
+	const started = history.trim()
 
-	/** Save `next` only over the stored chart still as `seen`: a conditional
-	 *  PUT at its tag, so the check and the write are one step on the
-	 *  server. Against an older server with no tags, the check-then-write on
-	 *  `updatedAt` it always had. Null (nothing written) when the chart
-	 *  changed. */
-	const saveIfUnchanged = async (next: Visual, was: Written): Promise<Written | null> => {
-		if (was.tag === null && (await api.visual(next.id))?.updatedAt !== was.updatedAt) return null
+	/** Run `fn` holding the history; `historyFailed` when what it changed
+	 *  couldn't be written. A busy history is a refusal, nothing saved. */
+	const locked = async <T>(fn: (session: Session) => Promise<T>): Promise<{ value: T; historyFailed: boolean }> => {
+		let historyFailed = false
 		try {
-			return { tag: await api.putVisual(next, was.tag ?? undefined), updatedAt: next.updatedAt }
+			const value = await history.run(fn, () => {
+				historyFailed = true
+			})
+			return { value, historyFailed }
+		} catch (error) {
+			if (error instanceof HistoryBusyError) throw new RefusalError(BUSY)
+			throw error
+		}
+	}
+
+	/** Note `visual` at `tag` as returned to a model, best effort: a busy or
+	 *  unwritable history never fails a read or a create. */
+	const remember = async (visual: Visual, tag: string | null): Promise<void> => {
+		try {
+			await history.run(async (session) => recordReturned(session, visual, tag))
+		} catch {
+			// The next read records it.
+		}
+	}
+
+	/** Save `next` only over the stored chart still as `read`: a conditional
+	 *  PUT at its tag, so the check and the write are one step on the
+	 *  server. Against an older server with no tags, a check-then-write on
+	 *  `updatedAt`. Null (nothing written) when the chart changed. */
+	const saveAt = async (next: Visual, read: TaggedVisual): Promise<Written | null> => {
+		if (read.tag === null && (await api.visual(next.id))?.updatedAt !== read.visual.updatedAt) return null
+		try {
+			return { tag: await api.putVisual(next, read.tag ?? undefined), updatedAt: next.updatedAt }
 		} catch (error) {
 			if (error instanceof StaleVisualError) return null
 			throw error
@@ -346,7 +440,6 @@ export const createHandlers = (api: Api, deps: HandlerDeps) => {
 		refused(message, problems, { name: visual.name, editorUrl: (await links(visual.id)).editorUrl })
 
 	const chartWrite = async (visual: Visual, warnings: string[], wrote: Written) => {
-		seen.set(visual.id, wrote)
 		const summary: ChartWrite = { id: visual.id, name: visual.name, ...(await links(visual.id)), warnings, revision: wrote.tag }
 		return withPicture(written(summary), visual.id, summary.editorUrl)
 	}
@@ -382,7 +475,52 @@ export const createHandlers = (api: Api, deps: HandlerDeps) => {
 	const noChart = (id: string) =>
 		refused(`No chart has id "${id}". list_charts finds a chart by its name, folder or data set.`)
 
+	/** What an edit needs beyond the chart, read once per call: the themes
+	 *  and the theme the patch names (null when it names none; a refusal
+	 *  when it names none that exists). */
+	const editContext = async (patch: ChartSpecEdit) => {
+		const themes = await api.themes()
+		const wanted = typeof patch?.themeId === "string" ? resolveThemeName(patch.themeId, themes) : null
+		const rows = new Map<string, Awaited<ReturnType<typeof rowsFor>>>()
+		return { themes, wanted, rows }
+	}
+
+	/** `patch` applied to `base` by the editor's own lib. A new theme must
+	 *  exist; a visual whose stored theme is gone renders under the
+	 *  default, so edit against that too. The stored theme is also the
+	 *  baseline a re-theme diffs against, so settings the user moved off it
+	 *  stay (as in the Theme panel). */
+	const editOn = async (base: Visual, patch: ChartSpecEdit, ctx: Awaited<ReturnType<typeof editContext>>) => {
+		const meta = await datasetMeta(base.datasetId)
+		const current = ctx.themes.find((t) => t.id === base.themeId) ?? (await defaultTheme(ctx.themes))
+		const named = ctx.wanted?.ok ? ctx.wanted.value : null
+		const theme = named ?? current
+		const edit = named ? { ...patch, themeId: theme.id } : (patch ?? {})
+		const key = meta?.id ?? ""
+		if (!ctx.rows.has(key)) ctx.rows.set(key, await rowsFor(meta, edit, base))
+		return editVisual(base, edit, {
+			fields: meta ? fieldsOf(meta) : [],
+			theme: themeOf(theme),
+			fromTheme: themeOf(current),
+			latestVersionId: meta?.latestVersionId ?? null,
+			rows: ctx.rows.get(key),
+		})
+	}
+
+	/** A paused edit or undo: each change, the current revision, and the
+	 *  choices in `message`. */
+	const paused = async (visual: Visual, message: string, changes: string[], revision: string | null) =>
+		refused(message, undefined, {
+			changes,
+			revision,
+			name: visual.name,
+			editorUrl: (await links(visual.id)).editorUrl,
+		})
+
 	return {
+		/** Resolves once the start trim of the history is done. */
+		started,
+
 		create_dataset: guarded(async (args: CreateDatasetArgs) => {
 			const given = (["rows", "csv", "path"] as const).filter((k) => args[k] !== undefined)
 			if (given.length !== 1)
@@ -495,16 +633,29 @@ export const createHandlers = (api: Api, deps: HandlerDeps) => {
 					withNearestSettings(problems)
 				)
 			const tag = await api.putVisual(visual)
+			await remember(visual, tag)
 			return chartWrite(visual, warnings, { tag, updatedAt: visual.updatedAt })
 		}),
 
 		get_chart: guarded(async ({ id, picture, slice }: GetChartArgs) => {
-			const read = await api.taggedVisual(id)
+			const badSlice = slice !== undefined && !SETTING_CATALOG.slices.includes(slice)
+			// Read and noted as returned in one hold of the history, so a copy's
+			// edit can't land between them; a busy history still reads.
+			const readAndNote = (session?: Session) => async () => {
+				const r = await api.taggedVisual(id)
+				if (r && !badSlice && session) recordReturned(session, r.visual, r.tag)
+				return r
+			}
+			let read: TaggedVisual | null
+			try {
+				read = await history.run((session) => readAndNote(session)())
+			} catch {
+				read = await readAndNote()()
+			}
 			if (!read) return noChart(id)
 			const { visual } = read
-			if (slice !== undefined && !SETTING_CATALOG.slices.includes(slice))
+			if (badSlice)
 				return refusedAbout(visual, `"${slice}" is not a settings slice. Give one of: ${SETTING_CATALOG.slices.join(", ")}.`)
-			seen.set(id, { tag: read.tag, updatedAt: visual.updatedAt })
 			const chartLinks = await links(visual.id)
 			const settings = settingsOf(visual)
 			let summary: Record<string, unknown>
@@ -604,76 +755,150 @@ export const createHandlers = (api: Api, deps: HandlerDeps) => {
 			}
 		),
 
-		edit_chart: guarded(async ({ id, revision, patch }: { id: string; revision?: string; patch: ChartSpecEdit }) => {
+		edit_chart: guarded(async ({ id, revision, keepTheirs, patch }: EditChartArgs) => {
 			await api.assertCurrent(CHART_COLLECTIONS)
-			const read = await api.taggedVisual(id)
-			if (!read) return noChart(id)
-			const base = read.visual
-			// The copy this edit builds on: the revision sent, else the one this
-			// session last saw. A server with no tags can't be held to one.
-			const expected = revision ?? seen.get(id)?.tag ?? undefined
-			if (read.tag !== null && expected !== undefined && expected !== read.tag) return refusedAbout(base, STALE)
-			if (PUBLIC_SEED_FOLDER_IDS.includes(base.folderId ?? ""))
-				return refusedAbout(base, "The chart wasn't changed.", [{ path: "", message: STOCK_FOLDER }])
-			const meta = await datasetMeta(base.datasetId)
-			// A new theme must exist; a visual whose stored theme is gone
-			// renders under the default, so edit against that too. The
-			// stored theme is also the baseline a re-theme diffs against, so
-			// settings the user moved off it stay (as in the Theme panel).
-			const themes = await api.themes()
-			const wanted = typeof patch?.themeId === "string" ? resolveThemeName(patch.themeId, themes) : null
-			if (wanted && !wanted.ok)
-				return refusedAbout(base, "The chart wasn't changed.", [{ path: "themeId", message: wanted.message }])
-			const current = await storedTheme(base.themeId)
-			const theme = wanted?.ok && wanted.value ? wanted.value : current
-			const edit = wanted?.ok && wanted.value ? { ...patch, themeId: theme.id } : (patch ?? {})
-			const { visual, problems, warnings } = editVisual(base, edit, {
-				fields: meta ? fieldsOf(meta) : [],
-				theme: themeOf(theme),
-				fromTheme: themeOf(current),
-				latestVersionId: meta?.latestVersionId ?? null,
-				rows: await rowsFor(meta, edit, base),
+			type Outcome = { result: CallToolResult } | { visual: Visual; warnings: string[]; wrote: Written }
+			const { value, historyFailed } = await locked(async (session): Promise<Outcome> => {
+				let read = await api.taggedVisual(id)
+				if (!read) return { result: noChart(id) }
+				if (PUBLIC_SEED_FOLDER_IDS.includes(read.visual.folderId ?? ""))
+					return { result: await refusedAbout(read.visual, "The chart wasn't changed.", [{ path: "", message: STOCK_FOLDER }]) }
+				// What the edit is judged against: the chart at the revision sent,
+				// else as the MCP last returned it; a chart no copy ever returned
+				// is edited as it is now.
+				const chart = session.chart(id)
+				let base: Visual | undefined
+				if (revision !== undefined) {
+					const known = chart?.revisions.find((r) => r.tag === revision)
+					base = known && session.body(known.body)
+					if (!base) return { result: await refusedAbout(read.visual, UNKNOWN_REVISION) }
+				} else if (chart?.baseline) {
+					base = session.body(chart.baseline.body)
+					if (!base) return { result: await refusedAbout(read.visual, BASELINE_GONE) }
+				} else if (chart?.lostAt !== undefined || session.corruptAt !== null) {
+					return { result: await refusedAbout(read.visual, BASELINE_GONE) }
+				} else base = read.visual
+				const ctx = await editContext(patch)
+				if (ctx.wanted && !ctx.wanted.ok)
+					return {
+						result: await refusedAbout(read.visual, "The chart wasn't changed.", [
+							{ path: "themeId", message: ctx.wanted.message },
+						]),
+					}
+				const problemsOf = async (on: Visual, problems: SpecProblem[]) =>
+					refusedAbout(
+						on,
+						"The chart wasn't changed; fix what each problem names and send the edit again.",
+						withNearestSettings(problems)
+					)
+				const mine = await editOn(base, patch, ctx)
+				if (mine.problems.length > 0) return { result: await problemsOf(read.visual, mine.problems) }
+				const from = normalizeVisual(base)
+				const ours = changedPaths(from, normalizeVisual(mine.visual))
+				// One retry when a save lands between this read and the write.
+				for (let attempt = 0; ; attempt++) {
+					const now = normalizeVisual(read.visual)
+					const theirs = changedPaths(from, now)
+					const clash = conflictsOf(theirs, ours)
+					if (clash.length > 0 && !keepTheirs) {
+						recordNamed(session, read.visual, read.tag)
+						return {
+							result: await paused(read.visual, EDIT_PAUSED, describeChanges(clash, from, now), read.tag),
+						}
+					}
+					const next = read.visual === base ? mine : await editOn(read.visual, patch, ctx)
+					if (next.problems.length > 0) return { result: await problemsOf(read.visual, next.problems) }
+					const visual = next.visual
+					for (const root of conflictRoots(ours, theirs)) restoreAt(visual as never, now, root)
+					const wrote = await saveAt(visual, read)
+					if (wrote) {
+						const steps = session.ensure(id).steps
+						steps.push({
+							id: randomUUID(),
+							at: session.now(),
+							before: session.put(read.visual),
+							beforeTag: read.tag,
+							written: session.put(visual),
+							tag: wrote.tag,
+						})
+						if (steps.length > STEPS_KEPT) steps.splice(0, steps.length - STEPS_KEPT)
+						recordReturned(session, visual, wrote.tag)
+						return { visual, warnings: next.warnings, wrote }
+					}
+					if (attempt >= 1) return { result: await refusedAbout(read.visual, CHANGED_WHILE_SAVING) }
+					read = await api.taggedVisual(id)
+					if (!read) return { result: noChart(id) }
+				}
 			})
-			if (problems.length > 0)
-				return refusedAbout(
-					base,
-					"The chart wasn't changed; fix what each problem names and send the edit again.",
-					withNearestSettings(problems)
-				)
-			const wrote = await saveIfUnchanged(visual, { tag: read.tag, updatedAt: base.updatedAt })
-			if (!wrote) return refusedAbout(base, STALE)
-			const stack = undo.get(id) ?? []
-			stack.push({ previous: base, wrote })
-			if (stack.length > UNDO_DEPTH) stack.shift()
-			undo.set(id, stack)
-			return chartWrite(visual, warnings, wrote)
+			if ("result" in value) return value.result
+			return chartWrite(value.visual, historyFailed ? value.warnings.concat(NO_UNDO_STEP) : value.warnings, value.wrote)
 		}),
 
-		undo_chart_edit: guarded(async ({ id }: { id: string }) => {
-			const stack = undo.get(id) ?? []
-			const entry = stack.pop()
-			if (!entry)
-				return refused(
-					`Nothing to undo for "${id}": this session made no edit to it that is still undone. Change it back with edit_chart instead.`
-				)
-			const restored = { ...entry.previous, updatedAt: Date.now() }
-			let wrote: Written | null
-			try {
+		undo_chart_edit: guarded(async ({ id, revision, keepTheirs }: UndoChartArgs) => {
+			type Outcome = { result: CallToolResult } | { visual: Visual; wrote: Written }
+			const { value, historyFailed } = await locked(async (session): Promise<Outcome> => {
+				const chart = session.chart(id)
+				const step = chart?.steps.at(-1)
+				if (!chart || !step) return { result: refused(NOTHING_LEFT) }
 				await api.assertCurrent(CHART_COLLECTIONS)
-				wrote = await saveIfUnchanged(restored, entry.wrote)
-			} catch (error) {
-				stack.push(entry)
-				throw error
-			}
-			if (!wrote) {
-				stack.push(entry)
-				return refusedAbout(entry.previous, STALE)
-			}
-			// The next entry's edit wrote the chart this undo just put back, so
-			// it is now checked against this write.
-			const below = stack.at(-1)
-			if (below) below.wrote = wrote
-			return chartWrite(restored, [], wrote)
+				let read = await api.taggedVisual(id)
+				if (!read) return { result: noChart(id) }
+				const before = session.body(step.before)
+				const written = session.body(step.written)
+				if (!before || !written) {
+					chart.steps.pop()
+					return { result: await refusedAbout(read.visual, `${NOTHING_LEFT.replace(/:.*$/, "")}: its last step could not be read.`) }
+				}
+				const from = normalizeVisual(before)
+				const wrote = normalizeVisual(written)
+				// The settings this step's own edit changed.
+				const ours = changedPaths(from, wrote)
+				// A yes is bound to the pause that asked for it.
+				const asked = revision === undefined ? undefined : chart.pauses.find((p) => p.revision === revision)
+				const yes = asked && !asked.spent && asked.step === step.id ? asked : undefined
+				const pause = async (current: TaggedVisual, now: Record<string, unknown>, clash: SettingPath[], message: string) => {
+					if (current.tag !== null) {
+						chart.pauses.push({ step: step.id, revision: current.tag, at: session.now() })
+						recordNamed(session, current.visual, current.tag)
+					}
+					return { result: await paused(current.visual, message, describeChanges(clash, wrote, now), current.tag) }
+				}
+				for (let attempt = 0; ; attempt++) {
+					const now = normalizeVisual(read.visual)
+					// Changed since the edit wrote, by anyone (this MCP included).
+					const theirs = changedPaths(wrote, now)
+					const clash = conflictsOf(theirs, ours)
+					if (asked && !yes) return pause(read, now, clash, SPENT_YES)
+					let restore = ours
+					if (clash.length > 0) {
+						if (keepTheirs) restore = ours.filter((p) => !theirs.some((t) => overlaps(p, t)))
+						else if (!yes || read.tag !== revision) return pause(read, now, clash, UNDO_PAUSED)
+					}
+					const next = structuredClone(read.visual) as Visual
+					for (const path of restore) restoreAt(next as never, from, path)
+					next.updatedAt = Date.now()
+					const landed = await saveAt(next, read)
+					if (landed) {
+						// Spent only now its save has landed.
+						chart.steps.pop()
+						for (const p of chart.pauses) if (p.step === step.id) p.spent = true
+						// The step below is checked against this write when nothing
+						// else saved between its edit and this undo (UNDO-17).
+						const below = chart.steps.at(-1)
+						if (below && below.tag !== null && step.beforeTag === below.tag && read.tag === step.tag) {
+							below.written = session.put(next)
+							below.tag = landed.tag
+						}
+						recordReturned(session, next, landed.tag)
+						return { visual: next, wrote: landed }
+					}
+					if (yes || attempt >= 1) return { result: await refusedAbout(read.visual, UNDO_CHANGED_WHILE_SAVING) }
+					read = await api.taggedVisual(id)
+					if (!read) return { result: noChart(id) }
+				}
+			})
+			if ("result" in value) return value.result
+			return chartWrite(value.visual, historyFailed ? [UNDO_NOT_RECORDED] : [], value.wrote)
 		}),
 
 		export_chart: guarded(async (args: ExportChartArgs) => {
@@ -816,19 +1041,24 @@ export const registerTools = (
 			inputSchema: {
 				id: z.string().describe(T.edit_chart.params.id),
 				revision: z.string().optional().describe(T.edit_chart.params.revision),
+				keepTheirs: z.boolean().optional().describe(T.edit_chart.params.keepTheirs),
 				patch: z.object(patchShape).passthrough().describe(T.edit_chart.params.patch),
 			},
 			outputSchema: chartWriteShape,
 			annotations: CHART_WRITE,
 			_meta: CARD,
 		},
-		(args) => handlers.edit_chart(args as unknown as { id: string; revision?: string; patch: ChartSpecEdit })
+		(args) => handlers.edit_chart(args as unknown as EditChartArgs)
 	)
 	server.registerTool(
 		"undo_chart_edit",
 		{
 			description: T.undo_chart_edit.description,
-			inputSchema: { id: z.string().describe(T.undo_chart_edit.params.id) },
+			inputSchema: {
+				id: z.string().describe(T.undo_chart_edit.params.id),
+				revision: z.string().optional().describe(T.undo_chart_edit.params.revision),
+				keepTheirs: z.boolean().optional().describe(T.undo_chart_edit.params.keepTheirs),
+			},
 			outputSchema: chartWriteShape,
 			annotations: CHART_WRITE,
 			_meta: CARD,

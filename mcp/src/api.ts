@@ -133,6 +133,9 @@ export const createApi = (apiUrl: string, fetchImpl: typeof fetch = fetch) => {
 	let configCache: Promise<{ baseUrl: string }> | null = null
 
 	return {
+		/** The server's address as given (VIS_API_URL, trailing slashes off). */
+		serverUrl: root,
+
 		assertCurrent,
 
 		/** The server's outward-facing base URL, read once. */

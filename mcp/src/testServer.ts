@@ -11,6 +11,11 @@ import { openDb } from "../../server/src/db.js"
 import { createHandler } from "../../server/src/routes.js"
 import type { PictureOutcome, Renderer } from "./render"
 
+// Every test file's handlers keep their history in a temp folder of their
+// own, never the person's state folder; a test sharing one across
+// instances passes `stateDir`.
+process.env.VIS_STATE_DIR = mkdtempSync(join(tmpdir(), "vis-mcp-state-"))
+
 export type TestServer = { base: string; close: () => void }
 
 export const startTestServer = async (): Promise<TestServer> => {

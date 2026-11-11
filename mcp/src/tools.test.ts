@@ -349,36 +349,64 @@ describe("settings", () => {
 })
 
 describe("stale-edit guard", () => {
-	/** An editor save of `id`, renamed "Editor", once. */
-	const editorSaveOnce = (s: Awaited<ReturnType<typeof lineChart>>) => () => {
+	/** An editor save of `id` (renamed "Editor", and titled `title` when
+	 *  given), once. */
+	const editorSaveOnce = (s: Awaited<ReturnType<typeof lineChart>>, title?: string) => () => {
 		s.hooks.beforeVisualWrite = undefined
 		const v = s.visuals.get(s.id) as Visual
-		s.outsideSave(s.id, { ...v, updatedAt: v.updatedAt + 1, name: "Editor" })
+		s.outsideSave(s.id, {
+			...v,
+			updatedAt: v.updatedAt + 1,
+			name: "Editor",
+			...(title === undefined ? {} : { labelsConfig: { ...v.labelsConfig, title } }),
+		})
 	}
 
-	it("edit_chart's save is conditional on the tag it read: an outside save in between refuses it", async () => {
+	it("edit_chart's save is conditional on the tag it read: an outside save of the same setting in between pauses it", async () => {
 		const s = await lineChart()
-		s.hooks.beforeVisualWrite = editorSaveOnce(s)
+		s.hooks.beforeVisualWrite = editorSaveOnce(s, "Theirs")
 		const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
 		expect(result.isError).toBe(true)
-		expect(parsed(result).message).toMatch(/changed elsewhere .* since it was read; nothing was saved/)
+		const out = parsed(result)
+		expect(out.message).toMatch(/^Paused, nothing saved/)
+		expect(out.changes).toEqual([expect.stringMatching(/^labelsConfig\.title: "" -> "Theirs"$/)])
 		const [put, ...more] = s.writes()
 		expect(more).toEqual([])
 		expect(put.headers["if-match"]).toMatch(/^"t\d+"$/)
 		expect(s.visuals.get(s.id)?.name).toBe("Editor")
-		expect(s.visuals.get(s.id)?.labelsConfig.title).not.toBe("Mine")
+		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Theirs")
 		expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBe(true)
 	})
 
-	it("undo_chart_edit refuses when the chart changed after the edit, writing nothing", async () => {
+	it("an outside save of another setting in between is kept: the edit is applied again over it", async () => {
+		const s = await lineChart()
+		s.hooks.beforeVisualWrite = editorSaveOnce(s)
+		const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
+		expect(result.isError).toBeFalsy()
+		expect(s.writes().map((w) => w.headers["if-match"])).toEqual([expect.any(String), expect.any(String)])
+		expect(s.visuals.get(s.id)?.name).toBe("Editor")
+		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Mine")
+	})
+
+	it("undo_chart_edit pauses when the setting it restores changed after the edit, writing nothing", async () => {
+		const s = await lineChart()
+		expect((await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })).isError).toBeFalsy()
+		editorSaveOnce(s, "Theirs")()
+		const before = s.writes().length
+		const result = await s.tools.undo_chart_edit({ id: s.id })
+		expect(result.isError).toBe(true)
+		expect(parsed(result).changes).toEqual(['labelsConfig.title: "Mine" -> "Theirs"'])
+		expect(s.writes()).toHaveLength(before)
+		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Theirs")
+	})
+
+	it("undo_chart_edit keeps an outside change to another setting", async () => {
 		const s = await lineChart()
 		expect((await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })).isError).toBeFalsy()
 		editorSaveOnce(s)()
-		const result = await s.tools.undo_chart_edit({ id: s.id })
-		expect(result.isError).toBe(true)
-		expect(parsed(result).message).toMatch(/changed elsewhere/)
+		expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBeFalsy()
 		expect(s.visuals.get(s.id)?.name).toBe("Editor")
-		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Mine")
+		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("")
 	})
 
 	it("two edits undo one after the other: each undo is checked against the last write", async () => {
@@ -392,12 +420,12 @@ describe("stale-edit guard", () => {
 		expect({ ...s.visuals.get(s.id), updatedAt: 0 }).toEqual({ ...original, updatedAt: 0 })
 	})
 
-	it("an outside save after this session's last result pauses the next edit; get_chart then lets it through", async () => {
+	it("an outside save of the same setting after the last result pauses the next edit; get_chart then lets it through", async () => {
 		const s = await lineChart()
-		editorSaveOnce(s)()
+		editorSaveOnce(s, "Theirs")()
 		const paused = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
 		expect(paused.isError).toBe(true)
-		expect(parsed(paused).message).toMatch(/Tell the person and ask what they want.*get_chart/)
+		expect(parsed(paused).message).toMatch(/ask what they want/)
 		expect(s.writes()).toEqual([])
 		const { revision } = parsed(await s.tools.get_chart({ id: s.id }))
 		expect(revision).toMatch(/^"t\d+"$/)
@@ -405,7 +433,7 @@ describe("stale-edit guard", () => {
 		expect(s.visuals.get(s.id)?.name).toBe("Editor")
 	})
 
-	it("a revision that isn't the stored one refuses the edit and says to read the chart again", async () => {
+	it("a revision never returned for the chart refuses the edit and says to read the chart again", async () => {
 		const s = await lineChart()
 		const result = await s.tools.edit_chart({ id: s.id, revision: '"t999"', patch: { title: "Mine" } })
 		expect(result.isError).toBe(true)
@@ -416,19 +444,33 @@ describe("stale-edit guard", () => {
 	})
 
 	describe("against a server older than ETags", () => {
-		const editorSave = (id: string) => (visuals: Map<string, Visual>, read: number) => {
+		const editorSave = (id: string, title?: string) => (visuals: Map<string, Visual>, read: number) => {
 			const v = visuals.get(id)
-			if (read === 2 && v) visuals.set(id, { ...v, updatedAt: v.updatedAt + 1, name: "Editor" })
+			if (read === 2 && v)
+				visuals.set(id, {
+					...v,
+					updatedAt: v.updatedAt + 1,
+					name: "Editor",
+					...(title === undefined ? {} : { labelsConfig: { ...v.labelsConfig, title } }),
+				})
 		}
 
-		it("edit_chart falls back to the updatedAt check and writes nothing on a change", async () => {
+		it("edit_chart falls back to the updatedAt check: the same setting changed pauses it, writing nothing", async () => {
 			const s = await lineChart({ legacy: true })
-			s.hooks.beforeVisualsRead = editorSave(s.id)
+			s.hooks.beforeVisualsRead = editorSave(s.id, "Theirs")
 			const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
 			expect(result.isError).toBe(true)
-			expect(parsed(result).message).toMatch(/changed elsewhere .* since it was read; nothing was saved/)
+			expect(parsed(result).message).toMatch(/^Paused, nothing saved/)
 			expect(s.writes()).toEqual([])
+			expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Theirs")
+		})
+
+		it("edit_chart falls back to the updatedAt check: another setting changed is kept", async () => {
+			const s = await lineChart({ legacy: true })
+			s.hooks.beforeVisualsRead = editorSave(s.id)
+			expect((await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })).isError).toBeFalsy()
 			expect(s.visuals.get(s.id)?.name).toBe("Editor")
+			expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Mine")
 		})
 
 		it("edits and undoes twice with no tags", async () => {

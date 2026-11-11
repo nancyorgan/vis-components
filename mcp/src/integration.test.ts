@@ -118,7 +118,7 @@ describe("MCP tools over the real HTTP API", () => {
 		expect({ ...(await storedVisual(id)), updatedAt: 0 }).toEqual({ ...original, updatedAt: 0 })
 	})
 
-	it("an outside save between edit_chart's read and its write refuses the edit, writing nothing", async () => {
+	it("an outside save of the same setting between edit_chart's read and its write pauses the edit, writing nothing", async () => {
 		let interpose: (() => Promise<unknown>) | null = null
 		const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
 			if (init?.method === "PUT" && String(input).includes("/api/visuals/") && interpose) {
@@ -131,13 +131,18 @@ describe("MCP tools over the real HTTP API", () => {
 		const tools = createHandlers(createApi(base, fetchImpl), { renderer: fakeRenderer() })
 		const id = await barChart(tools)
 		const before = (await storedVisual(id)) as Visual
-		const editorCopy = { ...before, name: "Editor", updatedAt: before.updatedAt + 1 }
+		const editorCopy = {
+			...before,
+			name: "Editor",
+			labelsConfig: { ...before.labelsConfig, title: "Theirs" },
+			updatedAt: before.updatedAt + 1,
+		}
 		interpose = () => outsideSave(editorCopy)
 
 		const result = await tools.edit_chart({ id, patch: { title: "Mine" } })
 		expect(result.isError).toBe(true)
 		expect((JSON.parse((result.content[0] as { text: string }).text) as ToolOutput).message).toMatch(
-			/changed elsewhere .* since it was read; nothing was saved/
+			/^Paused, nothing saved/
 		)
 		expect(await storedVisual(id)).toEqual(editorCopy)
 		expect((await tools.undo_chart_edit({ id })).isError).toBe(true)
