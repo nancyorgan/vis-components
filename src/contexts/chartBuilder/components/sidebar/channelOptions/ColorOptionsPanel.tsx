@@ -957,6 +957,15 @@ export const AreaRadarOutlinePanel = () => {
 				const isOverridden = lineColors[v] !== undefined
 				return (
 					<div key={v} className="flex items-center gap-2 text-sm">
+						{/* Category name is the row's label column, same as the Fill
+						 *  rows (CategoricalSwatchList), so the hex input + swatch
+						 *  line up under the Palette dropdown. */}
+						<span
+							className="w-24 flex-shrink-0 truncate vc-text"
+							title={v}
+						>
+							{v}
+						</span>
 						<ColorInput
 							label={`Line color for ${v}`}
 							labelClassName="sr-only"
@@ -966,12 +975,6 @@ export const AreaRadarOutlinePanel = () => {
 							palette={linePaletteColors ?? scheme}
 							pickerLabel={`Pick palette line color for ${v}`}
 						/>
-						<span
-							className="min-w-0 flex-1 truncate vc-text"
-							title={v}
-						>
-							{v}
-						</span>
 						{isOverridden && (
 							<ResetLink onClick={() => resetLineColor(v)} />
 						)}
