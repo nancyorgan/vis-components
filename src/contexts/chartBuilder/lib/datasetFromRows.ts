@@ -92,21 +92,61 @@ export const datasetFromRows = (
 		}
 		return out
 	})
-	const types = input.types ?? {}
+	const fields = withTypes([...columns], text, input.types, problems)
+	const bytes = new TextEncoder().encode(stringifyJsonDangerous(text)).byteLength
+	if (datasetSizeIssue(bytes) === "reject")
+		problems.push({ path: "rows", message: datasetRejectMessage(bytes) })
+	return withDuplicate(newDatasetRecord(name, API_ROWS_FILENAME, fields, text), problems, opts)
+}
+
+/** Each column's inferred type, overridden by `types` where given; a
+ *  problem for an override naming no column or no type. */
+const withTypes = (
+	fieldNames: string[],
+	rows: Array<Record<string, string>>,
+	types: Record<string, FieldType> = {},
+	problems: SpecProblem[]
+): Field[] => {
+	const columns = new Set(fieldNames)
 	for (const [col, t] of Object.entries(types)) {
 		if (!columns.has(col))
 			problems.push({ path: `types.${col}`, message: `no column "${col}" in the rows` })
 		else if (!FIELD_TYPES.includes(t))
 			problems.push({ path: `types.${col}`, message: `must be one of ${FIELD_TYPES.join(", ")}` })
 	}
-	const fields = inferFields([...columns], text).map((f) =>
+	return inferFields(fieldNames, rows).map((f) =>
 		FIELD_TYPES.includes(types[f.name]) ? { ...f, inferredType: types[f.name] } : f
 	)
-	const bytes = new TextEncoder().encode(stringifyJsonDangerous(text)).byteLength
-	if (datasetSizeIssue(bytes) === "reject")
-		problems.push({ path: "rows", message: datasetRejectMessage(bytes) })
-	const dataset = newDatasetRecord(name, API_ROWS_FILENAME, fields, text)
+}
+
+const withDuplicate = (
+	dataset: Dataset,
+	problems: SpecProblem[],
+	opts: { existing?: readonly DatasetMeta[] }
+): { dataset: Dataset; problems: SpecProblem[]; duplicateOf?: string } => {
 	const index = Object.fromEntries((opts.existing ?? []).map((m) => [m.id, m]))
 	const duplicateOf = findDuplicateByHash(index, dataset) ?? undefined
 	return { dataset, problems, ...(duplicateOf ? { duplicateOf } : {}) }
+}
+
+/** A parsed upload (`parseCsvText` / `parseCsvTextWithin`) → data set: the
+ *  record the editor's upload stores (`useCreateNewDataset`), the header's
+ *  column order kept and `filename` on the version, so the same file sent
+ *  here and uploaded in the editor under the same name are the same data
+ *  set (`duplicateOf`). Size limits are the caller's, on the source bytes. */
+export const datasetFromParsed = (
+	input: {
+		name: string
+		filename: string
+		fieldNames: string[]
+		rows: Array<Record<string, string>>
+		types?: Record<string, FieldType>
+	},
+	opts: { existing?: readonly DatasetMeta[] } = {}
+): { dataset: Dataset; problems: SpecProblem[]; duplicateOf?: string } => {
+	const problems: SpecProblem[] = []
+	const name = input.name.trim()
+	if (name === "") problems.push({ path: "name", message: "name must be a non-empty string" })
+	const fields = withTypes(input.fieldNames, input.rows, input.types, problems)
+	return withDuplicate(newDatasetRecord(name, input.filename, fields, input.rows), problems, opts)
 }

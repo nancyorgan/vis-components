@@ -27,7 +27,11 @@ import {
 } from "../../src/contexts/chartBuilder/lib/chartSpec"
 import { editDistance } from "../../src/contexts/chartBuilder/lib/didYouMean"
 import { datasetsEqual } from "../../src/contexts/chartBuilder/lib/datasetDedupe"
-import { datasetFromRows } from "../../src/contexts/chartBuilder/lib/datasetFromRows"
+import {
+	datasetFromParsed,
+	datasetFromRows,
+	PASTED_DATA_FILENAME,
+} from "../../src/contexts/chartBuilder/lib/datasetFromRows"
 import { settingsReadRows } from "../../src/contexts/chartBuilder/lib/settingEffects"
 import { PUBLIC_SEED_FOLDER_IDS } from "../../src/contexts/chartBuilder/lib/stockFolders"
 import { themeOf } from "../../src/contexts/chartBuilder/lib/systemThemes"
@@ -39,6 +43,7 @@ import { CARD_URI, createPictureStore, RESULT_LIMIT, type PictureStore } from ".
 import { checkFileName, type ExportFormat, type PictureOutcome, type Renderer } from "./render"
 import { resolveDataset, resolveFolder, resolveThemeName, rowCountOf } from "./resolve"
 import { searchSettings } from "./settingSearch"
+import { csvText, MAX_CELLS, MAX_ROWS, parseSource, readSourceFile, uploadName, type ReadHooks } from "./source"
 
 const UNDO_DEPTH = 20
 
@@ -226,7 +231,19 @@ export type ExportChartArgs = {
 	fileName?: string
 }
 
+/** create_dataset's input: exactly one of rows, csv and path. */
+export type CreateDatasetArgs = {
+	name?: string
+	rows?: Record<string, unknown>[]
+	csv?: string
+	path?: string
+	expectedRows?: number
+	types?: Record<string, FieldType>
+}
+
 export type HandlerDeps = {
+	/** Test seams in reading a file by path (source.ts). */
+	readHooks?: ReadHooks
 	/** Takes the pictures and writes the exports. */
 	renderer: Renderer
 	/** Whether this connection's client shows the chart card (it announced
@@ -366,40 +383,80 @@ export const createHandlers = (api: Api, deps: HandlerDeps) => {
 		refused(`No chart has id "${id}". list_charts finds a chart by its name, folder or data set.`)
 
 	return {
-		create_dataset: guarded(
-			async (args: { name: string; rows: Record<string, unknown>[]; types?: Record<string, FieldType> }) => {
-				await api.assertCurrent(["datasets"])
-				const index = await api.datasetIndex()
-				const { dataset, problems, duplicateOf } = datasetFromRows(args, {
-					existing: Object.values(index),
-				})
-				if (problems.length > 0)
-					return refused("The rows weren't stored; fix what each problem names and send them again.", problems)
-				// The hash is a PROBABLE match; reuse only once the stored body
-				// proves equal, as the editor's upload does.
-				if (duplicateOf && index[duplicateOf]) {
-					const stored = await api.dataset(duplicateOf)
-					if (datasetsEqual(stored, dataset)) {
-						const meta = index[duplicateOf]
-						return ok({
-							id: meta.id,
-							name: meta.name,
-							rowCount: rowCountOf(meta),
-							fields: fieldTypesOf(fieldsOf(meta)),
-							reused: true,
-						})
-					}
+		create_dataset: guarded(async (args: CreateDatasetArgs) => {
+			const given = (["rows", "csv", "path"] as const).filter((k) => args[k] !== undefined)
+			if (given.length !== 1)
+				return refused("Nothing was stored: give exactly one of rows, csv or path.")
+			await api.assertCurrent(["datasets"])
+
+			// The data as it arrived: rows as sent, or text parsed as an upload.
+			let upload: { fieldNames: string[]; rows: Array<Record<string, string>>; filename: string } | null = null
+			let name = args.name
+			if (args.rows === undefined) {
+				let text: string
+				let delimiter: string | undefined
+				let filename = PASTED_DATA_FILENAME
+				if (args.csv !== undefined) {
+					const sent = csvText(args.csv)
+					if (!sent.ok) return refused(sent.message)
+					text = sent.text
+				} else {
+					const file = await readSourceFile(String(args.path), deps.readHooks)
+					if (!file.ok) return refused(file.message)
+					;({ text, delimiter } = file)
+					filename = file.fileName
+					name ??= uploadName(file.fileName)
 				}
-				await api.putDataset(dataset)
-				return ok({
-					id: dataset.id,
-					name: dataset.name,
-					rowCount: dataset.versions[0]?.rows.length ?? 0,
-					fields: fieldTypesOf(dataset.fields.map((f) => ({ name: f.name, type: f.inferredType }))),
-					reused: false,
-				})
+				const parsed = parseSource(text, delimiter)
+				if (!parsed.ok) return refused(parsed.message)
+				upload = { fieldNames: parsed.fieldNames, rows: parsed.rows, filename }
+			} else if (Array.isArray(args.rows) && args.rows.length > MAX_ROWS) {
+				return refused(
+					`Nothing was stored: the rows are more than ${MAX_ROWS.toLocaleString("en-US")}, the limit for one data set. Tell the person; a smaller extract or a split file would fit.`
+				)
 			}
-		),
+			const arrived = upload ? upload.rows.length : Array.isArray(args.rows) ? args.rows.length : 0
+			if (args.expectedRows !== undefined && arrived !== args.expectedRows)
+				return refused(
+					`Nothing was stored: ${arrived.toLocaleString("en-US")} rows arrived, not the ${args.expectedRows.toLocaleString("en-US")} expected. Send every row (the whole data as csv), or give the file's full path.`
+				)
+
+			const index = await api.datasetIndex()
+			const existing = Object.values(index)
+			const { dataset, problems, duplicateOf } = upload
+				? datasetFromParsed({ name: name ?? "", ...upload, types: args.types }, { existing })
+				: datasetFromRows({ name: name ?? "", rows: args.rows ?? [], types: args.types }, { existing })
+			if (problems.length > 0)
+				return refused("Nothing was stored; fix what each problem names and send it again.", problems)
+			const cells = (dataset.versions[0]?.rows.length ?? 0) * dataset.fields.length
+			if (cells > MAX_CELLS)
+				return refused(
+					`Nothing was stored: the rows hold more than ${MAX_CELLS.toLocaleString("en-US")} cells (rows times columns), the limit for one data set. Tell the person; a smaller extract or a split file would fit.`
+				)
+			// The hash is a PROBABLE match; reuse only once the stored body
+			// proves equal, as the editor's upload does.
+			if (duplicateOf && index[duplicateOf]) {
+				const stored = await api.dataset(duplicateOf)
+				if (datasetsEqual(stored, dataset)) {
+					const meta = index[duplicateOf]
+					return ok({
+						id: meta.id,
+						name: meta.name,
+						rowCount: rowCountOf(meta),
+						fields: fieldTypesOf(fieldsOf(meta)),
+						reused: true,
+					})
+				}
+			}
+			await api.putDataset(dataset)
+			return ok({
+				id: dataset.id,
+				name: dataset.name,
+				rowCount: dataset.versions[0]?.rows.length ?? 0,
+				fields: fieldTypesOf(dataset.fields.map((f) => ({ name: f.name, type: f.inferredType }))),
+				reused: false,
+			})
+		}),
 
 		create_chart: guarded(async (args: CreateChartArgs) => {
 			await api.assertCurrent(CHART_COLLECTIONS)
@@ -730,8 +787,11 @@ export const registerTools = (
 		{
 			description: T.create_dataset.description,
 			inputSchema: {
-				name: z.string().describe(T.create_dataset.params.name),
-				rows: z.array(z.record(z.string(), z.unknown())).describe(T.create_dataset.params.rows),
+				name: z.string().optional().describe(T.create_dataset.params.name),
+				rows: z.array(z.record(z.string(), z.unknown())).optional().describe(T.create_dataset.params.rows),
+				csv: z.string().optional().describe(T.create_dataset.params.csv),
+				path: z.string().optional().describe(T.create_dataset.params.path),
+				expectedRows: z.number().int().min(0).optional().describe(T.create_dataset.params.expectedRows),
 				types: z.record(z.string(), fieldType).optional().describe(T.create_dataset.params.types),
 			},
 			annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },

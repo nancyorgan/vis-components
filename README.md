@@ -129,7 +129,7 @@ one when the data set is already in the library; nothing needs reading
 first). The server's instructions carry the charting rules; the long-form
 `mcp/guide/agent-guide.md` is documentation only and no tool serves it.
 
-- `create_dataset`: store rows as a new data set (an identical one is reused); returns its id, row count and field types.
+- `create_dataset`: store a data set from exactly one of `rows` (flat objects), `csv` (CSV text, header first) or `path` (a file on the MCP's computer); an identical one under the same name is reused, including one the editor's upload stored from the same file. Returns its id, row count and field types. See "Data in" below.
 - `create_chart`: make a chart from encodings (the only required key). The data set, folder and theme go by name or id (`dataset`, `folder`, `themeId`; `datasetId` / `folderId` still work); an unknown, near-miss or shared name is refused with the choices and nothing is saved. Returns editor and embed links and the save's `revision`.
 - `edit_chart`: change only the keys a patch names. Builds on the `revision` it is given, else the one this session last saw; a chart changed elsewhere since then is refused until it is read again.
 - `undo_chart_edit`: undo this session's last `edit_chart` on a chart (refused if the chart changed since that edit).
@@ -138,6 +138,33 @@ first). The server's instructions carry the charting rules; the long-form
 - `list_datasets`: data sets with row counts; `fields: true` adds field types.
 - `list_settings`: search the stored settings a `settings` patch can set (`*` = a level, field or panel key; `[]` = a list entry; lists replace whole), a page at a time. With a `chartId`, each row shows the chart's current value, plus its theme's palette ids.
 - `export_chart`: write the chart as a png, jpeg, svg or pdf file through the app's own Export pipeline into the person's Export folder (never another folder, never over an existing file).
+
+Data in (`create_dataset`): `csv` text and a `path` file parse exactly as
+the editor's upload does (`parseCsvTextWithin` in `lib/parseCsv.ts`, the
+upload's options: UTF-8, a leading BOM dropped, quoted delimiters and line
+breaks, blank lines skipped, the delimiter detected, the same field types,
+the header's column order kept). A `.tsv` file parses as tab-separated; a
+`.csv` or `.txt` file as an upload would. The data set takes `name`, or, with
+`path`, the file's name without its extension; a path's version is named
+after the file, csv text's "Pasted data". With `expectedRows` (the data's
+row count, header not counted), any other number of rows arriving stores
+nothing and the refusal says how many arrived. Path rules, since a model can
+be talked into naming any file: an absolute path only, ending `.csv`,
+`.tsv` or `.txt` (any case), with no hidden part (no file or folder name
+starting with `.`); a symlink is followed and its target must pass the same
+rules; folders, devices, sockets, named pipes, unreadable or missing files
+and a header with no rows are refused. The file is opened once,
+non-blocking, its open descriptor checked (the same regular file that was
+checked, within the size limit) before any byte is read, and read for at
+most its checked size plus one byte, so a file that grows or a pipe swapped
+in after the check is refused rather than read or waited on. Limits, each
+refused with nothing stored: 100 MB of source (the file's size or the csv
+text's UTF-8 bytes, the editor's upload limit, never the expanded rows),
+1,000,000 data rows, 10,000,000 cells (rows times columns), and a parse
+memory budget of 1 GiB of parsed rows (estimated per row and cell, two bytes
+a character), or a quarter of the Node heap limit when that is smaller. The
+parse runs in chunks and stops as soon as a limit is passed, so an
+oversized file never takes the MCP down.
 
 Pictures: every successful `create_chart`, `edit_chart` and `undo_chart_edit`
 (and `get_chart`, unless `picture: false`) returns a picture of the stored

@@ -106,7 +106,11 @@ describe("served surface", () => {
 	it("keeps every rule in the instructions", () => {
 		for (const rule of [
 			/A first chart takes two calls/,
-			/create_dataset \(every row\), then create_chart/,
+			/nothing read beforehand: create_dataset, then create_chart/,
+			/Data the person attached or pasted goes to create_dataset in full as csv with expectedRows \(its data rows\), never a sample; never refuse to send it/,
+			/For a file on this computer not in the chat, ask its full path \(or offer the editor's upload\) and send path/,
+			/Never chart fewer rows than the file has/,
+			/Data saved for later: one data set, no chart/,
 			/a library data set the person names goes straight to create_chart/,
 			/primary comparison, normally x and y/,
 			/Each further comparison \(across, among, within, by\) adds one encoding/,
@@ -135,6 +139,18 @@ describe("served surface", () => {
 			/Asked for another folder, say files go to their Export folder setting \(VIS_EXPORT_DIR in the MCP's config; change it there and restart\), and write nothing elsewhere/,
 		])
 			expect(instructions).toMatch(rule)
+	})
+
+	it("takes exactly one of rows, csv or path on create_dataset, with the path rules and expectedRows", () => {
+		const create = tools.find((t) => t.name === "create_dataset") as Tool
+		expect(create.description).toMatch(/exactly one of rows, csv or path/)
+		const props = create.inputSchema.properties as Record<string, { description?: string }>
+		expect(Object.keys(props).sort()).toEqual(["csv", "expectedRows", "name", "path", "rows", "types"])
+		expect(create.inputSchema.required ?? []).toEqual([])
+		expect(props.path.description).toMatch(/Full path to a \.csv, \.tsv or \.txt file/)
+		expect(props.path.description).toMatch(/100 MB/)
+		expect(props.csv.description).toMatch(/whole data/)
+		expect(props.expectedRows.description).toMatch(/header not counted/)
 	})
 
 	it("describes the picture on the writes and get_chart, and where exports go", () => {
