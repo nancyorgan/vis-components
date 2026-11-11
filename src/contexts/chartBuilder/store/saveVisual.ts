@@ -1,6 +1,8 @@
-import type { Getter, Setter } from "jotai"
+import { atom, type Getter, type Setter } from "jotai"
 import { useAtomCallback } from "jotai/utils"
 import { useCallback } from "react"
+import { deepEqual } from "../../../lib/deepEqual"
+import { getStorageAdapter } from "../lib/storage/registry"
 import { knownFacetPanels, resolveFacetPanels } from "../lib/resolveFacetPanels"
 import { structureVisualKeys } from "../lib/savedKeyStructure"
 import { UNTITLED_VISUAL_NAME } from "../lib/nameUniqueness"
@@ -20,6 +22,7 @@ import { getCurrentUser } from "../../../lib/currentUser"
 import { editorHistoryEpochAtom } from "./editorHistory"
 
 import {
+	adoptStoredVisualAtom,
 	currentAccessibilityConfigAtom,
 	currentAnnotationsAtom,
 	currentCaptionConfigAtom,
@@ -155,10 +158,49 @@ export const assembleDraftVisual = (get: Getter): DraftVisual => {
 	}
 }
 
+/** The part of a draft autosave compares: everything the editor edits.
+ * `folderId` and `createdAtVersionId` are left out — `assembleDraftVisual`
+ * copies them from the stored row (or the data set index, which can land
+ * after the draft), so they move without any edit in the editor. */
+type ComparableDraft = Omit<DraftVisual, "folderId" | "createdAtVersionId">
+
+const comparableDraft = ({
+	folderId: _folderId,
+	createdAtVersionId: _createdAtVersionId,
+	...rest
+}: DraftVisual): ComparableDraft => rest
+
+/** Per visual id, the draft as it was last LOADED into the editor or last
+ * SUCCESSFULLY saved — what autosave compares the live draft against, so
+ * only a real change writes (`draftDiffersFromSaved`). A save advances it
+ * only once the write has landed: a failed save leaves the old record, so
+ * the same draft still reads as unsaved and saves again later. In-memory
+ * only; the editor is the one writer. */
+export const savedDraftsAtom = atom<ReadonlyMap<string, ComparableDraft>>(
+	new Map()
+)
+
+const recordSavedDraft = (set: Setter, id: string, draft: DraftVisual): void => {
+	set(savedDraftsAtom, (prev) => new Map(prev).set(id, comparableDraft(draft)))
+}
+
+/** Whether the editor's draft differs from what `visualId` last loaded or
+ * successfully saved. Structural (`deepEqual`), so a change put back — by
+ * hand or by undo — compares equal again. No record (a visual whose first
+ * save hasn't landed) reads as changed: never skip a save on a guess. */
+export const draftDiffersFromSaved = (get: Getter, visualId: string): boolean => {
+	const saved = get(savedDraftsAtom).get(visualId)
+	if (!saved) return true
+	return !deepEqual(comparableDraft(assembleDraftVisual(get)), saved)
+}
+
 /**
  * Save the editor's current state as a Visual. Creates a new visual if there
  * is no current visualId; otherwise updates the matching entry in place.
- * Returns the visual id of the saved visual.
+ * Resolves with the visual id once the write has settled. A write that
+ * lands records the draft it wrote as saved (`savedDraftsAtom`); one that
+ * fails is logged and NOT recorded — the in-memory list keeps the edit and
+ * the next change saves it again — and still resolves, as before.
  */
 export const useSaveVisual = () => {
 	return useAtomCallback(
@@ -226,8 +268,15 @@ export const useSaveVisual = () => {
 				? visuals.map((v) => (v.id === id ? saved : v))
 				: [saved, ...visuals]
 
-			set(visualsAtom, nextVisuals)
+			const written = set(visualsAtom, nextVisuals)
 			set(currentVisualIdAtom, id)
+			try {
+				await written
+				recordSavedDraft(set, id, draft)
+			} catch (error) {
+				// eslint-disable-next-line no-console
+				console.error("[vis-components] saving the visualization failed:", error)
+			}
 			set(saveStatusAtom, "idle")
 			return id
 		}, [])
@@ -256,7 +305,32 @@ export const useLoadVisual = () => {
 				set(templateRebindNoticeAtom, null)
 			}
 			hydrateDraftFromVisual(get, set, stored)
+			// What was just opened is what's stored: autosave writes only
+			// once the draft moves away from it.
+			recordSavedDraft(set, stored.id, assembleDraftVisual(get))
 			return true
+		}, [])
+	)
+}
+
+/**
+ * Before opening an existing visual: swap the in-memory row for the
+ * store's latest copy (`StorageContentAdapter.refreshVisual` — server mode
+ * reads `GET /api/visuals/:id`; browser-local has nothing fresher), so a
+ * chart edited elsewhere since this session's list load opens as it is now.
+ * The swap writes nothing (`adoptStoredVisualAtom`). Never rejects: any
+ * failure leaves the in-memory copy to open.
+ */
+export const useRefreshStoredVisual = () => {
+	return useAtomCallback(
+		useCallback(async (get, set, visualId: string): Promise<void> => {
+			const adapter = getStorageAdapter()
+			if (!adapter.refreshVisual) return
+			const local = get(visualsAtom).find((v) => v.id === visualId)
+			if (!local) return
+			const fresh = await adapter.refreshVisual(local).catch(() => local)
+			if (fresh === local) return
+			set(adoptStoredVisualAtom, { replaces: local, visual: fresh })
 		}, [])
 	)
 }

@@ -112,6 +112,7 @@ import {
 import { datasetIndexFrom } from "../lib/datasetMeta"
 import { resolveVersionIdFromMeta } from "../lib/resolveDatasetVersion"
 import { isTemplatePending } from "../lib/templates/pending"
+import { isTrashed } from "../lib/visualTrash"
 import type { RebindUnmatched } from "../lib/templates/rebind"
 import { idbAvailable } from "../lib/storage/idb"
 import {
@@ -337,6 +338,25 @@ export const visualsAtom = atom(
 	}
 )
 
+/** Put a copy of one visual that the storage adapter just read from the
+ * store (`StorageContentAdapter.refreshVisual`) into the list WITHOUT a
+ * save: it is what the store holds, and the adapter has already taken it as
+ * its diff baseline. Replaces by id only while the in-memory row is still
+ * `replaces` — a row changed in the meantime is newer than the read. */
+export const adoptStoredVisualAtom = atom(
+	null,
+	(get, set, { replaces, visual }: { replaces: Visual; visual: Visual }) => {
+		const raw = get(visualsBaseAtom)
+		const prev = raw === UNSET ? loadVisuals() : raw
+		if (!prev.includes(replaces)) return false
+		set(
+			visualsBaseAtom,
+			prev.map((v) => (v === replaces ? visual : v))
+		)
+		return true
+	}
+)
+
 /** True once the visuals list is authoritative. Local mode bootstraps
  * synchronously from localStorage, so it is hydrated from the first read.
  * Server mode starts UNSET and fills in when the base atom's `onMount`
@@ -357,13 +377,13 @@ export const visualsHydratedAtom = atom((get) => {
  * `visualsAtom`, which holds trashed visuals too — a trashed visual still
  * owns its data set and embeds until it is purged. */
 export const liveVisualsAtom = atom((get) =>
-	get(visualsAtom).filter((v) => v.deletedAt === undefined)
+	get(visualsAtom).filter((v) => !isTrashed(v))
 )
 
 /** What the Trash panel lists, newest deletion first. */
 export const trashedVisualsAtom = atom((get) =>
 	get(visualsAtom)
-		.filter((v) => v.deletedAt !== undefined)
+		.filter((v) => isTrashed(v))
 		.sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))
 )
 

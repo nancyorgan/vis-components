@@ -1,8 +1,12 @@
 import { nameCollides } from "./nameUniqueness"
 import type { Folder, Visual } from "./types"
 
-/** A visual is in the Trash when it carries a `deletedAt` stamp. */
-export const isTrashed = (v: Visual): boolean => v.deletedAt !== undefined
+/** A visual is in the Trash when it carries a `deletedAt` stamp. Absent
+ * and `null` both mean live: a stored row (an older export, another
+ * client, a server round-trip) may spell "not trashed" as an explicit
+ * null. Every "is it trashed?" question goes through here. */
+export const isTrashed = (v: Pick<Visual, "deletedAt">): boolean =>
+	v.deletedAt !== undefined && v.deletedAt !== null
 
 /** A visual row is a template when it carries `template` metadata (see
  * `Visual.template`). */

@@ -701,6 +701,20 @@ visual. An undo is an ordinary change to autosave, so the saved visual
 always matches the screen. (`store/editorHistory.ts`; the draft
 snapshot is the same 21 atoms `useSaveVisual` reads.)
 
+**Autosave writes only a real change.** For a visual that already
+exists, autosave compares the draft with what was last opened into the
+editor or last SUCCESSFULLY saved (`savedDraftsAtom` /
+`draftDiffersFromSaved` in `store/saveVisual.ts`; structural, leaving
+out the row-owned `folderId` and `createdAtVersionId`). Opening a
+visual writes nothing and leaves its "Saved …" time alone; the first
+real change saves once; a change put back before the 800 ms debounce,
+or undone back to the saved state, saves nothing. The record moves only
+when a save lands: a save that fails leaves the draft reading as
+unsaved, so the next change (even one that returns to that same draft)
+saves it, and an edit undone while its save is still in flight is saved
+once that save lands. A new, never-saved visual still saves on its
+first change after a data set is bound.
+
 **Save status.** Beside the name, the top bar says when the open visual
 was last saved: "Saving…" mid-save, otherwise "Saved by Nancy at
 9:25 AM" (a time for a save today, "on Oct 14" for an earlier one). It
@@ -753,6 +767,18 @@ back in — so the header's Log out button only appears when a host passes
   sends no `updatedBy`): the first write under a new id is always
   stamped with the requester. Someone else's save while you have the visual open shows up on
   your next load, not live.
+- **Opening reads the latest copy.** In server mode, opening a visual in
+  the editor first reads that one visual fresh (`GET /api/visuals/:id`,
+  `refreshVisual` on the storage adapter) instead of trusting the list
+  loaded when the session started, so a chart edited in another tab or
+  by someone else since opens as it is now. The read writes nothing (it
+  becomes the adapter's baseline for that item) and keeps the local
+  preview, since the response carries none. It falls back silently to
+  the in-memory copy when the read fails, when the server is older than
+  the route (405) or no longer has the visual (404), and when this
+  session holds an edit of it that hasn't reached the server yet (a
+  failed save, which the next save retries). Browser-local mode has
+  nothing fresher to read.
 
 ### 2.4 Dataset versions & cleanup
 The editor header carries a **version badge** — the dataset name plus
@@ -5725,6 +5751,18 @@ accepted. A failed upload leaves the JSON saved and the item out of the
 adapter's baseline, so the next save retries both (the repeated body
 PUT is idempotent).
 
+The adapter classifies each visual's change against its baseline before
+writing (compared structurally, so key order doesn't count). A change
+that is ONLY `updatedAt` / `updatedBy` sends nothing. A change that is
+only the preview (`thumbnail` / `thumbnailAt`) sends only the picture —
+`PUT /api/visuals/:id/thumbnail` with `x-vis-thumbnail-at: <thumbnailAt
+in epoch ms>`, which the server stores as the row's `thumbnailAt`
+without touching anything else — and never the body: the library's copy
+of a visual can be much older than the stored chart, and re-sending it
+would overwrite a newer edit. Clearing a preview is still a body write
+(the explicit null). A body change with a new preview keeps the order
+above: JSON, then the picture (stamped the same way).
+
 **Schema upgrades reach server-stored work too.** In browser-local
 mode every persisted key carries its own version stamp, so an app
 update that reshapes saved data migrates it on the next read. A
@@ -5855,7 +5893,8 @@ listing changes — a folder is opened, a search or data-set filter
 narrows it, a visual lands in it — every listed visual whose preview is
 missing or provably stale is re-rendered in a hidden offscreen embed,
 one at a time, and its new picture stored without touching
-`updatedAt`. "Provably stale" means the stamp is behind the visual's
+`updatedAt` (in server mode only the picture is uploaded, never the
+library's copy of the chart — see "Thumbnails travel as files"). "Provably stale" means the stamp is behind the visual's
 last save (a save mid-render keeps the old picture and the old stamp),
 behind the data set's latest version, or absent altogether (saved
 before stamps existed) — or, whatever the stamp says, the stored
@@ -5880,7 +5919,8 @@ still fills missing ones in bulk.
 the Trash is a round floating can fixed to the bottom-right of the
 library page, badged with how many visuals it holds, and restoring one
 is a single click there. A trashed visual carries a `deletedAt` stamp
-(sparse; no storage version bump) and keeps its row, thumbnail, embed
+(sparse; no storage version bump; an absent or `null` `deletedAt` both
+mean live, read only through `isTrashed`) and keeps its row, thumbnail, embed
 instances, published files and data set: nothing cascades until it is
 purged. While trashed it is hidden from the grid, table, folder tree,
 data-set filter, name-collision check, "Regenerate previews" count and

@@ -74,6 +74,15 @@ export interface StorageContentAdapter {
 	 *  out, but the read side is addressable here for the mount-time merge. */
 	loadThumbnails(): Promise<Record<string, string>>
 	saveVisuals(visuals: Visual[]): Promise<void>
+	/** Re-read ONE visual from the store, for the editor's open: the
+	 *  store's latest copy of `local` (a session's list can be older than a
+	 *  chart edited elsewhere since). The answer is also what the adapter
+	 *  now considers stored, so writing it into the visuals list sends
+	 *  nothing. Returns `local` itself when there is nothing fresher to
+	 *  read — browser-local (the in-memory copy IS the store), a read that
+	 *  fails, or a server without the route. Never rejects. Optional: an
+	 *  adapter without it opens the in-memory copy. */
+	refreshVisual?(local: Visual): Promise<Visual>
 
 	loadFolders(): Promise<Folder[]>
 	saveFolders(folders: Folder[]): Promise<void>
@@ -126,6 +135,7 @@ export const localStorageAdapter: StorageContentAdapter = {
 	loadVisuals: async () => loadVisuals(),
 	loadThumbnails: () => loadThumbnailsAsync(),
 	saveVisuals: (visuals) => saveVisuals(visuals),
+	refreshVisual: async (local) => local,
 
 	loadFolders: async () => loadFolders(),
 	saveFolders: async (folders) => {

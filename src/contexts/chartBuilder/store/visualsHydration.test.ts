@@ -14,7 +14,12 @@ import {
 import { setStorageAdapter } from "../lib/storage/registry"
 import { emptyEncodings, type Visual } from "../lib/types"
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
-import { visualsAtom, visualsHydratedAtom } from "./atoms"
+import {
+	liveVisualsAtom,
+	trashedVisualsAtom,
+	visualsAtom,
+	visualsHydratedAtom,
+} from "./atoms"
 
 const mkVisual = (id: string): Visual => ({
 	id,
@@ -102,5 +107,20 @@ describe("visualsHydratedAtom", () => {
 		const store = createStore()
 		store.sub(visualsHydratedAtom, () => {})
 		expect(store.get(visualsHydratedAtom)).toBe(true)
+	})
+})
+
+describe("live vs trashed lists", () => {
+	it("a null deletedAt is live: listed, never in the Trash", async () => {
+		install(localStorageAdapter)
+		const store = createStore()
+		await store.set(visualsAtom, [
+			{ ...mkVisual("absent") },
+			{ ...mkVisual("null"), deletedAt: null },
+			{ ...mkVisual("old"), deletedAt: 10 },
+			{ ...mkVisual("new"), deletedAt: 20 },
+		])
+		expect(store.get(liveVisualsAtom).map((v) => v.id)).toEqual(["absent", "null"])
+		expect(store.get(trashedVisualsAtom).map((v) => v.id)).toEqual(["new", "old"])
 	})
 })

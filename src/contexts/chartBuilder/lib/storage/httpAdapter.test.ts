@@ -905,21 +905,25 @@ describe("multipart thumbnail uploads", () => {
 	it("sends the thumbnail as a multipart PNG file, never inside the JSON", async () => {
 		const v1 = { id: "v1", name: "One", thumbnail: null }
 		const { mock, adapter } = await loadAdapter([v1])
-		await adapter.saveVisuals([{ ...v1, thumbnail: PNG_A, thumbnailAt: 5 }] as never)
+		await adapter.saveVisuals([
+			{ ...v1, name: "Renamed", thumbnail: PNG_A, thumbnailAt: 5 },
+		] as never)
 		expect(calls(mock)).toEqual([
 			"PUT /api/visuals/v1",
 			"PUT /api/visuals/v1/thumbnail",
 		])
 
 		const json = bodyOf(mock, "/api/visuals/v1") as string
-		expect(JSON.parse(json)).toEqual({ id: "v1", name: "One", thumbnailAt: 5 })
+		expect(JSON.parse(json)).toEqual({ id: "v1", name: "Renamed", thumbnailAt: 5 })
 		expect(json).not.toContain("thumbnail\"")
 
 		const [, init] = mock.mock.calls[1] as [string, RequestInit]
 		// No content-type: the browser sets the multipart boundary itself. The
-		// write still names the content version like every visuals write.
+		// write still names the content version like every visuals write, and
+		// carries the capture stamp.
 		expect(init.headers).toEqual({
 			[CONTENT_VERSION_HEADER]: String(CONTENT_MIGRATIONS.visuals.currentVersion),
+			"x-vis-thumbnail-at": "5",
 		})
 		expect(init.body).toBeInstanceOf(FormData)
 		const part = (init.body as FormData).get("thumbnail") as File
@@ -937,13 +941,11 @@ describe("multipart thumbnail uploads", () => {
 			name: "Renamed",
 		})
 
-		// A new capture goes up; a second save of the same capture does not.
+		// A new capture alone sends only the picture; a later save of the same
+		// capture does not send it again.
 		mock.mockClear()
 		await adapter.saveVisuals([{ ...v1, name: "Renamed", thumbnail: PNG_B }] as never)
-		expect(calls(mock)).toEqual([
-			"PUT /api/visuals/v1",
-			"PUT /api/visuals/v1/thumbnail",
-		])
+		expect(calls(mock)).toEqual(["PUT /api/visuals/v1/thumbnail"])
 		mock.mockClear()
 		await adapter.saveVisuals([
 			{ ...v1, name: "Renamed again", thumbnail: PNG_B },
@@ -962,13 +964,11 @@ describe("multipart thumbnail uploads", () => {
 			thumbnail: null,
 		})
 
-		// Cleared on the server, so re-capturing the same bytes uploads again.
+		// Cleared on the server, so re-capturing the same bytes uploads again
+		// (the picture alone: nothing else changed).
 		mock.mockClear()
 		await adapter.saveVisuals([{ ...v1, thumbnail: PNG_A }] as never)
-		expect(calls(mock)).toEqual([
-			"PUT /api/visuals/v1",
-			"PUT /api/visuals/v1/thumbnail",
-		])
+		expect(calls(mock)).toEqual(["PUT /api/visuals/v1/thumbnail"])
 	})
 
 	it("retries a failed upload on the next save, JSON included", async () => {
@@ -983,7 +983,7 @@ describe("multipart thumbnail uploads", () => {
 		await adapter.loadVisuals()
 		mock.mockClear()
 
-		const next = [{ ...v1, thumbnail: PNG_A }] as never
+		const next = [{ ...v1, name: "Renamed", thumbnail: PNG_A }] as never
 		await expect(adapter.saveVisuals(next)).rejects.toThrow(/thumbnail failed: 500/)
 
 		failUploads = false
@@ -1002,19 +1002,25 @@ describe("multipart thumbnail uploads", () => {
 	it("sends no preview at all for a thumbnail that is not a decodable PNG", async () => {
 		const v1 = { id: "v1", name: "One", thumbnail: null }
 		const { mock, adapter } = await loadAdapter([v1])
-		for (const odd of [
+		for (const [i, odd] of [
 			"data:image/jpeg;base64,/9j/4AAQ",
 			"data:image/png;base64,!!!not base64!!!",
 			"data:image/png;base64,R0lGODlh",
-		]) {
+		].entries()) {
 			mock.mockClear()
-			await adapter.saveVisuals([{ ...v1, thumbnail: odd }] as never)
+			await adapter.saveVisuals([{ ...v1, name: `Edit ${i}`, thumbnail: odd }] as never)
 			// Never inline (the WAF's shape), never uploaded (the server 400s).
 			expect(calls(mock)).toEqual(["PUT /api/visuals/v1"])
 			expect(JSON.parse(bodyOf(mock, "/api/visuals/v1") as string)).not.toHaveProperty(
 				"thumbnail"
 			)
 		}
+		// A preview-only change to one of those sends nothing at all.
+		mock.mockClear()
+		await adapter.saveVisuals([
+			{ ...v1, name: "Edit 2", thumbnail: "data:image/jpeg;base64,/9j/4AAQ" },
+		] as never)
+		expect(calls(mock)).toEqual([])
 	})
 
 	it("forgets a deleted visual's thumbnail so a re-created one uploads", async () => {
@@ -1028,6 +1034,145 @@ describe("multipart thumbnail uploads", () => {
 			"PUT /api/visuals/v1",
 			"PUT /api/visuals/v1/thumbnail",
 		])
+	})
+})
+
+describe("what a visual's change sends", () => {
+	const PNG_A = "data:image/png;base64,iVBORw0KGgo="
+	const PNG_B = "data:image/png;base64,iVBORw0KGgoAAAA="
+
+	const loadAdapter = async (visuals: unknown[]) => {
+		const mock = stubFetch((path) =>
+			path === "/api/visuals" ? okJson(visuals) : okEmpty()
+		)
+		const adapter = createHttpStorageAdapter()
+		await adapter.loadVisuals()
+		mock.mockClear()
+		return { mock, adapter }
+	}
+
+	it("sends nothing for a body that differs only in updatedAt / updatedBy", async () => {
+		const v1 = { id: "v1", name: "One", thumbnail: PNG_A, updatedAt: 1 }
+		const { mock, adapter } = await loadAdapter([v1])
+		await adapter.saveVisuals([
+			{ ...v1, updatedAt: 99, updatedBy: { id: "u", name: "U" } },
+		] as never)
+		expect(calls(mock)).toEqual([])
+	})
+
+	it("ignores key order: a row read from the server and one built by a save compare equal", async () => {
+		const v1 = { id: "v1", name: "One", thumbnail: null, updatedAt: 1 }
+		const { mock, adapter } = await loadAdapter([v1])
+		await adapter.saveVisuals([
+			{ updatedAt: 2, thumbnail: null, name: "One", id: "v1" },
+		] as never)
+		expect(calls(mock)).toEqual([])
+	})
+
+	it("a preview-only change sends only the picture, stamped, and no body", async () => {
+		const v1 = { id: "v1", name: "One", thumbnail: PNG_A, thumbnailAt: 1, updatedAt: 1 }
+		const { mock, adapter } = await loadAdapter([v1])
+		await adapter.saveVisuals([
+			{ ...v1, thumbnail: PNG_B, thumbnailAt: 1234, updatedAt: 7 },
+		] as never)
+		expect(calls(mock)).toEqual(["PUT /api/visuals/v1/thumbnail"])
+		const [, init] = mock.mock.calls[0] as [string, RequestInit]
+		expect(init.body).toBeInstanceOf(FormData)
+		expect(init.headers).toEqual({
+			[CONTENT_VERSION_HEADER]: String(CONTENT_MIGRATIONS.visuals.currentVersion),
+			"x-vis-thumbnail-at": "1234",
+		})
+
+		// The baseline moved with it: saving the same again sends nothing.
+		mock.mockClear()
+		await adapter.saveVisuals([
+			{ ...v1, thumbnail: PNG_B, thumbnailAt: 1234, updatedAt: 7 },
+		] as never)
+		expect(calls(mock)).toEqual([])
+	})
+
+	it("a body change with a new preview keeps today's order: JSON, then the picture", async () => {
+		const v1 = { id: "v1", name: "One", thumbnail: PNG_A }
+		const { mock, adapter } = await loadAdapter([v1])
+		await adapter.saveVisuals([
+			{ ...v1, name: "Two", thumbnail: PNG_B, thumbnailAt: 3 },
+		] as never)
+		expect(calls(mock)).toEqual([
+			"PUT /api/visuals/v1",
+			"PUT /api/visuals/v1/thumbnail",
+		])
+	})
+})
+
+describe("reading one visual fresh", () => {
+	const PNG_A = "data:image/png;base64,iVBORw0KGgo="
+	const listed = {
+		id: "v1",
+		name: "Listed",
+		thumbnail: PNG_A,
+		thumbnailAt: 10,
+		updatedAt: 10,
+	}
+
+	const setup = (single: (path: string) => Response | Promise<Response>) => {
+		const mock = stubFetch((path, init) => {
+			if (path === "/api/visuals") return okJson([listed])
+			if (path === "/api/visuals/v1" && (init?.method ?? "GET") === "GET")
+				return single(path)
+			return okEmpty()
+		})
+		return mock
+	}
+
+	it("returns the server's latest copy with the local preview, and no PUT follows", async () => {
+		const mock = setup(() =>
+			okJson({ id: "v1", name: "Edited elsewhere", thumbnailAt: 40, updatedAt: 40 })
+		)
+		const adapter = createHttpStorageAdapter()
+		const [local] = await adapter.loadVisuals()
+		mock.mockClear()
+		const fresh = await adapter.refreshVisual!(local!)
+		expect(calls(mock)).toEqual(["GET /api/visuals/v1"])
+		expect(fresh).toEqual({
+			id: "v1",
+			name: "Edited elsewhere",
+			updatedAt: 40,
+			// The picture in hand, with the stamp that describes it.
+			thumbnail: PNG_A,
+			thumbnailAt: 10,
+		})
+
+		mock.mockClear()
+		await adapter.saveVisuals([fresh] as never)
+		expect(calls(mock)).toEqual([])
+	})
+
+	it.each([404, 405, 500])("falls back to the in-memory copy on a %i", async (code) => {
+		const mock = setup(() => ({ ok: false, status: code }) as unknown as Response)
+		const adapter = createHttpStorageAdapter()
+		const [local] = await adapter.loadVisuals()
+		mock.mockClear()
+		expect(await adapter.refreshVisual!(local!)).toBe(local)
+	})
+
+	it("falls back when the read itself throws", async () => {
+		const mock = setup(() => {
+			throw new Error("offline")
+		})
+		const adapter = createHttpStorageAdapter()
+		const [local] = await adapter.loadVisuals()
+		mock.mockClear()
+		expect(await adapter.refreshVisual!(local!)).toBe(local)
+	})
+
+	it("keeps an unsynced local edit rather than reading over it", async () => {
+		const mock = setup(() => okJson({ id: "v1", name: "Server" }))
+		const adapter = createHttpStorageAdapter()
+		const [local] = await adapter.loadVisuals()
+		mock.mockClear()
+		const edited = { ...local!, name: "Unsaved edit" }
+		expect(await adapter.refreshVisual!(edited)).toBe(edited)
+		expect(calls(mock)).toEqual([])
 	})
 })
 

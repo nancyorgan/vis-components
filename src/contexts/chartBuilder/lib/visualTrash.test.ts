@@ -56,6 +56,20 @@ describe("trashVisuals", () => {
 	})
 })
 
+describe("isTrashed", () => {
+	it("reads an absent or null deletedAt as live, a stamp as trashed", () => {
+		expect(isTrashed(visual("a"))).toBe(false)
+		expect(isTrashed(visual("a", { deletedAt: null }))).toBe(false)
+		expect(isTrashed(visual("a", { deletedAt: 0 }))).toBe(true)
+		expect(isTrashed(visual("a", { deletedAt: 1000 }))).toBe(true)
+	})
+
+	it("trashes a visual whose deletedAt is null", () => {
+		const [out] = trashVisuals([visual("a", { deletedAt: null })], ["a"], 1000)
+		expect(out?.deletedAt).toBe(1000)
+	})
+})
+
 describe("restoreVisuals", () => {
 	it("drops deletedAt and leaves untargeted visuals alone", () => {
 		const out = restoreVisuals(

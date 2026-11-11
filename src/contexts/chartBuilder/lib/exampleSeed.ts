@@ -61,6 +61,7 @@ import {
 	saveExampleSeedApplied,
 } from "./storage"
 import { SYSTEM_THEMES } from "./systemThemes"
+import { isTrashed } from "./visualTrash"
 import type { Dataset, Folder, SavedTheme, Visual } from "./types"
 
 export type SeedBundle = {
@@ -98,7 +99,7 @@ export const buildSeedBundle = async (): Promise<SeedBundle> => {
 	// Trashed visuals stay behind too: a backup carries what the library
 	// shows, and their data sets go only if nothing live references them.
 	const liveVisuals = stripSeedVisuals(loadVisuals()).filter(
-		(v) => v.deletedAt === undefined
+		(v) => !isTrashed(v)
 	)
 	const deduped = dedupeDatasetStores({
 		datasets: stripSeedDatasets(allDatasets),

@@ -206,6 +206,13 @@ describe("editVisual", () => {
 
 	const base = (): Visual => ok({ ...LINE, axes: { y: { min: 0 } } })
 
+	it("edits a visual whose deletedAt is null (live), refuses a trashed one", () => {
+		const live = { ...base(), deletedAt: null }
+		expect(editVisual(live, { name: "Renamed" }, deps).problems).toEqual([])
+		const trashed = { ...base(), deletedAt: 5 }
+		expect(editVisual(trashed, { name: "Renamed" }, deps).problems[0]?.message).toMatch(/Trash/)
+	})
+
 	it("unmaps a channel, clears a bound, and bumps updatedAt only", () => {
 		const b = base()
 		const { visual, problems } = editVisual(

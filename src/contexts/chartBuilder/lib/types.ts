@@ -462,8 +462,9 @@ export type Visual = {
 	 * "Theme" dropdown. The actual theme values that were applied are
 	 * snapshotted into `channelConfigs` / `labelsConfig` at the moment
 	 * the user picks the theme, so editing the saved theme later does
-	 * NOT silently re-theme the visual. */
-	themeId?: string
+	 * NOT silently re-theme the visual. Absent or `null` = no recorded
+	 * theme (the default theme); a stored row may carry an explicit null. */
+	themeId?: string | null
 	/** Per-field user-pinned ordering of categorical / ordinal levels.
 	 * Maps field name → ordered list of level values. The chart pipeline
 	 * (aggregateStacks, makePositionScale) consults this when present and
@@ -520,12 +521,14 @@ export type Visual = {
 	 * the requesting user. Absent in local mode and on visuals saved before
 	 * accounts. Sparse, so no storage version bump. */
 	updatedBy?: AppUser
-	/** When the visual was moved to the Trash (epoch ms). Absent = live.
+	/** When the visual was moved to the Trash (epoch ms). Absent or `null`
+	 * = live (a stored row may carry an explicit null; `isTrashed` is the
+	 * one reading of it).
 	 * A trashed visual keeps its row, thumbnail, embeds and data set until
 	 * the user purges it from the Trash; the library lists only live visuals
 	 * (`liveVisualsAtom`) while id lookups and reference sweeps see all of
 	 * them. Sparse, so no storage version bump. */
-	deletedAt?: number
+	deletedAt?: number | null
 	/** Present = this row is a TEMPLATE, not a chart: it has no data set
 	 * (`datasetId` null), is never rendered as a chart, and starting a new
 	 * visual from it snaps its encodings onto a data set by field kind

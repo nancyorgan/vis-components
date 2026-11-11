@@ -11,6 +11,9 @@
  *      in baseline, absent now    → DELETE /api/<collection>/<id>
  *
  *  so a save only ever transmits what this session actually changed.
+ *  Visuals are finer still (`classifyVisualChange`): a change that is only
+ *  `updatedAt` / `updatedBy` sends nothing, and one that is only the
+ *  preview sends only the picture, never a possibly-old body.
  *  Semantics are item-level last-write-wins (no accounts, no locks). Known
  *  residual, accepted for v1: if another user deletes an item this session
  *  still holds and this session then edits it, the PUT resurrects it.
@@ -37,6 +40,7 @@
  *  user's own visual that points at a seed dataset, theme or folder promotes
  *  those rows to the server first (`persistSeedPromotions`). */
 
+import { deepEqual } from "../../../../lib/deepEqual"
 import { isEmbedDocument } from "../../../../lib/embedPath"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetMetaFrom, isDatasetMeta } from "../datasetMeta"
@@ -139,14 +143,15 @@ const loadCollection = async <T>(collection: string): Promise<T> => {
 const syncCollection = async (
 	baseline: Baseline,
 	next: Map<string, string>,
-	putOne: (id: string, serialized: string) => Promise<void>,
+	putOne: (id: string, serialized: string, previous: string | undefined) => Promise<void>,
 	deleteOne?: (id: string) => Promise<void>
 ): Promise<void> => {
 	const ops: Promise<void>[] = []
 	for (const [id, serialized] of next) {
-		if (baseline.get(id) === serialized) continue
+		const previous = baseline.get(id)
+		if (previous === serialized) continue
 		ops.push(
-			putOne(id, serialized).then(() => {
+			putOne(id, serialized, previous).then(() => {
 				baseline.set(id, serialized)
 			})
 		)
@@ -195,6 +200,61 @@ const setBaseline = (baseline: Baseline, entries: Map<string, string>): void => 
 }
 
 const JSON_HEADERS = { "content-type": "application/json" }
+
+/** The header the thumbnail route reads as the picture's capture stamp
+ *  (`Visual.thumbnailAt`), stored without touching anything else. */
+export const THUMBNAIL_AT_HEADER = "x-vis-thumbnail-at"
+
+const thumbnailAtHeader = (thumbnailAt: unknown): Record<string, string> =>
+	typeof thumbnailAt === "number" && Number.isInteger(thumbnailAt) && thumbnailAt >= 0
+		? { [THUMBNAIL_AT_HEADER]: String(thumbnailAt) }
+		: {}
+
+/** A visual's fields that are NOT its body: the save bookkeeping a save
+ *  restamps (`updatedAt`, `updatedBy`) and the preview, which travels on
+ *  its own route. */
+type VisualExtras = {
+	thumbnail?: string | null
+	thumbnailAt?: number
+	updatedAt?: number
+	updatedBy?: unknown
+}
+
+const visualBody = (visual: Record<string, unknown>): Record<string, unknown> => {
+	const {
+		thumbnail: _thumbnail,
+		thumbnailAt: _thumbnailAt,
+		updatedAt: _updatedAt,
+		updatedBy: _updatedBy,
+		...body
+	} = visual as Record<string, unknown> & VisualExtras
+	return body
+}
+
+/** What a visual's change against its baseline amounts to:
+ *   - "body"  — the chart itself changed (or there is no baseline): PUT it;
+ *   - "thumbnail" — only the preview (`thumbnail` / `thumbnailAt`) moved,
+ *     so only the picture goes up;
+ *   - "none" — nothing but `updatedAt` / `updatedBy`, which never justify
+ *     a write: an old in-memory copy restamped by a save that changed
+ *     nothing would otherwise overwrite a newer stored chart.
+ *  Compared structurally (key order and absent-vs-undefined don't count),
+ *  since a row read from the server and one built by a save spell the same
+ *  content in different key orders. */
+const classifyVisualChange = (
+	next: Record<string, unknown> & VisualExtras,
+	previous: (Record<string, unknown> & VisualExtras) | undefined
+): "body" | "thumbnail" | "none" => {
+	if (previous === undefined) return "body"
+	if (!deepEqual(visualBody(next), visualBody(previous))) return "body"
+	if (next.thumbnail === previous.thumbnail && next.thumbnailAt === previous.thumbnailAt)
+		return "none"
+	// Clearing a preview is a body write (the explicit null in the JSON);
+	// the thumbnail route only ever carries a picture.
+	if (typeof next.thumbnail !== "string" && typeof previous.thumbnail === "string")
+		return "body"
+	return "thumbnail"
+}
 
 /** Whether this document will ever render a thumbnail.
  *
@@ -326,9 +386,46 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 	 *  never inline, which is the shape the WAF rejects, and never uploaded,
 	 *  which the server would 400 on every retry. The server keeps whatever
 	 *  preview it held, and the library's thumbnail refresh replaces it. */
-	const putVisual = async (id: string, serialized: string): Promise<void> => {
-		const { thumbnail, ...rest } = JSON.parse(serialized) as {
-			thumbnail?: string | null
+	const uploadThumbnail = async (
+		id: string,
+		png: File,
+		thumbnail: string,
+		thumbnailAt: unknown
+	): Promise<void> => {
+		await request(
+			"PUT",
+			`visuals/${encodeURIComponent(id)}`,
+			"thumbnail",
+			thumbnailFormData(png),
+			thumbnailAtHeader(thumbnailAt)
+		)
+		uploadedThumbnails.set(id, thumbnail)
+	}
+	/** `previous` is the baseline serialization: a change that is only
+	 *  `updatedAt` / `updatedBy` sends nothing, and one that is only the
+	 *  preview sends only the picture (its stamp in `x-vis-thumbnail-at`)
+	 *  — never the body, which in the library is often a copy older than
+	 *  what the server holds (see `classifyVisualChange`). */
+	const putVisual = async (
+		id: string,
+		serialized: string,
+		previous?: string
+	): Promise<void> => {
+		const parsed = JSON.parse(serialized) as Record<string, unknown> & VisualExtras
+		const change = classifyVisualChange(
+			parsed,
+			previous === undefined
+				? undefined
+				: (JSON.parse(previous) as Record<string, unknown> & VisualExtras)
+		)
+		if (change === "none") return
+		const { thumbnail, ...rest } = parsed
+		if (change === "thumbnail") {
+			// Not a decodable PNG: nothing the route would take (see below).
+			const png = typeof thumbnail === "string" ? pngFileFromDataUrl(thumbnail) : null
+			if (png === null || typeof thumbnail !== "string") return
+			await uploadThumbnail(id, png, thumbnail, parsed.thumbnailAt)
+			return
 		}
 		if (typeof thumbnail !== "string") {
 			await putJson("visuals")(id, serialized)
@@ -338,13 +435,7 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		await putJson("visuals")(id, serialize(rest))
 		const png = pngFileFromDataUrl(thumbnail)
 		if (png === null || uploadedThumbnails.get(id) === thumbnail) return
-		await request(
-			"PUT",
-			`visuals/${encodeURIComponent(id)}`,
-			"thumbnail",
-			thumbnailFormData(png)
-		)
-		uploadedThumbnails.set(id, thumbnail)
+		await uploadThumbnail(id, png, thumbnail, parsed.thumbnailAt)
 	}
 	const deleteVisual = async (id: string): Promise<void> => {
 		await deleteFrom("visuals")(id)
@@ -672,6 +763,51 @@ export const createHttpStorageAdapter = (): StorageContentAdapter => {
 		// the atoms skip the local IndexedDB thumbnail merge under remoteLoad —
 		// this read exists only to satisfy the interface.
 		loadThumbnails: async () => ({}),
+		// The editor's open: the server's latest copy of the one visual, so a
+		// chart edited elsewhere since this session's list load opens as it
+		// is now. The response carries no thumbnail — the local preview is
+		// kept with its own stamp. The result becomes this item's diff
+		// baseline, so putting it in the visuals list sends nothing.
+		// Falls back to `local` (silently) when: the row is a session-only
+		// example; this session holds an unsynced edit of it (a save that
+		// failed — replacing it would drop work the next save retries);
+		// the read fails; or the server is older than the route (405) or
+		// no longer has the row (404).
+		refreshVisual: async (local) => {
+			const id = local.id
+			if (isEphemeralSeedId(id)) return local
+			const previous = baselines.visuals.get(id)
+			if (previous === undefined) return local
+			if (
+				!deepEqual(
+					visualBody(JSON.parse(previous) as Record<string, unknown>),
+					visualBody(JSON.parse(serializeCached(local)) as Record<string, unknown>)
+				)
+			)
+				return local
+			let fresh: Visual
+			try {
+				const response = await apiFetch(`/api/visuals/${encodeURIComponent(id)}`)
+				if (!response.ok) return local
+				fresh = (await response.json()) as Visual
+			} catch {
+				return local
+			}
+			if (fresh === null || typeof fresh !== "object" || fresh.id !== id) return local
+			let merged: Visual = fresh
+			if (typeof fresh.thumbnail !== "string") {
+				const { thumbnailAt: _serverStamp, ...rest } = fresh
+				merged = {
+					...rest,
+					thumbnail: local.thumbnail,
+					...(local.thumbnailAt !== undefined ? { thumbnailAt: local.thumbnailAt } : {}),
+				}
+			} else {
+				uploadedThumbnails.set(id, fresh.thumbnail)
+			}
+			baselines.visuals.set(id, serializeCached(merged))
+			return merged
+		},
 		// Ephemeral seed examples never reach the server: an edited one is
 		// dropped here (memory only, back pristine on the next load), while a
 		// COPY of one is the user's own and goes up — after whatever it still

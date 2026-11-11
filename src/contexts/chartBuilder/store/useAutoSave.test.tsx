@@ -23,7 +23,10 @@ import { useAutoSave } from "./useAutoSave"
 const navigate = vi.fn()
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => navigate }))
 const saveVisual = vi.fn(async () => "dv-1")
-vi.mock("./saveVisual", () => ({ useSaveVisual: () => saveVisual }))
+vi.mock("./saveVisual", async (importOriginal) => ({
+	...(await importOriginal<typeof import("./saveVisual")>()),
+	useSaveVisual: () => saveVisual,
+}))
 const republish = vi.fn(async () => 1)
 vi.mock("./republishVisual", () => ({ useRepublishVisual: () => republish }))
 vi.mock("./useEffectiveGeographyLevel", () => ({

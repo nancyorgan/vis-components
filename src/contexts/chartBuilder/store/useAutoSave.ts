@@ -30,7 +30,7 @@ import {
 } from "./atoms"
 import { publishedInstancesOf } from "../lib/embedInstances"
 import { useRepublishVisual } from "./republishVisual"
-import { useSaveVisual } from "./saveVisual"
+import { draftDiffersFromSaved, savedDraftsAtom, useSaveVisual } from "./saveVisual"
 import { useEffectiveGeographyLevel } from "./useEffectiveGeographyLevel"
 
 const DEBOUNCE_MS = 800
@@ -43,6 +43,17 @@ const DEBOUNCE_MS = 800
  *
  * Gated on `currentDatasetIdAtom` — we won't create empty visuals just because
  * the editor mounted.
+ *
+ * Only a REAL change saves. For an existing visual the draft is compared
+ * (`draftDiffersFromSaved`) with what was last loaded into the editor or
+ * last successfully saved: opening a chart writes nothing — the loader's
+ * hydration lands after this hook's mount, so a "skip the first run" guard
+ * alone took it for an edit — and a change put back before the debounce, or
+ * undone, saves nothing. That record moves only when a save lands, and this
+ * effect re-runs when it does: an undo made while a save was in flight
+ * then compares against what that save wrote and saves the undone state,
+ * and a draft whose save failed still reads as changed. A NEW visual (no
+ * id yet) keeps create-on-first-change.
  *
  * "Republish on every save": once the save lands, a visual THIS user has
  * flagged on THIS browser (`republishOnSaveVisualsAtom`, device-local) and
@@ -93,8 +104,15 @@ export const useAutoSave = () => {
 	const reshapeConfig = useAtomValue(currentReshapeConfigAtom)
 	const derivedVariablesConfig = useAtomValue(currentDerivedVariablesAtom)
 
-	// Skip the very first effect run — that's just the initial hydration
-	// after a visual load; nothing has changed.
+	// Re-run when a save lands (see above). The record itself is read
+	// through the store at compare time.
+	const savedDraft = useAtomValue(savedDraftsAtom).get(visualId ?? "")
+	// Saves started here and not yet settled: a pending "saving" status is
+	// only cleared by a no-change run when none is.
+	const inFlightRef = useRef(0)
+
+	// Skip the very first effect run — that's just the initial state at
+	// mount; nothing has changed.
 	const hydratedRef = useRef(false)
 
 	useEffect(() => {
@@ -103,10 +121,27 @@ export const useAutoSave = () => {
 			return
 		}
 		if (!datasetId) return
+		if (visualId && !draftDiffersFromSaved(store.get, visualId)) {
+			// Nothing to write — and a "saving" set by a run whose timer this
+			// change cancelled must not linger.
+			if (inFlightRef.current === 0) setStatus("idle")
+			return
+		}
 		setStatus("saving")
 		const timer = setTimeout(async () => {
 			const wasNew = !visualId
-			const id = await saveVisual()
+			// Re-checked at fire time: the record may have moved since.
+			if (visualId && !draftDiffersFromSaved(store.get, visualId)) {
+				if (inFlightRef.current === 0) setStatus("idle")
+				return
+			}
+			inFlightRef.current += 1
+			let id: string
+			try {
+				id = await saveVisual()
+			} finally {
+				inFlightRef.current -= 1
+			}
 			if (wasNew) {
 				// A brand-new visual can't be published yet — nothing to republish.
 				await navigate({ to: "/editor/$visualId", params: { visualId: id } })
@@ -144,6 +179,7 @@ export const useAutoSave = () => {
 		mapConfig,
 		reshapeConfig,
 		derivedVariablesConfig,
+		savedDraft,
 		saveVisual,
 		navigate,
 		setStatus,

@@ -15,6 +15,7 @@ import { bindDatasetToDraft } from "../store/bindDatasetToDraft"
 import {
 	useApplyTemplate,
 	useLoadVisual,
+	useRefreshStoredVisual,
 	useResetVisual,
 } from "../store/saveVisual"
 
@@ -97,6 +98,7 @@ export const VisualLoaderForNew = () => {
 export const VisualLoaderForExisting = () => {
 	const { visualId } = useParams({ from: "/editor/$visualId" })
 	const load = useLoadVisual()
+	const refresh = useRefreshStoredVisual()
 	const navigate = useNavigate()
 	// Server mode fills the visuals list asynchronously; until it lands, the
 	// list is empty and says nothing about whether `visualId` exists. Deciding
@@ -127,6 +129,11 @@ export const VisualLoaderForExisting = () => {
 				})
 				return
 			}
+			// Open from the store's latest copy (server mode), not from a
+			// list that may have been loaded long before the chart was last
+			// edited elsewhere.
+			await refresh(visualId)
+			if (cancelled) return
 			const ok = await load(visualId)
 			if (!cancelled && !ok) {
 				await navigate({ to: "/" })
@@ -135,7 +142,7 @@ export const VisualLoaderForExisting = () => {
 		return () => {
 			cancelled = true
 		}
-	}, [hydrated, visualId, load, navigate, readIsTemplate])
+	}, [hydrated, visualId, load, refresh, navigate, readIsTemplate])
 
 	return (
 		<>
