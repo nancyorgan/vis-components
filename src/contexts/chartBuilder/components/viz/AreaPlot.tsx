@@ -58,6 +58,7 @@ import {
 	slotOpacityResolver,
 } from "../../lib/resolveLayerColor"
 import {
+	applyAreaScale,
 	makePositionScale,
 	modulateColor,
 	parseNumericCell,
@@ -968,8 +969,35 @@ const buildAreas = ({
 		aestheticScales
 	)
 	// Point size: the marks' default size (Area menu → "Point size",
-	// theme-seeded), the same value a scatter / line-chart point draws at.
-	const pointRadius = channelConfigs.defaultRadius ?? DEFAULT_RADIUS
+	// theme-seeded), the same value a scatter / line-chart point draws at —
+	// or, with a variable on Area, that variable through the Area scale. A
+	// point is one layer at one category, so it reads the rows aggregated
+	// into it: their total for a numeric variable (as the measure is
+	// totalled), the first row's level otherwise. A point with no rows or
+	// no usable value keeps the default size.
+	const defaultPointRadius = channelConfigs.defaultRadius ?? DEFAULT_RADIUS
+	const areaAes = aestheticScales.area
+	const pointRadiusFor = (
+		rows: ReadonlyArray<Record<string, unknown>> | undefined
+	): number => {
+		if (!areaAes || !rows || rows.length === 0) return defaultPointRadius
+		const name = areaAes.field.name
+		let raw: unknown = rows[0]?.[name]
+		if (areaAes.scale.kind !== "ordinal" && rows.length > 1) {
+			let total = 0
+			let any = false
+			for (const row of rows) {
+				const v = parseValue(row[name], "quantitative")
+				if (typeof v === "number" && Number.isFinite(v)) {
+					total += v
+					any = true
+				}
+			}
+			raw = any ? total : null
+		}
+		const r = applyAreaScale(areaAes.scale, raw, areaAes.field.type)
+		return r !== null && Number.isFinite(r) ? r : defaultPointRadius
+	}
 	const pointOutlineColor =
 		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
 	const pointOutlineModulation = slotModulationResolver(
@@ -1125,7 +1153,7 @@ const buildAreas = ({
 		})
 
 		// Compute per-stack tops and the pixel coords for this layer.
-		type Point = { px: number; pyTop: number; pyBottom: number }
+		type Point = { px: number; pyTop: number; pyBottom: number; radius: number }
 		const points: Point[] = []
 		stackValues.forEach((sv, i) => {
 			const value = sv.byKey.get(layerKey) ?? 0
@@ -1142,6 +1170,9 @@ const buildAreas = ({
 				px,
 				pyTop: measureScale(clampToDomain(top)),
 				pyBottom: measureScale(clampToDomain(bottom)),
+				radius: pointRadiusFor(
+					sv.stack.slices.find((sl) => sl.key === layerKey)?.rows
+				),
 			})
 		})
 
@@ -1280,7 +1311,7 @@ const buildAreas = ({
 						data-area-point="true"
 						cx={x}
 						cy={y}
-						r={pointRadius}
+						r={points[i]?.radius ?? defaultPointRadius}
 						fill={mh.fill ?? pointFillProp}
 						fillOpacity={pointFillOpacity(repRow) * mh.opacityMul}
 						stroke={pointOutline ?? "none"}

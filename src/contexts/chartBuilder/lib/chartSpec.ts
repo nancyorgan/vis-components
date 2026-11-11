@@ -8,7 +8,7 @@ import { applySettings } from "./applySettings"
 import { explicitFlowTargetField, resolveFlowTargetField } from "./buildFlowGraph"
 import { withSpecPickEffects } from "./chartSpecPicks"
 import type { AxisConfig, ChannelConfigs, StackMode } from "./channelConfig"
-import { ALL_ENCODING_CHANNELS, CHANNELS, channelsConflict } from "./channels"
+import { ALL_ENCODING_CHANNELS, CHANNELS, channelsConflictIn } from "./channels"
 import { didYouMean } from "./didYouMean"
 import { foldFlowNodeTitles } from "./foldFlowNodeTitles"
 import { formatSpecProblem } from "./formatTick"
@@ -604,7 +604,7 @@ const applyCommon = (
 	const mapped = SPEC_CHANNELS.filter((ch) => encodings[ch]?.field || encodings[ch]?.measureSource)
 	mapped.forEach((a, i) => {
 		for (const b of mapped.slice(i + 1)) {
-			if (!channelsConflict(a, b) || (!touched.has(a) && !touched.has(b))) continue
+			if (!channelsConflictIn(a, b, encodings) || (!touched.has(a) && !touched.has(b))) continue
 			if (touched.has(a) && touched.has(b)) {
 				bad(`encodings.${b}`, `"${a}" and "${b}" can't be mapped together`)
 				continue

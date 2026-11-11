@@ -191,6 +191,20 @@ describe("optional variation channels", () => {
 })
 
 describe("editVisual", () => {
+	it("keeps Length when an edit maps Area on an area chart (Area sizes its points)", () => {
+		const base = ok(SCATTER)
+		const area = editVisual(
+			base,
+			{ encodings: { y: null, length: "sales", connection: "region", area: null } },
+			deps
+		).visual
+		const { visual, problems, warnings } = editVisual(area, { encodings: { area: "profit" } }, deps)
+		expect(problems).toEqual([])
+		expect(warnings).toEqual([])
+		expect(visual.encodings.length).toEqual({ field: "sales" })
+		expect(visual.encodings.area).toEqual({ field: "profit" })
+	})
+
 	it("clears a mapped channel that conflicts with the one the edit maps, and says so", () => {
 		const base = ok(SCATTER)
 		const { visual, problems, warnings } = editVisual(base, { encodings: { length: "profit" } }, deps)

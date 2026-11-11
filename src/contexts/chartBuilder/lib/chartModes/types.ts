@@ -212,13 +212,13 @@ export type ChartModeCanvasTraits = {
 	 * options panel:
 	 *  - `"mark"`: a per-mark pixel size through the min/max px range, with
 	 *    the Scale-by (area vs diameter) choice (scatter bubbles, radar, the
-	 *    geo point / bubble maps).
+	 *    geo point / bubble maps, the points on an area chart's lines).
 	 *  - `"layoutRadius"`: the layout computes each circle's radius from the
 	 *    value, honoring Scale-by — the px range is inert (packed circles).
 	 *  - `"proportional"`: the layout maps the value straight to a rect
 	 *    area / arc span / ribbon or link width — neither the px range nor
 	 *    Scale-by applies (treemap, sunburst, chord, sankey).
-	 *  - `"none"`: the renderer never reads it (bars, areas, pies, tile,
+	 *  - `"none"`: the renderer never reads it (bars, pies, tile,
 	 *    hexbin, the choropleth). */
 	areaRole: "mark" | "layoutRadius" | "proportional" | "none"
 	/** True when the renderer draws the statistical overlays configured on

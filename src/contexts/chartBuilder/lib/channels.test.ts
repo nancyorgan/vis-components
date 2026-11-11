@@ -6,8 +6,13 @@ import {
 	LEGEND_CANDIDATE_CHANNELS,
 	channelAccepts,
 	channelsConflict,
+	channelsConflictIn,
 	conflictsFor,
+	isAreaChartShape,
 } from "./channels"
+import { AreasXMode } from "./chartModes/areasX"
+import { AreasYMode } from "./chartModes/areasY"
+import { emptyEncodings } from "./types"
 import type { EncodingChannel, FieldType } from "./types"
 
 const ALL_CHANNEL_IDS: readonly EncodingChannel[] = [
@@ -155,6 +160,56 @@ describe("conflictsFor", () => {
 				if (other === ch) continue
 				expect(reported.has(other)).toBe(channelsConflict(ch, other))
 			}
+		}
+	})
+})
+
+describe("channelsConflictIn (Area and Length on an area chart)", () => {
+	const enc = (fields: Partial<Record<EncodingChannel, string>>) => {
+		const e = emptyEncodings()
+		for (const [ch, field] of Object.entries(fields))
+			e[ch as EncodingChannel] = { field }
+		return e
+	}
+	const AREA_X = enc({ x: "year", length: "sales", connection: "region" })
+	const AREA_Y = enc({ y: "year", length: "sales", connection: "region" })
+	const SCATTER = enc({ x: "year", y: "sales" })
+	const LINE = enc({ x: "year", y: "sales", connection: "region" })
+
+	it("Area and Length coexist on an area chart, in both directions", () => {
+		for (const e of [AREA_X, AREA_Y]) {
+			expect(channelsConflictIn("area", "length", e)).toBe(false)
+			expect(channelsConflictIn("length", "area", e)).toBe(false)
+		}
+	})
+
+	it("they still conflict everywhere else", () => {
+		for (const e of [SCATTER, LINE, enc({ x: "year", length: "sales" })]) {
+			expect(channelsConflictIn("area", "length", e)).toBe(true)
+			expect(channelsConflictIn("length", "area", e)).toBe(true)
+		}
+	})
+
+	it("no other pair is relaxed on an area chart", () => {
+		for (const a of ALL_CHANNEL_IDS)
+			for (const b of ALL_CHANNEL_IDS) {
+				if ((a === "area" && b === "length") || (a === "length" && b === "area")) continue
+				expect(channelsConflictIn(a, b, AREA_X), `${a}/${b}`).toBe(channelsConflict(a, b))
+			}
+	})
+
+	it("the area-chart shape is the areas-x / areas-y detection with Length mapped", () => {
+		const on = [null, "f"]
+		for (const x of on) for (const y of on) for (const angle of on) for (const connection of on) {
+			const e = emptyEncodings()
+			e.x = { field: x }
+			e.y = { field: y }
+			e.angle = { field: angle }
+			e.connection = { field: connection }
+			e.length = { field: "m" }
+			expect(isAreaChartShape(e), `${x}/${y}/${angle}/${connection}`).toBe(
+				AreasXMode.detect(e) || AreasYMode.detect(e)
+			)
 		}
 	})
 })

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { channelAccepts, conflictsFor } from "../../lib/channels"
+import { channelAccepts, channelsConflictIn, conflictsFor } from "../../lib/channels"
 import { effectiveType } from "../../lib/fieldType"
 import { buildQuantHueConfigFromTheme } from "../../lib/hueDefaults"
 import { withLineFollowingColor } from "../../lib/lineFollowsColor"
@@ -151,9 +151,14 @@ export const EncodingShelf = ({ channel }: Props) => {
 	const conflictingActiveChannels = useMemo<EncodingChannel[]>(() => {
 		return conflictsFor(channel).filter((other) => {
 			if (other === "length") {
-				return !!encodings.length?.field || configs.defaultLength != null
+				if (encodings.length?.field)
+					return channelsConflictIn(channel, other, encodings)
+				// Segments from the fallback length alone: no area chart.
+				return configs.defaultLength != null
 			}
-			return !!encodings[other]?.field
+			// Area and Length coexist on an area chart (Area sizes the
+			// layers' points), so neither shadows nor clears the other there.
+			return !!encodings[other]?.field && channelsConflictIn(channel, other, encodings)
 		})
 	}, [channel, encodings, configs.defaultLength])
 

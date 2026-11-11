@@ -231,6 +231,38 @@ export const channelsConflict = (
 	return aConf.includes(b) || bConf.includes(a)
 }
 
+/** The mapped-ness of the channels that decide whether a chart is an area
+ * chart (structurally an `Encodings`; kept minimal so this module stays
+ * free of the types barrel). */
+type AreaShapeEncodings = Partial<
+	Record<"x" | "y" | "angle" | "connection", { field: string | null } | undefined>
+>
+
+/** True when the encodings draw an area chart once Length is mapped: a
+ * Connection, exactly one of X / Y, no Angle — the `areas-x` / `areas-y`
+ * detection minus the Length test (a test pins the two together). */
+export const isAreaChartShape = (encodings: AreaShapeEncodings): boolean =>
+	!!encodings.connection?.field &&
+	!encodings.angle?.field &&
+	!!encodings.x?.field !== !!encodings.y?.field
+
+/** {@link channelsConflict} for a particular chart. Length and Area conflict
+ * because Length turns point marks into segments, which have no size — but
+ * on an area chart Length is the layers' measure and the points on each
+ * layer's line are still points, so the two coexist there (Area sizes the
+ * points). The shelf and the chart spec both ask this, never the bare
+ * pair check, when deciding what a mapping shadows or clears. */
+export const channelsConflictIn = (
+	a: EncodingChannel,
+	b: EncodingChannel,
+	encodings: AreaShapeEncodings
+): boolean => {
+	if (!channelsConflict(a, b)) return false
+	const areaLengthPair =
+		(a === "area" && b === "length") || (a === "length" && b === "area")
+	return !(areaLengthPair && isAreaChartShape(encodings))
+}
+
 /** For a given channel, all OTHER channels that conflict with it (computed
  * symmetrically). Useful for building the mutual-exclusion confirmation
  * dialog. */

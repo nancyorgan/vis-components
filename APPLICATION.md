@@ -1972,8 +1972,16 @@ the Border slot is the area's Line. A variable mapped to a point slot
 resolves off the layer's representative row (one layer = one series).
 The points no longer follow the Line's opacity. Their size is the
 marks' default size (Area menu → **Point size**, `defaultRadius`,
-theme-seeded), as for a scatter or line-chart point; a variable mapped
-to Area does not size them (layers are aggregated).
+theme-seeded), as for a scatter or line-chart point. A variable mapped
+to Area sizes them through the Area panel's scale (Scale by, Min /
+Max), with the usual size legend: each point reads the rows aggregated
+into it (one layer at one category) — their total for a numeric
+variable, as the measure is totalled, else the first row's level — and
+a point with no rows keeps the default size. Area and Length therefore
+do NOT conflict on an area chart (`channelsConflictIn`, used by the
+shelf and the chart spec alike): the Area row and its panel stay live
+beside Length, and mapping either leaves the other mapped. Everywhere
+else the pair still conflicts.
 
 **Area palette defaults.** When the theme designates a fill palette
 (Settings → Themes → Palettes; distinct from its default categorical
