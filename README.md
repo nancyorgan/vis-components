@@ -87,7 +87,10 @@ stdout/stderr; SIGTERM drains in-flight requests and closes the database
 cleanly; run exactly one replica (SQLite is embedded). The same build served
 without the server behaves exactly like the local editor — the frontend
 detects the server at boot via `GET /api/config`. Users on the same server
-share one library; edits are last-write-wins per item. The server has no
+share one library; edits are last-write-wins per item, except that a visual
+can be saved conditionally: `GET /api/visuals/<id>` answers it with an `ETag`,
+and a `PUT` carrying that tag in `If-Match` is refused with 412 (nothing
+written) if the stored visual changed since. The server has no
 accounts of its own. Run it behind a sign-in proxy with `VIS_AUTH_MODE=header`
 (above), or run the handler (`createHandler` in `server/src/routes.ts`) from
 your own code and pass an `identify(req) → { id, name } | null` hook; either
@@ -130,7 +133,7 @@ Tools:
 - `agent_guide`: the guide the model reads before its first chart (`mcp/guide/agent-guide.md`, bundled; also summarized in the server's instructions).
 - `get_chart`: a chart's encodings, titles, links and stored settings.
 - `edit_chart`: change only the keys a patch names (refused if the chart changed in the editor since it was read).
-- `undo_chart_edit`: undo this session's last `edit_chart` on a chart.
+- `undo_chart_edit`: undo this session's last `edit_chart` on a chart (refused if the chart changed since that edit).
 - `list_settings`: the stored settings a spec's `settings` key can set, by path (`*` = a level, field or panel key; `[]` = a list entry; lists replace whole). With a `chartId`, also the keys that chart's `*` paths take and its theme's palettes.
 
 The catalog behind `settings` is `src/contexts/chartBuilder/lib/settingCatalog.json`; regenerate it with `pnpm settings:catalog` after changing a saved config type. A setting behaves as its sidebar panel does (`lib/settingEffects.ts`): the panel and the settings path call the same lib function for anything a pick seeds, gates or normalizes.

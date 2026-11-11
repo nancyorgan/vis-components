@@ -30,7 +30,7 @@ import type {
 	SavedTheme,
 	Visual,
 } from "../../src/contexts/chartBuilder/lib/types"
-import type { Api } from "./api"
+import { StaleVisualError, type Api } from "./api"
 import { AGENT_GUIDE } from "./guide"
 
 const UNDO_DEPTH = 20
@@ -90,13 +90,28 @@ const settingsOf = (visual: Visual) =>
 		})
 	)
 
-export const createHandlers = (api: Api) => {
-	/** Per chart: the visual each edit replaced, and the `updatedAt` it wrote. */
-	const undo = new Map<string, Array<{ previous: Visual; wrote: number }>>()
+/** A stored chart as a save left it (or a read found it): its ETag, null
+ *  from a server older than tags, and its `updatedAt`. */
+type Written = { tag: string | null; updatedAt: number }
 
-	/** True when the stored chart's `updatedAt` is still `seen`. */
-	const unchangedSince = async (id: string, seen: number) =>
-		(await api.visual(id))?.updatedAt === seen
+export const createHandlers = (api: Api) => {
+	/** Per chart: the visual each edit replaced, and what that edit wrote. */
+	const undo = new Map<string, Array<{ previous: Visual; wrote: Written }>>()
+
+	/** Save `next` only over the stored chart still as `seen`: a conditional
+	 *  PUT at its tag, so the check and the write are one step on the
+	 *  server. Against an older server with no tags, the check-then-write on
+	 *  `updatedAt` it always had. Null (nothing written) when the chart
+	 *  changed. */
+	const saveIfUnchanged = async (next: Visual, seen: Written): Promise<Written | null> => {
+		if (seen.tag === null && (await api.visual(next.id))?.updatedAt !== seen.updatedAt) return null
+		try {
+			return { tag: await api.putVisual(next, seen.tag ?? undefined), updatedAt: next.updatedAt }
+		} catch (error) {
+			if (error instanceof StaleVisualError) return null
+			throw error
+		}
+	}
 
 	const links = async (id: string) => {
 		const base = await api.baseUrl()
@@ -112,10 +127,10 @@ export const createHandlers = (api: Api) => {
 
 	/** The theme a spec names (id, else a unique name match), else the
 	 *  server's default-theme row, else the first system theme. A name that
-	 *  matches nothing is a problem. */
-	const resolveTheme = async (wanted: string | undefined): Promise<SavedTheme | SpecProblem> => {
+	 *  matches nothing is a problem; no name (null or absent) is the default. */
+	const resolveTheme = async (wanted: string | null | undefined): Promise<SavedTheme | SpecProblem> => {
 		const themes = await api.themes()
-		if (wanted !== undefined) {
+		if (wanted !== undefined && wanted !== null) {
 			const byName = themes.filter((t) => nameKey(t.name) === nameKey(wanted))
 			const hit = themes.find((t) => t.id === wanted) ?? (byName.length === 1 ? byName[0] : undefined)
 			if (hit) return hit
@@ -142,11 +157,11 @@ export const createHandlers = (api: Api) => {
 	const datasetMeta = async (datasetId: string | null): Promise<DatasetMeta | undefined> =>
 		datasetId ? (await api.datasetIndex())[datasetId] : undefined
 
-	const saveEdit = async (base: Visual, next: Visual, warnings: string[]) => {
-		if (!(await unchangedSince(base.id, base.updatedAt))) return refused(STALE)
-		await api.putVisual(next)
+	const saveEdit = async (base: Visual, tag: string | null, next: Visual, warnings: string[]) => {
+		const wrote = await saveIfUnchanged(next, { tag, updatedAt: base.updatedAt })
+		if (!wrote) return refused(STALE)
 		const stack = undo.get(base.id) ?? []
-		stack.push({ previous: base, wrote: next.updatedAt })
+		stack.push({ previous: base, wrote })
 		if (stack.length > UNDO_DEPTH) stack.shift()
 		undo.set(base.id, stack)
 		return chartResult(next, warnings)
@@ -238,7 +253,7 @@ export const createHandlers = (api: Api) => {
 				fieldTypes: visual.fieldTypeOverrides ?? {},
 				title: visual.labelsConfig?.title ?? "",
 				subtitle: visual.labelsConfig?.subtitle ?? "",
-				...(visual.deletedAt ? { trashed: true } : {}),
+				...(typeof visual.deletedAt === "number" ? { trashed: true } : {}),
 				...(await links(visual.id)),
 				settings: settingsOf(visual),
 			})
@@ -293,8 +308,9 @@ export const createHandlers = (api: Api) => {
 
 		edit_chart: guarded(async ({ id, patch }: { id: string; patch: ChartSpecEdit }) => {
 			await api.assertCurrent(CHART_COLLECTIONS)
-			const base = await api.visual(id)
-			if (!base) return refused(`no chart with id "${id}"`)
+			const read = await api.taggedVisual(id)
+			if (!read) return refused(`no chart with id "${id}"`)
+			const base = read.visual
 			if (PUBLIC_SEED_FOLDER_IDS.includes(base.folderId ?? ""))
 				return refused("the chart wasn't changed", [{ path: "", message: STOCK_FOLDER }])
 			const meta = await datasetMeta(base.datasetId)
@@ -316,24 +332,30 @@ export const createHandlers = (api: Api) => {
 				rows: await rowsFor(meta, patch.settings),
 			})
 			if (problems.length > 0) return refused("the chart wasn't changed", problems)
-			return saveEdit(base, visual, warnings)
+			return saveEdit(base, read.tag, visual, warnings)
 		}),
 
 		undo_chart_edit: guarded(async ({ id }: { id: string }) => {
-			const entry = undo.get(id)?.pop()
+			const stack = undo.get(id) ?? []
+			const entry = stack.pop()
 			if (!entry) return refused(`nothing to undo for "${id}" in this session`)
 			const restored = { ...entry.previous, updatedAt: Date.now() }
+			let wrote: Written | null
 			try {
 				await api.assertCurrent(CHART_COLLECTIONS)
-				if (!(await unchangedSince(id, entry.wrote))) {
-					undo.get(id)?.push(entry)
-					return refused(STALE)
-				}
-				await api.putVisual(restored)
+				wrote = await saveIfUnchanged(restored, entry.wrote)
 			} catch (error) {
-				undo.get(id)?.push(entry)
+				stack.push(entry)
 				throw error
 			}
+			if (!wrote) {
+				stack.push(entry)
+				return refused(STALE)
+			}
+			// The next entry's edit wrote the chart this undo just put back, so
+			// it is now checked against this write.
+			const below = stack.at(-1)
+			if (below) below.wrote = wrote
 			return chartResult(restored, [])
 		}),
 	}

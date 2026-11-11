@@ -280,18 +280,36 @@ export const upsertBody = (
 }
 
 /** Set a visual's thumbnail column directly — the multipart upload route's
- *  write. The body JSON is untouched. Returns false when no such visual is
+ *  write. The body JSON is untouched, except for `thumbnailAt` when the
+ *  upload names its capture time. Returns false when no such visual is
  *  stored: the route answers 404 rather than inventing a row, because a
  *  thumbnail trailing its visual's DELETE must not resurrect it (the same
  *  anti-resurrection rule the dataset-version PUT follows). */
 export const setVisualThumbnail = (
 	db: DatabaseSync,
 	id: string,
-	thumbnail: string
+	thumbnail: string,
+	thumbnailAt?: number
 ): boolean => {
+	const now = new Date().toISOString()
+	if (thumbnailAt === undefined) {
+		const result = db
+			.prepare(`UPDATE visuals SET thumbnail=?, updated_at=? WHERE id=?`)
+			.run(thumbnail, now, id)
+		return Number(result.changes) > 0
+	}
+	// With a capture stamp the body's `thumbnailAt` moves too, in the same
+	// synchronous read-then-write (node:sqlite never yields in between), so
+	// no save can land between the read and the write and be overwritten.
+	// The visual's ETag ignores `thumbnailAt`, so this never stales an open
+	// editor's copy.
+	const stored = getBody(db, "visuals", id)
+	if (stored === null) return false
+	const parsed = JSON.parse(stored) as Record<string, unknown>
+	parsed.thumbnailAt = thumbnailAt
 	const result = db
-		.prepare(`UPDATE visuals SET thumbnail=?, updated_at=? WHERE id=?`)
-		.run(thumbnail, new Date().toISOString(), id)
+		.prepare(`UPDATE visuals SET body=?, thumbnail=?, updated_at=? WHERE id=?`)
+		.run(JSON.stringify(parsed), thumbnail, now, id)
 	return Number(result.changes) > 0
 }
 

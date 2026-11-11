@@ -1092,6 +1092,160 @@ describe("multipart thumbnail uploads", () => {
 	})
 })
 
+describe("single visual reads and conditional saves", () => {
+	const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02])
+
+	const put = (id: string, body: unknown, headers: Record<string, string> = {}) =>
+		fetch(`${base}/api/visuals/${id}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json", ...headers },
+			body: JSON.stringify(body),
+		})
+
+	const read = (id: string) => fetch(`${base}/api/visuals/${id}`)
+
+	const tagOf = async (id: string) => (await read(id)).headers.get("etag")
+
+	const upload = (id: string, headers: Record<string, string> = {}) => {
+		const form = new FormData()
+		form.append("thumbnail", new Blob([new Uint8Array(PNG)], { type: "image/png" }), "thumbnail.png")
+		return fetch(`${base}/api/visuals/${id}/thumbnail`, { method: "PUT", body: form, headers })
+	}
+
+	const listed = async (id: string) =>
+		(
+			(await (await fetch(`${base}/api/visuals`)).json()) as {
+				id: string
+				thumbnail?: string | null
+				[key: string]: unknown
+			}[]
+		).find((v) => v.id === id)
+
+	it("GET answers one visual without its thumbnail, with a strong ETag", async () => {
+		await put("v-get", { id: "v-get", name: "Chart", thumbnail: "data:image/png;base64,AA" })
+		const res = await read("v-get")
+		expect(res.status).toBe(200)
+		expect(res.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/)
+		expect(await res.json() as Record<string, unknown>).toEqual({ id: "v-get", name: "Chart" })
+
+		await upload("v-get")
+		const after = await read("v-get")
+		expect(await after.json() as Record<string, unknown>).toEqual({ id: "v-get", name: "Chart" })
+	})
+
+	it("GET 404s a missing visual and 400s an unsafe id", async () => {
+		expect((await read("v-nobody")).status).toBe(404)
+		expect((await fetch(`${base}/api/visuals/..%2Fescape`)).status).toBe(400)
+		// Other collections still have no single-item read.
+		expect((await fetch(`${base}/api/folders/f-any`)).status).toBe(405)
+	})
+
+	it("two identical bodies share a tag; a different body does not", async () => {
+		const first = await put("v-same", { id: "v-same", name: "A" })
+		const second = await put("v-same", { id: "v-same", name: "A" })
+		expect(first.headers.get("etag")).toBe(second.headers.get("etag"))
+		const third = await put("v-same", { id: "v-same", name: "B" })
+		expect(third.headers.get("etag")).not.toBe(first.headers.get("etag"))
+	})
+
+	it("a landed save answers the new body's ETag, untagged or tagged", async () => {
+		const created = await put("v-tag", { id: "v-tag", name: "One" })
+		expect(created.status).toBe(204)
+		expect(created.headers.get("etag")).toBe(await tagOf("v-tag"))
+		const tag = created.headers.get("etag") as string
+		const next = await put("v-tag", { id: "v-tag", name: "Two" }, { "if-match": tag })
+		expect(next.status).toBe(204)
+		expect(next.headers.get("etag")).toBe(await tagOf("v-tag"))
+		expect(next.headers.get("etag")).not.toBe(tag)
+	})
+
+	it("of two saves at one tag exactly one lands; the stored body is the winner's", async () => {
+		const tag = (await put("v-race", { id: "v-race", name: "Base" })).headers.get("etag") as string
+		const [a, b] = await Promise.all([
+			put("v-race", { id: "v-race", name: "A" }, { "if-match": tag }),
+			put("v-race", { id: "v-race", name: "B" }, { "if-match": tag }),
+		])
+		expect([a.status, b.status].sort()).toEqual([204, 412])
+		const winner = a.status === 204 ? "A" : "B"
+		const landed = a.status === 204 ? a : b
+		const res = await read("v-race")
+		expect((await res.json() as Record<string, unknown>).name).toBe(winner)
+		expect(res.headers.get("etag")).toBe(landed.headers.get("etag"))
+	})
+
+	it("a later save at a stale tag is 412 and writes nothing; an untagged one lands", async () => {
+		const stale = (await put("v-stale", { id: "v-stale", name: "Old" })).headers.get("etag") as string
+		await put("v-stale", { id: "v-stale", name: "Newer" })
+		const refused = await put("v-stale", { id: "v-stale", name: "Mine" }, { "if-match": stale })
+		expect(refused.status).toBe(412)
+		expect(refused.headers.get("etag")).toBeNull()
+		expect((await (await read("v-stale")).json() as Record<string, unknown>).name).toBe("Newer")
+
+		const untagged = await put("v-stale", { id: "v-stale", name: "Last write" })
+		expect(untagged.status).toBe(204)
+		expect((await (await read("v-stale")).json() as Record<string, unknown>).name).toBe("Last write")
+	})
+
+	it("If-Match lists: one matching strong tag lands; a weak tag never matches", async () => {
+		const tag = (await put("v-list", { id: "v-list", name: "One" })).headers.get("etag") as string
+		const weak = await put("v-list", { id: "v-list", name: "Weak" }, { "if-match": `W/${tag}` })
+		expect(weak.status).toBe(412)
+		const listedTags = await put(
+			"v-list",
+			{ id: "v-list", name: "Two" },
+			{ "if-match": `"0000", ${tag}` }
+		)
+		expect(listedTags.status).toBe(204)
+		expect((await (await read("v-list")).json() as Record<string, unknown>).name).toBe("Two")
+	})
+
+	it("If-Match: * lands over an existing visual; on a missing one it is 412 and stores nothing", async () => {
+		await put("v-star", { id: "v-star", name: "One" })
+		expect((await put("v-star", { id: "v-star", name: "Two" }, { "if-match": "*" })).status).toBe(204)
+		expect((await (await read("v-star")).json() as Record<string, unknown>).name).toBe("Two")
+
+		const missing = await put("v-star-new", { id: "v-star-new", name: "New" }, { "if-match": "*" })
+		expect(missing.status).toBe(412)
+		expect((await read("v-star-new")).status).toBe(404)
+		expect(await listed("v-star-new")).toBeUndefined()
+		const tagged = await put("v-star-new", { id: "v-star-new" }, { "if-match": '"abc"' })
+		expect(tagged.status).toBe(412)
+		expect((await read("v-star-new")).status).toBe(404)
+	})
+
+	it("a thumbnail upload leaves the tag alone and stamps thumbnailAt from its header", async () => {
+		const tag = (await put("v-thumb-at", { id: "v-thumb-at", name: "Chart", thumbnailAt: 5 })).headers.get("etag")
+		expect((await upload("v-thumb-at", { "x-vis-thumbnail-at": "1700000000000" })).status).toBe(204)
+		const res = await read("v-thumb-at")
+		expect(res.headers.get("etag")).toBe(tag)
+		expect(await res.json() as Record<string, unknown>).toEqual({ id: "v-thumb-at", name: "Chart", thumbnailAt: 1700000000000 })
+		expect((await listed("v-thumb-at"))?.thumbnail).toBe(`data:image/png;base64,${PNG.toString("base64")}`)
+
+		// An older stamp is not refused.
+		expect((await upload("v-thumb-at", { "x-vis-thumbnail-at": "0" })).status).toBe(204)
+		expect((await (await read("v-thumb-at")).json() as Record<string, unknown>).thumbnailAt).toBe(0)
+
+		// Without the header, the stamp is untouched; the tag still holds.
+		expect((await upload("v-thumb-at")).status).toBe(204)
+		const plain = await read("v-thumb-at")
+		expect((await plain.json() as Record<string, unknown>).thumbnailAt).toBe(0)
+		expect(plain.headers.get("etag")).toBe(tag)
+		expect(
+			(await put("v-thumb-at", { id: "v-thumb-at", name: "Mine" }, { "if-match": tag as string })).status
+		).toBe(204)
+	})
+
+	it("a malformed thumbnail-at header is 400 and writes neither the PNG nor the stamp", async () => {
+		await put("v-thumb-bad", { id: "v-thumb-bad", name: "Chart" })
+		for (const value of ["-1", "1.5", "soon", "", "99999999999999999"]) {
+			const res = await upload("v-thumb-bad", { "x-vis-thumbnail-at": value })
+			expect(res.status, value).toBe(400)
+		}
+		expect(await read("v-thumb-bad").then((r) => r.json())).toEqual({ id: "v-thumb-bad", name: "Chart" })
+		expect((await listed("v-thumb-bad"))?.thumbnail).toBeNull()
+	})
+})
+
 describe("writes from a build behind the content schema", () => {
 	// Chart saves carry no version of their own, so a tab still running the
 	// previous bundle after a deploy would write the previous shape back over
@@ -1365,6 +1519,13 @@ describe("identity from the host: config user, presence, saver stamps", () => {
 			NANCY
 		)
 		expect((await storedVisual("v-move"))?.updatedBy).toEqual(JANE)
+	})
+
+	it("a stamped save answers the ETag of the body as stored, saver included", async () => {
+		const res = await putVisual({ id: "v-stamp-tag", name: "x", updatedBy: JANE }, NANCY)
+		const read = await fetch(`${base}/api/visuals/v-stamp-tag`)
+		expect(((await read.json()) as { updatedBy?: unknown }).updatedBy).toEqual(NANCY)
+		expect(res.headers.get("etag")).toBe(read.headers.get("etag"))
 	})
 
 	it("an anonymous write can't change or invent the saver", async () => {

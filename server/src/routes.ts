@@ -1,15 +1,30 @@
 /** The request handler: /alive, /api/*, and static fallback.
  *
  *  API semantics (mirrors the frontend's diffing HTTP storage adapter):
- *   - per-item PUT/DELETE, item-level last-write-wins, no ETags in v1
- *   - PUT is a full-item replace; DELETE of a missing id is a 204 no-op
+ *   - per-item PUT/DELETE; PUT is a full-item replace; DELETE of a missing
+ *     id is a 204 no-op
  *   - collection GET returns everything (bodies included for datasets)
+ *   - visuals are the one collection with a single-item read and
+ *     conditional saves. GET /api/visuals/:id answers the stored visual
+ *     (never its thumbnail) with a strong ETag: the sha256 of the stored
+ *     body minus `thumbnail` and `thumbnailAt`, so identical bodies share a
+ *     tag and a thumbnail upload never changes it. A PUT with
+ *     `If-Match: "<tag>"` lands only over a stored visual at that tag, and
+ *     `If-Match: *` only over an existing one; anything else is a 412 with
+ *     nothing written (a weak `W/` tag never matches). The compare and the
+ *     write are one synchronous step, so of two saves at one tag exactly one
+ *     lands. A PUT without If-Match is last-write-wins, as for every other
+ *     item. Every landed visual PUT answers 204 with the new body's ETag.
+ *     Other items keep item-level last-write-wins with no ETags.
  *   - a visual's thumbnail travels as a multipart PNG file
  *     (PUT /api/visuals/:id/thumbnail), never as base64 inside the JSON —
  *     the base64 run trips the WAF's SQL-injection rules in front of the
  *     hosted deployment. An inline `thumbnail` string is still accepted for
- *     a browser running the previous bundle. */
+ *     a browser running the previous bundle. An optional
+ *     `x-vis-thumbnail-at: <epoch ms>` header on that upload stamps the
+ *     body's `thumbnailAt` in the same write (not part of the ETag). */
 
+import { createHash } from "node:crypto"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { Readable } from "node:stream"
 import { createGunzip, createGzip, gunzipSync, gzipSync } from "node:zlib"
@@ -341,14 +356,12 @@ const handleApi = async (
 		return sendJson(res, 200, composeCollection(collection, db, thumbnails))
 	}
 	if (!isSafeId(id)) throw new HttpError(400, "Invalid id")
+	if (method === "GET" && collection === "visuals") return getVisual(res, db, id)
 	if (method === "PUT") {
 		const body = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
 		const parsed = assertItemJson(body, id)
-		const stamped =
-			collection === "visuals" && identify
-				? stampSaver(parsed, storedVisual(db, id), requestUser(identify, req))
-				: null
-		upsertBody(db, collection, id, stamped ? JSON.stringify(stamped) : body)
+		if (collection === "visuals") return putVisual(req, res, db, identify, id, body, parsed)
+		upsertBody(db, collection, id, body)
 		return sendEmpty(res, 204)
 	}
 	if (method === "DELETE") {
@@ -358,18 +371,100 @@ const handleApi = async (
 	throw new HttpError(405, "Method not allowed")
 }
 
-/** The stored visual's `updatedBy`, undefined when there is no stored
- *  visual or it names no saver. */
-/** The visual stored under `id`, or null when the PUT is a create. A stored
- *  body that won't parse reads as a visual with no saver, not as a create. */
-const storedVisual = (db: DatabaseSync, id: string): Record<string, unknown> | null => {
-	const stored = getBody(db, "visuals", id)
+/** A stored visual body parsed, or null when there is none. A stored body
+ *  that won't parse reads as a visual with no saver, not as a create. */
+const parseStoredVisual = (stored: string | null): Record<string, unknown> | null => {
 	if (stored === null) return null
 	try {
 		return JSON.parse(stored) as Record<string, unknown>
 	} catch {
 		return {}
 	}
+}
+
+/** The keys a visual's ETag ignores: the preview and its capture stamp,
+ *  which a thumbnail upload changes without the chart changing. */
+const UNTAGGED_VISUAL_KEYS = ["thumbnail", "thumbnailAt"] as const
+
+/** A stored visual body's strong ETag, quoted: the sha256 hex of the body
+ *  with `UNTAGGED_VISUAL_KEYS` removed and re-serialized. A body that won't
+ *  parse is hashed as stored. */
+const visualTag = (stored: string): string => {
+	let canonical = stored
+	try {
+		const parsed = JSON.parse(stored) as Record<string, unknown>
+		for (const key of UNTAGGED_VISUAL_KEYS) delete parsed[key]
+		canonical = JSON.stringify(parsed)
+	} catch {
+		// hashed as stored
+	}
+	return `"${createHash("sha256").update(canonical).digest("hex")}"`
+}
+
+/** Whether an If-Match header lets a save land over `stored` (the stored
+ *  body, null when there is none). `*` matches any stored visual; otherwise
+ *  the header is a comma-separated list of entity tags and one STRONG tag
+ *  must equal the stored body's. A weak tag (`W/"…"`) never matches. */
+const ifMatchAllows = (header: string, stored: string | null): boolean => {
+	if (stored === null) return false
+	if (header.trim() === "*") return true
+	const current = visualTag(stored)
+	return header.split(",").some((entry) => entry.trim() === current)
+}
+
+/** GET /api/visuals/<id> — one stored visual with its ETag, never its
+ *  thumbnail (the column is not read, and an inline key is dropped). */
+const getVisual = (res: ServerResponse, db: DatabaseSync, id: string): void => {
+	const stored = getBody(db, "visuals", id)
+	if (stored === null) throw new HttpError(404, "Not found")
+	let body = stored
+	try {
+		const parsed = JSON.parse(stored) as Record<string, unknown>
+		delete parsed.thumbnail
+		body = JSON.stringify(parsed)
+	} catch {
+		// served as stored
+	}
+	res.writeHead(200, {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-store",
+		etag: visualTag(stored),
+	})
+	res.end(body)
+}
+
+/** PUT /api/visuals/<id>, after the body is read and validated. Runs with
+ *  no await from the stored-body read to the write: node:sqlite is
+ *  synchronous, so the If-Match compare, the saver stamp and the upsert are
+ *  one atomic step and two saves at one tag can't both land. 412 (nothing
+ *  written) when If-Match doesn't allow the save; 204 with the new body's
+ *  ETag otherwise. */
+const putVisual = (
+	req: IncomingMessage,
+	res: ServerResponse,
+	db: DatabaseSync,
+	identify: IdentifyUser | undefined,
+	id: string,
+	body: string,
+	parsed: Record<string, unknown>
+): void => {
+	const stored = getBody(db, "visuals", id)
+	const ifMatch = req.headers["if-match"]
+	if (ifMatch !== undefined && !ifMatchAllows(ifMatch, stored)) {
+		throw new HttpError(
+			412,
+			stored === null
+				? "No such visual is stored; the save was not applied."
+				: "The visual changed since this copy was read; the save was not applied."
+		)
+	}
+	const stamped = identify
+		? stampSaver(parsed, parseStoredVisual(stored), requestUser(identify, req))
+		: null
+	upsertBody(db, "visuals", id, stamped ? JSON.stringify(stamped) : body)
+	const written = getBody(db, "visuals", id)
+	res.writeHead(204, written === null ? {} : { etag: visualTag(written) })
+	res.end()
 }
 
 /** Editor presence, only on a host that identifies users:
@@ -494,18 +589,36 @@ const readSingleFilePart = async (
  *  declared type is client-controlled and says nothing a WAF or a reader
  *  can rely on. 404 when the visual is not stored: the client saves the
  *  visual's JSON first, and a thumbnail that trails a DELETE must not
- *  recreate the row. */
+ *  recreate the row. With `x-vis-thumbnail-at`, the body's `thumbnailAt`
+ *  is set to it in the same write (the ETag ignores it). */
 const putVisualThumbnail = async (
 	req: IncomingMessage,
 	res: ServerResponse,
 	db: DatabaseSync,
 	id: string
 ): Promise<void> => {
+	const thumbnailAt = thumbnailAtHeader(req)
 	const png = await readSingleFilePart(req, THUMBNAIL_BODY_CAP_BYTES, "thumbnail")
 	if (!isPng(png)) throw new HttpError(400, "Thumbnail must be a PNG")
 	const dataUrl = `data:image/png;base64,${png.toString("base64")}`
-	if (!setVisualThumbnail(db, id, dataUrl)) throw new HttpError(404, "Not found")
+	if (!setVisualThumbnail(db, id, dataUrl, thumbnailAt)) {
+		throw new HttpError(404, "Not found")
+	}
 	return sendEmpty(res, 204)
+}
+
+/** The optional `x-vis-thumbnail-at` header: when the uploaded preview was
+ *  captured, in epoch milliseconds (a non-negative integer). Undefined when
+ *  absent; 400 when present but malformed, checked before anything is read
+ *  or written. Older stamps are not refused. */
+const thumbnailAtHeader = (req: IncomingMessage): number | undefined => {
+	const raw = req.headers["x-vis-thumbnail-at"]
+	if (raw === undefined) return undefined
+	const value = typeof raw === "string" && /^\d{1,16}$/.test(raw) ? Number(raw) : NaN
+	if (!Number.isSafeInteger(value)) {
+		throw new HttpError(400, "x-vis-thumbnail-at must be epoch milliseconds")
+	}
+	return value
 }
 
 /** PUT /api/embeds/<publishId>/image — the embed's picture, uploaded by the

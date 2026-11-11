@@ -30,6 +30,20 @@ const JSON_HEADERS = { "content-type": "application/json" }
 
 export type Api = ReturnType<typeof createApi>
 
+/** A conditional visual save the server refused (412): the stored chart
+ *  is no longer the copy the save was made from. */
+export class StaleVisualError extends Error {
+	readonly code = "STALE_VISUAL"
+	constructor(id: string) {
+		super(`PUT /api/visuals/${id} refused: the stored chart changed since it was read`)
+		this.name = "StaleVisualError"
+	}
+}
+
+/** A stored visual with its ETag; `tag` is null from a server older than
+ *  the single-visual read (no conditional saves there). */
+export type TaggedVisual = { visual: Visual; tag: string | null }
+
 export const createApi = (apiUrl: string, fetchImpl: typeof fetch = fetch) => {
 	const root = apiUrl.replace(/\/+$/, "")
 
@@ -92,6 +106,20 @@ export const createApi = (apiUrl: string, fetchImpl: typeof fetch = fetch) => {
 		}
 	}
 
+	/** One visual (never its thumbnail) and its ETag, null when there is
+	 *  none. A server older than the per-visual GET answers 405: the
+	 *  collection is filtered instead and the tag is null. */
+	const taggedVisual = async (id: string): Promise<TaggedVisual | null> => {
+		const response = await call(`${root}/api/visuals/${encodeURIComponent(id)}`)
+		if (response.status === 404) return null
+		if (response.status === 405) {
+			const visual = (await get<Visual[]>("visuals?thumbnails=0")).find((v) => v.id === id)
+			return visual ? { visual, tag: null } : null
+		}
+		if (!response.ok) throw new Error(`GET /api/visuals/${id} failed: ${response.status}`)
+		return { visual: (await response.json()) as Visual, tag: response.headers.get("etag") }
+	}
+
 	let configCache: Promise<{ baseUrl: string }> | null = null
 
 	return {
@@ -127,9 +155,10 @@ export const createApi = (apiUrl: string, fetchImpl: typeof fetch = fetch) => {
 		 *  leaves the stored preview alone. */
 		visuals: (): Promise<Visual[]> => get<Visual[]>("visuals?thumbnails=0"),
 
-		/** There is no per-visual GET; the collection is filtered. */
-		visual: async (id: string): Promise<Visual | null> =>
-			(await get<Visual[]>("visuals?thumbnails=0")).find((v) => v.id === id) ?? null,
+		taggedVisual,
+
+		/** One visual (never its thumbnail), null when there is none. */
+		visual: async (id: string): Promise<Visual | null> => (await taggedVisual(id))?.visual ?? null,
 
 		folders: (): Promise<Folder[]> => get<Folder[]>("folders"),
 
@@ -151,12 +180,29 @@ export const createApi = (apiUrl: string, fetchImpl: typeof fetch = fetch) => {
 			return typeof item?.themeId === "string" ? item.themeId : null
 		},
 
-		/** One visual's JSON. `thumbnail` is never sent: absent means "leave
-		 *  the stored preview alone", and the library regenerates previews. */
-		putVisual: async (visual: Visual): Promise<void> => {
+		/** One visual's JSON; answers the stored body's new ETag (null from a
+		 *  server that sends none). `thumbnail` is never sent: absent means
+		 *  "leave the stored preview alone", and the library regenerates
+		 *  previews. With `ifMatch` the save is conditional: it lands only
+		 *  over the stored chart at that tag, else `StaleVisualError`. */
+		putVisual: async (visual: Visual, ifMatch?: string): Promise<string | null> => {
 			await assertCurrent(["visuals"])
 			const { thumbnail: _thumbnail, ...rest } = visual
-			await request("PUT", "visuals", visual.id, stringifyJsonDangerous(rest as never), JSON_HEADERS)
+			const response = await call(`${root}/api/visuals/${encodeURIComponent(visual.id)}`, {
+				method: "PUT",
+				body: stringifyJsonDangerous(rest as never),
+				headers: {
+					...contentVersionHeader("visuals"),
+					...JSON_HEADERS,
+					...(ifMatch !== undefined ? { "if-match": ifMatch } : {}),
+				},
+			})
+			if (response.status === 412) throw new StaleVisualError(visual.id)
+			if (!response.ok) {
+				const detail = await response.text().catch(() => "")
+				throw new Error(`PUT /api/visuals/${visual.id} failed: ${response.status}${detail ? ` ${detail}` : ""}`)
+			}
+			return response.headers.get("etag")
 		},
 
 		/** A NEW data set through the shared write triplet (body, versions,

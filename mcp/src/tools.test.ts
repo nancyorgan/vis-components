@@ -12,14 +12,29 @@ import { createHandlers } from "./tools"
 
 type Call = { method: string; path: string; headers: Record<string, string>; body?: string }
 
-/** An in-memory stand-in for the self-host API that records every call. */
-const fakeServer = (stamps: Record<string, number> = {}) => {
+/** An in-memory stand-in for the self-host API that records every call.
+ *  Visuals carry an ETag that moves on every write, honor If-Match and
+ *  answer the single-visual GET; `legacy` is a server older than all
+ *  three (405 on the single GET, If-Match ignored, no ETag). */
+const fakeServer = (stamps: Record<string, number> = {}, { legacy = false } = {}) => {
 	const calls: Call[] = []
-	/** Runs before each read of the visuals collection (an editor save
-	 *  landing between the MCP's reads). */
-	const hooks: { beforeVisualsRead?: (visuals: Map<string, Visual>, read: number) => void } = {}
+	/** `beforeVisualsRead` runs before each read of the visuals collection
+	 *  (an editor save landing between the MCP's reads, on a legacy server);
+	 *  `beforeVisualWrite` before each visual PUT is judged (an editor save
+	 *  landing between the MCP's read and its write). */
+	const hooks: {
+		beforeVisualsRead?: (visuals: Map<string, Visual>, read: number) => void
+		beforeVisualWrite?: () => void
+	} = {}
 	let visualReads = 0
+	let writes = 0
+	const tags = new Map<string, string>()
 	const visuals = new Map<string, Visual>()
+	/** A save from outside the MCP (the editor): the body and its tag move. */
+	const outsideSave = (id: string, visual: Visual) => {
+		visuals.set(id, visual)
+		tags.set(id, `"t${++writes}"`)
+	}
 	const datasets = new Map<string, unknown>()
 	const metas = new Map<string, DatasetMeta>()
 	const json = (value: unknown) => new Response(JSON.stringify(value), { status: 200 })
@@ -39,6 +54,15 @@ const fakeServer = (stamps: Record<string, number> = {}) => {
 			if (path === "/api/content-versions") return json(stamps)
 			if (path === "/api/datasets?view=index") return json(Object.fromEntries(metas))
 			if (parts[0] === "datasets" && parts[1]) return json(datasets.get(parts[1]))
+			if (parts[0] === "visuals" && parts[1]) {
+				if (legacy) return new Response("method not allowed", { status: 405 })
+				const visual = visuals.get(parts[1])
+				if (!visual) return new Response("not found", { status: 404 })
+				return new Response(JSON.stringify(visual), {
+					status: 200,
+					headers: { etag: tags.get(parts[1]) ?? "" },
+				})
+			}
 			if (path === "/api/visuals?thumbnails=0") {
 				hooks.beforeVisualsRead?.(visuals, ++visualReads)
 				return json([...visuals.values()])
@@ -47,12 +71,26 @@ const fakeServer = (stamps: Record<string, number> = {}) => {
 			return new Response("not found", { status: 404 })
 		}
 		const body = JSON.parse(String(init?.body))
-		if (parts[0] === "visuals") visuals.set(parts[1], body)
+		if (parts[0] === "visuals") {
+			hooks.beforeVisualWrite?.()
+			const ifMatch = ((init?.headers ?? {}) as Record<string, string>)["if-match"]
+			if (!legacy && ifMatch !== undefined && (!visuals.has(parts[1]) || (ifMatch !== "*" && ifMatch !== tags.get(parts[1]))))
+				return new Response("precondition failed", { status: 412 })
+			outsideSave(parts[1], body)
+			if (!legacy) return new Response(null, { status: 204, headers: { etag: tags.get(parts[1]) ?? "" } })
+		}
 		if (parts[0] === "datasets" && parts.length === 2) datasets.set(parts[1], body)
 		if (parts[0] === "datasets" && parts[2] === "meta") metas.set(parts[1], body)
 		return new Response(null, { status: 204 })
 	}) as typeof fetch
-	return { calls, visuals, hooks, fetchImpl, writes: () => calls.filter((c) => c.method !== "GET") }
+	return {
+		calls,
+		visuals,
+		hooks,
+		fetchImpl,
+		outsideSave,
+		writes: () => calls.filter((c) => c.method !== "GET"),
+	}
 }
 
 type ToolOutput = { id: string; message: string; problems: SpecProblem[]; [key: string]: unknown }
@@ -60,8 +98,8 @@ type ToolOutput = { id: string; message: string; problems: SpecProblem[]; [key: 
 const parsed = (result: CallToolResult) =>
 	JSON.parse((result.content[0] as { text: string }).text) as ToolOutput
 
-const setup = (stamps?: Record<string, number>) => {
-	const fake = fakeServer(stamps)
+const setup = (stamps?: Record<string, number>, options?: { legacy?: boolean }) => {
+	const fake = fakeServer(stamps, options)
 	return { ...fake, tools: createHandlers(createApi("http://api.test/", fake.fetchImpl)) }
 }
 
@@ -71,8 +109,8 @@ const ROWS = [
 	{ year: 2022, region: "North", sales: 9 },
 ]
 
-const withDataset = async () => {
-	const s = setup()
+const withDataset = async (options?: { legacy?: boolean }) => {
+	const s = setup(undefined, options)
 	const created = parsed(await s.tools.create_dataset({ name: "Sales", rows: ROWS }))
 	s.calls.length = 0
 	return { ...s, datasetId: created.id as string }
@@ -197,8 +235,8 @@ describe("edit_chart and undo", () => {
 	})
 })
 
-const lineChart = async () => {
-	const s = await withDataset()
+const lineChart = async (options?: { legacy?: boolean }) => {
+	const s = await withDataset(options)
 	const { id } = parsed(
 		await s.tools.create_chart({
 			datasetId: s.datasetId,
@@ -319,32 +357,75 @@ describe("settings", () => {
 })
 
 describe("stale-edit guard", () => {
-	const editorSave = (id: string) => (visuals: Map<string, Visual>, read: number) => {
-		const v = visuals.get(id)
-		if (read === 2 && v) visuals.set(id, { ...v, updatedAt: v.updatedAt + 1, name: "Editor" })
+	/** An editor save of `id`, renamed "Editor", once. */
+	const editorSaveOnce = (s: Awaited<ReturnType<typeof lineChart>>) => () => {
+		s.hooks.beforeVisualWrite = undefined
+		const v = s.visuals.get(s.id) as Visual
+		s.outsideSave(s.id, { ...v, updatedAt: v.updatedAt + 1, name: "Editor" })
 	}
 
-	it("edit_chart refuses and writes nothing when the chart changed after it was read", async () => {
+	it("edit_chart's save is conditional on the tag it read: an outside save in between refuses it", async () => {
 		const s = await lineChart()
-		s.hooks.beforeVisualsRead = editorSave(s.id)
+		s.hooks.beforeVisualWrite = editorSaveOnce(s)
 		const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
 		expect(result.isError).toBe(true)
 		expect(parsed(result).message).toMatch(/changed in the editor since it was read/)
-		expect(s.writes()).toEqual([])
+		const [put, ...more] = s.writes()
+		expect(more).toEqual([])
+		expect(put.headers["if-match"]).toMatch(/^"t\d+"$/)
 		expect(s.visuals.get(s.id)?.name).toBe("Editor")
+		expect(s.visuals.get(s.id)?.labelsConfig.title).not.toBe("Mine")
 		expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBe(true)
 	})
 
-	it("undo_chart_edit refuses when the chart changed after the edit", async () => {
+	it("undo_chart_edit refuses when the chart changed after the edit, writing nothing", async () => {
 		const s = await lineChart()
 		expect((await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })).isError).toBeFalsy()
-		const v = s.visuals.get(s.id) as Visual
-		s.visuals.set(s.id, { ...v, updatedAt: v.updatedAt + 1 })
-		s.calls.length = 0
+		editorSaveOnce(s)()
 		const result = await s.tools.undo_chart_edit({ id: s.id })
 		expect(result.isError).toBe(true)
 		expect(parsed(result).message).toMatch(/changed in the editor/)
-		expect(s.writes()).toEqual([])
+		expect(s.visuals.get(s.id)?.name).toBe("Editor")
+		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Mine")
+	})
+
+	it("two edits undo one after the other: each undo is checked against the last write", async () => {
+		const s = await lineChart()
+		const original = s.visuals.get(s.id) as Visual
+		parsed(await s.tools.edit_chart({ id: s.id, patch: { title: "One" } }))
+		parsed(await s.tools.edit_chart({ id: s.id, patch: { title: "Two" } }))
+		expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBeFalsy()
+		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("One")
+		expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBeFalsy()
+		expect({ ...s.visuals.get(s.id), updatedAt: 0 }).toEqual({ ...original, updatedAt: 0 })
+	})
+
+	describe("against a server older than ETags", () => {
+		const editorSave = (id: string) => (visuals: Map<string, Visual>, read: number) => {
+			const v = visuals.get(id)
+			if (read === 2 && v) visuals.set(id, { ...v, updatedAt: v.updatedAt + 1, name: "Editor" })
+		}
+
+		it("edit_chart falls back to the updatedAt check and writes nothing on a change", async () => {
+			const s = await lineChart({ legacy: true })
+			s.hooks.beforeVisualsRead = editorSave(s.id)
+			const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
+			expect(result.isError).toBe(true)
+			expect(parsed(result).message).toMatch(/changed in the editor since it was read/)
+			expect(s.writes()).toEqual([])
+			expect(s.visuals.get(s.id)?.name).toBe("Editor")
+		})
+
+		it("edits and undoes twice with no tags", async () => {
+			const s = await lineChart({ legacy: true })
+			const original = s.visuals.get(s.id) as Visual
+			parsed(await s.tools.edit_chart({ id: s.id, patch: { title: "One" } }))
+			parsed(await s.tools.edit_chart({ id: s.id, patch: { title: "Two" } }))
+			expect(s.writes().every((c) => c.headers["if-match"] === undefined)).toBe(true)
+			expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBeFalsy()
+			expect((await s.tools.undo_chart_edit({ id: s.id })).isError).toBeFalsy()
+			expect({ ...s.visuals.get(s.id), updatedAt: 0 }).toEqual({ ...original, updatedAt: 0 })
+		})
 	})
 })
 
