@@ -52,7 +52,9 @@ describe("settingCatalog.json", () => {
 			settingCatalogText() === committed,
 			"settingCatalog.json is stale: run `pnpm settings:catalog` and commit the result"
 		).toBe(true)
-	})
+		// Regenerating walks lib/types.ts with the TypeScript checker: ~1.5 s
+		// locally, 6.6 s on a CI runner under coverage — past the 5 s default.
+	}, 60_000)
 
 	it("places every Visual key as a slice or a NOT_SETTINGS entry", () => {
 		const entries = Object.entries(PLACED)

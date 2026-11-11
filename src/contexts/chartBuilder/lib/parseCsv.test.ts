@@ -83,7 +83,9 @@ describe("parseCsvTextWithin", () => {
 			expect(want.ok).toBe(true)
 			expect(parseCsvTextWithin(text, NO_LIMIT, { chunkChars: 1 })).toEqual(want)
 		}
-	})
+		// 12 MB through two parsers: ~3 s locally, 15 s on a CI runner under
+		// coverage — past the 5 s default.
+	}, 60_000)
 
 	it("matches on the upload cases: BOM, a quoted header comma, a quoted 1,204, blank lines, header order", () => {
 		for (const text of [
