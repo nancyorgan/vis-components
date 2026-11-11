@@ -1,58 +1,63 @@
 /** The MCP tools. Handlers stay thin: chart logic is the editor's own lib
  *  (`chartSpec.ts`, `datasetFromRows.ts`); this file resolves what those
- *  functions need from the API and writes their result back. */
+ *  functions need from the API and writes their result back. Every result
+ *  and refusal is compact JSON; the three chart writes also return it as
+ *  `structuredContent` under a declared `outputSchema`. */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
 
 import { SETTING_CATALOG } from "../../src/contexts/chartBuilder/lib/applySettings"
-import { settingsReadRows } from "../../src/contexts/chartBuilder/lib/settingEffects"
-import { PUBLIC_SEED_FOLDER_IDS } from "../../src/contexts/chartBuilder/lib/stockFolders"
 import {
-	chartSpecVocabulary,
 	composeVisual,
 	editVisual,
-	SPEC_KEYS,
 	specReadsRows,
-	specVariationNames,
 	type ChartSpec,
 	type ChartSpecEdit,
 	type ComposeDeps,
 	type SpecProblem,
 } from "../../src/contexts/chartBuilder/lib/chartSpec"
+import { editDistance } from "../../src/contexts/chartBuilder/lib/didYouMean"
 import { datasetsEqual } from "../../src/contexts/chartBuilder/lib/datasetDedupe"
 import { datasetFromRows } from "../../src/contexts/chartBuilder/lib/datasetFromRows"
-import { didYouMean } from "../../src/contexts/chartBuilder/lib/didYouMean"
-import { settingKeysOf } from "../../src/contexts/chartBuilder/lib/settingKeys"
+import { settingsReadRows } from "../../src/contexts/chartBuilder/lib/settingEffects"
+import { PUBLIC_SEED_FOLDER_IDS } from "../../src/contexts/chartBuilder/lib/stockFolders"
 import { themeOf } from "../../src/contexts/chartBuilder/lib/systemThemes"
-import type {
-	DatasetMeta,
-	FieldType,
-	SavedTheme,
-	Visual,
-} from "../../src/contexts/chartBuilder/lib/types"
-import { StaleVisualError, type Api } from "./api"
-import { AGENT_GUIDE } from "./guide"
+import type { DatasetMeta, FieldType, SavedTheme, Visual } from "../../src/contexts/chartBuilder/lib/types"
+import { RefusalError, StaleVisualError, type Api } from "./api"
+import { TOOL_TEXT } from "./guide"
+import { chartListing, librarySummary } from "./library"
+import { resolveDataset, resolveFolder, resolveThemeName, rowCountOf } from "./resolve"
+import { searchSettings } from "./settingSearch"
 
 const UNDO_DEPTH = 20
 
-/** list_settings returns at most this many rows. */
-const SETTINGS_ROW_CAP = 200
+/** Served text never carries an em dash (lib docs and messages may). */
+const plain = (text: string) => text.replace(/\s*—\s*/g, "; ")
 
 const STALE =
-	"the chart changed in the editor since it was read; read it again and resend"
+	"The chart was changed elsewhere (in the editor, another tab, or by someone) since it was read; nothing was saved. Tell the person and ask what they want. To go ahead, read it again with get_chart and send the edit with that revision."
+
+const STOCK_FOLDER =
+	"The stock Examples folder is read-only. Save the chart in another folder or at the library root, or duplicate the example in the editor first."
 
 /** The collections a chart write reads from and writes to. */
 const CHART_COLLECTIONS = ["visuals", "datasets", "themes"] as const
 
 const ok = (value: unknown): CallToolResult => ({
-	content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
+	content: [{ type: "text", text: plain(JSON.stringify(value)) }],
 })
+
+/** A chart write: the text and `structuredContent` are the same object. */
+const written = (value: ChartWrite): CallToolResult => {
+	const text = plain(JSON.stringify(value))
+	return { content: [{ type: "text", text }], structuredContent: JSON.parse(text) }
+}
 
 const refused = (message: string, problems?: SpecProblem[]): CallToolResult => ({
 	isError: true,
-	content: [{ type: "text", text: JSON.stringify(problems ? { message, problems } : { message }, null, 2) }],
+	content: [{ type: "text", text: plain(JSON.stringify(problems ? { message, problems } : { message })) }],
 })
 
 /** A thrown error (HTTP failure, content-version mismatch) as tool output. */
@@ -62,7 +67,11 @@ const guarded =
 		try {
 			return await handler(args)
 		} catch (error) {
-			return refused(error instanceof Error ? error.message : String(error))
+			if (error instanceof RefusalError) return refused(error.message)
+			const message = error instanceof Error ? error.message : String(error)
+			return refused(
+				`${message.replace(/\.$/, "")}. Try once more; if it fails again, tell the person the Zafiro server didn't answer as expected.`
+			)
 		}
 	}
 
@@ -72,16 +81,9 @@ const fieldsOf = (meta: DatasetMeta): Array<{ name: string; type: FieldType }> =
 	return (latest?.fields ?? meta.fields).map((f) => ({ name: f.name, type: f.inferredType }))
 }
 
-const datasetSummary = (meta: DatasetMeta) => ({
-	id: meta.id,
-	name: meta.name,
-	fields: fieldsOf(meta),
-	rowCount: meta.versions.find((v) => v.id === meta.latestVersionId)?.rowCount ?? 0,
-	latestVersionId: meta.latestVersionId,
-})
-
-/** A theme name with case, spaces and punctuation taken out. */
-const nameKey = (name: string) => name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")
+/** Field → type, the compact form results carry. */
+const fieldTypesOf = (fields: ReadonlyArray<{ name: string; type: FieldType }>) =>
+	Object.fromEntries(fields.map((f) => [f.name, f.type]))
 
 /** The stored visual's settings slices (absent ones left out). */
 const settingsOf = (visual: Visual) =>
@@ -92,23 +94,87 @@ const settingsOf = (visual: Visual) =>
 		})
 	)
 
+/** The catalog paths one level under the real path `parent` (its `*`
+ *  keys and `[i]` entries matched as the catalog spells them). */
+const catalogChildren = (parent: string[]): string[] =>
+	Object.keys(SETTING_CATALOG.paths).filter((path) => {
+		const segs = path.replace(/\[\]/g, ".[]").split(".")
+		return (
+			segs.length === parent.length + 1 &&
+			parent.every((seg, i) => segs[i] === seg || segs[i] === "*" || (segs[i] === "[]" && /^\d+$/.test(seg)))
+		)
+	})
+
+/** An unknown setting's problem, with the nearest existing settings by
+ *  full path (siblings by edit distance; else the setting search) after
+ *  the lib's own did-you-mean. */
+const withNearestSettings = (problems: SpecProblem[]): SpecProblem[] =>
+	problems.map((p) => {
+		const unknown = /^unknown settings? (?:slice )?"([^"]+)"/.exec(p.message)
+		if (!unknown || !p.path.startsWith("settings")) return p
+		const key = unknown[1]
+		const parent = p.path.replace(/\[(\d+)\]/g, ".$1").split(".").slice(1, -1)
+		let near = catalogChildren(parent)
+			.map((path) => ({ path, dist: editDistance(key, path.split(/[.\]]/).at(-1) ?? "") }))
+			.sort((a, b) => a.dist - b.dist)
+			.map((r) => r.path)
+		if (near.length === 0)
+			near = searchSettings({ query: key.replace(/([a-z0-9])([A-Z])/g, "$1 $2") }).rows.map((r) => r.path)
+		const list = near.slice(0, 3).map((n) => `"${n}"`)
+		return list.length === 0
+			? { ...p, message: `${p.message}; search list_settings for the setting's path` }
+			: { ...p, message: `${p.message}; nearest settings: ${list.join(", ")}` }
+	})
+
+/** What a chart write returns. */
+type ChartWrite = {
+	id: string
+	name: string
+	editorUrl: string
+	embedUrl: string
+	warnings: string[]
+	revision: string | null
+}
+
+const chartWriteShape = {
+	id: z.string(),
+	name: z.string(),
+	editorUrl: z.string(),
+	embedUrl: z.string(),
+	warnings: z.array(z.string()),
+	revision: z.string().nullable(),
+}
+
 /** A stored chart as a save left it (or a read found it): its ETag, null
  *  from a server older than tags, and its `updatedAt`. */
 type Written = { tag: string | null; updatedAt: number }
 
+/** What create_chart accepts beyond a spec: names for the data set and
+ *  folder (the spec's ids still work). */
+export type CreateChartArgs = Omit<ChartSpec, "datasetId" | "folderId"> & {
+	dataset?: string
+	datasetId?: string
+	folder?: string | null
+	folderId?: string | null
+}
+
 export const createHandlers = (api: Api) => {
 	/** Per chart: the visual each edit replaced, and what that edit wrote. */
 	const undo = new Map<string, Array<{ previous: Visual; wrote: Written }>>()
+	/** Per chart: the stored copy this session last wrote or read. An edit
+	 *  with no revision builds on it, so a change made elsewhere since then
+	 *  pauses the edit instead of being built over unseen. */
+	const seen = new Map<string, Written>()
 
 	/** Save `next` only over the stored chart still as `seen`: a conditional
 	 *  PUT at its tag, so the check and the write are one step on the
 	 *  server. Against an older server with no tags, the check-then-write on
 	 *  `updatedAt` it always had. Null (nothing written) when the chart
 	 *  changed. */
-	const saveIfUnchanged = async (next: Visual, seen: Written): Promise<Written | null> => {
-		if (seen.tag === null && (await api.visual(next.id))?.updatedAt !== seen.updatedAt) return null
+	const saveIfUnchanged = async (next: Visual, was: Written): Promise<Written | null> => {
+		if (was.tag === null && (await api.visual(next.id))?.updatedAt !== was.updatedAt) return null
 		try {
-			return { tag: await api.putVisual(next, seen.tag ?? undefined), updatedAt: next.updatedAt }
+			return { tag: await api.putVisual(next, was.tag ?? undefined), updatedAt: next.updatedAt }
 		} catch (error) {
 			if (error instanceof StaleVisualError) return null
 			throw error
@@ -120,33 +186,23 @@ export const createHandlers = (api: Api) => {
 		return {
 			editorUrl: `${base}/editor/${encodeURIComponent(id)}`,
 			embedUrl: `${base}/embed/${encodeURIComponent(id)}`,
-			pictureUrl: `${base}/embed/${encodeURIComponent(id)}?export=png`,
 		}
 	}
 
-	const chartResult = async (visual: Visual, warnings: string[]) =>
-		ok({ id: visual.id, name: visual.name, ...(await links(visual.id)), warnings })
-
-	/** The theme a spec names (id, else a unique name match), else the
-	 *  server's default-theme row, else the first system theme. A name that
-	 *  matches nothing is a problem; no name (null or absent) is the default. */
-	const resolveTheme = async (wanted: string | null | undefined): Promise<SavedTheme | SpecProblem> => {
-		const themes = await api.themes()
-		if (wanted !== undefined && wanted !== null) {
-			const byName = themes.filter((t) => nameKey(t.name) === nameKey(wanted))
-			const hit = themes.find((t) => t.id === wanted) ?? (byName.length === 1 ? byName[0] : undefined)
-			if (hit) return hit
-			return {
-				path: "themeId",
-				message: `no theme "${wanted}"; themes are ${themes.map((t) => `"${t.name}" (${t.id})`).join(", ")}`,
-			}
-		}
-		return defaultTheme(themes)
+	const chartWrite = async (visual: Visual, warnings: string[], wrote: Written) => {
+		seen.set(visual.id, wrote)
+		return written({ id: visual.id, name: visual.name, ...(await links(visual.id)), warnings, revision: wrote.tag })
 	}
 
 	const defaultTheme = async (themes?: SavedTheme[]): Promise<SavedTheme> => {
 		const [all, defaultId] = await Promise.all([themes ?? api.themes(), api.defaultThemeId()])
 		return all.find((t) => t.id === defaultId) ?? all[0]
+	}
+
+	/** The theme a stored chart renders under: its own, else the default. */
+	const storedTheme = async (themeId: string | null | undefined): Promise<SavedTheme> => {
+		const themes = await api.themes()
+		return themes.find((t) => t.id === themeId) ?? defaultTheme(themes)
 	}
 
 	/** The latest version's rows, only for a spec that reads them: a settings
@@ -166,33 +222,10 @@ export const createHandlers = (api: Api) => {
 	const datasetMeta = async (datasetId: string | null): Promise<DatasetMeta | undefined> =>
 		datasetId ? (await api.datasetIndex())[datasetId] : undefined
 
-	const saveEdit = async (base: Visual, tag: string | null, next: Visual, warnings: string[]) => {
-		const wrote = await saveIfUnchanged(next, { tag, updatedAt: base.updatedAt })
-		if (!wrote) return refused(STALE)
-		const stack = undo.get(base.id) ?? []
-		stack.push({ previous: base, wrote })
-		if (stack.length > UNDO_DEPTH) stack.shift()
-		undo.set(base.id, stack)
-		return chartResult(next, warnings)
-	}
+	const noChart = (id: string) =>
+		refused(`No chart has id "${id}". list_charts finds a chart by its name, folder or data set.`)
 
 	return {
-		agent_guide: guarded(async () => ({ content: [{ type: "text", text: AGENT_GUIDE }] })),
-
-		chart_vocabulary: guarded(async () => {
-			const [folders, themes] = await Promise.all([api.folders(), api.themes()])
-			const fallback = (await defaultTheme(themes)).id
-			return ok({
-				...chartSpecVocabulary(),
-				folders: folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId })),
-				themes: themes.map((t) => ({ id: t.id, name: t.name, default: t.id === fallback })),
-			})
-		}),
-
-		list_datasets: guarded(async () =>
-			ok(Object.values(await api.datasetIndex()).map(datasetSummary))
-		),
-
 		create_dataset: guarded(
 			async (args: { name: string; rows: Record<string, unknown>[]; types?: Record<string, FieldType> }) => {
 				await api.assertCurrent(["datasets"])
@@ -200,57 +233,81 @@ export const createHandlers = (api: Api) => {
 				const { dataset, problems, duplicateOf } = datasetFromRows(args, {
 					existing: Object.values(index),
 				})
-				if (problems.length > 0) return refused("the rows can't be stored as a data set", problems)
+				if (problems.length > 0)
+					return refused("The rows weren't stored; fix what each problem names and send them again.", problems)
 				// The hash is a PROBABLE match; reuse only once the stored body
 				// proves equal, as the editor's upload does.
 				if (duplicateOf && index[duplicateOf]) {
 					const stored = await api.dataset(duplicateOf)
-					if (datasetsEqual(stored, dataset))
-						return ok({ ...datasetSummary(index[duplicateOf]), reused: true })
+					if (datasetsEqual(stored, dataset)) {
+						const meta = index[duplicateOf]
+						return ok({
+							id: meta.id,
+							name: meta.name,
+							rowCount: rowCountOf(meta),
+							fields: fieldTypesOf(fieldsOf(meta)),
+							reused: true,
+						})
+					}
 				}
 				await api.putDataset(dataset)
 				return ok({
 					id: dataset.id,
 					name: dataset.name,
-					fields: dataset.fields.map((f) => ({ name: f.name, type: f.inferredType })),
 					rowCount: dataset.versions[0]?.rows.length ?? 0,
+					fields: fieldTypesOf(dataset.fields.map((f) => ({ name: f.name, type: f.inferredType }))),
+					reused: false,
 				})
 			}
 		),
 
-		create_chart: guarded(async (spec: ChartSpec) => {
+		create_chart: guarded(async (args: CreateChartArgs) => {
 			await api.assertCurrent(CHART_COLLECTIONS)
-			const [meta, theme, folders] = await Promise.all([
-				datasetMeta(typeof spec.datasetId === "string" ? spec.datasetId : null),
-				resolveTheme(spec.themeId),
-				api.folders(),
-			])
+			const { dataset: datasetName, datasetId, folder, folderId, ...spec } = args
+			const [index, themes, folders] = await Promise.all([api.datasetIndex(), api.themes(), api.folders()])
 			const pre: SpecProblem[] = []
-			if (!meta) pre.push({ path: "datasetId", message: `no data set with id "${spec.datasetId}"; see list_datasets` })
-			if (typeof spec.folderId === "string" && PUBLIC_SEED_FOLDER_IDS.includes(spec.folderId))
-				pre.push({ path: "folderId", message: STOCK_FOLDER })
-			if (!("id" in theme)) pre.push(theme)
-			if (pre.length > 0 || !meta || !("id" in theme)) return refused("the chart wasn't created", pre)
+			const meta = resolveDataset(datasetName ?? datasetId, index)
+			if (!meta.ok) pre.push({ path: datasetName !== undefined ? "dataset" : "datasetId", message: meta.message })
+			const folderKey = "folder" in args ? "folder" : "folderId"
+			const place = resolveFolder("folder" in args ? folder : folderId, folders, folderKey)
+			if (!place.ok) pre.push({ path: folderKey, message: place.message })
+			else if (place.value && PUBLIC_SEED_FOLDER_IDS.includes(place.value.id))
+				pre.push({ path: folderKey, message: STOCK_FOLDER })
+			const named = resolveThemeName(spec.themeId, themes)
+			if (!named.ok) pre.push({ path: "themeId", message: named.message })
+			if (!meta.ok || !place.ok || !named.ok || pre.length > 0)
+				return refused("The chart wasn't created; fix what each problem names and send it again.", pre)
+			const theme = named.value ?? (await defaultTheme(themes))
+			const full: ChartSpec = {
+				...spec,
+				datasetId: meta.value.id,
+				folderId: place.value?.id ?? null,
+				themeId: theme.id,
+			}
 			const deps: ComposeDeps = {
-				fields: fieldsOf(meta),
+				fields: fieldsOf(meta.value),
 				theme: themeOf(theme),
 				folderIds: new Set(folders.map((f) => f.id)),
-				latestVersionId: meta.latestVersionId,
-				rows: await rowsFor(meta, spec),
+				latestVersionId: meta.value.latestVersionId,
+				rows: await rowsFor(meta.value, full),
 			}
-			const { visual, problems, warnings } = composeVisual({ ...spec, themeId: theme.id }, deps)
-			if (problems.length > 0) return refused("the chart wasn't created", problems)
-			await api.putVisual(visual)
-			return chartResult(visual, warnings)
+			const { visual, problems, warnings } = composeVisual(full, deps)
+			if (problems.length > 0)
+				return refused(
+					"The chart wasn't created; fix what each problem names and send it again.",
+					withNearestSettings(problems)
+				)
+			const tag = await api.putVisual(visual)
+			return chartWrite(visual, warnings, { tag, updatedAt: visual.updatedAt })
 		}),
 
 		get_chart: guarded(async ({ id }: { id: string }) => {
-			const visual = await api.visual(id)
-			if (!visual) return refused(`no chart with id "${id}"`)
+			const read = await api.taggedVisual(id)
+			if (!read) return noChart(id)
+			const { visual } = read
+			seen.set(id, { tag: read.tag, updatedAt: visual.updatedAt })
 			const encodings = Object.fromEntries(
-				Object.entries(visual.encodings ?? {}).flatMap(([ch, enc]) =>
-					enc?.field ? [[ch, enc.field]] : []
-				)
+				Object.entries(visual.encodings ?? {}).flatMap(([ch, enc]) => (enc?.field ? [[ch, enc.field]] : []))
 			)
 			return ok({
 				id: visual.id,
@@ -264,90 +321,125 @@ export const createHandlers = (api: Api) => {
 				subtitle: visual.labelsConfig?.subtitle ?? "",
 				...(typeof visual.deletedAt === "number" ? { trashed: true } : {}),
 				...(await links(visual.id)),
+				revision: read.tag,
 				settings: settingsOf(visual),
 			})
 		}),
 
+		list_charts: guarded(async (args: { folder?: string | null; dataset?: string; query?: string }) => {
+			const [visuals, folders] = await Promise.all([api.visuals(), api.folders()])
+			const query = args.query?.trim() ? args.query : undefined
+			if (args.folder === undefined && args.dataset === undefined && query === undefined)
+				return ok(librarySummary(visuals, folders))
+			const place = args.folder === undefined ? null : resolveFolder(args.folder, folders)
+			if (place && !place.ok) return refused(place.message)
+			let datasetId: string | undefined
+			if (args.dataset !== undefined) {
+				const meta = resolveDataset(args.dataset, await api.datasetIndex())
+				if (!meta.ok) return refused(meta.message)
+				datasetId = meta.value.id
+			}
+			return ok(
+				chartListing(visuals, folders, {
+					folder: place?.ok ? place.value : undefined,
+					datasetId,
+					query,
+				})
+			)
+		}),
+
+		list_datasets: guarded(async (args: { fields?: boolean; query?: string }) => {
+			const q = args.query?.trim().toLowerCase() ?? ""
+			const metas = Object.values(await api.datasetIndex()).filter((m) => m.name.toLowerCase().includes(q))
+			return ok({
+				total: metas.length,
+				datasets: metas.map((m) => ({
+					id: m.id,
+					name: m.name,
+					rows: rowCountOf(m),
+					...(args.fields ? { fields: fieldTypesOf(fieldsOf(m)), latestVersionId: m.latestVersionId } : {}),
+				})),
+			})
+		}),
+
 		list_settings: guarded(
-			async ({ slice, query, chartId }: { slice?: string; query?: string; chartId?: string }) => {
-				const { slices, paths } = SETTING_CATALOG
-				if (slice !== undefined && !slices.includes(slice))
-					return refused(`no settings slice "${slice}"${didYouMean(slice, slices)}; slices are ${slices.join(", ")}`)
-				const q = query?.trim().toLowerCase() ?? ""
-				const rows = Object.entries(paths)
-					.filter(
-						([path, entry]) =>
-							(slice === undefined || path === slice || path.startsWith(`${slice}.`)) &&
-							(q === "" || `${path} ${entry.doc ?? ""}`.toLowerCase().includes(q))
-					)
-					.map(([path, entry]) => ({ path, ...entry }))
-				// With a chart: the keys its `*` paths take, and its theme's palettes.
-				let keys: unknown
-				let palettes: unknown
-				if (chartId !== undefined) {
-					const visual = await api.visual(chartId)
-					if (!visual) return refused(`no chart with id "${chartId}"`)
-					const meta = await datasetMeta(visual.datasetId)
-					const body = meta ? await api.dataset(meta.id) : null
-					const dataRows = body?.versions.find((v) => v.id === meta?.latestVersionId)?.rows ?? []
-					keys = settingKeysOf(visual, meta ? fieldsOf(meta) : [], dataRows)
-					const named = await resolveTheme(visual.themeId)
-					const theme = themeOf("id" in named ? named : await defaultTheme())
-					const list = (pals: SavedTheme["categoricalPalettes"]) =>
-						pals.map((p) => ({ id: p.id, name: p.name, colors: p.colors }))
+			async (args: { query?: string; offset?: number; chartId?: string; descriptions?: boolean }) => {
+				let visual: Visual | undefined
+				let palettes: Record<string, unknown> | undefined
+				if (args.chartId !== undefined) {
+					const read = await api.visual(args.chartId)
+					if (!read) return noChart(args.chartId)
+					visual = read
+					const theme = themeOf(await storedTheme(read.themeId))
+					// A small hint, not the theme: palette ids, and the first
+					// categorical palette's colors.
+					const [first] = theme.categoricalPalettes
 					palettes = {
-						note: "For a color, prefer a palette id (where the setting takes one) or a color from these palettes over an arbitrary hex.",
-						categorical: list(theme.categoricalPalettes),
-						ordinal: list(theme.ordinalPalettes),
+						categorical: theme.categoricalPalettes.map((p) => p.id),
+						...(first ? { [first.id]: first.colors } : {}),
 						text: theme.defaultTextPaletteId,
-						fill: theme.defaultFillPaletteId ?? null,
 					}
 				}
-				return ok({
-					total: rows.length,
-					rows: rows.slice(0, SETTINGS_ROW_CAP),
-					...(rows.length > SETTINGS_ROW_CAP
-						? { note: `showing ${SETTINGS_ROW_CAP} of ${rows.length}; narrow the query` }
-						: {}),
-					...(keys !== undefined ? { keys } : {}),
-					...(palettes !== undefined ? { palettes } : {}),
+				const result = searchSettings({
+					query: args.query,
+					offset: args.offset,
+					descriptions: args.descriptions,
+					visual,
 				})
+				return ok({ ...result, ...(palettes ? { palettes } : {}) })
 			}
 		),
 
-		edit_chart: guarded(async ({ id, patch }: { id: string; patch: ChartSpecEdit }) => {
+		edit_chart: guarded(async ({ id, revision, patch }: { id: string; revision?: string; patch: ChartSpecEdit }) => {
 			await api.assertCurrent(CHART_COLLECTIONS)
 			const read = await api.taggedVisual(id)
-			if (!read) return refused(`no chart with id "${id}"`)
+			if (!read) return noChart(id)
 			const base = read.visual
+			// The copy this edit builds on: the revision sent, else the one this
+			// session last saw. A server with no tags can't be held to one.
+			const expected = revision ?? seen.get(id)?.tag ?? undefined
+			if (read.tag !== null && expected !== undefined && expected !== read.tag) return refused(STALE)
 			if (PUBLIC_SEED_FOLDER_IDS.includes(base.folderId ?? ""))
-				return refused("the chart wasn't changed", [{ path: "", message: STOCK_FOLDER }])
+				return refused("The chart wasn't changed.", [{ path: "", message: STOCK_FOLDER }])
 			const meta = await datasetMeta(base.datasetId)
 			// A new theme must exist; a visual whose stored theme is gone
 			// renders under the default, so edit against that too. The
 			// stored theme is also the baseline a re-theme diffs against, so
 			// settings the user moved off it stay (as in the Theme panel).
-			const wanted = typeof patch.themeId === "string" ? await resolveTheme(patch.themeId) : null
-			if (wanted && !("id" in wanted)) return refused("the chart wasn't changed", [wanted])
-			const stored = await resolveTheme(base.themeId)
-			const current = "id" in stored ? stored : await defaultTheme()
-			const theme = wanted ?? current
-			const edit = wanted ? { ...patch, themeId: theme.id } : patch
+			const themes = await api.themes()
+			const wanted = typeof patch?.themeId === "string" ? resolveThemeName(patch.themeId, themes) : null
+			if (wanted && !wanted.ok) return refused("The chart wasn't changed.", [{ path: "themeId", message: wanted.message }])
+			const current = await storedTheme(base.themeId)
+			const theme = wanted?.ok && wanted.value ? wanted.value : current
+			const edit = wanted?.ok && wanted.value ? { ...patch, themeId: theme.id } : (patch ?? {})
 			const { visual, problems, warnings } = editVisual(base, edit, {
 				fields: meta ? fieldsOf(meta) : [],
 				theme: themeOf(theme),
 				fromTheme: themeOf(current),
 				latestVersionId: meta?.latestVersionId ?? null,
-				rows: await rowsFor(meta, patch, base),
+				rows: await rowsFor(meta, edit, base),
 			})
-			if (problems.length > 0) return refused("the chart wasn't changed", problems)
-			return saveEdit(base, read.tag, visual, warnings)
+			if (problems.length > 0)
+				return refused(
+					"The chart wasn't changed; fix what each problem names and send the edit again.",
+					withNearestSettings(problems)
+				)
+			const wrote = await saveIfUnchanged(visual, { tag: read.tag, updatedAt: base.updatedAt })
+			if (!wrote) return refused(STALE)
+			const stack = undo.get(id) ?? []
+			stack.push({ previous: base, wrote })
+			if (stack.length > UNDO_DEPTH) stack.shift()
+			undo.set(id, stack)
+			return chartWrite(visual, warnings, wrote)
 		}),
 
 		undo_chart_edit: guarded(async ({ id }: { id: string }) => {
 			const stack = undo.get(id) ?? []
 			const entry = stack.pop()
-			if (!entry) return refused(`nothing to undo for "${id}" in this session`)
+			if (!entry)
+				return refused(
+					`Nothing to undo for "${id}": this session made no edit to it that is still undone. Change it back with edit_chart instead.`
+				)
 			const restored = { ...entry.previous, updatedAt: Date.now() }
 			let wrote: Written | null
 			try {
@@ -365,142 +457,155 @@ export const createHandlers = (api: Api) => {
 			// it is now checked against this write.
 			const below = stack.at(-1)
 			if (below) below.wrote = wrote
-			return chartResult(restored, [])
+			return chartWrite(restored, [], wrote)
 		}),
 	}
 }
 
 export type Handlers = ReturnType<typeof createHandlers>
 
-const STOCK_FOLDER =
-	"the stock Examples folder is read-only; create the chart in another folder (or null), or duplicate the example in the editor first"
+const T = TOOL_TEXT
 
-const ENCODINGS_FIRST =
-	"Zafiro is encodings-first: you say which field goes to which channel (x, y, hue, length, …) and the chart type follows from that."
+const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const
+const CHART_WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const
 
-const specShape = {
-	datasetId: z.string().describe(SPEC_KEYS.datasetId),
-	folderId: z.string().nullable().describe(SPEC_KEYS.folderId),
-	name: z.string().optional().describe(SPEC_KEYS.name),
-	family: z.string().optional().describe(SPEC_KEYS.family),
-	variation: z
-		.string()
-		.optional()
-		.describe(`${SPEC_KEYS.variation} One of: ${specVariationNames().map((n) => `"${n}"`).join(", ")}.`),
-	encodings: z.record(z.string(), z.string()).describe(SPEC_KEYS.encodings),
-	fieldTypes: z.record(z.string(), z.string()).optional().describe(SPEC_KEYS.fieldTypes),
-	title: z.string().optional().describe(SPEC_KEYS.title),
-	subtitle: z.string().optional().describe(SPEC_KEYS.subtitle),
-	axes: z.record(z.string(), z.record(z.string(), z.unknown())).optional().describe(SPEC_KEYS.axes),
-	stack: z.string().optional().describe(SPEC_KEYS.stack),
-	themeId: z.string().optional().describe(`${SPEC_KEYS.themeId} A theme name works too.`),
-	settings: z.record(z.string(), z.unknown()).optional().describe(SPEC_KEYS.settings),
+const fieldType = z.enum(["quantitative", "categorical", "temporal", "ordinal"])
+const axisShape = z
+	.object({
+		title: z.string().optional(),
+		min: z.union([z.number(), z.string()]).nullable().optional(),
+		max: z.union([z.number(), z.string()]).nullable().optional(),
+		format: z.string().optional(),
+	})
+	.passthrough()
+
+/** A schema with a description, or none when `text` is absent (the
+ *  patch's keys are described once, on create_chart). */
+const d = <S extends z.ZodTypeAny>(schema: S, text: string | undefined): S =>
+	text === undefined ? schema : schema.describe(text)
+
+/** The keys create_chart and edit_chart share. */
+const sharedShape = (p?: typeof T.create_chart.params) => ({
+	name: d(z.string().optional(), p?.name),
+	variation: d(z.string().optional(), p?.variation),
+	fieldTypes: d(z.record(z.string(), fieldType).optional(), p?.fieldTypes),
+	title: d(z.string().optional(), p?.title),
+	subtitle: d(z.string().optional(), p?.subtitle),
+	axes: d(z.object({ x: axisShape.optional(), y: axisShape.optional() }).passthrough().optional(), p?.axes),
+	stack: d(z.enum(["stack", "group", "overlay"]).optional(), p?.stack),
+	themeId: d(z.string().optional(), p?.themeId),
+	settings: d(z.record(z.string(), z.unknown()).optional(), p?.settings),
+})
+
+const createShape = {
+	dataset: z.string().optional().describe(T.create_chart.params.dataset),
+	folder: z.string().nullable().optional().describe(T.create_chart.params.folder),
+	encodings: z.record(z.string(), z.string()).describe(T.create_chart.params.encodings),
+	...sharedShape(T.create_chart.params),
 }
 
-const { datasetId: _d, folderId: _f, ...editShape } = specShape
-
-const SETTINGS_RULES =
-	"`settings` sets any stored setting by list_settings paths: objects merge, lists replace whole (send every entry; a new entry leaves out id). A setting behaves as the editor's panel does: a new annotation gets the theme's style and a name, data-label value fields get their labels, an Order by spec computes the order, a palette id brings its colors, thickness by field seeds every level, numbers clamp to the input's range, and a value equal to its default is stored as unset."
+const patchShape = {
+	...sharedShape(),
+	encodings: z.record(z.string(), z.string().nullable()).optional(),
+}
 
 /** Register every tool on `server`. Unknown keys pass through to the lib,
  *  whose problems name them (with a did-you-mean) instead of zod dropping
  *  them silently. */
 export const registerTools = (server: McpServer, handlers: Handlers): void => {
 	server.registerTool(
-		"agent_guide",
-		{
-			description:
-				"The guide for making charts in Zafiro: the primary comparison, encodings by data type, what each set of encodings draws, titles, colors and the refusals to make. Read all of it before the first chart.",
-		},
-		() => handlers.agent_guide(undefined)
-	)
-	server.registerTool(
-		"chart_vocabulary",
-		{
-			description: `What a chart spec can say: channels with the field types they accept, chart families and their variations, spec keys, folders and themes. ${ENCODINGS_FIRST} Call this first.`,
-		},
-		() => handlers.chart_vocabulary(undefined)
-	)
-	server.registerTool(
-		"list_datasets",
-		{
-			description:
-				"The data sets on this Zafiro server: id, name, fields with their types, row count and latest version. Charts are built from these fields.",
-		},
-		() => handlers.list_datasets(undefined)
-	)
-	server.registerTool(
 		"create_dataset",
 		{
-			description:
-				"Store rows (an array of flat objects) as a new Zafiro data set and return its id and inferred field types; identical data already stored under the same name is reused instead.",
+			description: T.create_dataset.description,
 			inputSchema: {
-				name: z.string().describe("The data set's name."),
-				rows: z.array(z.record(z.string(), z.unknown())).describe("Rows as objects: column → text, number, boolean or null."),
-				types: z
-					.record(z.string(), z.enum(["quantitative", "categorical", "temporal", "ordinal"]))
-					.optional()
-					.describe("Column → type, overriding inference."),
+				name: z.string().describe(T.create_dataset.params.name),
+				rows: z.array(z.record(z.string(), z.unknown())).describe(T.create_dataset.params.rows),
+				types: z.record(z.string(), fieldType).optional().describe(T.create_dataset.params.types),
 			},
+			annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 		},
 		(args) => handlers.create_dataset(args)
 	)
 	server.registerTool(
 		"create_chart",
 		{
-			description: `Create a Zafiro chart from a spec and return its editor, embed and picture links. ${ENCODINGS_FIRST} ${SETTINGS_RULES} Problems come back as an error and nothing is saved.`,
-			inputSchema: z.object(specShape).passthrough(),
+			description: T.create_chart.description,
+			inputSchema: z.object(createShape).passthrough(),
+			outputSchema: chartWriteShape,
+			annotations: CHART_WRITE,
 		},
-		(args) => handlers.create_chart(args as unknown as ChartSpec)
-	)
-	server.registerTool(
-		"get_chart",
-		{
-			description:
-				"A Zafiro chart's summary (name, folder, data set, channel → field encodings, titles, links) and its stored `settings` slices, with list entries' ids.",
-			inputSchema: { id: z.string().describe("The chart id.") },
-		},
-		(args) => handlers.get_chart(args)
+		(args) => handlers.create_chart(args as unknown as CreateChartArgs)
 	)
 	server.registerTool(
 		"edit_chart",
 		{
-			description: `Change a Zafiro chart: only the keys the patch names change (a null encoding unmaps the channel, a null axis bound clears it; a themeId re-themes it, keeping user overrides; a variation re-shapes it as that variation, keeping titles, legend, labels and theme). ${ENCODINGS_FIRST} ${SETTINGS_RULES} Refused if the chart changed in the editor since it was read.`,
+			description: T.edit_chart.description,
 			inputSchema: {
-				id: z.string().describe("The chart id."),
-				patch: z
-					.object({
-						...editShape,
-						encodings: z
-							.record(z.string(), z.string().nullable())
-							.optional()
-							.describe(SPEC_KEYS.encodings),
-					})
-					.passthrough(),
+				id: z.string().describe(T.edit_chart.params.id),
+				revision: z.string().optional().describe(T.edit_chart.params.revision),
+				patch: z.object(patchShape).passthrough().describe(T.edit_chart.params.patch),
 			},
+			outputSchema: chartWriteShape,
+			annotations: CHART_WRITE,
 		},
-		(args) => handlers.edit_chart(args as unknown as { id: string; patch: ChartSpecEdit })
-	)
-	server.registerTool(
-		"list_settings",
-		{
-			description:
-				"The stored settings a `settings` patch can set: path, kinds, allowed values, doc, and color / format flags. In a path, `*` stands for a key you take from the chart (a level, field or panel) and `[]` for a list entry; lists replace whole. Filter by slice and a text query. With a chartId, also returns the keys that chart's `*` paths take (its fields, the levels of each mapped field, its composed label ids, facet panels and table columns) and its theme's palettes: prefer those colors to arbitrary hex.",
-			inputSchema: {
-				slice: z.string().optional().describe("One slice, such as channelConfigs or labelsConfig."),
-				query: z.string().optional().describe("Case-insensitive text matched against path and doc."),
-				chartId: z.string().optional().describe("A chart whose keys and theme palettes to include."),
-			},
-		},
-		(args) => handlers.list_settings(args)
+		(args) => handlers.edit_chart(args as unknown as { id: string; revision?: string; patch: ChartSpecEdit })
 	)
 	server.registerTool(
 		"undo_chart_edit",
 		{
-			description:
-				"Undo the last edit_chart on this chart made in this session (up to 20 deep). Refused if the chart changed in the editor since that edit.",
-			inputSchema: { id: z.string().describe("The chart id.") },
+			description: T.undo_chart_edit.description,
+			inputSchema: { id: z.string().describe(T.undo_chart_edit.params.id) },
+			outputSchema: chartWriteShape,
+			annotations: CHART_WRITE,
 		},
 		(args) => handlers.undo_chart_edit(args)
+	)
+	server.registerTool(
+		"get_chart",
+		{
+			description: T.get_chart.description,
+			inputSchema: { id: z.string().describe(T.get_chart.params.id) },
+			annotations: READ_ONLY,
+		},
+		(args) => handlers.get_chart(args)
+	)
+	server.registerTool(
+		"list_charts",
+		{
+			description: T.list_charts.description,
+			inputSchema: {
+				folder: z.string().nullable().optional().describe(T.list_charts.params.folder),
+				dataset: z.string().optional().describe(T.list_charts.params.dataset),
+				query: z.string().optional().describe(T.list_charts.params.query),
+			},
+			annotations: READ_ONLY,
+		},
+		(args) => handlers.list_charts(args)
+	)
+	server.registerTool(
+		"list_datasets",
+		{
+			description: T.list_datasets.description,
+			inputSchema: {
+				fields: z.boolean().optional().describe(T.list_datasets.params.fields),
+				query: z.string().optional().describe(T.list_datasets.params.query),
+			},
+			annotations: READ_ONLY,
+		},
+		(args) => handlers.list_datasets(args)
+	)
+	server.registerTool(
+		"list_settings",
+		{
+			description: T.list_settings.description,
+			inputSchema: {
+				query: z.string().optional().describe(T.list_settings.params.query),
+				offset: z.number().int().min(0).optional().describe(T.list_settings.params.offset),
+				chartId: z.string().optional().describe(T.list_settings.params.chartId),
+				descriptions: z.boolean().optional().describe(T.list_settings.params.descriptions),
+			},
+			annotations: READ_ONLY,
+		},
+		(args) => handlers.list_settings(args)
 	)
 }

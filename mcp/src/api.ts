@@ -40,6 +40,14 @@ export class StaleVisualError extends Error {
 	}
 }
 
+/** A refusal whose message already says what to do next. */
+export class RefusalError extends Error {
+	constructor(message: string) {
+		super(message)
+		this.name = "RefusalError"
+	}
+}
+
 /** A stored visual with its ETag; `tag` is null from a server older than
  *  the single-visual read (no conditional saves there). */
 export type TaggedVisual = { visual: Visual; tag: string | null }
@@ -89,19 +97,21 @@ export const createApi = (apiUrl: string, fetchImpl: typeof fetch = fetch) => {
 
 	/** Refuse when any of `collections` is stamped at a version other than
 	 *  this build's. Absent = current (never v0); a mismatch is never
-	 *  migrated here — the editor owns migrations. */
+	 *  migrated here: the editor owns migrations. */
 	const assertCurrent = async (collections: readonly string[]): Promise<void> => {
 		const stamps = await contentVersions()
 		for (const collection of collections) {
 			const stored = stamps[collection]
 			const current = CONTENT_MIGRATIONS[collection]?.currentVersion
 			if (stored === undefined || current === undefined || stored === current) continue
-			throw new Error(
-				`The server's "${collection}" content is at version ${stored}, but this MCP build ` +
-					`works with version ${current}: this MCP build is ${stored > current ? "behind" : "ahead of"} ` +
-					`the server's content; rebuild it (pnpm mcp:build) from the checkout the server runs` +
-					(stored < current ? ", or open the editor once so it migrates the content" : "") +
-					"."
+			throw new RefusalError(
+				stored > current
+					? `Nothing was saved: the Zafiro server stores its ${collection} in a newer data format ` +
+						`(version ${stored}) than this MCP understands (version ${current}). Update the MCP: ` +
+						"rebuild it (pnpm mcp:build) from the checkout the server runs, then try again."
+					: `Nothing was saved: the Zafiro server stores its ${collection} in an older data format ` +
+						`(version ${stored}) than this MCP writes (version ${current}). Open the Zafiro editor ` +
+						"once so it updates the stored content, or use the MCP built from the checkout the server runs, then try again."
 			)
 		}
 	}

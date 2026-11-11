@@ -53,8 +53,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { x: "Quarter", length: "ED visits", hue: "Hospital" },
 				stack: "group",
 			})
@@ -78,7 +77,7 @@ describe("scenarios: what a model should be able to do", () => {
 			{ flavor: "Chocolate", scoops: 9 },
 		])
 		const chart = parsed(
-			await tools.create_chart({ datasetId: ds, folderId: null, encodings: { angle: "scoops", hue: "flavor" } })
+			await tools.create_chart({ dataset: ds, encodings: { angle: "scoops", hue: "flavor" } })
 		)
 		const pie = await stored(chart.id)
 		parsed(
@@ -99,8 +98,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { connection: "state", hue: "value" },
 				settings: { mapConfig: { coordSystem: "geographic", geographyLevel: "states" } },
 			})
@@ -119,8 +117,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { connection: "Parent", area: "Value" },
 				settings: { channelConfigs: { connection: { hierarchyLayout: "sankey", flowTargetField: "Child" } } },
 			})
@@ -140,8 +137,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { x: "date", length: "visits", connection: "setting", hue: "setting" },
 			})
 		)
@@ -160,8 +156,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { x: "month", y: "rate", connection: "payer", hue: "payer" },
 			})
 		)
@@ -182,8 +177,11 @@ describe("scenarios: what a model should be able to do", () => {
 		const thick = (await stored(chart.id)).channelConfigs.connection?.thicknessByValue
 		expect(thick?.Aetna).toBe(5)
 		expect(thick?.Cigna).toBe(seeded?.thickness)
-		const listed = parsed(await tools.list_settings({ chartId: chart.id, query: "thicknessByValue" }))
-		expect((listed.keys as { levels: Record<string, string[]> }).levels.payer).toEqual(["Aetna", "Cigna"])
+		const listed = parsed(await tools.list_settings({ chartId: chart.id, query: "thickness by value" }))
+		const row = (listed.rows as Array<{ path: string; value?: Record<string, number> }>).find(
+			(r) => r.path === "channelConfigs.connection.thicknessByValue.*"
+		)
+		expect(Object.keys(row?.value ?? {}).sort()).toEqual(["Aetna", "Cigna"])
 	})
 
 	it("25 a dumbbell from two periods needs nothing on shape or area", async () => {
@@ -195,8 +193,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				family: "dumbbell",
 				encodings: { y: "Hospital", x: "Median wait", hue: "Period" },
 			})
@@ -214,8 +211,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { x: "Hospital", y: "rate" },
 				settings: { channelConfigs: { connection: { axisStem: "x-axis" } } },
 			})
@@ -234,15 +230,14 @@ describe("scenarios: what a model should be able to do", () => {
 		const ds = await dataset("ed", [{ Hospital: "Riverside", "ED visits": 17210 }])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { x: "Hospital", length: "ED visits" },
 				themeId: "System Dark",
 			})
 		)
 		expect((await stored(chart.id)).themeId).toBe("system-dark")
 		const missing = refusal(
-			await tools.create_chart({ datasetId: ds, folderId: null, encodings: { x: "Hospital", length: "ED visits" }, themeId: "Neon" })
+			await tools.create_chart({ dataset: ds, encodings: { x: "Hospital", length: "ED visits" }, themeId: "Neon" })
 		)
 		expect(missing.problems[0].message).toMatch(/system-dark/)
 	})
@@ -254,15 +249,15 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { y: "state", length: "change" },
 			})
 		)
-		const palettes = parsed(await tools.list_settings({ chartId: chart.id, query: "fillColorRules" })).palettes as {
-			categorical: Array<{ colors: string[] }>
-		}
-		const [purple, orange] = palettes.categorical[0].colors
+		const palettes = parsed(await tools.list_settings({ chartId: chart.id, query: "fill color rules" })).palettes as Record<
+			string,
+			string[]
+		> & { categorical: string[] }
+		const [purple, orange] = palettes[palettes.categorical[0]]
 		parsed(
 			await tools.edit_chart({
 				id: chart.id,
@@ -294,8 +289,7 @@ describe("scenarios: what a model should be able to do", () => {
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				encodings: { x: "year", y: "sales", facet: "region" },
 			})
 		)
@@ -319,8 +313,7 @@ describe("variations a model names: maps and flows, and re-shaping an edit", () 
 		])
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				variation: "Choropleth",
 				encodings: { hue: "Rate" },
 				title: "Uninsured rate",
@@ -350,8 +343,7 @@ describe("variations a model names: maps and flows, and re-shaping an edit", () 
 		const before = (await (await fetch(`${server.base}/api/visuals?thumbnails=0`)).json()) as Visual[]
 		const out = refusal(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				variation: "Choropleth",
 				encodings: { connection: "Fruit", hue: "n" },
 			})
@@ -369,8 +361,7 @@ describe("variations a model names: maps and flows, and re-shaping an edit", () 
 		])
 		const created = parsed(
 			await tools.create_chart({
-				datasetId: ds,
-				folderId: null,
+				dataset: ds,
 				variation: "Sankey diagram",
 				encodings: { connection: "From", area: "Patients" },
 			})
@@ -379,5 +370,48 @@ describe("variations a model names: maps and flows, and re-shaping an edit", () 
 		expect((await stored(created.id)).channelConfigs.connection?.hierarchyLayout).toBe("sankey")
 		parsed(await tools.edit_chart({ id: created.id, patch: { variation: "Chord diagram" } }))
 		expect((await stored(created.id)).channelConfigs.connection?.hierarchyLayout).toBe("chord")
+	})
+})
+
+describe("recipes list_settings names", () => {
+	it("a histogram, a lollipop with stems from 0, a donut, and a box plot marking each level's mean", async () => {
+		const ds = await dataset("recipes", [
+			{ Hospital: "Riverside", stay: 3.5, beds: 120 },
+			{ Hospital: "Lakeview", stay: 4.25, beds: 90 },
+			{ Hospital: "Riverside", stay: 5, beds: 110 },
+		])
+		const hist = parsed(
+			await tools.create_chart({
+				dataset: ds,
+				encodings: { x: "stay" },
+				settings: { channelConfigs: { x: { histogram: { enabled: true } } } },
+			})
+		)
+		expect((await stored(hist.id)).channelConfigs.x?.histogram?.enabled).toBe(true)
+		const lolli = parsed(
+			await tools.create_chart({
+				dataset: ds,
+				encodings: { x: "Hospital", y: "beds" },
+				settings: { channelConfigs: { connection: { axisStem: "custom-y", axisStemCustomY: 0 } } },
+			})
+		)
+		expect((await stored(lolli.id)).channelConfigs.connection).toMatchObject({ axisStem: "custom-y" })
+		const donut = parsed(
+			await tools.create_chart({
+				dataset: ds,
+				encodings: { angle: "beds", hue: "Hospital" },
+				settings: { channelConfigs: { angle: { donutHoleRadius: 50 } } },
+			})
+		)
+		expect((await stored(donut.id)).channelConfigs.angle?.donutHoleRadius).toBe(50)
+		const box = parsed(
+			await tools.create_chart({
+				dataset: ds,
+				variation: "Box plot (vertical)",
+				encodings: { x: "Hospital", y: "stay" },
+				settings: { channelConfigs: { x: { distributionOverlay: { showPoints: false, markMean: true } } } },
+			})
+		)
+		expect((await stored(box.id)).channelConfigs.x?.distributionOverlay).toMatchObject({ showPoints: false, markMean: true })
 	})
 })

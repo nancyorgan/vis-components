@@ -1,7 +1,7 @@
 # Zafiro agent guide
 
-This guide is for the model driving Zafiro through the MCP tools, not for
-people. Read all of it before making a chart. Zafiro is encodings-first: you
+This guide documents, at length, the rules the MCP server's instructions and
+tool descriptions carry. No tool or resource serves it. Zafiro is encodings-first: you
 say which field goes to which channel, and the chart type follows from that.
 You never pick a chart type first.
 
@@ -11,8 +11,8 @@ A channel is a visual property a field can drive. The channels are `x`, `y`,
 `length`, `hue` (color), `outlineHue`, `area` (size), `shape`, `pattern`,
 `connection` (lines joining points, or a hierarchy), `angle`, `r`, `opacity`,
 `saturation`, `brightness`, `facet`, `facetRow`, `facetCol`. Each accepts some
-data types; `chart_vocabulary` lists them, with the quick-start families and
-their exact variations. `family` (or a `variation` by name, which implies
+data types; `create_chart`'s `variation` description lists the exact
+variation names. `family` (or a `variation` by name, which implies
 its family) in a spec picks a variation's seeding; the encodings still
 decide what draws. In `edit_chart`, a `variation` re-shapes the chart as
 that variation (stacked to grouped bars, a sankey to a chord) and keeps its

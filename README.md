@@ -124,17 +124,25 @@ Desktop (`claude_desktop_config.json`):
 }
 ```
 
-Tools:
+Tools (a first chart is two calls, `create_dataset` then `create_chart`, or
+one when the data set is already in the library; nothing needs reading
+first). The server's instructions carry the charting rules; the long-form
+`mcp/guide/agent-guide.md` is documentation only and no tool serves it.
 
-- `chart_vocabulary`: channels, chart families and variations, spec keys, folders and themes.
-- `list_datasets`: data sets with their fields, types and row counts.
-- `create_dataset`: store rows as a new data set (an identical one is reused).
-- `create_chart`: make a chart from an encodings-first spec; returns editor, embed and picture links.
-- `agent_guide`: the guide the model reads before its first chart (`mcp/guide/agent-guide.md`, bundled; also summarized in the server's instructions).
-- `get_chart`: a chart's encodings, titles, links and stored settings.
-- `edit_chart`: change only the keys a patch names (refused if the chart changed in the editor since it was read).
+- `create_dataset`: store rows as a new data set (an identical one is reused); returns its id, row count and field types.
+- `create_chart`: make a chart from encodings (the only required key). The data set, folder and theme go by name or id (`dataset`, `folder`, `themeId`; `datasetId` / `folderId` still work); an unknown, near-miss or shared name is refused with the choices and nothing is saved. Returns editor and embed links and the save's `revision`.
+- `edit_chart`: change only the keys a patch names. Builds on the `revision` it is given, else the one this session last saw; a chart changed elsewhere since then is refused until it is read again.
 - `undo_chart_edit`: undo this session's last `edit_chart` on a chart (refused if the chart changed since that edit).
-- `list_settings`: the stored settings a spec's `settings` key can set, by path (`*` = a level, field or panel key; `[]` = a list entry; lists replace whole). With a `chartId`, also the keys that chart's `*` paths take and its theme's palettes.
+- `get_chart`: a chart's encodings, titles, links, stored settings and `revision`.
+- `list_charts`: library counts and every folder by path; or one folder's charts (newest first, at most 50), narrowed by data set or name words. Trash and templates are left out, as in the library's Visuals view.
+- `list_datasets`: data sets with row counts; `fields: true` adds field types.
+- `list_settings`: search the stored settings a `settings` patch can set (`*` = a level, field or panel key; `[]` = a list entry; lists replace whole), a page at a time. With a `chartId`, each row shows the chart's current value, plus its theme's palette ids.
+
+The three chart writes declare an output schema and return the same JSON as
+`structuredContent`. `mcp/src/__snapshots__/surface.json` is the served
+surface (instructions, descriptions, schemas, annotations); a test keeps the
+instructions plus every description under 8,000 characters, and the
+snapshot changes only on purpose (`pnpm vitest run mcp/src/surface.test.ts -u`).
 
 The catalog behind `settings` is `src/contexts/chartBuilder/lib/settingCatalog.json`; regenerate it with `pnpm settings:catalog` after changing a saved config type. A setting behaves as its sidebar panel does (`lib/settingEffects.ts`): the panel and the settings path call the same lib function for anything a pick seeds, gates or normalizes.
 

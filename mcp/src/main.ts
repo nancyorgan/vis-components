@@ -6,16 +6,13 @@
  *  this talks to. Required, fail-fast. stdout is the MCP channel, so
  *  diagnostics go to stderr only. */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
-import { version } from "../../package.json"
 import { createApi } from "./api"
-import { SERVER_INSTRUCTIONS } from "./guide"
-import { createHandlers, registerTools } from "./tools"
+import { createZafiroServer } from "./server"
 
 const fail = (message: string): never => {
-	process.stderr.write(`Refusing to start — ${message}\n`)
+	process.stderr.write(`Refusing to start: ${message}\n`)
 	process.exit(1)
 }
 
@@ -32,9 +29,7 @@ const apiUrl = (): string => {
 }
 
 const main = async (): Promise<void> => {
-	const server = new McpServer({ name: "zafiro", version }, { instructions: SERVER_INSTRUCTIONS })
-	registerTools(server, createHandlers(createApi(apiUrl())))
-	await server.connect(new StdioServerTransport())
+	await createZafiroServer(createApi(apiUrl())).connect(new StdioServerTransport())
 }
 
 main().catch((error: unknown) => fail(error instanceof Error ? error.message : String(error)))

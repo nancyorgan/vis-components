@@ -48,16 +48,15 @@ describe("MCP tools over the real HTTP API", () => {
 				],
 			})
 		)
-		const listed = parsed(await tools.list_datasets(undefined)) as unknown as Array<{ id: string; rowCount: number }>
-		expect(listed).toContainEqual(expect.objectContaining({ id: ds.id, rowCount: 2 }))
+		const listed = parsed(await tools.list_datasets({})) as unknown as { datasets: Array<{ id: string; rows: number }> }
+		expect(listed.datasets).toContainEqual(expect.objectContaining({ id: ds.id, rows: 2 }))
 		const body = (await (await fetch(`${base}/api/datasets/${ds.id}`)).json()) as Dataset
 		const version = await fetch(`${base}/api/datasets/${ds.id}/versions/${body.latestVersionId}`)
 		expect(version.status).toBe(200)
 
 		const chart = parsed(
 			await tools.create_chart({
-				datasetId: ds.id,
-				folderId: null,
+				dataset: "fruit",
 				encodings: { x: "fruit", length: "count" },
 				title: "Fruit",
 			})
@@ -138,7 +137,7 @@ describe("MCP tools over the real HTTP API", () => {
 		const result = await tools.edit_chart({ id, patch: { title: "Mine" } })
 		expect(result.isError).toBe(true)
 		expect((JSON.parse((result.content[0] as { text: string }).text) as ToolOutput).message).toMatch(
-			/changed in the editor since it was read/
+			/changed elsewhere .* since it was read; nothing was saved/
 		)
 		expect(await storedVisual(id)).toEqual(editorCopy)
 		expect((await tools.undo_chart_edit({ id })).isError).toBe(true)

@@ -131,7 +131,8 @@ describe("create_dataset", () => {
 		expect(writes[0].headers["x-vis-versions-managed"]).toBe("1")
 		for (const w of writes) expect(w.headers[CONTENT_VERSION_HEADER]).toBeDefined()
 		expect(out.rowCount).toBe(3)
-		expect(out.fields).toContainEqual({ name: "sales", type: "quantitative" })
+		expect(out.fields).toEqual({ year: "quantitative", region: "categorical", sales: "quantitative" })
+		expect(out.reused).toBe(false)
 	})
 
 	it("reuses an identical data set instead of writing", async () => {
@@ -168,7 +169,10 @@ describe("create_chart", () => {
 		expect(put.headers[CONTENT_VERSION_HEADER]).toBe(String(VISUALS_VERSION))
 		expect(JSON.parse(put.body ?? "{}")).not.toHaveProperty("thumbnail")
 		expect(out.editorUrl).toBe(`https://charts.example.com/editor/${out.id}`)
-		expect(out.pictureUrl).toBe(`https://charts.example.com/embed/${out.id}?export=png`)
+		expect(out.embedUrl).toBe(`https://charts.example.com/embed/${out.id}`)
+		expect(out).not.toHaveProperty("pictureUrl")
+		expect(out.revision).toMatch(/^"t\d+"$/)
+		expect(result.structuredContent).toEqual(out)
 		expect(s.visuals.get(out.id)?.themeId).toBeDefined()
 	})
 
@@ -192,7 +196,7 @@ describe("create_chart", () => {
 			encodings: { x: "year" },
 		})
 		expect(result.isError).toBe(true)
-		expect(parsed(result).message).toMatch(/behind the server's content; rebuild/)
+		expect(parsed(result).message).toMatch(/^Nothing was saved: .*newer data format.*Update the MCP/)
 		expect(s.writes()).toEqual([])
 	})
 })
@@ -308,51 +312,38 @@ describe("settings", () => {
 		expect(parsed(edit).problems[0].message).toMatch(/read-only/)
 	})
 
-	it("agent_guide returns the bundled guide", async () => {
-		const s = setup()
-		const out = await s.tools.agent_guide(undefined)
-		const text = (out.content[0] as { text: string }).text
-		expect(text).toContain("# Zafiro agent guide")
-		expect(text).toContain("Bar axes start at zero")
-	})
-
-	it("list_settings filters by slice and query, and refuses an unknown slice", async () => {
-		const s = setup()
-		const out = parsed(await s.tools.list_settings({ slice: "channelConfigs", query: "GRIDLINES.enabled" }))
-		const rows = out.rows as Array<{ path: string; kinds: string[] }>
-		expect(rows.length).toBeGreaterThan(0)
-		expect(rows.every((r) => r.path.startsWith("channelConfigs.") && /gridlines\.enabled/i.test(r.path))).toBe(true)
-		expect(rows.find((r) => r.path === "channelConfigs.x.gridlines.enabled")?.kinds).toEqual(["boolean"])
-		const all = parsed(await s.tools.list_settings({}))
-		expect(all.rows).toHaveLength(200)
-		expect(all.note).toMatch(/narrow the query/)
-		const bad = await s.tools.list_settings({ slice: "labelConfig" })
-		expect(bad.isError).toBe(true)
-		expect(parsed(bad).message).toContain('did you mean "labelsConfig"')
-	})
-
-	it("list_settings with a chart returns the keys its `*` paths take and the theme's palettes", async () => {
+	it("list_settings searches, pages, and with a chart shows its values and a small palettes hint", async () => {
 		const s = await withDataset()
-		const created = parsed(
+		const plain = parsed(await s.tools.list_settings({ query: "gridlines enabled" }))
+		const rows = plain.rows as Array<{ path: string; type: string }>
+		expect(rows.find((r) => r.path === "channelConfigs.x.gridlines.enabled")?.type).toBe("boolean")
+		expect(plain).not.toHaveProperty("palettes")
+		const census = parsed(await s.tools.list_settings({}))
+		expect(census.rows).toEqual([])
+		expect((census.census as unknown[]).length).toBeGreaterThan(5)
+		const { id } = parsed(
 			await s.tools.create_chart({
-				datasetId: s.datasetId,
-				folderId: null,
-				encodings: { x: "year", y: "sales", hue: "region", facet: "region" },
-				settings: { dataLabelsEncodings: { value: { field: null, multiField: true, fields: ["sales"] } } },
+				dataset: "Sales",
+				encodings: { x: "year", y: "sales", hue: "region", connection: "region" },
+				settings: { legendConfig: { position: "bottom" } },
 			})
 		)
-		expect(created.id).toBeDefined()
-		const out = parsed(await s.tools.list_settings({ chartId: created.id as string, query: "panelOrder" }))
-		const keys = out.keys as { fields: string[]; levels: Record<string, string[]>; composedLabels: string[]; facetPanels: string[] }
-		expect(keys.fields).toEqual(["year", "region", "sales"])
-		expect(keys.levels).toEqual({ region: ["North", "South"] })
-		expect(keys.facetPanels).toEqual(["North", "South"])
-		expect(keys.composedLabels).toEqual(["sales"])
-		const palettes = out.palettes as { categorical: Array<{ id: string; colors: string[] }> }
+		for (const query of ["line", "legend position", "data labels"]) {
+			const r = await s.tools.list_settings({ chartId: id as string, query })
+			const text = (r.content[0] as { text: string }).text
+			expect(text.length, query).toBeLessThan(3000)
+			expect(text).not.toContain("\u2014")
+		}
+		const legend = parsed(await s.tools.list_settings({ chartId: id as string, query: "legend position" }))
+		expect((legend.rows as Array<{ path: string; value?: unknown }>).find((r) => r.path === "legendConfig.position")?.value).toBe(
+			"bottom"
+		)
+		const palettes = legend.palettes as Record<string, unknown> & { categorical: string[]; text: string | null }
 		expect(palettes.categorical.length).toBeGreaterThan(0)
-		expect(palettes.categorical[0].colors[0]).toMatch(/^#/)
+		expect((palettes[palettes.categorical[0]] as string[])[0]).toMatch(/^#/)
 		const missing = await s.tools.list_settings({ chartId: "nope" })
 		expect(missing.isError).toBe(true)
+		expect(parsed(missing).message).toMatch(/list_charts finds/)
 	})
 })
 
@@ -369,7 +360,7 @@ describe("stale-edit guard", () => {
 		s.hooks.beforeVisualWrite = editorSaveOnce(s)
 		const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
 		expect(result.isError).toBe(true)
-		expect(parsed(result).message).toMatch(/changed in the editor since it was read/)
+		expect(parsed(result).message).toMatch(/changed elsewhere .* since it was read; nothing was saved/)
 		const [put, ...more] = s.writes()
 		expect(more).toEqual([])
 		expect(put.headers["if-match"]).toMatch(/^"t\d+"$/)
@@ -384,7 +375,7 @@ describe("stale-edit guard", () => {
 		editorSaveOnce(s)()
 		const result = await s.tools.undo_chart_edit({ id: s.id })
 		expect(result.isError).toBe(true)
-		expect(parsed(result).message).toMatch(/changed in the editor/)
+		expect(parsed(result).message).toMatch(/changed elsewhere/)
 		expect(s.visuals.get(s.id)?.name).toBe("Editor")
 		expect(s.visuals.get(s.id)?.labelsConfig.title).toBe("Mine")
 	})
@@ -400,6 +391,29 @@ describe("stale-edit guard", () => {
 		expect({ ...s.visuals.get(s.id), updatedAt: 0 }).toEqual({ ...original, updatedAt: 0 })
 	})
 
+	it("an outside save after this session's last result pauses the next edit; get_chart then lets it through", async () => {
+		const s = await lineChart()
+		editorSaveOnce(s)()
+		const paused = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
+		expect(paused.isError).toBe(true)
+		expect(parsed(paused).message).toMatch(/Tell the person and ask what they want.*get_chart/)
+		expect(s.writes()).toEqual([])
+		const { revision } = parsed(await s.tools.get_chart({ id: s.id }))
+		expect(revision).toMatch(/^"t\d+"$/)
+		expect((await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })).isError).toBeFalsy()
+		expect(s.visuals.get(s.id)?.name).toBe("Editor")
+	})
+
+	it("a revision that isn't the stored one refuses the edit and says to read the chart again", async () => {
+		const s = await lineChart()
+		const result = await s.tools.edit_chart({ id: s.id, revision: '"t999"', patch: { title: "Mine" } })
+		expect(result.isError).toBe(true)
+		expect(parsed(result).message).toMatch(/read it again with get_chart/)
+		expect(s.writes()).toEqual([])
+		const current = parsed(await s.tools.get_chart({ id: s.id })).revision as string
+		expect((await s.tools.edit_chart({ id: s.id, revision: current, patch: { title: "Mine" } })).isError).toBeFalsy()
+	})
+
 	describe("against a server older than ETags", () => {
 		const editorSave = (id: string) => (visuals: Map<string, Visual>, read: number) => {
 			const v = visuals.get(id)
@@ -411,7 +425,7 @@ describe("stale-edit guard", () => {
 			s.hooks.beforeVisualsRead = editorSave(s.id)
 			const result = await s.tools.edit_chart({ id: s.id, patch: { title: "Mine" } })
 			expect(result.isError).toBe(true)
-			expect(parsed(result).message).toMatch(/changed in the editor since it was read/)
+			expect(parsed(result).message).toMatch(/changed elsewhere .* since it was read; nothing was saved/)
 			expect(s.writes()).toEqual([])
 			expect(s.visuals.get(s.id)?.name).toBe("Editor")
 		})
