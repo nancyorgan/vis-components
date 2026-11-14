@@ -38,6 +38,7 @@ export const HexbinMode: ChartModeDef = {
 		connectionRole: "none",
 		shapeRole: "cell",
 		areaRole: "none",
+		mark: "cell",
 		statOverlays: false,
 		measureAxis: null,
 	},

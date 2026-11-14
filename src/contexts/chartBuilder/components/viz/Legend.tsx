@@ -95,6 +95,9 @@ type LegendOuterProps = {
 	/** Measurement callback ChartCanvas attaches when it needs the
 	 *  legend's size to compute `insideExtras`. */
 	insideMeasureRef?: (el: HTMLElement | null) => void
+	/** The inside legend's measured size, from the same measurement. Lets
+	 *  the legend hold its own box on the canvas (see `planLegendSections`). */
+	insideSize?: { width: number; height: number }
 	/** Set by ChartCanvas for edge positions when the fixed aspect ratio
 	 *  leaves slack: a pulling negative margin (plus relative z-index) that
 	 *  moves the legend flush against the centered figure. Applied directly
@@ -111,6 +114,7 @@ const ZERO_EXTRAS: InsideExtras = { top: 0, right: 0, bottom: 0, left: 0 }
 export const Legend = ({
 	insideExtras = ZERO_EXTRAS,
 	insideMeasureRef,
+	insideSize,
 	pullStyle,
 }: LegendOuterProps = {}) => {
 	const overrides = useAtomValue(currentFieldOverridesAtom)
@@ -278,6 +282,7 @@ export const Legend = ({
 		legendCfg,
 		modeDef,
 		insideExtras,
+		insideSize,
 		levelOrders,
 		swatchTheme: theme,
 		measureText: measureMaxLabelWidth,

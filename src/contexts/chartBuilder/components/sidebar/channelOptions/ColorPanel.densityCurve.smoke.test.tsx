@@ -130,11 +130,11 @@ const histogramConfigs = (opts: {
 })
 
 describe("ColorPanel — density-curve group visibility", () => {
-	it("pure density curve: only the Density Curve groups (no mark Fill / Outline)", () => {
+	it("pure density curve: only the Density Curve groups (no Point fill / Point outline)", () => {
 		const { container } = mount(loneScoreEncodings, pureDensityConfigs(true))
 		const headers = subheaders(container)
-		expect(headers).not.toContain("Fill")
-		expect(headers).not.toContain("Outline")
+		expect(headers).not.toContain("Point fill")
+		expect(headers).not.toContain("Point outline")
 		expect(headers).toContain("Density curve fill")
 		expect(headers).toContain("Density curve outline")
 	})
@@ -142,8 +142,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 	it("pure density curve without 'Fill under curve': outline group only", () => {
 		const { container } = mount(loneScoreEncodings, pureDensityConfigs(false))
 		const headers = subheaders(container)
-		expect(headers).not.toContain("Fill")
-		expect(headers).not.toContain("Outline")
+		expect(headers).not.toContain("Point fill")
+		expect(headers).not.toContain("Point outline")
 		expect(headers).not.toContain("Density curve fill")
 		expect(headers).toContain("Density curve outline")
 	})
@@ -154,8 +154,8 @@ describe("ColorPanel — density-curve group visibility", () => {
 			histogramConfigs({ showDensity: true, densityFill: true })
 		)
 		const headers = subheaders(container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
+		expect(headers).toContain("Bar fill")
+		expect(headers).toContain("Bar outline")
 		expect(headers).toContain("Density curve fill")
 		expect(headers).toContain("Density curve outline")
 	})
@@ -166,25 +166,25 @@ describe("ColorPanel — density-curve group visibility", () => {
 			histogramConfigs({ showDensity: true })
 		)
 		const headers = subheaders(container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
+		expect(headers).toContain("Bar fill")
+		expect(headers).toContain("Bar outline")
 		expect(headers).not.toContain("Density curve fill")
 		expect(headers).toContain("Density curve outline")
 	})
 
-	it("plain histogram (no curve): only the mark Fill / Outline groups", () => {
+	it("plain histogram (no curve): only the Bar fill / Bar outline groups", () => {
 		const { container } = mount(
 			loneScoreEncodings,
 			histogramConfigs({ showDensity: false })
 		)
 		const headers = subheaders(container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
+		expect(headers).toContain("Bar fill")
+		expect(headers).toContain("Bar outline")
 		expect(headers).not.toContain("Density curve fill")
 		expect(headers).not.toContain("Density curve outline")
 	})
 
-	it("regular scatter (both axes mapped) keeps Fill / Outline even with a stale curve flag", () => {
+	it("regular scatter (both axes mapped) keeps Point fill / Point outline even with a stale curve flag", () => {
 		// A leftover showDensityCurve=true from a lone-axis session must not hide
 		// the mark groups once a second axis is mapped — the points render again.
 		const { container } = mount(
@@ -192,7 +192,7 @@ describe("ColorPanel — density-curve group visibility", () => {
 			pureDensityConfigs(true)
 		)
 		const headers = subheaders(container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
+		expect(headers).toContain("Point fill")
+		expect(headers).toContain("Point outline")
 	})
 })

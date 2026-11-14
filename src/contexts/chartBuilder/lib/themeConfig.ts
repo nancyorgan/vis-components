@@ -1,3 +1,5 @@
+import { lineDashInEffect } from "./lineDashState"
+import type { OfferedTargets, SizeSection } from "./markParts"
 import {
 	DEFAULT_ANGLE,
 	DEFAULT_ANGLE_CONFIG,
@@ -12,6 +14,7 @@ import {
 	DEFAULT_PATTERN_CONFIG,
 	DEFAULT_QUANTITATIVE_HUE_CONFIG,
 	DEFAULT_REGRESSION_CONFIG,
+	DEFAULT_DENSITY_CURVE_WIDTH,
 	DEFAULT_SEGMENT_THICKNESS,
 	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
@@ -745,6 +748,28 @@ type DotCtx = {
 	/** The Color (hue) variable: a Line slot that only follows it is the
 	 *  seeded state of a line chart, not an edit (`lineSlotFollowsHue`). */
 	hueField?: string | null
+	/** The per-part targets the current chart's menus show
+	 *  (`offeredTargets`, lib/markParts). A stored target outside it is a
+	 *  leftover from another chart type — nothing draws it and no control can
+	 *  clear it — so it must not light a dot. Omitted = every stored target
+	 *  counts (callers that do not know the chart). */
+	offered?: OfferedTargets
+}
+
+type SizeSectionKind = SizeSection["kind"]
+
+/** A shape config without the thicknesses the Size row owns. */
+const withoutThickness = (shape: ShapeConfig): Partial<ShapeConfig> => {
+	const {
+		outlineWidth: _outline,
+		outlineWidthField: _field,
+		outlineWidthByValue: _byValue,
+		distributionOutlineWidth: _overlay,
+		regionOutlineWidth: _region,
+		densityCurveOutlineWidth: _curve,
+		...rest
+	} = shape
+	return rest
 }
 
 /** A live value differs from its default. An absent/empty live value falls back
@@ -850,14 +875,16 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 			changed: differs(configs.angle?.spine, angleConfigFromTheme(theme).spine),
 		},
 	],
-	hue: ({ configs, theme, fieldMapped, hueField }) => [
+	hue: ({ configs, theme, fieldMapped, hueField, offered }) => [
 		{ label: "default fill", changed: differs(configs.defaultFill, theme.defaultFill) },
 		// Per-slot deviation, NOT mere presence: the panel writes a well-formed
 		// default slot object on any touch (a reset included), which must not dot.
 		{
 			label: "color slots",
-			changed: Object.entries(configs.colorSlots ?? {}).some(([key, slot]) =>
-				colorSlotEdited(key as ColorSlotKey, slot, configs, theme, hueField)
+			changed: Object.entries(configs.colorSlots ?? {}).some(
+				([key, slot]) =>
+					(!offered || offered.color.has(key)) &&
+					colorSlotEdited(key as ColorSlotKey, slot, configs, theme, hueField)
 			),
 		},
 		{ label: "fill scale edits", changed: hueScaleEdited(configs.hue) },
@@ -922,14 +949,16 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 					)),
 		},
 	],
-	opacity: ({ configs, theme, fieldMapped }) => [
+	opacity: ({ configs, theme, fieldMapped, offered }) => [
 		{ label: "default opacity", changed: differs(configs.defaultOpacity, theme.defaultOpacity) },
 		// Per-slot deviation, NOT mere presence: the panel writes a well-formed
 		// default slot object on any touch (a reset included), which must not dot.
 		{
 			label: "opacity slots",
-			changed: Object.entries(configs.opacitySlots ?? {}).some(([key, slot]) =>
-				opacitySlotEdited(key as OpacitySlotKey, slot)
+			changed: Object.entries(configs.opacitySlots ?? {}).some(
+				([key, slot]) =>
+					(!offered || offered.opacity.has(key)) &&
+					opacitySlotEdited(key as OpacitySlotKey, slot)
 			),
 		},
 		// Scale + stacking edits live on `configs.opacity`, which is retained when
@@ -942,11 +971,28 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 			changed: fieldMapped && (configs.opacity?.stackMode ?? "stack") !== "stack",
 		},
 	],
-	shape: ({ configs, theme }) => [
-		{ label: "shape config", changed: differs(configs.shape, shapeConfigFromTheme(theme)) },
-		{ label: "default shape", changed: differs(configs.defaultShape, theme.defaultShape) },
+	// With no marks drawn (the pure density curve) the Shape menu has no
+	// glyph or outline to show a control for.
+	// The outline's thickness and the violin / box strokes' are stored on the
+	// shape config but edited (and dotted) under Size.
+	shape: ({ configs, theme, offered }) => [
+		{
+			label: "shape config",
+			changed:
+				(!offered || offered.parts.marks) &&
+				differs(
+					configs.shape && withoutThickness(configs.shape),
+					withoutThickness(shapeConfigFromTheme(theme))
+				),
+		},
+		{
+			label: "default shape",
+			changed:
+				(!offered || offered.parts.marks) &&
+				differs(configs.defaultShape, theme.defaultShape),
+		},
 	],
-	pattern: ({ configs, theme }) => [
+	pattern: ({ configs, theme, fieldMapped }) => [
 		{ label: "pattern config", changed: differs(configs.pattern, patternConfigFromTheme(theme)) },
 		{ label: "default pattern", changed: differs(configs.defaultPattern, null) },
 		{ label: "default pattern ink", changed: differs(configs.defaultPatternInk ?? null, null) },
@@ -967,40 +1013,124 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 				(configs.connection?.defaultDashPattern ?? "solid") !== "solid" ||
 				(configs.connection?.customDashPattern ?? null) !== null,
 		},
+		// The gap fill, gap colors and range style a dash, and the panel shows
+		// them only while one can draw (`lineDashInEffect`); the range is
+		// further hidden (and ignored by the renderers) while a Pattern
+		// variable is mapped. Left behind on a solid line they are not edits.
 		{
 			label: "dash gap fill",
-			changed: (configs.connection?.dashGapFill ?? null) !== null,
+			changed:
+				lineDashInEffect(configs, fieldMapped) &&
+				(configs.connection?.dashGapFill ?? null) !== null,
 		},
 		{
 			label: "dash gap colors",
 			changed:
-				!isEmptyConfigValue(configs.connection?.dashAlternateColors) ||
-				(configs.connection?.dashGapColor ?? null) !== null,
+				lineDashInEffect(configs, fieldMapped) &&
+				(!isEmptyConfigValue(configs.connection?.dashAlternateColors) ||
+					(configs.connection?.dashGapColor ?? null) !== null),
 		},
 		{
 			label: "dash range",
-			changed: differs(
-				{ ...DEFAULT_DASH_RANGE, ...configs.connection?.dashRange },
-				DEFAULT_DASH_RANGE
-			),
+			changed:
+				!fieldMapped &&
+				lineDashInEffect(configs, fieldMapped) &&
+				differs(
+					{ ...DEFAULT_DASH_RANGE, ...configs.connection?.dashRange },
+					DEFAULT_DASH_RANGE
+				),
 		},
 	],
 	// Area / saturation / brightness panels show DIFFERENT controls depending on
 	// whether a field is mapped (min/max range + stacking vs a single default),
 	// so each dot is gated to the state where its control is actually visible —
 	// a deviation the current panel can't clear must not light the dot.
-	area: ({ configs, theme, fieldMapped }) => [
-		{
-			label: "size range",
-			changed:
-				fieldMapped &&
-				differs(configs.area, { minRadius: theme.areaMin, maxRadius: theme.areaMax }),
-		},
-		{
-			label: "default radius",
-			changed: !fieldMapped && differs(configs.defaultRadius, theme.defaultRadius),
-		},
-	],
+	//
+	// The Size row also holds every THICKNESS, one section per stroke the
+	// chart draws (`sizeSections`, lib/markParts). Each is stored with the
+	// part it belongs to (the shape, connection, length and x-axis configs)
+	// and dots here, where its control is; a thickness whose stroke the chart
+	// does not draw has no control to clear it and does not dot.
+	area: ({ configs, theme, fieldMapped, offered }) => {
+		const section = (kind: SizeSectionKind) => offered?.size.get(kind)
+		const shown = (kind: SizeSectionKind): boolean => !offered || !!section(kind)
+		const line = section("line")
+		const c = configs.connection
+		return [
+			{
+				label: "size range",
+				changed:
+					fieldMapped &&
+					differs(configs.area, { minRadius: theme.areaMin, maxRadius: theme.areaMax }),
+			},
+			{
+				label: "default radius",
+				// Point size shows only where points are drawn.
+				changed:
+					!fieldMapped &&
+					(!offered || offered.parts.points) &&
+					differs(configs.defaultRadius, theme.defaultRadius),
+			},
+			{
+				label: "outline thickness",
+				changed:
+					shown("outline") &&
+					(differs(configs.shape?.outlineWidth, theme.outlineWidth) ||
+						!!configs.shape?.outlineWidthField),
+			},
+			// A per-level thickness ("Vary by") is a real change too — where
+			// the chart's lines can take one.
+			{
+				label: "line thickness",
+				changed:
+					(!offered || !!line) &&
+					(differs(c?.thickness, theme.connectionThickness) ||
+						((!offered || !!line?.varyBy) &&
+							(!!c?.thicknessField || Object.keys(c?.thicknessByValue ?? {}).length > 0))),
+			},
+			{
+				label: "stem thickness",
+				changed: shown("stem") && c?.stemThickness != null,
+			},
+			{
+				label: "density curve thickness",
+				changed:
+					shown("densityOutline") &&
+					(configs.shape?.densityCurveOutlineWidth ?? DEFAULT_DENSITY_CURVE_WIDTH) !==
+						DEFAULT_DENSITY_CURVE_WIDTH,
+			},
+			{
+				label: "segment thickness",
+				changed:
+					shown("segment") &&
+					((configs.length?.segmentThickness ?? DEFAULT_SEGMENT_THICKNESS) !==
+						DEFAULT_SEGMENT_THICKNESS ||
+						!!configs.length?.segmentThicknessField),
+			},
+			{
+				label: "violin / box outline thickness",
+				changed:
+					shown("violinOutline") &&
+					differs(
+						configs.shape?.distributionOutlineWidth,
+						DEFAULT_SHAPE_CONFIG.distributionOutlineWidth
+					),
+			},
+			{
+				label: "region outline thickness",
+				changed: shown("regionOutline") && configs.shape?.regionOutlineWidth != null,
+			},
+			{
+				label: "regression line thickness",
+				changed:
+					shown("regressionLine") &&
+					differs(
+						configs.x?.regression?.strokeWidth,
+						(axisConfigFromTheme(theme, "x").regression ?? DEFAULT_REGRESSION_CONFIG).strokeWidth
+					),
+			},
+		]
+	},
 	length: ({ configs, theme }) => [
 		{
 			label: "length range",
@@ -1018,19 +1148,13 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 		// "Draw as" (x + y + length): bars is the opt-in; segments the default.
 		{ label: "draw as", changed: configs.length?.render === "bars" },
 		{ label: "default length", changed: differs(configs.defaultLength, null) },
-		{
-			label: "segment thickness",
-			changed:
-				(configs.length?.segmentThickness ?? DEFAULT_SEGMENT_THICKNESS) !==
-					DEFAULT_SEGMENT_THICKNESS ||
-				!!configs.length?.segmentThicknessField,
-		},
+		// (The segments' thickness dots under Size, where it is edited.)
 		{
 			label: "segment line cap",
 			changed: (configs.length?.segmentLineCap ?? "round") !== "round",
 		},
 	],
-	angle: ({ configs, theme }) => [
+	angle: ({ configs, theme, offered }) => [
 		{
 			label: "angle config",
 			// Minus the spine, which dots R position (see `r` above).
@@ -1039,9 +1163,15 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 				{ ...angleConfigFromTheme(theme), spine: undefined }
 			),
 		},
-		{ label: "default angle", changed: differs(configs.defaultAngle, DEFAULT_ANGLE) },
+		{
+			label: "default angle",
+			// The unmapped angle shows only where marks turn (glyphs, segments).
+			changed:
+				(!offered || offered.parts.glyphs || offered.parts.segments) &&
+				differs(configs.defaultAngle, DEFAULT_ANGLE),
+		},
 	],
-	saturation: ({ configs, theme, fieldMapped }) => [
+	saturation: ({ configs, theme, fieldMapped, offered }) => [
 		{
 			label: "saturation range",
 			changed:
@@ -1067,10 +1197,13 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 		},
 		{
 			label: "saturation slots",
-			changed: Object.values(configs.saturationSlots ?? {}).some(modulationSlotEdited),
+			changed: Object.entries(configs.saturationSlots ?? {}).some(
+				([key, slot]) =>
+					(!offered || offered.modulation.has(key)) && modulationSlotEdited(slot)
+			),
 		},
 	],
-	brightness: ({ configs, theme, fieldMapped }) => [
+	brightness: ({ configs, theme, fieldMapped, offered }) => [
 		{
 			label: "brightness range",
 			changed:
@@ -1096,11 +1229,18 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 		},
 		{
 			label: "brightness slots",
-			changed: Object.values(configs.brightnessSlots ?? {}).some(modulationSlotEdited),
+			changed: Object.entries(configs.brightnessSlots ?? {}).some(
+				([key, slot]) =>
+					(!offered || offered.modulation.has(key)) && modulationSlotEdited(slot)
+			),
 		},
 	],
-	connection: ({ configs, theme, fieldMapped }) => {
+	connection: ({ configs, theme, fieldMapped, offered }) => {
 		const c = configs.connection
+		// The line's controls show only while a line is drawn; the stem
+		// control needs marks. (The line's thickness dots under Size.)
+		const lineDrawn = !offered || offered.parts.line
+		const marksDrawn = !offered || offered.parts.marks
 		return [
 			// "Fill area under line" and point-sampling controls only APPEAR in the panel
 			// when a connection field is mapped (the Polygon / sampling sections are
@@ -1113,25 +1253,16 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 					fieldMapped &&
 					(c?.fill ?? DEFAULT_CONNECTION_CONFIG.fill) !== DEFAULT_CONNECTION_CONFIG.fill,
 			},
-			// A per-level thickness ("Vary by") is a real change too — but only
-			// while a connection field is mapped, since that's the only time the
-			// panel offers the control that could clear it.
-			{
-				label: "line thickness",
-				changed:
-					differs(c?.thickness, theme.connectionThickness) ||
-					(fieldMapped &&
-						(!!c?.thicknessField ||
-							Object.keys(c?.thicknessByValue ?? {}).length > 0)),
-			},
-			{ label: "line cap", changed: (c?.lineCap ?? "round") !== "round" },
+			{ label: "line cap", changed: lineDrawn && (c?.lineCap ?? "round") !== "round" },
+			// "Smooth line": off (0) is the untouched state, as the panel reads it.
+			{ label: "line smoothing", changed: lineDrawn && (c?.smoothing ?? 0) > 0 },
 			{
 				label: "point sampling",
 				changed: fieldMapped && (c?.pointSampling ?? "all") !== "all",
 			},
 			// Lollipop "connect to axis" is a scatter control, available without a
 			// connection field, so it isn't gated.
-			{ label: "axis stem", changed: (c?.axisStem ?? "none") !== "none" },
+			{ label: "axis stem", changed: marksDrawn && (c?.axisStem ?? "none") !== "none" },
 			// Packed-circles nesting: picking an ID column is a real edit (the
 			// theme default is null = one grouping level). Gated on a mapped
 			// connection field because the control only appears with one.
@@ -1199,10 +1330,13 @@ export const channelHasCustomization = (
 	configs: ChannelConfigs,
 	theme: Theme,
 	fieldMapped = false,
-	hueField: string | null = null
+	hueField: string | null = null,
+	offered?: OfferedTargets
 ): boolean => {
 	const spec = CHANNEL_DOT_CONTROLS[channel]
-	return spec ? spec({ configs, theme, fieldMapped, hueField }).some((c) => c.changed) : false
+	return spec
+		? spec({ configs, theme, fieldMapped, hueField, offered }).some((c) => c.changed)
+		: false
 }
 
 /** DEV diagnostic: the labels of the controls that are non-default for this
@@ -1212,11 +1346,12 @@ export const explainChannelCustomization = (
 	configs: ChannelConfigs,
 	theme: Theme,
 	fieldMapped = false,
-	hueField: string | null = null
+	hueField: string | null = null,
+	offered?: OfferedTargets
 ): string[] => {
 	const spec = CHANNEL_DOT_CONTROLS[channel]
 	if (!spec) return []
-	return spec({ configs, theme, fieldMapped, hueField })
+	return spec({ configs, theme, fieldMapped, hueField, offered })
 		.filter((c) => c.changed)
 		.map((c) => c.label)
 }

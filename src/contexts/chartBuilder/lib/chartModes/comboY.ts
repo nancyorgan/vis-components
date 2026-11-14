@@ -35,6 +35,7 @@ export const ComboYMode: ChartModeDef = {
 		connectionRole: "line",
 		shapeRole: "glyph",
 		areaRole: "mark",
+		mark: "bar",
 		statOverlays: false,
 		measureAxis: "x",
 		resolveMeasureField: (encodings) => encodings.length?.field ?? null,

@@ -12,6 +12,7 @@ import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
 import { sampleMarkersByConnection } from "../../lib/connectionSampling"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
+import { outlineWidthResolver } from "../../lib/markOutline"
 import { radial } from "./coords"
 import { SPOKE_LABEL_PADDING } from "./coords/radial"
 import { sortByDrawOrder } from "../../lib/drawOrder"
@@ -26,11 +27,19 @@ import { polygonBodyResolver } from "../../lib/radarPolygonFill"
 import { resolveMarkAesthetics } from "../../lib/resolveMarkAesthetics"
 import { applyHueScale } from "../../lib/scales"
 import { resolveRuleColor } from "../../lib/textColorRules"
-import { dashArrayFor, sanitizeCustomDasharray } from "../../lib/dashPatterns"
+import {
+	dashArrayFor,
+	dashSpecForPatternValue,
+	resolveDashGapColor,
+	resolveDashGapFill,
+	sanitizeCustomDasharray,
+} from "../../lib/dashPatterns"
+import { splitLoopAtRange } from "../../lib/dashLoopRange"
+import { inkPaletteForHue } from "../../lib/patterns"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import { buildRadarScales } from "../../lib/radarScales"
-import { uniqueFieldValues } from "../../lib/uniqueFieldValues"
+import { uniqueFieldValues, uniqueValues } from "../../lib/uniqueFieldValues"
 import { GlyphMark, resolveGlyph } from "../../lib/customGlyphs"
 import { resolveShapeColors } from "../../lib/shapeColors"
 import type { DatasetView, FieldType } from "../../lib/types"
@@ -492,6 +501,15 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 						? levelOrders[channelConfigs.drawOrder.field]
 						: undefined,
 					patternBgOverride,
+					// "Apply pattern to range" runs around the angle axis: a typed
+					// bound is a spoke's value (a number where the axis is numeric).
+					(value) => {
+						if (value === null || value === "") return null
+						const direct = angleScale(value)
+						if (direct !== null) return direct
+						const numeric = Number(value)
+						return Number.isFinite(numeric) ? angleScale(numeric) : null
+					},
 				)
 			: null
 
@@ -511,7 +529,8 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 				)
 			: null
 
-		const outlineWidth = channelConfigs.shape?.outlineWidth ?? 1
+		// The points' outline thickness: one value, or the point's level's.
+		const outlineWidthFor = outlineWidthResolver(channelConfigs)
 		// Per-point outline (stroke) opacity from the Border slot — the POINTS'
 		// outline only; the polygon outline reads the Line slot (buildPolygons).
 		const pointBorderOpacity = slotOpacityResolver(
@@ -601,8 +620,8 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 							stroke={mh.outline ?? p.shapeStroke}
 							strokeWidth={
 								mh.outline
-									? Math.max(outlineWidth, mh.outlineWidth)
-									: outlineWidth
+									? Math.max(outlineWidthFor(p.row), mh.outlineWidth)
+									: outlineWidthFor(p.row)
 							}
 							strokeOpacity={
 								mh.outline ? 1 : pointBorderOpacity(p.row) * mh.opacityMul
@@ -719,6 +738,10 @@ const buildPolygons = <P extends LocalPoint>(
 	drawOrderLevels: readonly string[] | undefined,
 	/** The Pattern panel's Background override, or null to tile over the fill. */
 	patternBgOverride: string | null,
+	/** Where a typed "Apply pattern to range" bound sits around the angle
+	 *  axis (radians, the unit of each point's `angle`); null when the value
+	 *  names no spoke. */
+	angleOf: (value: number | string | null) => number | null,
 ): RadarSeries<P>[] => {
 	const cfg: ConnectionConfig = {
 		...DEFAULT_CONNECTION_CONFIG,
@@ -771,6 +794,46 @@ const buildPolygons = <P extends LocalPoint>(
 	// Polygon body color (the Polygon fill color + sat / bri slots) — the
 	// same resolver the upfront pattern-defs pass ran.
 	const polygonBody = polygonBodyResolver(channelConfigs, aestheticScales)
+
+	// ---- The outline's DASH (Pattern → Line) ---------------------------------
+	// The same settings, and the same helpers, a line chart's line and an
+	// area's edge draw with: a default dash (or a custom one), a dash per
+	// category of a Pattern variable, the gaps filled or left empty, and a
+	// range the dash applies within. A polygon is one series, so a Pattern
+	// variable resolves off its representative row like its color does.
+	const defaultDashArray =
+		(cfg.customDashPattern ? sanitizeCustomDasharray(cfg.customDashPattern) : null) ??
+		dashArrayFor(cfg.defaultDashPattern ?? "solid")
+	// "Blank": inside the range the outline is not drawn at all (just the gap
+	// underlay when gaps are filled). Without an active range it is inert.
+	const defaultBlank =
+		(cfg.defaultDashPattern ?? "solid") === "blank" && defaultDashArray === null
+	const dashOverrides = channelConfigs.pattern?.dashOverrides ?? {}
+	const customDashOverrides = channelConfigs.pattern?.customDashOverrides ?? {}
+	const patternValues = patternField
+		? uniqueValues(
+				points.map((p) => p.row[patternField]),
+				{ skipBlank: false }
+			)
+		: []
+	const hueField = aestheticScales.hue?.field ?? null
+	const gapFill = resolveDashGapFill({
+		configured: cfg.dashGapFill ?? null,
+		patternField,
+		hueField: hueField?.name ?? null,
+	})
+	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
+		channelConfigs,
+		hueField?.type
+	)
+	// The range window, around the angle axis. It is ignored while a Pattern
+	// variable is mapped — the variable already says where each dash applies
+	// (and the panel hides the rows), as on a line chart.
+	const dashRange = cfg.dashRange
+	const rangeOn = dashRange?.enabled === true && !patternField
+	const rangeLo = rangeOn ? angleOf(dashRange?.min ?? null) : null
+	const rangeHi = rangeOn ? angleOf(dashRange?.max ?? null) : null
+	const rangeActive = rangeOn && (rangeLo !== null || rangeHi !== null)
 	const series: RadarSeries<P>[] = []
 	for (const [key, groupPoints] of orderedGroups) {
 		if (groupPoints.length < 2) {
@@ -809,22 +872,20 @@ const buildPolygons = <P extends LocalPoint>(
 		// layer strokes use). The group's representative row exposes every
 		// field, so the line color slot can map to any field (commonly the
 		// connection field).
-		const stroke = modulateLine(
-			resolveConnectionStroke({
-				groupKey: key,
-				lineColors: cfg.lineColors,
-				linePalette: cfg.linePalette ?? null,
-				paletteIdx: groupIdx,
-				strokeColor: cfg.strokeColor ?? null,
-				fallback: fillColor,
-				lineSlotCfg: channelConfigs.colorSlots?.line,
-				lineSlot,
-				slotRow: repRow,
-				// `{Variable}` line-color rules test every row of the polygon.
-				slotRows: sorted.map((p) => p.row),
-			}),
-			repRow
-		)
+		const baseStroke = resolveConnectionStroke({
+			groupKey: key,
+			lineColors: cfg.lineColors,
+			linePalette: cfg.linePalette ?? null,
+			paletteIdx: groupIdx,
+			strokeColor: cfg.strokeColor ?? null,
+			fallback: fillColor,
+			lineSlotCfg: channelConfigs.colorSlots?.line,
+			lineSlot,
+			slotRow: repRow,
+			// `{Variable}` line-color rules test every row of the polygon.
+			slotRows: sorted.map((p) => p.row),
+		})
+		const stroke = modulateLine(baseStroke, repRow)
 		const mh = rowHighlight(highlight, repRow)
 		// Per-series polygon thickness — a per-category override (keyed by the
 		// Vary-by field's value off the representative row, else by the
@@ -836,27 +897,143 @@ const buildPolygons = <P extends LocalPoint>(
 			field: cfg.thicknessField ?? null,
 			row: repRow,
 		})
+		// This polygon's dash: its Pattern category's (custom dasharray, else
+		// the picked or auto-cycled swatch), else the default dash.
+		const rawPattern = patternField ? repRow[patternField] : null
+		const patternValue =
+			rawPattern === undefined || rawPattern === null ? null : String(rawPattern)
+		const spec =
+			patternValue !== null
+				? dashSpecForPatternValue(
+						patternValue,
+						dashOverrides,
+						customDashOverrides,
+						patternValues
+					)
+				: null
+		const dashArray =
+			spec?.kind === "custom"
+				? spec.dasharray
+				: spec?.kind === "pattern"
+					? dashArrayFor(spec.pattern)
+					: defaultDashArray
+		const blank = spec === null && defaultBlank
+		// The shared paint of every piece of the outline.
+		const strokePaint = {
+			strokeOpacity: mh.outline ? 1 : lineOpacity(repRow) * mh.opacityMul,
+			strokeWidth: mh.outline
+				? Math.max(lineThickness, mh.outlineWidth)
+				: lineThickness,
+			strokeLinejoin: "round",
+		} as const
+		const strokeColor = mh.outline ?? mh.fill ?? stroke
+		const fillPaint = {
+			fill: fillEnabled ? (mh.fill ?? bodyFill) : "none",
+			fillOpacity:
+				(fillEnabled ? (rep?.opacity ?? 1) * polygonFillOpacity(repRow) : 0) *
+				mh.opacityMul,
+		}
+		// A solid outline (no dash, or a "Blank" with no range to apply it in)
+		// is the one polygon it always was: body and outline in one element.
+		const dashed = dashArray !== null || (blank && rangeActive)
+		if (!dashed) {
+			series.push({
+				key,
+				points: groupPoints,
+				polygon: (
+					<polygon
+						key={`radar-poly-${key}`}
+						points={pts}
+						{...fillPaint}
+						stroke={strokeColor}
+						{...strokePaint}
+					/>
+				),
+			})
+			continue
+		}
+		// A dashed outline: the body alone, then the outline drawn over it in
+		// pieces — a gap-colored underlay beneath each dashed piece when gaps
+		// are filled (so the line reads as connected, two colors alternating),
+		// and solid pieces outside the range.
+		const gapColor = gapFill
+			? resolveDashGapColor({
+					overrideKeys: [
+						hueField && rep ? String(rep.row[hueField.name] ?? "") || null : null,
+						key,
+					],
+					patternValue,
+					hueColor: hueField && rep ? rep.preModulationHue : null,
+					lineColor: baseStroke,
+					overrides: cfg.dashAlternateColors ?? {},
+					singleOverride: cfg.dashGapColor ?? null,
+					inkColors: channelConfigs.pattern?.inkColors ?? {},
+					palette: inkPalette,
+					patternInks: palettePatternInks,
+					themeInkFallback: aestheticScales.themeInkFallback,
+					defaultInk:
+						channelConfigs.defaultPatternInk ??
+						channelConfigs.patternInkColor ??
+						null,
+				})
+			: null
+		const pointsAttr = (run: ReadonlyArray<{ x: number; y: number }>) =>
+			run.map((p) => `${p.x},${p.y}`).join(" ")
+		/** One piece of the outline: closed (the whole loop) or an open run. */
+		const piece = (
+			id: string,
+			run: ReadonlyArray<{ x: number; y: number }>,
+			closed: boolean,
+			paint: { stroke: string; strokeDasharray?: string }
+		) =>
+			closed ? (
+				<polygon
+					key={`radar-line-${key}-${id}`}
+					// The loop repeats its first point; a polygon closes itself.
+					points={pointsAttr(run.slice(0, -1))}
+					fill="none"
+					{...strokePaint}
+					{...paint}
+				/>
+			) : (
+				<polyline
+					key={`radar-line-${key}-${id}`}
+					points={pointsAttr(run)}
+					fill="none"
+					{...strokePaint}
+					{...paint}
+				/>
+			)
+		const loop = sorted.map((p) => ({ x: p.cx, y: p.cy, at: p.angle }))
+		const runs = rangeActive
+			? splitLoopAtRange(loop, rangeLo, rangeHi)
+			: // No range: the dash applies all the way round.
+				splitLoopAtRange(loop, null, null)
+		const pieces: React.ReactNode[] = []
+		runs.outside.forEach((run, i) =>
+			pieces.push(piece(`solid-${i}`, run, runs.closed, { stroke: strokeColor }))
+		)
+		runs.inside.forEach((run, i) => {
+			if (gapColor)
+				pieces.push(piece(`gap-${i}`, run, runs.closed, { stroke: gapColor }))
+			if (dashArray !== null)
+				pieces.push(
+					piece(`dash-${i}`, run, runs.closed, {
+						stroke: strokeColor,
+						strokeDasharray: dashArray,
+					})
+				)
+		})
 		series.push({
 			key,
 			points: groupPoints,
 			polygon: (
-			<polygon
-				key={`radar-poly-${key}`}
-				points={pts}
-				fill={fillEnabled ? (mh.fill ?? bodyFill) : "none"}
-				fillOpacity={
-					(fillEnabled ? (rep?.opacity ?? 1) * polygonFillOpacity(repRow) : 0) *
-					mh.opacityMul
-				}
-				stroke={mh.outline ?? mh.fill ?? stroke}
-				strokeOpacity={mh.outline ? 1 : lineOpacity(repRow) * mh.opacityMul}
-				strokeWidth={
-					mh.outline
-						? Math.max(lineThickness, mh.outlineWidth)
-						: lineThickness
-				}
-				strokeLinejoin="round"
-			/>
+				<g key={`radar-poly-${key}`}>
+					{fillEnabled && (
+						<polygon points={pts} {...fillPaint} stroke="none" />
+					)}
+					{pieces}
+				</g>
 			),
 		})
 	}

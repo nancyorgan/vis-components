@@ -97,9 +97,9 @@ describe("ColorPanel — single-color palette picker", () => {
 		expect(colorInput.dataset.color!.toLowerCase()).toBe(picked.toLowerCase())
 	})
 
-	it("the Outline row's single-color swatch offers the palette popover", () => {
+	it("the Point outline row's single-color swatch offers the palette popover", () => {
 		const { container, getByRole } = mount()
-		expandSubheader(container, "Outline")
+		expandSubheader(container, "Point outline")
 		expect(
 			getByRole("button", { name: "Pick palette outline color" })
 		).toBeTruthy()

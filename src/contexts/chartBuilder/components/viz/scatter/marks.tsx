@@ -16,6 +16,7 @@ import {
 } from "../../../lib/segmentPattern"
 import { effectiveType } from "../../../lib/fieldType"
 import { resolveMarkAesthetics } from "../../../lib/resolveMarkAesthetics"
+import { outlineWidthResolver } from "../../../lib/markOutline"
 import { slotModulationResolver } from "../../../lib/resolveLayerColor"
 import {
 	applyHueScale,
@@ -72,6 +73,8 @@ export const renderMarkPaths = (args: {
 		publishHover,
 		nodeKeyOf,
 	} = args
+	// The outline's thickness: one value, or the mark's level's ("Vary by").
+	const outlineWidthFor = outlineWidthResolver(channelConfigs)
 	return (
 		<g>
 			{marks.map((m) => {
@@ -89,9 +92,8 @@ export const renderMarkPaths = (args: {
 				// `outlineColor` is no longer read at render time —
 				// the per-mark `m.shapeStroke` baked it in already
 				// (defaulting to hue when hue is mapped, or to the
-				// theme's outline color otherwise). Width still comes
-				// straight off the config since it's a single number.
-				const outlineWidth = channelConfigs.shape?.outlineWidth ?? 1
+				// theme's outline color otherwise).
+				const outlineWidth = outlineWidthFor(m.row)
 				// Legend/mark-hover highlight: recolor / outline the matched mark
 				// and fade the rest. When the highlight atom is active (a legend
 				// entry OR another mark's series is hovered), the atom drives the

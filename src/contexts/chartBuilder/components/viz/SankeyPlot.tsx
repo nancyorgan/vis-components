@@ -45,7 +45,7 @@ const LABEL_GAP = 6
  */
 export const SankeyPlot = (props: SankeyPlotProps = {}) => {
 	const scaffold = useFlowScaffold(props)
-	const { nodes, edges, outlineColor, outlineWidth } = scaffold
+	const { nodes, edges } = scaffold
 
 	const { kept, droppedSelfLoops, droppedCycleEdges } = useMemo(
 		() => breakCycles(edges),
@@ -139,6 +139,7 @@ export const SankeyPlot = (props: SankeyPlotProps = {}) => {
 			// Legend-hover highlight: this node's own emphasis / fade (its links
 			// follow via `edgeStyleFor`'s opacity).
 			const mh = scaffold.nodeHighlight(name)
+			const outline = scaffold.nodeOutlineFor(name)
 			nodeRects.push(
 				<rect
 					key={`node-${name}`}
@@ -150,9 +151,10 @@ export const SankeyPlot = (props: SankeyPlotProps = {}) => {
 					data-node={name}
 					fill={mh.fill ?? scaffold.nodeFillFor(name)}
 					fillOpacity={scaffold.nodeOpacity * mh.opacityMul}
-					stroke={mh.outline ?? outlineColor}
+					stroke={mh.outline ?? outline.stroke}
+					strokeOpacity={mh.outline ? undefined : outline.strokeOpacity}
 					strokeWidth={
-						mh.outline ? Math.max(outlineWidth, mh.outlineWidth) : outlineWidth
+						mh.outline ? Math.max(outline.strokeWidth, mh.outlineWidth) : outline.strokeWidth
 					}
 					onMouseEnter={scaffold.hoverNode(name, node.value ?? 0)}
 				/>

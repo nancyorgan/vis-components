@@ -424,8 +424,11 @@ describe("connection dot is scoped to the Connection dropdown", () => {
 		expect(dot("connection", withConn({ fill: "area" }), STUB_THEME, false)).toBe(false)
 		expect(dot("connection", withConn({ fill: "line" }), STUB_THEME, true)).toBe(false)
 	})
-	it("thickness / point-sampling / axis-stem dot", () => {
-		expect(dot("connection", withConn({ thickness: 10.5 }))).toBe(true)
+	it("point-sampling / axis-stem dot; the line's thickness dots under Size", () => {
+		// Every thickness is edited under Size, so that is the row it dots.
+		expect(dot("connection", withConn({ thickness: 10.5 }))).toBe(false)
+		expect(dot("area", withConn({ thickness: 10.5 }))).toBe(true)
+		expect(dot("area", withConn({ thicknessField: "region", thicknessByValue: { a: 1 } }))).toBe(true)
 		// point sampling is gated on a mapped connection field (its control only
 		// shows then); axis-stem (lollipop) is a scatter control, not gated.
 		expect(dot("connection", withConn({ pointSampling: "first-only" }), STUB_THEME, true)).toBe(true)

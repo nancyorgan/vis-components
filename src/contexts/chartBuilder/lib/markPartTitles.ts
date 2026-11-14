@@ -1,6 +1,6 @@
 import type { ChannelConfigs } from "./channelConfig"
-import type { ChartModeDef } from "./chartModes/types"
-import { overlayOn } from "./colorSlots"
+import type { ChartModeDef, MarkKind } from "./chartModes/types"
+import { segmentsDrawn } from "./segmentsDrawn"
 import type { Encodings } from "./types"
 
 /** The subheader titles of the mark parts every aesthetic menu (Color,
@@ -17,43 +17,64 @@ export type MarkPartTitles = {
 	line: string
 }
 
-/** Plain "Fill" / "Outline" / "Line" on their own. Where a SECOND filled
- * body sits beside the marks the plain names would be ambiguous, so the
- * marks' parts are named as the POINTS':
- *  - the polygon mode (radar): the series polygon has a body (Polygon fill)
- *    and an outline, which is the connection line — so its four targets read
- *    Point fill / Point outline / Connection line / Polygon fill;
- *  - a violin / box overlay: its body and outline sit beside the points'
- *    (Point fill / Point outline / Violin-box fill / Violin-box outline);
- *  - a line chart (points joined by a Connection line): the fill and
- *    outline style the POINTS on the line, beside the Line itself.
- *  - an area chart (the layer role): the body is the "Area fill" (plain
- *    "Fill" while the area is unfilled — the series color), the layer
- *    edge is the "Line", and the point markers on it are their own
- *    Point fill / Point outline targets (slots, gated on `areaPointsOn`).
+/** The one word for a connecting line — a line chart's, an area's edge, a
+ *  radar polygon's outline. */
+export const LINE_TITLE = "Line"
+
+/** What a mode's marks are called (`canvas.mark`), capitalized to lead a
+ *  section title. */
+const MARK_NOUN: Record<MarkKind, string> = {
+	point: "Point",
+	bar: "Bar",
+	area: "Area",
+	slice: "Slice",
+	cell: "Cell",
+	region: "Region",
+	circle: "Circle",
+	node: "Node",
+}
+
+/** A mark's name on its own, to title what belongs to the whole mark (its
+ *  size): "Point", "Circle". */
+export const markNoun = (mark: MarkKind): string => MARK_NOUN[mark]
+
+/** A part's title: the mark, then which part of it — "Bar fill", "Slice
+ *  outline". */
+export const partTitle = (mark: MarkKind, part: "fill" | "outline"): string =>
+	`${MARK_NOUN[mark]} ${part}`
+
+/** The titles ALWAYS name the mark: "Point fill" and "Point outline" on a
+ * scatter, line chart or radar; "Bar fill" / "Bar outline", "Slice fill" /
+ * "Slice outline", "Cell …", "Region …" elsewhere — never a bare "Fill"
+ * that leaves the reader to work out which fill. The connecting line is
+ * the "Line" on every chart that draws one. A chart with a second filled
+ * part names that one too (a combo's and a bubble map's "Point fill", a
+ * radar's "Polygon fill", a violin's "Violin / box fill"), in the slot
+ * registries.
+ *
+ * Two marks have no fill-and-outline pair:
+ *  - an area chart (the layer role): the body is the "Area fill" and its
+ *    edge IS the "Line" (plain "Fill" while the area is unfilled — the
+ *    series color);
+ *  - line segments (Length on a scatter): one stroke, the "Segment".
  * One rule for every menu, so the titles can't drift between them. */
 export const markPartTitles = (
 	modeDef: Pick<ChartModeDef, "canvas">,
 	configs: ChannelConfigs,
-	encodings: Pick<Encodings, "connection">
+	encodings: Partial<Pick<Encodings, "connection" | "length">>
 ): MarkPartTitles => {
-	if (modeDef.canvas.connectionRole === "polygon")
-		return { fill: "Point fill", outline: "Point outline", line: "Connection line" }
-	if (overlayOn(configs))
-		return { fill: "Point fill", outline: "Point outline", line: "Line" }
-	if (modeDef.canvas.connectionRole === "layer")
+	const { canvas } = modeDef
+	if (canvas.connectionRole === "layer")
 		return {
-			fill: configs.connection?.fill === "area" ? "Area fill" : "Fill",
-			outline: "Line",
-			line: "Line",
+			fill: configs.connection?.fill === "area" ? partTitle("area", "fill") : "Fill",
+			outline: LINE_TITLE,
+			line: LINE_TITLE,
 		}
-	// The bar + line combo is a line role too, but its Fill is the BARS'
-	// (its points have their own "Point fill" slot), so it keeps plain names.
-	if (
-		modeDef.canvas.connectionRole === "line" &&
-		modeDef.canvas.lengthRole !== "measure" &&
-		!!encodings.connection?.field
-	)
-		return { fill: "Point fill", outline: "Point outline", line: "Line" }
-	return { fill: "Fill", outline: "Outline", line: "Line" }
+	if (segmentsDrawn(canvas.lengthRole, encodings, configs))
+		return { fill: "Segment", outline: "Segment outline", line: LINE_TITLE }
+	return {
+		fill: partTitle(canvas.mark, "fill"),
+		outline: partTitle(canvas.mark, "outline"),
+		line: LINE_TITLE,
+	}
 }

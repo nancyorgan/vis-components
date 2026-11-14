@@ -134,7 +134,9 @@ export const CHANNELS: Record<EncodingChannel, ChannelDef> = {
 	},
 	area: {
 		id: "area",
-		label: "Area",
+		// The row is "Size": point size, and each part's thickness. The stored
+		// channel id stays `area` (saved visuals, embeds, the MCP paths).
+		label: "Size",
 		accepts: QUANTITATIVE_LIKE,
 		conflictsWith: ["length"],
 		legendCandidate: true,
@@ -235,8 +237,15 @@ export const channelsConflict = (
  * chart (structurally an `Encodings`; kept minimal so this module stays
  * free of the types barrel). */
 type AreaShapeEncodings = Partial<
-	Record<"x" | "y" | "angle" | "connection", { field: string | null } | undefined>
+	Record<
+		"x" | "y" | "angle" | "connection" | "length" | "r",
+		{ field: string | null } | undefined
+	>
 >
+
+/** The one setting that decides a combo: the Length panel's "Draw as"
+ * (structurally the relevant slice of `ChannelConfigs`). */
+type ComboShapeConfigs = { length?: { render?: string | null } | null }
 
 /** True when the encodings draw an area chart once Length is mapped: a
  * Connection, exactly one of X / Y, no Angle — the `areas-x` / `areas-y`
@@ -246,18 +255,44 @@ export const isAreaChartShape = (encodings: AreaShapeEncodings): boolean =>
 	!encodings.angle?.field &&
 	!!encodings.x?.field !== !!encodings.y?.field
 
-/** {@link channelsConflict} for a particular chart. Length and Area conflict
- * because Length turns point marks into segments, which have no size — but
- * on an area chart Length is the layers' measure and the points on each
- * layer's line are still points, so the two coexist there (Area sizes the
- * points). The shelf and the chart spec both ask this, never the bare
- * pair check, when deciding what a mapping shadows or clears. */
+/** True when the encodings and settings draw a bar + marks COMBO: both
+ * positions and Length, no Angle or R, and Length drawn as bars — the combo
+ * detection (`chartModes/combo.ts`) minus the position types, which only
+ * decide which way the bars run (a test pins the two together). */
+export const isComboShape = (
+	encodings: AreaShapeEncodings,
+	configs: ComboShapeConfigs | undefined
+): boolean =>
+	!!encodings.x?.field &&
+	!!encodings.y?.field &&
+	!!encodings.length?.field &&
+	!encodings.angle?.field &&
+	!encodings.r?.field &&
+	configs?.length?.render === "bars"
+
+/** {@link channelsConflict} for a particular chart. Length conflicts with
+ * Size and Shape because Length turns point marks into SEGMENTS, which have
+ * neither. Where Length is a measure and the chart still draws points, the
+ * conflict does not hold:
+ *  - on an AREA chart Length is the layers' measure and the points on each
+ *    layer's line are still points, so Size coexists with it (Size sizes
+ *    the points; they are circles, so a Shape variable still has nothing
+ *    to act on and keeps conflicting);
+ *  - on a bar + marks COMBO Length is the bars' measure and the marks are
+ *    ordinary points, so both Size and Shape coexist with it.
+ * The shelf and the chart spec both ask this, never the bare pair check,
+ * when deciding what a mapping shadows or clears. */
 export const channelsConflictIn = (
 	a: EncodingChannel,
 	b: EncodingChannel,
-	encodings: AreaShapeEncodings
+	encodings: AreaShapeEncodings,
+	configs?: ComboShapeConfigs
 ): boolean => {
 	if (!channelsConflict(a, b)) return false
+	const withLength = (other: EncodingChannel): boolean =>
+		(a === other && b === "length") || (a === "length" && b === other)
+	if ((withLength("area") || withLength("shape")) && isComboShape(encodings, configs))
+		return false
 	const areaLengthPair =
 		(a === "area" && b === "length") || (a === "length" && b === "area")
 	return !(areaLengthPair && isAreaChartShape(encodings))

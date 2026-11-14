@@ -53,21 +53,32 @@ describe("legacySlotColor", () => {
 })
 
 describe("applicableColorSlots", () => {
-	it("offers the rug slot for a histogram bar chart", () => {
-		const slots = applicableColorSlots(
-			"bars-x",
-			{} as never,
-			{ x: { histogram: { enabled: true } } as never }
-		)
-		expect(slots.map((s) => s.key)).toContain("rug")
+	it("offers the rug slot for a histogram bar chart while its rug is shown", () => {
+		const keys = (histogram: Record<string, unknown>) =>
+			applicableColorSlots("bars-x", {} as never, {
+				x: { histogram } as never,
+			}).map((s) => s.key)
+		expect(keys({ enabled: true, showRug: true })).toContain("rug")
+		// A histogram with its rug off draws nothing for the slot to color.
+		expect(keys({ enabled: true })).not.toContain("rug")
 	})
 
 	it("keeps the rug slot for the density display (scatter), so it survives the histogram→density switch", () => {
-		// No histogram, but a standalone density curve is active → rug slot stays.
+		// No histogram, but a standalone density curve is active and the rug
+		// (whose settings the two displays share) is shown → rug slot stays.
 		const slots = applicableColorSlots("scatter", {} as never, {
-			x: { distributionOverlay: { showDensityCurve: true } } as never,
+			x: {
+				distributionOverlay: { showDensityCurve: true },
+				histogram: { showRug: true },
+			} as never,
 		})
 		expect(slots.map((s) => s.key)).toContain("rug")
+		// The curve alone, with no rug drawn → no rug slot.
+		expect(
+			applicableColorSlots("scatter", {} as never, {
+				x: { distributionOverlay: { showDensityCurve: true } } as never,
+			}).map((s) => s.key)
+		).not.toContain("rug")
 		// Plain scatter (no density, no histogram) → no rug slot.
 		expect(
 			applicableColorSlots("scatter", {} as never, {}).map((s) => s.key)

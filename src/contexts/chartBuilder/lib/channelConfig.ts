@@ -819,6 +819,8 @@ export type ColorSlotKey =
 	| "stem" // lollipop stems
 	| "geoPointFill" // bubble / symbol map point FILL (independent of region colors)
 	| "geoPointStroke" // bubble / symbol map point OUTLINE
+	| "geoRegionFill" // dot map: the regions' FILL (unconfigured = the map's region color)
+	| "geoRegionStroke" // dot map: the regions' OUTLINE (unconfigured = the points' outline color)
 	| "regressionStroke" // scatter regression line
 	| "regressionCiFill" // scatter regression confidence band
 	| "comboPointFill" // bar + marks combo: the marks-layer point FILL (unconfigured = the line color)
@@ -870,6 +872,11 @@ export type OpacitySlotKey =
 	| "ribbon"
 	| "regressionStroke"
 	| "regressionCiFill"
+	| "geoPointFill" // bubble map: the bubbles' fill
+	| "geoPointStroke" // bubble map: the bubbles' outline
+	| "geoRegionFill" // dot map: the regions' fill
+	| "geoRegionStroke" // dot map: the regions' outline
+	| "comboPointFill" // bar + marks combo: the marks-layer points' fill
 
 /** One opacity target's state: a static `level` in [0,1], or — when `field`
  * is set — a field mapping reusing `OpacityConfig` (categorical per-value /
@@ -895,6 +902,18 @@ export type ModulationSlotKey =
 	| "polygonFill" // filled radar: the series polygon body
 	| "areaPointFill" // area charts: the point markers' fill
 	| "areaPointOutline" // area charts: the point markers' outline ring
+	| "geoPointFill" // bubble map: the bubbles' fill
+	| "geoPointStroke" // bubble map: the bubbles' outline
+	| "geoRegionFill" // dot map: the regions' fill
+	| "geoRegionStroke" // dot map: the regions' outline
+	| "comboPointFill" // bar + marks combo: the marks-layer points' fill
+	// The overlays, keyed as their color targets are:
+	| "stem"
+	| "regressionStroke"
+	| "regressionCiFill"
+	| "densityCurveFill"
+	| "densityCurveStroke"
+	| "rug"
 
 /** One saturation / brightness target's state. Levels are anchored like
  * `SaturationConfig` (0.5 = the part's color untouched). `level: null` = off
@@ -942,6 +961,15 @@ export type ShapeConfig = {
 	/** Stroke width in pixels applied to every point mark. `0` hides
 	 * the outline entirely. */
 	outlineWidth: number
+	/** "Vary by" variable for the outline's thickness (Size → *Mark*
+	 * outline). When set, a mark's outline takes
+	 * `outlineWidthByValue[String(row[field])]`, falling back to
+	 * `outlineWidth`. A mark built from many rows (a bar segment, a slice,
+	 * a cell) reads its first row. Absent / null = one thickness. */
+	outlineWidthField?: string | null
+	/** Per-level outline thickness (px) for `outlineWidthField`, keyed by
+	 * the stringified cell. A level with no entry takes `outlineWidth`. */
+	outlineWidthByValue?: Record<string, number>
 	/** Stroke width (px) of the violin outline and all box strokes (body,
 	 * whiskers, caps, outlier circles) when a distribution overlay is on; the
 	 * median line draws at 1.5× this for emphasis. Its own knob, deliberately
@@ -949,6 +977,15 @@ export type ShapeConfig = {
 	 * borders. Optional so visuals saved before it existed load unchanged
 	 * (read as 1). */
 	distributionOutlineWidth?: number
+	/** Stroke width (px) of the density curve's line — the standalone
+	 * "Density" display and the curve over a histogram (Size → Density
+	 * curve outline). Absent = 2, the width it was always drawn at. */
+	densityCurveOutlineWidth?: number
+	/** Outline thickness (px) of a DOT MAP's regions — the geography behind
+	 * its points (Size → Region outline). Absent = the points' own
+	 * `outlineWidth`, which is what the regions drew at before they could be
+	 * set apart. 0 hides the region borders. */
+	regionOutlineWidth?: number
 	/** Per-category override for the mark's fill color. Wins over the
 	 * encoding's hue color for that category — useful when the user wants
 	 * one specific category to render hollow ("none"), pair a light fill
@@ -1207,6 +1244,8 @@ export type LengthConfig = {
 	render?: "segments" | "bars"
 }
 /** Built-in segment stroke width — the width segments always drew at. */
+/** The width a density curve's line draws at until one is set. */
+export const DEFAULT_DENSITY_CURVE_WIDTH = 2
 export const DEFAULT_SEGMENT_THICKNESS = 3
 export const DEFAULT_LENGTH_CONFIG: LengthConfig = {
 	minLength: 4,
@@ -1339,6 +1378,10 @@ export type ConnectionConfig = {
 	 *  and the per-category fallback when `thicknessByValue` has no entry for
 	 *  a group. */
 	thickness: number
+	/** Thickness (px) of the stems that connect marks to an axis (Size →
+	 *  Stem). Absent = `thickness`: the stems drew at the line's thickness
+	 *  before they had one of their own. */
+	stemThickness?: number
 	/** "Vary by" variable for per-line thickness. When set, each line's
 	 *  thickness is looked up in `thicknessByValue` by its representative
 	 *  row's value for this field (the same first-row convention the line

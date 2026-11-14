@@ -141,6 +141,8 @@ describe("Pattern panel regression-line dash", () => {
 		// dash" subsection is defaultOpen so the rows are reachable directly.
 		const store = seed({ ...XY, connection: { field: "region" } })
 		const q = await mount()
+		// The range rows appear once the line has a dash to window.
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
 		fireEvent.click(q.getByLabelText("Apply pattern to range"))
 		fireEvent.change(q.getByLabelText("Pattern range from"), {
 			target: { value: "3" },
@@ -153,10 +155,13 @@ describe("Pattern panel regression-line dash", () => {
 		})
 	})
 
-	it("'Apply pattern to range' writes x.regression.dashRange", async () => {
+	it("'Apply pattern to range' appears once the line has a dash, and writes x.regression.dashRange", async () => {
 		const store = seed(XY, {})
 		const q = await mount()
 		fireEvent.click(q.getByText("Regression line"))
+		// A solid line has nothing for a range to window.
+		expect(q.queryByLabelText("Apply pattern to range")).toBeNull()
+		fireEvent.click(q.getByLabelText("Regression line dash dashed"))
 		fireEvent.click(q.getByLabelText("Apply pattern to range"))
 		fireEvent.change(q.getByLabelText("Pattern range from"), {
 			target: { value: "4" },

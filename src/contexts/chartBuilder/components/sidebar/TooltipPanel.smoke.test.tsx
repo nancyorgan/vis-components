@@ -229,12 +229,12 @@ describe("TooltipPanel — Hover follows the theme's seed", () => {
 
 	it("reset links return to the theme's value, not the built-in", () => {
 		const utils = mount(scatter(), THEMED, true)
-		fireEvent.change(utils.getByLabelText("Outline width"), { target: { value: "1" } })
+		fireEvent.change(utils.getByLabelText("Outline thickness"), { target: { value: "1" } })
 		fireEvent.change(utils.getByLabelText("Fade amount"), { target: { value: "20" } })
 		expect(headerDot(utils.container, "Hover")).not.toBeNull()
 
-		fireEvent.click(utils.getByLabelText("Reset outline width"))
-		expect((utils.getByLabelText("Outline width") as HTMLInputElement).value).toBe("4")
+		fireEvent.click(utils.getByLabelText("Reset outline thickness"))
+		expect((utils.getByLabelText("Outline thickness") as HTMLInputElement).value).toBe("4")
 		fireEvent.click(utils.getByLabelText("Reset fade amount"))
 		expect((utils.getByLabelText("Fade amount") as HTMLInputElement).value).toBe("50")
 		expect(headerDot(utils.container, "Hover")).toBeNull()

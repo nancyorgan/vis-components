@@ -223,7 +223,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 			const d = node.data
 			const isLeaf = node.children === undefined || node.children.length === 0
 			const style = styleFor(node, isLeaf)
-			const { stroke, strokeWidth } = markStroke(node, style)
+			const { stroke, strokeWidth, strokeOpacity } = markStroke(node, style)
 
 			if (!isLeaf) {
 				const containerPattern = patternFor(node, style)
@@ -248,6 +248,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 						}
 						fillOpacity={style ? style.opacity : undefined}
 						stroke={stroke}
+						strokeOpacity={strokeOpacity}
 						strokeWidth={strokeWidth}
 						onMouseEnter={scaffold.hoverLeaf(d.row ?? null, node)}
 					/>
@@ -386,6 +387,7 @@ export const PackedCirclesPlot = (props: PackedCirclesPlotProps = {}) => {
 					fill={pattern ? `url(#${pattern.svgId})` : style.fill}
 					fillOpacity={style.opacity}
 					stroke={stroke}
+					strokeOpacity={strokeOpacity}
 					strokeWidth={strokeWidth}
 					onMouseEnter={scaffold.hoverLeaf(row, node)}
 				/>

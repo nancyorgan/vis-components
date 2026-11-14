@@ -1,0 +1,197 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`layout invariants — untouched layouts > default layouts are unchanged 1`] = `
+{
+  "2×3 facets, own axes": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y81 w240 h196.2",
+      "0-1 x366 y81 w240 h196.2",
+      "0-2 x636 y81 w240 h196.2",
+      "1-0 x96 y307.2 w240 h196.2",
+      "1-1 x366 y307.2 w240 h196.2",
+      "1-2 x636 y307.2 w240 h196.2",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "24,292.2",
+  },
+  "2×3 facets, shared axes": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y81 w240 h196.2",
+      "0-1 x366 y81 w240 h196.2",
+      "0-2 x636 y81 w240 h196.2",
+      "1-0 x96 y307.2 w240 h196.2",
+      "1-1 x366 y307.2 w240 h196.2",
+      "1-2 x636 y307.2 w240 h196.2",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "24,292.2",
+  },
+  "allow scrolling, 3×1": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y61 w780 h127.47",
+      "1-0 x96 y218.47 w780 h127.47",
+      "2-0 x96 y375.93 w780 h127.47",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "24,282.2",
+  },
+  "data-label and caption reserves": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y61 w720 h402.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "456,534.8",
+    "yTitle": "24,262.2",
+  },
+  "fixed aspect ratio 1:1": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x264.8 y61 w442.4 h442.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "264.8,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "192.8,282.2",
+  },
+  "grid strips": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x173.6 y81 w336.2 h196.2",
+      "0-1 x539.8 y81 w336.2 h196.2",
+      "1-0 x173.6 y307.2 w336.2 h196.2",
+      "1-1 x539.8 y307.2 w336.2 h196.2",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "173.6,31.5",
+    "xTitle": "524.8,574.8",
+    "yTitle": "22.6,292.2",
+  },
+  "long y tick labels": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x246 y61 w630 h442.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "246,31.5",
+    "xTitle": "561,574.8",
+    "yTitle": "24,282.2",
+  },
+  "polar": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x54 y49 w838 h510.6",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "54,31.5",
+    "xTitle": null,
+    "yTitle": null,
+  },
+  "rotated x tick labels": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y61 w780 h364.11",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "24,243.05",
+  },
+  "single panel": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y61 w780 h442.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "24,282.2",
+  },
+  "single panel, no titles": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x76 y16 w800 h520",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": null,
+    "xTitle": null,
+    "yTitle": null,
+  },
+  "single panel, subtitle": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y89 w780 h414.4",
+    ],
+    "scroll": false,
+    "subtitle": "96,66",
+    "title": "96,31.5",
+    "xTitle": "486,574.8",
+    "yTitle": "24,296.2",
+  },
+  "single panel, two-line title": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x96 y92.2 w780 h411.2",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,62.7",
+    "xTitle": "486,574.8",
+    "yTitle": "24,297.8",
+  },
+  "small container": {
+    "canvas": "420×320",
+    "panels": [
+      "0-0 x96 y61 w300 h162.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "96,31.5",
+    "xTitle": "246,294.8",
+    "yTitle": "24,142.2",
+  },
+  "upright y-title": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x148 y61 w728 h442.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "148,31.5",
+    "xTitle": "512,574.8",
+    "yTitle": "59,288.5",
+  },
+  "x axis on top, y axis on right": {
+    "canvas": "900×600",
+    "panels": [
+      "0-0 x24 y141.6 w780 h442.4",
+    ],
+    "scroll": false,
+    "subtitle": null,
+    "title": "24,31.5",
+    "xTitle": "414,83.7",
+    "yTitle": "876,362.8",
+  },
+}
+`;

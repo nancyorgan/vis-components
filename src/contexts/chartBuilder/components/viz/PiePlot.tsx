@@ -9,7 +9,6 @@ import {
 } from "../../lib/aggregators/stacks"
 import {
 	DEFAULT_ANGLE_CONFIG,
-	DEFAULT_SHAPE_CONFIG,
 	type ChannelConfigs,
 	type FieldPolarPlacement,
 	type LabelPointsScope,
@@ -20,16 +19,14 @@ import { cartesian } from "./coords"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import type { PatternDefSpec } from "../../lib/patternDefs"
+import { aestheticGroupEncodings } from "../../lib/groupEncodings"
+import { markOutlineResolver } from "../../lib/markOutline"
 import {
 	buildPatternDefs,
 	stacksToFillInputs,
 	type PatternDefOptions,
 } from "../../lib/buildPatternDefs"
-import {
-	layerFillProp,
-	resolveLayerColor,
-	slotOpacityResolver,
-} from "../../lib/resolveLayerColor"
+import { layerFillProp, resolveLayerColor } from "../../lib/resolveLayerColor"
 import { aggregateField } from "../../lib/aggregateField"
 import { outwardAlignmentFor } from "../../lib/polarLabelAlignment"
 import { parseNumericCell, type PositionScale } from "../../lib/scales"
@@ -196,43 +193,10 @@ export const PiePlot = (props: PiePlotProps = {}) => {
 					: SINGLE_PIE_CATEGORY
 		if (!categoryField) return null
 
-		// Build the groups list from the aesthetic scales so the plot and the
-		// hook agree exactly on which channels are mapped. Order matches the
-		// previous GROUP_CHANNELS constant for stable slice-key tuples.
-		const groups: GroupEncoding[] = (
-			[
-				aestheticScales.hue &&
-					({
-						channel: "hue",
-						field: aestheticScales.hue.field.name,
-						type: aestheticScales.hue.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.saturation &&
-					({
-						channel: "saturation",
-						field: aestheticScales.saturation.field.name,
-						type: aestheticScales.saturation.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.brightness &&
-					({
-						channel: "brightness",
-						field: aestheticScales.brightness.field.name,
-						type: aestheticScales.brightness.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.pattern &&
-					({
-						channel: "pattern",
-						field: aestheticScales.pattern.field.name,
-						type: aestheticScales.pattern.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.opacity &&
-					({
-						channel: "opacity",
-						field: aestheticScales.opacity.field.name,
-						type: aestheticScales.opacity.field.type,
-					} satisfies GroupEncoding),
-			] as Array<GroupEncoding | null>
-		).filter((g): g is GroupEncoding => g !== null)
+		// The channels that split a pie into slices — the same list the bars
+		// use (`lib/groupEncodings`). The pie's own copy had left out the
+		// outline color, so the Outline variable never reached the slices.
+		const groups: GroupEncoding[] = aestheticGroupEncodings(aestheticScales)
 
 		// Per-channel user-pinned level order so pie wedges order the same way
 		// the legend lists them (see BarPlot for the analogous setup).
@@ -1026,17 +990,16 @@ export const buildPieAnchors = ({
 }
 
 type WedgeDeps = {
-	outlineColor: string
-	outlineWidth: number
+	/** Each slice's outline — color (rule, Outline variable, or the one
+	 *  outline color), saturation / brightness and opacity — through the
+	 *  resolver every mark's outline shares (`lib/markOutline`). */
+	outlineFor: ReturnType<typeof markOutlineResolver>
 	defaultFill: string
 	patternBgOverride: string | null
 	/** Per-slice fill / pattern / opacity resolves through the shared
 	 *  `resolveLayerColor` pipeline, which consumes these two directly. */
 	aestheticScales: AestheticScales
 	channelConfigs: ChannelConfigs
-	/** Absolute border opacity from the Border opacity slot (slices are
-	 *  aggregated, so a field-mapped border resolves to the slot's level). */
-	borderOpacity: number
 	arcGen: ReturnType<typeof d3arc<{ startAngle: number; endAngle: number }>>
 	arcStart: number
 	arcSweep: number
@@ -1080,14 +1043,11 @@ const resolveWedgeDeps = (
 ): WedgeDeps => ({
 	highlight,
 	patternOptions,
-	outlineColor:
-		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
-	outlineWidth: channelConfigs.shape?.outlineWidth ?? 1,
+	outlineFor: markOutlineResolver(channelConfigs, aestheticScales),
 	defaultFill: channelConfigs.defaultFill ?? FALLBACK_FILL,
 	patternBgOverride: channelConfigs.pattern?.backgroundColor ?? null,
 	aestheticScales,
 	channelConfigs,
-	borderOpacity: slotOpacityResolver("border", channelConfigs, aestheticScales)({}),
 	arcGen: d3arc<{ startAngle: number; endAngle: number }>()
 		// Donut hole: `angle.donutHoleRadius` is a 0–90 percentage of the
 		// outer radius. 0 (or unset) keeps innerRadius at 0 → solid pie.
@@ -1145,6 +1105,12 @@ const renderWedgesForStack = (
 		)
 		const opacity = resolved.opacity * mh.opacityMul
 		const fillProp = mh.fill ?? baseFillProp
+		// `resolved.outline` is the slice's rule / Outline-variable color, or
+		// null for the one outline color. A slice is built from several rows,
+		// so the per-part targets resolve off its first.
+		const outline = deps.outlineFor(slice.rows?.[0] ?? {}, {
+			color: resolved.outline,
+		})
 
 		const d = deps.arcGen({ startAngle, endAngle })
 		if (d === null) return
@@ -1156,12 +1122,12 @@ const renderWedgesForStack = (
 				transform={`translate(${cx},${cy})`}
 				fill={fillProp}
 				fillOpacity={opacity}
-				stroke={mh.outline ?? deps.outlineColor}
-				strokeOpacity={mh.outline ? 1 : deps.borderOpacity}
+				stroke={mh.outline ?? outline.stroke}
+				strokeOpacity={mh.outline ? 1 : outline.strokeOpacity}
 				strokeWidth={
 					mh.outline
-						? Math.max(deps.outlineWidth, mh.outlineWidth)
-						: deps.outlineWidth
+						? Math.max(outline.strokeWidth, mh.outlineWidth)
+						: outline.strokeWidth
 				}
 				onMouseEnter={
 					onSliceHover ? (e) => onSliceHover(stack, slice, e) : undefined

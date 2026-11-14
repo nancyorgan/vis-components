@@ -4,12 +4,9 @@ import {
 	DEFAULT_ANGLE_CONFIG,
 	DEFAULT_DONUT_HOLE_RADIUS,
 	DEFAULT_LENGTH_CONFIG,
-	DEFAULT_SEGMENT_THICKNESS,
 	type AngleConfig,
 	type LengthConfig,
 } from "../../../lib/channelConfig"
-import { MIN_LINE_THICKNESS } from "../../../lib/connectionThickness"
-import { fieldLevels, thicknessByLevel } from "../../../lib/thicknessVaryBy"
 import {
 	isBarModeId,
 	isComboModeId,
@@ -20,22 +17,19 @@ import { angleConfigFromTheme, valueChanged } from "../../../lib/themeConfig"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
-	currentFieldLevelOrdersAtom,
-	currentFieldOverridesAtom,
 } from "../../../store/atoms"
-import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
-import type { FieldType } from "../../../lib/types"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
-import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Segmented } from "../../../../../components/ui/Segmented"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 import { combine as c } from "../../../../../lib/cls"
+import { useDrawnParts } from "../../../store/usePartsContext"
 import { TickFormatControl, ordinalSuffix } from "./AxisOptionsPanel"
+import { sizeJumpId } from "./SizeThicknessSections"
 
 // ---------------------------------------------------------------------------
 // Angle
@@ -47,6 +41,10 @@ export const AngleOptionsPanel = () => {
 	const fieldMapped = !!encodings.angle?.field
 
 	const currentAngle = configs.defaultAngle ?? DEFAULT_ANGLE
+	// The unmapped Angle turns every mark by one amount — which only point
+	// glyphs and line segments do.
+	const parts = useDrawnParts()
+	const marksTurn = parts.glyphs || parts.segments
 	// The theme's angle defaults — used both as the live fallback and as the
 	// "reset" target / "is this default?" reference, so the panel's notion of
 	// default matches the "changed" dot's baseline (which is theme-derived).
@@ -131,6 +129,15 @@ export const AngleOptionsPanel = () => {
 			</div>
 		)
 	}
+
+	if (!marksTurn)
+		return (
+			<div className="vc-option-panel">
+				<p className="vc-help">
+					This chart&apos;s marks don&apos;t turn, so there is no angle to set.
+				</p>
+			</div>
+		)
 
 	return (
 		<div className="vc-option-panel">
@@ -538,6 +545,8 @@ export const LengthOptionsPanel = () => {
 	// and captioned for line segments.
 	const modeDef = useChartModeDef()
 	const { lengthRole } = modeDef.canvas
+	// A pure density curve draws no marks for a length to turn into segments.
+	const parts = useDrawnParts()
 	// Bar charts get the band-gap knob: pixels of each category slot left as
 	// gap between bars (bar width is the remainder, so one value controls
 	// both). Bars only — areas have no band scale to pad — and only with a
@@ -562,7 +571,7 @@ export const LengthOptionsPanel = () => {
 		/>
 	)
 
-	if (lengthRole === "none") {
+	if (lengthRole === "none" || (lengthRole === "mark" && !parts.marks)) {
 		return (
 			<div className="vc-option-panel">
 				<div className="vc-help">This chart type doesn&apos;t draw length.</div>
@@ -712,26 +721,12 @@ export const LengthOptionsPanel = () => {
 	)
 }
 
-/** Variable types the segment-thickness "Vary by" offers — discrete levels
- *  only; a quantitative column would list one row per distinct number. */
-const SEGMENT_VARY_BY_TYPES: ReadonlySet<FieldType> = new Set<FieldType>([
-	"categorical",
-	"ordinal",
-])
-
-/** Length → "Segment properties": stroke styling for the line segments a
- *  scatter draws when Length is mapped (or a default length is set).
- *  Thickness mirrors Connection → Line properties: a single width, or a
- *  "Vary by" variable with one width per level. The dropdown position is
- *  the stored `segmentThicknessField` itself — no separate mode flag. */
+/** Length → "Segment properties": the cap of the line segments a scatter
+ *  draws when Length is mapped (or a default length is set). Their
+ *  THICKNESS is under Size → Segment, with every other thickness. */
 const SegmentPropertiesSection = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const fieldOverrides = useAtomValue(currentFieldOverridesAtom)
-	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
-	const dataset = useCurrentDatasetView()
-
 	const length = configs.length ?? DEFAULT_LENGTH_CONFIG
-	const thickness = length.segmentThickness ?? DEFAULT_SEGMENT_THICKNESS
 	const lineCap = length.segmentLineCap ?? "round"
 	const updateLength = (next: Partial<LengthConfig>) =>
 		setConfigs((prev) => ({
@@ -739,126 +734,20 @@ const SegmentPropertiesSection = () => {
 			length: { ...(prev.length ?? DEFAULT_LENGTH_CONFIG), ...next },
 		}))
 
-	const typeOf = (name: string): FieldType =>
-		fieldOverrides[name] ??
-		dataset?.fields.find((f) => f.name === name)?.inferredType ??
-		"categorical"
-	const varyByFields = (dataset?.fields ?? [])
-		.map((f) => f.name)
-		.filter((name) => SEGMENT_VARY_BY_TYPES.has(typeOf(name)))
-	// A stored field that's gone from the data set renders as single level
-	// (the resolver finds no matching cells), so the dropdown reads that way.
-	const storedField = length.segmentThicknessField ?? null
-	const varyField =
-		storedField && dataset?.fields.some((f) => f.name === storedField)
-			? storedField
-			: null
-	// Distinct levels of a field, in the Fields panel's pinned order —
-	// parsed through the effective type so keys match the drawn rows.
-	const levelsOf = (name: string): string[] =>
-		dataset ? fieldLevels(dataset.rows, name, typeOf(name), levelOrders[name]) : []
-	const levels = varyField ? levelsOf(varyField) : []
-
-	const ch = {
-		thickness: thickness !== DEFAULT_SEGMENT_THICKNESS || !!varyField,
-		lineCap: lineCap !== "round",
-	}
-
-	// Picking a variable SEEDS every level at the single width (renders
-	// identically until a row is edited); "— none —" clears both.
-	const setVaryBy = (next: string) => {
-		if (next === "") {
-			updateLength({ segmentThicknessField: null, segmentThicknessByValue: {} })
-			return
-		}
-		updateLength({ segmentThicknessField: next, segmentThicknessByValue: thicknessByLevel(levelsOf(next), thickness) })
-	}
-	const setThicknessFor = (value: string, n: number) => {
-		if (n < 0) return
-		updateLength({
-			segmentThicknessByValue: { ...(length.segmentThicknessByValue ?? {}), [value]: n },
-		})
-	}
+	const lineCapChanged = lineCap !== "round"
 
 	return (
 		<CollapsibleSubsection
 			title="Segment properties"
-			changed={ch.thickness || ch.lineCap}
+			changed={lineCapChanged}
 		>
 			<div className="flex flex-col gap-2">
-				<SelectInput
-					label="Vary by"
-					labelClassName={LABEL_COL}
-					changed={!!varyField}
-					value={varyField ?? ""}
-					options={[
-						{ value: "", label: "— none —" },
-						...varyByFields.map((name) => ({ value: name, label: name })),
-					]}
-					onChange={setVaryBy}
-					selectClassName="flex-1"
-				/>
-				{varyField ? (
-					<div className="flex flex-col gap-1.5">
-						{levels.map((v) => {
-							const rowValue = length.segmentThicknessByValue?.[v] ?? thickness
-							return (
-								<div key={v} className="flex items-center gap-2 text-sm">
-									<span className="w-24 shrink-0 truncate vc-text" title={v}>
-										{v}
-									</span>
-									<NumberInput
-										label={`Segment thickness for ${v}`}
-										labelClassName="sr-only"
-										value={rowValue}
-										min={MIN_LINE_THICKNESS}
-										step={0.5}
-										onChange={(n) => setThicknessFor(v, n)}
-										inputClassName="w-16"
-										suffix="px"
-									/>
-									{rowValue !== thickness && (
-										// Back to the single width WITHOUT deleting the key.
-										<ResetLink onClick={() => setThicknessFor(v, thickness)} />
-									)}
-								</div>
-							)
-						})}
-						{levels.length === 0 && (
-							<p className="vc-help">No {varyField} values in the data yet.</p>
-						)}
-					</div>
-				) : (
-					<div className="flex items-center gap-2 text-sm">
-						<NumberInput
-							label="Thickness"
-							labelClassName={LABEL_COL}
-							changed={ch.thickness}
-							value={thickness}
-							min={MIN_LINE_THICKNESS}
-							step={0.5}
-							onChange={(n) => {
-								// Negative typed input is ignored; 0 hides the segments.
-								if (n >= 0) updateLength({ segmentThickness: n })
-							}}
-							inputClassName="w-16"
-							suffix="px"
-						/>
-						{thickness !== DEFAULT_SEGMENT_THICKNESS && (
-							<ResetLink
-								onClick={() =>
-									updateLength({ segmentThickness: DEFAULT_SEGMENT_THICKNESS })
-								}
-							/>
-						)}
-					</div>
-				)}
 				<div className="flex items-center gap-2 text-sm">
 					<span
 						className={c(
 							"shrink-0",
 							LABEL_COL,
-							ch.lineCap && "font-semibold !text-vc-section-header"
+							lineCapChanged && "font-semibold !text-vc-section-header"
 						)}
 					>
 						Line cap
@@ -870,6 +759,10 @@ const SegmentPropertiesSection = () => {
 						onChange={(segmentLineCap) => updateLength({ segmentLineCap })}
 					/>
 				</div>
+				<p className="vc-help">
+					Set the segment thickness under{" "}
+					<SidebarJumpText target={channelJump("area", sizeJumpId("segment"))}>Size → Segment</SidebarJumpText>.
+				</p>
 			</div>
 		</CollapsibleSubsection>
 	)

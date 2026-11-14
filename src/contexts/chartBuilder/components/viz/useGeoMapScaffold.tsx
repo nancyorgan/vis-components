@@ -7,6 +7,7 @@ import {
 	type ChannelConfigs,
 } from "../../lib/channelConfig"
 import type { ChartRendererBaseProps } from "../../lib/chartRendererProps"
+import { outlineWidthResolver } from "../../lib/markOutline"
 import { geographic } from "./coords/geographic"
 import type { GeoScales } from "../../lib/coords/types"
 import { regionViewport, viewportGeoJson } from "../../lib/geo/focusRegion"
@@ -111,8 +112,12 @@ export type GeoMapScaffold = {
 	hueScale: AestheticScales["hue"]
 	opacityScale: AestheticScales["opacity"]
 	outlineHue: AestheticScales["outlineHue"]
-	/** Single outline width for all marks (0 hides the border). */
+	/** The one outline thickness (0 hides the border) — what the plain
+	 *  geography backdrops draw at. */
 	outlineWidth: number
+	/** A data mark's outline thickness: the one value, or its level's when
+	 *  the outline varies by a variable. */
+	outlineWidthFor: (row: Record<string, unknown>) => number
 	baseOutlineColor: string
 	/** Gate + shared setup at the top of a marks body: narrows the coord to
 	 *  geographic, shows the loading placeholder until geometry resolves, and
@@ -326,6 +331,8 @@ export const useGeoMapScaffold = (
 	// is an independent color channel for the border; with no field mapped,
 	// every mark falls back to the user's base outline color.
 	const outlineWidth = channelConfigs.shape?.outlineWidth ?? 1
+	// Per mark: the same value unless the outline varies by a variable.
+	const outlineWidthFor = outlineWidthResolver(channelConfigs)
 	const outlineHue = aestheticScales.outlineHue
 	const baseOutlineColor =
 		channelConfigs.shape?.outlineColor ?? DEFAULT_OUTLINE_COLOR
@@ -709,6 +716,7 @@ export const useGeoMapScaffold = (
 		opacityScale,
 		outlineHue,
 		outlineWidth,
+		outlineWidthFor,
 		baseOutlineColor,
 		beginMarks,
 		renderInteractiveRoot,

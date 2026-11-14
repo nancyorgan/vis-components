@@ -36,9 +36,12 @@ import { dedupPatternDefs, type PatternDefSpec } from "../../lib/patternDefs"
 import {
 	inkForHueColor,
 	inkPaletteForHue,
+	resolveDefaultPatternForMark,
+	resolveDefaultPatternInk,
 	resolvePatternForMark,
 } from "../../lib/patterns"
-import { applyHueScale, makeHueScale } from "../../lib/scales"
+import { markOutlineResolver } from "../../lib/markOutline"
+import { applyHueScale, makeHueScale, modulateColor } from "../../lib/scales"
 import { emptyDataLabelsEncodings } from "../../lib/types"
 import {
 	currentDataLabelsEncodingsAtom,
@@ -49,6 +52,7 @@ import {
 	renderChannelConfigsAtom,
 	renderDataLabelsConfigAtom,
 } from "../../store/renderConfigs"
+import { useAestheticScales } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useThemeInkFallback } from "../../store/useThemeInkFallback"
 import {
@@ -97,6 +101,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		...useAtomValue(currentDataLabelsEncodingsAtom),
 	}
 	const dataset = useCurrentDatasetView()
+	const aestheticScales = useAestheticScales()
 	const themeInkFallback = useThemeInkFallback()
 	const [hovered, setHovered] = useState<TooltipState | null>(null)
 
@@ -158,9 +163,48 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 				channelConfigs.categoricalPalette
 			)
 		: null
-	const nodeColorFor = (name: string): string =>
+	/** A node's Color BEFORE saturation / brightness — what pattern inks pair
+	 * on (the palette's own swatch). */
+	const nodeHueFor = (name: string): string =>
 		(nodeHueScale ? applyHueScale(nodeHueScale, name, "categorical") : null) ??
 		(channelConfigs.defaultFill ?? DEFAULT_FILL)
+
+	/** A node read as a ROW: both endpoint columns hold its name. A node is
+	 * not one dataset row, but anything that resolves "by a variable" — the
+	 * outline's color and opacity, a saturation or brightness scale — can
+	 * then answer for an endpoint column (it is "by node", like Color), and
+	 * falls back to its single level for any other column, which has no one
+	 * value per node. */
+	const nodeRow = (name: string): Record<string, unknown> => ({
+		...(sourceField ? { [sourceField]: name } : {}),
+		...(targetField ? { [targetField]: name } : {}),
+	})
+	/** Saturation / Brightness level for a node: the channel's scale when it
+	 * varies by an endpoint column, else the single default level. */
+	const nodeUnit = (
+		channel: "saturation" | "brightness",
+		name: string
+	): number | null => {
+		const mapped = aestheticScales[channel]
+		const fromScale = mapped
+			? mapped.scale(nodeRow(name)[mapped.field.name] as never)
+			: null
+		return (
+			fromScale ??
+			(channel === "saturation"
+				? channelConfigs.defaultSaturation
+				: channelConfigs.defaultBrightness) ??
+			null
+		)
+	}
+	/** The node's drawn color: its Color, shaded by Saturation / Brightness
+	 * like every other body. */
+	const nodeColorFor = (name: string): string => {
+		const sat = nodeUnit("saturation", name)
+		const bri = nodeUnit("brightness", name)
+		const hue = nodeHueFor(name)
+		return sat === null && bri === null ? hue : modulateColor(hue, sat, bri)
+	}
 
 	// Pattern mapped to EITHER endpoint column means "pattern by node" —
 	// mirrors the hue treatment above, indexing into the same node-UNION
@@ -173,10 +217,28 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		(patternField === sourceField || patternField === targetField)
 	// The tile sits on the node's drawn color (its hue color, or the default
 	// fill) unless no hue is on the nodes and the Pattern panel's Background
-	// override replaces it — the shared `patternTile` rule.
+	// override replaces it — the shared `patternTile` rule. The ink pairs on
+	// the PRE-shading color (`nodeHueFor`), which is the palette's swatch.
 	const patternBgOverride = channelConfigs.pattern?.backgroundColor ?? null
 	const nodePatternFor = (name: string) => {
-		if (!patternOnNodes) return null
+		if (!patternOnNodes) {
+			// No Pattern variable at all: the configured DEFAULT pattern tiles
+			// every node (and so its ribbons), as it does bars and cells. A
+			// variable on a non-endpoint column has no one value per node.
+			if (patternField || channelConfigs.defaultPattern == null) return null
+			return resolveDefaultPatternForMark(
+				nodeColorFor(name),
+				channelConfigs.defaultPattern,
+				resolveDefaultPatternInk(
+					channelConfigs,
+					nodeHueFor(name),
+					"categorical",
+					themeInkFallback
+				),
+				channelConfigs.pattern?.defaultScale,
+				channelConfigs.pattern?.defaultRotation
+			)
+		}
 		const idx = scaleDomainNodes.indexOf(name)
 		if (idx === -1) return null
 		const bgColor =
@@ -185,7 +247,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 				: patternBgOverride
 		const huePalette = inkPaletteForHue(channelConfigs, "categorical")
 		const preferredInk = inkForHueColor(
-			bgColor,
+			hueOnNodes || patternBgOverride === null ? nodeHueFor(name) : bgColor,
 			huePalette.palette,
 			huePalette.inks,
 			themeInkFallback
@@ -200,13 +262,9 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 	}
 	/** All `<pattern>` defs the drawn nodes (and hence ribbons — they reuse
 	 * their source node's def) will reference. Pass to `<Plot patternDefs>`. */
-	const patternDefs: PatternDefSpec[] = patternOnNodes
-		? dedupPatternDefs(
-				nodes
-					.map(nodePatternFor)
-					.filter((d): d is NonNullable<typeof d> => d !== null)
-			)
-		: []
+	const patternDefs: PatternDefSpec[] = dedupPatternDefs(
+		nodes.map(nodePatternFor).filter((d): d is NonNullable<typeof d> => d !== null)
+	)
 	/** Pattern-aware paint for a node mark: the pattern tile URL when the
 	 * pattern channel targets the node columns, else the plain node color. */
 	const nodeFillFor = (name: string): string => {
@@ -439,10 +497,24 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		}
 		return { anchorFor, widthFor }
 	}
-	const outlineColor =
-		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
 	const outlineWidth =
 		channelConfigs.shape?.outlineWidth ?? DEFAULT_SHAPE_CONFIG.outlineWidth
+	// A node's outline — color (rule, Outline variable, or the one outline
+	// color), saturation / brightness, opacity and thickness — through the resolver
+	// every mark's outline shares, read off the node as a row. A ribbon's
+	// outline follows its SOURCE node's, as its fill does.
+	const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
+	const nodeOutlineFor = (
+		name: string
+	): { stroke: string; strokeOpacity: number | undefined; strokeWidth: number } => {
+		const outline = outlineFor(nodeRow(name))
+		return {
+			stroke: outline.stroke,
+			// Full opacity sets no attribute, as before.
+			strokeOpacity: outline.strokeOpacity === 1 ? undefined : outline.strokeOpacity,
+			strokeWidth: outline.strokeWidth,
+		}
+	}
 
 	// Axis-less cartesian panel: null scales render no axes (tile-style
 	// panels do the same when a scale is missing).
@@ -508,7 +580,7 @@ export const useFlowScaffold = (props: ChartRendererBaseProps = {}) => {
 		labelFontSizePx: ptToPx(
 			labelSizeField ? dataLabelsCfg.sizeMax : dataLabelsCfg.fontSize
 		),
-		outlineColor,
+		nodeOutlineFor,
 		outlineWidth,
 		coord,
 		/** False until a dataset + all three fields exist — renderers return null. */

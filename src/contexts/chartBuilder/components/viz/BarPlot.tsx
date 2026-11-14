@@ -16,8 +16,8 @@ import {
 	type PatternDefOptions,
 } from "../../lib/buildPatternDefs"
 import {
+	DEFAULT_DENSITY_CURVE_WIDTH,
 	AUTO_BAR_GAP_FRACTION,
-	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
 	type ChannelConfigs,
 	type ColorSlotConfig,
@@ -47,6 +47,8 @@ import { cartesian } from "./coords"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import type { PatternDefSpec } from "../../lib/patternDefs"
+import { aestheticGroupEncodings } from "../../lib/groupEncodings"
+import { markOutlineResolver } from "../../lib/markOutline"
 import {
 	layerFillProp,
 	resolveLayerColor,
@@ -296,49 +298,10 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 					)
 				: null
 
-		// Build the groups list from the aesthetic scales so the plot and the
-		// hook agree exactly on which channels are mapped. Order matches the
-		// previous GROUP_CHANNELS constant for stable slice-key tuples.
-		const groups: GroupEncoding[] = (
-			[
-				aestheticScales.hue &&
-					({
-						channel: "hue",
-						field: aestheticScales.hue.field.name,
-						type: aestheticScales.hue.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.outlineHue &&
-					({
-						channel: "outlineHue",
-						field: aestheticScales.outlineHue.field.name,
-						type: aestheticScales.outlineHue.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.saturation &&
-					({
-						channel: "saturation",
-						field: aestheticScales.saturation.field.name,
-						type: aestheticScales.saturation.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.brightness &&
-					({
-						channel: "brightness",
-						field: aestheticScales.brightness.field.name,
-						type: aestheticScales.brightness.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.pattern &&
-					({
-						channel: "pattern",
-						field: aestheticScales.pattern.field.name,
-						type: aestheticScales.pattern.field.type,
-					} satisfies GroupEncoding),
-				aestheticScales.opacity &&
-					({
-						channel: "opacity",
-						field: aestheticScales.opacity.field.name,
-						type: aestheticScales.opacity.field.type,
-					} satisfies GroupEncoding),
-			] as Array<GroupEncoding | null>
-		).filter((g): g is GroupEncoding => g !== null)
+		// The channels that split a bar into segments — one list for every
+		// aggregating renderer (`lib/groupEncodings`), so the plot and the
+		// hook agree exactly on which channels are mapped.
+		const groups: GroupEncoding[] = aestheticGroupEncodings(aestheticScales)
 
 		// User-pinned level order for each grouping field (Fields reorder UI),
 		// keyed by channel. Lets the aggregator stack slices in the same order
@@ -911,6 +874,19 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 				aestheticScales,
 				connectionColor,
 			})
+			// The points' own Saturation / Brightness and Opacity (Point fill in
+			// those menus). Untouched they change nothing: the fill is the
+			// resolved color as it was, and the opacity stays the one the shared
+			// mark pipeline gave the points (the bars'), so saved combos draw
+			// as before. Set, the opacity is the points' own.
+			const pointShade = slotModulationResolver(
+				"comboPointFill",
+				channelConfigs,
+				aestheticScales
+			)
+			const pointOpacity = channelConfigs.opacitySlots?.comboPointFill
+				? slotOpacityResolver("comboPointFill", channelConfigs, aestheticScales)
+				: null
 			const marks = buildMarks({
 				rowsForChart,
 				encodings,
@@ -920,9 +896,12 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 				yScale: oyScale,
 				xType: oxType,
 				yType: oyType,
-			}).map((m) => {
+			}).map((built) => {
+				const m = pointOpacity
+					? { ...built, markOpacity: pointOpacity(built.row) }
+					: built
 				if (m.patternId !== null) return m
-				const fill = pointFill(m.row)
+				const fill = pointShade(pointFill(m.row), m.row)
 				return {
 					...m,
 					fill,
@@ -957,7 +936,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 						marks,
 						encodings,
 						channelConfigs,
-						slotOpacityResolver("line", channelConfigs, aestheticScales)({}),
+						slotOpacityResolver("line", channelConfigs, aestheticScales),
 						aestheticScales.colorSlots.line,
 						connectionColor,
 						oxScale,
@@ -1053,6 +1032,7 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 						hue: aestheticScales.hue,
 						rugSlot: aestheticScales.colorSlots.rug,
 						rugSlotCfg: channelConfigs.colorSlots?.rug,
+						rugShade: slotModulationResolver("rug", channelConfigs, aestheticScales),
 						rugOpacity: slotOpacityResolver(
 							"rug",
 							channelConfigs,
@@ -1067,24 +1047,32 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 						rows: rowsForChart,
 						histogram: rugHistogram,
 						groupField: densityCurveGroupField(channelConfigs),
+						strokeWidth: channelConfigs.shape?.densityCurveOutlineWidth,
+						// Each part's color, then its own Saturation / Brightness.
 						strokeFor: (row) =>
-							channelConfigs.colorSlots?.densityCurveStroke
-								? resolveSlotColor(
-										aestheticScales.colorSlots.densityCurveStroke,
-										channelConfigs.colorSlots.densityCurveStroke,
-										row,
-										liveTheme.distributionOverlayStroke
-									)
-								: liveTheme.distributionOverlayStroke,
+							slotModulationResolver("densityCurveStroke", channelConfigs, aestheticScales)(
+								channelConfigs.colorSlots?.densityCurveStroke
+									? resolveSlotColor(
+											aestheticScales.colorSlots.densityCurveStroke,
+											channelConfigs.colorSlots.densityCurveStroke,
+											row,
+											liveTheme.distributionOverlayStroke
+										)
+									: liveTheme.distributionOverlayStroke,
+								row
+							),
 						fillFor: (row) =>
-							channelConfigs.colorSlots?.densityCurveFill
-								? resolveSlotColor(
-										aestheticScales.colorSlots.densityCurveFill,
-										channelConfigs.colorSlots.densityCurveFill,
-										row,
-										liveTheme.distributionOverlayFill
-									)
-								: liveTheme.distributionOverlayFill,
+							slotModulationResolver("densityCurveFill", channelConfigs, aestheticScales)(
+								channelConfigs.colorSlots?.densityCurveFill
+									? resolveSlotColor(
+											aestheticScales.colorSlots.densityCurveFill,
+											channelConfigs.colorSlots.densityCurveFill,
+											row,
+											liveTheme.distributionOverlayFill
+										)
+									: liveTheme.distributionOverlayFill,
+								row
+							),
 						strokeOpacity: slotOpacityResolver(
 							"densityCurveStroke",
 							channelConfigs,
@@ -1226,6 +1214,7 @@ const buildRug = ({
 	hue,
 	rugSlot,
 	rugSlotCfg,
+	rugShade,
 	rugOpacity,
 	categoryScale,
 	measureScale,
@@ -1239,6 +1228,8 @@ const buildRug = ({
 	 * the legacy `histogram.rug*` coloring runs (back-compat). */
 	rugSlot: AestheticScales["colorSlots"]["rug"]
 	rugSlotCfg: ColorSlotConfig | undefined
+	/** The rug's own Saturation / Brightness, applied to each tick's color. */
+	rugShade: (color: string, row: Record<string, unknown>) => string
 	/** Per-row opacity from the Rug opacity slot (level, or field-resolved). */
 	rugOpacity: (row: Record<string, unknown>) => number
 	categoryScale: ReturnType<typeof scaleBand<string>>
@@ -1270,7 +1261,7 @@ const buildRug = ({
 		usePalette && hue && hue.scale.kind === "categorical"
 			? hue.scale.scale.domain()
 			: []
-	const colorFor = (row: Record<string, unknown>): string => {
+	const baseColorFor = (row: Record<string, unknown>): string => {
 		// When the rug color slot is configured it fully owns the color
 		// (independent field mapping or single color); fall back to the legacy
 		// hue-indexed rug coloring only when no slot exists.
@@ -1279,6 +1270,8 @@ const buildRug = ({
 		const idx = hueDomain.indexOf(String(row[hueField]))
 		return idx >= 0 ? palette[idx % palette.length] : histogram.rugColor
 	}
+	const colorFor = (row: Record<string, unknown>): string =>
+		rugShade(baseColorFor(row), row)
 
 	const ticks: React.ReactNode[] = []
 	rows.forEach((row, i) => {
@@ -1335,10 +1328,13 @@ const buildDensityCurve = ({
 	strokeFor,
 	fillFor,
 	strokeOpacity,
+	strokeWidth = DEFAULT_DENSITY_CURVE_WIDTH,
 	fillOpacity,
 	categoryScale,
 	measureScale,
 }: {
+	/** The curve's line thickness (Size → Density curve outline). */
+	strokeWidth?: number
 	aggregation: Extract<Aggregation, { kind: "ok" }>
 	rows: Array<Record<string, unknown>>
 	histogram: HistogramConfig
@@ -1398,7 +1394,7 @@ const buildDensityCurve = ({
 					fill="none"
 					stroke={stroke}
 					strokeOpacity={strokeOpacity}
-					strokeWidth={2}
+					strokeWidth={strokeWidth}
 					strokeLinejoin="round"
 					strokeLinecap="round"
 				/>
@@ -1412,6 +1408,11 @@ const buildDensityCurve = ({
 		// density mode → each group's share (group's count curve ÷ grand total),
 		// so the per-group curves sum to the single-curve total.
 		const groups = new Map<string, number[]>()
+		// A curve is one mark built from many rows: its color and shading
+		// resolve off its FIRST row, like every other per-part target, so a
+		// "Vary by" on any variable reaches it (it used to be handed a row
+		// holding the group value alone, and other variables did nothing).
+		const firstRows = new Map<string, Record<string, unknown>>()
 		const order: string[] = []
 		let totalN = 0
 		for (const r of rows) {
@@ -1425,6 +1426,7 @@ const buildDensityCurve = ({
 			if (!list) {
 				list = []
 				groups.set(key, list)
+				firstRows.set(key, r)
 				order.push(key)
 			}
 			list.push(v)
@@ -1441,7 +1443,7 @@ const buildDensityCurve = ({
 						bandwidthScale: histogram.densityBandwidthScale,
 					})
 					const scaled = isDensity ? measure.map((m) => m / totalN) : measure
-					const row = { [groupField]: key }
+					const row = firstRows.get(key) ?? { [groupField]: key }
 					return renderCurve(grid, scaled, strokeFor(row), fillFor(row), key)
 				})}
 			</g>
@@ -1456,7 +1458,9 @@ const buildDensityCurve = ({
 		mode: isDensity ? "density" : "count",
 		bandwidthScale: histogram.densityBandwidthScale,
 	})
-	return renderCurve(grid, measure, strokeFor({}), fillFor({}), "single")
+	// The one curve over every row: off the first row drawn.
+	const first = rows.find((r) => Number.isFinite(numFor(r[categoryField]))) ?? {}
+	return renderCurve(grid, measure, strokeFor(first), fillFor(first), "single")
 }
 
 /** Render one `<rect>` per stack slice. Geometry comes from the shared
@@ -1485,18 +1489,13 @@ const buildRects = ({
 	const sliceHighlight = (
 		groupValues: Partial<Record<GroupChannel, string>>
 	): MarkHighlight => groupHighlight(highlight, groupValues, aestheticScales)
-	const outlineColor =
-		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
-	const outlineWidth = channelConfigs.shape?.outlineWidth ?? 1
-	// Border opacity from the Border slot. Bars are aggregated slices (no single
-	// row), so a field-mapped border resolves to the slot's static level. Fill
-	// opacity is each slice's overall opacity (the Fill subheader = the opacity
-	// encoding), applied directly — opacity slots are absolute.
-	const borderOpacity = slotOpacityResolver(
-		"border",
-		channelConfigs,
-		aestheticScales
-	)({})
+	// Each segment's outline — its color (rule, Outline variable, or the one
+	// outline color), saturation / brightness, opacity and thickness — through the
+	// resolver every mark's outline shares (`lib/markOutline`). A segment is
+	// built from several rows, so the per-part targets resolve off its first
+	// row. Fill opacity is each slice's overall opacity (the Fill subheader =
+	// the opacity encoding), applied directly — opacity slots are absolute.
+	const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
 	const defaultFill = channelConfigs.defaultFill ?? FALLBACK_FILL
 	const patternBgOverride = channelConfigs.pattern?.backgroundColor ?? null
 
@@ -1568,13 +1567,14 @@ const buildRects = ({
 			// the stroke and thickens it.
 			const fillProp: string =
 				mh.fill ?? measureFill ?? layerFillProp(layer)
-			// Field-driven outline color (the `outlineHue` channel) wins over
-			// the universal outline color when an outline field is mapped.
-			const sliceStroke = mh.outline ?? layer.outline ?? outlineColor
+			// `layer.outline` is the segment's rule / Outline-variable color
+			// (resolved off its group value), or null for the one outline color.
+			const outline = outlineFor(slice.rows?.[0] ?? {}, { color: layer.outline })
+			const sliceStroke = mh.outline ?? outline.stroke
 			const sliceStrokeWidth = mh.outline
-				? Math.max(outlineWidth, mh.outlineWidth)
-				: outlineWidth
-			const sliceStrokeOpacity = mh.outline ? 1 : borderOpacity
+				? Math.max(outline.strokeWidth, mh.outlineWidth)
+				: outline.strokeWidth
+			const sliceStrokeOpacity = mh.outline ? 1 : outline.strokeOpacity
 
 			// Rect geometry is sign-agnostic: a negative slice runs from the
 			// zero baseline AWAY from the positive direction, so its end pixel

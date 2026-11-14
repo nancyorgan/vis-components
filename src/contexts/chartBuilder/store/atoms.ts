@@ -1511,6 +1511,19 @@ export const currentRenderedFigureSlackAtom = atom<{
 	y: number
 }>({ x: 0, y: 0 })
 
+/** The smallest chart area the chart still fits, published by PlotCanvas
+ *  after each layout pass (`FacetLayoutSpec.fitFloor`): its title bands,
+ *  base margins and panel gaps with everything soft given up. ChartCanvas
+ *  keeps the chart area at least this large on the axis it shares with the
+ *  legend, so a legend too big for the page gives way (it scrolls inside
+ *  itself) before the chart is squeezed past the point where its canvas
+ *  can no longer be its container. {0,0} = no floor (scroll mode, a pixel
+ *  panel size, nothing solved yet). */
+export const currentRenderedFitFloorAtom = atom<{
+	width: number
+	height: number
+}>({ width: 0, height: 0 })
+
 /** Counts PlotCanvas layout passes (bumped after every solve commits).
  *  ChartCanvas's CanvasMarginFrame measures the rendered ink on each bump
  *  — the only moment the DOM is guaranteed to reflect the latest spec —

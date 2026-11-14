@@ -803,12 +803,37 @@ describe("planLegendSections — layout plan", () => {
 		expect(auto?.innerClass).not.toContain("vc-legend-fixed-width")
 	})
 
+	it("a top / bottom legend too tall for the page shrinks and scrolls inside itself", () => {
+		// It sits in a column above (or below) the chart. It used to refuse to
+		// shrink with its vertical overflow hidden, so a legend taller than the
+		// viewport pushed the plot hundreds of pixels off the page and
+		// scrolled the page (found by the browser layout sweep). Now the
+		// legend is what gives way — the same way a side legend always has.
+		for (const position of ["top", "bottom"] as const) {
+			const p = plan({ encodings: enc({ hue: "region" }), legendCfg: legendCfg({ position }) })
+			const classes = p?.outerClass.split(" ") ?? []
+			expect(classes).toContain("min-h-0")
+			expect(classes).toContain("shrink")
+			expect(classes).toContain("overflow-y-auto")
+			expect(classes).not.toContain("flex-shrink-0")
+			expect(classes).not.toContain("overflow-y-hidden")
+		}
+		// A side legend gives way the same way, across.
+		const side = plan({ encodings: enc({ hue: "region" }), legendCfg: legendCfg({ position: "right" }) })
+		expect(side?.outerClass.split(" ")).toEqual(
+			expect.arrayContaining(["min-w-0", "shrink", "overflow-x-auto", "overflow-y-auto"]),
+		)
+	})
+
 	it("inside legends anchor the RIGHT edge when insideX is auto and the LEFT edge once typed", () => {
 		const auto = plan({
 			encodings: enc({ hue: "region" }),
 			legendCfg: legendCfg({ position: "inside", insideX: null }),
 		})
 		expect(auto?.outerClass).toBe("absolute z-10")
+		// Never taller than the canvas: past that it scrolls inside itself.
+		expect(auto?.outerStyle?.maxHeight).toMatch(/^calc\(100% - \d+px\)$/)
+		expect(auto?.outerStyle?.overflowY).toBe("auto")
 		expect(auto?.innerClass).toBe("inline-block p-3")
 		expect(auto?.outerStyle?.right).toMatch(/^calc\(/)
 		expect(auto?.outerStyle?.left).toBeUndefined()

@@ -1,0 +1,6059 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > area-overlay 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Area fill · Vary by [select]",
+      "Area fill · Brightness [range, disabled]",
+      "Area fill · Brightness value [number, disabled]",
+      "Area fill · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Palette [select]",
+      "Line · Line color for ‹level› hex [hex]",
+      "Area fill · Palette [select]",
+      "Area fill · Color for ‹level› hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line fill · Stacking: Stack [segment]",
+      "Line fill · Stacking: Overlay [segment]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Area fill · Opacity [range]",
+      "Area fill · Opacity value [number]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for ‹level› [toggle]",
+      "Line · ‹level› dash dashed [toggle]",
+      "Line · ‹level› dash dotted [toggle]",
+      "Line · ‹level› dash dash-dot [toggle]",
+      "Line · Custom dash for ‹level› [toggle]",
+      "Line · No dash for ‹level› [toggle]",
+      "Line · ‹level› dash dashed [toggle]",
+      "Line · ‹level› dash dotted [toggle]",
+      "Line · ‹level› dash dash-dot [toggle]",
+      "Line · Custom dash for ‹level› [toggle]",
+      "Line · No dash for ‹level› [toggle]",
+      "Line · ‹level› dash dashed [toggle]",
+      "Line · ‹level› dash dotted [toggle]",
+      "Line · ‹level› dash dash-dot [toggle]",
+      "Line · Custom dash for ‹level› [toggle]",
+      "Line · Fill dash gaps [checkbox]",
+      "Area fill · No pattern for ‹level› [toggle]",
+      "Area fill · Pattern option 1 [toggle]",
+      "Area fill · Pattern option 2 [toggle]",
+      "Area fill · Pattern option 3 [toggle]",
+      "Area fill · Pattern option 4 [toggle]",
+      "Area fill · Pattern option 5 [toggle]",
+      "Area fill · Pattern option 6 [toggle]",
+      "Area fill · No pattern for ‹level› [toggle]",
+      "Area fill · Pattern option 1 [toggle]",
+      "Area fill · Pattern option 2 [toggle]",
+      "Area fill · Pattern option 3 [toggle]",
+      "Area fill · Pattern option 4 [toggle]",
+      "Area fill · Pattern option 5 [toggle]",
+      "Area fill · Pattern option 6 [toggle]",
+      "Area fill · No pattern for ‹level› [toggle]",
+      "Area fill · Pattern option 1 [toggle]",
+      "Area fill · Pattern option 2 [toggle]",
+      "Area fill · Pattern option 3 [toggle]",
+      "Area fill · Pattern option 4 [toggle]",
+      "Area fill · Pattern option 5 [toggle]",
+      "Area fill · Pattern option 6 [toggle]",
+      "Point fill · No point pattern for ‹level› [toggle]",
+      "Point fill · Point pattern option 1 [toggle]",
+      "Point fill · Point pattern option 2 [toggle]",
+      "Point fill · Point pattern option 3 [toggle]",
+      "Point fill · Point pattern option 4 [toggle]",
+      "Point fill · Point pattern option 5 [toggle]",
+      "Point fill · Point pattern option 6 [toggle]",
+      "Point fill · No point pattern for ‹level› [toggle]",
+      "Point fill · Point pattern option 1 [toggle]",
+      "Point fill · Point pattern option 2 [toggle]",
+      "Point fill · Point pattern option 3 [toggle]",
+      "Point fill · Point pattern option 4 [toggle]",
+      "Point fill · Point pattern option 5 [toggle]",
+      "Point fill · Point pattern option 6 [toggle]",
+      "Point fill · No point pattern for ‹level› [toggle]",
+      "Point fill · Point pattern option 1 [toggle]",
+      "Point fill · Point pattern option 2 [toggle]",
+      "Point fill · Point pattern option 3 [toggle]",
+      "Point fill · Point pattern option 4 [toggle]",
+      "Point fill · Point pattern option 5 [toggle]",
+      "Point fill · Point pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Area fill · Vary by [select]",
+      "Area fill · Saturation [range, disabled]",
+      "Area fill · Saturation value [number, disabled]",
+      "Area fill · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > area-stacked 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Area fill · Vary by [select]",
+      "Area fill · Brightness [range, disabled]",
+      "Area fill · Brightness value [number, disabled]",
+      "Area fill · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Color hex [hex]",
+      "Area fill · Color hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line fill · Stacking: Stack [segment]",
+      "Line fill · Stacking: Overlay [segment]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Area fill · Opacity [range]",
+      "Area fill · Opacity value [number]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Area fill · None [toggle]",
+      "Area fill · Pattern option 1 [toggle]",
+      "Area fill · Pattern option 2 [toggle]",
+      "Area fill · Pattern option 3 [toggle]",
+      "Area fill · Pattern option 4 [toggle]",
+      "Area fill · Pattern option 5 [toggle]",
+      "Area fill · Pattern option 6 [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Point pattern option 1 [toggle]",
+      "Point fill · Point pattern option 2 [toggle]",
+      "Point fill · Point pattern option 3 [toggle]",
+      "Point fill · Point pattern option 4 [toggle]",
+      "Point fill · Point pattern option 5 [toggle]",
+      "Point fill · Point pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Area fill · Vary by [select]",
+      "Area fill · Saturation [range, disabled]",
+      "Area fill · Saturation value [number, disabled]",
+      "Area fill · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Area fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > area-unfilled 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Color hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > bars-grouped 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Stacking: Stack [segment]",
+      "Bar fill · Stacking: Group [segment]",
+      "Bar fill · Stacking: Overlay [segment]",
+      "Bar fill · Palette [select]",
+      "Bar fill · Color for ‹level› hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+    ],
+    "parts": [
+      "Bar outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > bars-horizontal 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Stacking: Stack [segment]",
+      "Bar fill · Stacking: Group [segment]",
+      "Bar fill · Stacking: Overlay [segment]",
+      "Bar fill · Palette [select]",
+      "Bar fill · Color for ‹level› hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Palette [select]",
+      "Bar outline · Outline color for ‹level› hex [hex]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+    ],
+    "parts": [
+      "Bar outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > bars-patterned 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Layout: Stack [segment]",
+      "Bar fill · Layout: Group [segment]",
+      "Bar fill · Layout: Overlay [segment]",
+      "Bar fill · Palette [select]",
+      "Bar fill · Color for ‹level› hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Layout: Stack [segment]",
+      "(top) · Layout: Group [segment]",
+      "(top) · Layout: Overlay [segment]",
+      "(top) · No pattern for ‹level› [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+      "(top) · Ink color hex [hex]",
+      "(top) · Scale for ‹level› [number]",
+      "(top) · Rotate for ‹level› [number]",
+      "(top) · No pattern for ‹level› [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+      "(top) · Ink color hex [hex]",
+      "(top) · Scale for ‹level› [number]",
+      "(top) · Rotate for ‹level› [number]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+    ],
+    "parts": [
+      "Bar outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > box 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Brightness [range, disabled]",
+      "Violin / box fill · Brightness value [number, disabled]",
+      "Violin / box fill · Enable override [enable]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Brightness [range, disabled]",
+      "Violin / box outline · Brightness value [number, disabled]",
+      "Violin / box outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Color hex [hex]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Opacity [range]",
+      "Violin / box fill · Opacity value [number]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Opacity [range]",
+      "Violin / box outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · None [toggle]",
+      "Violin / box fill · Violin / box pattern option 1 [toggle]",
+      "Violin / box fill · Violin / box pattern option 2 [toggle]",
+      "Violin / box fill · Violin / box pattern option 3 [toggle]",
+      "Violin / box fill · Violin / box pattern option 4 [toggle]",
+      "Violin / box fill · Violin / box pattern option 5 [toggle]",
+      "Violin / box fill · Violin / box pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Point fill",
+      "Violin / box fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Saturation [range, disabled]",
+      "Violin / box fill · Saturation value [number, disabled]",
+      "Violin / box fill · Enable override [enable]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Saturation [range, disabled]",
+      "Violin / box outline · Saturation value [number, disabled]",
+      "Violin / box outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+      "Violin / box outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+      "Violin / box outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > bubble 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Min [range]",
+      "Point fill · Min value [number]",
+      "Point fill · Max [range]",
+      "Point fill · Max value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > bubble-map 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Brightness [range, disabled]",
+      "Region fill · Brightness value [number, disabled]",
+      "Region fill · Enable override [enable]",
+      "Region outline · Vary by [select]",
+      "Region outline · Brightness [range, disabled]",
+      "Region outline · Brightness value [number, disabled]",
+      "Region outline · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Color hex [hex]",
+      "Region outline · Vary by [select]",
+      "Region outline · Color hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Opacity [range]",
+      "Region fill · Opacity value [number]",
+      "Region outline · Vary by [select]",
+      "Region outline · Opacity [range]",
+      "Region outline · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Saturation [range, disabled]",
+      "Region fill · Saturation value [number, disabled]",
+      "Region fill · Enable override [enable]",
+      "Region outline · Vary by [select]",
+      "Region outline · Saturation [range, disabled]",
+      "Region outline · Saturation value [number, disabled]",
+      "Region outline · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Region outline · Vary by [select]",
+      "Region outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Region outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > chord 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Node fill · Vary by [select]",
+      "Node fill · Brightness [range, disabled]",
+      "Node fill · Brightness value [number, disabled]",
+      "Node fill · Enable override [enable]",
+      "Node outline · Vary by [select]",
+      "Node outline · Brightness [range, disabled]",
+      "Node outline · Brightness value [number, disabled]",
+      "Node outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Node fill · Vary by [select]",
+      "Node fill · Palette [select]",
+      "Node fill · Color for ‹level› hex [hex]",
+      "Node outline · Vary by [select]",
+      "Node outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Structure · Packed circles [radio]",
+      "Structure · Treemap [radio]",
+      "Structure · Sunburst [radio]",
+      "Structure · Chord [radio]",
+      "Structure · Sankey [radio]",
+      "Structure · Flow to [select]",
+      "(top) · Show axis [checkbox]",
+    ],
+    "parts": [
+      "Structure",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Node fill · Opacity [range]",
+      "Node fill · Opacity value [number]",
+      "Node outline · Vary by [select]",
+      "Node outline · Opacity [range]",
+      "Node outline · Opacity value [number]",
+      "Ribbon fill · Opacity [range]",
+      "Ribbon fill · Opacity value [number]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+      "Ribbon fill",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Node fill · Vary by [select]",
+      "Node fill · Saturation [range, disabled]",
+      "Node fill · Saturation value [number, disabled]",
+      "Node fill · Enable override [enable]",
+      "Node outline · Vary by [select]",
+      "Node outline · Saturation [range, disabled]",
+      "Node outline · Saturation value [number, disabled]",
+      "Node outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Node outline · Vary by [select]",
+      "Node outline · Thickness [number]",
+    ],
+    "parts": [
+      "Node outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > choropleth 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Brightness [range, disabled]",
+      "Region fill · Brightness value [number, disabled]",
+      "Region fill · Enable override [enable]",
+      "Region outline · Vary by [select]",
+      "Region outline · Brightness [range, disabled]",
+      "Region outline · Brightness value [number, disabled]",
+      "Region outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Palette [select]",
+      "Region fill · Interpolation [select]",
+      "Region fill · High hex [hex]",
+      "Region fill · High stop value [text]",
+      "Region fill · Low hex [hex]",
+      "Region fill · Low stop value [text]",
+      "Region outline · Vary by [select]",
+      "Region outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Opacity [range]",
+      "Region fill · Opacity value [number]",
+      "Region outline · Vary by [select]",
+      "Region outline · Opacity [range]",
+      "Region outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region fill · Saturation [range, disabled]",
+      "Region fill · Saturation value [number, disabled]",
+      "Region fill · Enable override [enable]",
+      "Region outline · Vary by [select]",
+      "Region outline · Saturation [range, disabled]",
+      "Region outline · Saturation value [number, disabled]",
+      "Region outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Region outline · Vary by [select]",
+      "Region outline · Thickness [number]",
+    ],
+    "parts": [
+      "Region outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > combo-horizontal 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Color hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+      "Line · Vary by [select]",
+      "Line · Color hex [hex]",
+      "Point fill · Vary by [select]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Draw as: Segments [segment]",
+      "(top) · Draw as: Bars [segment]",
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Bar fill · None [toggle]",
+      "Bar fill · Pattern option 1 [toggle]",
+      "Bar fill · Pattern option 2 [toggle]",
+      "Bar fill · Pattern option 3 [toggle]",
+      "Bar fill · Pattern option 4 [toggle]",
+      "Bar fill · Pattern option 5 [toggle]",
+      "Bar fill · Pattern option 6 [toggle]",
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Line",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Bar outline",
+      "Line",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > combo-line 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Stacking: Stack [segment]",
+      "Bar fill · Stacking: Group [segment]",
+      "Bar fill · Stacking: Overlay [segment]",
+      "Bar fill · Palette [select]",
+      "Bar fill · Color for ‹level› hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+      "Line · Vary by [select]",
+      "Line · Color hex [hex]",
+      "Point fill · Vary by [select]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Draw as: Segments [segment]",
+      "(top) · Draw as: Bars [segment]",
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Bar fill · None [toggle]",
+      "Bar fill · Pattern option 1 [toggle]",
+      "Bar fill · Pattern option 2 [toggle]",
+      "Bar fill · Pattern option 3 [toggle]",
+      "Bar fill · Pattern option 4 [toggle]",
+      "Bar fill · Pattern option 5 [toggle]",
+      "Bar fill · Pattern option 6 [toggle]",
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Line",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Bar outline",
+      "Line",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > combo-points 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Point fill",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Stacking: Stack [segment]",
+      "Bar fill · Stacking: Group [segment]",
+      "Bar fill · Stacking: Overlay [segment]",
+      "Bar fill · Palette [select]",
+      "Bar fill · Color for ‹level› hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+      "Point fill · Vary by [select]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Point fill",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Draw as: Segments [segment]",
+      "(top) · Draw as: Bars [segment]",
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Point fill",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Point fill",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Bar outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > density 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Brightness [range, disabled]",
+      "Density curve outline · Brightness value [number, disabled]",
+      "Density curve outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Density curve outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Density curve outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Density curve outline · Opacity [range]",
+      "Density curve outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Density curve outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Saturation [range, disabled]",
+      "Density curve outline · Saturation value [number, disabled]",
+      "Density curve outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Density curve outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Density curve outline · Thickness [number]",
+    ],
+    "parts": [
+      "Density curve outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > density-filled 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Density curve fill · Vary by [select]",
+      "Density curve fill · Brightness [range, disabled]",
+      "Density curve fill · Brightness value [number, disabled]",
+      "Density curve fill · Enable override [enable]",
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Brightness [range, disabled]",
+      "Density curve outline · Brightness value [number, disabled]",
+      "Density curve outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Density curve fill",
+      "Density curve outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Density curve fill · Vary by [select]",
+      "Density curve fill · Color hex [hex]",
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Density curve fill",
+      "Density curve outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Density curve fill · Opacity [range]",
+      "Density curve fill · Opacity value [number]",
+      "Density curve outline · Opacity [range]",
+      "Density curve outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Density curve fill",
+      "Density curve outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Density curve fill · Vary by [select]",
+      "Density curve fill · Saturation [range, disabled]",
+      "Density curve fill · Saturation value [number, disabled]",
+      "Density curve fill · Enable override [enable]",
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Saturation [range, disabled]",
+      "Density curve outline · Saturation value [number, disabled]",
+      "Density curve outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Density curve fill",
+      "Density curve outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Density curve outline · Thickness [number]",
+    ],
+    "parts": [
+      "Density curve outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > dot-map 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Region fill · Brightness [range, disabled]",
+      "Region fill · Brightness value [number, disabled]",
+      "Region fill · Enable override [enable]",
+      "Region outline · Brightness [range, disabled]",
+      "Region outline · Brightness value [number, disabled]",
+      "Region outline · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Region fill · Vary by [select]",
+      "Region outline · Vary by [select]",
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Region fill · Opacity [range]",
+      "Region fill · Opacity value [number]",
+      "Region outline · Opacity [range]",
+      "Region outline · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Region fill · Saturation [range, disabled]",
+      "Region fill · Saturation value [number, disabled]",
+      "Region fill · Enable override [enable]",
+      "Region outline · Saturation [range, disabled]",
+      "Region outline · Saturation value [number, disabled]",
+      "Region outline · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Region fill",
+      "Region outline",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Region outline · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Region outline",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > dumbbell 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Color hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > hexbin 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Brightness [range, disabled]",
+      "Cell fill · Brightness value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Brightness [range, disabled]",
+      "Cell outline · Brightness value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Palette [select]",
+      "Cell fill · Interpolation [select]",
+      "Cell fill · High hex [hex]",
+      "Cell fill · High stop value [text]",
+      "Cell fill · Low hex [hex]",
+      "Cell fill · Low stop value [text]",
+      "Cell fill · Bins [number]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Opacity [range]",
+      "Cell fill · Opacity value [number]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Opacity [range]",
+      "Cell outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Saturation [range, disabled]",
+      "Cell fill · Saturation value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Saturation [range, disabled]",
+      "Cell outline · Saturation value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Cell outline · Vary by [select]",
+      "Cell outline · Thickness [number]",
+    ],
+    "parts": [
+      "Cell outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > histogram 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Density curve fill · Vary by [select]",
+      "Density curve fill · Brightness [range, disabled]",
+      "Density curve fill · Brightness value [number, disabled]",
+      "Density curve fill · Enable override [enable]",
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Brightness [range, disabled]",
+      "Density curve outline · Brightness value [number, disabled]",
+      "Density curve outline · Enable override [enable]",
+      "Rug · Vary by [select]",
+      "Rug · Brightness [range, disabled]",
+      "Rug · Brightness value [number, disabled]",
+      "Rug · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Density curve fill",
+      "Density curve outline",
+      "Rug",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Color hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+      "Density curve fill · Vary by [select]",
+      "Density curve fill · Color hex [hex]",
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Color hex [hex]",
+      "Rug · Vary by [select]",
+      "Rug · Color hex [hex]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Density curve fill",
+      "Density curve outline",
+      "Rug",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+      "Density curve fill · Opacity [range]",
+      "Density curve fill · Opacity value [number]",
+      "Density curve outline · Opacity [range]",
+      "Density curve outline · Opacity value [number]",
+      "Rug · Vary by [select]",
+      "Rug · Opacity [range]",
+      "Rug · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Density curve fill",
+      "Density curve outline",
+      "Rug",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Density curve fill · Vary by [select]",
+      "Density curve fill · Saturation [range, disabled]",
+      "Density curve fill · Saturation value [number, disabled]",
+      "Density curve fill · Enable override [enable]",
+      "Density curve outline · Vary by [select]",
+      "Density curve outline · Saturation [range, disabled]",
+      "Density curve outline · Saturation value [number, disabled]",
+      "Density curve outline · Enable override [enable]",
+      "Rug · Vary by [select]",
+      "Rug · Saturation [range, disabled]",
+      "Rug · Saturation value [number, disabled]",
+      "Rug · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Density curve fill",
+      "Density curve outline",
+      "Rug",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+      "Density curve outline · Thickness [number]",
+    ],
+    "parts": [
+      "Bar outline",
+      "Density curve outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > line 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Palette [select]",
+      "Line · Line for ‹level› hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > line-horizontal 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Palette [select]",
+      "Line · Line for ‹level› hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > line-rich 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Palette [select]",
+      "Line · Line for ‹level› hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for ‹level› [toggle]",
+      "Line · ‹level› dash dashed [toggle]",
+      "Line · ‹level› dash dotted [toggle]",
+      "Line · ‹level› dash dash-dot [toggle]",
+      "Line · Custom dash for ‹level› [toggle]",
+      "Line · No dash for ‹level› [toggle]",
+      "Line · ‹level› dash dashed [toggle]",
+      "Line · ‹level› dash dotted [toggle]",
+      "Line · ‹level› dash dash-dot [toggle]",
+      "Line · Custom dash for ‹level› [toggle]",
+      "Line · No dash for ‹level› [toggle]",
+      "Line · ‹level› dash dashed [toggle]",
+      "Line · ‹level› dash dotted [toggle]",
+      "Line · ‹level› dash dash-dot [toggle]",
+      "Line · Custom dash for ‹level› [toggle]",
+      "Line · Fill dash gaps [checkbox]",
+      "Point fill · No pattern for ‹level› [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Point fill · No pattern for ‹level› [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Point fill · No pattern for ‹level› [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > line-temporal 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Color hex [hex]",
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line fill · Fill area under line [checkbox]",
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line fill",
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > packed-circles 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Circle fill · Vary by [select]",
+      "Circle fill · Brightness [range, disabled]",
+      "Circle fill · Brightness value [number, disabled]",
+      "Circle fill · Enable override [enable]",
+      "Circle outline · Vary by [select]",
+      "Circle outline · Brightness [range, disabled]",
+      "Circle outline · Brightness value [number, disabled]",
+      "Circle outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Circle fill",
+      "Circle outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Circle fill · Vary by [select]",
+      "Circle fill · Palette [select]",
+      "Circle fill · Color for ‹level› hex [hex]",
+      "Circle outline · Vary by [select]",
+      "Circle outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Circle fill",
+      "Circle outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Structure · Packed circles [radio]",
+      "Structure · Treemap [radio]",
+      "Structure · Sunburst [radio]",
+      "Structure · Chord [radio]",
+      "Structure · Sankey [radio]",
+      "Structure · ID column [select]",
+    ],
+    "parts": [
+      "Structure",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Circle fill · Vary by [select]",
+      "Circle fill · Opacity [range]",
+      "Circle fill · Opacity value [number]",
+      "Circle outline · Vary by [select]",
+      "Circle outline · Opacity [range]",
+      "Circle outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Circle fill",
+      "Circle outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Circle fill · Vary by [select]",
+      "Circle fill · Saturation [range, disabled]",
+      "Circle fill · Saturation value [number, disabled]",
+      "Circle fill · Enable override [enable]",
+      "Circle outline · Vary by [select]",
+      "Circle outline · Saturation [range, disabled]",
+      "Circle outline · Saturation value [number, disabled]",
+      "Circle outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Circle fill",
+      "Circle outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Circle · Area — true proportions [radio]",
+      "Circle · Diameter — exaggerates differences [radio]",
+      "Circle outline · Vary by [select]",
+      "Circle outline · Thickness [number]",
+    ],
+    "parts": [
+      "Circle",
+      "Circle outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > pie-single 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Chart type: Pie [segment]",
+      "(top) · Chart type: Donut [segment]",
+      "Angle extent · Min [number]",
+      "Angle extent · Max [number]",
+    ],
+    "parts": [
+      "Angle extent",
+    ],
+  },
+  "Brightness": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Brightness [range, disabled]",
+      "Slice fill · Brightness value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Brightness [range, disabled]",
+      "Slice outline · Brightness value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Palette [select]",
+      "Slice fill · Color for ‹level› hex [hex]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Opacity [range]",
+      "Slice fill · Opacity value [number]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Opacity [range]",
+      "Slice outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · No pattern for ‹level› [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+      "(top) · Ink color hex [hex]",
+      "(top) · Scale for ‹level› [number]",
+      "(top) · Rotate for ‹level› [number]",
+      "(top) · No pattern for ‹level› [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+      "(top) · Ink color hex [hex]",
+      "(top) · Scale for ‹level› [number]",
+      "(top) · Rotate for ‹level› [number]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Saturation [range, disabled]",
+      "Slice fill · Saturation value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Saturation [range, disabled]",
+      "Slice outline · Saturation value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Slice outline · Vary by [select]",
+      "Slice outline · Thickness [number]",
+    ],
+    "parts": [
+      "Slice outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > pie-x 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Chart type: Pie [segment]",
+      "(top) · Chart type: Donut [segment]",
+      "Angle extent · Min [number]",
+      "Angle extent · Max [number]",
+    ],
+    "parts": [
+      "Angle extent",
+    ],
+  },
+  "Brightness": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Brightness [range, disabled]",
+      "Slice fill · Brightness value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Brightness [range, disabled]",
+      "Slice outline · Brightness value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Palette [select]",
+      "Slice fill · Color for ‹level› hex [hex]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Opacity [range]",
+      "Slice fill · Opacity value [number]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Opacity [range]",
+      "Slice outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Saturation [range, disabled]",
+      "Slice fill · Saturation value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Saturation [range, disabled]",
+      "Slice outline · Saturation value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Slice outline · Vary by [select]",
+      "Slice outline · Thickness [number]",
+    ],
+    "parts": [
+      "Slice outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > pie-y 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Chart type: Pie [segment]",
+      "(top) · Chart type: Donut [segment]",
+      "Angle extent · Min [number]",
+      "Angle extent · Max [number]",
+    ],
+    "parts": [
+      "Angle extent",
+    ],
+  },
+  "Brightness": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Brightness [range, disabled]",
+      "Slice fill · Brightness value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Brightness [range, disabled]",
+      "Slice outline · Brightness value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Palette [select]",
+      "Slice fill · Color for ‹level› hex [hex]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Opacity [range]",
+      "Slice fill · Opacity value [number]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Opacity [range]",
+      "Slice outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Saturation [range, disabled]",
+      "Slice fill · Saturation value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Saturation [range, disabled]",
+      "Slice outline · Saturation value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Slice outline · Vary by [select]",
+      "Slice outline · Thickness [number]",
+    ],
+    "parts": [
+      "Slice outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > radar-dots 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "Angle extent · Min [number]",
+      "Angle extent · Max [number]",
+      "Spokes · Spokes [number]",
+      "Spoke labels · Label angle [number]",
+      "Spoke labels · Label format [select]",
+      "Spoke labels · Custom text format [text]",
+      "Spoke labels · Label every [number]",
+      "Spoke labels · Distance [number]",
+    ],
+    "parts": [
+      "Angle extent",
+      "Spokes",
+      "Spoke labels",
+    ],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > radar-filled 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "Angle extent · Min [number]",
+      "Angle extent · Max [number]",
+      "Spokes · Spokes [number]",
+      "Spoke labels · Label angle [number]",
+      "Spoke labels · Label format [select]",
+      "Spoke labels · Custom text format [text]",
+      "Spoke labels · Label every [number]",
+      "Spoke labels · Distance [number]",
+    ],
+    "parts": [
+      "Angle extent",
+      "Spokes",
+      "Spoke labels",
+    ],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Polygon fill · Vary by [select]",
+      "Polygon fill · Brightness [range, disabled]",
+      "Polygon fill · Brightness value [number, disabled]",
+      "Polygon fill · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Polygon fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Polygon fill · Vary by [select]",
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Polygon fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Polygon · Fill polygon [checkbox]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Polygon",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Polygon fill · Vary by [select]",
+      "Polygon fill · Opacity [range]",
+      "Polygon fill · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Polygon fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Polygon fill · None [toggle]",
+      "Polygon fill · Polygon pattern option 1 [toggle]",
+      "Polygon fill · Polygon pattern option 2 [toggle]",
+      "Polygon fill · Polygon pattern option 3 [toggle]",
+      "Polygon fill · Polygon pattern option 4 [toggle]",
+      "Polygon fill · Polygon pattern option 5 [toggle]",
+      "Polygon fill · Polygon pattern option 6 [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Point outline · No dash for point outline [toggle]",
+      "Point outline · Point outline dash dashed [toggle]",
+      "Point outline · Point outline dash dotted [toggle]",
+      "Point outline · Point outline dash dash-dot [toggle]",
+      "Point outline · Custom dash for point outline [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Polygon fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Polygon fill · Vary by [select]",
+      "Polygon fill · Saturation [range, disabled]",
+      "Polygon fill · Saturation value [number, disabled]",
+      "Polygon fill · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Polygon fill",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > radar-polygon 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "Angle extent · Min [number]",
+      "Angle extent · Max [number]",
+      "Spokes · Spokes [number]",
+      "Spoke labels · Label angle [number]",
+      "Spoke labels · Label format [select]",
+      "Spoke labels · Custom text format [text]",
+      "Spoke labels · Label every [number]",
+      "Spoke labels · Distance [number]",
+    ],
+    "parts": [
+      "Angle extent",
+      "Spokes",
+      "Spoke labels",
+    ],
+  },
+  "Brightness": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Polygon · Fill polygon [checkbox]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Polygon",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Point outline · No dash for point outline [toggle]",
+      "Point outline · Point outline dash dashed [toggle]",
+      "Point outline · Point outline dash dotted [toggle]",
+      "Point outline · Point outline dash dash-dot [toggle]",
+      "Point outline · Custom dash for point outline [toggle]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Line",
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Line",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > sankey 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Node fill · Vary by [select]",
+      "Node fill · Brightness [range, disabled]",
+      "Node fill · Brightness value [number, disabled]",
+      "Node fill · Enable override [enable]",
+      "Node outline · Vary by [select]",
+      "Node outline · Brightness [range, disabled]",
+      "Node outline · Brightness value [number, disabled]",
+      "Node outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Node fill · Vary by [select]",
+      "Node fill · Palette [select]",
+      "Node fill · Color for ‹level› hex [hex]",
+      "Node outline · Vary by [select]",
+      "Node outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Structure · Packed circles [radio]",
+      "Structure · Treemap [radio]",
+      "Structure · Sunburst [radio]",
+      "Structure · Chord [radio]",
+      "Structure · Sankey [radio]",
+      "Structure · Flow to [select]",
+    ],
+    "parts": [
+      "Structure",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Node fill · Opacity [range]",
+      "Node fill · Opacity value [number]",
+      "Node outline · Vary by [select]",
+      "Node outline · Opacity [range]",
+      "Node outline · Opacity value [number]",
+      "Ribbon fill · Opacity [range]",
+      "Ribbon fill · Opacity value [number]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+      "Ribbon fill",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Node fill · Vary by [select]",
+      "Node fill · Saturation [range, disabled]",
+      "Node fill · Saturation value [number, disabled]",
+      "Node fill · Enable override [enable]",
+      "Node outline · Vary by [select]",
+      "Node outline · Saturation [range, disabled]",
+      "Node outline · Saturation value [number, disabled]",
+      "Node outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Node fill",
+      "Node outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Node outline · Vary by [select]",
+      "Node outline · Thickness [number]",
+    ],
+    "parts": [
+      "Node outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > scatter-multi 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Palette [select]",
+      "Point outline · Outline color for ‹level› hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Min [range]",
+      "Point fill · Min value [number]",
+      "Point fill · Max [range]",
+      "Point fill · Max value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+      "(top) · Circle for ‹level› [toggle]",
+      "(top) · Square for ‹level› [toggle]",
+      "(top) · Triangle for ‹level› [toggle]",
+      "(top) · Diamond for ‹level› [toggle]",
+      "(top) · Cross for ‹level› [toggle]",
+      "(top) · Star for ‹level› [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Area — true proportions [radio]",
+      "Point · Diameter — exaggerates differences [radio]",
+      "Point · Min [number]",
+      "Point · Max [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > scatter-plain 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Color hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > scatter-regression 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Regression line · Vary by [select]",
+      "Regression line · Brightness [range, disabled]",
+      "Regression line · Brightness value [number, disabled]",
+      "Regression line · Enable override [enable]",
+      "Confidence interval · Vary by [select]",
+      "Confidence interval · Brightness [range, disabled]",
+      "Confidence interval · Brightness value [number, disabled]",
+      "Confidence interval · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Regression line",
+      "Confidence interval",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+      "Regression line · Vary by [select]",
+      "Confidence interval · Vary by [select]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Regression line",
+      "Confidence interval",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+      "Regression line · Vary by [select]",
+      "Regression line · Opacity [range]",
+      "Regression line · Opacity value [number]",
+      "Confidence interval · Vary by [select]",
+      "Confidence interval · Opacity [range]",
+      "Confidence interval · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Regression line",
+      "Confidence interval",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+      "Regression line · No dash for regression line [toggle]",
+      "Regression line · Regression line dash dashed [toggle]",
+      "Regression line · Regression line dash dotted [toggle]",
+      "Regression line · Regression line dash dash-dot [toggle]",
+      "Regression line · Custom dash for regression line [toggle]",
+    ],
+    "parts": [
+      "Regression line",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Regression line · Vary by [select]",
+      "Regression line · Saturation [range, disabled]",
+      "Regression line · Saturation value [number, disabled]",
+      "Regression line · Enable override [enable]",
+      "Confidence interval · Vary by [select]",
+      "Confidence interval · Saturation [range, disabled]",
+      "Confidence interval · Saturation value [number, disabled]",
+      "Confidence interval · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Regression line",
+      "Confidence interval",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+      "Regression line · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+      "Regression line",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > stems 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Stem · Vary by [select]",
+      "Stem · Brightness [range, disabled]",
+      "Stem · Brightness value [number, disabled]",
+      "Stem · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Stem",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+      "Stem · Vary by [select]",
+      "Stem · Color hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Stem",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+      "Stem · Vary by [select]",
+      "Stem · Opacity [range]",
+      "Stem · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Stem",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Stem · Vary by [select]",
+      "Stem · Saturation [range, disabled]",
+      "Stem · Saturation value [number, disabled]",
+      "Stem · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Stem",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+      "Stem · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+      "Stem",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > sunburst 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Brightness [range, disabled]",
+      "Slice fill · Brightness value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Brightness [range, disabled]",
+      "Slice outline · Brightness value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Palette [select]",
+      "Slice fill · Color for ‹level› hex [hex]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Structure · Packed circles [radio]",
+      "Structure · Treemap [radio]",
+      "Structure · Sunburst [radio]",
+      "Structure · Chord [radio]",
+      "Structure · Sankey [radio]",
+      "Structure · ID column [select]",
+    ],
+    "parts": [
+      "Structure",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Opacity [range]",
+      "Slice fill · Opacity value [number]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Opacity [range]",
+      "Slice outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Slice fill · Vary by [select]",
+      "Slice fill · Saturation [range, disabled]",
+      "Slice fill · Saturation value [number, disabled]",
+      "Slice fill · Enable override [enable]",
+      "Slice outline · Vary by [select]",
+      "Slice outline · Saturation [range, disabled]",
+      "Slice outline · Saturation value [number, disabled]",
+      "Slice outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Slice fill",
+      "Slice outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Slice outline · Vary by [select]",
+      "Slice outline · Thickness [number]",
+    ],
+    "parts": [
+      "Slice outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > tile 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Brightness [range, disabled]",
+      "Cell fill · Brightness value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Brightness [range, disabled]",
+      "Cell outline · Brightness value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Palette [select]",
+      "Cell fill · Interpolation [select]",
+      "Cell fill · ‹level› hex [hex]",
+      "Cell fill · ‹level› stop value [text]",
+      "Cell fill · ‹level› hex [hex]",
+      "Cell fill · ‹level› stop value [text]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Opacity [range]",
+      "Cell fill · Opacity value [number]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Opacity [range]",
+      "Cell outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Saturation [range, disabled]",
+      "Cell fill · Saturation value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Saturation [range, disabled]",
+      "Cell outline · Saturation value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Cell outline · Vary by [select]",
+      "Cell outline · Thickness [number]",
+    ],
+    "parts": [
+      "Cell outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > tile-categorical 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Brightness [range, disabled]",
+      "Cell fill · Brightness value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Brightness [range, disabled]",
+      "Cell outline · Brightness value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Palette [select]",
+      "Cell fill · Color for ‹level› hex [hex]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Opacity [range]",
+      "Cell fill · Opacity value [number]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Opacity [range]",
+      "Cell outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Saturation [range, disabled]",
+      "Cell fill · Saturation value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Saturation [range, disabled]",
+      "Cell outline · Saturation value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Cell outline · Vary by [select]",
+      "Cell outline · Thickness [number]",
+    ],
+    "parts": [
+      "Cell outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > tile-labels 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Brightness [range, disabled]",
+      "Cell fill · Brightness value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Brightness [range, disabled]",
+      "Cell outline · Brightness value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Palette [select]",
+      "Cell fill · Interpolation [select]",
+      "Cell fill · ‹level› hex [hex]",
+      "Cell fill · ‹level› stop value [text]",
+      "Cell fill · ‹level› hex [hex]",
+      "Cell fill · ‹level› stop value [text]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Connection": {
+    "controls": [],
+    "parts": [],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Opacity [range]",
+      "Cell fill · Opacity value [number]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Opacity [range]",
+      "Cell outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Saturation [range, disabled]",
+      "Cell fill · Saturation value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Saturation [range, disabled]",
+      "Cell outline · Saturation value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Cell outline · Vary by [select]",
+      "Cell outline · Thickness [number]",
+    ],
+    "parts": [
+      "Cell outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > treemap 1`] = `
+{
+  "Angle": {
+    "controls": [],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Brightness [range, disabled]",
+      "Cell fill · Brightness value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Brightness [range, disabled]",
+      "Cell outline · Brightness value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Palette [select]",
+      "Cell fill · Color for ‹level› hex [hex]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Structure · Packed circles [radio]",
+      "Structure · Treemap [radio]",
+      "Structure · Sunburst [radio]",
+      "Structure · Chord [radio]",
+      "Structure · Sankey [radio]",
+      "Structure · ID column [select]",
+    ],
+    "parts": [
+      "Structure",
+    ],
+  },
+  "Length": {
+    "controls": [],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Opacity [range]",
+      "Cell fill · Opacity value [number]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Opacity [range]",
+      "Cell outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Default pattern: None [toggle]",
+      "(top) · Pattern option 1 [toggle]",
+      "(top) · Pattern option 2 [toggle]",
+      "(top) · Pattern option 3 [toggle]",
+      "(top) · Pattern option 4 [toggle]",
+      "(top) · Pattern option 5 [toggle]",
+      "(top) · Pattern option 6 [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Cell fill · Vary by [select]",
+      "Cell fill · Saturation [range, disabled]",
+      "Cell fill · Saturation value [number, disabled]",
+      "Cell fill · Enable override [enable]",
+      "Cell outline · Vary by [select]",
+      "Cell outline · Saturation [range, disabled]",
+      "Cell outline · Saturation value [number, disabled]",
+      "Cell outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Cell fill",
+      "Cell outline",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Cell outline · Vary by [select]",
+      "Cell outline · Thickness [number]",
+    ],
+    "parts": [
+      "Cell outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > vector-field 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Min [number]",
+      "(top) · Max [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Segment · Vary by [select]",
+      "Segment · Brightness [range, disabled]",
+      "Segment · Brightness value [number, disabled]",
+      "Segment · Enable override [enable]",
+    ],
+    "parts": [
+      "Segment",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Segment · Vary by [select]",
+      "Segment · Color hex [hex]",
+    ],
+    "parts": [
+      "Segment",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Min [number]",
+      "(top) · Max [number]",
+      "Segment properties · Line cap: Round [segment]",
+      "Segment properties · Line cap: Square [segment]",
+    ],
+    "parts": [
+      "Segment properties",
+    ],
+  },
+  "Opacity": {
+    "controls": [
+      "Segment · Vary by [select]",
+      "Segment · Opacity [range]",
+      "Segment · Opacity value [number]",
+    ],
+    "parts": [
+      "Segment",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "(top) · Segments: Dash [segment]",
+      "(top) · Segments: Fill [segment]",
+      "(top) · No dash for line [toggle]",
+      "(top) · Line dash dashed [toggle]",
+      "(top) · Line dash dotted [toggle]",
+      "(top) · Line dash dash-dot [toggle]",
+      "(top) · Custom dash for line [toggle]",
+    ],
+    "parts": [],
+  },
+  "Saturation": {
+    "controls": [
+      "Segment · Vary by [select]",
+      "Segment · Saturation [range, disabled]",
+      "Segment · Saturation value [number, disabled]",
+      "Segment · Enable override [enable]",
+    ],
+    "parts": [
+      "Segment",
+    ],
+  },
+  "Shape": {
+    "controls": [],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Segment · Vary by [select]",
+      "Segment · Thickness [number]",
+    ],
+    "parts": [
+      "Segment",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > violin 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Brightness [range, disabled]",
+      "Violin / box fill · Brightness value [number, disabled]",
+      "Violin / box fill · Enable override [enable]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Brightness [range, disabled]",
+      "Violin / box outline · Brightness value [number, disabled]",
+      "Violin / box outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Palette [select]",
+      "Violin / box fill · Violin / box fill for ‹level› hex [hex]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Palette [select]",
+      "Violin / box outline · Violin / box outline for ‹level› hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Opacity [range]",
+      "Violin / box fill · Opacity value [number]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Opacity [range]",
+      "Violin / box outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · None [toggle]",
+      "Violin / box fill · Violin / box pattern option 1 [toggle]",
+      "Violin / box fill · Violin / box pattern option 2 [toggle]",
+      "Violin / box fill · Violin / box pattern option 3 [toggle]",
+      "Violin / box fill · Violin / box pattern option 4 [toggle]",
+      "Violin / box fill · Violin / box pattern option 5 [toggle]",
+      "Violin / box fill · Violin / box pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Point fill",
+      "Violin / box fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Saturation [range, disabled]",
+      "Violin / box fill · Saturation value [number, disabled]",
+      "Violin / box fill · Enable override [enable]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Saturation [range, disabled]",
+      "Violin / box outline · Saturation value [number, disabled]",
+      "Violin / box outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+      "Violin / box outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+      "Violin / box outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > violin-horizontal 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Brightness [range, disabled]",
+      "Point outline · Brightness value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Brightness [range, disabled]",
+      "Violin / box fill · Brightness value [number, disabled]",
+      "Violin / box fill · Enable override [enable]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Brightness [range, disabled]",
+      "Violin / box outline · Brightness value [number, disabled]",
+      "Violin / box outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Palette [select]",
+      "Point fill · Color for ‹level› hex [hex]",
+      "Point outline · Vary by [select]",
+      "Point outline · Color hex [hex]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Color hex [hex]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Color hex [hex]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+    ],
+    "parts": [
+      "Connect points to axis",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Length [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Opacity [range]",
+      "Point outline · Opacity value [number]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Opacity [range]",
+      "Violin / box fill · Opacity value [number]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Opacity [range]",
+      "Violin / box outline · Opacity value [number]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · None [toggle]",
+      "Point fill · Pattern option 1 [toggle]",
+      "Point fill · Pattern option 2 [toggle]",
+      "Point fill · Pattern option 3 [toggle]",
+      "Point fill · Pattern option 4 [toggle]",
+      "Point fill · Pattern option 5 [toggle]",
+      "Point fill · Pattern option 6 [toggle]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · None [toggle]",
+      "Violin / box fill · Violin / box pattern option 1 [toggle]",
+      "Violin / box fill · Violin / box pattern option 2 [toggle]",
+      "Violin / box fill · Violin / box pattern option 3 [toggle]",
+      "Violin / box fill · Violin / box pattern option 4 [toggle]",
+      "Violin / box fill · Violin / box pattern option 5 [toggle]",
+      "Violin / box fill · Violin / box pattern option 6 [toggle]",
+    ],
+    "parts": [
+      "Point fill",
+      "Violin / box fill",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Point outline · Vary by [select]",
+      "Point outline · Saturation [range, disabled]",
+      "Point outline · Saturation value [number, disabled]",
+      "Point outline · Enable override [enable]",
+      "Violin / box fill · Vary by [select]",
+      "Violin / box fill · Saturation [range, disabled]",
+      "Violin / box fill · Saturation value [number, disabled]",
+      "Violin / box fill · Enable override [enable]",
+      "Violin / box outline · Vary by [select]",
+      "Violin / box outline · Saturation [range, disabled]",
+      "Violin / box outline · Saturation value [number, disabled]",
+      "Violin / box outline · Enable override [enable]",
+    ],
+    "parts": [
+      "Point fill",
+      "Point outline",
+      "Violin / box fill",
+      "Violin / box outline",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Point outline · Vary by [select]",
+      "Point outline · Thickness [number]",
+      "Violin / box outline · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Point outline",
+      "Violin / box outline",
+    ],
+  },
+}
+`;

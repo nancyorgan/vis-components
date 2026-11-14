@@ -29,6 +29,7 @@ import { getChartMode } from "../../lib/chartMode"
 import type { MeasureAxisRendererProps, ScatterRendererProps } from "../../lib/chartRendererProps"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
+import { outlineWidthResolver } from "../../lib/markOutline"
 import {
 	connectionStrokeLinecap,
 	lineEndTicks,
@@ -1010,8 +1011,9 @@ const buildAreas = ({
 		channelConfigs,
 		aestheticScales
 	)
-	const pointOutlineWidth =
-		channelConfigs.shape?.outlineWidth ?? DEFAULT_SHAPE_CONFIG.outlineWidth
+	// The thickness of the ring around each point: one value, or the
+	// layer's level's ("Vary by", off the layer's representative row).
+	const pointOutlineWidthFor = outlineWidthResolver(channelConfigs)
 	// Areas have no meaningful "group" mode — degrade to overlay.
 	const effectiveStackMode: "stack" | "overlay" =
 		stackMode === "stack" ? "stack" : "overlay"
@@ -1239,6 +1241,7 @@ const buildAreas = ({
 				: lineColor
 		// Point outline: the marks' outline (mapped / rule color, else the
 		// single outline color), shaded by its own saturation / brightness.
+		const pointOutlineWidth = pointOutlineWidthFor(repRow)
 		const pointOutline =
 			pointOutlineWidth > 0
 				? pointOutlineModulation(layerResolved.outline ?? pointOutlineColor, repRow)

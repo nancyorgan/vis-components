@@ -36,19 +36,20 @@ import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
+import { Slider } from "../../../../../components/ui/Slider"
 import type { ModulationSlotConfig } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
-import { isAreaModeId } from "../../../lib/chartModes/families"
-import { markPartTitles } from "../../../lib/markPartTitles"
-import type { ChartMode } from "../../../lib/chartMode"
+import { modulationSections, sizedMarkTitle, sizeSections } from "../../../lib/markParts"
 import {
 	MODULATION_SLOTS_KEY,
-	applicableModulationSlots,
 	modulationSlotEdited,
 	type ModulationChannel,
 	type ModulationSlotDef,
 } from "../../../lib/modulationSlots"
+import { useDrawnParts, usePartsContext } from "../../../store/usePartsContext"
 import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
+import { useVaryByFieldFilter } from "../../../store/useVaryByFieldFilter"
+import { SizeThicknessSections } from "./SizeThicknessSections"
 import { StackModeRow } from "./StackModeRow"
 
 // Generic min/max numeric-range panel, used for Area (pixel radius) plus
@@ -125,43 +126,79 @@ const useAreaOrdinalCategories = (): string[] | null => {
 	return [...new Set(parsed.map(String))]
 }
 
+/** The Size menu: how big the marks are, and how thick every stroke is.
+ *
+ *  It leads with the size of the marks the Size encoding sizes (the
+ *  "Point" section: one size, or the mapped variable's range), then lists
+ *  one section per stroke the chart draws, each holding its thickness
+ *  (`SizeThicknessSections`). A chart with no points still has its
+ *  outline's or its line's thickness here. */
 export const AreaOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
+	const configs = useAtomValue(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
 	const fieldMapped = !!encodings.area?.field
 	const modeDef = useChartModeDef()
 	const ordinalCategories = useAreaOrdinalCategories()
-	if (!fieldMapped) return <AreaDefaultPanel />
+	const partsCtx = usePartsContext()
+	const parts = useDrawnParts()
+	const hasThickness = sizeSections(partsCtx).length > 0
+
 	// What the area channel MEANS here is the mode's declared
 	// `canvas.areaRole` — the panel never compares mode ids.
-	//
-	// Layout-computed radii (packed circles): the min/max pixel range is
-	// inert — only the Scale-by choice applies.
-	if (modeDef.canvas.areaRole === "layoutRadius")
+	const sizeControls = ((): React.ReactNode | null => {
+		// One size for every point — where points are drawn. A chart that
+		// draws none (bars, slices, cells, regions, a density curve, line
+		// segments, a line whose points are switched off) has nothing to size.
+		if (!fieldMapped) return parts.points ? <PointSizeDefault /> : null
+		// Layout-computed radii (packed circles): the min/max pixel range is
+		// inert — only the Scale-by choice applies.
+		if (modeDef.canvas.areaRole === "layoutRadius") return <ScaleByRow />
+		// Proportional layouts (treemap / sunburst / chord / sankey): sizes are
+		// fully layout-computed AND inherently proportional (rect area / angle
+		// span / ribbon or link width ∝ value) — neither the px range nor
+		// Scale-by applies, so there is nothing to set.
+		if (modeDef.canvas.areaRole === "proportional") return null
+		// A NON-numeric ordinal sizes by category RANK, not magnitude — so
+		// there's no continuous min/max range to set and no area-vs-diameter
+		// distinction (both would be no-ops). Show only the per-category
+		// size editor.
+		if (ordinalCategories) return <AreaOrdinalLevels categories={ordinalCategories} />
 		return (
-			<div className="vc-option-panel">
-				<ScaleByRow />
-			</div>
+			<RangePanel
+				nested
+				variant={{ ...AREA_BASE, min: theme.areaMin, max: theme.areaMax }}
+				header={<ScaleByRow />}
+			/>
 		)
-	// Proportional layouts (treemap / sunburst / chord / sankey): sizes are
-	// fully layout-computed AND inherently proportional (rect area / angle
-	// span / ribbon or link width ∝ value) — neither the px range nor
-	// Scale-by applies, so there is nothing to show.
-	if (modeDef.canvas.areaRole === "proportional") return null
-	// A NON-numeric ordinal sizes by category RANK, not magnitude — so there's
-	// no continuous min/max range to set and no area-vs-diameter distinction
-	// (both would be no-ops). Show only the per-category size editor.
-	if (ordinalCategories)
-		return (
-			<div className="vc-option-panel">
-				<AreaOrdinalLevels categories={ordinalCategories} />
-			</div>
-		)
+	})()
+	// The section's dot: the size settings alone (each thickness section
+	// dots itself).
+	const sizeChanged = explainChannelCustomization("area", configs, theme, fieldMapped).some(
+		(label) => label === "size range" || label === "default radius"
+	)
+
+	if (!sizeControls && !hasThickness && fieldMapped) return null
 	return (
-		<RangePanel
-			variant={{ ...AREA_BASE, min: theme.areaMin, max: theme.areaMax }}
-			header={<ScaleByRow />}
-		/>
+		<div className="vc-option-panel">
+			{!fieldMapped && !parts.points && (
+				<p className="vc-help">
+					{parts.line
+						? "This chart's points are switched off (Connection → Show points), so there is no point size to set."
+						: "This chart draws no points, so there is no point size to set."}
+				</p>
+			)}
+			{sizeControls && (
+				<CollapsibleSubsection
+					title={sizedMarkTitle(modeDef)}
+					defaultOpen
+					changed={sizeChanged}
+				>
+					{sizeControls}
+				</CollapsibleSubsection>
+			)}
+			<SizeThicknessSections />
+		</div>
 	)
 }
 
@@ -323,16 +360,11 @@ const ModulationPartsPanel = ({
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
 	const modeDef = useChartModeDef()
-	const mode = modeDef.id as ChartMode
 	// Pure density curve: the points (and so their outlines) aren't drawn.
 	const pureDensityCurve = usePureDensityCurve()
-	const slots = applicableModulationSlots(mode, encodings, configs).filter(
-		(d) => !(pureDensityCurve && d.key === "outline")
-	)
-	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
-	// where the marks are points beside another part (radar polygon, violin /
-	// box, a line chart's line).
-	const titles = markPartTitles(modeDef, configs, encodings)
+	// Which subsections this chart shows, their titles and their order are
+	// decided in one place for every menu (lib/markParts).
+	const sections = modulationSections({ modeDef, encodings, configs, pureDensityCurve })
 
 	// Fill dot — the SAME change data the encoding-row dot uses (so the two
 	// can't disagree), minus the part slots, which dot their own subsections.
@@ -343,38 +375,32 @@ const ModulationPartsPanel = ({
 		!!encodings[channel]?.field
 	).some((label) => label !== `${channel} slots`)
 
-	const slotSection = (def: (typeof slots)[number]) => (
-		<ModulationSlotSubsection
-			key={def.key}
-			channel={channel}
-			// The Outline slot is the marks' outline and the Line slot the
-			// connection line — titled per mode, like the Fill.
-			def={
-				def.key === "outline"
-					? { ...def, label: titles.outline }
-					: def.key === "line"
-						? { ...def, label: titles.line }
-						: def
-			}
-		/>
-	)
-	// Area charts lead with the Line, then the Area fill, Point fill and
-	// Point outline.
-	const leadSlots = isAreaModeId(mode) ? slots.filter((d) => d.key === "line") : []
-	const restSlots = slots.filter((d) => !leadSlots.includes(d))
-
 	return (
 		<div className="vc-option-panel">
-			{leadSlots.map(slotSection)}
-			<CollapsibleSubsection
-				title={titles.fill}
-				defaultOpen
-				changed={fillChanged}
-			>
-				<FillVaryBy channel={channel} />
-				{fill}
-			</CollapsibleSubsection>
-			{restSlots.map(slotSection)}
+			{sections.length === 0 && (
+				<p className="vc-help">
+					This chart draws no marks for {channel} to adjust.
+				</p>
+			)}
+			{sections.map((section) =>
+				section.kind === "fill" ? (
+					<CollapsibleSubsection
+						key="fill"
+						title={section.title}
+						defaultOpen
+						changed={fillChanged}
+					>
+						<FillVaryBy channel={channel} />
+						{fill}
+					</CollapsibleSubsection>
+				) : (
+					<ModulationSlotSubsection
+						key={section.def.key}
+						channel={channel}
+						def={section.def}
+					/>
+				)
+			)}
 		</div>
 	)
 }
@@ -422,11 +448,14 @@ const ModulationSlotSubsection = ({
 			}
 		})
 
+	const canVary = useVaryByFieldFilter()
 	const fieldOptions = [
 		{ value: "", label: "— none —" },
 		...(dataset?.fields ?? [])
-			.filter((f) =>
-				channelAccepts(channel, fieldOverrides[f.name] ?? f.inferredType)
+			.filter(
+				(f) =>
+					channelAccepts(channel, fieldOverrides[f.name] ?? f.inferredType) &&
+					canVary(f.name, slotCfg?.field ?? null)
 			)
 			.map((f) => ({ value: f.name, label: f.name })),
 	]
@@ -456,16 +485,20 @@ const ModulationSlotSubsection = ({
 			changed={modulationSlotEdited(slotCfg)}
 		>
 			<div className="flex flex-col gap-2">
-				<SelectInput
-					label="Vary by"
-					labelClassName={LABEL_COL}
-					value={field ?? ""}
-					options={fieldOptions}
-					onChange={setField}
-					disabled={!dataset}
-					selectClassName="flex-1"
-				/>
-				{field === null ? (
+				{/* A part with no data to vary by (a dot map's regions) takes
+				    one level. */}
+				{def.acceptsFieldMapping !== false && (
+					<SelectInput
+						label="Vary by"
+						labelClassName={LABEL_COL}
+						value={field ?? ""}
+						options={fieldOptions}
+						onChange={setField}
+						disabled={!dataset}
+						selectClassName="flex-1"
+					/>
+				)}
+				{field === null || def.acceptsFieldMapping === false ? (
 					<ModulationLevelControl
 						label={label}
 						value={slotCfg?.level ?? null}
@@ -485,27 +518,23 @@ const ModulationSlotSubsection = ({
 					/>
 				) : (
 					<>
-						<NumberInput
+						<Slider
 							label="Min"
-							labelClassName={LABEL_COL}
 							value={range.min}
 							min={0}
 							max={1}
 							step={0.05}
-							clamp
+							changed={range.min !== baseMin}
 							onChange={(min) => setRange({ min })}
-							inputClassName="w-20"
 						/>
-						<NumberInput
+						<Slider
 							label="Max"
-							labelClassName={LABEL_COL}
 							value={range.max}
 							min={0}
 							max={1}
 							step={0.05}
-							clamp
+							changed={range.max !== baseMax}
 							onChange={(max) => setRange({ max })}
-							inputClassName="w-20"
 						/>
 						{(range.min !== baseMin || range.max !== baseMax) && (
 							<ResetLink
@@ -537,8 +566,11 @@ const FillVaryBy = ({ channel }: { channel: ModulationChannel }) => {
 		isHierarchyModeId(useChartModeDef().id),
 		!!encodings.connection?.field
 	)
-	const eligible = (dataset?.fields ?? []).filter((f) =>
-		channelAccepts(channel, overrides[f.name] ?? f.inferredType)
+	const canVary = useVaryByFieldFilter()
+	const eligible = (dataset?.fields ?? []).filter(
+		(f) =>
+			channelAccepts(channel, overrides[f.name] ?? f.inferredType) &&
+			canVary(f.name, encodings[channel]?.field ?? null)
 	)
 	const options = [
 		{ value: "", label: "— none —" },
@@ -811,20 +843,23 @@ const ModulationCategoryList = ({
 				const overridden = overrides[value] !== undefined
 				return (
 					<div key={value} className="flex items-center gap-2 text-sm">
-						<NumberInput
+						<Slider
 							label={value}
+							labelTitle={value}
 							labelClassName={`${LABEL_COL} truncate`}
+							className="min-w-0 flex-1"
 							changed={overridden}
 							value={overrides[value] ?? resolve(value)}
 							min={0}
 							max={1}
 							step={0.05}
-							clamp
 							onChange={(n) => setOverride(value, n)}
-							inputClassName="w-20"
 						/>
 						{overridden && (
-							<ResetLink onClick={() => setOverride(value, null)} />
+							<ResetLink
+								ariaLabel={`Reset ${value}`}
+								onClick={() => setOverride(value, null)}
+							/>
 						)}
 					</div>
 				)
@@ -900,25 +935,23 @@ const DerivedLevelsPanel = ({
 				const current = overrides[value] ?? spreadFor(idx)
 				return (
 					<div key={value} className="flex items-center gap-2 text-sm">
-						<NumberInput
+						<Slider
 							label={source === "depth" ? `Level ${value}` : value}
-							labelClassName={LABEL_COL}
+							labelTitle={value}
+							labelClassName={`${LABEL_COL} truncate`}
+							className="min-w-0 flex-1"
 							changed={overridden}
 							value={current}
 							min={0}
 							max={1}
 							step={0.05}
-							onChange={(n) => {
-								// Deliberately NOT `clamp`: out-of-range typed input is
-								// ignored rather than snapped to a bound, matching the
-								// previous raw input (typing "5" committed nothing).
-								// Spinner / arrow-key steps still clamp to [0, 1].
-								if (n >= 0 && n <= 1) setOverride(value, n)
-							}}
-							inputClassName="w-20"
+							onChange={(n) => setOverride(value, n)}
 						/>
 						{overridden && (
-							<ResetLink onClick={() => setOverride(value, null)} />
+							<ResetLink
+								ariaLabel={`Reset ${value}`}
+								onClick={() => setOverride(value, null)}
+							/>
 						)}
 					</div>
 				)
@@ -980,28 +1013,55 @@ const RangePanel = ({
 	return (
 		<div className={nested ? "flex flex-col gap-2" : "vc-option-panel"}>
 			{header}
-			<NumberInput
-				label="Min"
-				labelClassName={LABEL_COL}
-				value={currentMin}
-				min={variant.hardMin}
-				max={variant.hardMax}
-				step={variant.step}
-				onChange={(min) => update({ min })}
-				inputClassName="w-20"
-				suffix={variant.suffix || undefined}
-			/>
-			<NumberInput
-				label="Max"
-				labelClassName={LABEL_COL}
-				value={currentMax}
-				min={variant.hardMin}
-				max={variant.hardMax}
-				step={variant.step}
-				onChange={(max) => update({ max })}
-				inputClassName="w-20"
-				suffix={variant.suffix || undefined}
-			/>
+			{/* A bounded range (saturation, brightness: 0–1) is a pair of
+			    sliders; a pixel size stays a pair of number boxes. */}
+			{variant.channel === "area" ? (
+				<>
+					<NumberInput
+						label="Min"
+						labelClassName={LABEL_COL}
+						value={currentMin}
+						min={variant.hardMin}
+						max={variant.hardMax}
+						step={variant.step}
+						onChange={(min) => update({ min })}
+						inputClassName="w-16"
+						suffix={variant.suffix || undefined}
+					/>
+					<NumberInput
+						label="Max"
+						labelClassName={LABEL_COL}
+						value={currentMax}
+						min={variant.hardMin}
+						max={variant.hardMax}
+						step={variant.step}
+						onChange={(max) => update({ max })}
+						inputClassName="w-16"
+						suffix={variant.suffix || undefined}
+					/>
+				</>
+			) : (
+				<>
+					<Slider
+						label="Min"
+						value={currentMin}
+						min={variant.hardMin}
+						max={variant.hardMax}
+						step={variant.step}
+						changed={currentMin !== variant.min}
+						onChange={(min) => update({ min })}
+					/>
+					<Slider
+						label="Max"
+						value={currentMax}
+						min={variant.hardMin}
+						max={variant.hardMax}
+						step={variant.step}
+						changed={currentMax !== variant.max}
+						onChange={(max) => update({ max })}
+					/>
+				</>
+			)}
 			{(currentMin !== variant.min || currentMax !== variant.max) && (
 				<ResetLink
 					onClick={() => update({ min: variant.min, max: variant.max })}
@@ -1025,16 +1085,17 @@ const RangePanel = ({
 // Default panels shown when no field is mapped
 // ---------------------------------------------------------------------------
 
-const AreaDefaultPanel = () => {
+/** The one size every point takes while no variable is mapped to Size. */
+const PointSizeDefault = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const theme = useCurrentTheme()
 	const currentRadius = configs.defaultRadius ?? theme.defaultRadius
-
 	return (
-		<div className="vc-option-panel">
+		<>
 			<NumberInput
-				label="Point size"
+				label="Size"
 				labelClassName={LABEL_COL}
+				changed={currentRadius !== theme.defaultRadius}
 				value={currentRadius}
 				min={1}
 				max={200}
@@ -1042,11 +1103,12 @@ const AreaDefaultPanel = () => {
 				onChange={(defaultRadius) =>
 					setConfigs((prev) => ({ ...prev, defaultRadius }))
 				}
-				inputClassName="w-20"
+				inputClassName="w-16"
 				suffix="px"
 			/>
 			{currentRadius !== theme.defaultRadius && (
 				<ResetLink
+					ariaLabel="Reset point size"
 					onClick={() =>
 						setConfigs((prev) => ({
 							...prev,
@@ -1057,7 +1119,7 @@ const AreaDefaultPanel = () => {
 					className="self-start"
 				/>
 			)}
-		</div>
+		</>
 	)
 }
 
@@ -1113,22 +1175,16 @@ const ModulationLevelControl = ({
 
 	return (
 		<>
-			<label className="flex items-center gap-2 text-sm">
-				<span className={LABEL_COL}>{label}</span>
-				<input
-					type="range"
-					min={0}
-					max={1}
-					step={0.05}
-					value={currentValue}
-					disabled={!enabled}
-					onChange={(e) => onChange(Number(e.target.value))}
-					className="flex-1 disabled:opacity-50"
-				/>
-				<span className="w-10 text-right font-mono text-sm vc-muted">
-					{enabled ? currentValue.toFixed(2) : "—"}
-				</span>
-			</label>
+			<Slider
+				label={label}
+				value={currentValue}
+				min={0}
+				max={1}
+				step={0.05}
+				disabled={!enabled}
+				changed={enabled && !atAnchor}
+				onChange={onChange}
+			/>
 			{(!enabled || atAnchor) && (
 				<div className="vc-help">
 					{!enabled

@@ -1,6 +1,7 @@
-import { useEffect } from "react"
+import { useContext, useEffect } from "react"
 import { useSetAtom } from "jotai"
 import { autoLabelAngleFor } from "../../lib/autoLabelAngle"
+import { SolvedXTickAngleContext } from "./solvedTickAngle"
 import { currentResolvedXTickLabelAngleAtom } from "../../store/atoms"
 import { measureLabelWidths } from "./plotCanvas/measureText"
 import {
@@ -475,17 +476,26 @@ export const Axis = ({
 			),
 		}))
 	})()
-	// Auto-rotate categorical x-axis labels when neighboring labels would
-	// collide — keeps long category names from overlapping without the
-	// user having to set tickLabelAngle. Widths are canvas-measured in the
-	// rendered font (char-count fallback without a DOM). The PlotCanvas
-	// solver input feeds the same heuristic so the bottom chrome reserves
-	// matching vertical room. An explicit angle (any stored number,
-	// including 0) wins inside `autoLabelAngleFor`.
+	// Categorical x-axis labels rotate on their own when neighboring labels
+	// would collide — long category names don't overlap without the user
+	// having to set tickLabelAngle. Inside the canvas that decision is the
+	// LAYOUT SOLVER's, made once from the plot width it solved, and this
+	// axis draws the angle it reserved room for (`SolvedXTickAngleContext`;
+	// an explicit angle, 0 included, comes back unchanged). Deciding again
+	// here from the real tick positions is how the two used to disagree
+	// near the threshold: room reserved for rotated labels that drew level,
+	// or rotated labels drawn into room reserved for level ones. A renderer
+	// mounted outside the canvas has no solver, so it decides for itself:
+	// widths canvas-measured in the rendered font (char-count fallback
+	// without a DOM), spacing from the real tick positions.
+	const solvedAngle = useContext(SolvedXTickAngleContext)
 	const autoAngleApplies =
 		isX && (fieldType === "categorical" || fieldType === "ordinal")
-	const effectiveLabelAngle = autoAngleApplies
-		? autoLabelAngleFor({
+	const effectiveLabelAngle = !autoAngleApplies
+		? (config?.tickLabelAngle ?? 0)
+		: solvedAngle !== null
+			? solvedAngle
+			: autoLabelAngleFor({
 				labels: ticks.map((t) => t.label),
 				labelWidthsPx: measureLabelWidths(
 					ticks.map((t) => t.label),
@@ -501,7 +511,6 @@ export const Axis = ({
 				userAngle: config?.tickLabelAngle,
 				wrapEnabled,
 			})
-		: (config?.tickLabelAngle ?? 0)
 	// Tell the X panel what auto resolved to, so its blank Angle input can
 	// show the value and offer "set to 0". Only the front pass of a
 	// categorical x-axis under auto publishes; an explicit angle leaves the

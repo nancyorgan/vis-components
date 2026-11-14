@@ -49,8 +49,18 @@ describe("applicableModulationSlots", () => {
 			applicableModulationSlots("scatter", enc("series"), {}).map((d) => d.key)
 		).toEqual(["outline", "line"])
 	})
-	it("offers nothing on modes whose renderers don't read the slots", () => {
-		expect(applicableModulationSlots("bars-x", enc("series"), {})).toEqual([])
+	it("offers the marks' own outline on every mode that is not an area chart", () => {
+		// Every renderer resolves its outline through `lib/markOutline`, which
+		// applies the outline's saturation and brightness.
+		for (const mode of ["bars-x", "pies", "tile", "hexbin", "treemap", "chord", "geo-choropleth"] as const)
+			expect(
+				applicableModulationSlots(mode, enc("series"), {}).map((d) => d.key),
+				mode
+			).toEqual(["outline"])
+		// An area's own outline is its Line; the points on it have their own target.
+		expect(
+			applicableModulationSlots("areas-x", enc("series"), {}).map((d) => d.key)
+		).not.toContain("outline")
 	})
 	it("offers the Violin / box fill + outline pair only while an overlay is on", () => {
 		const boxOn = {
@@ -59,9 +69,10 @@ describe("applicableModulationSlots", () => {
 		expect(
 			applicableModulationSlots("scatter", enc(null), boxOn).map((d) => d.key)
 		).toEqual(["outline", "violinFill", "violinStroke"])
+		// The overlay draws on scatter only: a stale flag on a bar chart adds nothing.
 		expect(
 			applicableModulationSlots("bars-x", enc(null), boxOn).map((d) => d.key)
-		).toEqual([])
+		).toEqual(["outline"])
 	})
 })
 

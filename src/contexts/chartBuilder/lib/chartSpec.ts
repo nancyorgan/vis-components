@@ -604,7 +604,7 @@ const applyCommon = (
 	const mapped = SPEC_CHANNELS.filter((ch) => encodings[ch]?.field || encodings[ch]?.measureSource)
 	mapped.forEach((a, i) => {
 		for (const b of mapped.slice(i + 1)) {
-			if (!channelsConflictIn(a, b, encodings) || (!touched.has(a) && !touched.has(b))) continue
+			if (!channelsConflictIn(a, b, encodings, configs) || (!touched.has(a) && !touched.has(b))) continue
 			if (touched.has(a) && touched.has(b)) {
 				bad(`encodings.${b}`, `"${a}" and "${b}" can't be mapped together`)
 				continue

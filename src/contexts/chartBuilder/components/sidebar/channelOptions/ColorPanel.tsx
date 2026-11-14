@@ -1,25 +1,16 @@
 import { useAtom, useAtomValue } from "jotai"
 import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
-	DEFAULT_REGRESSION_CONFIG,
 	type ChannelConfigs,
 	type ColorSlotConfig,
-	type RegressionConfig,
 } from "../../../lib/channelConfig"
-import type { ChartMode } from "../../../lib/chartMode"
 import {
-	applicableColorSlots,
 	colorSlotEdited,
 	legacySlotColor,
 	type ColorSlotDef,
 } from "../../../lib/colorSlots"
-import { markPartTitles } from "../../../lib/markPartTitles"
-import {
-	RADAR_LINE_INHERIT,
-	clearLegacyRadarLine,
-	legacyRadarLineSlot,
-} from "../../../lib/radarLineSlot"
-import { isAreaModeId } from "../../../lib/chartModes/families"
+import { colorSections, partPaletteKind } from "../../../lib/markParts"
+import { clearLegacyRadarLine, legacyRadarLineSlot } from "../../../lib/radarLineSlot"
 import { defaultColorSlot, isDefaultColorSlot } from "../../../lib/colorSlotDefaults"
 import { effectiveType } from "../../../lib/fieldType"
 import { CATEGORICAL_HUE_PALETTE } from "../../../lib/scales"
@@ -41,7 +32,6 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
 
 import {
-	axisConfigFromTheme,
 	explainChannelCustomization,
 	resolveFillPalettePick,
 	valueChanged,
@@ -50,7 +40,6 @@ import {
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
-import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
@@ -63,6 +52,7 @@ import {
 	useQuantFieldExtent,
 } from "./ColorOptionsPanel"
 import { OutlineColorRow } from "./OutlineColorPanel"
+import { sizeJumpId } from "./SizeThicknessSections"
 import { ColorRulesEditor, markRuleHelp } from "../ColorRulesEditor"
 
 /** The unified Color menu. Houses every color target as a subheader, scoped to
@@ -81,35 +71,13 @@ export const ColorPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const modeDef = useChartModeDef()
-	const mode = modeDef.id as ChartMode
-	const allSlots = applicableColorSlots(mode, encodings, configs)
-	// Area charts read Line, Area fill, Point fill, Point outline: the Point
-	// fill slot renders right after the Fill, ahead of the Point outline and
-	// the rest of the slot list.
-	const pointFillSlot = allSlots.find((d) => d.key === "areaPointFill")
-	const slots = allSlots.filter((d) => d !== pointFillSlot)
 	// PURE density curve (standalone "Density" display, marks suppressed) → the
 	// mark Fill / Outline groups have nothing to style and are hidden; the
 	// Density Curve slots take over. Histogram + curve keeps them (bars render).
 	const pureDensityCurve = usePureDensityCurve()
-	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
-	// where the marks are points beside another part (radar polygon, violin /
-	// box, a line chart's line).
-	const titles = markPartTitles(modeDef, configs, encodings)
-	// The area modes color the layer OUTLINE per layer by the same hue field
-	// as the fill (linked), via `connection`-based palettes — the dedicated
-	// `AreaRadarOutlinePanel`, in place of the independent-field
-	// `OutlineColorRow` (areas draw no points). The polygon mode (radar)
-	// colors its CONNECTION LINE (the polygon outline) with the Line color
-	// slot instead — a Vary by like every other part, led by "Match fill" —
-	// while its points keep the independent outline like scatter's.
-	const isAreaMode = isAreaModeId(mode)
-	const isPolygonMode = modeDef.canvas.connectionRole === "polygon"
-	const useLinkedOutline = isAreaMode
-	// Scatter-style independent outline (own field) for the point marks:
-	// every mode but the areas, and the pure density curve, whose marks (the
-	// styling target) are gone.
-	const showIndependentOutline = !isAreaMode && !pureDensityCurve
+	// Which subsections this chart shows, their titles and their order are
+	// decided in one place for every menu (lib/markParts).
+	const sections = colorSections({ modeDef, encodings, configs, pureDensityCurve })
 
 	// Subsection dots — reuse the SAME change data the top-level Color dot uses
 	// (so they can't disagree). The hue registry labels map to the subheaders.
@@ -133,151 +101,97 @@ export const ColorPanel = () => {
 			!!encodings.outlineHue?.field
 		).length > 0
 
-	// Area charts lead with the Line (the linked outline editor), then the
-	// Area fill, Point fill and Point outline.
-	const areaLineSection = useLinkedOutline && (
-		<CollapsibleSubsection title={titles.outline} changed={outlineAreaChanged}>
-			<AreaRadarOutlinePanel />
-		</CollapsibleSubsection>
-	)
-
 	return (
 		<div className="vc-option-panel">
-			{areaLineSection}
-			{!pureDensityCurve && (
-				<CollapsibleSubsection
-					title={titles.fill}
-					defaultOpen
-					changed={fillChanged}
-				>
-					{/* The area modes set the color field via the Color shelf
-					 *  row (fill and outline are linked to the series), so the
-					 *  in-panel selector would be redundant there. */}
-					<ColorOptionsPanel hideVaryBy={isAreaMode} />
-				</CollapsibleSubsection>
-			)}
-			{showIndependentOutline && (
-				<CollapsibleSubsection
-					title={titles.outline}
-					changed={outlineScatterChanged}
-				>
-					<OutlineColorRow />
-				</CollapsibleSubsection>
-			)}
-			{pointFillSlot && <ColorSlotSubsection def={pointFillSlot} />}
-			{/* Area-chart points carry the marks' own outline, the same
-			 *  control (and theme defaults) as a scatter / line chart's. */}
-			{pointFillSlot && !pureDensityCurve && (
-				<CollapsibleSubsection title="Point outline" changed={outlineScatterChanged}>
-					<OutlineColorRow />
-				</CollapsibleSubsection>
-			)}
-			{slots.map((def) => (
-				<ColorSlotSubsection
-					key={def.key}
-					def={
-						isPolygonMode && def.key === "line"
-							? { ...def, label: titles.line, inherit: RADAR_LINE_INHERIT }
-							: def
+			{sections.map((section) => {
+				switch (section.kind) {
+					// The area modes color the layer OUTLINE per layer by the same
+					// hue field as the fill (linked), via `connection`-based
+					// palettes — the dedicated `AreaRadarOutlinePanel`.
+					case "areaLine":
+						return (
+							<CollapsibleSubsection
+								key="areaLine"
+								title={section.title}
+								changed={outlineAreaChanged}
+							>
+								<AreaRadarOutlinePanel />
+							</CollapsibleSubsection>
+						)
+					case "fill":
+						return (
+							<CollapsibleSubsection
+								key="fill"
+								title={section.title}
+								defaultOpen
+								changed={fillChanged}
+							>
+								<ColorOptionsPanel hideVaryBy={section.hideVaryBy} />
+							</CollapsibleSubsection>
+						)
+					// The marks' own outline (independent field): the same control
+					// for a scatter's points and for the points on an area chart.
+					case "outline":
+						return (
+							<CollapsibleSubsection
+								key="outline"
+								title={section.title}
+								changed={outlineScatterChanged}
+							>
+								<OutlineColorRow />
+							</CollapsibleSubsection>
+						)
+					case "slot": {
+						const { def, radarLine } = section
+						return (
+							<ColorSlotSubsection
+								key={def.key}
+								def={def}
+								paletteKind={partPaletteKind(section.part)}
+								// Radar polygons saved with the old Outline editor's
+								// palette / per-series / single color show (and seed
+								// from) that state until the slot takes over; the first
+								// edit clears it.
+								legacyCfg={
+									radarLine
+										? legacyRadarLineSlot(
+												configs,
+												encodings.connection?.field ?? null,
+												configs.defaultFill ?? theme.defaultFill
+											)
+										: undefined
+								}
+								transformWrite={radarLine ? clearLegacyRadarLine : undefined}
+								// The regression line's other properties live with their
+								// kind: its thickness under Size, its dash under Pattern.
+								extra={
+									def.key === "regressionStroke" ? (
+										<RegressionLineElsewhere />
+									) : undefined
+								}
+								extraChanged={radarLine ? outlineAreaChanged : false}
+							/>
+						)
 					}
-					// Radar polygons saved with the old Outline editor's palette /
-					// per-series / single color show (and seed from) that state
-					// until the slot takes over; the first edit clears it.
-					legacyCfg={
-						isPolygonMode && def.key === "line"
-							? legacyRadarLineSlot(
-									configs,
-									encodings.connection?.field ?? null,
-									configs.defaultFill ?? theme.defaultFill
-								)
-							: undefined
-					}
-					transformWrite={
-						isPolygonMode && def.key === "line" ? clearLegacyRadarLine : undefined
-					}
-					// The Regression line subheader also owns the line's WIDTH (it
-					// lives on `configs.x.regression`, not the slot). The dash
-					// pattern moved to the Pattern menu's "Regression line"
-					// subheader, alongside every other line-dash control.
-					extra={
-						def.key === "regressionStroke" ? (
-							<RegressionLineStyleControls />
-						) : undefined
-					}
-					extraChanged={
-						def.key === "regressionStroke"
-							? valueChanged(
-									configs.x?.regression?.strokeWidth,
-									themeRegression(theme).strokeWidth
-								)
-							: isPolygonMode && def.key === "line"
-								? outlineAreaChanged
-								: false
-					}
-				/>
-			))}
+				}
+			})}
 		</div>
 	)
 }
 
-/** The theme-seeded regression slice — the "unchanged" baseline for the
- * width / dash controls (same builder the X-axis panel uses). */
-const themeRegression = (
-	theme: Parameters<typeof axisConfigFromTheme>[0]
-): RegressionConfig =>
-	axisConfigFromTheme(theme, "x").regression ?? DEFAULT_REGRESSION_CONFIG
-
-/** Width for the regression line, rendered inside the Color panel's
- * "Regression line" subheader. Writes to `configs.x.regression` with the
- * same theme-seeding merge the X-axis panel uses (so untouched fields keep
- * matching the changed-dot baseline). The dash pattern lives in the Pattern
- * menu's "Regression line" subheader. */
-const RegressionLineStyleControls = () => {
-	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
-	const theme = useCurrentTheme()
-	const regression: RegressionConfig = {
-		...themeRegression(theme),
-		...configs.x?.regression,
-	}
-	const update = (next: Partial<RegressionConfig>) =>
-		setConfigs((prev) => ({
-			...prev,
-			x: {
-				...axisConfigFromTheme(theme, "x"),
-				...prev.x,
-				regression: { ...regression, ...next },
-			},
-		}))
-	return (
-		<div className="vc-divider-group">
-			<div className="flex items-center gap-2">
-				<NumberInput
-					label="Line thickness"
-					labelClassName={LABEL_COL}
-					value={regression.strokeWidth}
-					min={0}
-					max={12}
-					step={0.5}
-					clamp
-					onChange={(strokeWidth) => update({ strokeWidth })}
-				/>
-				{regression.strokeWidth !== themeRegression(theme).strokeWidth && (
-					<ResetLink
-						ariaLabel="Reset regression line thickness"
-						onClick={() =>
-							update({ strokeWidth: themeRegression(theme).strokeWidth })
-						}
-						underline
-					/>
-				)}
-			</div>
-			<p className="vc-help">
-				Set the dash pattern under{" "}
-				<SidebarJumpText target={channelJump("pattern", "pattern:regression")}>Pattern → Regression line</SidebarJumpText>.
-			</p>
-		</div>
-	)
-}
+/** Where the rest of the regression line's styling is, from the Color
+ *  panel's "Regression line" subheader: each property lives in the menu
+ *  for its kind. */
+const RegressionLineElsewhere = () => (
+	<div className="vc-divider-group">
+		<p className="vc-help">
+			Set the thickness under{" "}
+			<SidebarJumpText target={channelJump("area", sizeJumpId("regressionLine"))}>Size → Regression line</SidebarJumpText>
+			{" "}and the dash pattern under{" "}
+			<SidebarJumpText target={channelJump("pattern", "pattern:regression")}>Pattern → Regression line</SidebarJumpText>.
+		</p>
+	</div>
+)
 
 /** Sentinel option value for `ColorSlotControls`' "inherit" entry — an
  *  UNCONFIGURED slot (no stored config), which downstream renderers resolve
@@ -341,12 +255,19 @@ export const ColorSlotControls = ({
 	// caller exposes that as an explicit option; otherwise it displays as
 	// "— none —" (the two are behaviorally identical without a scale).
 	const inheriting = inheritLabel !== undefined && slotCfg === undefined
+	// The selector is the same one on every part. A part with no data to
+	// vary by (a dot map's regions) still gets it when it can FOLLOW another
+	// part: its two choices are then the follow option and the single color,
+	// so the untouched state reads as what it is.
+	const showSelect = acceptsFieldMapping || inheritLabel !== undefined
 	const fieldOptions = [
 		...(inheritLabel !== undefined
 			? [{ value: SLOT_INHERIT_VALUE, label: inheritLabel }]
 			: []),
 		{ value: "", label: "— none —" },
-		...(dataset?.fields ?? []).map((f) => ({ value: f.name, label: f.name })),
+		...(acceptsFieldMapping
+			? (dataset?.fields ?? []).map((f) => ({ value: f.name, label: f.name }))
+			: []),
 	]
 
 	const setField = (fieldName: string) => {
@@ -377,7 +298,7 @@ export const ColorSlotControls = ({
 
 	return (
 		<div className="flex flex-col gap-2">
-			{acceptsFieldMapping ? (
+			{showSelect ? (
 				<SelectInput
 					label="Vary by"
 					labelClassName={LABEL_COL}
@@ -388,7 +309,7 @@ export const ColorSlotControls = ({
 					selectClassName="flex-1"
 				/>
 			) : null}
-			{inheriting && acceptsFieldMapping ? (
+			{inheriting && showSelect ? (
 				inheritHelp ? <p className="vc-help">{inheritHelp}</p> : null
 			) : field === null || !acceptsFieldMapping ? (
 				<div className="flex flex-wrap items-center gap-2">
@@ -440,12 +361,17 @@ export const ColorSlotControls = ({
  * folds their deviation into the subheader dot. */
 const ColorSlotSubsection = ({
 	def,
+	paletteKind,
 	extra,
 	extraChanged = false,
 	legacyCfg,
 	transformWrite = (c) => c,
 }: {
 	def: ColorSlotDef
+	/** The theme palette the part seeds and leads with, by its kind
+	 *  (`partPaletteKind`): the fill palette for a body under a line or
+	 *  points, Color's palette for a line, an outline or a point. */
+	paletteKind: SlotPaletteKind
 	extra?: React.ReactNode
 	extraChanged?: boolean
 	/** What an UNSTORED slot draws through older config fields (the radar
@@ -542,11 +468,7 @@ const ColorSlotSubsection = ({
 				inheritHelp={def.inherit?.help}
 				clearSlot={def.inherit || defaultField ? clearSlot : undefined}
 				defaultField={defaultField}
-				paletteKind={
-					def.key === "violinFill" || def.key === "densityCurveFill"
-						? "fill"
-						: "categorical"
-				}
+				paletteKind={paletteKind}
 				updateSlot={updateSlot}
 			/>
 			{/* Conditional line-color rules — the same "+ Add color rule" editor

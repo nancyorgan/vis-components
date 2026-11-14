@@ -12,21 +12,10 @@ import {
 } from "./dashPatterns"
 import { patternTileSide } from "./patternDefs"
 import { effectivePatternScale, PATTERN_PALETTE } from "./patterns"
+import { segmentsDrawn } from "./segmentsDrawn"
 import type { Encodings } from "./types"
 
-/** Whether the scatter renderer draws its marks as LINE SEGMENTS: the mode
- *  reads Length as a mark trait (`lengthRole: "mark"` — scatter, not a bar
- *  or combo mode) and either a Length variable is mapped or a default
- *  length is set. Mirrors the branch in `buildMarks` that swaps the glyph
- *  for a line. The Pattern menu, the legends and the accessibility check
- *  all gate their segment treatment on this. */
-export const segmentsDrawn = (
-	lengthRole: "mark" | "measure" | "none",
-	encodings: Partial<Pick<Encodings, "length">>,
-	channelConfigs: Pick<ChannelConfigs, "defaultLength">
-): boolean =>
-	lengthRole === "mark" &&
-	(!!encodings.length?.field || channelConfigs.defaultLength != null)
+export { segmentsDrawn } from "./segmentsDrawn"
 
 /** How Pattern paints ONE segment. The explicit `configured` pick wins;
  *  auto = fill when the stroke is thick enough to hold a full repeat of the

@@ -5,10 +5,15 @@ import {
 	buildGeoPatternDefs,
 	geoPatternFill,
 	resolveGeoFill,
-	resolveGeoOutlineColor,
 	resolveGeoRadius,
 } from "../../lib/geo/geoMarkStyle"
 import { sortByDrawOrder } from "../../lib/drawOrder"
+import { markOutlineResolver } from "../../lib/markOutline"
+import {
+	resolveSlotColor,
+	slotModulationResolver,
+	slotOpacityResolver,
+} from "../../lib/resolveLayerColor"
 import { parseValue } from "../../lib/scales"
 
 import { GeoBasemap } from "./GeoBasemap"
@@ -33,9 +38,12 @@ type GeoPointPlotProps = ChartRendererBaseProps
  *   - `outlineHue` → per-point stroke color.
  *
  * When `mapConfig.showBasemap` is true (the default) the selected geography
- * draws first as a non-interactive backdrop (outline + no-data fill), so the
- * points read against their geographic context. The projection is fit to the
- * whole geography's features for the same reason.
+ * draws first as a non-interactive backdrop, so the points read against
+ * their geographic context. The projection is fit to the whole geography's
+ * features for the same reason. The regions are parts of their own — the
+ * Region fill and Region outline in Color, Opacity, Saturation, Brightness
+ * and Size — styled apart from the points. Untouched they draw as they
+ * always have: the map's region color, outlined like the points.
  *
  * The shared map plumbing (geometry + world-backdrop loading, projection +
  * focus fit, pan/zoom, hover tooltip) lives in `useGeoMapScaffold`.
@@ -81,21 +89,48 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 		]
 	)
 
+	const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
+
 	const marksBody = (ctx: PlotContext) => {
 		const m = geo.beginMarks(ctx)
 		if (!m.ready) return m.placeholder
 		const { bundle, path, project, inClip } = m
 
 		// 1) Basemap backdrop (behind the points). Non-interactive — only the
-		// points get tooltips. Draws every feature in the no-data fill + base
-		// outline, exactly like the bubble map.
+		// points get tooltips. Every region draws alike (they carry no data
+		// here): the Region fill and Region outline targets, each its color,
+		// then its Saturation / Brightness, at its Opacity. Untouched: the
+		// map's region color and the points' outline color and thickness, at
+		// full opacity — no attribute set, as before.
+		const regionPaint = (
+			key: "geoRegionFill" | "geoRegionStroke",
+			fallback: string
+		): { color: string; opacity: number | undefined } => {
+			const opacity = slotOpacityResolver(key, channelConfigs, aestheticScales)({})
+			return {
+				color: slotModulationResolver(key, channelConfigs, aestheticScales)(
+					resolveSlotColor(
+						aestheticScales.colorSlots?.[key],
+						channelConfigs.colorSlots?.[key],
+						{},
+						fallback
+					),
+					{}
+				),
+				opacity: opacity === 1 ? undefined : opacity,
+			}
+		}
+		const regionFill = regionPaint("geoRegionFill", mapConfig.noDataFill)
+		const regionStroke = regionPaint("geoRegionStroke", geo.baseOutlineColor)
 		const basemap = mapConfig.showBasemap ? (
 			<GeoBasemap
 				features={bundle.features}
 				path={path}
-				fill={mapConfig.noDataFill}
-				stroke={geo.baseOutlineColor}
-				strokeWidth={geo.outlineWidth}
+				fill={regionFill.color}
+				fillOpacityFor={() => regionFill.opacity}
+				stroke={regionStroke.color}
+				strokeOpacityFor={() => regionStroke.opacity}
+				strokeWidth={channelConfigs.shape?.regionOutlineWidth ?? geo.outlineWidth}
 			/>
 		) : null
 
@@ -160,15 +195,10 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 					{ preModulationHue, satUnit, briUnit }
 				)
 
-				// Border stroke precedence (mirrors the bubble map): a matching
-				// conditional outline rule wins, then the `outlineHue` scale color
-				// for this row, else the base outline color.
-				const stroke = resolveGeoOutlineColor(
-					geo.baseOutlineColor,
-					row,
-					geo.outlineHue,
-					channelConfigs.shape?.outlineColorRules
-				)
+				// The point's outline — color (rule, Outline variable, or the one
+				// outline color), saturation / brightness and opacity — through
+				// the resolver every mark's outline shares.
+				const outline = outlineFor(row)
 
 				points.push({
 					key: String(i),
@@ -177,7 +207,9 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 					r,
 					fill,
 					fillOpacity,
-					stroke,
+					stroke: outline.stroke,
+					strokeOpacity:
+						outline.strokeOpacity === 1 ? undefined : outline.strokeOpacity,
 					row,
 				})
 			}
@@ -193,7 +225,7 @@ export const GeoPointPlot = (props: GeoPointPlotProps = {}) => {
 				{basemap}
 				<GeoCircleMarks
 					marks={sortByDrawOrder(points, (p) => p.row, drawOrder, geo.dataset)}
-					outlineWidth={geo.outlineWidth}
+					outlineWidthFor={geo.outlineWidthFor}
 					hoverHandler={geo.hoverHandler}
 					preserveOrder={drawOrder !== null}
 					highlightFor={geo.markHighlight}

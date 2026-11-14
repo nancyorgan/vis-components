@@ -38,12 +38,15 @@ export const TileMode: ChartModeDef = {
 		const hue = !!encodings.hue?.field
 		const text = !!encodings.text?.field
 		if (!hue && !text) return false
+		// A channel only a GLYPH can show turns the grid into points. Opacity
+		// is not one of them: a cell takes Opacity like Saturation,
+		// Brightness and Pattern (the shared body pipeline), so mapping it
+		// keeps the heatmap and varies the cells.
 		const glyphAttrMapped =
 			!!encodings.length?.field ||
 			!!encodings.angle?.field ||
 			!!encodings.shape?.field ||
 			!!encodings.area?.field ||
-			!!encodings.opacity?.field ||
 			!!encodings.connection?.field
 		return !glyphAttrMapped
 	},
@@ -74,6 +77,7 @@ export const TileMode: ChartModeDef = {
 		connectionRole: "none",
 		shapeRole: "cell",
 		areaRole: "none",
+		mark: "cell",
 		statOverlays: false,
 		measureAxis: null,
 	},

@@ -43,6 +43,7 @@ export const ComboXMode: ChartModeDef = {
 		// The marks layer sizes its points through the Area panel's default
 		// size / px range.
 		areaRole: "mark",
+		mark: "bar",
 		statOverlays: false,
 		measureAxis: "y",
 		resolveMeasureField: (encodings) => encodings.length?.field ?? null,

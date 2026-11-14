@@ -1,23 +1,32 @@
 // Hexbin renderer: a continuous×continuous scatter binned onto a hex
 // lattice, cells filled through the quantitative hue gradient over
-// [0, maxCount]. Binning happens in DATA space (lib/hexbins.ts) so the
+// [0, maxCount] and styled like every other body (opacity, saturation,
+// brightness, pattern, outline — see the cell loop). Binning happens in DATA space (lib/hexbins.ts) so the
 // Legend derives the same domain from data alone; this component's only
 // jobs are the axis scales and the affine lattice→pixel mapping (cells
 // tile exactly, hexagons stretch to the plot's aspect ratio).
 import { useAtomValue } from "jotai"
-import { DEFAULT_SHAPE_CONFIG } from "../../lib/channelConfig"
+import { buildPatternDefs, type FillInput } from "../../lib/buildPatternDefs"
+import { DEFAULT_FILL } from "../../lib/channelConfig"
+import { combinedGroupValues } from "../../lib/combinedGroupValues"
 import { dateColumnText } from "../../lib/rawTextByTime"
 import type { UniversalRendererProps } from "../../lib/chartRendererProps"
 import { cartesian } from "./coords"
 import { effectiveType } from "../../lib/fieldType"
+import { HEXBIN_COUNT_LABEL } from "../../lib/hexbinMeasure"
 import {
 	DEFAULT_HEXBIN_BIN_COUNT,
 	hexCornerOffsets,
 	resolveHexbinCells,
 } from "../../lib/hexbins"
+import { markOutlineResolver } from "../../lib/markOutline"
+import {
+	layerFillProp,
+	resolveLayerColor,
+	type GroupValues,
+} from "../../lib/resolveLayerColor"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import {
-	applyHueScale,
 	makeHueScale,
 	makePositionScale,
 	maxMeaningfulTicks,
@@ -31,6 +40,7 @@ import {
 import {
 	renderChannelConfigsAtom,
 } from "../../store/renderConfigs"
+import { useAestheticScales, type AestheticScales } from "../../store/useAestheticScales"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 
 import { Plot, type CoordFactory } from "./Plot"
@@ -41,6 +51,7 @@ export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const labels = useAtomValue(renderedLabelsAtom)
 	const dataset = useCurrentDatasetView()
+	const aestheticScales = useAestheticScales()
 
 	const rowsForChart = props.rowsOverride ?? dataset?.rows ?? []
 	const rowsForXScale =
@@ -80,6 +91,53 @@ export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 	const hueScale = hex
 		? makeHueScale([0, hex.maxCount], "quantitative", channelConfigs.hue)
 		: null
+
+	// A hex cell is a BODY like a bar or a heatmap cell, so it takes the same
+	// options through the same pipeline (`resolveLayerColor`). Its Color is
+	// its point count through the count gradient; every other channel takes
+	// the combined value of the rows that fell in the cell — the mean of a
+	// numeric variable, the most common level of a discrete one.
+	const cellScales: AestheticScales | null = hueScale
+		? {
+				...aestheticScales,
+				hue: {
+					scale: hueScale,
+					field: { name: HEXBIN_COUNT_LABEL, type: "quantitative" },
+				},
+			}
+		: null
+	const defaultFill = channelConfigs.defaultFill ?? DEFAULT_FILL
+	const patternBgOverride = channelConfigs.pattern?.backgroundColor ?? null
+	// The configured default pattern applies to cells as it does to bars.
+	const patternOptions = { includeDefaultPattern: true }
+	const cellFills: Array<FillInput & { groupValues: GroupValues }> = (
+		hex?.cells ?? []
+	).map((c) => {
+		const rows = c.rows.flatMap((i) => {
+			const row = rowsForChart[i]
+			return row ? [row] : []
+		})
+		return {
+			rows,
+			// The count is the cell's own; `combinedGroupValues` fills in the rest.
+			groupValues: combinedGroupValues(
+				rows,
+				{ ...aestheticScales, hue: null },
+				{ hue: c.count }
+			),
+		}
+	})
+	const patternDefs = cellScales
+		? buildPatternDefs(
+				cellFills,
+				cellScales,
+				channelConfigs,
+				defaultFill,
+				patternBgOverride,
+				patternOptions
+			)
+		: []
+	const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
 
 	const xRaw = active ? rowsForXScale.map((r) => r[xField]) : null
 	const yRaw = active ? rowsForYScale.map((r) => r[yField]) : null
@@ -145,22 +203,30 @@ export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 	}
 
 	return (
-		<Plot inner={props.inner} coord={coord}>
+		<Plot inner={props.inner} coord={coord} patternDefs={patternDefs}>
 			{({ inner }) => {
-				if (!hex || !hueScale) return null
+				if (!hex || !cellScales) return null
 				const plotW = inner.x1 - inner.x0
 				const plotH = inner.y1 - inner.y0
 				const corners = hexCornerOffsets(hex.radius)
-				// Cell borders follow the universal mark outline (the Shape
-				// panel's color/width, seeded from the theme; width 0 hides) —
-				// same chain BarPlot and the hierarchy renderers use.
-				const outlineColor =
-					channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
-				const outlineWidth =
-					channelConfigs.shape?.outlineWidth ?? DEFAULT_SHAPE_CONFIG.outlineWidth
+				// Cell borders follow the universal mark outline: thickness
+				// (Size → Cell outline, seeded from the theme; 0 hides), color,
+				// shading and opacity through `lib/markOutline`.
 				return (
 					<g>
-						{hex.cells.map((c) => {
+						{hex.cells.map((c, cellIdx) => {
+							const input = cellFills[cellIdx]
+							const rows = input?.rows ?? []
+							const layer = resolveLayerColor({
+								groupValues: input?.groupValues ?? { hue: c.count },
+								defaultFill,
+								patternBgOverride,
+								aestheticScales: cellScales,
+								channelConfigs,
+								patternOptions,
+								rows,
+							})
+							const outline = outlineFor(rows[0] ?? {}, { color: layer.outline })
 							// Normalized center → pixels (y inverted). Corner offsets
 							// scale PER-AXIS — the lattice's affine image still tiles.
 							const px = inner.x0 + c.cx * plotW
@@ -181,11 +247,16 @@ export const HexbinPlot = (props: UniversalRendererProps = {}) => {
 									   styling — there is deliberately no CSS rule for it. */
 									className="vc-hexbin-cell"
 									d={d}
-									fill={
-										applyHueScale(hueScale, c.count, "quantitative") ?? "none"
+									fill={layerFillProp(layer)}
+									// Full opacity sets no attribute, as before.
+									fillOpacity={layer.opacity === 1 ? undefined : layer.opacity}
+									stroke={outline.strokeWidth > 0 ? outline.stroke : "none"}
+									strokeOpacity={
+										outline.strokeWidth > 0 && outline.strokeOpacity !== 1
+											? outline.strokeOpacity
+											: undefined
 									}
-									stroke={outlineWidth > 0 ? outlineColor : "none"}
-									strokeWidth={outlineWidth}
+									strokeWidth={outline.strokeWidth}
 								/>
 							)
 						})}

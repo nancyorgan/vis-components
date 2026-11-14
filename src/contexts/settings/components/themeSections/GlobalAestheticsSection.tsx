@@ -22,7 +22,7 @@ const PanelBorderRows = ({ theme, set }: ThemeSectionProps) => {
 			{b.enabled && (
 				<>
 					<NumberInput
-						label="Line width"
+						label="Border thickness"
 						value={b.width}
 						onChange={(v) => set("panelBorderWidth", v)}
 						min={0}

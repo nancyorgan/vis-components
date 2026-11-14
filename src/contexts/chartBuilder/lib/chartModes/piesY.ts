@@ -40,6 +40,7 @@ export const PiesYMode: ChartModeDef = {
 		connectionRole: "none",
 		shapeRole: "outline",
 		areaRole: "none",
+		mark: "slice",
 		statOverlays: false,
 		polarAxes: { r: false, angle: false },
 		measureAxis: null,

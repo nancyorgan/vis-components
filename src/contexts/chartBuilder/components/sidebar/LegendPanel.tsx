@@ -1862,7 +1862,7 @@ export const LegendPanel = () => {
 					{showAuxSwatchStroke && (
 						<div className="flex items-center gap-2">
 							<NumberInput
-								label="Outline width"
+								label="Outline thickness"
 								labelClassName={LABEL_COL}
 								value={merged.auxLegendSwatchStrokeWidth ?? 1}
 								min={0}
@@ -2109,7 +2109,7 @@ export const LegendPanel = () => {
 								{controls.outlineWidth && (
 										<div className="flex items-center gap-2">
 											<NumberInput
-												label="Outline width"
+												label="Outline thickness"
 												labelClassName={LABEL_COL}
 												value={outlineWidth}
 												min={0}
@@ -2235,7 +2235,7 @@ export const LegendPanel = () => {
 					)}
 					<div className="flex items-center gap-2">
 						<NumberInput
-							label="Outline width"
+							label="Outline thickness"
 							labelClassName={LABEL_COL}
 							value={merged.shapeLegendStrokeWidth ?? 1}
 							min={0}

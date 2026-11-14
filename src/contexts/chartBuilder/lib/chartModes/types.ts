@@ -152,6 +152,17 @@ export type ChartModeLabelTraits = {
 	containerRimLabels: boolean
 }
 
+/** What one mark of a chart mode is — see `ChartModeCanvasTraits.mark`. */
+export type MarkKind =
+	| "point"
+	| "bar"
+	| "area"
+	| "slice"
+	| "cell"
+	| "region"
+	| "circle"
+	| "node"
+
 /** How PlotCanvas lays out and adorns panels for a mode. */
 export type ChartModeCanvasTraits = {
 	/** Coordinate family. `"polar"` (radar + pie variants) drives the
@@ -221,6 +232,23 @@ export type ChartModeCanvasTraits = {
 	 *  - `"none"`: the renderer never reads it (bars, pies, tile,
 	 *    hexbin, the choropleth). */
 	areaRole: "mark" | "layoutRadius" | "proportional" | "none"
+	/** What ONE of the mode's marks is, in the words the options menus name
+	 * its parts with: a `"bar"` mode's menus read "Bar fill" / "Bar outline",
+	 * a `"slice"` mode's "Slice fill" / "Slice outline". One noun per mode,
+	 * so every menu names the same part the same way (`markPartTitles`):
+	 *  - `"point"`: point marks — scatter and line charts, radar, the
+	 *    lon/lat dot map.
+	 *  - `"bar"`: bars and histogram bins, and the bars of a bar + line
+	 *    combo (whose points are a second part, the "Point fill").
+	 *  - `"area"`: an area chart's layers (the "Area fill", edged by the
+	 *    "Line").
+	 *  - `"slice"`: pie / donut wedges and sunburst arcs.
+	 *  - `"cell"`: heatmap tiles, hex cells, treemap rectangles.
+	 *  - `"region"`: map polygons — the choropleth's, and the bubble map's
+	 *    (whose bubbles are a second part, the "Point fill").
+	 *  - `"circle"`: packed circles.
+	 *  - `"node"`: flow-diagram nodes (the ribbons are a second part). */
+	mark: MarkKind
 	/** True when the renderer draws the statistical overlays configured on
 	 * the position axes — the violin / box distribution overlays, the
 	 * standalone density curve, and the regression line — so their styling

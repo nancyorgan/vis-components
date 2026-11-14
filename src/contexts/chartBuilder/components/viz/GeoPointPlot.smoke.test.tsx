@@ -375,3 +375,90 @@ describe("GeoPointPlot (lat/long dot map)", () => {
 		}
 	})
 })
+
+/** The regions behind the points are parts of their own: Region fill and
+ *  Region outline in Color, Opacity, Saturation, Brightness and Size, set
+ *  apart from the points (Point fill / Point outline). One outline color
+ *  and one thickness used to drive both the dots and the map polygons, and
+ *  the polygons' fill was set under Map alone. */
+describe("GeoPointPlot — the regions are styled apart from the points", () => {
+	const OUTLINE = "#ff0000"
+
+	const seedConfigs = (channelConfigs: Record<string, unknown>) => {
+		seed()
+		/* eslint-disable no-restricted-globals, @vc/no-storage-outside-try, @vc/use-wrapped-json-functions */
+		localStorage.setItem(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify({ shape: { outlineColor: OUTLINE, outlineWidth: 2 }, ...channelConfigs })
+		)
+		/* eslint-enable no-restricted-globals, @vc/no-storage-outside-try, @vc/use-wrapped-json-functions */
+	}
+
+	const regions = async (container: HTMLElement): Promise<SVGPathElement[]> => {
+		await waitFor(() => expect(container.querySelectorAll("path").length).toBeGreaterThan(10))
+		return [...container.querySelectorAll("path")]
+	}
+	const attrs = (els: Element[], name: string): Set<string | null> =>
+		new Set(els.map((el) => el.getAttribute(name)))
+
+	it("untouched: the map's region color, outlined like the points, full opacity", async () => {
+		seedConfigs({})
+		const { container } = mount()
+		const paths = await regions(container)
+		expect(attrs(paths, "fill")).toEqual(new Set([DEFAULT_MAP_CONFIG.noDataFill]))
+		expect(attrs(paths, "stroke")).toEqual(new Set([OUTLINE]))
+		expect(attrs(paths, "stroke-width")).toEqual(new Set(["2"]))
+		expect(attrs(paths, "fill-opacity")).toEqual(new Set([null]))
+		expect(attrs(paths, "stroke-opacity")).toEqual(new Set([null]))
+	})
+
+	it("Color → Region fill and Region outline color the regions, not the points", async () => {
+		seedConfigs({
+			colorSlots: {
+				geoRegionFill: { field: null, singleColor: "#00ff00" },
+				geoRegionStroke: { field: null, singleColor: "#0000ff" },
+			},
+		})
+		const { container } = mount()
+		const paths = await regions(container)
+		expect(attrs(paths, "fill")).toEqual(new Set(["#00ff00"]))
+		expect(attrs(paths, "stroke")).toEqual(new Set(["#0000ff"]))
+		// The points keep their own fill and outline.
+		const dots = dotCircles(container)
+		expect(dots.length).toBeGreaterThan(0)
+		expect(attrs(dots, "stroke")).toEqual(new Set([OUTLINE]))
+		expect(attrs(dots, "fill")).not.toContain("#00ff00")
+	})
+
+	it("Opacity → Region fill and Region outline fade the regions alone", async () => {
+		seedConfigs({
+			opacitySlots: {
+				geoRegionFill: { field: null, level: 0.4 },
+				geoRegionStroke: { field: null, level: 0.25 },
+			},
+		})
+		const { container } = mount()
+		const paths = await regions(container)
+		expect(attrs(paths, "fill-opacity")).toEqual(new Set(["0.4"]))
+		expect(attrs(paths, "stroke-opacity")).toEqual(new Set(["0.25"]))
+		expect(attrs(dotCircles(container), "stroke-opacity")).not.toContain("0.25")
+	})
+
+	it("Saturation → Region outline shades the regions' outline alone", async () => {
+		seedConfigs({ saturationSlots: { geoRegionStroke: { field: null, level: 0 } } })
+		const { container } = mount()
+		const paths = await regions(container)
+		// Pure red, fully desaturated, is no longer red — on the regions.
+		expect(attrs(paths, "stroke")).not.toContain(OUTLINE)
+		expect(attrs(paths, "stroke").size).toBe(1)
+		expect(attrs(dotCircles(container), "stroke")).toEqual(new Set([OUTLINE]))
+	})
+
+	it("Size → Region outline sets the regions' thickness apart from the points'", async () => {
+		seedConfigs({ shape: { outlineColor: OUTLINE, outlineWidth: 2, regionOutlineWidth: 0.5 } })
+		const { container } = mount()
+		const paths = await regions(container)
+		expect(attrs(paths, "stroke-width")).toEqual(new Set(["0.5"]))
+		expect(attrs(dotCircles(container), "stroke-width")).toEqual(new Set(["2"]))
+	})
+})

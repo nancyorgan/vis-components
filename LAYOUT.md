@@ -26,6 +26,42 @@ coordinates.
 
 ## 2. The reservation cascade
 
+**One budget (implemented 2026-11-13).** In fit mode the canvas IS the
+container. Everything around the plot asks for room — the title bands, a
+title pushed away from the plot, data labels, annotations, the caption,
+the tick labels — and the plot gets what is left, down to nothing (there
+is deliberately no minimum plot size). When the asks exceed the container
+there is no plot left to take from, so the asks themselves give way, in
+this order, per axis:
+
+1. **The soft reserves**, scaled together: whatever a side asked for beyond
+   its fixed bands — a title offset's grow, the data-label / annotation /
+   caption margins (`extra*Margin`), the x-tick overhang. Two over-large
+   asks on opposite sides share the room in proportion.
+2. **The tick-label floors** (`leftFloor` / `bottomFloor` and the interior
+   chrome of un-shared axes), scaled until the grid's edge chrome fits.
+
+The title bands and the base cell margins are never cut. A container too
+small even for those — the 0×0 first render, a sliver of a panel — is left
+exactly as it was asked for and keeps the canvas minimum (§9); it is the
+one case where a fit-mode canvas may exceed its container.
+
+So in fit mode nothing scrolls, the plot never leaves the canvas, and a
+title pushed far away squeezes the chart to nothing and then simply
+stops. The titles themselves stay on the page through §8's keep-in-view.
+The step runs only when the asks do not fit, so every other layout is
+solved exactly as before. It is skipped, per axis, where growing or
+overlapping is the point: scroll mode ("Allow scrolling", `minPanelPx >
+0`), a pixel-precise panel size (§10b) and a negative gap (ridgeline,
+§10). It replaces what used to be a patchwork: only the data-label
+reserves were scaled to fit (`clampLabelReserves`, still there and now
+redundant), and every other reserve grew the canvas through the canvas
+minimum once the plot was gone.
+
+(`grantAxis` in `solveOnce`. The need on an axis is its two outer
+reserves + the grid's edge chrome + the positive gaps; the chrome between
+neighbouring plots lives inside the gap and is not part of it — see §10.)
+
 ```
 Canvas
 ├─ Outer reserves (around the whole grid)
@@ -600,6 +636,20 @@ itself. Behavior:
   adds to outer reserve's left → plot's left edge moves RIGHT →
   plot shrinks from left. Title stays at natural screen-x.
 
+### A plot extended toward its title keeps its tick labels (2026-11-13)
+
+Pulling an axis title toward the plot hands the plot the room the title
+left: the x-title's `bottomGrow` and the y-title's `leftGrow` go negative
+and the plot's edge moves out, up to `extensionRoom` / `leftExtensionRoom`.
+That room used to be the axis chrome minus the viewport buffer, so the
+plot's edge could reach the buffer — and the tick labels, which hang from
+that edge wherever it goes, were cut off by 3–10 px (the browser layout
+sweep found it on every cartesian chart past an offset of about 70). The
+room is now the chrome minus the buffer AND the tick labels' band (the pad
+to the labels, their own extent, and any nudge toward the title), so the
+edge stops where the labels still fit. Small pulls are unchanged: one
+pixel of plot per pixel of offset.
+
 ### Offset TOWARD the plot (overlap case)
 
 No canvas/plot adjustment. Title moves into existing margin, may overlap
@@ -623,6 +673,37 @@ box stays at least 10px from the corresponding canvas edge:
   (text-anchor "end") to `[BUFFER + textWidth, canvasW − BUFFER]` so
   the leftmost rendered character can't fall off the canvas left
   edge.
+
+Those hold each title ACROSS the direction its text runs. Each is also
+held ALONG it (implemented 2026-11-13) — the direction "Adjust position"
+slides an x-title sideways or a y-title up and down, where nothing used
+to stop it and the title left the page:
+
+- **X-title** — its anchor x stops where the text's far end reaches the
+  buffer. The text's extent either side of the anchor follows from its
+  alignment (`spanAround`: all of it after a left-aligned anchor, all of
+  it before a right-aligned one, half each when centered) and its
+  canvas-measured width.
+- **Y-title rotated** — the same along y. Rotated −90° the text reads
+  bottom-to-top, so what lies "after" the anchor is ABOVE it: a
+  floor-anchored ("left") title has its whole length above its anchor.
+- **Y-title upright** — its first-line baseline is held by an ascender
+  above and, below, the descender plus one line step per further line,
+  so every line of a wrapped title stays on the page.
+
+One helper does all three (`keepSpanInView(pos, before, after, size)`):
+`pos` moves only as far as it must, one pixel per pixel, and a span
+longer than the room centers on the canvas — which is where the clamp
+lands as the room closes, so nothing jumps on the way.
+
+It needs the title's measured width (`SharedTitleInput.textWidth`), which
+`buildSolverInput` now measures for the axis titles as it already did for
+the chart title and subtitle. Unmeasured (0 — no canvas API) the anchor is
+left as aligned. The same measured width now sizes an UPRIGHT y-title's
+band (`estimateExtraLeftMargin`'s `yTitleWidthPx`) and places its block;
+it used to be estimated from the character count, 10–20% off on common
+fonts, so the band was too wide or too narrow by that much. A chart with
+an upright y-title shifts by the difference.
 
 The clamp is a no-op for normal layouts; it only kicks in when the
 user offsets a title aggressively. No layout reflow happens when
@@ -671,9 +752,21 @@ canvasW    = max(containerWidth, naturalWidth, minCanvasW)
 ```
 
 The canvas matches the container in fit mode. `outerReserves.bottom`
-includes `bottomGrow` (from positive x-title offsetY), which shows up
-in `minCanvasH` and subtracts from `inner.height` — so the offset
-shrinks the plot rather than growing the canvas. See §8.
+includes `bottomGrow` (from positive x-title offsetY), which subtracts
+from `inner.height` — so the offset shrinks the plot rather than growing
+the canvas. See §8.
+
+Under the budget (§2: fit mode, no pixel panel size, gap ≥ 0) the
+`minCanvas` terms above are 0: the minimum carries a 20 px "smallest
+plot", which would re-grow the canvas — a scrollbar — the moment a reserve
+squeezed the plot below that. They apply as written only when the
+container is too small for the fixed chrome (the unmeasured first render),
+and in scroll mode. For the same reason the grid-origin shift of §10
+(`ridgelineTopGrow` / `ridgelineLeftGrow`) does not grow a budgeted
+canvas: a cell can start before the grid origin there only when an
+interior column's tick labels, with y axes not shared, are wider than
+everything to their left — chrome overlapping its neighbours, not a
+ridgeline.
 
 `naturalHeight` / `naturalWidth` come from `estimateNaturalDims`: the
 canvas size needed to honor `minPanelPx` (scroll-mode floor) AND the
@@ -835,6 +928,42 @@ doesn't blow up on raw values like `148.50000000001` (Bug #6).
 This only affects the MARGIN ESTIMATE — actual rendered tick labels are
 whatever d3 picks at draw time.
 
+### The x tick labels' angle is decided once (2026-11-13)
+
+A categorical x axis rotates its tick labels to −45° on its own when
+neighboring labels would collide (`lib/autoLabelAngle.ts`). That decision
+is the **solver's**, made from the plot width it solved, and the axis
+draws the angle the solver reports:
+
+1. `buildSolverPanelInputs` marks a panel's angle as automatic
+   (`SolverPanelInput.xAutoAngle`: its tick labels and their measured
+   widths) when the axis is categorical, no angle is typed and "Wrap text"
+   is off. An explicit angle — 0 included — is passed through as is, and a
+   continuous axis is always level.
+2. `solveFacetLayout` solves with automatic panels level, then checks each
+   against the inner width that solve gave it. A panel whose labels collide
+   is rotated and the layout is solved again with the room rotated labels
+   need. Labels only ever go from level to rotated (rotating can narrow a
+   plot a little, never widen it), so the loop ends after a pass or two and
+   cannot flip back and forth.
+3. Each solved panel carries `xLabelAngleDeg`. PlotCanvas provides it
+   around the panel (`SolvedXTickAngleContext`) and the axis draws it.
+   Outside the canvas — a renderer mounted alone in a test — the axis
+   still decides for itself from its real tick positions.
+
+Before, the angle was decided twice: by `buildSolverPanelInputs` from an
+ESTIMATE of the plot width (the container less fixed margins, split by
+columns), to reserve the room, and again by the axis from the real width,
+to draw. Near the threshold the two disagreed, which showed as a blank
+strip under level labels or as rotated labels running into the axis
+title. The estimate also ran the collision check on a continuous axis's
+sample ticks, reserving room for a rotation that axis never draws.
+
+The solver's check spaces the labels evenly across the plot
+(`width / count`); a band scale's padding makes the real spacing a percent
+or two tighter. That only moves where the single decision falls by a
+pixel or so — it can no longer make the reserve and the drawing disagree.
+
 ---
 
 ## 12. Title-offset symmetry — RESOLVED
@@ -947,6 +1076,14 @@ w·r ≤ h  ?  heights := w·r  :  widths := h/r
 i.e. the binding dimension keeps its solved size and the other
 SHRINKS to match. Because the neutralized input guarantees uniform
 arrays, constraining index 0 and filling the arrays is exact.
+
+A zero dimension is not exempt. When a reserve squeezes one dimension
+to nothing (a title pushed far from the plot, a wide data label), the
+rule gives `0 × r` or `0 / r`: the other dimension follows it to
+nothing. The shrink used to be skipped at zero, which left the other
+dimension at full size, so the plot snapped between "full width, no
+height" and a sliver one pixel later — 99 of the 440 one-pixel sweeps
+in the invariant tests (§18) contained that jump.
 
 **Never grows.** A dimension is only ever reduced — the ratio never
 requests more space than the ratio-off solve produced, so it can't
@@ -1114,3 +1251,101 @@ labels grow up), right labels anchor `start`, rotated top labels flip
 their anchor, and `naturalWrapAlignFor(channel, angle, flipped)` keeps
 the Align control's default in step. The opposing-spine gridline
 suppression tracks the opposing axis's side.
+
+---
+
+## 18. Invariants, and where they are checked
+
+The layout makes three promises, whatever is being positioned:
+
+1. **Nothing leaves the page.** Titles, tick labels, the legend and the
+   plot stay inside the area they may use.
+2. **Fit mode never scrolls.** With "Allow scrolling" off the canvas is the
+   container; the plot gets whatever room is left, possibly none. With it
+   on, the canvas grows instead.
+3. **No jumps.** A small change in a position, a size or a text length
+   moves things a small amount.
+
+Single-example tests cannot show these hold, because the failures live in
+combinations (a title offset with a long tick label on a small canvas).
+They are checked by sweeps instead:
+
+- [facetLayoutSolver.invariants.test.ts](src/contexts/chartBuilder/lib/facetLayoutSolver.invariants.test.ts)
+  solves thousands of generated fit-mode layouts and counts how many break
+  each rule; steps every continuous input one pixel at a time and counts
+  the sweeps that contain a jump; and pins a snapshot of untouched layouts.
+- [computeInsideExtras.invariants.test.ts](src/contexts/chartBuilder/components/viz/computeInsideExtras.invariants.test.ts)
+  sweeps the inside-legend reservation over positions and legend sizes.
+- `e2e/sweep/layout.sweep.ts` (`pnpm run test:sweep -- layout`) types every
+  position control across its range in the running editor and measures the
+  page after each step.
+
+Each rule in the unit sweeps carries a **ceiling**: the number of cases
+that break it today, asserted exactly. A count that goes up is a
+regression. A count that goes down means a fix landed, and the ceiling is
+lowered to match so the gain cannot be lost. The target for every ceiling
+is 0. Where a ceiling is not 0, the comment beside it says what is
+responsible.
+
+The untouched-layout snapshot is the other half: a change meant to affect
+only pushed-to-the-limit layouts must leave it byte-identical.
+
+Where the ceilings stand (3,000 generated fit-mode layouts):
+
+| Rule | Start | Now | What moved it |
+|---|---|---|---|
+| The chart title and subtitle stay on the canvas | 0 | 0 | |
+| The x-axis title stays on the canvas | 300 | 0 | kept in view sideways (§8) |
+| The y-axis title stays on the canvas | 344 | 0 | kept in view along the axis; upright y-title clamp given the title's own width (§8) |
+| One-pixel sweeps with a jump, fixed aspect ratio | 99 of 440 | 0 | the ratio shrink no longer skips a zero-size plot (§15) |
+| One-pixel sweeps with a jump, no aspect ratio | 0 | 0 | |
+| Inside legend: the five rules of its reservation | all broken | 0 | reservation rewritten, legend clamped in view (APPLICATION.md §8) |
+| Every plot rect is inside the canvas | 76 | 0 | one budget: the tick-label floors are the last thing scaled (§2) |
+| Fit mode never scrolls | 252 | 0 | one budget: every reserve draws from it (§2, §9) |
+
+Every ceiling is at 0. Direct examples of each rule sit beside the sweeps:
+[facetLayoutSolver.budget.test.ts](src/contexts/chartBuilder/lib/facetLayoutSolver.budget.test.ts)
+and
+[facetLayoutSolver.titleKeepInView.test.ts](src/contexts/chartBuilder/lib/facetLayoutSolver.titleKeepInView.test.ts).
+
+The browser layout sweep (`pnpm run test:sweep -- layout`: 8 charts, 104
+position controls typed across their range) is the same check in the
+running editor. At the start it found 25 controls that pushed something
+off the page, 1 that raised a scrollbar in fit mode and 4 with a jump.
+
+### The legend asks from the same budget
+
+The legend is HTML beside the canvas (CSS flex), not part of the solve,
+but it shares the page with the chart along one axis — its height when
+placed on top or bottom, its width at a side — and the same rule holds
+there: the chart takes what the legend leaves, down to the smallest area
+it still fits, and past that **the legend is what gives way**.
+
+- The solver reports that smallest area as `FacetLayoutSpec.fitFloor`:
+  per axis, the title bands, base margins and panel gaps with every soft
+  reserve given up and the tick labels at nothing — exactly the point
+  below which the budget (§2) can no longer make the canvas the container.
+  It is 0 on an axis that does not fit the container to begin with (scroll
+  mode, a pixel panel size, a negative gap), and it does not depend on how
+  much room there is, so holding the chart to it cannot feed back into the
+  solve.
+- PlotCanvas publishes it (`currentRenderedFitFloorAtom`); ChartCanvas
+  gives the chart area that much as a `min-height` (top / bottom legend)
+  or `min-width` (side legend), plus the area's own pad.
+- The outside legend may shrink (`min-h-0` / `min-w-0`) and scrolls
+  inside itself. It used to be `flex-shrink-0`, with its overflow hidden
+  on top / bottom: a legend taller than the page (several sections stacked
+  in one column) pushed the plot hundreds of pixels off the page and
+  raised a scrollbar.
+- An inside legend is capped at the canvas height less its edge buffers
+  and scrolls inside itself past that; its position clamp could otherwise
+  only keep its top in view.
+
+A legend that fits is untouched by all of this: nothing shrinks and
+nothing is capped until the legend and the chart's floor together exceed
+the page.
+
+Still outside the solver, and so outside these rules: the legend's own
+placement (sized from fixed base margins rather than the solved plot) and
+the caption band (measured at one size, drawn at another). Those are the
+remaining layout work.

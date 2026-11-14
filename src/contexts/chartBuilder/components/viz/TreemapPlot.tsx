@@ -83,7 +83,7 @@ export const TreemapPlot = (props: TreemapPlotProps = {}) => {
 			const style = styleFor(node, true)
 			// styleFor only returns null for containers; leaves always style.
 			if (style === null) continue
-			const { stroke, strokeWidth } = markStroke(node, style)
+			const { stroke, strokeWidth, strokeOpacity } = markStroke(node, style)
 			const pattern = patternFor(node, style)
 			if (pattern) patternDefs.push(pattern)
 			rects.push(
@@ -96,6 +96,7 @@ export const TreemapPlot = (props: TreemapPlotProps = {}) => {
 					fill={pattern ? `url(#${pattern.svgId})` : style.fill}
 					fillOpacity={style.opacity}
 					stroke={stroke}
+					strokeOpacity={strokeOpacity}
 					strokeWidth={strokeWidth}
 					onMouseEnter={scaffold.hoverLeaf(d.row ?? null, node)}
 				/>

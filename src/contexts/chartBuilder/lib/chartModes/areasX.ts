@@ -56,6 +56,7 @@ export const AreasXMode: ChartModeDef = {
 		connectionRole: "layer",
 		shapeRole: "none",
 		areaRole: "mark",
+		mark: "area",
 		statOverlays: false,
 		measureAxis: "y",
 		// Areas read `length` first, then fall back to `y` (the length-less

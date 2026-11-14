@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { DEFAULT_CONNECTION_CONFIG, EMPTY_CHANNEL_CONFIGS } from "./channelConfig"
 import { AreasXMode } from "./chartModes/areasX"
 import { ComboXMode } from "./chartModes/comboX"
+import { MODE_REGISTRY } from "./chartModes"
 import { RadarMode } from "./chartModes/radar"
 import { ScatterMode } from "./chartModes/scatter"
 import { applicableColorSlots } from "./colorSlots"
@@ -22,16 +23,60 @@ describe("markPartTitles", () => {
 		})
 	})
 
-	it("keeps the plain names on a scatter with no Connection line", () => {
+	it("names a scatter's points with no Connection line too", () => {
 		expect(markPartTitles(ScatterMode, EMPTY_CHANNEL_CONFIGS, emptyEncodings())).toEqual({
-			fill: "Fill",
-			outline: "Outline",
+			fill: "Point fill",
+			outline: "Point outline",
 			line: "Line",
 		})
 	})
 
-	it("keeps the plain names on the bar + line combo, whose Fill is the bars'", () => {
-		expect(markPartTitles(ComboXMode, EMPTY_CHANNEL_CONFIGS, withConnection).fill).toBe("Fill")
+	it("names the bars on the bar + line combo, whose Fill is the bars'", () => {
+		expect(markPartTitles(ComboXMode, EMPTY_CHANNEL_CONFIGS, withConnection)).toEqual({
+			fill: "Bar fill",
+			outline: "Bar outline",
+			line: "Line",
+		})
+	})
+
+	it("names every mode's marks: no chart is left with a bare Fill / Outline", () => {
+		const titles = Object.fromEntries(
+			MODE_REGISTRY.map((mode) => [
+				mode.id,
+				markPartTitles(mode, EMPTY_CHANNEL_CONFIGS, emptyEncodings()).outline,
+			])
+		)
+		expect(titles).toEqual({
+			scatter: "Point outline",
+			radar: "Point outline",
+			"geo-points": "Point outline",
+			"bars-x": "Bar outline",
+			"bars-y": "Bar outline",
+			"combo-x": "Bar outline",
+			"combo-y": "Bar outline",
+			// An area's outline is its Line.
+			"areas-x": "Line",
+			"areas-y": "Line",
+			pies: "Slice outline",
+			"pies-x": "Slice outline",
+			"pies-y": "Slice outline",
+			sunburst: "Slice outline",
+			tile: "Cell outline",
+			hexbin: "Cell outline",
+			treemap: "Cell outline",
+			"geo-choropleth": "Region outline",
+			"geo-symbols": "Region outline",
+			"packed-circles": "Circle outline",
+			chord: "Node outline",
+			sankey: "Node outline",
+		})
+	})
+
+	it("names line segments (Length on a scatter) as one stroke", () => {
+		const segments = { ...emptyEncodings(), length: { field: "speed" } }
+		expect(markPartTitles(ScatterMode, EMPTY_CHANNEL_CONFIGS, segments).fill).toBe("Segment")
+		// A combo reads Length as the bars' measure: its marks stay bars.
+		expect(markPartTitles(ComboXMode, EMPTY_CHANNEL_CONFIGS, segments).fill).toBe("Bar fill")
 	})
 
 	it("names an area chart's body the Area fill (once filled) and its edge the Line", () => {
@@ -68,9 +113,11 @@ describe("markPartTitles", () => {
 		).not.toContain("areaPointFill")
 	})
 
-	it("names the radar polygon's outline the Connection line", () => {
-		expect(markPartTitles(RadarMode, EMPTY_CHANNEL_CONFIGS, withConnection).line).toBe(
-			"Connection line"
-		)
+	it("names the radar polygon's outline the Line, as every chart names its connecting line", () => {
+		expect(markPartTitles(RadarMode, EMPTY_CHANNEL_CONFIGS, withConnection)).toEqual({
+			fill: "Point fill",
+			outline: "Point outline",
+			line: "Line",
+		})
 	})
 })

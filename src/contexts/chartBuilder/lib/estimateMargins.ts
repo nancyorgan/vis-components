@@ -106,6 +106,7 @@ export const estimateExtraLeftMargin = ({
 	yTitleRotated,
 	yTitleText,
 	yTitleFontSize,
+	yTitleWidthPx,
 	baseMarginPx = 76,
 }: {
 	/** Tick labels that will appear on the y-axis. */
@@ -122,6 +123,10 @@ export const estimateExtraLeftMargin = ({
 	yTitleRotated: boolean
 	yTitleText: string
 	yTitleFontSize: number
+	/** Pre-measured width of an UPRIGHT title's widest line, when the caller
+	 *  has it. The character-count estimate misses by 10-20% on common fonts,
+	 *  so the band reserved for the title was too narrow or too wide. */
+	yTitleWidthPx?: number
 	/** The base left margin the solver ACTUALLY reserves before this floor is
 	 *  added. Defaults to `BASE_MARGIN.left` (76) — the cartesian reserve.
 	 *  Polar modes that still draw a cartesian axis (pies-y) collapse the
@@ -143,7 +148,11 @@ export const estimateExtraLeftMargin = ({
 		// `<tspan>` rows whose bounding box equals the widest line).
 		// Plus a small gap between the longest tick label and the title.
 		if (yTitleRotated) return yTitleFontSize + 24
-		return estimateLongestLineWidth(yTitleText, yTitleFontSize) + 16
+		return (
+			(yTitleWidthPx && yTitleWidthPx > 0
+				? yTitleWidthPx
+				: estimateLongestLineWidth(yTitleText, yTitleFontSize)) + 16
+		)
 	})()
 	// For a HORIZONTAL y-title, Axes.tsx positions it at
 	// `inner.x0 - dynamicGap`, where dynamicGap has a floor of

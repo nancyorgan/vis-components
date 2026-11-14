@@ -137,6 +137,7 @@ const runPanel = ({
 		showYTicks: true,
 		showXAxisTitle: false,
 		showYAxisTitle: false,
+		xLabelAngleDeg: 0,
 	}
 	return resolvePanelRenderInputs({
 		p,

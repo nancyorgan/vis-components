@@ -167,37 +167,17 @@ describe("Length panel — Segment properties", () => {
 		await new Promise((r) => setTimeout(r, 0))
 	}
 
-	it("segment mode: offers thickness, Vary by, and line cap", async () => {
+	it("segment mode: offers the line cap, and points at Size for the thickness", async () => {
 		seed(SEGMENTS)
 		const q = await mount()
 		await openSection(q)
-		expect(q.getByLabelText("Thickness")).not.toBeNull()
 		expect(q.getByRole("radiogroup", { name: "Line cap" })).not.toBeNull()
 		expect(q.getByRole("radio", { name: "Round" })).not.toBeNull()
 		expect(q.getByRole("radio", { name: "Square" })).not.toBeNull()
-		// Vary by lists the categorical variable only.
-		const varyBy = q.getByLabelText("Vary by") as HTMLSelectElement
-		expect([...varyBy.options].map((o) => o.value)).toEqual(["", "region"])
-	})
-
-	it("vary by: one thickness row per level replaces the single input", async () => {
-		seed(SEGMENTS, {
-			length: {
-				minLength: 4,
-				maxLength: 40,
-				segmentThicknessField: "region",
-				segmentThicknessByValue: { East: 2, West: 6 },
-			},
-		})
-		const q = await mount()
-		await openSection(q)
+		// Every thickness lives under Size (SizePanel.thickness.smoke.test).
 		expect(q.queryByLabelText("Thickness")).toBeNull()
-		expect(
-			(q.getByLabelText("Segment thickness for East") as HTMLInputElement).value
-		).toBe("2")
-		expect(
-			(q.getByLabelText("Segment thickness for West") as HTMLInputElement).value
-		).toBe("6")
+		expect(q.queryByLabelText("Vary by")).toBeNull()
+		expect(q.getByRole("button", { name: "Size → Segment" })).not.toBeNull()
 	})
 
 	it("bar mode: no segment properties", async () => {

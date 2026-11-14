@@ -199,6 +199,95 @@ describe("BarPlot — combo point color", () => {
 	})
 })
 
+/** A combo's points are a part of their own beside the bars: the Opacity,
+ *  Saturation and Brightness menus offer a "Point fill" for them (as the
+ *  Color menu always did), and a Line where one is drawn. Size and Shape
+ *  variables also apply — Length is the bars' measure here, so the marks
+ *  are ordinary points (`channelsConflictIn`). */
+describe("BarPlot — combo points as their own part", () => {
+	const COLORS = {
+		line: { field: null, singleColor: "#112233" },
+		comboPointFill: { field: null, singleColor: "#ff0000" },
+	}
+	const pointOpacities = (container: HTMLElement) =>
+		[...container.querySelectorAll("[data-combo-marks] path")]
+			.filter((p) => (p.getAttribute("fill") ?? "none") !== "none")
+			.map((p) => p.getAttribute("fill-opacity"))
+
+	it("untouched, the points draw at the opacity they always had (the bars')", () => {
+		seed({ ...BASE, connection: { field: "series" } }, { ...AS_BARS, colorSlots: COLORS, defaultOpacity: 0.6 })
+		const { container } = mount()
+		const opacities = pointOpacities(container)
+		expect(opacities.length).toBeGreaterThanOrEqual(3)
+		expect(new Set(opacities.map(Number))).toEqual(new Set([0.6]))
+	})
+
+	it("Opacity → Point fill is the points' own level, whatever the bars'", () => {
+		seed(
+			{ ...BASE, connection: { field: "series" } },
+			{
+				...AS_BARS,
+				colorSlots: COLORS,
+				defaultOpacity: 0.6,
+				opacitySlots: { comboPointFill: { field: null, level: 0.25 } },
+			}
+		)
+		const { container } = mount()
+		expect(new Set(pointOpacities(container).map(Number))).toEqual(new Set([0.25]))
+	})
+
+	it("Saturation → Point fill shades the points and leaves the line alone", () => {
+		seed(
+			{ ...BASE, connection: { field: "series" } },
+			{
+				...AS_BARS,
+				colorSlots: COLORS,
+				saturationSlots: { comboPointFill: { field: null, level: 0 } },
+			}
+		)
+		const { container } = mount()
+		const fills = markFills(container)
+		expect(fills.length).toBeGreaterThanOrEqual(3)
+		for (const fill of fills) expect(fill).not.toBe("#ff0000")
+		expect(container.querySelector("[data-combo-marks] polyline")?.getAttribute("stroke")).toBe(
+			"#112233"
+		)
+	})
+
+	it("Saturation → Line shades the line and leaves the points alone", () => {
+		seed(
+			{ ...BASE, connection: { field: "series" } },
+			{
+				...AS_BARS,
+				colorSlots: { ...COLORS, line: { field: null, singleColor: "#ff0000" }, comboPointFill: { field: null, singleColor: "#00ff00" } },
+				saturationSlots: { line: { field: null, level: 0 } },
+			}
+		)
+		const { container } = mount()
+		expect(
+			container.querySelector("[data-combo-marks] polyline")?.getAttribute("stroke")
+		).not.toBe("#ff0000")
+		expect(new Set(markFills(container))).toEqual(new Set(["#00ff00"]))
+	})
+
+	it("a Size variable sizes the points (it no longer conflicts with Length here)", () => {
+		/** The points' glyph outlines: a bigger point has a different path. */
+		const glyphs = (container: HTMLElement) =>
+			[...container.querySelectorAll("[data-combo-marks] path")]
+				.filter((p) => (p.getAttribute("fill") ?? "none") !== "none")
+				.map((p) => p.getAttribute("d"))
+		seed({ ...BASE }, { ...AS_BARS })
+		// With no Size variable the three points are the same size.
+		expect(new Set(glyphs(mount().container)).size).toBe(1)
+		seed({ ...BASE, area: { field: "revenue" } }, { ...AS_BARS })
+		const sized = mount().container
+		// Still a combo: the bars are there…
+		expect(barRects(sized).length).toBeGreaterThanOrEqual(3)
+		// …and the three points now have three different sizes.
+		expect(new Set(glyphs(sized)).size).toBe(3)
+	})
+})
+
 describe("BarPlot — combo data labels per layer", () => {
 	const labelTexts = (root: ParentNode) =>
 		[...root.querySelectorAll("text")].map((t) => t.textContent?.trim() ?? "")

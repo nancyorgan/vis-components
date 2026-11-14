@@ -52,6 +52,7 @@ export const SankeyMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "proportional",
+		mark: "node",
 		statOverlays: false,
 		flowGeometry: "columns",
 		measureAxis: null,

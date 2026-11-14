@@ -34,7 +34,11 @@ const buildDataset = (): Dataset =>
 		],
 	})
 
-const seed = (shape: Record<string, unknown> | null) => {
+const seed = (
+	shape: Record<string, unknown> | null,
+	/** Further channel configs to store beside `shape`. */
+	more: Record<string, unknown> = {}
+) => {
 	const store = installInMemoryLocalStorage()
 	/* eslint-disable @vc/use-wrapped-json-functions */
 	store.set(
@@ -54,7 +58,7 @@ const seed = (shape: Record<string, unknown> | null) => {
 	)
 	store.set(
 		"vis-components:currentChannelConfigs",
-		JSON.stringify(shape ? { shape } : {})
+		JSON.stringify(shape ? { shape, ...more } : more)
 	)
 	store.set(
 		"vis-components:currentLabels",
@@ -91,6 +95,77 @@ describe("BarPlot — stack outline (Shape > Outline)", () => {
 			(s) => s.stroke === "#ff0000" && s.strokeWidth === "3"
 		)
 		expect(outlined.length).toBeGreaterThanOrEqual(4)
+	})
+
+	it("Opacity → Outline → Vary by gives each segment's outline its own opacity", () => {
+		// Resolved off each segment's first row. It used to be read once
+		// without a row, so the Vary by the menu offers changed nothing.
+		seed(
+			{ outlineColor: "#ff0000", outlineWidth: 3 },
+			{
+				opacitySlots: {
+					border: {
+						field: "series",
+						level: 1,
+						opacity: { kind: "categorical", overrides: { x: 0.2, y: 0.9 } },
+					},
+				},
+			}
+		)
+		const { container } = mount()
+		const outlineOpacities = [...container.querySelectorAll("rect")]
+			.filter((r) => r.getAttribute("stroke") === "#ff0000")
+			.map((r) => r.getAttribute("stroke-opacity"))
+			.sort()
+		// Two categories × two series: two outlines at each level.
+		expect(outlineOpacities).toEqual(["0.2", "0.2", "0.9", "0.9"])
+	})
+
+	it("Opacity → Outline with no field gives every outline the one level", () => {
+		seed(
+			{ outlineColor: "#ff0000", outlineWidth: 3 },
+			{ opacitySlots: { border: { field: null, level: 0.5 } } }
+		)
+		const { container } = mount()
+		const outlineOpacities = [...container.querySelectorAll("rect")]
+			.filter((r) => r.getAttribute("stroke") === "#ff0000")
+			.map((r) => r.getAttribute("stroke-opacity"))
+		expect(outlineOpacities).toEqual(["0.5", "0.5", "0.5", "0.5"])
+	})
+
+	it("Saturation → Bar outline shades every segment's outline, as on a point's", () => {
+		// Bars read the outline's color and opacity; its saturation and
+		// brightness reached only scatter and radar until the outline was
+		// resolved in one place for every mark.
+		seed(
+			{ outlineColor: "#ff0000", outlineWidth: 3 },
+			{ saturationSlots: { outline: { field: null, level: 0 } } }
+		)
+		const { container } = mount()
+		const outlines = markRectStrokes(container).filter((r) => r.strokeWidth === "3")
+		expect(outlines.length).toBeGreaterThanOrEqual(4)
+		// Pure red, fully desaturated, is no longer red.
+		for (const o of outlines) expect(o.stroke).not.toBe("#ff0000")
+		expect(new Set(outlines.map((o) => o.stroke)).size).toBe(1)
+	})
+
+	it("Size → Bar outline → Vary by gives each segment's outline its level's thickness", () => {
+		// The outline's thickness was one number for the whole chart. It is
+		// resolved per mark now, off each segment's first row, like the
+		// outline's color and opacity.
+		seed({
+			outlineColor: "#ff0000",
+			outlineWidth: 3,
+			outlineWidthField: "series",
+			outlineWidthByValue: { x: 1, y: 6 },
+		})
+		const { container } = mount()
+		const widths = markRectStrokes(container)
+			.filter((r) => r.stroke === "#ff0000")
+			.map((r) => r.strokeWidth)
+			.sort()
+		// Two categories × two series.
+		expect(widths).toEqual(["1", "1", "6", "6"])
 	})
 
 	it("uses default white 1px outline when shape config is empty", () => {

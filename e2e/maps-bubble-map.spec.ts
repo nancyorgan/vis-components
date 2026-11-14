@@ -13,7 +13,7 @@ import { seedFixtureScript, type SeedFixture } from "./seed"
  *
  *  What makes this a bubble map rather than a choropleth is the channel
  *  mapping: we map the region field to Connection and the MEASURE to the
- *  `area` channel (shelf label "Area") — NOT Color. With geographic +
+ *  `area` channel (shelf label "Size") — NOT Color. With geographic +
  *  connection + area mapped (no x/y), `chartMode` resolves `geo-symbols`, and
  *  the `GeoSymbolPlot` renderer draws one sized `<circle>` at each matched
  *  region's centroid.
@@ -74,11 +74,11 @@ test("bubble map happy path: map connection + area, go Geographic, symbols rende
 	await page.waitForSelector("svg", { timeout: 8_000 })
 
 	// Map the region field to Connection and the MEASURE to the Area channel
-	// (shelf label "Area") — NOT Color. This is what makes it a bubble map
+	// (shelf label "Size") — NOT Color. This is what makes it a bubble map
 	// (sized symbols) rather than a choropleth (filled polygons). Do NOT map
 	// x/y — the geo-symbols mode requires connection + area with no x/y.
 	await page.getByLabel("Connection", { exact: true }).selectOption("state")
-	await page.getByLabel("Area", { exact: true }).selectOption("rate")
+	await page.getByLabel("Size", { exact: true }).selectOption("rate")
 
 	// The Maps section is `defaultCollapsed` — expand it, then flip the
 	// Coordinate-system radio to Geographic (the master switch the geo modes

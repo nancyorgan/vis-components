@@ -498,7 +498,7 @@ export const TooltipPanel = () => {
 									</div>
 									<div className="flex items-center gap-2">
 										<NumberInput
-											label="Outline width"
+											label="Outline thickness"
 											labelClassName={LABEL_COL_NESTED}
 											value={hoverOutlineWidth}
 											min={0}
@@ -511,7 +511,7 @@ export const TooltipPanel = () => {
 										/>
 										{hoverOutlineWidth !== seed.hoverOutlineWidth && (
 											<ResetLink
-												ariaLabel="Reset outline width"
+												ariaLabel="Reset outline thickness"
 												onClick={() => update({ hoverOutlineWidth: seed.hoverOutlineWidth })}
 											/>
 										)}

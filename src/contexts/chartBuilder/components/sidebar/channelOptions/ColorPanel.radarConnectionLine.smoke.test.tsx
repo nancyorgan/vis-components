@@ -21,8 +21,8 @@ import {
 
 import { ColorPanel } from "./ColorPanel"
 
-/** Color → Connection line on a radar: the polygon outline takes a Vary by
- *  like every other part — "Match fill" (untouched), "— none —" (one color)
+/** Color → Line on a radar: the polygon outline takes a Vary by
+ *  like every other part — "Auto" (untouched: matches the fill), "— none —" (one color)
  *  or any variable — writing the Line color slot. An older radar's outline
  *  palette / per-series colors (the connection config) show until the first
  *  edit, which clears them. */
@@ -84,7 +84,7 @@ const mount = (cfg: ChannelConfigs) => {
 		</TestProvider>
 	)
 	const header = [...utils.container.querySelectorAll("button[aria-expanded]")].find(
-		(b) => b.textContent?.trim() === "Connection line"
+		(b) => b.textContent?.trim() === "Line"
 	)!
 	fireEvent.click(header)
 	// The subsection body follows its header row.
@@ -103,14 +103,14 @@ const BASE: ChannelConfigs = {
 	connection: { ...DEFAULT_CONNECTION_CONFIG },
 }
 
-describe("Color → Connection line (radar)", () => {
-	it("offers Match fill, — none — and every variable, defaulting to Match fill", () => {
+describe("Color → Line (radar)", () => {
+	it("offers Auto (match the fill), — none — and every variable, defaulting to Auto", () => {
 		const { varyBy } = mount(BASE)
 		const labels = [...varyBy.options].map((o) => o.textContent)
-		expect(labels.slice(0, 2)).toEqual(["Match fill", "— none —"])
+		expect(labels.slice(0, 2)).toEqual(["Auto", "— none —"])
 		expect(labels).toContain("team")
 		expect(labels).toContain("league")
-		expect(varyBy.selectedOptions[0]?.textContent).toBe("Match fill")
+		expect(varyBy.selectedOptions[0]?.textContent).toBe("Auto")
 	})
 
 	it("picking a variable writes the Line color slot", () => {
@@ -138,7 +138,7 @@ describe("Color → Connection line (radar)", () => {
 		expect(c?.connection?.lineColors).toEqual({})
 	})
 
-	it("Match fill clears both the slot and any older outline state", () => {
+	it("Auto clears both the slot and any older outline state", () => {
 		const { varyBy, configs } = mount({
 			...BASE,
 			connection: { ...DEFAULT_CONNECTION_CONFIG, strokeColor: "#ff0000" },

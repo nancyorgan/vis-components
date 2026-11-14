@@ -7,6 +7,8 @@ import {
 	type PaletteName,
 } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
+import { useVaryByFieldFilter } from "../../../store/useVaryByFieldFilter"
+import { FOLLOW_LABEL } from "../../../lib/colorSlots"
 import {
 	GRADIENT_INTERPOLATIONS,
 	type GradientInterpolation,
@@ -319,8 +321,11 @@ export const ColorOptionsPanel = ({
 	// `needsQuantInit` effect above seeds the gradient config when a
 	// quantitative field is picked; the categorical panel is defensive about a
 	// stale config, so just writing the field is enough.
-	const eligible = (dataset?.fields ?? []).filter((f) =>
-		channelAccepts("hue", overrides[f.name] ?? f.inferredType),
+	const canVary = useVaryByFieldFilter()
+	const eligible = (dataset?.fields ?? []).filter(
+		(f) =>
+			channelAccepts("hue", overrides[f.name] ?? f.inferredType) &&
+			canVary(f.name, encodings.hue?.field ?? null),
 	)
 	const varyByOptions = [
 		{ value: "", label: "— none —" },
@@ -878,7 +883,8 @@ export const AreaRadarOutlinePanel = () => {
 		configs.connection?.linePalette
 	)
 	const linePaletteOptions = [
-		{ value: "", label: "Match fill" },
+		// Untouched, each line takes its layer's fill color.
+		{ value: "", label: FOLLOW_LABEL },
 		// "— none —" = one uniform color, the convention every Vary-by /
 		// palette dropdown uses for its single-color choice.
 		{ value: SINGLE_OUTLINE_COLOR, label: "— none —" },

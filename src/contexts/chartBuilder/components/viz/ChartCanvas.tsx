@@ -19,7 +19,13 @@ import {
 	type LegendConfig,
 } from "../../lib/labelsConfig"
 import { INSIDE_AUTO_X_INSET } from "../../lib/legendSections"
-import { BASE_MARGIN, subtitleReserve, titleReserve } from "../../lib/plotLayout"
+import {
+	BASE_MARGIN,
+	CHART_PAD,
+	INSIDE_LEGEND_EDGE_BUFFER,
+	subtitleReserve,
+	titleReserve,
+} from "../../lib/plotLayout"
 import { resolveCanvasMargins } from "../../lib/themeConfig"
 import { ALL_ENCODING_CHANNELS } from "../../lib/types"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
@@ -28,6 +34,7 @@ import {
 	renderedLabelsAtom,
 	currentRenderedCanvasSlackAtom,
 	currentRenderedFigureSlackAtom,
+	currentRenderedFitFloorAtom,
 	currentRenderedInsideAutoXAtom,
 	currentRenderedLayoutVersionAtom,
 } from "../../store/atoms"
@@ -313,6 +320,7 @@ const ChartCanvasBody = ({
 		...useAtomValue(renderLegendConfigAtom),
 	}
 	const figureSlack = useAtomValue(currentRenderedFigureSlackAtom)
+	const fitFloor = useAtomValue(currentRenderedFitFloorAtom)
 
 	const pos = legendCfg.position
 
@@ -347,9 +355,25 @@ const ChartCanvasBody = ({
 		return <InsideLegendLayout legendCfg={legendCfg} bgStyle={bgStyle} />
 	}
 
-	const flexDirection =
-		pos === "top" || pos === "bottom" ? "flex-col" : "flex-row"
+	const stacked = pos === "top" || pos === "bottom"
+	const flexDirection = stacked ? "flex-col" : "flex-row"
 	const legendFirst = pos === "top" || pos === "left"
+	// The legend and the chart share the page along one axis, and both ask
+	// for room on it (LAYOUT.md §2). The chart takes what the legend leaves,
+	// down to the smallest area it still fits (`fitFloor`: its titles and
+	// base margins around a plot squeezed to nothing). Past that the legend
+	// is what gives way: it may shrink and scrolls inside itself
+	// (`legendSections`), so the chart area is never left smaller than its
+	// canvas — which is what used to push the plot off the page and raise a
+	// scrollbar under a legend taller than the page. The floor is the
+	// solver's, plus this area's own pad; a legend that fits is untouched.
+	const floor = stacked ? fitFloor.height : fitFloor.width
+	const chartFloor: React.CSSProperties | undefined =
+		floor > 0
+			? stacked
+				? { minHeight: floor + 2 * CHART_PAD }
+				: { minWidth: floor + 2 * CHART_PAD }
+			: undefined
 	const chart = (
 		// data-editor-chart-plot: the Export modal's Embed tab measures this
 		// (the plot area sans legend) to size the split-legend "chart" iframe,
@@ -357,6 +381,7 @@ const ChartCanvasBody = ({
 		<div
 			ref={chartRef}
 			className="min-h-0 min-w-0 flex-1 p-3"
+			style={chartFloor}
 			key="chart"
 			data-editor-chart-plot
 		>
@@ -408,16 +433,11 @@ const ChartCanvasBody = ({
 	)
 }
 
-const CHART_PAD = 12
-
-/** Breathing room (px) kept between an inside legend's far edge and the canvas
- *  edge. The reservation math below solves for the legend landing FLUSH with
- *  the edge; feeding it a legend that's `EDGE_BUFFER` px larger in the
- *  reserving dimension makes the far edge land this many px short instead, so a
- *  corner/edge legend never sits right against the viewport boundary. Purely a
- *  reservation nudge — it never fires when the legend already sits comfortably
- *  inside (the `Math.max(0, …)` clamps it away). */
-export const EDGE_BUFFER = 10
+/** Breathing room (px) kept between an inside legend and the canvas edge. The
+ *  reservation below solves for the legend landing this far short of the
+ *  edge, and the legend's own position clamp (`legendSections`) uses the same
+ *  inset, so a corner/edge legend never sits right against the boundary. */
+export const EDGE_BUFFER = INSIDE_LEGEND_EDGE_BUFFER
 
 /** Inside-position layout: legend overlays the chart canvas at user-supplied
  *  plot-area-normalized coords. When the (top-left-anchored) legend's body
@@ -519,18 +539,69 @@ const InsideLegendLayout = ({
 			>
 				<ChartBody />
 			</div>
-			<Legend insideExtras={legendExtras} insideMeasureRef={legendRef} />
+			<Legend
+				insideExtras={legendExtras}
+				insideMeasureRef={legendRef}
+				insideSize={{ width: legendBounds.width, height: legendBounds.height }}
+			/>
 		</div>
 	)
 }
 
-/** Exact-fit reservation: solve for the extra padding such that the legend's
- *  far edge lands flush with the canvas's far edge, given the user-supplied
- *  coord and the legend's measured size. Each side is solved independently
+/** Below this efficiency, padding a side stops being worth it — see
+ *  `reserveGain`. The one tunable here. Lower keeps the exact fit over more
+ *  of the plot but steepens the taper (the padding then changes faster as
+ *  the legend moves through it): at 0.5 a legend as tall as the canvas moved
+ *  the plot about 5 px per px of its own movement; at 0.7 about 2. */
+const MIN_RESERVE_EFFICIENCY = 0.7
+
+/** Padding per pixel of spill, given how efficiently padding a side moves
+ *  the legend (`efficiency` = px the legend's edge moves per px of padding).
+ *
+ *  The legend's position is a FRACTION of the plot, so padding the chart by
+ *  `e` on a side moves the legend by only `efficiency × e`: 1 when it is
+ *  anchored at that edge of the plot, falling to 0 at the opposite edge.
+ *  Clearing a spill exactly therefore takes `spill / efficiency` — and near
+ *  efficiency 0 that asks for the whole chart to make room for one more
+ *  legend row (at the default Y of 0.98 the bottom's efficiency is 0.02: fifty
+ *  pixels of padding per pixel of legend).
+ *
+ *  So the exact answer is used only where padding is efficient. Below
+ *  `MIN_RESERVE_EFFICIENCY` the gain falls smoothly to 0 instead, the plot
+ *  keeps its size, and the legend's own position clamp (`legendSections`)
+ *  holds it in view by sliding it to the edge. Continuous in the efficiency,
+ *  and never more than `1 / MIN_RESERVE_EFFICIENCY` px of padding per px of
+ *  legend. */
+const reserveGain = (efficiency: number): number =>
+	efficiency >= MIN_RESERVE_EFFICIENCY
+		? 1 / efficiency
+		: Math.max(0, efficiency) / MIN_RESERVE_EFFICIENCY ** 2
+
+/** Room the chart gives up on each side so an inside legend placed past (or
+ *  against) the canvas edge stays in view. Each side is solved independently
  *  (assuming the perpendicular sides need no extras), which leaves a tiny
  *  slack when both X and Y are outside the plot rectangle — acceptable for
  *  the use case (legend in a corner). Returns 0 on first paint while
- *  measurements are still `0`. */
+ *  measurements are still `0`.
+ *
+ *  The legend is anchored by its TOP-LEFT corner at plot-relative
+ *  (insideX, insideY) — (0, 0) the plot's bottom-left, (1, 1) its top-right —
+ *  and extends right and down. With no extras its box is
+ *
+ *      left = plotLeft + insideX × plotW        top = plotBottom − insideY × plotH
+ *
+ *  and each side's SPILL is how far that box passes the canvas edge (less
+ *  `EDGE_BUFFER`). A side's padding is `spill × reserveGain(efficiency)`:
+ *
+ *      side     efficiency   exact when
+ *      right    insideX      insideX ≥ 0.7
+ *      bottom   1 − insideY  insideY ≤ 0.3
+ *      left     1 − insideX  always (it only spills when insideX < 0)
+ *      top      insideY      always (it only spills when insideY > 1)
+ *
+ *  No side is switched on by a threshold: each is 0 exactly while its spill
+ *  is, and grows from there, so moving the legend or growing it never steps
+ *  the padding. And no side can take more than the plot has. */
 export const computeInsideExtras = ({
 	insideX,
 	insideY,
@@ -557,71 +628,19 @@ export const computeInsideExtras = ({
 	const horizontalConst = 2 * CHART_PAD + BASE_MARGIN.left + BASE_MARGIN.right
 	const verticalConst =
 		2 * CHART_PAD + BASE_MARGIN.top + BASE_MARGIN.bottom + titleReserves
-	// For each side, derive `extras` so the legend's far edge meets the
-	// canvas edge. Formula derivation (bottom case): with extras.bottom = e,
-	//   new_plot_bottom + |insideY| * new_plot_height + legendH = canvasH
-	// Substituting and solving for e yields the expression below. The
-	// symmetric formulae apply for top, left, right.
-	//
-	// The legend is anchored by its TOP-LEFT corner, so it only ever extends
-	// DOWN and to the RIGHT of the anchor point. That means an in-bounds coord
-	// near the plot's right/bottom edge (e.g. a top-right legend at insideX
-	// 0.96) overflows the canvas just like an out-of-plot coord does — the
-	// legend body runs off-canvas even though the anchor sits inside [0,1].
-	// So `right`/`bottom` fire for the whole extending range (insideX > 0 /
-	// insideY < 1), not just out-of-bounds coords; the `Math.max(0, …)` makes
-	// each a no-op when the legend already fits. `left`/`top` stay gated on the
-	// out-of-bounds case only: with top-left anchoring the legend never extends
-	// past the left or top canvas edge unless the anchor itself is out there
-	// (insideX < 0 / insideY > 1).
-	const bottom =
-		insideY < 1
-			? Math.max(
-					0,
-					(-CHART_PAD -
-						BASE_MARGIN.bottom +
-						-insideY * (canvasH - verticalConst) +
-						legendH +
-						EDGE_BUFFER) /
-						(1 + -insideY)
-				)
-			: 0
-	const top =
-		insideY > 1
-			? Math.max(
-					0,
-					(-CHART_PAD -
-						BASE_MARGIN.top -
-						titleReserves +
-						(insideY - 1) * (canvasH - verticalConst) +
-						legendH +
-						EDGE_BUFFER) /
-						(1 + (insideY - 1))
-				)
-			: 0
-	const left =
-		insideX != null && insideX < 0
-			? Math.max(
-					0,
-					(-CHART_PAD -
-						BASE_MARGIN.left +
-						-insideX * (canvasW - horizontalConst) +
-						legendW +
-						EDGE_BUFFER) /
-						(1 + -insideX)
-				)
-			: 0
-	const right =
-		insideX != null && insideX > 0
-			? Math.max(
-					0,
-					(-CHART_PAD -
-						BASE_MARGIN.right +
-						(insideX - 1) * (canvasW - horizontalConst) +
-						legendW +
-						EDGE_BUFFER) /
-						(1 + (insideX - 1))
-				)
-			: 0
+	// The plot with no extras. A side can give up at most all of it.
+	const plotW = Math.max(0, canvasW - horizontalConst)
+	const plotH = Math.max(0, canvasH - verticalConst)
+	const reserve = (spill: number, efficiency: number, available: number): number =>
+		Math.min(available, Math.max(0, spill) * reserveGain(efficiency))
+
+	const boxTop = canvasH - CHART_PAD - BASE_MARGIN.bottom - insideY * plotH
+	const bottom = reserve(boxTop + legendH - (canvasH - EDGE_BUFFER), 1 - insideY, plotH)
+	const top = reserve(EDGE_BUFFER - boxTop, insideY, plotH)
+	if (insideX == null) return { top, right: 0, bottom, left: 0 }
+
+	const boxLeft = CHART_PAD + BASE_MARGIN.left + insideX * plotW
+	const right = reserve(boxLeft + legendW - (canvasW - EDGE_BUFFER), insideX, plotW)
+	const left = reserve(EDGE_BUFFER - boxLeft, 1 - insideX, plotW)
 	return { top, right, bottom, left }
 }

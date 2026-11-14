@@ -16,13 +16,16 @@ export type GeoCircleMark = {
 	fill: string
 	fillOpacity?: number | undefined
 	stroke: string
+	/** The outline's opacity; omit (or `undefined`) for full opacity. */
+	strokeOpacity?: number | undefined
 	row: Record<string, unknown>
 }
 
 type GeoCircleMarksProps = {
 	marks: GeoCircleMark[]
-	/** Single outline width for all marks (0 hides the border). */
-	outlineWidth: number
+	/** Each mark's outline thickness — one value, or its level's when the
+	 *  outline varies by a variable (0 hides the border). */
+	outlineWidthFor: (row: Record<string, unknown>) => number
 	/** Optional legend-hover highlight per mark (the geo scaffold's
 	 *  `markHighlight`): fades non-matching circles and recolors / outlines the
 	 *  matching ones. Omit → every circle renders untouched. */
@@ -46,7 +49,7 @@ type GeoCircleMarksProps = {
  */
 export const GeoCircleMarks = ({
 	marks,
-	outlineWidth,
+	outlineWidthFor,
 	hoverHandler,
 	preserveOrder,
 	highlightFor,
@@ -68,10 +71,11 @@ export const GeoCircleMarks = ({
 						fill={mh.fill ?? m.fill}
 						fillOpacity={m.fillOpacity}
 						stroke={mh.outline ?? m.stroke}
+						strokeOpacity={mh.outline ? undefined : m.strokeOpacity}
 						strokeWidth={
 							mh.outline
-								? Math.max(outlineWidth, mh.outlineWidth)
-								: outlineWidth
+								? Math.max(outlineWidthFor(m.row), mh.outlineWidth)
+								: outlineWidthFor(m.row)
 						}
 						opacity={mh.opacityMul === 1 ? undefined : mh.opacityMul}
 						onMouseEnter={onHover}

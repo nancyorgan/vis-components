@@ -9,9 +9,12 @@ import {
 	channelsConflictIn,
 	conflictsFor,
 	isAreaChartShape,
+	isComboShape,
 } from "./channels"
 import { AreasXMode } from "./chartModes/areasX"
 import { AreasYMode } from "./chartModes/areasY"
+import { ComboXMode } from "./chartModes/comboX"
+import { ComboYMode } from "./chartModes/comboY"
 import { emptyEncodings } from "./types"
 import type { EncodingChannel, FieldType } from "./types"
 
@@ -195,6 +198,40 @@ describe("channelsConflictIn (Area and Length on an area chart)", () => {
 			for (const b of ALL_CHANNEL_IDS) {
 				if ((a === "area" && b === "length") || (a === "length" && b === "area")) continue
 				expect(channelsConflictIn(a, b, AREA_X), `${a}/${b}`).toBe(channelsConflict(a, b))
+			}
+	})
+
+	it("Size and Shape both coexist with Length on a bar + marks combo, whose marks are points", () => {
+		const COMBO = enc({ x: "month", y: "target", length: "sales" })
+		const asBars = { length: { render: "bars" } }
+		for (const other of ["area", "shape"] as const) {
+			expect(channelsConflictIn(other, "length", COMBO, asBars), other).toBe(false)
+			expect(channelsConflictIn("length", other, COMBO, asBars), other).toBe(false)
+			// The same encodings drawn as segments: Length makes the marks
+			// segments, which have neither a size nor a shape.
+			expect(channelsConflictIn(other, "length", COMBO, {}), other).toBe(true)
+			expect(channelsConflictIn(other, "length", COMBO), other).toBe(true)
+		}
+	})
+
+	it("a Shape variable still conflicts with Length on an area chart, whose points are circles", () => {
+		for (const e of [AREA_X, AREA_Y]) expect(channelsConflictIn("shape", "length", e)).toBe(true)
+	})
+
+	it("the combo shape is the combo detection, whichever way the bars run", () => {
+		const on = [null, "f"]
+		for (const x of on) for (const y of on) for (const angle of on) for (const r of on)
+			for (const render of ["bars", undefined] as const) {
+				const e = emptyEncodings()
+				e.x = { field: x }
+				e.y = { field: y }
+				e.angle = { field: angle }
+				e.r = { field: r }
+				e.length = { field: "m" }
+				const configs = { length: { render } } as never
+				expect(isComboShape(e, configs), `${x}/${y}/${angle}/${r}/${render}`).toBe(
+					ComboXMode.detect(e, undefined, configs) || ComboYMode.detect(e, undefined, configs)
+				)
 			}
 	})
 

@@ -44,9 +44,6 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 		noDataFill: mapConfig.noDataFill,
 		noDataPatternDef: noDataDef,
 		measureField: geo.measureField,
-		baseOutlineColor: geo.baseOutlineColor,
-		outlineHue: geo.outlineHue,
-		outlineColorRules: channelConfigs.shape?.outlineColorRules,
 		aestheticScales: geo.aestheticScales,
 		channelConfigs,
 	})
@@ -143,10 +140,13 @@ export const GeoChoroplethPlot = (props: GeoChoroplethPlotProps = {}) => {
 								fill={mh.fill ?? regionStyle.fillFor(feature)}
 								fillOpacity={regionStyle.fillOpacityFor(feature)}
 								stroke={mh.outline ?? regionStyle.strokeFor(feature)}
+								strokeOpacity={
+									mh.outline ? undefined : regionStyle.strokeOpacityFor(feature)
+								}
 								strokeWidth={
 									mh.outline
-										? Math.max(geo.outlineWidth, mh.outlineWidth)
-										: geo.outlineWidth
+										? Math.max(regionStyle.strokeWidthFor(feature), mh.outlineWidth)
+										: regionStyle.strokeWidthFor(feature)
 								}
 								opacity={mh.opacityMul === 1 ? undefined : mh.opacityMul}
 								onMouseEnter={onHover}

@@ -52,6 +52,7 @@ export const RadarMode: ChartModeDef = {
 		connectionRole: "polygon",
 		shapeRole: "glyph",
 		areaRole: "mark",
+		mark: "point",
 		statOverlays: false,
 		polarAxes: { r: true, angle: true },
 		measureAxis: null,

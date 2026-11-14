@@ -1388,6 +1388,384 @@
 				"stack"
 			]
 		},
+		"channelConfigs.brightnessSlots.comboPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.comboPointFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.densityCurveStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoPointStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.geoRegionStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
 		"channelConfigs.brightnessSlots.line": {
 			"kinds": [
 				"object"
@@ -1541,6 +1919,222 @@
 			]
 		},
 		"channelConfigs.brightnessSlots.polygonFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionCiFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.regressionStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.rug.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.brightnessSlots.stem.range.stackMode": {
 			"kinds": [
 				"string"
 			],
@@ -2916,6 +3510,396 @@
 			]
 		},
 		"channelConfigs.colorSlots.geoPointStroke.singleColor": {
+			"color": true,
+			"doc": "The \"None\" single color, theme-seeded per slot.",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.colorRules": {
+			"doc": "Conditional color rules (the Color menu's \"+ Add color rule\" rows; the Line slot is the one that surfaces them). An implicit rule (`> 0`) tests the slot's mapped variable's value; a `{Variable}` rule tests that variable in the mark's rows.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.colorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.colorRules[].condition": {
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.field": {
+			"doc": "Dataset column driving this slot's color, or null = single color.",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue": {
+			"doc": "Reuses the hue union (categorical {colors} | quantitative gradient). NOTE: `stackMode` inside this union is inert for slots — never feed a slot's stackMode to `resolveStackMode`; only `hue`/`pattern` own layout.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.colors": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.colors.*": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.customStops": {
+			"doc": "N-stop user-defined custom gradient — read only when palette is `\"custom\"`. The first/last stops anchor the gradient; any number of additional middle stops are allowed. The legacy `lowColor`/`midColor`/`highColor` fields stay for backwards compatibility with saved charts that pre-date this field.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.customStops[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.customStops[].value": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.highColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.highValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.interpolation": {
+			"doc": "Color space used to blend between gradient stops — \"rgb\" (matches CSS gradients), \"hsb\", or \"oklch\" (perceptually uniform). Read only by the custom-gradient paths (customLinear / customDiverging / manual stops); presets are fully-specified ramps with nothing left to blend.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"hsb",
+				"oklch",
+				"rgb"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.lowColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.lowValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.midColor": {
+			"color": true,
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.midValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.palette": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"BrBG",
+				"PRGn",
+				"PiYG",
+				"PuOr",
+				"RdBu",
+				"RdYlBu",
+				"Spectral",
+				"blues",
+				"custom",
+				"customDiverging",
+				"customLinear",
+				"inferno",
+				"magma",
+				"plasma",
+				"viridis"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.sourcePaletteId": {
+			"doc": "Records the dropdown selection that originated this config — a preset name (`\"viridis\"`), a saved gradient ID, `\"custom\"`, etc. Survives color edits so a \"Reset colors\" action can re-resolve to the originating palette's defaults instead of switching the whole palette type.",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.hue.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.palette": {
+			"color": true,
+			"items": {
+				"kinds": [
+					"string"
+				]
+			},
+			"kinds": [
+				"list",
+				"null"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.paletteId": {
+			"doc": "Categorical palette selection (mirrors `categoricalPaletteId`).",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionFill.singleColor": {
+			"color": true,
+			"doc": "The \"None\" single color, theme-seeded per slot.",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.colorRules": {
+			"doc": "Conditional color rules (the Color menu's \"+ Add color rule\" rows; the Line slot is the one that surfaces them). An implicit rule (`> 0`) tests the slot's mapped variable's value; a `{Variable}` rule tests that variable in the mark's rows.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.colorRules[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.colorRules[].condition": {
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.field": {
+			"doc": "Dataset column driving this slot's color, or null = single color.",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue": {
+			"doc": "Reuses the hue union (categorical {colors} | quantitative gradient). NOTE: `stackMode` inside this union is inert for slots — never feed a slot's stackMode to `resolveStackMode`; only `hue`/`pattern` own layout.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.colors": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.colors.*": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.customStops": {
+			"doc": "N-stop user-defined custom gradient — read only when palette is `\"custom\"`. The first/last stops anchor the gradient; any number of additional middle stops are allowed. The legacy `lowColor`/`midColor`/`highColor` fields stay for backwards compatibility with saved charts that pre-date this field.",
+			"items": {
+				"kinds": [
+					"object"
+				]
+			},
+			"kinds": [
+				"list"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.customStops[].color": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.customStops[].value": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.highColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.highValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.interpolation": {
+			"doc": "Color space used to blend between gradient stops — \"rgb\" (matches CSS gradients), \"hsb\", or \"oklch\" (perceptually uniform). Read only by the custom-gradient paths (customLinear / customDiverging / manual stops); presets are fully-specified ramps with nothing left to blend.",
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"hsb",
+				"oklch",
+				"rgb"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.lowColor": {
+			"color": true,
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.lowValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.midColor": {
+			"color": true,
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.midValue": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.palette": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"BrBG",
+				"PRGn",
+				"PiYG",
+				"PuOr",
+				"RdBu",
+				"RdYlBu",
+				"Spectral",
+				"blues",
+				"custom",
+				"customDiverging",
+				"customLinear",
+				"inferno",
+				"magma",
+				"plasma",
+				"viridis"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.sourcePaletteId": {
+			"doc": "Records the dropdown selection that originated this config — a preset name (`\"viridis\"`), a saved gradient ID, `\"custom\"`, etc. Survives color edits so a \"Reset colors\" action can re-resolve to the originating palette's defaults instead of switching the whole palette type.",
+			"kinds": [
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.hue.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.palette": {
+			"color": true,
+			"items": {
+				"kinds": [
+					"string"
+				]
+			},
+			"kinds": [
+				"list",
+				"null"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.paletteId": {
+			"doc": "Categorical palette selection (mirrors `categoricalPaletteId`).",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.colorSlots.geoRegionStroke.singleColor": {
 			"color": true,
 			"doc": "The \"None\" single color, theme-seeded per slot.",
 			"kinds": [
@@ -4852,6 +5836,12 @@
 				"number"
 			]
 		},
+		"channelConfigs.connection.stemThickness": {
+			"doc": "Thickness (px) of the stems that connect marks to an axis (Size → Stem). Absent = `thickness`: the stems drew at the line's thickness before they had one of their own.",
+			"kinds": [
+				"number"
+			]
+		},
 		"channelConfigs.connection.strokeColor": {
 			"color": true,
 			"doc": "In area / line mode only: global stroke color for layer top edges (separators in area mode, the polyline itself in line mode). `null` means \"inherit from each layer's hue color\" — the default, which gives every layer a visible stroke matching its fill.",
@@ -6064,6 +7054,66 @@
 				"stack"
 			]
 		},
+		"channelConfigs.opacitySlots.comboPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.comboPointFill.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
 		"channelConfigs.opacitySlots.densityCurveFill": {
 			"kinds": [
 				"object"
@@ -6175,6 +7225,246 @@
 			]
 		},
 		"channelConfigs.opacitySlots.densityCurveStroke.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointFill.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoPointStroke.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionFill.opacity.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.level": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity.kind": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"categorical",
+				"quantitative"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity.min": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity.overrides": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.opacitySlots.geoRegionStroke.opacity.stackMode": {
 			"kinds": [
 				"string"
 			],
@@ -8178,6 +9468,384 @@
 				"stack"
 			]
 		},
+		"channelConfigs.saturationSlots.comboPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.comboPointFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.densityCurveStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoPointStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.geoRegionStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
 		"channelConfigs.saturationSlots.line": {
 			"kinds": [
 				"object"
@@ -8331,6 +9999,222 @@
 			]
 		},
 		"channelConfigs.saturationSlots.polygonFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionCiFill.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.regressionStroke.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.rug": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.rug.range.stackMode": {
+			"kinds": [
+				"string"
+			],
+			"values": [
+				"group",
+				"overlay",
+				"stack"
+			]
+		},
+		"channelConfigs.saturationSlots.stem": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.field": {
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.level": {
+			"kinds": [
+				"null",
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.range": {
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.range.max": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.range.min": {
+			"doc": "Anchored levels, NOT absolute HSL components: 0.5 leaves the base color's saturation alone, 0 is fully gray, 1 fully saturated. See `anchoredComponent` in lib/scales.",
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.range.overrides": {
+			"doc": "Per-value overrides, keyed by the value's string form: a category of a categorical/ordinal field mapped to the channel, or a packed-circles derived value (a depth level \"1\"/\"2\"/… or a top-level group name). An unset value falls back to the even min→max spread.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.range.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.saturationSlots.stem.range.stackMode": {
 			"kinds": [
 				"string"
 			],
@@ -8510,6 +10394,12 @@
 				"string"
 			]
 		},
+		"channelConfigs.shape.densityCurveOutlineWidth": {
+			"doc": "Stroke width (px) of the density curve's line — the standalone \"Density\" display and the curve over a histogram (Size → Density curve outline). Absent = 2, the width it was always drawn at.",
+			"kinds": [
+				"number"
+			]
+		},
 		"channelConfigs.shape.distributionOutlineWidth": {
 			"doc": "Stroke width (px) of the violin outline and all box strokes (body, whiskers, caps, outlier circles) when a distribution overlay is on; the median line draws at 1.5× this for emphasis. Its own knob, deliberately independent of `outlineWidth` (which the point marks read). 0 hides the borders.",
 			"kinds": [
@@ -8562,12 +10452,36 @@
 				"number"
 			]
 		},
+		"channelConfigs.shape.outlineWidthByValue": {
+			"doc": "Per-level outline thickness (px) for `outlineWidthField`, keyed by the stringified cell. A level with no entry takes `outlineWidth`.",
+			"kinds": [
+				"object"
+			]
+		},
+		"channelConfigs.shape.outlineWidthByValue.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.shape.outlineWidthField": {
+			"doc": "\"Vary by\" variable for the outline's thickness (Size → *Mark* outline). When set, a mark's outline takes `outlineWidthByValue[String(row[field])]`, falling back to `outlineWidth`. A mark built from many rows (a bar segment, a slice, a cell) reads its first row. Absent / null = one thickness.",
+			"kinds": [
+				"null",
+				"string"
+			]
+		},
 		"channelConfigs.shape.overrides": {
 			"kinds": [
 				"object"
 			]
 		},
 		"channelConfigs.shape.overrides.*": {
+			"kinds": [
+				"number"
+			]
+		},
+		"channelConfigs.shape.regionOutlineWidth": {
+			"doc": "Outline thickness (px) of a DOT MAP's regions — the geography behind its points (Size → Region outline). Absent = the points' own `outlineWidth`, which is what the regions drew at before they could be set apart. 0 hides the region borders.",
 			"kinds": [
 				"number"
 			]

@@ -51,6 +51,7 @@ export const GeoChoroplethMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "none",
+		mark: "region",
 		statOverlays: false,
 		geo: { marks: "regions", position: "region" },
 		measureAxis: null,

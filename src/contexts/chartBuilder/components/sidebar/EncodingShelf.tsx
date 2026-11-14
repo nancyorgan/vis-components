@@ -19,14 +19,16 @@ import {
 	packedSourceForOptionValue,
 	packedSourceOf,
 } from "../../lib/packedMeasure"
-import { isBarModeId, isHierarchyModeId } from "../../lib/chartModes/families"
+import { isHierarchyModeId } from "../../lib/chartModes/families"
 import {
 	FACET_PAIR_OPTION_VALUE,
 	facetPairMapped,
 	withFacetPairEntered,
 	withSingleFacet,
 } from "../../lib/facetEncoding"
+import { offeredTargets } from "../../lib/markParts"
 import { useChartModeDef } from "../../store/useChartModeDef"
+import { usePureDensityCurve } from "../../store/usePureDensityCurve"
 import {
 	channelHasCustomization,
 	explainChannelCustomization,
@@ -152,15 +154,19 @@ export const EncodingShelf = ({ channel }: Props) => {
 		return conflictsFor(channel).filter((other) => {
 			if (other === "length") {
 				if (encodings.length?.field)
-					return channelsConflictIn(channel, other, encodings)
+					return channelsConflictIn(channel, other, encodings, configs)
 				// Segments from the fallback length alone: no area chart.
 				return configs.defaultLength != null
 			}
-			// Area and Length coexist on an area chart (Area sizes the
-			// layers' points), so neither shadows nor clears the other there.
-			return !!encodings[other]?.field && channelsConflictIn(channel, other, encodings)
+			// Size and Length coexist on an area chart (Size sizes the layers'
+			// points), and Size / Shape with Length on a combo (its marks are
+			// points), so neither shadows nor clears the other there.
+			return (
+				!!encodings[other]?.field &&
+				channelsConflictIn(channel, other, encodings, configs)
+			)
 		})
-	}, [channel, encodings, configs.defaultLength])
+	}, [channel, encodings, configs])
 
 	const hasConflictBlock = conflictingActiveChannels.length > 0
 
@@ -358,6 +364,14 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// Compare the channel's slice of `configs` against a freshly-built
 	// theme baseline so we can mark the disclosure with a "changed" badge
 	// the moment the user has tuned anything inside the options panel.
+	// Only the per-part targets this chart's menus show count: one left
+	// behind by another chart type is drawn by nothing and cleared by no
+	// control, so it must not light the dot (lib/markParts).
+	const pureDensityCurve = usePureDensityCurve()
+	const offered = useMemo(
+		() => offeredTargets({ modeDef, encodings, configs, pureDensityCurve }),
+		[modeDef, encodings, configs, pureDensityCurve]
+	)
 	const hasCustomization = useMemo(
 		() =>
 			channelHasCustomization(
@@ -365,9 +379,10 @@ export const EncodingShelf = ({ channel }: Props) => {
 				configs,
 				theme,
 				!!value,
-				encodings.hue?.field ?? null
+				encodings.hue?.field ?? null,
+				offered
 			),
-		[channel, configs, theme, value, encodings.hue?.field]
+		[channel, configs, theme, value, encodings.hue?.field, offered]
 	)
 
 	// DEV-only diagnostic: when a "changed" dot is lit, log exactly which config
@@ -383,7 +398,8 @@ export const EncodingShelf = ({ channel }: Props) => {
 				configs,
 				theme,
 				!!value,
-				encodings.hue?.field ?? null
+				encodings.hue?.field ?? null,
+				offered
 			)
 			// eslint-disable-next-line no-console
 			console.log(
@@ -391,7 +407,7 @@ export const EncodingShelf = ({ channel }: Props) => {
 				why.length ? why : "(special-cased, see helper)"
 			)
 		}
-	}, [hasCustomization, channel, configs, theme, value, encodings.hue?.field])
+	}, [hasCustomization, channel, configs, theme, value, encodings.hue?.field, offered])
 
 	// Once a field is selected, render the variable name in the section
 	// accent color (matching `AsideSection` titles) and bold so the user
@@ -434,14 +450,18 @@ export const EncodingShelf = ({ channel }: Props) => {
 	// field, visually de-emphasize the row to signal it's being shadowed. The
 	// dropdown stays clickable so the user can still pick a new value (which
 	// pops the confirmation dialog) or remain at "— none —".
-	// Exception: bar charts honor the Shape panel's outline width on their
-	// bar borders (BarPlot reads configs.shape.outlineWidth/outlineColor), so
-	// despite the length↔shape conflict the shape row and its options stay
-	// live there — the conflict dialog still guards mapping a field.
-	const shapeAppliesDespiteConflict =
-		channel === "shape" && isBarModeId(modeDef.id)
+	// Exception: a row whose OPTIONS still style something the chart draws
+	// stays live despite the conflict — the dialog still guards mapping a
+	// field. The Size row carries the point size wherever points are drawn
+	// and the thickness of every stroke (a bar's outline, a line, the
+	// segments Length turns a scatter's marks into), and the Shape row the
+	// glyph wherever glyphs are drawn. Only a row with nothing left to
+	// style is shadowed.
+	const optionsApplyDespiteConflict =
+		(channel === "shape" && offered.parts.glyphs) ||
+		(channel === "area" && (offered.parts.points || offered.size.size > 0))
 	const blockedByConflict =
-		hasConflictBlock && !value && !shapeAppliesDespiteConflict
+		hasConflictBlock && !value && !optionsApplyDespiteConflict
 	// "In use by X and Y" for the shadowed row's tooltip and options hint.
 	const shadowedBy = joinChannelLabels(conflictingActiveChannels)
 	// The dim is capped at 90% opacity: the row's stone-600 label composited

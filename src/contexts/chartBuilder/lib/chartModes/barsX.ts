@@ -56,6 +56,7 @@ export const BarsXMode: ChartModeDef = {
 		connectionRole: "none",
 		shapeRole: "cell",
 		areaRole: "none",
+		mark: "bar",
 		statOverlays: false,
 		// Vertical bars: categories on x, continuous measure on y. The measure
 		// lives on the length channel — bars-x detection requires y unmapped.

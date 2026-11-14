@@ -1,7 +1,6 @@
 import { extent, max } from "d3-array"
 import { format as d3Format } from "d3-format"
 import { scaleLinear, scaleTime } from "d3-scale"
-import { autoLabelAngleFor } from "../../../lib/autoLabelAngle"
 import { axisFieldsFor } from "../../../lib/axisFields"
 import {
 	migrateProportionalSizing,
@@ -719,23 +718,34 @@ export const buildSolverPanelInputs = ({
 			channelConfigs.y?.tickLabelFont?.italic ?? tickFont.italic
 		const wrapX = channelConfigs.x?.wrapTickLabels === true
 		const wrapY = channelConfigs.y?.wrapTickLabels === true
-		// Same neighbor-collision check Axes.tsx runs at render, with the
-		// same measured widths — so the angle the solver reserves bottom
-		// chrome for is the angle that draws.
-		const xLabelAngleDeg = autoLabelAngleFor({
-			labels: xLabels,
-			labelWidthsPx: measureLabelWidths(
-				xLabels,
-				xTickFamily,
-				xTickSize,
-				xTickWeight,
-				xTickItalic,
-			),
-			bandWidthPx,
-			fontSize: xTickSize,
-			userAngle: channelConfigs.x?.tickLabelAngle,
-			wrapEnabled: wrapX,
-		})
+		// The x tick labels' angle. An explicit angle (any stored number,
+		// 0 included) is what draws. Otherwise a categorical axis is
+		// AUTOMATIC: the solver decides, from the plot width it solves,
+		// whether neighboring labels collide, and the axis draws what it
+		// decided (`SolverPanelInput.xAutoAngle`). The decision used to be
+		// made here from an estimated width and again by the axis from the
+		// real one. A continuous axis never rotates on its own — the axis
+		// draws it level, so that is what is reserved (this used to run the
+		// collision check on its sample ticks too, and could reserve room
+		// for a rotation the axis never drew).
+		const userAngle = channelConfigs.x?.tickLabelAngle
+		const autoAngle =
+			(userAngle === null || userAngle === undefined) &&
+			!wrapX &&
+			(xType === "categorical" || xType === "ordinal")
+		const xLabelAngleDeg = autoAngle ? 0 : (userAngle ?? 0)
+		const xAutoAngle = autoAngle
+			? {
+					labels: xLabels,
+					labelWidthsPx: measureLabelWidths(
+						xLabels,
+						xTickFamily,
+						xTickSize,
+						xTickWeight,
+						xTickItalic,
+					),
+				}
+			: undefined
 		// "Wrap text": pre-wrap the chrome labels the same way Axes.tsx
 		// wraps at render time, so the solver reserves multi-line room
 		// (line count for bottom chrome, widest line for left chrome)
@@ -799,6 +809,7 @@ export const buildSolverPanelInputs = ({
 			xLabels: xChromeLabels,
 			yLabels: yChromeLabels,
 			xLabelAngleDeg,
+			xAutoAngle,
 			xLabelFontSize: xTickSize,
 			yLabelFontSize: yTickSize,
 			xLabelMaxWidthPx,

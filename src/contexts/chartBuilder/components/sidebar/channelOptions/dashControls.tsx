@@ -168,13 +168,18 @@ export const RegressionDashSubsection = () => {
 				regression: { ...reg, ...next },
 			},
 		}))
+	// The range windows a dash: with a solid line there is nothing for it to
+	// act on, so the rows show (and count as an edit) only once a dash is
+	// picked — the same rule as the connecting line's (`lineDashInEffect`).
+	const dashPicked = reg.lineStyle !== "solid" || !!reg.customDasharray
 	const changed =
 		valueChanged(reg.lineStyle, base.lineStyle) ||
 		valueChanged(reg.customDasharray, base.customDasharray) ||
-		valueChanged(
-			{ ...DEFAULT_DASH_RANGE, ...reg.dashRange },
-			{ ...DEFAULT_DASH_RANGE, ...base.dashRange }
-		)
+		(dashPicked &&
+			valueChanged(
+				{ ...DEFAULT_DASH_RANGE, ...reg.dashRange },
+				{ ...DEFAULT_DASH_RANGE, ...base.dashRange }
+			))
 	return (
 		<CollapsibleSubsection
 			title="Regression line"
@@ -190,14 +195,16 @@ export const RegressionDashSubsection = () => {
 					}
 					ariaContext="regression line"
 				/>
-				<DashRangeRows
-					range={{ ...DEFAULT_DASH_RANGE, ...reg.dashRange }}
-					onChange={(next) =>
-						update({
-							dashRange: { ...DEFAULT_DASH_RANGE, ...reg.dashRange, ...next },
-						})
-					}
-				/>
+				{dashPicked && (
+					<DashRangeRows
+						range={{ ...DEFAULT_DASH_RANGE, ...reg.dashRange }}
+						onChange={(next) =>
+							update({
+								dashRange: { ...DEFAULT_DASH_RANGE, ...reg.dashRange, ...next },
+							})
+						}
+					/>
+				)}
 			</div>
 		</CollapsibleSubsection>
 	)

@@ -5,6 +5,7 @@ import {
 	type DistributionStats,
 } from "../../../lib/aggregators/distributions"
 import {
+	DEFAULT_DENSITY_CURVE_WIDTH,
 	DEFAULT_DISTRIBUTION_OVERLAY_CONFIG,
 	type ChannelConfigs,
 	type DistributionOverlayConfig,
@@ -610,11 +611,14 @@ export const DensityCurveShape = ({
 	extent,
 	strokeColor,
 	strokeOpacity,
+	strokeWidth = DEFAULT_DENSITY_CURVE_WIDTH,
 	fillColor,
 	fillOpacity,
 	fill,
 	peakOverride,
 }: {
+	/** The curve's line thickness (Size → Density curve outline). */
+	strokeWidth?: number
 	grid: number[]
 	/** Un-normalized KDE density; peak-normalized here to fill `extent`. */
 	density: number[]
@@ -668,7 +672,7 @@ export const DensityCurveShape = ({
 				fill="none"
 				stroke={strokeColor}
 				strokeOpacity={strokeOpacity}
-				strokeWidth={2}
+				strokeWidth={strokeWidth}
 				strokeLinejoin="round"
 				strokeLinecap="round"
 			/>

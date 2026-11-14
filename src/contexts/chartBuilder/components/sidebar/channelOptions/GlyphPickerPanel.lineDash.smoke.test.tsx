@@ -120,9 +120,29 @@ describe("Pattern panel — no-field Line dash row (line chart)", () => {
 		expect(configs.connection?.defaultDashPattern ?? "solid").toBe("solid")
 	})
 
-	it("shows 'Apply pattern to range' when no pattern variable is mapped", async () => {
+	it("shows 'Apply pattern to range' and 'Fill dash gaps' only once a dash is picked", async () => {
+		// With a solid line there are no gaps to fill and nothing for a range
+		// to window, so the two rows would be controls that do nothing.
 		seed(LINE)
 		const q = await mount()
+		expect(q.queryByLabelText("Apply pattern to range")).toBeNull()
+		expect(q.queryByLabelText("Fill dash gaps")).toBeNull()
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
+		expect(q.queryByLabelText("Apply pattern to range")).not.toBeNull()
+		expect(q.queryByLabelText("Fill dash gaps")).not.toBeNull()
+		// Back to None: they go again.
+		fireEvent.click(q.getByLabelText("No dash for line"))
+		expect(q.queryByLabelText("Apply pattern to range")).toBeNull()
+		expect(q.queryByLabelText("Fill dash gaps")).toBeNull()
+	})
+
+	it("a custom dash counts as a dash too", async () => {
+		seed(LINE)
+		const q = await mount()
+		fireEvent.click(q.getByLabelText("Custom dash for line"))
+		fireEvent.change(q.getByLabelText("Custom dash pattern"), {
+			target: { value: "4,2" },
+		})
 		expect(q.queryByLabelText("Apply pattern to range")).not.toBeNull()
 	})
 
@@ -155,6 +175,8 @@ describe("Pattern panel — 'Blank' range option", () => {
 	it("hidden until 'Apply pattern to range' is on; picking it writes defaultDashPattern: 'blank'", async () => {
 		const store = seed(LINE)
 		const q = await mount()
+		// The dash's follow-on options appear once a dash is picked.
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
 		expect(q.queryByLabelText("Line dash blank")).toBeNull()
 		fireEvent.click(q.getByLabelText("Apply pattern to range"))
 		fireEvent.click(q.getByLabelText("Line dash blank"))
@@ -164,6 +186,8 @@ describe("Pattern panel — 'Blank' range option", () => {
 	it("turning the range off retires a blank pick back to solid", async () => {
 		const store = seed(LINE)
 		const q = await mount()
+		// The dash's follow-on options appear once a dash is picked.
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
 		fireEvent.click(q.getByLabelText("Apply pattern to range"))
 		fireEvent.click(q.getByLabelText("Line dash blank"))
 		fireEvent.click(q.getByLabelText("Apply pattern to range"))
@@ -240,9 +264,11 @@ describe("Pattern panel — 'Fill dash gaps' checkbox", () => {
 		expect(readSavedConfigs(store).connection?.dashGapFill).toBe(true)
 	})
 
-	it("is offered with no pattern variable too (default dash + gaps)", async () => {
+	it("is offered with no pattern variable too, once a default dash is picked", async () => {
 		seed(LINE)
 		const q = await mount()
+		// The dash's follow-on options appear once a dash is picked.
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
 		expect(checkbox(q).checked).toBe(true)
 	})
 })
@@ -276,6 +302,8 @@ describe("Pattern panel — gap-color swatches (shown while 'Fill dash gaps' is 
 	it("no hue encoding: a single 'Gap color' swatch writes dashGapColor", async () => {
 		const store = seed(LINE)
 		const q = await mount()
+		// The dash's follow-on options appear once a dash is picked.
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
 		fireEvent.change(q.getByLabelText("Gap color hex"), {
 			target: { value: "#00aa00" },
 		})
@@ -302,6 +330,8 @@ describe("Pattern panel — gap-color swatches (shown while 'Fill dash gaps' is 
 	it("the single no-hue 'Gap color' row resets dashGapColor to null", async () => {
 		const store = seed(LINE)
 		const q = await mount()
+		// The dash's follow-on options appear once a dash is picked.
+		fireEvent.click(q.getByLabelText("Line dash dashed"))
 		fireEvent.change(q.getByLabelText("Gap color hex"), {
 			target: { value: "#00aa00" },
 		})

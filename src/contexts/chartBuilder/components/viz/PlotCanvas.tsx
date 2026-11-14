@@ -51,6 +51,7 @@ import {
 	renderedLabelsAtom,
 	currentMapConfigAtom,
 	currentRenderedFigureSlackAtom,
+	currentRenderedFitFloorAtom,
 	currentRenderedLayoutVersionAtom,
 	currentRenderedPanelInnerDimsAtom,
 } from "../../store/atoms"
@@ -66,6 +67,7 @@ import { computeDataLabelOverflow } from "./plotCanvas/dataLabelReserve"
 import { useFontsVersion } from "./plotCanvas/useFontsVersion"
 import { resolveFacetTitleStyles } from "./plotCanvas/facetTitleStyles"
 import { buildSolverPanelInputs } from "./plotCanvas/solverPanelInputs"
+import { SolvedXTickAngleContext } from "./solvedTickAngle"
 import { buildSolverInput } from "./plotCanvas/solverSpec"
 import {
 	computeGroupMeasureMax,
@@ -165,6 +167,7 @@ export const PlotCanvas = ({
 		currentRenderedPanelInnerDimsAtom,
 	)
 	const setFigureSlack = useSetAtom(currentRenderedFigureSlackAtom)
+	const setFitFloor = useSetAtom(currentRenderedFitFloorAtom)
 	const setLayoutVersion = useSetAtom(currentRenderedLayoutVersionAtom)
 	const setRenderedCaptionBox = useSetAtom(currentRenderedCaptionBoxAtom)
 	// Bumps when webfonts finish loading so the canvas-measured widths below
@@ -822,6 +825,15 @@ export const PlotCanvas = ({
 				? prev
 				: spec.figureSlack,
 		)
+		// The same for the smallest chart area this chart fits (whole pixels,
+		// so sub-pixel noise in a measured title never republishes it).
+		const floorW = Math.ceil(spec.fitFloor.width)
+		const floorH = Math.ceil(spec.fitFloor.height)
+		setFitFloor((prev) =>
+			prev.width === floorW && prev.height === floorH
+				? prev
+				: { width: floorW, height: floorH },
+		)
 		// Every committed solve bumps the layout version: the fixed-canvas
 		// margin frame (ChartCanvas) re-measures the rendered ink on each
 		// bump, which is the only moment the DOM is known to reflect `spec`.
@@ -835,7 +847,11 @@ export const PlotCanvas = ({
 			widthPx: Math.round(p.inner.width),
 			heightPx: Math.round(p.inner.height),
 		})
-	}, [spec, setRenderedPanelDims, setFigureSlack, setLayoutVersion])
+	}, [spec, setRenderedPanelDims, setFigureSlack, setFitFloor, setLayoutVersion])
+
+	// No chart, no floor: an empty state or another canvas must not inherit
+	// the last chart's minimum area.
+	useEffect(() => () => setFitFloor({ width: 0, height: 0 }), [setFitFloor])
 
 	// Re-measure the caption against the final canvas and publish its rendered
 	// box dims so the Caption panel's Width / Height inputs can step UP/DOWN from
@@ -967,25 +983,28 @@ export const PlotCanvas = ({
 			<g clipPath={`url(#${canvasClipId})`} data-canvas-clip>
 				{/* Per-panel marks + per-panel facet label */}
 				{spec.panels.map((p) => (
-					<FacetPanel
-						key={p.key}
-						p={p}
-						Renderer={Renderer}
-						shared={sharedPanelInputs}
-						measureColorMaxOverride={measureColorMaxOverride}
-						annotations={annotations}
-						levelOrders={levelOrders}
-						isRadar={isRadar}
-						multiPanel={spec.panels.length > 1}
-						labels={labels}
-						facetTitles={facetTitles}
-						facetRow={facetPanelRow(
-							panelData,
-							p.key,
-							p.row * panelData.grid.cols + p.col,
-							encodings
-						)}
-					/>
+					// The x tick labels' angle the solver decided for this panel:
+					// its axis draws that, instead of deciding again.
+					<SolvedXTickAngleContext.Provider key={p.key} value={p.xLabelAngleDeg}>
+						<FacetPanel
+							p={p}
+							Renderer={Renderer}
+							shared={sharedPanelInputs}
+							measureColorMaxOverride={measureColorMaxOverride}
+							annotations={annotations}
+							levelOrders={levelOrders}
+							isRadar={isRadar}
+							multiPanel={spec.panels.length > 1}
+							labels={labels}
+							facetTitles={facetTitles}
+							facetRow={facetPanelRow(
+								panelData,
+								p.key,
+								p.row * panelData.grid.cols + p.col,
+								encodings
+							)}
+						/>
+					</SolvedXTickAngleContext.Provider>
 				))}
 				{/* Shared axis titles and facet header strips — drawn AFTER the
 				    panels so a title nudged into the plot area paints on top of

@@ -26,7 +26,9 @@ import { HexbinPlot } from "./HexbinPlot"
 
 /** Mounts HexbinPlot against two exact-duplicate point clusters — (1,1)×3
  *  and (9,9)×2 — so cluster→cell assignment is guaranteed regardless of bin
- *  geometry: two occupied cells, counts 3 and 2. */
+ *  geometry: two occupied cells, counts 3 and 2. Each cluster also carries
+ *  one value of `Z` (10 / 40) and one `Tier` (gold / silver), for the cell
+ *  options that vary by a variable. */
 
 const DATASET_ID = "ds-hexbin-test"
 
@@ -38,24 +40,34 @@ const buildDataset = (): Dataset =>
 		fields: [
 			{ name: "X", inferredType: "quantitative" },
 			{ name: "Y", inferredType: "quantitative" },
+			{ name: "Z", inferredType: "quantitative" },
+			{ name: "Tier", inferredType: "categorical" },
 		],
 		rows: [
-			{ X: "1", Y: "1" },
-			{ X: "1", Y: "1" },
-			{ X: "1", Y: "1" },
-			{ X: "9", Y: "9" },
-			{ X: "9", Y: "9" },
+			{ X: "1", Y: "1", Z: "10", Tier: "gold" },
+			{ X: "1", Y: "1", Z: "10", Tier: "gold" },
+			{ X: "1", Y: "1", Z: "10", Tier: "gold" },
+			{ X: "9", Y: "9", Z: "40", Tier: "silver" },
+			{ X: "9", Y: "9", Z: "40", Tier: "silver" },
 		],
 	})
 
-const encodingsFor = (opts?: { dropY?: boolean }) => ({
+type MountOptions = {
+	dropY?: boolean
+	configs?: ChannelConfigs
+	/** Further channels to map (Opacity, the Outline variable, Pattern, …). */
+	encodings?: Record<string, { field: string }>
+}
+
+const encodingsFor = (opts?: MountOptions) => ({
 	...emptyEncodings(),
 	x: { field: "X" },
 	...(opts?.dropY ? {} : { y: { field: "Y" } }),
 	hue: { field: null, measureSource: "hexCount" as const },
+	...opts?.encodings,
 })
 
-const mountHexbin = (opts?: { dropY?: boolean; configs?: ChannelConfigs }) => {
+const mountHexbin = (opts?: MountOptions) => {
 	const store = installInMemoryLocalStorage()
 	const configs = opts?.configs ?? EMPTY_CHANNEL_CONFIGS
 	/* eslint-disable @vc/use-wrapped-json-functions */
@@ -128,5 +140,88 @@ describe("HexbinPlot", () => {
 		})
 		const hiddenCell = hidden.querySelector("path.vc-hexbin-cell")
 		expect(hiddenCell?.getAttribute("stroke")).toBe("none")
+	})
+})
+
+/** A hex cell is a body like a bar or a heatmap cell: the fill and outline
+ *  options the menus offer reach it through the same pipeline. They used to
+ *  be offered and ignored. */
+describe("HexbinPlot — cell options", () => {
+	const attr = (container: HTMLElement, name: string): (string | null)[] =>
+		[...container.querySelectorAll("path.vc-hexbin-cell")].map((c) =>
+			c.getAttribute(name)
+		)
+	const outlined = (more: Partial<ChannelConfigs> = {}): ChannelConfigs => ({
+		shape: { ...DEFAULT_SHAPE_CONFIG, outlineColor: "#ff0000", outlineWidth: 2 },
+		...more,
+	})
+
+	it("an untouched hexbin draws opaque cells with no opacity attributes", () => {
+		const { container } = mountHexbin({ configs: outlined() })
+		expect(attr(container, "fill-opacity")).toEqual([null, null])
+		expect(attr(container, "stroke-opacity")).toEqual([null, null])
+		expect(attr(container, "stroke")).toEqual(["#ff0000", "#ff0000"])
+	})
+
+	it("Opacity → Cell fill sets every cell's opacity", () => {
+		const { container } = mountHexbin({ configs: outlined({ defaultOpacity: 0.5 }) })
+		expect(attr(container, "fill-opacity")).toEqual(["0.5", "0.5"])
+	})
+
+	it("Opacity → Cell fill → Vary by reads the rows that fell in each cell", () => {
+		const { container } = mountHexbin({
+			configs: outlined(),
+			encodings: { opacity: { field: "Z" } },
+		})
+		const [a, b] = attr(container, "fill-opacity").map((v) => Number(v ?? 1))
+		expect(a).not.toBe(b)
+	})
+
+	it("Saturation and Brightness → Cell fill shade the cells", () => {
+		const plain = attr(mountHexbin({ configs: outlined() }).container, "fill")
+		const desaturated = attr(
+			mountHexbin({ configs: outlined({ defaultSaturation: 0 }) }).container,
+			"fill"
+		)
+		const darkened = attr(
+			mountHexbin({ configs: outlined({ defaultBrightness: 0.2 }) }).container,
+			"fill"
+		)
+		expect(desaturated).toHaveLength(2)
+		for (const [i, fill] of desaturated.entries()) expect(fill).not.toBe(plain[i])
+		for (const [i, fill] of darkened.entries()) expect(fill).not.toBe(plain[i])
+	})
+
+	it("Pattern → a default pattern tiles every cell, and its defs are registered", () => {
+		const { container } = mountHexbin({ configs: outlined({ defaultPattern: 2 }) })
+		const fills = attr(container, "fill")
+		expect(fills).toHaveLength(2)
+		for (const fill of fills) {
+			expect(fill).toMatch(/^url\(#/)
+			const id = fill?.slice(5, -1) ?? ""
+			expect(container.querySelector(`pattern[id="${id}"]`), id).not.toBeNull()
+		}
+	})
+
+	it("Color → Cell outline → Vary by colors each cell's outline", () => {
+		const { container } = mountHexbin({
+			configs: outlined(),
+			encodings: { outlineHue: { field: "Tier" } },
+		})
+		const strokes = attr(container, "stroke")
+		expect(new Set(strokes).size).toBe(2)
+		expect(strokes).not.toContain("#ff0000")
+	})
+
+	it("Opacity and Saturation → Cell outline reach the outline", () => {
+		const faded = mountHexbin({
+			configs: outlined({ opacitySlots: { border: { field: null, level: 0.3 } } }),
+		})
+		expect(attr(faded.container, "stroke-opacity")).toEqual(["0.3", "0.3"])
+		const shaded = mountHexbin({
+			configs: outlined({ saturationSlots: { outline: { field: null, level: 0 } } }),
+		})
+		for (const stroke of attr(shaded.container, "stroke"))
+			expect(stroke).not.toBe("#ff0000")
 	})
 })

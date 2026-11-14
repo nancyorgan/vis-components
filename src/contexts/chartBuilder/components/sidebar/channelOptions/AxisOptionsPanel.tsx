@@ -57,6 +57,7 @@ import { Select } from "../../../../../components/ui/Select"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
 import { Segmented } from "../../../../../components/ui/Segmented"
+import { Slider } from "../../../../../components/ui/Slider"
 import { AlignmentControl, FontEditor } from "../LabelsPanel"
 import { Input } from "../../../../../components/ui/Input"
 import { DateInput } from "../../../../../components/ui/DateInput"
@@ -1858,21 +1859,15 @@ const JitterControl = ({
 	}) => void
 }) => (
 	<div className="flex flex-col gap-2">
-		<label className="flex items-center gap-2 text-sm">
-			<span className={LABEL_COL}>Jitter</span>
-			<input
-				type="range"
-				min={0}
-				max={1}
-				step={0.05}
-				value={jitterAmount}
-				onChange={(e) => onChange({ jitterAmount: Number(e.target.value) })}
-				className="min-w-0 flex-1"
-			/>
-			<span className="w-10 text-right text-sm vc-muted">
-				{Math.round(jitterAmount * 100)}%
-			</span>
-		</label>
+		<Slider
+			label="Jitter"
+			value={jitterAmount}
+			min={0}
+			max={1}
+			step={0.05}
+			percent
+			onChange={(next) => onChange({ jitterAmount: next })}
+		/>
 		{jitterAmount > 0 && (
 			<Checkbox
 				label="Only jitter overlapping points"
@@ -1941,7 +1936,7 @@ const RugControls = ({
 				</div>
 				<div className="flex items-center gap-2">
 					<NumberInput
-						label="Tassel width"
+						label="Tassel thickness"
 						labelClassName={LABEL_COL}
 						value={histogram.rugTickThickness ?? DEFAULT_RUG_TICK_THICKNESS}
 						min={0}
@@ -1994,21 +1989,15 @@ const DensityCurveControls = ({
 	onChangeFill: (b: boolean) => void
 }) => (
 	<>
-		<label className="flex items-center gap-2 text-sm">
-			<span className={LABEL_COL}>Smoothing</span>
-			<input
-				type="range"
-				min={0.1}
-				max={5}
-				step={0.1}
-				value={bandwidthScale}
-				onChange={(e) => onChangeBandwidth(Number(e.target.value))}
-				className="min-w-0 flex-1"
-			/>
-			<span className="w-10 text-right text-sm vc-muted">
-				{bandwidthScale.toFixed(1)}×
-			</span>
-		</label>
+		<Slider
+			label="Smoothing"
+			value={bandwidthScale}
+			min={0.1}
+			max={5}
+			step={0.1}
+			suffix="×"
+			onChange={onChangeBandwidth}
+		/>
 		<Checkbox label="Fill under curve" checked={fill} onChange={onChangeFill} />
 		<p className="vc-help">
 			Smoothing scales the kernel bandwidth; higher is smoother. Set the curve
@@ -2155,25 +2144,15 @@ const DistributionTypeControls = ({
 						/>
 					)}
 					{selected === "box" && (
-						<label className="flex items-center gap-2 text-sm">
-							<span className={LABEL_COL}>
-								{boxSizeLabel}
-							</span>
-							<input
-								type="range"
-								min={0.25}
-								max={3}
-								step={0.25}
-								value={overlay.boxWidthScale ?? 1}
-								onChange={(e) =>
-									setOverlay({ boxWidthScale: Number(e.target.value) })
-								}
-								className="min-w-0 flex-1"
-							/>
-							<span className="w-10 text-right text-sm vc-muted">
-								{(overlay.boxWidthScale ?? 1).toFixed(2)}×
-							</span>
-						</label>
+						<Slider
+							label={boxSizeLabel}
+							value={overlay.boxWidthScale ?? 1}
+							min={0.25}
+							max={3}
+							step={0.25}
+							suffix="×"
+							onChange={(boxWidthScale) => setOverlay({ boxWidthScale })}
+						/>
 					)}
 					<p className="vc-help">
 						Set violin / box colors under{" "}
@@ -2187,13 +2166,13 @@ const DistributionTypeControls = ({
 					{selected === "box" && !overlay.showPoints && overlay.markMean === true && (
 						<p className="vc-help">
 							The mean point is styled like a data point: its shape and
-							border width under{" "}
+							outline thickness under{" "}
 							<SidebarJumpText target={channelJump("shape")}>Shape</SidebarJumpText>, its fill and
 							outline colors under{" "}
 							<SidebarJumpText target={channelJump("hue")}>Color</SidebarJumpText> and{" "}
 							<SidebarJumpText target={channelJump("opacity")}>Opacity</SidebarJumpText>, and its
 							size under{" "}
-							<SidebarJumpText target={channelJump("area")}>Area</SidebarJumpText>.
+							<SidebarJumpText target={channelJump("area")}>Size</SidebarJumpText>.
 						</p>
 					)}
 				</>

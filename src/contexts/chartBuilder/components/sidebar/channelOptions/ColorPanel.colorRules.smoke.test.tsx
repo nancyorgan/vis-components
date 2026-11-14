@@ -149,8 +149,8 @@ describe("ColorPanel — conditional color rules", () => {
 	it("Line's link writes `colorSlots.line.colorRules` on a well-formed slot", () => {
 		const { container, configs } = mount()
 		expandSubheader(container, "Line")
-		const links = addLinks(container)
-		fireEvent.click(links[links.length - 1])
+		// The Line leads the menu, so its link is the first.
+		fireEvent.click(addLinks(container)[0])
 		fireEvent.change(condition(container, "line")!, {
 			target: { value: "{series} == B" },
 		})

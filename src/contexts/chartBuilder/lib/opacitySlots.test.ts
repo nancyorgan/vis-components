@@ -26,7 +26,7 @@ describe("applicableOpacitySlots", () => {
 		).not.toContain("polygonFill")
 	})
 
-	it("offers the rug slot only when a histogram is on", () => {
+	it("offers the rug slot only when a histogram is on and shows its rug", () => {
 		expect(
 			applicableOpacitySlots("bars-x", {} as never, {}).map((d) => d.key)
 		).not.toContain("rug")
@@ -34,15 +34,28 @@ describe("applicableOpacitySlots", () => {
 			applicableOpacitySlots("bars-x", {} as never, {
 				x: { histogram: { enabled: true } } as never,
 			}).map((d) => d.key)
+		).not.toContain("rug")
+		expect(
+			applicableOpacitySlots("bars-x", {} as never, {
+				x: { histogram: { enabled: true, showRug: true } } as never,
+			}).map((d) => d.key)
 		).toContain("rug")
 	})
 
-	it("keeps the rug slot for the density display (scatter)", () => {
+	it("keeps the rug slot for the density display (scatter) while the rug is shown", () => {
+		expect(
+			applicableOpacitySlots("scatter", {} as never, {
+				x: {
+					distributionOverlay: { showDensityCurve: true },
+					histogram: { showRug: true },
+				} as never,
+			}).map((d) => d.key)
+		).toContain("rug")
 		expect(
 			applicableOpacitySlots("scatter", {} as never, {
 				x: { distributionOverlay: { showDensityCurve: true } } as never,
 			}).map((d) => d.key)
-		).toContain("rug")
+		).not.toContain("rug")
 		expect(
 			applicableOpacitySlots("scatter", {} as never, {}).map((d) => d.key)
 		).not.toContain("rug")

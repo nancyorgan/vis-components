@@ -504,9 +504,13 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 				row: Record<string, unknown>
 			) => {
 				const slotCfg = channelConfigs.colorSlots?.[key]
-				return slotCfg
-					? resolveSlotColor(aestheticScales.colorSlots[key], slotCfg, row, fallback)
-					: fallback
+				// The part's color, then its own Saturation / Brightness.
+				return slotModulationResolver(key, channelConfigs, aestheticScales)(
+					slotCfg
+						? resolveSlotColor(aestheticScales.colorSlots[key], slotCfg, row, fallback)
+						: fallback,
+					row
+				)
 			}
 			const densityStrokeOpacity = slotOpacityResolver(
 				"densityCurveStroke",
@@ -537,6 +541,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					row
 				),
 				strokeOpacity: densityStrokeOpacity,
+				strokeWidth: channelConfigs.shape?.densityCurveOutlineWidth,
 				fillColor: densitySlotColor(
 					"densityCurveFill",
 					liveTheme.distributionOverlayFill,
@@ -557,6 +562,10 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 						if (!domain) return null
 						if (densityGroupField) {
 							const groups = new Map<string, number[]>()
+							// Each curve's color and shading resolve off its first
+							// row (a mark built from many rows), so "Vary by" any
+							// variable reaches it.
+							const firstRows = new Map<string, Record<string, unknown>>()
 							const order: string[] = []
 							for (const r of rowsForChart) {
 								const cat = r[densityGroupField]
@@ -568,6 +577,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 								if (!list) {
 									list = []
 									groups.set(key, list)
+									firstRows.set(key, r)
 									order.push(key)
 								}
 								list.push(v)
@@ -593,7 +603,7 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 											{...densityCurveProps(
 												grid,
 												density,
-												{ [densityGroupField]: key },
+												firstRows.get(key) ?? { [densityGroupField]: key },
 												globalPeak
 											)}
 										/>
@@ -609,7 +619,9 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 							domain,
 							bandwidthScale: densityCfg?.densityBandwidthScale,
 						})
-						return <DensityCurveShape {...densityCurveProps(grid, density, {})} />
+						const firstRow =
+							rowsForChart.find((r) => Number.isFinite(Number(r[valueField]))) ?? {}
+						return <DensityCurveShape {...densityCurveProps(grid, density, firstRow)} />
 					})()
 				: null
 			// Density rug: one tassel per row along the floor, reusing the shared
@@ -636,6 +648,11 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 								channelConfigs,
 								aestheticScales
 							)
+							const rugShade = slotModulationResolver(
+								"rug",
+								channelConfigs,
+								aestheticScales
+							)
 							const ticks = rowsForChart.map((row, i) => {
 								const valuePx = applyPositionScale(
 									valueScale,
@@ -643,14 +660,17 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 									"quantitative"
 								)
 								if (valuePx === null) return null
-								const stroke = rugSlotCfg
-									? resolveSlotColor(
-											aestheticScales.colorSlots.rug,
-											rugSlotCfg,
-											row,
-											rugFallback
-										)
-									: rugFallback
+								const stroke = rugShade(
+									rugSlotCfg
+										? resolveSlotColor(
+												aestheticScales.colorSlots.rug,
+												rugSlotCfg,
+												row,
+												rugFallback
+											)
+										: rugFallback,
+									row
+								)
 								const op = rugOpacityFor(row)
 								return valueIsX ? (
 									<line
@@ -866,13 +886,14 @@ export const ScatterPlot = (props: ScatterPlotProps = {}) => {
 					channelConfigs.colorSlots?.stem,
 					slotOpacityResolver("stem", channelConfigs, aestheticScales),
 					connectionColor,
-					legendHighlight
+					legendHighlight,
+					slotModulationResolver("stem", channelConfigs, aestheticScales)
 				)}
 				{renderConnectionLines(
 					jitteredMarks,
 					encodings,
 					channelConfigs,
-					slotOpacityResolver("line", channelConfigs, aestheticScales)({}),
+					slotOpacityResolver("line", channelConfigs, aestheticScales),
 					aestheticScales.colorSlots.line,
 					connectionColor,
 					xScale,

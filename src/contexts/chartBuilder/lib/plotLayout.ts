@@ -10,6 +10,18 @@ export const BASE_MARGIN = { top: 16, right: 24, bottom: 64, left: 76 } as const
  *  y-title (pies-x / pies-y) still fall back to BASE_MARGIN on that
  *  side — see `solveFacetLayout`'s per-side resolution. */
 export const POLAR_MARGIN = { top: 4, right: 8, bottom: 8, left: 8 } as const
+/** The pad (px) between the chart area's edge and the SVG inside it —
+ *  ChartCanvas's `p-3`. One definition: the page layout holds the chart
+ *  area to the solver's floor plus this pad, the legend aligns to the plot
+ *  through it, and the title-overhang room counts it. (It was a private
+ *  `12` in both ChartCanvas and legendSections, kept "in lockstep" by a
+ *  comment.) Change it together with that `p-3`. */
+export const CHART_PAD = 12
+/** Breathing room (px) kept between an inside legend and the canvas edge:
+ *  the room ChartCanvas reserves solves for the legend landing this far short
+ *  of the edge, and the legend's own position is clamped to the same inset
+ *  (`legendSections`), so the two agree on where "in view" ends. */
+export const INSIDE_LEGEND_EDGE_BUFFER = 10
 export const TITLE_RESERVE = 36
 const SUBTITLE_RESERVE = 22
 

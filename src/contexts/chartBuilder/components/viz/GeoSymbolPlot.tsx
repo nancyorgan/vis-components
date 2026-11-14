@@ -11,7 +11,13 @@ import {
 	resolveNoDataPatternDef,
 } from "../../lib/geo/geoMarkStyle"
 import { sortByDrawOrder } from "../../lib/drawOrder"
-import { resolveSlotColor } from "../../lib/resolveLayerColor"
+import {
+	resolveSlotColor,
+	slotModulationResolver,
+	slotModulationUnitsResolver,
+	slotOpacityResolver,
+} from "../../lib/resolveLayerColor"
+import { modulateColor } from "../../lib/scales"
 
 import { GeoBasemap } from "./GeoBasemap"
 import { GeoCircleMarks, type GeoCircleMark } from "./GeoCircleMarks"
@@ -56,6 +62,24 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 	const pointFillCfg = channelConfigs.colorSlots?.geoPointFill
 	const pointStrokeSlot = aestheticScales.colorSlots?.geoPointStroke
 	const pointStrokeCfg = channelConfigs.colorSlots?.geoPointStroke
+	// The bubbles' own Opacity, Saturation and Brightness — the same per-part
+	// targets every other secondary part has (the regions keep theirs).
+	const pointFillOpacity = slotOpacityResolver("geoPointFill", channelConfigs, aestheticScales)
+	const pointStrokeOpacity = slotOpacityResolver(
+		"geoPointStroke",
+		channelConfigs,
+		aestheticScales
+	)
+	const pointFillUnits = slotModulationUnitsResolver(
+		"geoPointFill",
+		channelConfigs,
+		aestheticScales
+	)
+	const pointStrokeShade = slotModulationResolver(
+		"geoPointStroke",
+		channelConfigs,
+		aestheticScales
+	)
 
 	// Optional no-data pattern overlay (unmatched / blank-measure regions on
 	// the basemap). Registered in patternDefs below whenever set. Memoized on
@@ -69,9 +93,6 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 		noDataFill: mapConfig.noDataFill,
 		noDataPatternDef: noDataDef,
 		measureField: geo.measureField,
-		baseOutlineColor: geo.baseOutlineColor,
-		outlineHue: geo.outlineHue,
-		outlineColorRules: channelConfigs.shape?.outlineColorRules,
 		aestheticScales,
 		channelConfigs,
 	})
@@ -142,6 +163,8 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 				fillFor={regionStyle.fillFor}
 				fillOpacityFor={regionStyle.fillOpacityFor}
 				strokeFor={regionStyle.strokeFor}
+				strokeOpacityFor={regionStyle.strokeOpacityFor}
+				strokeWidthFor={regionStyle.strokeWidthFor}
 				// The region layer here IS a choropleth (measure-driven), so it
 				// follows the legend hover like the choropleth renderer's own
 				// paths; no-data regions fade and never light up.
@@ -186,27 +209,62 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 			// Point FILL from the geoPointFill slot (field-driven if mapped, else
 			// the slot single color, else the default mark fill). INDEPENDENT of
 			// the region/measure colors — hue/opacity drive the regions, not the
-			// bubbles. Bubbles render at full opacity (there's no point-opacity
-			// concept in scope). A row with a pattern category swaps in its
-			// pattern ref over the slot color.
+			// bubbles. The bubbles' own Saturation / Brightness shade it, and
+			// their own Opacity fades it (untouched: full opacity, no shading).
+			// A row with a pattern category swaps in its pattern ref over the
+			// slot color; the pattern ink still pairs on the unshaded color.
 			const slotFill = resolveSlotColor(
 				pointFillSlot,
 				pointFillCfg,
 				row,
 				channelConfigs.defaultFill ?? DEFAULT_FILL
 			)
-			const fill = geoPatternFill(row, slotFill, aestheticScales, channelConfigs)
+			const fillUnits = pointFillUnits?.(row) ?? null
+			const shadedFill =
+				fillUnits && (fillUnits.sat !== null || fillUnits.bri !== null)
+					? modulateColor(slotFill, fillUnits.sat, fillUnits.bri)
+					: slotFill
+			const fill = geoPatternFill(
+				row,
+				shadedFill,
+				aestheticScales,
+				channelConfigs,
+				fillUnits
+					? {
+							preModulationHue: slotFill,
+							satUnit: fillUnits.sat,
+							briUnit: fillUnits.bri,
+						}
+					: undefined
+			)
+			const fillOpacity = pointFillOpacity(row)
 
 			// Point OUTLINE from the geoPointStroke slot (field-driven if mapped,
-			// else the slot single color, else the base outline color).
-			const stroke = resolveSlotColor(
-				pointStrokeSlot,
-				pointStrokeCfg,
-				row,
-				channelConfigs.shape?.outlineColor ?? DEFAULT_OUTLINE_COLOR
+			// else the slot single color, else the base outline color), shaded
+			// and faded by the bubbles' own outline targets.
+			const stroke = pointStrokeShade(
+				resolveSlotColor(
+					pointStrokeSlot,
+					pointStrokeCfg,
+					row,
+					channelConfigs.shape?.outlineColor ?? DEFAULT_OUTLINE_COLOR
+				),
+				row
 			)
+			const strokeOpacity = pointStrokeOpacity(row)
 
-			bubbles.push({ key: id, px, py, r, fill, stroke, row })
+			bubbles.push({
+				key: id,
+				px,
+				py,
+				r,
+				fill,
+				// Full opacity sets no attribute, as before.
+				fillOpacity: fillOpacity === 1 ? undefined : fillOpacity,
+				stroke,
+				strokeOpacity: strokeOpacity === 1 ? undefined : strokeOpacity,
+				row,
+			})
 		}
 
 		// An explicit Draw order (Aesthetics) overrides the layer's default
@@ -219,7 +277,7 @@ export const GeoSymbolPlot = (props: GeoSymbolPlotProps = {}) => {
 				{basemap}
 				<GeoCircleMarks
 					marks={sortByDrawOrder(bubbles, (b) => b.row, drawOrder, geo.dataset)}
-					outlineWidth={geo.outlineWidth}
+					outlineWidthFor={geo.outlineWidthFor}
 					hoverHandler={geo.hoverHandler}
 					preserveOrder={drawOrder !== null}
 					highlightFor={geo.markHighlight}

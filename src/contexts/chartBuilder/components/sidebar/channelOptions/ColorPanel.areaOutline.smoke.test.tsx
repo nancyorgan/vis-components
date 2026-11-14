@@ -132,14 +132,15 @@ describe("ColorPanel — area outline organization", () => {
 		expect(queryByText("Vary by")).toBeNull()
 	})
 
-	it("Outline subheader hosts the line-palette editor (Match fill default)", () => {
+	it("Line subheader hosts the line-palette editor (Auto default)", () => {
 		const { container, getByText } = mount()
 		const outlineBtn = [
 			...container.querySelectorAll("button[aria-expanded]"),
 		].find((b) => b.textContent?.trim() === "Line")!
 		fireEvent.click(outlineBtn) // expand
-		// The line-palette dropdown offers "Match fill" as the linked default.
-		expect(getByText("Match fill")).toBeTruthy()
+		// The line-palette dropdown offers "Auto" (match the fill) as the
+		// linked default.
+		expect(getByText("Auto")).toBeTruthy()
 	})
 
 	it("Outline palette offers '— none —' (single color), which exposes one uniform swatch", () => {
@@ -189,7 +190,7 @@ describe("ColorPanel — area outline organization", () => {
 			[...sel.options].some((o) => o.value === "__single__")
 		)!
 		fireEvent.change(select, { target: { value: "__single__" } })
-		// Back to Match fill: the override must be gone, so A's row shows its
+		// Back to Auto: the override must be gone, so A's row shows its
 		// fill default again rather than the stale white.
 		fireEvent.change(select, { target: { value: "" } })
 		const hexAgain = hexBox(container, "Line color for A")!

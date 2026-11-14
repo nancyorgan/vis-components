@@ -19,8 +19,6 @@ import {
 	type StackChannel,
 } from "../../../lib/stackMode"
 import { axisStemPatch, switchConnectionFill } from "../../../lib/connectionEdits"
-import { fieldLevels, thicknessByLevel } from "../../../lib/thicknessVaryBy"
-import { MIN_LINE_THICKNESS } from "../../../lib/connectionThickness"
 import {
 	formatPointIndices,
 	parsePointIndices,
@@ -31,6 +29,7 @@ import {
 } from "../../../lib/buildHierarchy"
 import {
 	isAreaModeId,
+	isComboModeId,
 	isFlowModeId,
 	isHierarchyModeId,
 	isStructureModeId,
@@ -47,13 +46,13 @@ import {
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
-	currentFieldLevelOrdersAtom,
 	currentFieldOverridesAtom,
 	currentLabelsAtom,
 	type AtomValueType,
 	type SetterOrUpdater,
 } from "../../../store/atoms"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
+import { useDrawnParts } from "../../../store/usePartsContext"
 import { effectiveType } from "../../../lib/fieldType"
 import type { FieldType } from "../../../lib/types"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
@@ -61,8 +60,8 @@ import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledFiel
 import { Input } from "../../../../../components/ui/Input"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
-import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
+import { Slider } from "../../../../../components/ui/Slider"
 import { Segmented } from "../../../../../components/ui/Segmented"
 import { autoLineEndTickLength } from "../../../lib/lineEndTicks"
 import { combine as c } from "../../../../../lib/cls"
@@ -75,30 +74,23 @@ import {
 } from "./AxisOptionsPanel"
 import { Select } from "../../../../../components/ui/Select"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
-
-/** Field types the line-thickness "Vary by" dropdown offers (besides the
- *  connection field itself, which is always listed): discrete variables get
- *  one thickness input per level, so continuous ones stand down. */
-const THICKNESS_VARY_BY_TYPES: ReadonlySet<FieldType> = new Set<FieldType>([
-	"categorical",
-	"ordinal",
-])
+import { sizeJumpId } from "./SizeThicknessSections"
 
 /** Sidebar panel for the Connection encoding (the line that joins points
  *  sharing a connection-encoding value).
  *
  *  By design, this panel is restricted to LINE-SHAPE concerns: fill mode,
- *  thickness, and which points along the line render markers. Per-value
- *  color overrides live in the Hue panel; dash-pattern overrides live in
- *  the Pattern panel. Keeping the encoding-specific overrides out of here
- *  means there's exactly one place to look when changing how lines are
- *  styled across the chart. */
+ *  smoothing and cap, and which points along the line render markers.
+ *  Per-value color overrides live in the Color panel, dash-pattern
+ *  overrides in the Pattern panel, and the line's THICKNESS in the Size
+ *  panel with every other thickness (`SizeThicknessSections`). Keeping
+ *  each property in one menu means there's exactly one place to look when
+ *  changing how lines are styled across the chart. */
 export const ConnectionOptionsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
 	const theme = useCurrentTheme()
 	const fieldOverrides = useAtomValue(currentFieldOverridesAtom)
-	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const dataset = useCurrentDatasetView()
 	// Associates the "ID column" label with its select (htmlFor/id).
 	const hierarchyIdSelectId = useId()
@@ -166,6 +158,10 @@ export const ConnectionOptionsPanel = () => {
 	// The line/layer subset — the modes whose line styling this panel
 	// renders directly (the polygon's lives in its own subsection below).
 	const isLineOrAreaMode = isLineMode || isAreaMode
+	// What the chart draws NOW. A line-role mode draws no line until
+	// Connection is mapped, so each line control below shows only when the
+	// part it styles is drawn.
+	const parts = useDrawnParts()
 	// What "Auto" currently resolves to, for the option label. Mirrors the
 	// renderer's resolution exactly (full dataset rows; parent + area
 	// columns excluded as candidates).
@@ -210,59 +206,12 @@ export const ConnectionOptionsPanel = () => {
 	// per-vertex markers AreaPlot adds, filled or not), and radar polygons.
 	const showPointSampling = !!connectionFieldName && drawsConnectionLines
 
-	// Line-thickness "Vary by" state. Only scatter connection lines and radar
-	// polygons group by the connection value (area layers group by hue), so
-	// per-level thickness is offered in those two modes only. The dropdown
-	// lists the connection field plus every categorical / ordinal variable:
-	// a line's thickness is looked up off its representative row (the same
-	// first-row convention the line color slot uses), so any variable that
-	// is constant within a line works — not only the one the lines are
-	// grouped by.
-	//
-	// The dropdown's position is DERIVED: `thicknessField` names the variable
-	// when one was picked here; visuals saved before it existed carry only a
-	// populated `thicknessByValue` map, which means "vary by the connection
-	// field". An empty / absent map with no field IS "— none —" (an empty map
-	// also renders byte-identically to a single thickness, so nothing is
-	// lost). A stored field that's gone from the data set renders as single
-	// level (the resolver finds no matching cells), so the dropdown reads
-	// that way.
-	const supportsThicknessVaryBy =
-		!!connectionFieldName && (isLineMode || isPolygonMode)
 	const typeOf = (name: string): FieldType =>
 		dataset ? effectiveType(dataset, name, fieldOverrides) : "categorical"
-	const thicknessByValue = configs.connection?.thicknessByValue
-	const storedThicknessField = configs.connection?.thicknessField ?? null
-	const thicknessField: string | null = storedThicknessField
-		? dataset?.fields.some((f) => f.name === storedThicknessField)
-			? storedThicknessField
-			: null
-		: thicknessByValue && Object.keys(thicknessByValue).length > 0
-			? connectionFieldName
-			: null
-	const thicknessVarying = thicknessField !== null
-	const thicknessVaryByFields = (dataset?.fields ?? [])
-		.map((f) => f.name)
-		.filter(
-			(name) =>
-				name === connectionFieldName ||
-				name === thicknessField ||
-				THICKNESS_VARY_BY_TYPES.has(typeOf(name))
-		)
-	// Distinct levels of a field, in the Fields panel's pinned order — the
-	// categories the per-value inputs enumerate. Parsed through the field's
-	// effective type so numeric/temporal keys match what the renderers key on.
-	const levelsOf = (name: string): string[] =>
-		dataset ? fieldLevels(dataset.rows, name, typeOf(name), levelOrders[name]) : []
-	const thicknessLevels = thicknessField ? levelsOf(thicknessField) : []
-
 	// Per-control "changed vs default" flags, driving the subsection dots + the
 	// bold-purple labels (compared the same way as the top-level dot).
 	const fieldMapped = !!connectionFieldName
 	const ch = {
-		thickness:
-			valueChanged(configs.connection?.thickness, theme.connectionThickness) ||
-			thicknessVarying,
 		fill: fieldMapped && (cfg.fill ?? "line") !== "line",
 		axisStem: axisStem !== "none",
 		pointSampling: (cfg.pointSampling ?? "all") !== "all",
@@ -305,127 +254,6 @@ export const ConnectionOptionsPanel = () => {
 		}))
 		updateCfg({ flowTargetField: connectionFieldName })
 	}
-
-	// Pick the "Vary by" variable (or "— none —"). Picking a variable SEEDS
-	// every level at the current single value (so the map is non-empty, yet
-	// renders identically until a value is edited) and records the field;
-	// "— none —" clears both.
-	const setThicknessVaryBy = (next: string) => {
-		if (next === "") {
-			updateCfg({ thicknessField: null, thicknessByValue: {} })
-			return
-		}
-		updateCfg({ thicknessField: next, thicknessByValue: thicknessByLevel(levelsOf(next), cfg.thickness) })
-	}
-	const setThicknessFor = (value: string, n: number) => {
-		if (n < 0) return
-		updateCfg({
-			thicknessByValue: {
-				...(configs.connection?.thicknessByValue ?? {}),
-				[value]: n,
-			},
-		})
-	}
-	// Per-row "reset" returns the level to the single fallback WITHOUT
-	// removing its key, so a legacy (field-less) map stays populated and the
-	// mode stays "vary by" (removing its last key would silently snap back to
-	// single level).
-	const resetThicknessFor = (value: string) =>
-		updateCfg({
-			thicknessByValue: {
-				...(configs.connection?.thicknessByValue ?? {}),
-				[value]: cfg.thickness,
-			},
-		})
-
-	// The single global thickness input + its reset — the whole control when
-	// not varying, and (in "vary by" mode) unused since each category owns a
-	// row instead.
-	const singleThicknessRow = (
-		<div className="flex items-center gap-2 text-sm">
-			<NumberInput
-				label="Line thickness"
-				labelClassName={LABEL_COL}
-				changed={ch.thickness}
-				value={cfg.thickness}
-				min={MIN_LINE_THICKNESS}
-				step={0.5}
-				onChange={(n) => {
-					// No `clamp`: negative typed input is ignored rather than
-					// snapped; spinner / arrow-key steps floor at
-					// MIN_LINE_THICKNESS (0, which hides the line —
-					// thickness-is-the-switch).
-					if (n >= 0) updateCfg({ thickness: n })
-				}}
-				inputClassName="w-16"
-				suffix="px"
-			/>
-			{cfg.thickness !== themeCfg.thickness && (
-				<ResetLink onClick={() => updateCfg({ thickness: themeCfg.thickness })} />
-			)}
-		</div>
-	)
-
-	// Shared line-thickness control — lives inside the "Line properties"
-	// subsection in every mode that draws connection lines. When the mode
-	// groups lines by the connection value (scatter / radar), a "Vary by"
-	// dropdown lets the thickness differ per level of a chosen variable.
-	const lineThicknessRow = supportsThicknessVaryBy ? (
-		<div className="flex flex-col gap-2">
-			<SelectInput
-				label="Vary by"
-				labelClassName={LABEL_COL}
-				changed={thicknessVarying}
-				value={thicknessField ?? ""}
-				options={[
-					{ value: "", label: "— none —" },
-					...thicknessVaryByFields.map((name) => ({ value: name, label: name })),
-				]}
-				onChange={setThicknessVaryBy}
-				selectClassName="flex-1"
-			/>
-			{thicknessVarying ? (
-				<div className="flex flex-col gap-1.5">
-					{thicknessLevels.map((v) => {
-						const rowValue =
-							configs.connection?.thicknessByValue?.[v] ?? cfg.thickness
-						return (
-							<div key={v} className="flex items-center gap-2 text-sm">
-								<span
-									className="w-24 shrink-0 truncate vc-text"
-									title={v}
-								>
-									{v}
-								</span>
-								<NumberInput
-									label={`Line thickness for ${v}`}
-									labelClassName="sr-only"
-									value={rowValue}
-									min={MIN_LINE_THICKNESS}
-									step={0.5}
-									onChange={(n) => setThicknessFor(v, n)}
-									inputClassName="w-16"
-									suffix="px"
-								/>
-								{rowValue !== cfg.thickness && (
-									<ResetLink onClick={() => resetThicknessFor(v)} />
-								)}
-							</div>
-						)
-					})}
-					{thicknessLevels.length === 0 && (
-						<p className="vc-help">
-							No {thicknessField} values in the data yet.
-						</p>
-					)}
-				</div>
-			) : (
-				singleThicknessRow
-			)}
-		</div>
-	) : (
-		singleThicknessRow
-	)
 
 	// Line/Area chart switch — surfaced as the "Fill area under line"
 	// checkbox in the Line fill subsection (radar keeps its own "Polygon" /
@@ -755,7 +583,7 @@ export const ConnectionOptionsPanel = () => {
 					)}
 				</>
 			)}
-			{isLineOrAreaMode && !!connectionFieldName && (
+			{isLineOrAreaMode && !!connectionFieldName && !isComboModeId(modeId) && (
 				<CollapsibleSubsection
 					title="Line fill"
 					changed={ch.fill}
@@ -778,12 +606,13 @@ export const ConnectionOptionsPanel = () => {
 					</div>
 				</CollapsibleSubsection>
 			)}
-			{isLineOrAreaMode && (
+			{isLineOrAreaMode && parts.line && (
 				<CollapsibleSubsection
 					title="Line properties"
-					changed={ch.thickness || ch.lineCap || ch.smoothing}
+					changed={ch.lineCap || ch.smoothing}
 				>
-					{lineThicknessRow}
+					{/* Smoothing and the cap shape the connecting line. Its
+					    thickness is under Size, with every other thickness. */}
 					<div className="flex flex-col gap-1.5">
 						<Checkbox
 							label="Smooth line"
@@ -797,25 +626,15 @@ export const ConnectionOptionsPanel = () => {
 							changed={ch.smoothing}
 						/>
 						{ch.smoothing && (
-							<label className="flex items-center gap-2 text-sm">
-								<span className={LABEL_COL}>
-									Amount
-								</span>
-								<input
-									type="range"
-									min={0.05}
-									max={1}
-									step={0.05}
-									value={cfg.smoothing ?? 0}
-									onChange={(e) =>
-										updateCfg({ smoothing: Number(e.target.value) })
-									}
-									className="min-w-0 flex-1"
-								/>
-								<span className="w-10 text-right text-sm vc-muted">
-									{Math.round((cfg.smoothing ?? 0) * 100)}%
-								</span>
-							</label>
+							<Slider
+								label="Amount"
+								value={cfg.smoothing ?? 0}
+								min={0.05}
+								max={1}
+								step={0.05}
+								percent
+								onChange={(smoothing) => updateCfg({ smoothing })}
+							/>
 						)}
 						<div className="flex items-center gap-2 text-sm">
 							<span
@@ -856,10 +675,14 @@ export const ConnectionOptionsPanel = () => {
 								suffix="px"
 							/>
 						)}
+						<p className="vc-help">
+							Set the line thickness under{" "}
+							<SidebarJumpText target={channelJump("area", sizeJumpId("line"))}>Size → Line</SidebarJumpText>.
+						</p>
 					</div>
 				</CollapsibleSubsection>
 			)}
-			{isLineMode && (
+			{isLineMode && parts.marks && (
 				<CollapsibleSubsection title="Connect points to axis" changed={ch.axisStem}>
 					<div className="flex flex-col gap-1.5">
 						{(
@@ -909,7 +732,14 @@ export const ConnectionOptionsPanel = () => {
 							<div className="vc-divider-group">
 								<p className="vc-help">
 									Set stem color under{" "}
-									<SidebarJumpText target={channelJump("hue", "color:stem")}>Color → Stem</SidebarJumpText>.
+									<SidebarJumpText target={channelJump("hue", "color:stem")}>Color → Stem</SidebarJumpText>{" "}
+									and stem thickness under{" "}
+									<SidebarJumpText
+										target={channelJump("area", sizeJumpId(parts.line ? "line" : "stem"))}
+									>
+										{parts.line ? "Size → Line" : "Size → Stem"}
+									</SidebarJumpText>
+									{parts.line ? " (the stems share the line's)." : "."}
 								</p>
 							</div>
 						)}
@@ -930,14 +760,11 @@ export const ConnectionOptionsPanel = () => {
 							changed={ch.fill}
 						/>
 						<p className="vc-help">
-							Adjust line and fill opacity in Opacity.
+							Adjust line and fill opacity in Opacity, and the line
+							thickness under{" "}
+							<SidebarJumpText target={channelJump("area", sizeJumpId("line"))}>Size → Line</SidebarJumpText>.
 						</p>
 					</div>
-				</CollapsibleSubsection>
-			)}
-			{isPolygonMode && !!connectionFieldName && (
-				<CollapsibleSubsection title="Line properties" changed={ch.thickness}>
-					{lineThicknessRow}
 				</CollapsibleSubsection>
 			)}
 			{showPointSampling && (
@@ -1002,6 +829,12 @@ export const ConnectionOptionsPanel = () => {
 					Connection joins points that share a value into a line. This chart
 					type doesn&apos;t draw connection lines, so there are no line options
 					here.
+				</p>
+			)}
+			{isLineMode && !parts.line && parts.marks && (
+				<p className="vc-help">
+					Map a variable to Connection to join the points that share a value
+					into a line. The line&apos;s options appear here once it is drawn.
 				</p>
 			)}
 		</div>

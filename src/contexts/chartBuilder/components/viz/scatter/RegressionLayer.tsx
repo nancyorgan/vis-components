@@ -13,6 +13,7 @@ import {
 import {
 	resolveSlotColor,
 	resolveSlotOpacity,
+	slotModulationResolver,
 } from "../../../lib/resolveLayerColor"
 import { OPACITY_SLOT_DEFS } from "../../../lib/opacitySlots"
 import {
@@ -119,6 +120,8 @@ export const RegressionLayer = ({
 		regDashArray !== null &&
 		(regMinPx !== null || regMaxPx !== null)
 
+	const shadeLine = slotModulationResolver("regressionStroke", channelConfigs, aestheticScales)
+	const shadeBand = slotModulationResolver("regressionCiFill", channelConfigs, aestheticScales)
 	const shapes: React.ReactNode[] = []
 	for (const [groupKey, groupRows] of groups) {
 		const pts: Array<[number, number]> = []
@@ -141,22 +144,30 @@ export const RegressionLayer = ({
 				: null
 		const legacyStroke = inherited ?? reg.color
 		const legacyFill = inherited ?? reg.ciFillColor
-		const stroke = channelConfigs.colorSlots?.regressionStroke
-			? resolveSlotColor(
-					aestheticScales.colorSlots.regressionStroke,
-					channelConfigs.colorSlots.regressionStroke,
-					slotRow,
-					legacyStroke
-				)
-			: legacyStroke
-		const bandFill = channelConfigs.colorSlots?.regressionCiFill
-			? resolveSlotColor(
-					aestheticScales.colorSlots.regressionCiFill,
-					channelConfigs.colorSlots.regressionCiFill,
-					slotRow,
-					legacyFill
-				)
-			: legacyFill
+		// Each part's color, then its own Saturation / Brightness (identity
+		// while untouched).
+		const stroke = shadeLine(
+			channelConfigs.colorSlots?.regressionStroke
+				? resolveSlotColor(
+						aestheticScales.colorSlots.regressionStroke,
+						channelConfigs.colorSlots.regressionStroke,
+						slotRow,
+						legacyStroke
+					)
+				: legacyStroke,
+			slotRow
+		)
+		const bandFill = shadeBand(
+			channelConfigs.colorSlots?.regressionCiFill
+				? resolveSlotColor(
+						aestheticScales.colorSlots.regressionCiFill,
+						channelConfigs.colorSlots.regressionCiFill,
+						slotRow,
+						legacyFill
+					)
+				: legacyFill,
+			slotRow
+		)
 		const strokeOpacity = resolveSlotOpacity(
 			aestheticScales.opacitySlots.regressionStroke,
 			channelConfigs.opacitySlots?.regressionStroke,

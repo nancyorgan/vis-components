@@ -48,6 +48,7 @@ export const GeoPointsMode: ChartModeDef = {
 		connectionRole: "none",
 		shapeRole: "outline",
 		areaRole: "mark",
+		mark: "point",
 		statOverlays: false,
 		geo: { marks: "symbols", position: "lonLat" },
 		measureAxis: null,

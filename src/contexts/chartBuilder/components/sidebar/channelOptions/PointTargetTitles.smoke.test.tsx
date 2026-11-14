@@ -24,10 +24,10 @@ import { ColorPanel } from "./ColorPanel"
 import { OpacityOptionsPanel } from "./OpacityOptionsPanel"
 import { BrightnessOptionsPanel, SaturationOptionsPanel } from "./RangePanel"
 
-/** While a violin / box overlay is on, the Color, Opacity, Saturation and
- *  Brightness menus title the marks' subheaders "Point fill" / "Point
- *  outline" beside the "Violin / box …" ones (as the Pattern menu names its
- *  point target). Without an overlay they stay "Fill" / "Outline". */
+/** The Color, Opacity, Saturation and Brightness menus always name the
+ *  mark: a scatter's subheaders read "Point fill" / "Point outline", with
+ *  or without the "Violin / box …" ones beside them (as the Pattern menu
+ *  names its point target). A bare "Fill" / "Outline" never appears. */
 
 const ID = "ds-point-target-titles"
 
@@ -99,11 +99,12 @@ describe.each(PANELS)("%s menu point-target titles", (_name, panel) => {
 		expect(headers).not.toContain("Outline")
 	})
 
-	it("stays Fill / Outline with no overlay", () => {
+	it("says Point fill / Point outline with no overlay too", () => {
 		const headers = subheaders(mount(panel, EMPTY_CHANNEL_CONFIGS).container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
-		expect(headers).not.toContain("Point fill")
+		expect(headers).toContain("Point fill")
+		expect(headers).toContain("Point outline")
+		expect(headers).not.toContain("Fill")
+		expect(headers).not.toContain("Outline")
 		expect(headers).not.toContain("Violin / box fill")
 	})
 })

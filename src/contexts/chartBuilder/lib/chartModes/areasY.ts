@@ -46,6 +46,7 @@ export const AreasYMode: ChartModeDef = {
 		connectionRole: "layer",
 		shapeRole: "none",
 		areaRole: "mark",
+		mark: "area",
 		statOverlays: false,
 		measureAxis: "x",
 		// Horizontal areas bind the measure via `length` only (no x fallback

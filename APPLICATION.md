@@ -1087,15 +1087,16 @@ example, a quantitative variable cannot be assigned to pattern.
 - **connection** — joins points sharing a value into a polyline or
   area
 - **opacity** — transparency
-- **area** — bubble size or other shape size
+- **area** — bubble size or other shape size (UI label: "Size"; the
+  stored channel id stays `area`)
 - **shape** — point glyph (circle, square, triangle, etc.)
 - **angle** — pie wedge size or an alternative to position in a radial
   chart (the spokes on a radar chart are an angle encoding)
 - **saturation, brightness** — color variants (combine with hue)
 - **pattern** — SVG fill pattern on shapes OR line-dash style on lines
 
-Some channels conflict: length, angle, and shape are mutually
-exclusive because a single mark can't be all three; `r` conflicts
+Some channels conflict: length shadows size and shape where it turns
+the marks into line segments (see §4.1 for where it does not); `r` conflicts
 with `x` / `y` (polar vs cartesian position) and with `length` (a
 radar places marks by r and draws no segment length, so Length is
 de-emphasized while R is mapped and mapping it pops the override
@@ -1115,7 +1116,7 @@ The chart mode is computed from which channels are mapped:
 | `x + y + length` | Line-segment scatterplot (default) — or, with Length → **Draw as: Bars**, a bar + marks **combo** (see below) |
 | `x + y + length + angle` | Vector field |
 | `x + y + area` | Bubble chart |
-| categorical/ordinal `x + y + hue` (no glyph channels) | Tile heatmap |
+| categorical/ordinal `x + y + hue` (no glyph channels; Opacity, Saturation, Brightness and Pattern are not glyph channels — the cells take them) | Tile heatmap |
 | `x + length` (hue optional) | Bars-x (stacked when hue added) |
 | `y + length` (hue optional) | Bars-y (stacked when hue added) |
 | quantitative `x`, histogram toggle (no length) | Histogram (bars-x, count per bin) |
@@ -1155,13 +1156,15 @@ combo modes are members of the bar family (bar gap, stack / group
 modes, bar data-label placements, the Length legend hidden) and declare
 scatter's line / glyph / mark roles for the marks layer, so the
 Connection panel's line styling, the Line color / opacity slots, the
-Default shape and the Area panel's default point size all apply to it.
+Default shape and the Size panel's default point size all apply to it.
 The marks' points take their LINE's color, not the bars' Color
 mapping: the Color panel's **Point fill** slot (`comboPointFill`,
 §4.1) leads with *Auto* = the Line color (its mapping, else its single
 color), and can vary by a variable or take a single color of its own.
-Shape and Area cannot be MAPPED alongside Length (the shelf conflict
-stands). Data labels annotate EITHER layer per label: under Position
+Size and Shape can be MAPPED alongside Length here: Length is the bars'
+measure and the marks are ordinary points, so the conflict that holds on
+a scatter (where Length turns the marks into segments) does not
+(`channelsConflictIn` / `isComboShape`). Data labels annotate EITHER layer per label: under Position
 and alignment every label gets a **Show on** choice — *Bars* or
 *Line* (*Points* without a Connection) — defaulting by the variables
 the label shows (the position variable drawn as marks, the Connection
@@ -1327,11 +1330,11 @@ histogram toggle gates bars. Everything below
 applies to all three layouts; treemap rect areas and sunburst arc
 spans are proportional to values by construction, so the Scale-by
 option is packed-circles-only. Circle sizing follows the
-Area channel's **Scale by** option (`AreaConfig.sizeBy`, see §4.3):
+Size row's **Scale by** option (`AreaConfig.sizeBy`, see §4.3):
 "Area" (the default) keeps circle AREAS proportional to values —
 radius ∝ √value, the only mode where a group circle reads as the sum
 of its children; "Diameter" makes the radius grow linearly with the
-value, exaggerating differences on narrow-range data. The Area
+value, exaggerating differences on narrow-range data. The Size
 panel's min/max pixel range doesn't apply in packed mode (the layout
 computes radii), so the panel shows only the Scale-by choice there.
 The size legend follows suit: in packed mode its swatch radii render
@@ -1364,7 +1367,7 @@ graph instead of a tree: each row is one edge, `connection` = the flow
 SOURCE, the **"Flow to"** column in the Structure section = the TARGET
 (`connection.flowTargetField`), and `area` = the flow's weight (ribbon
 / link thickness — proportional by construction, so like treemap /
-sunburst the Area panel shows an explanatory note instead of the px
+sunburst the Size panel shows an explanatory note instead of the px
 range, and the size legend reads linearly, width ∝ value). The target
 column **auto-detects** like the hierarchy ID column: the column whose
 values overlap the connection field's (`Stop` when connection maps
@@ -1396,8 +1399,8 @@ same union: node arcs / rects fill with the node's pattern tile
 (background = the node's drawn color — its hue color when hue is also
 on the nodes, else the default fill), and ribbons / links take
 their SOURCE node's tile. Node and ribbon opacity are two flow-only
-slots in the **Opacity menu** — **Nodes** (default 1) and **Ribbons**
-(default 0.45), level-only (flow marks aggregate rows, so a per-row
+slots in the **Opacity menu** — **Node fill** (default 1) and **Ribbon
+fill** (default 0.45), level-only (flow marks aggregate rows, so a per-row
 field mapping is ill-defined) — and the Fill subsection hides in flow
 modes because no flow mark reads the overall opacity. Hue on a NON-endpoint column (and
 mapped saturation / brightness / opacity) is inert in flow modes —
@@ -1649,30 +1652,217 @@ wouldn't land on anything these renderers draw.
 
 ## 4. Per-channel customization (sidebar panels)
 
-**Panel visibility rule**: an encoding panel is visible when (a) the
-channel is mapped, OR (b) the channel could meaningfully affect the
-current chart type AND has a configurable default. Examples:
+**Options belong to the part, not the chart.** A chart is made of
+parts — the points' fill and outline, a line, the area or polygon under
+it, bars, slices, cells, regions, and the overlays drawn over them. Every
+options menu lists the parts it styles as subsections, and the same three
+rules hold in all of them (`lib/markParts.ts`):
 
-- Bar chart `x + length + hue`: area, angle, connection panels hidden
-  (bars don't render glyphs / no per-row position). The Shape row and
-  panel stay LIVE despite the length↔shape conflict: bar borders read
-  the Shape panel's outline width (and the Color menu's Outline color),
-  so bar modes are exempt from the conflict de-emphasis. The panel
-  hides the Default-shape glyph picker there (no glyphs to apply it
-  to); mapping a field to Shape still pops the conflict dialog.
-- Scatter / violin / box: connection panel hidden when no connection
-  encoding is mapped.
-- Area chart: angle, shape panels hidden when those channels aren't
-  mapped.
-- Tile chart: angle, connection, area, length panels hidden when those
-  channels aren't mapped. The Shape panel stays live for the outline
-  width (cell borders read it, same chain as bars) but — like bar and
-  hexbin modes — hides the Default-shape glyph picker, since these
-  modes draw no point glyphs. Which modes those are is a declared mode
-  trait (`canvas.shapeRole === "cell"`), like `canvas.lengthRole`
-  below; the sidebar never gates on mode ids.
-- Pie chart: length, connection, area panels hidden when those
-  channels aren't mapped.
+1. **A control shows only when the part it styles is drawn.** What a chart
+   draws now is one question with one answer (`drawnParts`): point
+   markers, glyphs that take a shape and turn, line segments, an outline,
+   a connecting line, stems, a rug. It is read from the mode's declared
+   traits (`canvas.*Role`, never a list of chart types) and the settings
+   that switch a part on. So:
+   - **Connection** shows the line's smoothing and cap only once a line
+     is drawn (a scatter draws none until Connection is mapped). "Connect
+     points to axis" needs marks to connect, and "Fill area under line"
+     is not offered on a bar + line combo, which cannot fill under its
+     line.
+   - **Size** shows the point's size only where point markers are drawn:
+     not on bars, slices, cells, regions, a density curve, line segments,
+     or a line whose points are switched off (Connection → Show points);
+     and one thickness section per stroke the chart draws, no more (see
+     "Every thickness is under Size" below).
+   - **Shape** shows the glyph pickers only where glyphs are drawn.
+   - **Angle** shows the unmapped angle only where marks turn (glyphs and
+     line segments).
+   - **Color / Opacity** show the Rug only while a rug is drawn ("Show
+     rug" beside a histogram or density curve), and no outline part for
+     line segments, which have none.
+   - **Pattern** shows a dash's follow-on options — "Apply pattern to
+     range", "Fill dash gaps" and the gap colors — only once a dash can
+     draw (a default dash or custom pattern picked, or a Pattern variable
+     mapped: `lib/lineDashState.ts`), and a category's Ink color, Scale
+     and Rotate only once that category has a pattern. With a solid line
+     there are no gaps to fill and nothing for a range to window. The
+     regression line's own range row follows the same rule.
+   Where a row has nothing to offer, its panel says so in one line ("This
+   chart draws no points, so there is no point size to set.") rather than
+   showing a control that does nothing. The rows themselves always stay:
+   mapping a variable to one is how the chart type changes.
+2. **A part is always named for its mark**, never a bare "Fill" or
+   "Outline": **Point fill / Point outline** (scatter, line chart, radar,
+   dot map), **Bar fill / Bar outline** (bars, histogram bins, a combo's
+   bars), **Slice fill / Slice outline** (pies, sunburst), **Cell fill /
+   Cell outline** (heatmap, hexbin, treemap), **Region fill / Region
+   outline** (choropleth, a bubble map's regions), **Circle …** (packed
+   circles), **Node fill / Node outline** and **Ribbon fill** (chord,
+   sankey). The connecting line is the **Line** on every chart that draws
+   one — a line chart's, an area's edge, a radar polygon's outline — and
+   what it encloses is the **Area fill** or **Polygon fill**. Line
+   segments are one stroke, the **Segment**. Each mode declares its mark
+   (`canvas.mark`), and `markPartTitles` builds the titles from it.
+3. **The parts come in one order in every menu** (`PART_ORDER`): the
+   marks that are bodies (fill, then outline); then the line, what it
+   encloses and the points on it (Line, Area fill / Polygon fill, Point
+   fill, Point outline); then the overlays (Stem, Regression line,
+   Confidence interval, Violin / box fill and outline, Density curve fill
+   and outline, Rug). A line chart reads Line · Point fill · Point
+   outline in Color, Opacity, Saturation, Brightness and Pattern alike; a
+   combo reads Bar fill · Bar outline · Line · Point fill.
+
+**Each part is drawn by one piece of code, so an option reaches every chart
+that has the part.** A dead control was nearly always a renderer that
+assembled a part by hand and read a different subset of its options. Two
+resolvers now own the two parts every body shares:
+
+- **The marks' own outline** — `lib/markOutline.ts`. Its color (a matching
+  outline color rule, else the Outline "Vary by" variable, else the one
+  outline color), shaded by the outline's Saturation and Brightness, at
+  the outline's Opacity (a level or "Vary by"). Points, bars, slices,
+  heatmap and hex cells, treemap / sunburst / packed-circle nodes, flow
+  nodes and ribbons, map regions and map points all draw their outline
+  through it. Before, pies ignored the Outline variable, cells and nodes
+  ignored the outline's opacity, and only scatter and radar read its
+  saturation and brightness.
+- **A body's fill** — `resolveLayerColor` (`lib/resolveLayerColor.ts`):
+  Color and its rules, then Saturation / Brightness, Pattern and Opacity.
+  Bars, slices and area layers always used it; **heatmap and hex cells now
+  do too**, so Opacity, Saturation, Brightness and Pattern work on them,
+  with "Vary by". A bar is split into segments by those channels; a cell
+  is not, so each channel takes the cell's COMBINED value — the mean of a
+  numeric variable over the cell's rows, the most common level of a
+  discrete one (`lib/combinedGroupValues.ts`), the rule a heatmap's Color
+  always followed. Flow nodes take Saturation / Brightness the same way,
+  and map regions and points take the Opacity level, an Opacity variable
+  beside a Color one, and the default pattern. The **default pattern**
+  (Pattern with no variable mapped) tiles every body: bars, slices, cells,
+  treemap / sunburst / packed-circle marks, flow nodes (and so their
+  ribbons), map regions and points.
+
+A chart with a SECOND set of marks gives them the same targets in every
+menu, not in Color alone. A bubble map's bubbles sit over its regions: the
+regions are the Region fill / Region outline, and the bubbles have their
+own **Point fill** and **Point outline** in Color, Opacity, Saturation and
+Brightness (`geoPointFill` / `geoPointStroke` in each menu's targets).
+Untouched, the bubbles draw fully opaque and unshaded, as before. A bar +
+line combo's points sit over its bars the same way: their **Point fill**
+(`comboPointFill`) is in Color, Opacity, Saturation and Brightness.
+Untouched, the points keep the bars' opacity (what they drew at before
+the target existed); once the Point fill's opacity is set — a level or
+"Vary by" — the points take it and the bars keep their own.
+
+A **dot map** is the mirror image: its points are the marks (Point fill /
+Point outline are the Color mapping and the marks' outline) and the
+geography behind them is the second set — the **Region fill** and
+**Region outline**, listed first in Color, Opacity, Saturation and
+Brightness (`geoRegionFill` / `geoRegionStroke`), with the outline's
+thickness under Size → Region outline (`shape.regionOutlineWidth`). The
+regions carry no data on a dot map, so each takes one value; in Color the
+selector offers just *Auto* and a single color. Untouched they draw as
+they always did — the map's region color (Map → Region fill), outlined in
+the points' outline color at the points' thickness — and *Auto* says so.
+One outline color and one thickness used to drive both the dots and the
+map polygons, so neither could be set without the other.
+
+**The overlays are parts too.** The Stem, the Regression line and its
+Confidence interval, the Density curve's fill and outline, and the Rug
+are listed in Color, Opacity, Saturation and Brightness alike, each only
+while it is drawn. Saturation and Brightness shade whatever color the
+overlay resolved to (its own, or the one *Auto* follows), through the
+same resolver the marks use (`slotModulationResolver`).
+
+**Every menu lists every part, or says why not.** The four menus that
+list parts — Color, Opacity, Saturation, Brightness — are checked against
+each other on every chart type (`lib/markParts.test.ts`): a part one of
+them offers and another does not is a failure, unless the gap is written
+down with its reason in `PART_EXCEPTIONS` (`lib/markParts.ts`). There is
+one: a flow diagram's **Ribbon fill** is in Opacity only. A ribbon takes
+its source node's fill — color, saturation and brightness alike — so it
+reads as belonging to the node it leaves; only its opacity is its own.
+
+A mark built from many rows (a bar segment, a slice, a cell, a density
+curve, a regression line) resolves a per-part "Vary by" off its FIRST
+row. A flow node is not a row at all: it
+is read as one whose endpoint columns both hold its name, so "Vary by" an
+endpoint column works by node (as Color does) and any other column falls
+back to the part's single level. So on a flow diagram each part's "Vary
+by" lists only the two endpoint columns (`useVaryByFieldFilter`), plus
+whatever is already picked so it can be cleared; everywhere else it lists
+every variable the channel accepts.
+
+**Every thickness is under Size.** The Size row answers "how big?" for
+the whole mark and "how thick?" for each of its strokes. It leads with
+the **Point** section (**Circle** on packed circles) — one **Size**, or
+the mapped variable's Scale by / Min / Max — and then lists one section
+per stroke the chart draws, in the menus' one order, each holding that
+stroke's **Thickness** (`sizeSections`, lib/markParts;
+`SizeThicknessSections.tsx`):
+
+| Section | Stroke | Stored as |
+|---|---|---|
+| *Mark* outline — Point outline, Bar outline, Slice outline, Cell outline, Region outline, Node outline, Circle outline | the marks' own outline | `shape.outlineWidth` (+ `outlineWidthField` / `outlineWidthByValue`) |
+| Line | the connecting line: a line chart's, an area's edge, a radar polygon's outline | `connection.thickness` |
+| Stem | the stems from each mark to an axis; untouched, the line's thickness | `connection.stemThickness` |
+| Density curve outline | the density curve's line (2 px until set) | `shape.densityCurveOutlineWidth` |
+| Segment | line segments (Length on a scatter) | `length.segmentThickness` |
+| Violin / box outline | the violin outline and every box stroke | `shape.distributionOutlineWidth` |
+| Regression line | the fitted line | `x.regression.strokeWidth` |
+| Region outline (dot map) | the geography behind the points; untouched, the points' thickness | `shape.regionOutlineWidth` |
+
+A stroke that used to borrow another's thickness (the stems the line's, a
+dot map's regions the points') still does until it is given its own: its
+section shows the borrowed value, says what it is following, and its
+reset goes back to following.
+
+Every section is the same control. Where strokes can differ from mark to
+mark — the marks' own outline, lines grouped by the Connection variable
+(a line chart's, a radar's) and line segments — it leads with **Vary
+by**: "— none —" is one thickness; a categorical or ordinal variable
+swaps it for one thickness per level, seeded at the single value. (An
+area chart's layers are grouped by Color and take one thickness, and so
+do the overlays' strokes.) A mark's outline takes its level's thickness
+through the one outline resolver (`markOutlineResolver` /
+`outlineWidthResolver`, lib/markOutline) — points, bar segments, slices,
+cells, treemap / sunburst / packed-circle nodes, flow nodes and ribbons,
+map regions and map points alike; a mark built from many rows reads its
+first row, and a level with no thickness of its own (or a mark with no
+value) takes the single one. 0 is a thickness: that level draws no
+outline. On a flow diagram only the endpoint columns are offered, as for
+every other "Vary by" there.
+
+Nothing moved in storage: each thickness is still saved with the part it
+belongs to, so saved charts, themes and the MCP setting paths are
+unchanged; the outline's "Vary by" adds two optional keys, absent on
+every chart saved before it. The panels the
+thicknesses used to sit in — Connection → Line properties, Shape, Length
+→ Segment properties, Color → Regression line — each carry a link to the
+Size section instead, and the "edited" dot for a thickness lights the
+Size row. A row shadowed by a conflicting channel stays live while its
+options still style something: Size wherever a point or any stroke is
+drawn, Shape wherever glyphs are.
+
+Two words are fixed across the menus. A stroke's size is its
+**thickness** ("Thickness" under each Size section; "Outline thickness"
+and "Tassel thickness" where a legend or tooltip names its own); "Border" is kept for boxes (the legend, caption,
+annotations, the panel border). And the option that makes a part follow
+another instead of taking a color of its own is **Auto**, with a line
+under it saying what it follows (a point its line, a radar's line its
+polygon's fill, a regression line its group).
+
+**A bounded value is a slider; a pixel value is a number box.** Every
+mark option with a fixed range — an opacity, a saturation or brightness
+level (single, per category, or the Min / Max of a mapped variable), a
+smoothing amount, jitter, a width multiplier — is the one `Slider`
+component (`src/components/ui/Slider.tsx`): the slider to drag to a look,
+and beside it the number in a box that can be typed into and stepped
+with its arrows. Fractions that read naturally as percentages (smoothing
+amount, jitter) show as 0–100 %; multipliers carry a "×". Sizes and
+thicknesses have no upper bound worth drawing a track for, so they stay
+number boxes, all the same width, with "px" after them. (Opacity used to
+be a number box while saturation was a slider with a read-only number,
+and there were five hand-built sliders.)
 
 X-position, Y-position, and Facet panels are always available; users
 can configure axis settings even before a field is mapped.
@@ -1954,6 +2144,15 @@ they read **Point fill** and **Point outline** beside **Line**. The
 bar + line combo keeps the plain names — there the Fill is the bars'
 (`lib/markPartTitles.ts`).
 
+Which subsections each of those four menus shows for a chart, their
+titles and their order are decided in one place, `lib/markParts.ts`
+(`colorSections` / `opacitySections` / `modulationSections`); the
+panels render what it returns. Two tests keep the answer honest:
+`markParts.matrix.smoke.test.tsx` snapshots what every mark-styling
+panel offers for one chart of every type, and `lib/markParts.test.ts`
+records, per chart, the parts one menu lists and another does not — a
+list that is meant to shrink to nothing.
+
 An area chart names four parts in the Color, Opacity, Saturation and
 Brightness menus, in this order: **Line** (the layer edge: the linked
 outline editor in Color, the Border slot in Opacity, the Line slot in
@@ -1962,26 +2161,33 @@ while the area is unfilled), **Point fill** and **Point outline**. The point par
 (`areaPointsOn`: a Connection field mapped and Show points not `none`).
 Point fill is a slot (`areaPointFill`, in `colorSlots` / `opacitySlots`
 / `saturationSlots` / `brightnessSlots`); untouched, a point takes its
-line's color as drawn (**Match line**) at full opacity. Point outline
+line's color as drawn (**Auto**) at full opacity. Point outline
 is the marks' outline, the same as on a scatter or line chart: the
 Color menu shows the shared outline control (`shape.outlineColor`,
 theme-seeded; "Vary by" = the `outlineHue` encoding; color rules), the
-ring's width is Shape → outline width (0 = no ring), and only its
+ring's width is Size → Point outline (0 = no ring), and only its
 opacity / saturation / brightness are slots (`areaPointOutline`), since
 the Border slot is the area's Line. A variable mapped to a point slot
 resolves off the layer's representative row (one layer = one series).
 The points no longer follow the Line's opacity. Their size is the
-marks' default size (Area menu → **Point size**, `defaultRadius`,
+marks' default size (Size menu → Point → **Size**, `defaultRadius`,
 theme-seeded), as for a scatter or line-chart point. A variable mapped
-to Area sizes them through the Area panel's scale (Scale by, Min /
+to Size sizes them through the Size panel's scale (Scale by, Min /
 Max), with the usual size legend: each point reads the rows aggregated
 into it (one layer at one category) — their total for a numeric
 variable, as the measure is totalled, else the first row's level — and
-a point with no rows keeps the default size. Area and Length therefore
+a point with no rows keeps the default size. Size and Length therefore
 do NOT conflict on an area chart (`channelsConflictIn`, used by the
-shelf and the chart spec alike): the Area row and its panel stay live
-beside Length, and mapping either leaves the other mapped. Everywhere
-else the pair still conflicts.
+shelf and the chart spec alike): the Size row and its panel stay live
+beside Length, and mapping either leaves the other mapped. The rule is
+about what Length MEANS: it shadows Size and Shape only where it turns
+the marks into segments (a scatter). Where it is a measure and points
+are still drawn the conflict lifts — Size on an area chart, Size and
+Shape on a bar + marks combo — and a shadowed row whose OPTIONS still
+style something stays live even where mapping a variable would
+conflict: the Shape row keeps its outline thickness wherever marks have
+an outline (a bar's border, the ring of an area chart's points), and
+the Size row its point size wherever points are drawn.
 
 **Area palette defaults.** When the theme designates a fill palette
 (Settings → Themes → Palettes; distinct from its default categorical
@@ -2229,11 +2435,12 @@ Toggling the checkbox back to the auto value clears the stored choice
 so the changed dot goes back out. Applies to scatter connection
 polylines and area line-mode edges alike.
 
-### 4.3 Shape, Saturation, Brightness, Opacity, Length, Angle, Area
+### 4.3 Shape, Saturation, Brightness, Opacity, Length, Angle, Size
 Each channel exposes scaling controls (min/max), per-value overrides
-where it makes sense, and any channel-specific knobs (e.g., shape
-outline width). Theme defaults seed the ranges so new charts come up
-with sensible visuals.
+where it makes sense, and any channel-specific knobs. Theme defaults
+seed the ranges so new charts come up with sensible visuals. Every
+thickness — outline, line, stem, segment, overlay strokes — is under
+Size (§4).
 
 **Unresolvable mapped values fall back to the channel default.** When
 a color-pipeline channel (hue, saturation, brightness, opacity) is
@@ -2328,15 +2535,16 @@ In the combo the panel then continues as a bar mode (Bar gap).
 Whenever scatter draws line segments (a Length variable is mapped, or a
 default length is set), the Length panel adds a collapsible **Segment
 properties** subsection, modeled on Connection → Line properties:
-- **Vary by** — "— none —" shows one **Thickness** input (px,
-  default 3; 0 hides the segments). Picking a categorical / ordinal
-  variable swaps it for one thickness row per level (in the Fields
-  panel's level order), each seeded at the single thickness with a
-  per-row reset. The stored `segmentThicknessField` IS the mode — no
-  separate flag; "— none —" clears the field and the per-level map.
-  Levels key on the stringified cell, like connection thickness.
 - **Line cap** — a Round (default) / Square segmented toggle. Square
   maps to SVG's `butt` cap so segments end flush at their endpoints.
+- A link to **Size → Segment**, where the thickness is: "— none —"
+  shows one **Thickness** input (px, default 3; 0 hides the segments).
+  Picking a categorical / ordinal variable under **Vary by** swaps it
+  for one thickness row per level (in the Fields panel's level order),
+  each seeded at the single thickness with a per-row reset. The stored
+  `segmentThicknessField` IS the mode — no separate flag; "— none —"
+  clears the field and the per-level map. Levels key on the stringified
+  cell, like connection thickness.
 
 The Length legend's segment swatches follow the single thickness and
 the line cap (the swatch box grows with the stroke).
@@ -2377,7 +2585,7 @@ Pies lead with the Pie / Donut chart-type toggle above the sections.
 Angle mapped to mark rotation (e.g. on a scatter) has only the
 Min / Max range, so that layout stays flat with no headers.
 
-The **Area** panel additionally carries a **Scale by** choice
+The **Size** panel additionally carries a **Scale by** choice
 (`AreaConfig.sizeBy`) that applies everywhere the channel sizes marks
 — scatter bubbles, geo bubble maps, packed circles:
 - **Area** (default, stored as an absent key): value → circle AREA
@@ -2392,25 +2600,28 @@ evenly from the min to the max radius in their level order — the
 Fields panel's pinned order when the user has set one (first level →
 smallest, last → largest), else first-seen order (never smart-sorted).
 Reordering the levels under Fields therefore re-ranks the marks, the
-size legend, and the Area panel's per-category default sizes together
+size legend, and the Size panel's per-category default sizes together
 (`makeAreaScale`'s trailing `pinnedOrder`).
 
 ### 4.4 Connection panel
-Connection is the line/area glue. Controls:
+Connection is the line/area glue. The line's own controls (thickness,
+smoothing, cap) appear once a line is drawn, and a note says how to draw
+one until then; see the first rule in §4. Controls:
 
 - **Line fill** ▸ "Fill area under line" (the Line / Area chart
   switch; radar's equivalent stays **Polygon** ▸ "Fill polygon") —
-  visible whenever connection is mapped. Switching to Area swaps `y → length` so the existing
+  visible whenever connection is mapped, except on a bar + line combo
+  (it cannot fill under its line). Switching to Area swaps `y → length` so the existing
   area-detection fires, and sets `connection.fill = "area"`. Switching
   to Line reverses the swap. Auto-sets hue stackMode to "stack" when
   switching to Area.
-- **Line thickness** — px, with a "Vary by" dropdown for a single
-  value or one thickness per connection value. The floor is **0**, not
-  a hairline: thickness is the switch, so 0 hides the line and leaves
-  the points (and, in area mode, the fill) standing — there is no
-  separate "show line" toggle. Per-value overrides clamp to the same
-  floor (`MIN_LINE_THICKNESS` in `lib/connectionThickness.ts` mirrors
-  the input's `min`).
+- **Line thickness** — under **Size → Line** (a link here jumps to it):
+  px, with a "Vary by" dropdown for a single value or one thickness per
+  level of a variable. The floor is **0**, not a hairline: thickness is
+  the switch, so 0 hides the line and leaves the points (and, in area
+  mode, the fill) standing — there is no separate "show line" toggle.
+  Per-value overrides clamp to the same floor (`MIN_LINE_THICKNESS` in
+  `lib/connectionThickness.ts` mirrors the input's `min`).
 - **Smooth line** — a checkbox plus an **Amount** slider (5–100%,
   shown only while the checkbox is on). One stored number,
   `connection.smoothing` in [0, 1]: checking the box seeds 0.6,
@@ -2653,6 +2864,24 @@ theme-driven control with no dot follows the new theme; one with a dot
 is the user's pick and keeps its value. Mapping a field to a channel is
 NOT a change (no dot) — only customizing a setting is. Chart-type
 toggles (line ↔ area) DO count.
+
+A row's dot counts only what the current chart shows. A setting that
+styles a part the chart does not draw — a line thickness or cap with no
+line, a point size with no points, an angle where nothing turns — is
+not counted (the panel shows no control that could clear it), and
+neither are leftover per-part targets. A setting dots the row it is
+EDITED under, wherever it is stored: every thickness lights **Size** (the
+outline's is stored on the shape config, the line's on the connection
+config, the segments' on the length config, the regression line's on the
+x-axis config), and the line's cap and smoothing light **Connection**. The per-part
+targets of the Color, Opacity, Saturation and Brightness menus (a Line
+color, a Point outline opacity, …) are stored per part, and a part's
+stored target outlives a change of chart type: a recolored Line stays
+in the saved chart when it becomes a bar chart. Nothing draws it there
+and no control can clear it, so it does not light the dot
+(`offeredTargets` in `lib/markParts.ts`, the same list the panels
+render from). It lights again if the chart goes back to a type that
+shows that part.
 
 ---
 
@@ -2983,21 +3212,20 @@ The X-axis and Y-axis panels (under Encodings) configure:
   Tukey outliers as small open circles only while the underlying data
   points are hidden; when "Show points" is on the real points already
   mark those values, so the box suppresses its own outlier circles
-  rather than double-drawing them. The Shape panel's **Violin / box
-  outline** (shown only while an overlay is on) drives the violin
-  outline and all box strokes (body, whiskers, caps, outlier circles) —
-  a separate knob from that panel's point **Outline width**; width 0
-  hides the borders. The median line stays 1.5× that width for
+  rather than double-drawing them. **Size → Violin / box outline**
+  (listed only while an overlay is on) drives the violin outline and
+  all box strokes (body, whiskers, caps, outlier circles) — a separate
+  thickness from the points' own outline; 0 hides the borders. The median line stays 1.5× that width for
   emphasis. The body's fill pattern is the Pattern menu's **Violin /
   box fill** pick (see the Pattern menu), separate from the points'.
   **Mark mean** (box only; offered only while "Show points"
   is off, since among visible points the mean would be lost) draws one
   point per box at the category's arithmetic mean. That point IS a
   scatter mark, built through the same pipeline as the hidden data
-  points: glyph and border width from the Shape panel, fill and
-  outline colors from the Color panel (per category when hue is
+  points: glyph from the Shape panel, outline thickness from the Size
+  panel, fill and outline colors from the Color panel (per category when hue is
   mapped to the category field), opacity from the Opacity panel and
-  size from the Area panel's point size. It sits on the box's center
+  size from the Size panel's point size. It sits on the box's center
   line (never jittered), draws over the box and fades with its
   category on legend hover.
   **Every part hovers on its own.** On a violin / box chart the box,
@@ -3137,8 +3365,8 @@ padding so the inner rects stay aligned.
   feature, not a scatter-wide one.
 - **AreaPlot** — stacked or overlaid filled regions. Line vs area
   fill toggle controls outline-only vs filled rendering, and exposes
-  independent line and area colors. The Color menu's Outline subheader
-  (areas and filled radars) offers "Match fill" (each layer's outline
+  independent line and area colors. The Color menu's Line subheader
+  (areas and filled radars) offers "Auto" (each layer's outline
   inherits its fill), "Single color" (one uniform stroke via
   `connection.strokeColor`), or a theme palette; per-value overrides
   win on top in every mode.
@@ -3146,8 +3374,12 @@ padding so the inner rects stay aligned.
 - **TilePlot** — heatmap grid with hue per (x, y) cell. Cells tile
   FLUSH (zero band padding); like the treemap mosaic, separation comes
   solely from the outline stroke, which follows the universal mark
-  outline (the Shape panel's width, the Color menu's Outline color) —
-  width 0 gives an entirely gapless grid.
+  outline (Size → Cell outline for its thickness; color, opacity and
+  shading through `lib/markOutline`) — 0 gives an entirely gapless grid. A cell
+  is a body: its fill runs through `resolveLayerColor` like a bar's, so
+  it takes Opacity, Saturation, Brightness and Pattern (§4). Mapping a
+  variable to Opacity keeps the chart a heatmap and varies the cells; it
+  used to turn the grid into points.
 - **HexbinPlot** — quantitative x × y binned onto a hex lattice in
   data space (`lib/hexbins.ts`, shared with the legend), one hexagon
   path per occupied cell, filled through the quantitative hue
@@ -3155,7 +3387,10 @@ padding so the inner rects stay aligned.
   ScatterPlot's quantitative branch (same domain math the binning
   replicates), so cells align with gridlines; hexagons are the
   affine image of the normalized lattice (they stretch to the plot's
-  aspect ratio but still tile). See §3.3 for the mode trigger.
+  aspect ratio but still tile). See §3.3 for the mode trigger. Each cell
+  keeps the rows that fell in it (`HexbinCell.rows`), so beside its
+  count-driven Color it takes Opacity, Saturation, Brightness, Pattern
+  and the shared outline like a heatmap cell (§4).
 - **RadarPlot** — polar chart: `r` (radial distance) + `angle`
   (spokes), points joined into closed polygons per connection series.
   Filled polygons take the Pattern menu's separate "Polygon fill" pick
@@ -3163,7 +3398,15 @@ padding so the inner rects stay aligned.
   pattern (§4.2). Each series paints as ONE unit — polygon body +
   outline, then its own dots — in draw order, so a series underneath
   never has its points poke through the series above it; points with
-  no connection value paint last.
+  no connection value paint last. The polygon's outline is the chart's
+  **Line**, and it dashes like a line chart's (Pattern → Line): a default
+  or custom dash, a dash per category of a Pattern variable (read off the
+  series' first row, as its color is), "Fill dash gaps" (a gap-colored
+  underlay beneath the dashes) and "Apply pattern to range". The range
+  runs AROUND the angle axis: From / To name spokes, the edges between
+  two spokes inside the window dash and the rest of the loop stays solid
+  (`lib/dashLoopRange.ts`); "Blank" leaves a gap there instead. A solid
+  outline is still the one `<polygon>` per series.
 - **GeoChoroplethPlot / GeoSymbolPlot / GeoPointPlot** — the three
   geographic modes (region fill, centroid bubbles, lon/lat dots).
   All draw over a shared **GeoBasemap** (d3-geo projection + region
@@ -3207,8 +3450,8 @@ padding so the inner rects stay aligned.
   convention, and noted in the Size panel).
   EVERY mark's border — leaf, row-backed container, implicit
   container — resolves through the one outline chain (`outlineHue`
-  when the node has a row, else the Shape outline color, always at
-  the Shape outline width; width 0 hides borders). No hidden
+  when the node has a row, else the one outline color, always at the
+  outline thickness set under Size; 0 hides borders). No hidden
   container rim. Without derived colors, packed-circle / sunburst
   containers keep the light wash fill (not yet themeable). The
   TREEMAP is a FLUSH leaf mosaic: zero padding, no container marks
@@ -4198,6 +4441,41 @@ coordinates" in the picker; the outside options are bare "Left",
 uses two number inputs labeled "X" and "Y" (0–1, relative to plot
 rect corners).
 
+**An inside legend stays in view** (`computeInsideExtras` in
+ChartCanvas, and the position clamp in `legendSections`). X / Y place
+the legend's top-left corner as a fraction of the plot, and values
+outside 0–1 put it beside the plot. When the box would pass the canvas
+edge:
+
+- The chart gives up room on that side. Because the position is a
+  fraction of the plot, padding a side by `e` moves the legend by only
+  a fraction of `e` — all of it when the legend is anchored at that
+  edge of the plot, none at the opposite edge. Where padding moves the
+  legend efficiently (X ≥ 0.7 for the right side, Y ≤ 0.3 for the
+  bottom; always for the left and the top, which only come into play at
+  X < 0 and Y > 1) the room is exactly what brings the legend 10 px
+  inside the edge.
+- Where it does not — a tall legend at the default Y of 0.98, a wide
+  one near the plot's left edge — the room tapers to nothing, the plot
+  keeps its size, and the legend itself slides to the canvas edge. (The
+  exact answer there would be fifty pixels of padding per pixel of
+  legend, which used to collapse the chart when a legend gained a row.)
+- Nothing is switched on at a threshold, and no side takes more than
+  the plot has, so moving the legend or growing it never steps the
+  chart. A legend taller than the canvas is capped at the canvas height
+  (less its edge buffers) and scrolls inside itself.
+
+**A legend too big for the page gives way; the chart does not leave
+it.** An outside legend takes the room it needs along the axis it shares
+with the chart — its height on top or bottom, its width at a side — and
+the chart takes the rest, down to the smallest area it still fits: its
+titles and margins around a plot squeezed to nothing (the solver's
+`fitFloor`, LAYOUT.md §18). Past that the legend shrinks and scrolls
+inside itself. Several legend sections stacked in one column on top of a
+chart can be taller than the whole page; that used to push the plot off
+the bottom and raise a scrollbar. A legend that fits is untouched.
+("Legend columns" below is the way to make a tall legend short.)
+
 **Legend width** (its own group between Position and Orientation)
 fixes the legend box's width. The number input takes px, in, or cm
 (a unit picker beside it; inches and cm convert at the standard
@@ -4320,7 +4598,7 @@ Hover subsection's business (§10's tooltip config, shared with direct
 mark hover): non-matching marks fade by default (`hoverFade`, dropping
 to ~15% opacity), and matched marks can additionally be recolored
 (`hoverRecolor`) or outlined (`hoverOutline`), both opt-in. Recolor
-color, Outline color, Outline width and Fade amount each show a reset
+color, Outline color, Outline thickness and Fade amount each show a reset
 link back to their default while changed. The whole
 behavior is gated on the "Show hover" master toggle AND its
 legend-highlight sub-option (`hoverEnabled` + `legendHighlight`, both
@@ -4483,7 +4761,7 @@ here, it drops out of that separate subsection — which now surfaces
 only for length / angle / area, plus measure-mapped (Count / Density)
 opacity, whose ramp has no Swatches group.
 
-**Swatch outline** (per-section Outline color + Outline width rows):
+**Swatch outline** (per-section Outline color + Outline thickness rows):
 a border drawn around that section's swatches — keeps pale swatches
 (e.g. the white midpoint of a diverging gradient) visible against the
 legend background. Width is the switch: 0 draws no outline, so there's

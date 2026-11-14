@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react"
 import { scaleBand } from "d3-scale"
 import { useAtomValue } from "jotai"
+import { buildPatternDefs, type FillInput } from "../../lib/buildPatternDefs"
 import {
 	DEFAULT_FILL,
-	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
 	type TextConfig,
 } from "../../lib/channelConfig"
@@ -13,15 +13,18 @@ import { ptToPx } from "../../lib/fontUnit"
 import { effectiveType } from "../../lib/fieldType"
 import type { FieldType } from "../../lib/types"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
+import { combinedGroupValues } from "../../lib/combinedGroupValues"
+import { markOutlineResolver } from "../../lib/markOutline"
+import type { PatternDefSpec } from "../../lib/patternDefs"
 import {
-	applyHueScale,
-	parseNumericCell,
-	type PositionScale,
-} from "../../lib/scales"
+	layerFillProp,
+	resolveLayerColor,
+	type GroupValues,
+} from "../../lib/resolveLayerColor"
+import { parseNumericCell, type PositionScale } from "../../lib/scales"
 import { applyLevelOrder } from "../../lib/smartSort"
 import { aggregateCells, type CellAggregation } from "../../lib/tileCells"
 import { uniqueFieldValues } from "../../lib/uniqueFieldValues"
-import { resolveRuleColor } from "../../lib/textColorRules"
 import { formatSingleLabel } from "../../lib/dataLabelsStyle"
 import { formatTextValue, resolveTextColor } from "../../lib/textEncoding"
 import {
@@ -124,7 +127,6 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 	const hueType = aestheticScales.hue?.field?.type ?? null
 	const hueIsQuantitative = hueType === "quantitative"
 	const textField = encodings.text?.field ?? null
-	const hueScale = aestheticScales.hue?.scale ?? null
 
 	const aggregation = useMemo(() => {
 		if (!xField || !yField) return null
@@ -238,6 +240,47 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 		})
 	}
 
+	const defaultFill = channelConfigs.defaultFill ?? DEFAULT_FILL
+	const patternBgOverride = channelConfigs.pattern?.backgroundColor ?? null
+
+	// A cell is a BODY like a bar or a slice, so it takes the same options
+	// through the same pipeline (`resolveLayerColor`): Color, then
+	// Saturation / Brightness, Pattern and Opacity. A bar is split by those
+	// channels; a cell is not, so each channel takes the cell's combined
+	// value — the mean of a numeric variable, the most common level of a
+	// discrete one, as its Color always did (`combinedGroupValues`).
+	const cellFills = useMemo(() => {
+		const out = new Map<string, FillInput & { groupValues: GroupValues }>()
+		for (const cell of aggregation ?? []) {
+			const key = `${cell.xKey}\u001F${cell.yKey}`
+			const rows = rowsByCell.get(key) ?? []
+			out.set(key, {
+				rows,
+				groupValues: combinedGroupValues(
+					rows,
+					aestheticScales,
+					hueField ? { hue: cell.hueValue as GroupValues["hue"] } : {}
+				),
+			})
+		}
+		return out
+	}, [aggregation, rowsByCell, aestheticScales, hueField])
+	// The configured default pattern applies to cells as it does to bars.
+	const patternOptions = useMemo(() => ({ includeDefaultPattern: true }), [])
+	// Every `<pattern>` the cells will reference, registered before they draw.
+	const patternDefs = useMemo<PatternDefSpec[]>(
+		() =>
+			buildPatternDefs(
+				[...cellFills.values()],
+				aestheticScales,
+				channelConfigs,
+				defaultFill,
+				patternBgOverride,
+				patternOptions
+			),
+		[cellFills, aestheticScales, channelConfigs, defaultFill, patternBgOverride, patternOptions]
+	)
+
 	if (!dataset || !xField || !yField) return null
 
 	/** Build per-cell label anchors for the Data Labels layer. Each anchor
@@ -342,14 +385,12 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 	}
 
 	const textCfg: TextConfig = { ...DEFAULT_TEXT_CONFIG, ...channelConfigs.text }
-	const defaultFill = channelConfigs.defaultFill ?? DEFAULT_FILL
-	// Cell borders follow the universal mark outline (the Shape panel's
-	// color/width, seeded from the theme; width 0 hides) — same chain
-	// HexbinPlot and BarPlot use.
-	const outlineColor =
-		channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor
-	const outlineWidth =
-		channelConfigs.shape?.outlineWidth ?? DEFAULT_SHAPE_CONFIG.outlineWidth
+	// Cell borders follow the universal mark outline: its thickness (Size →
+	// Cell outline, seeded from the theme; 0 hides), color, shading and
+	// opacity through the resolver every mark's outline shares
+	// (`lib/markOutline`).
+	const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
+
 
 	const tooltip = hovered ? <HoverTooltip state={hovered} /> : null
 
@@ -368,24 +409,22 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 					const cx = xBand(cell.xKey)
 					const cy = yBand(cell.yKey)
 					if (cx === undefined || cy === undefined) return null
-					let fill = defaultFill
-					if (hueScale && hueField && cell.hueValue !== null) {
-						const c = applyHueScale(
-							hueScale,
-							cell.hueValue,
-							hueType ?? "categorical"
-						)
-						if (c) fill = c
-					}
-					// Conditional fill rules, as on every other mark: an implicit
-					// rule tests the cell's aggregated Color value, a `{Variable}`
-					// rule tests every row the cell combines.
-					const fillRuleColor = resolveRuleColor(
-						channelConfigs.fillColorRules,
-						hueField ? cell.hueValue : undefined,
-						rowsByCell.get(`${cell.xKey}\u001F${cell.yKey}`)
-					)
-					if (fillRuleColor) fill = fillRuleColor
+					// Fill (Color, then its rules: an implicit rule tests the
+					// cell's aggregated Color value, a `{Variable}` rule every row
+					// the cell combines), saturation / brightness, pattern and
+					// opacity — the shared body pipeline.
+					const input = cellFills.get(`${cell.xKey}\u001F${cell.yKey}`)
+					const rows = input?.rows ?? []
+					const layer = resolveLayerColor({
+						groupValues: input?.groupValues ?? {},
+						defaultFill,
+						patternBgOverride,
+						aestheticScales,
+						channelConfigs,
+						patternOptions,
+						rows,
+					})
+					const outline = outlineFor(rows[0] ?? {}, { color: layer.outline })
 					const onEnter = (e: React.MouseEvent) => {
 						const fields: TooltipState["fields"] = [
 							{ name: xField, value: cell.xKey },
@@ -408,9 +447,16 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 							y={cy}
 							width={cellW}
 							height={cellH}
-							fill={fill}
-							stroke={outlineWidth > 0 ? outlineColor : "none"}
-							strokeWidth={outlineWidth}
+							fill={layerFillProp(layer)}
+							// Full opacity sets no attribute, as before.
+							fillOpacity={layer.opacity === 1 ? undefined : layer.opacity}
+							stroke={outline.strokeWidth > 0 ? outline.stroke : "none"}
+							strokeOpacity={
+								outline.strokeWidth > 0 && outline.strokeOpacity !== 1
+									? outline.strokeOpacity
+									: undefined
+							}
+							strokeWidth={outline.strokeWidth}
 							onMouseEnter={onEnter}
 						/>
 					)
@@ -471,7 +517,12 @@ export const TilePlot = (props: TilePlotProps = {}) => {
 
 	// `props.inner` is optional — Plot falls back to DEFAULT_RENDERER_INNER
 	return (
-		<Plot inner={props.inner} coord={coord} tooltip={tooltip}>
+		<Plot
+			inner={props.inner}
+			coord={coord}
+			tooltip={tooltip}
+			patternDefs={patternDefs}
+		>
 			{marksBody}
 		</Plot>
 	)

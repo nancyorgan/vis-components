@@ -344,6 +344,9 @@ export const buildSolverInput = ({
 						(labels.titleAlignments?.xAxisTitle as LabelAlignment) ?? "center",
 					offsetX: labels.titleOffsets?.xAxisTitle?.x ?? 0,
 					offsetY: labels.titleOffsets?.xAxisTitle?.y ?? 0,
+					// Canvas-measured so the solver can keep the title on the
+					// page when it is moved sideways (LAYOUT.md §8).
+					textWidth: measureTitleWidth(sharedXAxisTitle, xAxisTitleFont),
 				}
 			: undefined,
 		yTitle: sharedYAxisTitle
@@ -355,6 +358,10 @@ export const buildSolverInput = ({
 					horizontal: labels.yAxisTitleHorizontal === true,
 					offsetX: labels.titleOffsets?.yAxisTitle?.x ?? 0,
 					offsetY: labels.titleOffsets?.yAxisTitle?.y ?? 0,
+					// Canvas-measured: keeps a rotated title on the page when it
+					// is moved along the axis, and sizes an upright title's band
+					// to the width it is drawn at (LAYOUT.md §8).
+					textWidth: measureTitleWidth(sharedYAxisTitle, yAxisTitleFont),
 				}
 			: undefined,
 		// Tick-label "Adjust position" nudges, with the legacy single

@@ -96,9 +96,11 @@ export const renderConnectionLines = (
 	marks: Mark[],
 	encodings: Encodings,
 	channelConfigs: ChannelConfigs,
-	/** Opacity for every connection line, from the Line opacity slot (absolute:
-	 *  a single level for all lines, since a polyline spans many rows). */
-	lineOpacity: number,
+	/** Each line's opacity, from the Line opacity target (absolute). Called
+	 *  with the line's representative row — the same first-row convention as
+	 *  its color and thickness — so "Vary by" a field gives each line its own
+	 *  level; with no field mapped every line gets the one level. */
+	lineOpacity: (row: Record<string, unknown>) => number,
 	/** Line color slot scale (present only when "vary by" a field). */
 	lineSlot: AestheticScales["colorSlots"]["line"],
 	/** Theme default single color for lines — used in single-color mode or when
@@ -428,6 +430,7 @@ export const renderConnectionLines = (
 			// global stroke override → theme connection color (a real single
 			// color, NOT the point fill).
 			const slotRow = sorted[0]?.row ?? { [connectionField]: groupValue }
+			const seriesOpacity = lineOpacity(slotRow)
 			const baseStroke = resolveConnectionStroke({
 				groupKey: groupValue,
 				lineColors,
@@ -470,7 +473,7 @@ export const renderConnectionLines = (
 				strokeWidth: effThickness,
 				strokeLinecap: strokeCap,
 				strokeLinejoin: "round",
-				opacity: lineOpacity * mh.opacityMul,
+				opacity: seriesOpacity * mh.opacityMul,
 			} as const
 			// "Tick" line cap: one perpendicular <line> centered on each open
 			// end of the whole polyline (NOT per dash run / range segment —
@@ -495,7 +498,7 @@ export const renderConnectionLines = (
 							stroke={effStroke}
 							strokeWidth={effThickness}
 							strokeLinecap="butt"
-							opacity={lineOpacity * mh.opacityMul}
+							opacity={seriesOpacity * mh.opacityMul}
 							pointerEvents="none"
 						/>
 					)),
@@ -669,12 +672,15 @@ export const renderAxisStems = (
 	 *  it takes the same treatment: recolored with the point when recolor is
 	 *  on, thickened when outline is on, faded when another series is
 	 *  hovered. A recolored dot on an un-recolored stem reads as a bug. */
-	highlight: LegendHighlight | null = null
+	highlight: LegendHighlight | null = null,
+	/** The stems' own Saturation / Brightness, applied to their color. */
+	shade: (color: string, row: Record<string, unknown>) => string = (color) => color
 ) => {
 	const cfg = { ...DEFAULT_CONNECTION_CONFIG, ...channelConfigs.connection }
 	const stem = cfg.axisStem ?? "none"
 	if (stem === "none") return null
-	const thickness = cfg.thickness
+	// The stems' own thickness; the line's until one is set.
+	const thickness = cfg.stemThickness ?? cfg.thickness
 	// The axis line sits at the plot-area edge: the x-axis along the bottom
 	// (largest y pixel), the y-axis along the left (smallest x pixel).
 	// Reading the edge off the scale's range keeps us agnostic to range
@@ -704,9 +710,12 @@ export const renderAxisStems = (
 	// connection color — a real single color matching the swatch — NOT the
 	// point fill.
 	const colorFor = (m: Mark): string =>
-		stemSlotCfg
-			? resolveSlotColor(stemSlot, stemSlotCfg, m.row, connectionColor)
-			: connectionColor
+		shade(
+			stemSlotCfg
+				? resolveSlotColor(stemSlot, stemSlotCfg, m.row, connectionColor)
+				: connectionColor,
+			m.row
+		)
 	const stems = marks.map((m) => {
 		// Vertical stems (to a horizontal line): x-axis edge or custom y.
 		// Horizontal stems (to a vertical line): y-axis edge or custom x.

@@ -39,10 +39,25 @@ export type ColorSlotDef = {
 
 const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
 
-/** True when the chart's category axis is a histogram (drives the rug slot).
- * Exported so the opacity-slot registry reuses the same gate. */
-export const histogramOn = (configs: ChannelConfigs): boolean =>
-	configs.x?.histogram?.enabled === true || configs.y?.histogram?.enabled === true
+/** THE label for "follow something else": a part left on it takes its color
+ * from the part it belongs to (a point from its line, a polygon from its
+ * points, a regression line from its group) instead of a choice of its
+ * own. One word everywhere, with each part's `help` saying what it follows. */
+export const FOLLOW_LABEL = "Auto"
+
+/** True when a rug is DRAWN: "Show rug" is on for an axis whose histogram or
+ * standalone density curve is on (the two share the rug's settings, so it
+ * stays put across the Histogram ⇄ Density switch). The gate for the Rug
+ * color and opacity targets — with the rug off there is nothing to style.
+ * Mirrors the renderers: BarPlot draws `histogram.showRug` on a histogram,
+ * ScatterPlot on the density display's value axis. */
+export const rugOn = (configs: ChannelConfigs): boolean => {
+	const on = (c: typeof configs.x) =>
+		c?.histogram?.showRug === true &&
+		(c.histogram.enabled === true ||
+			c.distributionOverlay?.showDensityCurve === true)
+	return on(configs.x) || on(configs.y)
+}
 
 /** True when a violin or box overlay is active on either position axis.
  * Exported so the opacity-slot registry reuses the same gate. */
@@ -152,7 +167,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		themeColor: (t) => t.connectionColor,
 		acceptsFieldMapping: true,
 		inherit: {
-			label: "Match line",
+			label: FOLLOW_LABEL,
 			help: "Each point takes its line's color.",
 		},
 	},
@@ -163,8 +178,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		// reuses the same tassel config — so the Rug color stays put across the
 		// Histogram ⇄ Density switch.
 		modes: m("bars-x", "bars-y", "scatter"),
-		isApplicable: (_encodings, configs) =>
-			histogramOn(configs) || densityCurveOn(configs),
+		isApplicable: (_encodings, configs) => rugOn(configs),
 		themeColor: (t) => t.distributionOverlayStroke,
 		acceptsFieldMapping: true,
 	},
@@ -222,7 +236,10 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		acceptsFieldMapping: true,
 		// Unconfigured, each per-group regression line inherits its hue group's
 		// color (see RegressionLayer) — same truth-in-labeling as the violin.
-		inherit: { label: "Auto" },
+		inherit: {
+			label: FOLLOW_LABEL,
+			help: "Each line takes its group's color from the Color mapping.",
+		},
 	},
 	{
 		key: "regressionCiFill",
@@ -231,7 +248,10 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		isApplicable: (_encodings, configs) => regressionCiOn(configs),
 		themeColor: (t) => t.regressionCiFill,
 		acceptsFieldMapping: true,
-		inherit: { label: "Auto" },
+		inherit: {
+			label: FOLLOW_LABEL,
+			help: "Each band takes its group's color from the Color mapping.",
+		},
 	},
 	{
 		key: "stem",
@@ -259,7 +279,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		themeColor: (t) => t.defaultFill,
 		acceptsFieldMapping: true,
 		inherit: {
-			label: "Match point fill",
+			label: FOLLOW_LABEL,
 			help: "Each polygon fills with its series' point color.",
 		},
 	},
@@ -276,7 +296,7 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		themeColor: (t) => t.connectionColor,
 		acceptsFieldMapping: true,
 		inherit: {
-			label: "Auto",
+			label: FOLLOW_LABEL,
 			help: "Matches the line color: the Line color's mapping, else its single color.",
 		},
 	},
@@ -284,10 +304,10 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 		key: "geoPointFill",
 		label: "Point fill",
 		// Bubble / symbol maps render points ON TOP of regions; this slot colors
-		// the point fill independently of the choropleth region scale. Also offered
-		// on the lat/long dot map (geo-points) — its points benefit from the same
-		// dedicated fill color.
-		modes: m("geo-symbols", "geo-points"),
+		// the point fill independently of the choropleth region scale. Not the
+		// lon/lat dot map: its points ARE its marks, colored by the Color
+		// mapping itself (its "Point fill"), and its renderer never read this.
+		modes: m("geo-symbols"),
 		isApplicable: () => true,
 		themeColor: (t) => t.defaultFill,
 		acceptsFieldMapping: true,
@@ -295,12 +315,42 @@ export const COLOR_SLOT_REGISTRY: readonly ColorSlotDef[] = [
 	{
 		key: "geoPointStroke",
 		label: "Point outline",
-		modes: m("geo-symbols", "geo-points"),
+		modes: m("geo-symbols"),
 		isApplicable: () => true,
 		// White by default (the theme's mark outline color) so points read against
 		// dark fills / dense choropleth palettes.
 		themeColor: (t) => t.outlineColor,
 		acceptsFieldMapping: true,
+	},
+	// Dot map: the regions behind the points. The points are the marks
+	// (Point fill / Point outline are the Color mapping and the marks'
+	// outline); the geography is styled apart from them here. The regions
+	// carry no data on a dot map, so each takes one color — no "Vary by".
+	// Untouched they draw as before: the map's region color, and the
+	// points' outline color.
+	{
+		key: "geoRegionFill",
+		label: "Region fill",
+		modes: m("geo-points"),
+		isApplicable: () => true,
+		themeColor: (t) => t.mapNoDataFill ?? t.defaultFill,
+		acceptsFieldMapping: false,
+		inherit: {
+			label: FOLLOW_LABEL,
+			help: "The map's region color (Map → Region fill).",
+		},
+	},
+	{
+		key: "geoRegionStroke",
+		label: "Region outline",
+		modes: m("geo-points"),
+		isApplicable: () => true,
+		themeColor: (t) => t.outlineColor,
+		acceptsFieldMapping: false,
+		inherit: {
+			label: FOLLOW_LABEL,
+			help: "The points' outline color.",
+		},
 	},
 ]
 

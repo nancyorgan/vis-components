@@ -1,12 +1,13 @@
 import type { ChannelConfigs, ColorSlotConfig, ConnectionConfig } from "./channelConfig"
 import { DEFAULT_CATEGORICAL_HUE_CONFIG } from "./channelConfig"
+import { FOLLOW_LABEL } from "./colorSlots"
 
 /** The radar Connection line's "inherit" option: an UNCONFIGURED Line color
  *  slot strokes each polygon with its own fill (the `resolveConnectionStroke`
  *  fallback), so the Vary by leads with this instead of scatter's plain
  *  single-color default. */
 export const RADAR_LINE_INHERIT = {
-	label: "Match fill",
+	label: FOLLOW_LABEL,
 	help: "Each polygon's outline matches its fill.",
 } as const
 

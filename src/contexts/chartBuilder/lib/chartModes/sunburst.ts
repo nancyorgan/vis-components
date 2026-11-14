@@ -51,6 +51,7 @@ export const SunburstMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "proportional",
+		mark: "slice",
 		statOverlays: false,
 		measureAxis: null,
 	},

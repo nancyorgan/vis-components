@@ -116,7 +116,7 @@ const HoverDefaults = ({ theme, set }: Omit<ThemeSectionProps, "isReadOnly">) =>
 								onChange={(v) => set("hoverOutlineColor", v)}
 							/>
 							<NumberInput
-								label="Outline width"
+								label="Outline thickness"
 								value={seed.hoverOutlineWidth ?? DEFAULT_HOVER_OUTLINE_WIDTH}
 								min={0}
 								max={20}

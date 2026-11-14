@@ -48,6 +48,7 @@ export const ChordMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "proportional",
+		mark: "node",
 		statOverlays: false,
 		flowGeometry: "ring",
 		measureAxis: null,

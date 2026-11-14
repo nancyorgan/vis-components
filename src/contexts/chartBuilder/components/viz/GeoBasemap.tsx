@@ -30,6 +30,12 @@ type GeoBasemapProps = {
 	/** Optional per-feature fill-opacity override (e.g. an opacity-only measure
 	 *  choropleth). Omit → no `fillOpacity` attribute (full opacity). */
 	fillOpacityFor?: (feature: Feature) => number | undefined
+	/** Per-feature outline opacity (the data-driven region layers). Omit →
+	 *  no `strokeOpacity` attribute (full opacity). */
+	strokeOpacityFor?: (feature: Feature) => number | undefined
+	/** Per-feature outline thickness (the data-driven region layers, whose
+	 *  outline can vary by a variable). Omit → the uniform `strokeWidth`. */
+	strokeWidthFor?: (feature: Feature) => number
 	/** Optional legend-hover highlight per feature (see `regionHighlight` on the
 	 *  geo scaffold). Supplied only when the backdrop is DATA-DRIVEN — the bubble
 	 *  map's region choropleth — so the plain geography backdrops (the dot map's
@@ -63,6 +69,8 @@ export const GeoBasemap = ({
 	fillFor,
 	strokeFor,
 	fillOpacityFor,
+	strokeOpacityFor,
+	strokeWidthFor,
 	highlightFor,
 }: GeoBasemapProps) => (
 	<>
@@ -72,6 +80,7 @@ export const GeoBasemap = ({
 			// Legend-hover highlight (data-driven backdrops only). Neutral leaves
 			// every attribute exactly as it was without a hover.
 			const mh = highlightFor ? highlightFor(feature) : NEUTRAL_HIGHLIGHT
+			const width = strokeWidthFor ? strokeWidthFor(feature) : strokeWidth
 			return (
 				<path
 					key={`base-${featureId(feature)}`}
@@ -79,8 +88,11 @@ export const GeoBasemap = ({
 					fill={mh.fill ?? (fillFor ? fillFor(feature) : fill)}
 					fillOpacity={fillOpacityFor ? fillOpacityFor(feature) : undefined}
 					stroke={mh.outline ?? (strokeFor ? strokeFor(feature) : stroke)}
+					strokeOpacity={
+						mh.outline || !strokeOpacityFor ? undefined : strokeOpacityFor(feature)
+					}
 					strokeWidth={
-						mh.outline ? Math.max(strokeWidth, mh.outlineWidth) : strokeWidth
+						mh.outline ? Math.max(width, mh.outlineWidth) : width
 					}
 					opacity={mh.opacityMul === 1 ? undefined : mh.opacityMul}
 				/>

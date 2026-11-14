@@ -162,7 +162,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 					onChange={(v) => set("legendSwatchSize", v)}
 				/>
 				<NumberInput
-					label="Outline width"
+					label="Outline thickness"
 					value={theme.legendSwatchOutlineWidth}
 					min={0}
 					max={10}

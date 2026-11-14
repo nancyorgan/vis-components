@@ -72,8 +72,6 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 	const {
 		nodes,
 		edges,
-		outlineColor,
-		outlineWidth,
 		tickFont,
 		labelFontSizePx,
 	} = scaffold
@@ -237,6 +235,7 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 			// Legend-hover highlight: this node's own emphasis / fade (its
 			// ribbons follow via `edgeStyleFor`'s opacity).
 			const mh = scaffold.nodeHighlight(name)
+			const outline = scaffold.nodeOutlineFor(name)
 			groupArcs.push(
 				<path
 					key={`arc-${name}`}
@@ -246,9 +245,10 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 					data-node={name}
 					fill={mh.fill ?? scaffold.nodeFillFor(name)}
 					fillOpacity={scaffold.nodeOpacity * mh.opacityMul}
-					stroke={mh.outline ?? outlineColor}
+					stroke={mh.outline ?? outline.stroke}
+					strokeOpacity={mh.outline ? undefined : outline.strokeOpacity}
 					strokeWidth={
-						mh.outline ? Math.max(outlineWidth, mh.outlineWidth) : outlineWidth
+						mh.outline ? Math.max(outline.strokeWidth, mh.outlineWidth) : outline.strokeWidth
 					}
 					onMouseEnter={scaffold.hoverNode(name, group.value)}
 				/>
@@ -374,6 +374,8 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 			const path = ribbonGen(chord) as unknown as string | null
 			if (!edge || !path) continue
 			const style = scaffold.edgeStyleFor(edge)
+			// A ribbon's outline follows its source node's, as its fill does.
+			const ribbonOutline = scaffold.nodeOutlineFor(source)
 			ribbons.push(
 				<path
 					key={`ribbon-${flowEdgeKey(source, target)}`}
@@ -384,8 +386,9 @@ export const ChordPlot = (props: ChordPlotProps = {}) => {
 					data-target={target}
 					fill={style.fill}
 					fillOpacity={style.opacity}
-					stroke={outlineColor}
-					strokeWidth={outlineWidth}
+					stroke={ribbonOutline.stroke}
+					strokeOpacity={ribbonOutline.strokeOpacity}
+					strokeWidth={ribbonOutline.strokeWidth}
 					onMouseEnter={scaffold.hoverEdge(edge)}
 				/>
 			)

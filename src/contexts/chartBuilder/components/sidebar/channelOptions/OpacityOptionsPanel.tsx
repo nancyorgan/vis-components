@@ -6,17 +6,12 @@ import {
 	type OpacitySlotConfig,
 } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
-import type { ChartMode } from "../../../lib/chartMode"
 import { effectiveType } from "../../../lib/fieldType"
 import {
 	MEASURE_OPTION_VALUE,
 	resolveHistogramMeasure,
 } from "../../../lib/histogramMeasure"
-import {
-	applicableOpacitySlots,
-	opacitySlotEdited,
-	type OpacitySlotDef,
-} from "../../../lib/opacitySlots"
+import { opacitySlotEdited, type OpacitySlotDef } from "../../../lib/opacitySlots"
 import { resolveHierarchyIdField } from "../../../lib/buildHierarchy"
 import {
 	PACKED_MEASURE_OPTION_VALUE,
@@ -26,12 +21,8 @@ import {
 	packedSourceOf,
 	topLevelGroupNames,
 } from "../../../lib/packedMeasure"
-import {
-	isAreaModeId,
-	isFlowModeId,
-	isHierarchyModeId,
-} from "../../../lib/chartModes/families"
-import { markPartTitles } from "../../../lib/markPartTitles"
+import { isHierarchyModeId } from "../../../lib/chartModes/families"
+import { opacitySections } from "../../../lib/markParts"
 import { valueChanged } from "../../../lib/themeConfig"
 import { makeOpacityScale } from "../../../lib/scales"
 import { preserveStackMode } from "../../../lib/stackMode"
@@ -48,10 +39,11 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
+import { useVaryByFieldFilter } from "../../../store/useVaryByFieldFilter"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
-import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { Slider } from "../../../../../components/ui/Slider"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { StackModeRow } from "./StackModeRow"
@@ -65,26 +57,17 @@ export const OpacityOptionsPanel = () => {
 	const encodings = useAtomValue(currentEncodingsAtom)
 	const configs = useAtomValue(currentChannelConfigsAtom)
 	const modeDef = useChartModeDef()
-	const mode = modeDef.id as ChartMode
 	// PURE density curve (standalone "Density" display): the renderer suppresses
 	// the scatter marks, so the overall Fill opacity and the mark Outline
 	// (border) slot have nothing to act on — hidden, mirroring the Color menu.
 	// Histogram + curve keeps them (the bars still render).
 	const pureDensityCurve = usePureDensityCurve()
-	const slots = applicableOpacitySlots(mode, encodings, configs).filter(
-		(d) => !(pureDensityCurve && d.key === "border")
-	)
-	// The area modes link the fill and outline to the series (one layer = one
-	// value), mirroring the Color menu: the in-panel "Vary by" duplicates the
-	// shelf's Opacity row, and the outline (Border) opacity is per-layer
-	// aggregated so a per-row field mapping is a no-op — drop both selectors.
-	// (Radar polygons are series too, but their parts resolve a mapped field
-	// off the series' representative row, so the selectors stay.)
-	const linkedOutline = isAreaModeId(mode)
-	// Subheader titles — "Point fill" / "Point outline" / "Connection line"
-	// where the marks are points beside another part (radar polygon, violin /
-	// box, a line chart's line).
-	const titles = markPartTitles(modeDef, configs, encodings)
+	// Which subsections this chart shows, their titles and their order are
+	// decided in one place for every menu (lib/markParts) — including where
+	// the in-panel "Vary by" is dropped (the area modes link fill and outline
+	// to the series) and where the Fill is (flow diagrams draw nothing from
+	// the overall opacity).
+	const sections = opacitySections({ modeDef, encodings, configs, pureDensityCurve })
 
 	const theme = useCurrentTheme()
 	// Fill subsection changed = no-field default opacity moved, or the mapped
@@ -104,51 +87,31 @@ export const OpacityOptionsPanel = () => {
 		valueChanged(configs.defaultOpacity, theme.defaultOpacity) ||
 		(!!encodings.opacity?.field && scaleChanged)
 
-	// Flow diagrams (chord / sankey) draw NOTHING from the overall opacity —
-	// node arcs/rects and ribbons/links each read their own slot (Nodes /
-	// Ribbons below), so a Fill section here would show a level no mark uses.
-	// Likewise the pure density curve: its fill opacity is the Density Curve
-	// Fill slot, not the overall mark opacity.
-	const hideFill = isFlowModeId(mode) || pureDensityCurve
-
-	const slotSection = (def: (typeof slots)[number]) => (
-		<OpacitySlotSubsection
-			key={def.key}
-			// The Border slot is the marks' outline and the Line slot the
-			// connection line — titled per mode, like the Fill.
-			def={
-				def.key === "border"
-					? { ...def, label: titles.outline }
-					: def.key === "line"
-						? { ...def, label: titles.line }
-						: def
-			}
-			hideVaryBy={linkedOutline}
-		/>
-	)
-	// Area charts lead with the Line (their Border slot), then the Area
-	// fill, Point fill and Point outline.
-	const leadSlots = linkedOutline ? slots.filter((d) => d.key === "border") : []
-	const restSlots = slots.filter((d) => !leadSlots.includes(d))
-
 	return (
 		<div className="vc-option-panel">
-			{leadSlots.map(slotSection)}
-			{!hideFill && (
-				<CollapsibleSubsection
-					title={titles.fill}
-					defaultOpen
-					changed={fillChanged}
-				>
-					<div className="flex flex-col gap-2">
-						<FillOpacityControls hideVaryBy={linkedOutline} />
-						{/* Opacity can drive bar layout (group/stack/overlay) when 2+ stack
-						    channels are mapped to different vars. StackModeRow self-gates. */}
-						<StackModeRow channel="opacity" />
-					</div>
-				</CollapsibleSubsection>
+			{sections.map((section) =>
+				section.kind === "fill" ? (
+					<CollapsibleSubsection
+						key="fill"
+						title={section.title}
+						defaultOpen
+						changed={fillChanged}
+					>
+						<div className="flex flex-col gap-2">
+							<FillOpacityControls hideVaryBy={section.hideVaryBy} />
+							{/* Opacity can drive bar layout (group/stack/overlay) when 2+ stack
+							    channels are mapped to different vars. StackModeRow self-gates. */}
+							<StackModeRow channel="opacity" />
+						</div>
+					</CollapsibleSubsection>
+				) : (
+					<OpacitySlotSubsection
+						key={section.def.key}
+						def={section.def}
+						hideVaryBy={section.hideVaryBy}
+					/>
+				)
 			)}
-			{restSlots.map(slotSection)}
 		</div>
 	)
 }
@@ -197,8 +160,11 @@ const FillOpacityControls = ({
 	// vice-versa (both read `currentEncodingsAtom`). The aesthetic-scale build
 	// applies sensible defaults for an un-configured `configs.opacity`, so just
 	// writing the field is enough.
-	const eligible = (dataset?.fields ?? []).filter((f) =>
-		channelAccepts("opacity", overrides[f.name] ?? f.inferredType)
+	const canVary = useVaryByFieldFilter()
+	const eligible = (dataset?.fields ?? []).filter(
+		(f) =>
+			channelAccepts("opacity", overrides[f.name] ?? f.inferredType) &&
+			canVary(f.name, encodings.opacity?.field ?? null)
 	)
 	const varyByOptions = [
 		{ value: "", label: "— none —" },
@@ -450,9 +416,12 @@ const OpacitySlotSubsection = ({
 			}
 		})
 
+	const canVary = useVaryByFieldFilter()
 	const fieldOptions = [
 		{ value: "", label: "— none —" },
-		...(dataset?.fields ?? []).map((f) => ({ value: f.name, label: f.name })),
+		...(dataset?.fields ?? [])
+			.filter((f) => canVary(f.name, slotCfg?.field ?? null))
+			.map((f) => ({ value: f.name, label: f.name })),
 	]
 
 	const setField = (fieldName: string) => {
@@ -582,30 +551,26 @@ const QuantOpacityRange = ({
 	onChange: (next: OpacityConfig) => void
 }) => (
 	<div className="flex flex-col gap-2">
-		<NumberInput
+		<Slider
 			label="Min"
-			labelClassName={LABEL_COL}
 			value={cfg.min}
 			min={0}
 			max={1}
 			step={0.05}
-			clamp
 			onChange={(min) => onChange({ ...cfg, min })}
 		/>
-		<NumberInput
+		<Slider
 			label="Max"
-			labelClassName={LABEL_COL}
 			value={cfg.max}
 			min={0}
 			max={1}
 			step={0.05}
-			clamp
 			onChange={(max) => onChange({ ...cfg, max })}
 		/>
 	</div>
 )
 
-/** A single opacity-level number input with a `reset` link that appears once
+/** A single opacity-level slider with a `reset` link that appears once
  * the value differs from its default (the theme's `defaultOpacity` for Fill, or
  * the slot's `defaultLevel`). Used by every "— none —" opacity control —
  * Fill (no field), Border, Line, Stem, … — so a user who nudges a level can
@@ -619,21 +584,25 @@ const OpacityLevelInput = ({
 	defaultLevel: number
 	onChange: (next: number) => void
 }) => (
-	<div className="flex items-center gap-2">
-		<NumberInput
+	<>
+		<Slider
 			label="Opacity"
-			labelClassName={LABEL_COL}
 			value={value}
 			min={0}
 			max={1}
 			step={0.05}
-			clamp
+			changed={value !== defaultLevel}
 			onChange={onChange}
 		/>
 		{value !== defaultLevel && (
-			<ResetLink onClick={() => onChange(defaultLevel)} />
+			<ResetLink
+				ariaLabel="Reset opacity"
+				onClick={() => onChange(defaultLevel)}
+				underline
+				className="self-start"
+			/>
 		)}
-	</div>
+	</>
 )
 
 /** Per-value opacity rows: a truncated value label + a number input + a reset
@@ -675,24 +644,23 @@ const CategoricalOpacityList = ({
 			const isOverridden = overrides[v] !== undefined
 			return (
 				<div key={v} className="flex items-center gap-2 text-sm">
-					<span
-						className="w-24 flex-shrink-0 truncate vc-text"
-						title={labels?.[i] ?? v}
-					>
-						{labels?.[i] ?? v}
-					</span>
-					<NumberInput
-						label={`Opacity for ${v}`}
-						labelClassName="sr-only"
+					<Slider
+						label={labels?.[i] ?? v}
+						labelTitle={labels?.[i] ?? v}
+						labelClassName="w-24 truncate vc-text"
+						className="min-w-0 flex-1"
 						value={current}
 						min={0}
 						max={1}
 						step={0.05}
-						clamp
+						changed={isOverridden}
 						onChange={(next) => onSet(v, next)}
 					/>
 					{isOverridden && (
-						<ResetLink onClick={() => onReset(v)} />
+						<ResetLink
+							ariaLabel={`Reset opacity for ${v}`}
+							onClick={() => onReset(v)}
+						/>
 					)}
 				</div>
 			)

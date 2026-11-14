@@ -106,17 +106,17 @@ describe("OpacityOptionsPanel — pure density curve visibility", () => {
 	it("pure density curve: hides the overall Fill and the mark Outline slot", () => {
 		const { container } = mount(pureDensityConfigs)
 		const headers = subheaders(container)
-		expect(headers).not.toContain("Fill")
-		expect(headers).not.toContain("Outline")
+		expect(headers).not.toContain("Point fill")
+		expect(headers).not.toContain("Point outline")
 		expect(headers).toContain("Density curve fill")
 		expect(headers).toContain("Density curve outline")
 	})
 
-	it("histogram with a density overlay: keeps Fill and Outline alongside the curve slots", () => {
+	it("histogram with a density overlay: keeps Bar fill and Bar outline alongside the curve slots", () => {
 		const { container } = mount(histogramWithCurveConfigs)
 		const headers = subheaders(container)
-		expect(headers).toContain("Fill")
-		expect(headers).toContain("Outline")
+		expect(headers).toContain("Bar fill")
+		expect(headers).toContain("Bar outline")
 		expect(headers).toContain("Density curve fill")
 		expect(headers).toContain("Density curve outline")
 	})

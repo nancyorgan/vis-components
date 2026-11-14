@@ -109,7 +109,7 @@ export const SunburstPlot = (props: SunburstPlotProps = {}) => {
 			const d = node.data
 			const isLeaf = node.children === undefined || node.children.length === 0
 			const style = styleFor(node, isLeaf)
-			const { stroke, strokeWidth } = markStroke(node, style)
+			const { stroke, strokeWidth, strokeOpacity } = markStroke(node, style)
 			const path = arcGen(node)
 			if (!path) continue
 
@@ -132,6 +132,7 @@ export const SunburstPlot = (props: SunburstPlotProps = {}) => {
 					}
 					fillOpacity={style ? style.opacity : undefined}
 					stroke={stroke}
+					strokeOpacity={strokeOpacity}
 					strokeWidth={strokeWidth}
 					onMouseEnter={scaffold.hoverLeaf(row ?? null, node)}
 				/>

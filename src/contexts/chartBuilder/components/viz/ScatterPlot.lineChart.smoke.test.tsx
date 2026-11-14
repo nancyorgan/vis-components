@@ -276,6 +276,67 @@ describe("Line chart (scatter + connection) — points + line render together", 
 		).toBe(true)
 	})
 
+	it("Opacity → Line → Vary by gives each line its own opacity", () => {
+		// The Line opacity target resolves off each line's first row, like its
+		// color and thickness. It used to be read without a row, so a mapped
+		// field (and the per-value levels it offers) changed nothing.
+		seedLocalStorage({ connectionField: "region" })
+		/* eslint-disable @vc/use-wrapped-json-functions */
+		globalThis.localStorage.setItem(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify({
+				connection: DEFAULT_CONNECTION_CONFIG,
+				opacitySlots: {
+					line: {
+						field: "region",
+						level: 1,
+						opacity: { kind: "categorical", overrides: { north: 0.2, south: 0.9 } },
+					},
+				},
+			})
+		)
+		/* eslint-enable @vc/use-wrapped-json-functions */
+		const { container } = render(
+			<TestProvider
+				initializeState={initLineChartState({ connectionField: "region" })}
+			>
+				<div style={{ width: 600, height: 400 }}>
+					<ScatterPlot />
+				</div>
+			</TestProvider>
+		)
+		const opacities = [...container.querySelectorAll("polyline:not(.vc-line-hit)")].map(
+			(p) => p.getAttribute("opacity")
+		)
+		expect(opacities).toEqual(["0.2", "0.9"])
+	})
+
+	it("Opacity → Line with no field gives every line the one level", () => {
+		seedLocalStorage({ connectionField: "region" })
+		/* eslint-disable @vc/use-wrapped-json-functions */
+		globalThis.localStorage.setItem(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify({
+				connection: DEFAULT_CONNECTION_CONFIG,
+				opacitySlots: { line: { field: null, level: 0.4 } },
+			})
+		)
+		/* eslint-enable @vc/use-wrapped-json-functions */
+		const { container } = render(
+			<TestProvider
+				initializeState={initLineChartState({ connectionField: "region" })}
+			>
+				<div style={{ width: 600, height: 400 }}>
+					<ScatterPlot />
+				</div>
+			</TestProvider>
+		)
+		const opacities = [...container.querySelectorAll("polyline:not(.vc-line-hit)")].map(
+			(p) => p.getAttribute("opacity")
+		)
+		expect(opacities).toEqual(["0.4", "0.4"])
+	})
+
 	it("the Tick line cap ends lines flush and draws one perpendicular tick per open end", () => {
 		// Connection > Line properties > Line cap = Tick: the polyline takes
 		// the flush (butt) cap AND each line gets exactly two tick <line>s —

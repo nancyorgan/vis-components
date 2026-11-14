@@ -52,6 +52,7 @@ export const GeoSymbolsMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "mark",
+		mark: "region",
 		statOverlays: false,
 		geo: { marks: "symbols", position: "region" },
 		measureAxis: null,

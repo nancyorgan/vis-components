@@ -32,6 +32,7 @@ const panel = (inner: { x: number; y: number; width: number; height: number }) =
 		showYTicks: true,
 		showXAxisTitle: false,
 		showYAxisTitle: false,
+		xLabelAngleDeg: 0,
 	}) as const
 
 const makeSolver = (panels = 1) => {
@@ -63,6 +64,7 @@ const makeSolver = (panels = 1) => {
 			columnHeaders: [],
 			rowHeaders: [],
 			figureSlack: { x: 0, y: 0 },
+			fitFloor: { width: 0, height: 0 },
 		}
 	}
 	return { solve, calls }

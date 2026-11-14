@@ -77,7 +77,7 @@ describe("TooltipsSection — hover defaults", () => {
 		expect((screen.getByLabelText("Fade amount") as HTMLInputElement).value).toBe("85")
 		// Dependent controls hide while their toggle is off.
 		expect(screen.queryByLabelText("Recolor color")).toBeNull()
-		expect(screen.queryByLabelText("Outline width")).toBeNull()
+		expect(screen.queryByLabelText("Outline thickness")).toBeNull()
 	})
 
 	it("each toggle writes its key", () => {
@@ -107,7 +107,7 @@ describe("TooltipsSection — hover defaults", () => {
 			target: { value: "#00ff00" },
 		})
 		expect(set).toHaveBeenCalledWith("hoverOutlineColor", "#00FF00")
-		fireEvent.change(screen.getByLabelText("Outline width"), { target: { value: "3" } })
+		fireEvent.change(screen.getByLabelText("Outline thickness"), { target: { value: "3" } })
 		expect(set).toHaveBeenCalledWith("hoverOutlineWidth", 3)
 		fireEvent.change(screen.getByLabelText("Fade amount"), { target: { value: "40" } })
 		expect(set).toHaveBeenCalledWith("hoverFadeAmount", 0.4)

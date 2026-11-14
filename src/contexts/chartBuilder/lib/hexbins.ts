@@ -19,6 +19,10 @@ export type HexbinCell = {
 	cx: number
 	cy: number
 	count: number
+	/** Which of the input points fell in the cell: indices into the
+	 * `xRaw` / `yRaw` arrays (the chart's rows), in input order. Lets a
+	 * renderer read any other variable's value for the cell. */
+	rows: number[]
 }
 
 export type HexbinResult = {
@@ -88,7 +92,8 @@ export const resolveHexbinCells = (
 	const spanX = xDomain[1] - xDomain[0] || 1
 	const spanY = yDomain[1] - yDomain[0] || 1
 
-	const pts: Array<[number, number]> = []
+	// Each point carries its input index, so a cell knows its rows.
+	const pts: Array<[number, number, number]> = []
 	const n = Math.min(xs.length, ys.length)
 	for (let i = 0; i < n; i++) {
 		const x = xs[i]
@@ -97,18 +102,23 @@ export const resolveHexbinCells = (
 		const nx = (x - xDomain[0]) / spanX
 		const ny = (y - yDomain[0]) / spanY
 		if (nx < 0 || nx > 1 || ny < 0 || ny > 1) continue
-		pts.push([nx, ny])
+		pts.push([nx, ny, i])
 	}
 	if (pts.length === 0) return null
 
 	// Pointy-top hexes: horizontal center spacing = sqrt(3) * radius, so
 	// binCount columns across the unit x span → radius = 1/(binCount*sqrt(3)).
 	const radius = 1 / (Math.max(1, binCount) * Math.sqrt(3))
-	const bins = d3Hexbin<[number, number]>()
+	const bins = d3Hexbin<[number, number, number]>()
 		.x((d) => d[0])
 		.y((d) => d[1])
 		.radius(radius)(pts)
-	const cells = bins.map((b) => ({ cx: b.x, cy: b.y, count: b.length }))
+	const cells = bins.map((b) => ({
+		cx: b.x,
+		cy: b.y,
+		count: b.length,
+		rows: b.map((p) => p[2]),
+	}))
 	let maxCount = 0
 	for (const c of cells) if (c.count > maxCount) maxCount = c.count
 	return { cells, maxCount, radius, xDomain, yDomain }

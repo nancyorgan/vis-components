@@ -22,6 +22,7 @@ import {
 	estimateInteriorLeftChrome,
 	estimateLongestLineWidth,
 } from "./estimateMargins"
+import { autoLabelAngleFor } from "./autoLabelAngle"
 import { lineCount } from "./multilineText"
 import {
 	BASE_MARGIN,
@@ -102,9 +103,12 @@ export type SharedTitleInput = {
 	readonly offsetX?: number
 	readonly offsetY?: number
 	/** Widest rendered line, px — canvas-measured by the caller, the chart
-	 *  title's prefix run included. The chart title and subtitle use it to
-	 *  stay in view horizontally (`clampTitleAnchorX`); the axis titles ignore
-	 *  it. Omitted / 0 = unmeasured: the anchor is used as aligned. */
+	 *  title's prefix run included. Every title uses it to stay in view along
+	 *  the direction its text runs (LAYOUT.md §8): the chart title, subtitle
+	 *  and x-axis title sideways, a rotated y-axis title up and down. An
+	 *  upright y-axis title also takes its reserved band from it. Omitted / 0
+	 *  = unmeasured: the anchor is used as aligned (and the upright y-title
+	 *  falls back to a character-count estimate). */
 	readonly textWidth?: number
 	/** Vertical placement within the reserved band / strip. Only the row-header
 	 *  strip honors this today (it positions the title at the top / center /
@@ -183,7 +187,24 @@ export type SolverPanelInput = {
 	 *  will draw (see `buildSolverPanelInputs`). */
 	readonly xLabels: readonly string[]
 	readonly yLabels: readonly string[]
+	/** The angle the x tick labels draw at. With `xAutoAngle` set this is
+	 *  only where the solver STARTS (level): it decides the angle itself. */
 	readonly xLabelAngleDeg: number
+	/** Present when the x tick labels' angle is automatic (a categorical
+	 *  axis with no angle typed and "Wrap text" off). The solver then
+	 *  decides it from the plot width it SOLVED — rotating when neighboring
+	 *  labels would collide — and reports it as
+	 *  `SolverPanelOutput.xLabelAngleDeg`, which is the angle the axis draws.
+	 *  One decision, made with the real width: the caller used to guess the
+	 *  angle from an estimated width and the axis decided again from the real
+	 *  one, and near the threshold the two disagreed (room reserved for
+	 *  rotated labels that drew level, or the reverse). `labels` are the
+	 *  panel's own tick labels in axis order, `labelWidthsPx` their measured
+	 *  widths (missing or 0 falls back to a character-count estimate). */
+	readonly xAutoAngle?: {
+		readonly labels: readonly string[]
+		readonly labelWidthsPx?: readonly number[]
+	}
 	readonly xLabelFontSize: number
 	readonly yLabelFontSize: number
 	/** Optional pre-measured widths (canvas measureText, in px) for the
@@ -363,6 +384,10 @@ export type SolverPanelOutput = {
 	readonly showYTicks: boolean
 	readonly showXAxisTitle: false
 	readonly showYAxisTitle: false
+	/** The angle the layout was solved for and the axis draws its x tick
+	 *  labels at: the input's, or the solver's own decision for a panel with
+	 *  `xAutoAngle`. */
+	readonly xLabelAngleDeg: number
 }
 
 /** Strip-header rect carries its own text since the renderer pairs the
@@ -397,6 +422,15 @@ export type FacetLayoutSpec = {
 	 * (centered); ChartCanvas uses it to pull edge legends flush against
 	 * the figure so the [figure][legend] ensemble centers in the viewport. */
 	readonly figureSlack: { readonly x: number; readonly y: number }
+	/** The smallest container this chart still fits, per axis: its title
+	 *  bands, base margins and the gaps between panels, with every soft
+	 *  reserve given up and the tick labels at nothing (the budget's last
+	 *  step, LAYOUT.md §2). Below it the canvas cannot be the container any
+	 *  more. Whatever shares the page with the chart (the legend) gives way
+	 *  before the chart area is squeezed under this. 0 on an axis that does
+	 *  not fit the container to begin with (scroll mode, a pixel panel size,
+	 *  a negative gap). */
+	readonly fitFloor: { readonly width: number; readonly height: number }
 }
 
 const DEFAULT_MIN_PX_PER_CATEGORY = 20
@@ -452,7 +486,7 @@ const yTitleOuterBand = (input: SolverInput): number => {
 	if (!input.yTitle || !yTitleOutsideRowStrip(input)) return 0
 	const { text, fontSize, horizontal } = input.yTitle
 	const block = horizontal
-		? estimateLongestLineWidth(text, fontSize)
+		? uprightYTitleWidth(input.yTitle)
 		: fontSize * 1.2 * lineCount(text)
 	return VIEWPORT_BUFFER_PX + block + Y_TITLE_STRIP_GAP
 }
@@ -476,6 +510,45 @@ const clampBaselineY = (
 	if (minY > maxY) return Math.max(0, (minY + maxY) / 2)
 	return Math.max(minY, Math.min(maxY, y))
 }
+
+/** Keep a span that runs `before` ahead of `pos` and `after` past it inside
+ *  the canvas (with the viewport buffer), moving `pos` only as far as that
+ *  takes. THE keep-in-view along a title's own direction: where its text
+ *  runs sideways, `pos` is its anchor x; where it runs up and down (a
+ *  rotated y-title), its anchor y. A span longer than the room cannot be
+ *  kept in, so it centers on the canvas — which is also where the clamp
+ *  lands as the room closes, so nothing jumps on the way there. */
+const keepSpanInView = (
+	pos: number,
+	before: number,
+	after: number,
+	size: number,
+): number => {
+	const min = VIEWPORT_BUFFER_PX + before
+	const max = size - VIEWPORT_BUFFER_PX - after
+	if (min > max) return (min + max) / 2
+	return Math.max(min, Math.min(max, pos))
+}
+
+/** How far a title's text runs BEFORE and AFTER its anchor, along its own
+ *  direction, for a measured width. */
+const spanAround = (
+	textAnchor: TextAnchorSpec,
+	width: number,
+): { before: number; after: number } => {
+	const before = textAnchor === "start" ? 0 : textAnchor === "end" ? width : width / 2
+	return { before, after: width - before }
+}
+
+/** The measured width of a title's widest line, or 0 when the caller did
+ *  not measure it (then nothing is clamped: the anchor is used as aligned). */
+const measuredWidth = (t: SharedTitleInput | undefined): number =>
+	t?.textWidth != null && t.textWidth > 0 ? t.textWidth : 0
+
+/** The width of an UPRIGHT y-title's block: measured when the caller
+ *  measured it, else the character-count estimate. */
+const uprightYTitleWidth = (t: SharedTitleInput): number =>
+	measuredWidth(t) || estimateLongestLineWidth(t.text, t.fontSize)
 
 /** Clamp a rotated y-title's center.x (text-anchor="middle") so its
  *  bounding box (extending ±fontSize/2 horizontally around the anchor)
@@ -694,6 +767,9 @@ const estimateGlobalFloors = (
 	xTitleText: string,
 	xTitleFontSize: number,
 	xTitleLineCount: number,
+	/** The upright y-title's measured width (0 = unmeasured), so the band
+	 *  reserved for it is the width it is drawn at. */
+	yTitleWidthPx: number,
 	// The base margins the solver actually reserves per cell (cartesian 76/64,
 	// or the collapsed POLAR_MARGIN values). The floor helpers return a delta
 	// above these — passing the real base keeps polar modes that still draw a
@@ -712,6 +788,7 @@ const estimateGlobalFloors = (
 				yTitleRotated: !yTitleHorizontal,
 				yTitleText,
 				yTitleFontSize,
+				yTitleWidthPx,
 				baseMarginPx: leftBaseMargin,
 			})
 			if (l > left) left = l
@@ -786,6 +863,10 @@ const computeOuterReserves = (
 	cellMargin: CellMargin,
 	bottomFloor: number = 0,
 	leftFloor: number = 0,
+	/** How far the x / y tick labels reach beyond the plot edge they hang
+	 *  from. A plot extended toward its axis title (§8) stops short of the
+	 *  canvas edge by this much, so the labels still fit. */
+	tickLabelBand: { x: number; y: number } = { x: 0, y: 0 },
 ) => {
 	// Multi-line titles grow UP (LAYOUT.md §7): each extra line adds one
 	// line step to the band, the bottom line keeps the single line's
@@ -841,9 +922,13 @@ const computeOuterReserves = (
 	//   bottom (with VIEWPORT_BUFFER_PX). Past that clamp, additional
 	//   negative offsetY moves the title up over the plot (Phase 2),
 	//   which emerges automatically from the title.y formula.
+	// The room is the x chrome minus the buffer AND the tick labels' band:
+	// the labels hang below the plot's edge wherever it goes, so the edge
+	// may only come as close to the canvas as they still fit. (Without the
+	// band the plot reached the buffer and its labels were cut off.)
 	const extensionRoom = Math.max(
 		0,
-		cellMargin.bottom + bottomFloor - VIEWPORT_BUFFER_PX,
+		cellMargin.bottom + bottomFloor - VIEWPORT_BUFFER_PX - tickLabelBand.x,
 	)
 	const rawXTitleOffsetY = input.xTitle?.offsetY ?? 0
 	// Offsets stay in screen coordinates; with the x axis on TOP (§17)
@@ -861,7 +946,7 @@ const computeOuterReserves = (
 	//   plot.left doesn't pass viewport-left + VIEWPORT_BUFFER_PX.
 	const leftExtensionRoom = Math.max(
 		0,
-		cellMargin.left + leftFloor - VIEWPORT_BUFFER_PX,
+		cellMargin.left + leftFloor - VIEWPORT_BUFFER_PX - tickLabelBand.y,
 	)
 	const rawYTitleOffsetX = input.yTitle?.offsetX ?? 0
 	// An outside y-title (left of the row strip) has no cell chrome to
@@ -1493,7 +1578,7 @@ const facetTitleOverflow = (
  *  its place relative to its panel; the figure shrinks (fit mode) or the
  *  canvas grows (scroll mode) to make room, exactly like an axis title
  *  nudged away from the plot. */
-export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
+const solveKeepingFacetTitles = (rawInput: SolverInput): FacetLayoutSpec => {
 	const first = solveOnce(rawInput)
 	const over = facetTitleOverflow(rawInput, first)
 	if (!over) return first
@@ -1504,6 +1589,57 @@ export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
 		extraLeftMargin: (rawInput.extraLeftMargin ?? 0) + over.left,
 		extraRightMargin: (rawInput.extraRightMargin ?? 0) + over.right,
 	})
+}
+
+/** The panels whose automatic x tick labels would collide at the width just
+ *  solved, rotated; `null` when none needs to change. Labels only ever go
+ *  from level to rotated here — rotating can narrow a plot a little (the
+ *  first label's overhang) but never widens it, so a panel that needed
+ *  rotating still does, and the loop in `solveFacetLayout` cannot flip. */
+const rotateCollidingLabels = (
+	input: SolverInput,
+	spec: FacetLayoutSpec
+): SolverInput | null => {
+	const widthByKey = new Map(spec.panels.map((p) => [p.key, p.inner.width]))
+	let changed = false
+	const panels = input.panels.map((p) => {
+		if (!p.xAutoAngle || p.xLabelAngleDeg !== 0) return p
+		const { labels, labelWidthsPx } = p.xAutoAngle
+		const width = widthByKey.get(p.key) ?? 0
+		const angle = autoLabelAngleFor({
+			labels,
+			labelWidthsPx,
+			bandWidthPx: labels.length > 0 ? width / labels.length : 0,
+			fontSize: p.xLabelFontSize,
+			userAngle: null,
+		})
+		if (angle === 0) return p
+		changed = true
+		return { ...p, xLabelAngleDeg: angle }
+	})
+	return changed ? { ...input, panels } : null
+}
+
+/** Solve the layout. Two things are settled by solving again:
+ *
+ *  - every facet title stays on the canvas (`solveKeepingFacetTitles`);
+ *  - **the x tick labels' angle is decided here, once** (LAYOUT.md §11).
+ *    A panel whose angle is automatic (`xAutoAngle`) starts level; if its
+ *    neighboring labels would collide at the width that solve gave it, it
+ *    is rotated and the layout is solved again with the room rotated labels
+ *    need. The angle is reported per panel (`xLabelAngleDeg`) and the axis
+ *    draws exactly that, so the room reserved and the labels drawn cannot
+ *    disagree. At most a few solves, and only when something rotates. */
+export const solveFacetLayout = (rawInput: SolverInput): FacetLayoutSpec => {
+	let input = rawInput
+	let spec = solveKeepingFacetTitles(input)
+	for (let pass = 0; pass < 3; pass++) {
+		const rotated = rotateCollidingLabels(input, spec)
+		if (!rotated) break
+		input = rotated
+		spec = solveKeepingFacetTitles(input)
+	}
+	return spec
 }
 
 /** One solve. `solveFacetLayout` runs it once, then once more with grown
@@ -1636,6 +1772,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 			xTitleText,
 			xTitleFontSize,
 			xTitleLines,
+			yTitleOutside ? 0 : measuredWidth(input.yTitle),
 			cellMargin.left,
 			cellMargin.bottom
 		)
@@ -1840,6 +1977,12 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 		cellMargin,
 		bottomFloor,
 		leftFloor,
+		// What the tick labels need beyond the plot edge: the pad to the
+		// labels, their own extent, and any nudge toward the title.
+		{
+			x: TICK_LINE_PAD + xLabelVerticalPx + xLabelNudgeTowardTitle,
+			y: yLabelInset + longestYLabelPx + yLabelNudgeTowardTitle,
+		},
 	)
 
 	// LAYOUT.md §8 Phase 3 detection: when an extreme title offset would
@@ -1963,7 +2106,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 		return maxOverhang
 	})()
 
-	const outerReserves = {
+	const requestedReserves = {
 		...outerReservesInitial,
 		top: outerReservesInitial.top + phase3TopGrowFromXTitle,
 		bottom: outerReservesInitial.bottom + phase3BottomGrowFromXTitle,
@@ -1982,39 +2125,163 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 			: Math.max(outerReservesInitial.right + phase3RightGrowFromYTitle, xTickOverhang),
 	}
 
+	/** Cell chrome with the tick-label floors scaled by `kW` / `kH` (1 = as
+	 *  asked for). The floors are the room the tick labels take beyond the
+	 *  base margins. */
+	const marginsScaled =
+		(kW: number, kH: number): CellMarginsAt =>
+		(row, col) =>
+			cellMargins(
+				row,
+				col,
+				input.rows,
+				input.cols,
+				input.shareX,
+				input.shareY,
+				facetLabelHeight,
+				facetSideLeft,
+				facetSideRight,
+				leftFloor * kW,
+				bottomFloor * kH,
+				kH === 1
+					? interiorBottomChromePerRow
+					: interiorBottomChromePerRow.map((v) => v * kH),
+				kW === 1
+					? interiorLeftChromePerCol
+					: interiorLeftChromePerCol.map((v) => v * kW),
+				edges,
+				cellMargin,
+				xAxisTop,
+				yAxisRight
+			)
+	const chromeScaled = (kW: number, kH: number): GridChrome =>
+		computeGridChrome(input.rows, input.cols, input.gapX, input.gapY, marginsScaled(kW, kH))
+
+	// ── ONE BUDGET (LAYOUT.md §2) ───────────────────────────────────────────
+	// In fit mode the canvas IS the container. Everything around the plot
+	// asks for room — title bands, title offsets, data labels, annotations,
+	// the caption, tick labels — and the plot gets what is left, down to
+	// nothing. When the asks exceed the container there is no plot left to
+	// take from, so the asks themselves give way, softest first:
+	//   1. the SOFT reserves, scaled together: what was asked for beyond a
+	//      side's fixed bands (a title pushed away from the plot, the data
+	//      label / annotation / caption margins);
+	//   2. then the tick-label floors, scaled until the grid's chrome fits.
+	// The title bands and base margins are never cut: a container too small
+	// even for those (the 0×0 first render, a sliver of a panel) keeps the
+	// old canvas minimum and is the one case where the canvas may grow.
+	//
+	// Nothing here runs when the asks fit, so those layouts are unchanged.
+	// Scroll mode, pixel panel sizes and negative gaps (ridgeline) grow or
+	// overlap by design and are left alone on that axis.
+	const fitsContainer = (input.minPanelPx ?? DEFAULT_MIN_PANEL_PX) === 0
+	const budgetW =
+		fitsContainer &&
+		!(input.panelWidthOverride != null && input.panelWidthOverride > 0) &&
+		input.gapX >= 0
+	const budgetH =
+		fitsContainer &&
+		!(input.panelHeightOverride != null && input.panelHeightOverride > 0) &&
+		input.gapY >= 0
+	/** Split a side's reserve into the part that is never cut and the soft
+	 *  part above it. A reserve BELOW its fixed bands (a title pulled toward
+	 *  the plot extends the plot into the chrome, §8) has nothing soft. */
+	const splitReserve = (total: number, fixed: number) =>
+		total > fixed ? { fixed, soft: total - fixed } : { fixed: total, soft: 0 }
+	const grantAxis = (
+		container: number,
+		a: { fixed: number; soft: number },
+		b: { fixed: number; soft: number },
+		gaps: number,
+		edgeChromeAt: (k: number) => number
+	): { soft: number; floors: number; tooSmall: boolean; floor: number } => {
+		const fixed = a.fixed + b.fixed + gaps
+		const soft = a.soft + b.soft
+		// The smallest container that still fits: nothing soft, no tick labels.
+		const floor = fixed + edgeChromeAt(0)
+		if (fixed + soft + edgeChromeAt(1) <= container)
+			return { soft: 1, floors: 1, tooSmall: false, floor }
+		// 1. The soft reserves give way first.
+		const room = container - fixed - edgeChromeAt(1)
+		if (room >= 0)
+			return { soft: soft > 0 ? room / soft : 1, floors: 1, tooSmall: false, floor }
+		// 2. Then the tick-label floors. The chrome falls as they scale down,
+		//    so bisect for the largest scale that fits. A container too small
+		//    even for the fixed bands and base margins is left exactly as it
+		//    was asked for: nothing is cut, and the canvas minimum applies.
+		if (floor > container) return { soft: 1, floors: 1, tooSmall: true, floor }
+		let lo = 0
+		let hi = 1
+		for (let i = 0; i < 40; i++) {
+			const mid = (lo + hi) / 2
+			if (fixed + edgeChromeAt(mid) <= container) lo = mid
+			else hi = mid
+		}
+		return { soft: 0, floors: lo, tooSmall: false, floor }
+	}
+	const fixedTop =
+		requestedReserves.titleHeight +
+		requestedReserves.subtitleHeight +
+		requestedReserves.columnHeaderBand
+	const fixedLeft = requestedReserves.rowHeaderBand + yTitleOuterBand(input)
+	const top = splitReserve(requestedReserves.top, fixedTop)
+	const bottom = splitReserve(requestedReserves.bottom, 0)
+	const left = splitReserve(requestedReserves.left, fixedLeft)
+	const right = splitReserve(requestedReserves.right, 0)
+	const grantH = budgetH
+		? grantAxis(
+				input.containerHeight,
+				top,
+				bottom,
+				Math.max(0, input.gapY) * (input.rows - 1),
+				(k) => chromeScaled(1, k).edgeY
+			)
+		: { soft: 1, floors: 1, tooSmall: false, floor: 0 }
+	const grantW = budgetW
+		? grantAxis(
+				input.containerWidth,
+				left,
+				right,
+				Math.max(0, input.gapX) * (input.cols - 1),
+				(k) => chromeScaled(k, 1).edgeX
+			)
+		: { soft: 1, floors: 1, tooSmall: false, floor: 0 }
+	const outerReserves =
+		grantH.soft === 1 && grantW.soft === 1
+			? requestedReserves
+			: {
+					...requestedReserves,
+					top: top.fixed + top.soft * grantH.soft,
+					bottom: bottom.fixed + bottom.soft * grantH.soft,
+					left: left.fixed + left.soft * grantW.soft,
+					right: right.fixed + right.soft * grantW.soft,
+				}
+	const grantedLeftFloor = leftFloor * grantW.floors
+	const grantedBottomFloor = bottomFloor * grantH.floors
+
 	// Floor canvas dims: unmeasured (0×0) renders shouldn't compute negative
 	// inner rects. Mirror the floors in computePlotLayout: just-above margin
 	// sum so the panel renders an empty plot rather than crashing.
+	//
+	// Under the budget this minimum applies only when the container is too
+	// small for the fixed chrome (see above). Otherwise it would re-grow the
+	// canvas by its 20 px "smallest plot" the moment the plot is squeezed
+	// below that — a scrollbar in the mode whose contract is never to scroll.
 	const minCanvasW =
-		outerReserves.left + cellMargin.left + cellMargin.right + facetSideWidth + 20
+		budgetW && !grantW.tooSmall
+			? 0
+			: outerReserves.left + cellMargin.left + cellMargin.right + facetSideWidth + 20
 	const minCanvasH =
-		outerReserves.top +
-		outerReserves.bottom +
-		facetLabelHeight +
-		cellMargin.top +
-		cellMargin.bottom +
-		20
+		budgetH && !grantH.tooSmall
+			? 0
+			: outerReserves.top +
+				outerReserves.bottom +
+				facetLabelHeight +
+				cellMargin.top +
+				cellMargin.bottom +
+				20
 
-	const marginsAt: CellMarginsAt = (row, col) =>
-		cellMargins(
-			row,
-			col,
-			input.rows,
-			input.cols,
-			input.shareX,
-			input.shareY,
-			facetLabelHeight,
-			facetSideLeft,
-			facetSideRight,
-			leftFloor,
-			bottomFloor,
-			interiorBottomChromePerRow,
-			interiorLeftChromePerCol,
-			edges,
-			cellMargin,
-			xAxisTop,
-			yAxisRight
-		)
+	const marginsAt: CellMarginsAt = marginsScaled(grantW.floors, grantH.floors)
 	const gridChrome = computeGridChrome(
 		input.rows,
 		input.cols,
@@ -2028,8 +2295,8 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 	const natural = estimateNaturalDims(
 		input,
 		outerReserves,
-		leftFloor,
-		bottomFloor,
+		grantedLeftFloor,
+		grantedBottomFloor,
 		facetLabelHeight,
 		facetSideWidth,
 		cellMargin,
@@ -2192,13 +2459,17 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 	// inner rect satisfies height/width = aspectRatio. Arrays are uniform
 	// here (overrides nulled + proportionalSizing forced off above), so
 	// constraining index 0 and filling is exact.
+	//
+	// No guard for a zero dimension: when a reserve squeezes one dimension
+	// to nothing the other must follow it to nothing, which is what the
+	// rule below gives (0 × ratio, 0 ÷ ratio). Skipping the shrink there
+	// left the other dimension at full size, so the plot snapped between
+	// "full width, no height" and a sliver one pixel later.
 	if (aspectRatio != null) {
 		const w = safeInnerWidths[0] ?? 0
 		const h = safeInnerHeights[0] ?? 0
-		if (w > 0 && h > 0) {
-			if (w * aspectRatio <= h) safeInnerHeights.fill(w * aspectRatio)
-			else safeInnerWidths.fill(h / aspectRatio)
-		}
+		if (w * aspectRatio <= h) safeInnerHeights.fill(w * aspectRatio)
+		else safeInnerWidths.fill(h / aspectRatio)
 	}
 
 	// Per-cell widths/heights derive from inner + chrome (varies between
@@ -2250,8 +2521,15 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 		if (rawCellY < rawMinCellY) rawMinCellY = rawCellY
 		if (rawCellX < rawMinCellX) rawMinCellX = rawCellX
 	}
-	const ridgelineTopGrow = Math.max(0, naturalGridOriginY - rawMinCellY)
-	const ridgelineLeftGrow = Math.max(0, gridOriginX - rawMinCellX)
+	// Under the budget (fit mode, gap ≥ 0) the canvas does not grow for this.
+	// A cell can still start before the grid origin there — an interior
+	// column's tick labels wider than everything to their left, with y axes
+	// not shared — but that is chrome overlapping its neighbours, not a
+	// ridgeline, and the mode's contract is that the canvas stays the
+	// container. A negative gap is never under the budget, so the ridgeline
+	// case keeps its grow.
+	const ridgelineTopGrow = budgetH ? 0 : Math.max(0, naturalGridOriginY - rawMinCellY)
+	const ridgelineLeftGrow = budgetW ? 0 : Math.max(0, gridOriginX - rawMinCellX)
 	const gridOriginY = naturalGridOriginY + ridgelineTopGrow
 	const adjustedGridOriginX = gridOriginX + ridgelineLeftGrow
 	// Grow the canvas to accommodate the shifted grid. Scroll wrapper
@@ -2360,6 +2638,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 				!input.shareY || p.col === edges.yAxisColPerRow.get(p.row),
 			showXAxisTitle: false,
 			showYAxisTitle: false,
+			xLabelAngleDeg: p.xLabelAngleDeg,
 		}
 	})
 
@@ -2474,11 +2753,55 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 	// the title encroach into the label band. Per-chart `offsetX/Y` from
 	// the sidebar still stacks on top of this default.
 
+	// KEEP IN VIEW ALONG THE TITLE'S OWN DIRECTION (LAYOUT.md §8). Each title
+	// is already held on the canvas ACROSS its direction (the baseline and
+	// rotated-x clamps below). Along it — where "Adjust position" slides an
+	// x-title sideways or a y-title up and down — nothing held it, so the
+	// title left the page. The anchor now stops where the text's far end
+	// reaches the buffer. It needs the title's measured width; unmeasured,
+	// the anchor is used as aligned.
+	const xTitleAnchorX = ((): number => {
+		if (!input.xTitle) return 0
+		const x = xForAlignment(input.xTitle.align, plotLeft, plotRight) + xTOffsetX
+		const width = measuredWidth(input.xTitle)
+		if (width === 0) return x
+		const { before, after } = spanAround(textAnchorFor(input.xTitle.align), width)
+		return keepSpanInView(x, before, after, canvasW)
+	})()
+	// Rotated -90° the text reads bottom-to-top: it runs UP the canvas from
+	// its anchor, so what lies "after" the anchor is above it.
+	const rotatedYTitleY = ((): number => {
+		if (!input.yTitle) return 0
+		const y =
+			(input.yTitle.align === "left"
+				? plotBottom
+				: input.yTitle.align === "right"
+					? plotTop
+					: (plotTop + plotBottom) / 2) + yTOffsetY
+		const width = measuredWidth(input.yTitle)
+		if (width === 0) return y
+		const { before, after } = spanAround(textAnchorFor(input.yTitle.align), width)
+		return keepSpanInView(y, after, before, canvasH)
+	})()
+	// Upright, `y` is the first line's baseline: an ascender above it, and
+	// below it the descender plus one line step per further line.
+	const uprightYTitleY = ((): number => {
+		if (!input.yTitle) return 0
+		const { fontSize, text } = input.yTitle
+		const lines = lineCount(text)
+		const y = horizontalYTitleBaselineY(plotTop, plotBottom, fontSize, lines) + yTOffsetY
+		return keepSpanInView(
+			y,
+			fontSize * 0.8,
+			fontSize * 0.2 + TITLE_LINE_STEP_EM * fontSize * Math.max(0, lines - 1),
+			canvasH,
+		)
+	})()
+
 	const xTitle: TextRect | null = input.xTitle
 		? xAxisTop
 			? {
-					x:
-						xForAlignment(input.xTitle.align, plotLeft, plotRight) + xTOffsetX,
+					x: xTitleAnchorX,
 					// §17: above the plot the title's LAST line sits `xTitleGap`
 					// above plotTop and earlier lines stack upward (`growUp`).
 					// The same offset compensation as below holds in mirror: a
@@ -2498,8 +2821,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 					growUp: true,
 				}
 			: {
-				x:
-					xForAlignment(input.xTitle.align, plotLeft, plotRight) + xTOffsetX,
+				x: xTitleAnchorX,
 				// LAYOUT.md §8: title stays at its natural screen position
 				// when moved AWAY (positive offsetY); the plot shrinks via
 				// `outerReserves.bottom = bottomGrow`, which subtracts from
@@ -2534,15 +2856,9 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 						x: horizontalYTitleAnchorX(
 							input.yTitle.align,
 							yTitleOutsideRight + yTOffsetX,
-							estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
+							uprightYTitleWidth(input.yTitle),
 						),
-						y:
-							horizontalYTitleBaselineY(
-								plotTop,
-								plotBottom,
-								input.yTitle.fontSize,
-								lineCount(input.yTitle.text),
-							) + yTOffsetY,
+						y: uprightYTitleY,
 						textAnchor: textAnchorFor(input.yTitle.align),
 						rotation: 0,
 						width: yTitleOuterBand(input),
@@ -2559,12 +2875,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 							input.yTitle.fontSize,
 							canvasW,
 						),
-						y:
-							(input.yTitle.align === "left"
-								? plotBottom
-								: input.yTitle.align === "right"
-									? plotTop
-									: (plotTop + plotBottom) / 2) + yTOffsetY,
+						y: rotatedYTitleY,
 						textAnchor: textAnchorFor(input.yTitle.align),
 						rotation: -90,
 						width: input.yTitle.fontSize * 1.2,
@@ -2581,18 +2892,12 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 								input.yTitle.align,
 								clampHorizontalYTitleLeftX(
 									plotRight + yTitleGap + yTOffsetX,
-									estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
+									uprightYTitleWidth(input.yTitle),
 									canvasW,
 								),
-								estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
+								uprightYTitleWidth(input.yTitle),
 							),
-							y:
-								horizontalYTitleBaselineY(
-									plotTop,
-									plotBottom,
-									input.yTitle.fontSize,
-									lineCount(input.yTitle.text),
-								) + yTOffsetY,
+							y: uprightYTitleY,
 							textAnchor: textAnchorFor(input.yTitle.align),
 							rotation: 0,
 							width: yTitleGap,
@@ -2609,12 +2914,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 								input.yTitle.fontSize,
 								canvasW,
 							),
-							y:
-								(input.yTitle.align === "left"
-									? plotBottom
-									: input.yTitle.align === "right"
-										? plotTop
-										: (plotTop + plotBottom) / 2) + yTOffsetY,
+							y: rotatedYTitleY,
 							textAnchor: textAnchorFor(input.yTitle.align),
 							rotation: -90,
 							width: input.yTitle.fontSize * 1.2,
@@ -2629,20 +2929,17 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 					// the anchor within that fixed box, not the box.
 					x: horizontalYTitleAnchorX(
 						input.yTitle.align,
+						// The clamp keeps the block's LEFT edge on the canvas, so the
+						// width it needs is the title's own (as the right-side mirror
+						// above passes) — it used to be handed the widest tick label.
 						clampHorizontalYTitleX(
 							plotLeft - yTitleGap + yTOffsetX,
-							longestYLabelPx > 0 ? longestYLabelPx : input.yTitle.fontSize * 6,
+							uprightYTitleWidth(input.yTitle),
 							canvasW,
 						),
-						estimateLongestLineWidth(input.yTitle.text, input.yTitle.fontSize),
+						uprightYTitleWidth(input.yTitle),
 					),
-					y:
-						horizontalYTitleBaselineY(
-							plotTop,
-							plotBottom,
-							input.yTitle.fontSize,
-							lineCount(input.yTitle.text),
-						) + yTOffsetY,
+					y: uprightYTitleY,
 					textAnchor: textAnchorFor(input.yTitle.align),
 					rotation: 0,
 					width: yTitleGap,
@@ -2657,12 +2954,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 						input.yTitle.fontSize,
 						canvasW,
 					),
-					y:
-						(input.yTitle.align === "left"
-							? plotBottom
-							: input.yTitle.align === "right"
-								? plotTop
-								: (plotTop + plotBottom) / 2) + yTOffsetY,
+					y: rotatedYTitleY,
 					// Anchor per alignment, exactly like the x-title: rotated -90°
 					// the text reads bottom-to-top, so "start" begins at the panel
 					// FLOOR and "end" finishes at the panel TOP. A hardcoded
@@ -2891,5 +3183,6 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 		columnHeaders,
 		rowHeaders,
 		figureSlack: { x: figureSlackX, y: figureSlackY },
+		fitFloor: { width: grantW.floor, height: grantH.floor },
 	}
 }

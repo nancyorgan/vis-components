@@ -33,6 +33,7 @@ export const ScatterMode: ChartModeDef = {
 		connectionRole: "line",
 		shapeRole: "glyph",
 		areaRole: "mark",
+		mark: "point",
 		statOverlays: true,
 		measureAxis: null,
 	},

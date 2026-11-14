@@ -93,6 +93,8 @@ const mountFlow = (
 	opts: {
 		hueField?: string
 		patternField?: string
+		/** The Outline variable (Color → Node outline → Vary by). */
+		outlineField?: string
 		omitTarget?: boolean
 		acyclic?: boolean
 		/** Extra channel configs merged over the layout pick (opacity slots,
@@ -115,6 +117,7 @@ const mountFlow = (
 		area: { field: "Value" },
 		...(opts.hueField ? { hue: { field: opts.hueField } } : {}),
 		...(opts.patternField ? { pattern: { field: opts.patternField } } : {}),
+		...(opts.outlineField ? { outlineHue: { field: opts.outlineField } } : {}),
 	}
 	const configs: ChannelConfigs = {
 		connection: { hierarchyLayout: layout } as never,
@@ -625,5 +628,84 @@ describe("SankeyPlot", () => {
 		expect(
 			container.querySelectorAll('rect[data-kind="sankey-node"]').length
 		).toBe(5)
+	})
+})
+
+/** A flow node is a body like a bar: the fill shading and the outline options
+ *  the menus offer reach it. A node is not one dataset row, so "Vary by"
+ *  works for the endpoint columns — by node, like Color — and anything else
+ *  takes its single level. These were offered and ignored. */
+describe.each(["chord", "sankey"] as const)("%s — node options", (layout) => {
+	const nodeSelector =
+		layout === "chord" ? 'path[data-kind="chord-arc"]' : 'rect[data-kind="sankey-node"]'
+	const nodeAttrs = (container: HTMLElement, name: string): (string | null)[] =>
+		[...container.querySelectorAll(nodeSelector)].map((n) => n.getAttribute(name))
+	const OUTLINED = {
+		shape: { outlineColor: "#ff0000", outlineWidth: 2 },
+	} as Partial<ChannelConfigs>
+	const mount = (
+		configsExtra: Partial<ChannelConfigs> = {},
+		opts: { outlineField?: string } = {}
+	) =>
+		mountFlow(layout, {
+			hueField: "Start",
+			acyclic: layout === "sankey",
+			configsExtra: { ...OUTLINED, ...configsExtra },
+			...opts,
+		})
+
+	it("an untouched diagram strokes every node in the one outline color, fully opaque", () => {
+		const container = mount()
+		const strokes = nodeAttrs(container, "stroke")
+		expect(strokes.length).toBe(5)
+		expect(new Set(strokes)).toEqual(new Set(["#ff0000"]))
+		expect(new Set(nodeAttrs(container, "stroke-opacity"))).toEqual(new Set([null]))
+	})
+
+	it("Saturation → Node fill shades the nodes", () => {
+		const plain = nodeAttrs(mount(), "fill")
+		const shaded = nodeAttrs(mount({ defaultSaturation: 0 }), "fill")
+		expect(shaded).toHaveLength(plain.length)
+		for (const [i, fill] of shaded.entries()) expect(fill).not.toBe(plain[i])
+	})
+
+	it("Brightness → Node fill shades the nodes", () => {
+		const plain = nodeAttrs(mount(), "fill")
+		const shaded = nodeAttrs(mount({ defaultBrightness: 0.2 }), "fill")
+		for (const [i, fill] of shaded.entries()) expect(fill).not.toBe(plain[i])
+	})
+
+	it("Color → Node outline → Vary by an endpoint column colors outlines by node", () => {
+		const container = mount({}, { outlineField: "Start" })
+		const strokes = nodeAttrs(container, "stroke")
+		// Every node that appears as a Start takes its own color.
+		expect(new Set(strokes).size).toBeGreaterThan(1)
+	})
+
+	it("Opacity → Node outline sets the outline's opacity", () => {
+		const container = mount({
+			opacitySlots: { border: { field: null, level: 0.3 } },
+		})
+		expect(new Set(nodeAttrs(container, "stroke-opacity"))).toEqual(new Set(["0.3"]))
+	})
+
+	it("Pattern → a default pattern tiles every node, with its defs registered", () => {
+		const container = mount({ defaultPattern: 2 })
+		const fills = nodeAttrs(container, "fill")
+		expect(fills.length).toBe(5)
+		const defIds = new Set([...container.querySelectorAll("pattern")].map((p) => p.id))
+		for (const fill of fills) {
+			expect(fill).toMatch(/^url\(#vc-pat-/)
+			expect(defIds.has((fill ?? "").slice("url(#".length, -1))).toBe(true)
+		}
+	})
+
+	it("Saturation → Node outline shades the outline", () => {
+		const container = mount({
+			saturationSlots: { outline: { field: null, level: 0 } },
+		})
+		const strokes = nodeAttrs(container, "stroke")
+		expect(strokes.length).toBe(5)
+		for (const stroke of strokes) expect(stroke).not.toBe("#ff0000")
 	})
 })

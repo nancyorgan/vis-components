@@ -746,3 +746,144 @@ describe("RadarPlot — per-part targets", () => {
 		}
 	})
 })
+
+/** Pattern → Line on a radar: the polygon outline takes the same dash
+ *  options as a line chart's line — a default dash, a dash per category, the
+ *  gaps filled, and a range it applies within. The menu offered all of them
+ *  and the outline never dashed. */
+describe("RadarPlot — outline dash (Pattern → Line)", () => {
+	/** Everything that strokes a polygon's outline: the polygon itself while
+	 *  solid, else the pieces drawn over its body. */
+	const outlinePieces = (c: HTMLElement): Element[] =>
+		[...c.querySelectorAll("polygon, polyline")].filter(
+			(el) => (el.getAttribute("stroke") ?? "none") !== "none"
+		)
+	const dashes = (c: HTMLElement): (string | null)[] =>
+		outlinePieces(c).map((el) => el.getAttribute("stroke-dasharray"))
+
+	it("a solid outline is still the one polygon per series, body and outline together", () => {
+		const c = mount({ withConnection: true })
+		expect(c.querySelectorAll("polygon")).toHaveLength(2)
+		expect(c.querySelectorAll("polyline")).toHaveLength(0)
+		expect(dashes(c)).toEqual([null, null])
+	})
+
+	it("a default dash dashes every polygon's outline", () => {
+		const c = mount({
+			withConnection: true,
+			// "Fill dash gaps" off: the dashed outline alone.
+			connectionCfg: { defaultDashPattern: "dashed", dashGapFill: false },
+		})
+		expect(dashes(c)).toEqual([dashArrayFor("dashed"), dashArrayFor("dashed")])
+	})
+
+	it("a custom dash wins over the swatch", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: {
+				defaultDashPattern: "dashed",
+				customDashPattern: "7,3",
+				dashGapFill: false,
+			},
+		})
+		expect(dashes(c)).toEqual(["7,3", "7,3"])
+	})
+
+	it("a filled polygon keeps its body under the dashed outline", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: {
+				fillPolygon: true,
+				defaultDashPattern: "dotted",
+				dashGapFill: false,
+			},
+		})
+		const bodies = [...c.querySelectorAll("polygon")].filter(
+			(p) => p.getAttribute("stroke") === "none"
+		)
+		expect(bodies).toHaveLength(2)
+		for (const body of bodies) expect(body.getAttribute("fill")).not.toBe("none")
+		expect(dashes(c)).toEqual([dashArrayFor("dotted"), dashArrayFor("dotted")])
+	})
+
+	it("'Fill dash gaps' lays a solid underlay beneath each dashed outline", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: { defaultDashPattern: "dashed", dashGapFill: true },
+		})
+		// Per series: the gap-colored underlay (solid), then the dashes.
+		expect(dashes(c)).toEqual([
+			null,
+			dashArrayFor("dashed"),
+			null,
+			dashArrayFor("dashed"),
+		])
+		const [underlay, top] = outlinePieces(c)
+		expect(underlay?.getAttribute("stroke")).not.toBe(top?.getAttribute("stroke"))
+	})
+
+	it("a Pattern variable gives each series its own dash", () => {
+		const c = mount({
+			withConnection: true,
+			extraEncodings: { pattern: { field: "team" } },
+			connectionCfg: { dashGapFill: false },
+		})
+		// north takes the cycle's first dash, south its second — and they differ.
+		const drawn = dashes(c)
+		expect(drawn).toHaveLength(2)
+		expect(drawn[0]).not.toBe(drawn[1])
+	})
+
+	it("'Apply pattern to range' dashes only between the named spokes", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: {
+				defaultDashPattern: "dashed",
+				dashGapFill: false,
+				dashRange: { enabled: true, min: "B", max: "C" },
+			},
+		})
+		// Each series: one solid run round the rest of the loop, and one
+		// dashed run from spoke B to spoke C (one edge = two points).
+		const pieces = outlinePieces(c)
+		expect(pieces).toHaveLength(4)
+		const dashed = pieces.filter((el) => el.getAttribute("stroke-dasharray"))
+		const solid = pieces.filter((el) => !el.getAttribute("stroke-dasharray"))
+		expect(dashed).toHaveLength(2)
+		expect(solid).toHaveLength(2)
+		for (const el of dashed) {
+			expect(el.tagName.toLowerCase()).toBe("polyline")
+			expect(el.getAttribute("points")?.trim().split(/\s+/)).toHaveLength(2)
+		}
+		// The solid run goes C → D → A → B: four points.
+		for (const el of solid)
+			expect(el.getAttribute("points")?.trim().split(/\s+/)).toHaveLength(4)
+	})
+
+	it("a range naming no spoke leaves the dash all the way round", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: {
+				defaultDashPattern: "dashed",
+				dashGapFill: false,
+				dashRange: { enabled: true, min: "nope", max: null },
+			},
+		})
+		expect(dashes(c)).toEqual([dashArrayFor("dashed"), dashArrayFor("dashed")])
+	})
+
+	it("'Blank' inside a range leaves a gap in the outline", () => {
+		const c = mount({
+			withConnection: true,
+			connectionCfg: {
+				defaultDashPattern: "blank",
+				dashGapFill: false,
+				dashRange: { enabled: true, min: "B", max: "C" },
+			},
+		})
+		// Only the solid runs outside the window are drawn.
+		const pieces = outlinePieces(c)
+		expect(pieces).toHaveLength(2)
+		for (const el of pieces) expect(el.getAttribute("stroke-dasharray")).toBeNull()
+	})
+})

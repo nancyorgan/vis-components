@@ -3,11 +3,9 @@ import { useAtom, useAtomValue } from "jotai"
 
 import {
 	DEFAULT_SHAPE,
-	DEFAULT_SHAPE_CONFIG,
 	type CustomGlyph,
 	type ShapeConfig,
 } from "../../../lib/channelConfig"
-import { overlayOn } from "../../../lib/colorSlots"
 import { CUSTOM_GLYPH_BASE } from "../../../lib/customGlyphs"
 import { SHAPE_PALETTE } from "../../../lib/scales"
 import {
@@ -15,19 +13,20 @@ import {
 	shapeCategoryHasOverride,
 } from "../../../lib/shapeColors"
 import { orderedLevels } from "../../../lib/smartSort"
-import { shapeConfigFromTheme, valueChanged } from "../../../lib/themeConfig"
+import { shapeConfigFromTheme } from "../../../lib/themeConfig"
 import {
 	currentChannelConfigsAtom,
 	currentEncodingsAtom,
 } from "../../../store/atoms"
 import { useChartModeDef } from "../../../store/useChartModeDef"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
+import { useDrawnParts } from "../../../store/usePartsContext"
 
-import { LABEL_COL } from "../../../../../components/ui/LabeledField"
-import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 
 import { CustomGlyphChips, CustomGlyphEditor } from "./customGlyphEditor"
+import { sizeJumpId } from "./SizeThicknessSections"
 import {
 	CategoryRow,
 	ShapeGlyph,
@@ -50,13 +49,18 @@ export const ShapeOptionsPanel = () => {
 	const fieldMapped = !!encodings.shape?.field
 	// Only glyph modes (scatter, radar, combo points) draw a shape on each
 	// mark. Everywhere else — cells (bars, tiles, hexbins) and outline
-	// modes (wedges, regions, packed / nested circles, ribbons) — the panel
-	// is just the outline width; the Default-shape and per-category
-	// pickers would be inert, so they're hidden. Declared per mode as
+	// modes (wedges, regions, packed / nested circles, ribbons) — the
+	// Default-shape and per-category pickers would be inert, so the panel
+	// says there is no shape to pick. Declared per mode as
 	// `canvas.shapeRole`; the legend follows the same rule (no Shape
-	// section, circle fallback swatches — see Legend.tsx).
+	// section, circle fallback swatches — see Legend.tsx). The outline's
+	// THICKNESS is under Size, with every other thickness.
 	const modeDef = useChartModeDef()
-	const glyphsInert = modeDef.canvas.shapeRole !== "glyph"
+	// What the chart draws now: a glyph mode whose points are not drawn (a
+	// pure density curve, line segments, a line with its points switched
+	// off) has no glyph to pick either.
+	const parts = useDrawnParts()
+	const glyphsInert = modeDef.canvas.shapeRole !== "glyph" || !parts.glyphs
 	// Same defensive merge: older visualizations may be missing outlineColor /
 	// outlineWidth / overrides when the config was first introduced.
 	const cfg: ShapeConfig = {
@@ -85,11 +89,8 @@ export const ShapeOptionsPanel = () => {
 	// The panel-wide reset shows only when something it would write differs
 	// from that target (same fields the reset writes, below).
 	const panelChanged =
-		defaultShapeIdx !== theme.defaultShape ||
-		cfg.outlineColor !== theme.outlineColor ||
-		cfg.outlineWidth !== theme.outlineWidth ||
-		cfg.distributionOutlineWidth !==
-			DEFAULT_SHAPE_CONFIG.distributionOutlineWidth
+		!glyphsInert &&
+		(defaultShapeIdx !== theme.defaultShape || cfg.outlineColor !== theme.outlineColor)
 
 	// Which row's "+" custom-glyph editor is open — the DEFAULT_GLYPH_ROW
 	// sentinel for the Default-shape row, a category value for per-category
@@ -151,72 +152,29 @@ export const ShapeOptionsPanel = () => {
 		/>
 	)
 
+	// Which thickness the Size menu holds for this chart, to point at.
+	const thicknessLink = parts.outline ? (
+		<p className="vc-help">
+			Set the outline thickness under{" "}
+			<SidebarJumpText target={channelJump("area", sizeJumpId("outline"))}>Size</SidebarJumpText>
+			{" "}and its color under{" "}
+			<SidebarJumpText target={channelJump("hue")}>Color</SidebarJumpText>.
+		</p>
+	) : null
+
+	if (glyphsInert)
+		return (
+			<div className="vc-option-panel">
+				<p className="vc-help">
+					This chart draws no point markers, so there is no shape to pick.
+				</p>
+				{thicknessLink}
+			</div>
+		)
+
 	return (
 		<div className="vc-option-panel">
-			<div className="flex items-center gap-2">
-				<NumberInput
-					label="Outline width"
-					labelClassName={LABEL_COL}
-					value={cfg.outlineWidth}
-					min={0}
-					max={10}
-					step={0.5}
-					clamp
-					onChange={(outlineWidth) => updateCfg({ outlineWidth })}
-					suffix="px"
-					changed={valueChanged(cfg.outlineWidth, theme.outlineWidth)}
-				/>
-				{cfg.outlineWidth !== theme.outlineWidth && (
-					<ResetLink
-						ariaLabel="Reset outline width"
-						onClick={() => updateCfg({ outlineWidth: theme.outlineWidth })}
-						underline
-					/>
-				)}
-			</div>
-			{/* Border width for the violin outline / box strokes — its own knob,
-			 *  independent of the point marks' outline width above. Only shown
-			 *  while a violin/box overlay is actually rendering — the mode draws
-			 *  the axis overlays (`canvas.statOverlays`) and one is on. */}
-			{modeDef.canvas.statOverlays && overlayOn(configs) && (
-				<div className="flex items-center gap-2">
-					<NumberInput
-						label="Violin / box outline"
-						labelClassName={LABEL_COL}
-						value={cfg.distributionOutlineWidth ?? 1}
-						min={0}
-						max={10}
-						step={0.5}
-						clamp
-						onChange={(distributionOutlineWidth) =>
-							updateCfg({ distributionOutlineWidth })
-						}
-						suffix="px"
-						changed={valueChanged(
-							cfg.distributionOutlineWidth,
-							DEFAULT_SHAPE_CONFIG.distributionOutlineWidth
-						)}
-					/>
-					{valueChanged(
-						cfg.distributionOutlineWidth,
-						DEFAULT_SHAPE_CONFIG.distributionOutlineWidth
-					) && (
-						<ResetLink
-							ariaLabel="Reset violin / box outline"
-							onClick={() =>
-								updateCfg({
-									distributionOutlineWidth:
-										DEFAULT_SHAPE_CONFIG.distributionOutlineWidth,
-								})
-							}
-							underline
-						/>
-					)}
-				</div>
-			)}
-			{/* Outline COLOR now lives in the unified Color menu (Outline
-			 *  subheader) — only outline WIDTH remains here. */}
-			{!fieldMapped && !glyphsInert && (
+			{!fieldMapped && (
 				<>
 					<div className="vc-divider-group text-sm">
 						<span className="vc-group-header">Default shape</span>
@@ -258,9 +216,8 @@ export const ShapeOptionsPanel = () => {
 					</div>
 				</>
 			)}
-			{fieldMapped && !glyphsInert && fieldValues && fieldValues.values.length > 0 && (
+			{fieldMapped && fieldValues && fieldValues.values.length > 0 && (
 				<>
-					<hr className="border-stone-200 dark:border-stone-700" />
 					{/* Shape choice per category only. Per-category FILL / OUTLINE
 					 *  color lives in the unified Color menu (Fill / Outline
 					 *  subheaders → "Vary by" the shape field) — see the note above.
@@ -305,17 +262,13 @@ export const ShapeOptionsPanel = () => {
 							...prev,
 							defaultShape: theme.defaultShape,
 						}))
-						updateCfg({
-							outlineColor: theme.outlineColor,
-							outlineWidth: theme.outlineWidth,
-							distributionOutlineWidth:
-								DEFAULT_SHAPE_CONFIG.distributionOutlineWidth,
-						})
+						updateCfg({ outlineColor: theme.outlineColor })
 					}}
 					underline
 					className="self-start"
 				/>
 			)}
+			{thicknessLink}
 		</div>
 	)
 }

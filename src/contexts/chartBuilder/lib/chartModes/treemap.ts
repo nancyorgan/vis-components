@@ -49,6 +49,7 @@ export const TreemapMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "proportional",
+		mark: "cell",
 		statOverlays: false,
 		measureAxis: null,
 	},

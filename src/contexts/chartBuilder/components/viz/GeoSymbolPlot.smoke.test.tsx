@@ -536,3 +536,63 @@ describe("GeoSymbolPlot (states bubble map)", () => {
 		expect(document.querySelector(".vc-tooltip")).toBeNull()
 	})
 })
+
+/** A bubble map has four parts: the regions' fill and outline, and the
+ *  bubbles' fill and outline. The bubbles had their own colors but no
+ *  opacity, saturation or brightness of their own — the menus offered those
+ *  for the regions only. */
+describe("GeoSymbolPlot — the bubbles' own opacity and shading", () => {
+	const bubbles = async (configs: Record<string, unknown>) => {
+		seed()
+		/* eslint-disable @vc/use-wrapped-json-functions */
+		localStorage.setItem(
+			"vis-components:currentChannelConfigs",
+			JSON.stringify({
+				colorSlots: {
+					geoPointFill: { field: null, singleColor: "#ff0000" },
+					geoPointStroke: { field: null, singleColor: "#0000ff" },
+				},
+				...configs,
+			})
+		)
+		/* eslint-enable @vc/use-wrapped-json-functions */
+		const { container } = mount()
+		await waitFor(() => {
+			expect(container.querySelectorAll("circle").length).toBe(3)
+		})
+		return [...container.querySelectorAll("circle")]
+	}
+	const attrs = (circles: Element[], name: string) =>
+		new Set(circles.map((c) => c.getAttribute(name)))
+
+	it("untouched bubbles draw fully opaque in their own colors, with no opacity attributes", async () => {
+		const circles = await bubbles({})
+		expect(attrs(circles, "fill")).toEqual(new Set(["#ff0000"]))
+		expect(attrs(circles, "stroke")).toEqual(new Set(["#0000ff"]))
+		expect(attrs(circles, "fill-opacity")).toEqual(new Set([null]))
+		expect(attrs(circles, "stroke-opacity")).toEqual(new Set([null]))
+	})
+
+	it("Opacity → Point fill and Point outline fade the bubbles, each on its own", async () => {
+		const circles = await bubbles({
+			opacitySlots: {
+				geoPointFill: { field: null, level: 0.4 },
+				geoPointStroke: { field: null, level: 0.7 },
+			},
+		})
+		expect(attrs(circles, "fill-opacity")).toEqual(new Set(["0.4"]))
+		expect(attrs(circles, "stroke-opacity")).toEqual(new Set(["0.7"]))
+	})
+
+	it("Saturation → Point fill and Point outline shade the bubbles' colors", async () => {
+		const circles = await bubbles({
+			saturationSlots: {
+				geoPointFill: { field: null, level: 0 },
+				geoPointStroke: { field: null, level: 0 },
+			},
+		})
+		expect(attrs(circles, "fill").has("#ff0000")).toBe(false)
+		expect(attrs(circles, "stroke").has("#0000ff")).toBe(false)
+		expect(attrs(circles, "fill").size).toBe(1)
+	})
+})

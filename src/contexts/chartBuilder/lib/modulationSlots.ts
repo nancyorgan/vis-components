@@ -4,7 +4,17 @@ import type {
 	ModulationSlotKey,
 } from "./channelConfig"
 import type { ChartMode } from "./chartMode"
-import { areaPointsOn, filledRadarOn, overlayOn } from "./colorSlots"
+import { isAreaModeId } from "./chartModes/families"
+import {
+	areaPointsOn,
+	densityCurveFillOn,
+	densityCurveOn,
+	filledRadarOn,
+	overlayOn,
+	regressionCiOn,
+	regressionOn,
+	rugOn,
+} from "./colorSlots"
 import type { Encodings } from "./types"
 
 /** The two color modulations that split by mark part. */
@@ -22,8 +32,16 @@ export const MODULATION_SLOTS_KEY = {
 export type ModulationSlotDef = {
 	key: ModulationSlotKey
 	label: string
-	modes: ReadonlySet<ChartMode>
-	isApplicable: (encodings: Encodings, configs: ChannelConfigs) => boolean
+	/** `null` = every chart mode (the marks' own outline). */
+	modes: ReadonlySet<ChartMode> | null
+	isApplicable: (
+		encodings: Encodings,
+		configs: ChannelConfigs,
+		mode: ChartMode
+	) => boolean
+	/** False when the part carries no data to vary by (a dot map's regions):
+	 *  the target offers one level, no "Vary by". Absent = true. */
+	acceptsFieldMapping?: boolean
 }
 
 const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
@@ -47,16 +65,32 @@ export const MODULATION_SLOT_REGISTRY: readonly ModulationSlotDef[] = [
 		isApplicable: areaPointsOn,
 	},
 	{
+		// The marks' own outline — a point's ring, a bar's, a slice's, a
+		// cell's, a region's. Every renderer resolves it through
+		// `lib/markOutline`, so the option reaches every outline. Not the area
+		// modes: an area's own outline is its Line, and the points on it have
+		// the Point outline target below. (Whether an outline is drawn at all
+		// — not on line segments, nor a pure density curve — is asked of
+		// `drawnParts` where the menus are assembled.)
 		key: "outline",
 		label: "Outline",
-		modes: m("scatter", "radar"),
-		isApplicable: () => true,
+		modes: null,
+		isApplicable: (_encodings, _configs, mode) => !isAreaModeId(mode),
 	},
 	{
+		// The combo modes draw their line with scatter's line builder, which
+		// has always shaded it by this target; the menu just never offered it.
 		key: "line",
 		label: "Line",
-		modes: m("scatter", "radar", "areas-x", "areas-y"),
+		modes: m("scatter", "radar", "areas-x", "areas-y", "combo-x", "combo-y"),
 		isApplicable: (encodings) => !!encodings.connection?.field,
+	},
+	{
+		// Bar + marks combo: the points on the line, beside the bars.
+		key: "comboPointFill",
+		label: "Point fill",
+		modes: m("combo-x", "combo-y"),
+		isApplicable: () => true,
 	},
 	{
 		key: "areaPointOutline",
@@ -75,6 +109,74 @@ export const MODULATION_SLOT_REGISTRY: readonly ModulationSlotDef[] = [
 		label: "Violin / box outline",
 		modes: m("scatter"),
 		isApplicable: (_encodings, configs) => overlayOn(configs),
+	},
+	// The overlays drawn over the marks: each takes Saturation and Brightness
+	// like its Color and Opacity, under the same gate (the overlay is on).
+	{
+		key: "stem",
+		label: "Stem",
+		modes: m("scatter"),
+		isApplicable: (_encodings, configs) =>
+			(configs.connection?.axisStem ?? "none") !== "none",
+	},
+	{
+		key: "regressionStroke",
+		label: "Regression line",
+		modes: m("scatter"),
+		isApplicable: (_encodings, configs) => regressionOn(configs),
+	},
+	{
+		key: "regressionCiFill",
+		label: "Confidence interval",
+		modes: m("scatter"),
+		isApplicable: (_encodings, configs) => regressionCiOn(configs),
+	},
+	{
+		key: "densityCurveFill",
+		label: "Density curve fill",
+		modes: m("scatter", "bars-x", "bars-y"),
+		isApplicable: (_encodings, configs) => densityCurveFillOn(configs),
+	},
+	{
+		key: "densityCurveStroke",
+		label: "Density curve outline",
+		modes: m("scatter", "bars-x", "bars-y"),
+		isApplicable: (_encodings, configs) => densityCurveOn(configs),
+	},
+	{
+		key: "rug",
+		label: "Rug",
+		modes: m("bars-x", "bars-y", "scatter"),
+		isApplicable: (_encodings, configs) => rugOn(configs),
+	},
+	{
+		// Bubble map: the bubbles' fill and outline, beside the regions'.
+		key: "geoPointFill",
+		label: "Point fill",
+		modes: m("geo-symbols"),
+		isApplicable: () => true,
+	},
+	{
+		key: "geoPointStroke",
+		label: "Point outline",
+		modes: m("geo-symbols"),
+		isApplicable: () => true,
+	},
+	{
+		// Dot map: the regions behind the points. One level each — the
+		// regions carry no data.
+		key: "geoRegionFill",
+		label: "Region fill",
+		modes: m("geo-points"),
+		isApplicable: () => true,
+		acceptsFieldMapping: false,
+	},
+	{
+		key: "geoRegionStroke",
+		label: "Region outline",
+		modes: m("geo-points"),
+		isApplicable: () => true,
+		acceptsFieldMapping: false,
 	},
 	{
 		// The filled radar polygon's BODY. Untouched, the body inherits the
@@ -101,5 +203,7 @@ export const applicableModulationSlots = (
 	configs: ChannelConfigs
 ): ModulationSlotDef[] =>
 	MODULATION_SLOT_REGISTRY.filter(
-		(d) => d.modes.has(mode) && d.isApplicable(encodings, configs)
+		(d) =>
+			(d.modes === null || d.modes.has(mode)) &&
+			d.isApplicable(encodings, configs, mode)
 	)

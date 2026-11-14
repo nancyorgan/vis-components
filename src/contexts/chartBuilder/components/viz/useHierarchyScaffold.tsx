@@ -42,6 +42,8 @@ import {
 import {
 	inkForHueColor,
 	inkPaletteForHue,
+	resolveDefaultPatternForMark,
+	resolveDefaultPatternInk,
 	resolvePatternForMark,
 	type ResolvedPattern,
 } from "../../lib/patterns"
@@ -55,6 +57,7 @@ import {
 	modulateColor,
 	type UnitScale,
 } from "../../lib/scales"
+import { markOutlineResolver } from "../../lib/markOutline"
 import { resolveShapeColors } from "../../lib/shapeColors"
 import { resolveRuleColor } from "../../lib/textColorRules"
 import {
@@ -661,6 +664,7 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 		 * (e.g. Watermelon) take an outline too; implicit containers have
 		 * no row and fall back. */
 		const outlineAes = aestheticScales.outlineHue
+		const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
 		const strokeFor = (
 			row: Record<string, unknown> | null,
 			fill: string
@@ -831,6 +835,31 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 				preferredInk
 			)
 		}
+		/** The no-variable default pattern (`channelConfigs.defaultPattern`)
+		 * for a mark, tiled over its fill with the ink paired on its
+		 * pre-shading color — the same resolution bars and cells use. */
+		const resolveDefaultNodePattern = (
+			style: HierarchyMarkStyle
+		): ResolvedPattern | null => {
+			if (channelConfigs.defaultPattern == null) return null
+			const { bgColor, inkKeyColor } = patternTile(
+				{ fill: style.fill, preModulationHue: style.preModulationFill },
+				hueDrivesFill,
+				patternBgOverride
+			)
+			return resolveDefaultPatternForMark(
+				bgColor,
+				channelConfigs.defaultPattern,
+				resolveDefaultPatternInk(
+					channelConfigs,
+					inkKeyColor,
+					inkHueType,
+					aestheticScales.themeInkFallback
+				),
+				channelConfigs.pattern?.defaultScale,
+				channelConfigs.pattern?.defaultRotation
+			)
+		}
 		/** The `<pattern>` def (or null) for one mark. Renderers use its
 		 * `svgId` as the mark fill and collect the specs for `<PatternDefs>`
 		 * (which dedupes). */
@@ -853,7 +882,9 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 				if (catIdx === -1) return null
 				return resolveNodePattern(value, catIdx, style)
 			}
-			if (!patternAes) return null
+			// No Pattern variable: the configured DEFAULT pattern tiles every
+			// styled mark, as it does bars and cells.
+			if (!patternAes) return resolveDefaultNodePattern(style)
 			const row = node.data.row
 			if (!row) return null
 			const raw = row[patternAes.field.name]
@@ -875,17 +906,29 @@ export const useHierarchyScaffold = (props: ChartRendererBaseProps = {}) => {
 		 * with one emphasized edge. */
 		const markStroke = (
 			node: HierarchyLayoutNode,
-			style: HierarchyMarkStyle | null
-		): { stroke: string; strokeWidth: number } => {
+			_style: HierarchyMarkStyle | null
+		): {
+			stroke: string
+			strokeWidth: number
+			/** `undefined` at full opacity, so untouched charts set no attribute. */
+			strokeOpacity: number | undefined
+		} => {
 			const mh = nodeHighlight(node)
-			if (mh.outline) return { stroke: mh.outline, strokeWidth: mh.outlineWidth }
-			const row = node.data.row
+			if (mh.outline)
+				return {
+					stroke: mh.outline,
+					strokeWidth: mh.outlineWidth,
+					strokeOpacity: undefined,
+				}
+			// Color (rule → Outline variable → the one outline color), its
+			// saturation / brightness, opacity and thickness, through the resolver
+			// every mark's outline shares. An implicit container has no row:
+			// it takes the one outline color and the single levels.
+			const outline = outlineFor(node.data.row ?? {})
 			return {
-				stroke:
-					row && outlineAes
-						? strokeFor(row, style?.fill ?? HIERARCHY_PARENT_FILL)
-						: outlineColor,
-				strokeWidth: outlineWidth,
+				stroke: outline.stroke,
+				strokeWidth: outline.strokeWidth,
+				strokeOpacity: outline.strokeOpacity === 1 ? undefined : outline.strokeOpacity,
 			}
 		}
 

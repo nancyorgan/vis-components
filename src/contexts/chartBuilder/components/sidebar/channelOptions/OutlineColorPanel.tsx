@@ -26,6 +26,7 @@ import { linkedCategoryColors } from "../../../lib/linkedHueColors"
 import { useColorLink } from "../../../store/useColorLink"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
+import { useVaryByFieldFilter } from "../../../store/useVaryByFieldFilter"
 
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
@@ -52,8 +53,11 @@ const useOutlineHueField = () => {
 	const dataset = useCurrentDatasetView()
 
 	const value = encodings.outlineHue?.field ?? null
-	const eligible = (dataset?.fields ?? []).filter((f) =>
-		channelAccepts("outlineHue", overrides[f.name] ?? f.inferredType),
+	const canVary = useVaryByFieldFilter()
+	const eligible = (dataset?.fields ?? []).filter(
+		(f) =>
+			channelAccepts("outlineHue", overrides[f.name] ?? f.inferredType) &&
+			canVary(f.name, value),
 	)
 	const fieldOptions = [
 		{ value: "", label: "— none —" },

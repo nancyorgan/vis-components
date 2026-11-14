@@ -11,7 +11,6 @@ import {
 	geoPatternFill,
 	matchedRowIsNoData,
 	resolveGeoFill,
-	resolveGeoOutlineColor,
 	resolveGeoPatternDef,
 	resolveNoDataPatternDef,
 } from "./geoMarkStyle"
@@ -260,48 +259,138 @@ describe("resolveNoDataPatternDef", () => {
 	})
 })
 
-describe("resolveGeoOutlineColor", () => {
+describe("buildRegionStyleResolvers — region outline", () => {
+	// Every mark's outline resolves through `lib/markOutline`; these pin what
+	// a REGION gets from it (matched rows by their row, unmatched regions the
+	// one outline color and the single levels).
+	const feature = (id: string): Feature => ({
+		type: "Feature",
+		id,
+		properties: {},
+		geometry: { type: "Point", coordinates: [0, 0] },
+	})
 	const outlineOver = (values: string[]): AestheticScales["outlineHue"] => ({
 		scale: makeHueScale(values, "categorical"),
 		field: { name: "grp", type: "categorical" },
 	})
+	const BASE = "#102030"
+	const resolversFor = (
+		row: Record<string, unknown>,
+		scales: Partial<AestheticScales> = {},
+		configs: Record<string, unknown> = {}
+	) =>
+		buildRegionStyleResolvers({
+			featureToRow: new Map([["06", row]]),
+			noDataFill: "#nodata",
+			measureField: null,
+			aestheticScales: scalesOf(scales),
+			channelConfigs: {
+				...EMPTY_CHANNEL_CONFIGS,
+				...configs,
+				shape: {
+					...EMPTY_CHANNEL_CONFIGS.shape,
+					outlineColor: BASE,
+					...(configs.shape as Record<string, unknown> | undefined),
+				},
+			} as never,
+		})
 
-	it("returns the base color when no outlineHue is mapped", () => {
-		expect(
-			resolveGeoOutlineColor("#base", { grp: "A" }, null, undefined)
-		).toBe("#base")
+	it("is the one outline color when no Outline variable is mapped", () => {
+		const r = resolversFor({ grp: "A" })
+		expect(r.strokeFor(feature("06"))).toBe(BASE)
+		expect(r.strokeFor(feature("48"))).toBe(BASE)
 	})
 
-	it("uses the outlineHue scale color when mapped and no rule matches", () => {
-		const outline = outlineOver(["A", "B"])
-		const stroke = resolveGeoOutlineColor(
-			"#base",
+	it("takes the Outline variable's color for a matched region; unmatched keep the one color", () => {
+		const r = resolversFor({ grp: "A" }, { outlineHue: outlineOver(["A", "B"]) })
+		expect(r.strokeFor(feature("06"))).not.toBe(BASE)
+		expect(r.strokeFor(feature("48"))).toBe(BASE)
+	})
+
+	it("a matching conditional rule wins over the variable's color", () => {
+		const r = resolversFor(
 			{ grp: "A" },
-			outline,
-			undefined
+			{ outlineHue: outlineOver(["A", "B"]) },
+			{ shape: { outlineColorRules: [{ condition: '=="A"', color: "#aa0000" }] } }
 		)
-		expect(stroke).not.toBe("#base")
+		expect(r.strokeFor(feature("06"))).toBe("#aa0000")
 	})
 
-	it("a matching conditional rule wins over the scale color", () => {
-		const outline = outlineOver(["A", "B"])
-		const stroke = resolveGeoOutlineColor("#base", { grp: "A" }, outline, [
-			{ condition: '=="A"', color: "#rule" },
-		])
-		expect(stroke).toBe("#rule")
+	it("a {Variable} rule fires with no Outline variable mapped; an implicit one does not", () => {
+		const variable = resolversFor(
+			{ profit: -1 },
+			{},
+			{ shape: { outlineColorRules: [{ condition: "{profit} < 0", color: "#aa0000" }] } }
+		)
+		expect(variable.strokeFor(feature("06"))).toBe("#aa0000")
+		const implicit = resolversFor(
+			{ profit: -1 },
+			{},
+			{ shape: { outlineColorRules: [{ condition: "< 0", color: "#aa0000" }] } }
+		)
+		expect(implicit.strokeFor(feature("06"))).toBe(BASE)
 	})
 
-	it("a {Variable} rule fires with no outlineHue mapped; an implicit one does not", () => {
+	it("draws at the outline's Opacity, matched or not, and sets nothing at full opacity", () => {
+		const untouched = resolversFor({ grp: "A" })
+		expect(untouched.strokeOpacityFor(feature("06"))).toBeUndefined()
+		const faded = resolversFor(
+			{ grp: "A" },
+			{},
+			{ opacitySlots: { border: { field: null, level: 0.4 } } }
+		)
+		expect(faded.strokeOpacityFor(feature("06"))).toBe(0.4)
+		expect(faded.strokeOpacityFor(feature("48"))).toBe(0.4)
+	})
+
+	it("shades the outline by its Saturation", () => {
+		const r = resolversFor(
+			{ grp: "A" },
+			{},
+			{
+				shape: { outlineColor: "#ff0000" },
+				saturationSlots: { outline: { field: null, level: 0 } },
+			}
+		)
+		expect(r.strokeFor(feature("06"))).not.toBe("#ff0000")
+	})
+})
+
+describe("resolveGeoFill — opacity as its own option", () => {
+	it("sets nothing at the default level, so untouched maps draw as before", () => {
+		const r = resolveGeoFill(
+			"#base",
+			{ cat: "A" },
+			{ name: "cat", type: "categorical" },
+			scalesOf({ hue: hueOver(["A", "B"]) }),
+			EMPTY_CHANNEL_CONFIGS
+		)
+		expect(r.fillOpacity).toBeUndefined()
+	})
+
+	it("the single level applies beside a Color measure, and with no measure", () => {
+		const configs = { ...EMPTY_CHANNEL_CONFIGS, defaultOpacity: 0.5 }
 		expect(
-			resolveGeoOutlineColor("#base", { profit: -1 }, null, [
-				{ condition: "{profit} < 0", color: "#rule" },
-			])
-		).toBe("#rule")
+			resolveGeoFill(
+				"#base",
+				{ cat: "A" },
+				{ name: "cat", type: "categorical" },
+				scalesOf({ hue: hueOver(["A", "B"]) }),
+				configs
+			).fillOpacity
+		).toBe(0.5)
 		expect(
-			resolveGeoOutlineColor("#base", { profit: -1 }, null, [
-				{ condition: "< 0", color: "#rule" },
-			])
-		).toBe("#base")
+			resolveGeoFill("#base", { cat: "A" }, null, EMPTY_SCALES, configs).fillOpacity
+		).toBe(0.5)
+	})
+
+	it("an Opacity variable beside a Color measure varies the alpha per row", () => {
+		const scales = scalesOf({ hue: hueOver(["A", "B"]), opacity: opacityOver([0, 10]) })
+		const field = { name: "cat", type: "categorical" as const }
+		const low = resolveGeoFill("#base", { cat: "A", n: 0 }, field, scales, EMPTY_CHANNEL_CONFIGS)
+		const high = resolveGeoFill("#base", { cat: "A", n: 10 }, field, scales, EMPTY_CHANNEL_CONFIGS)
+		expect(low.fill).toBe(high.fill)
+		expect(low.fillOpacity ?? 1).toBeLessThan(high.fillOpacity ?? 1)
 	})
 })
 
@@ -382,6 +471,26 @@ describe("resolveGeoPatternDef / geoPatternFill", () => {
 	})
 })
 
+describe("geo marks take the configured default pattern", () => {
+	const withDefault = { ...EMPTY_CHANNEL_CONFIGS, defaultPattern: 2 }
+
+	it("tiles a mark when no Pattern variable is mapped", () => {
+		expect(
+			geoPatternFill({ p: "A" }, "#123456", EMPTY_SCALES, withDefault)
+		).toMatch(/^url\(#/)
+	})
+
+	it("registers the def the mark references", () => {
+		const fill = geoPatternFill({ p: "A" }, "#123456", EMPTY_SCALES, withDefault)
+		const defs = buildGeoPatternDefs(
+			[{ row: { p: "A" }, fill: "#123456" }],
+			EMPTY_SCALES,
+			withDefault
+		)
+		expect(defs.map((d) => `url(#${d.svgId})`)).toContain(fill)
+	})
+})
+
 describe("buildGeoPatternDefs", () => {
 	it("returns [] when no pattern field is mapped", () => {
 		expect(
@@ -423,9 +532,6 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 			featureToRow: new Map([["06", { cat: "A", p: "A" }]]),
 			noDataFill: "#nodata",
 			measureField: scales.hue!.field,
-			baseOutlineColor: "#base",
-			outlineHue: null,
-			outlineColorRules: undefined,
 			aestheticScales: scales,
 			channelConfigs: EMPTY_CHANNEL_CONFIGS,
 		})
@@ -448,9 +554,6 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 			noDataFill: "#nodata",
 			noDataPatternDef: noDataDef,
 			measureField: scales.hue!.field,
-			baseOutlineColor: "#base",
-			outlineHue: null,
-			outlineColorRules: undefined,
 			// Hue only — no pattern channel on this map.
 			aestheticScales: scalesOf({ hue: scales.hue }),
 			channelConfigs: EMPTY_CHANNEL_CONFIGS,
@@ -478,9 +581,6 @@ describe("buildRegionStyleResolvers with a pattern field", () => {
 			noDataFill: "#nodata",
 			noDataPatternDef: noDataDef,
 			measureField: scales.hue!.field, // measure mapped, value blank
-			baseOutlineColor: "#base",
-			outlineHue: null,
-			outlineColorRules: undefined,
 			aestheticScales: scales,
 			channelConfigs: EMPTY_CHANNEL_CONFIGS,
 		})
@@ -510,9 +610,6 @@ describe("buildRegionStyleResolvers with brightness mapped", () => {
 			]),
 			noDataFill: "#nodata",
 			measureField: hue!.field,
-			baseOutlineColor: "#base",
-			outlineHue: null,
-			outlineColorRules: undefined,
 			aestheticScales: scalesOf({
 				hue,
 				brightness: unitOver([0, 100], "b"),
@@ -534,9 +631,6 @@ describe("buildRegionStyleResolvers with brightness mapped", () => {
 			featureToRow: new Map([["06", { cat: "A", b: 100 }]]),
 			noDataFill: "#nodata",
 			measureField: hue!.field,
-			baseOutlineColor: "#base",
-			outlineHue: null,
-			outlineColorRules: undefined,
 			aestheticScales: scalesOf({
 				hue,
 				brightness: unitOver([0, 100], "b"),
@@ -615,9 +709,6 @@ describe("matchedRowIsNoData", () => {
 			featureToRow: rows,
 			noDataFill: "#nodata",
 			measureField: hue!.field,
-			baseOutlineColor: "#base",
-			outlineHue: null,
-			outlineColorRules: undefined,
 			aestheticScales: scales,
 			channelConfigs: EMPTY_CHANNEL_CONFIGS,
 		})

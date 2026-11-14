@@ -68,7 +68,7 @@ export const MarkSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => (
 				onChange={(v) => set("outlineColor", v)}
 			/>
 			<NumberInput
-				label="Outline width"
+				label="Outline thickness"
 				value={theme.outlineWidth}
 				onChange={(v) => set("outlineWidth", v)}
 				min={0}

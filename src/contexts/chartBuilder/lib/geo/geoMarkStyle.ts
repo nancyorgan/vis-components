@@ -5,7 +5,8 @@ import type {
 	AestheticScales,
 } from "../../store/useAestheticScales"
 import { resolvePatternDefForItem } from "../buildPatternDefs"
-import type { ChannelConfigs, TextColorRule } from "../channelConfig"
+import type { ChannelConfigs } from "../channelConfig"
+import { markOutlineResolver } from "../markOutline"
 import type { PatternDefSpec } from "../patternDefs"
 import { resolveRowModulation } from "../resolveMarkAesthetics"
 import { applyAreaScale, applyHueScale, modulateColor } from "../scales"
@@ -103,6 +104,20 @@ export const resolveGeoFill = (
 		[row]
 	)
 	if (fillRuleColor) fill = fillRuleColor
+	// Opacity as an option of its own, as on every other body: beside a
+	// Color measure its variable's scale answers for the row, and with no
+	// variable the single level applies. (On the opacity-ONLY path above the
+	// variable already is the alpha.) Full opacity sets nothing, so untouched
+	// maps draw as before.
+	if (fillOpacity === undefined) {
+		const level =
+			(hueScale && opacityScale
+				? opacityScale.scale(row[opacityScale.field.name] as never)
+				: null) ??
+			channelConfigs.defaultOpacity ??
+			1
+		if (level !== 1) fillOpacity = level
+	}
 	const preModulationHue = fill
 	const { satUnit, briUnit } = resolveRowModulation(
 		row,
@@ -179,10 +194,12 @@ export const resolveGeoPatternDef = (
 	mod?: GeoPatternModulation
 ): PatternDefSpec | null => {
 	const patternField = aestheticScales.pattern?.field ?? null
-	if (!patternField) return null
+	// With no Pattern variable the configured DEFAULT pattern applies, as it
+	// does to bars and cells.
+	if (!patternField && channelConfigs.defaultPattern == null) return null
 	return resolvePatternDefForItem(
 		{
-			patternValue: row[patternField.name],
+			patternValue: patternField ? row[patternField.name] : undefined,
 			fill,
 			preModulationHue: mod?.preModulationHue ?? fill,
 			satUnit: mod?.satUnit ?? null,
@@ -190,9 +207,15 @@ export const resolveGeoPatternDef = (
 		},
 		aestheticScales,
 		channelConfigs,
-		channelConfigs.pattern?.backgroundColor ?? null
+		channelConfigs.pattern?.backgroundColor ?? null,
+		GEO_PATTERN_OPTIONS
 	)
 }
+
+/** Geo marks take the configured default pattern like bars and cells. Marks
+ *  and the upfront defs pass both resolve through `resolveGeoPatternDef`, so
+ *  they cannot disagree on it. */
+const GEO_PATTERN_OPTIONS = { includeDefaultPattern: true } as const
 
 /** The SVG fill a geo mark should draw with: the pattern ref when the mark's
  *  row carries a pattern category, else the plain resolved fill. Marks and the
@@ -228,7 +251,7 @@ export const buildGeoPatternDefs = (
 	aestheticScales: AestheticScales,
 	channelConfigs: ChannelConfigs
 ): PatternDefSpec[] => {
-	if (!aestheticScales.pattern) return []
+	if (!aestheticScales.pattern && channelConfigs.defaultPattern == null) return []
 	const defs = new Map<string, PatternDefSpec>()
 	for (const { row, fill, mod } of marks) {
 		const def = resolveGeoPatternDef(
@@ -243,33 +266,6 @@ export const buildGeoPatternDefs = (
 	return [...defs.values()]
 }
 
-/**
- * Resolve a geographic mark's outline (stroke) color for a matched row.
- *
- * Border stroke precedence (mirrors ScatterPlot): a matching conditional
- * outline rule wins, then the `outlineHue` scale color for this region's row,
- * else the caller's `baseOutlineColor`. A `{Variable}` rule fires with no
- * Outline variable mapped (it tests the row); an implicit rule needs one.
- * This assumes a matched `row` (rules / scale can only resolve with one), so
- * callers gate on `row` themselves — the choropleth's no-data regions, which
- * have no row, always use the base color without calling this.
- */
-export const resolveGeoOutlineColor = (
-	baseOutlineColor: string,
-	row: Record<string, unknown>,
-	outlineHue: AestheticScales["outlineHue"],
-	outlineColorRules: readonly TextColorRule[] | undefined
-): string => {
-	const rawOutline = outlineHue ? row[outlineHue.field.name] : undefined
-	const outlineRuleColor = resolveRuleColor(outlineColorRules, rawOutline, [
-		row,
-	])
-	const outlineScaleColor = outlineHue
-		? applyHueScale(outlineHue.scale, rawOutline, outlineHue.field.type)
-		: null
-	return outlineRuleColor ?? outlineScaleColor ?? baseOutlineColor
-}
-
 /** Per-feature style callbacks for a REGION layer (a choropleth's region
  *  paths, or the bubble map's region basemap). Each callback looks up the
  *  feature's matched data row and resolves through `resolveGeoFill` /
@@ -279,7 +275,11 @@ export const resolveGeoOutlineColor = (
 export type RegionStyleResolvers = {
 	fillFor: (feature: Feature) => string
 	fillOpacityFor: (feature: Feature) => number | undefined
+	/** The outline's Opacity for the region; `undefined` at full opacity. */
+	strokeOpacityFor: (feature: Feature) => number | undefined
 	strokeFor: (feature: Feature) => string
+	/** The outline's thickness for the region (px; 0 = none). */
+	strokeWidthFor: (feature: Feature) => number
 	/** True when the feature draws in the NO-DATA paint: absent from the dataset
 	 *  entirely, or a matched row whose measure value didn't resolve (blank/NA)
 	 *  and whose own pattern category doesn't already paint it. Legend-hover
@@ -348,17 +348,17 @@ export const matchedRowIsNoData = (
  *    its own pattern-channel category already paints it.
  *  - FILL-OPACITY: only set on the opacity-only path (alpha varies over the
  *    shared base fill); unmatched → undefined (full opacity).
- *  - STROKE: conditional outline rule wins, then the `outlineHue` scale color
- *    for the row, else `baseOutlineColor`; unmatched → `baseOutlineColor`.
+ *  - STROKE: the shared outline resolver (`lib/markOutline`) — a matching
+ *    outline rule, then the Outline variable's color for the row, else the
+ *    one outline color; shaded by the outline's Saturation / Brightness and
+ *    drawn at its Opacity. An unmatched region has no row, so it takes the
+ *    one outline color and the single levels.
  */
 export const buildRegionStyleResolvers = ({
 	featureToRow,
 	noDataFill,
 	noDataPatternDef = null,
 	measureField,
-	baseOutlineColor,
-	outlineHue,
-	outlineColorRules,
 	aestheticScales,
 	channelConfigs,
 }: {
@@ -369,9 +369,6 @@ export const buildRegionStyleResolvers = ({
 	 *  def must also register it in `<Plot patternDefs>`. */
 	noDataPatternDef?: PatternDefSpec | null
 	measureField: AestheticFieldInfo | null
-	baseOutlineColor: string
-	outlineHue: AestheticScales["outlineHue"]
-	outlineColorRules: readonly TextColorRule[] | undefined
 	/** Full scales + configs: the hue / opacity measure scales, the pattern
 	 *  channel, and the saturation / brightness modulation all resolve from
 	 *  here (see `resolveGeoFill`). */
@@ -379,6 +376,12 @@ export const buildRegionStyleResolvers = ({
 	channelConfigs: ChannelConfigs
 }): RegionStyleResolvers => {
 	const rowFor = (feature: Feature) => featureToRow.get(featureId(feature))
+	// A region's outline — color (rule, Outline variable, or the one outline
+	// color), saturation / brightness and opacity — through the resolver
+	// every mark's outline shares. An unmatched region has no row: it takes
+	// the one outline color and the single levels.
+	const outlineFor = markOutlineResolver(channelConfigs, aestheticScales)
+	const outlineOf = (feature: Feature) => outlineFor(rowFor(feature) ?? {})
 	const noDataPaint = noDataPatternDef
 		? `url(#${noDataPatternDef.svgId})`
 		: noDataFill
@@ -414,17 +417,12 @@ export const buildRegionStyleResolvers = ({
 					).fillOpacity
 				: undefined
 		},
-		strokeFor: (feature) => {
-			const row = rowFor(feature)
-			return row
-				? resolveGeoOutlineColor(
-						baseOutlineColor,
-						row,
-						outlineHue,
-						outlineColorRules
-					)
-				: baseOutlineColor
+		strokeFor: (feature) => outlineOf(feature).stroke,
+		strokeOpacityFor: (feature) => {
+			const { strokeOpacity } = outlineOf(feature)
+			return strokeOpacity === 1 ? undefined : strokeOpacity
 		},
+		strokeWidthFor: (feature) => outlineOf(feature).strokeWidth,
 		noDataFor: (feature) => {
 			const row = rowFor(feature)
 			return row ? paintOf(row).noData : true

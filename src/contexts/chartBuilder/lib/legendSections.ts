@@ -54,7 +54,13 @@ import {
 	resolveLegendChannelConfig,
 	resolveLegendDomain,
 } from "./legendBreaks"
-import { BASE_MARGIN, subtitleBand, titleBand } from "./plotLayout"
+import {
+	BASE_MARGIN,
+	CHART_PAD,
+	INSIDE_LEGEND_EDGE_BUFFER,
+	subtitleBand,
+	titleBand,
+} from "./plotLayout"
 import {
 	applyAreaScale,
 	applyHueScale,
@@ -325,6 +331,11 @@ export type PlanLegendSectionsInput = {
 	legendCfg: LegendConfig
 	modeDef: ChartModeDef
 	insideExtras: { top: number; right: number; bottom: number; left: number }
+	/** The inside legend's measured size (px). When known, its position is
+	 *  clamped so the whole box stays on the canvas; omitted / zero (before
+	 *  measurement, outside the editor's inside layout) leaves the position
+	 *  exactly as the coords place it. */
+	insideSize?: { width: number; height: number }
 	/** User-pinned per-field level orders (Fields reorder UI). Only consulted
 	 *  to resolve the facet panel partition for the histogram measure-color
 	 *  domain — ordering decides WHICH wrap-mode panels survive grid
@@ -390,6 +401,7 @@ export const planLegendSections = ({
 	legendCfg,
 	modeDef,
 	insideExtras,
+	insideSize,
 	levelOrders,
 	swatchTheme,
 	measureText,
@@ -1301,9 +1313,8 @@ export const planLegendSections = ({
 		sections.length >= 2 && legendCfg.orientation === "vertical"
 	// Align the legend's edge against the chart's *plot area* (where the
 	// gridlines actually live), not the wrapper edge. Pixel offsets mirror
-	// ChartCanvas's `p-3` (12px) plus `BASE_MARGIN`/title reserves — keep
-	// these in lockstep with `computePlotLayout`.
-	const CHART_PAD = 12
+	// ChartCanvas's pad (`CHART_PAD`) plus `BASE_MARGIN`/title reserves —
+	// keep these in lockstep with `computePlotLayout`.
 	const hasTitle = !!labels.title
 	const hasSubtitle = !!labels.subtitle
 	// The bands grow for multi-line titles exactly as the solver's do
@@ -1346,11 +1357,21 @@ export const planLegendSections = ({
 		if (legendCfg.position === "bottom") return "self-center"
 		return ""
 	})()
+	// An outside legend takes the room it needs along the axis it shares
+	// with the chart (its height on top / bottom, its width at a side) and
+	// the chart gets the rest, down to the smallest area the chart still
+	// fits (ChartCanvas holds that floor). A legend too big for what is
+	// left cannot fit, so it — not the page — is what gives way: it may
+	// shrink (`min-h-0` / `min-w-0`; the chart's flex basis is 0, so all
+	// the shrinking lands on the legend) and scrolls inside itself. It used
+	// to be `flex-shrink-0`, and on top / bottom its overflow was hidden,
+	// which pushed the plot hundreds of pixels off the page and scrolled
+	// the viewport.
 	const outerClass = isInside
 		? "absolute z-10"
 		: isOutsideHorizontal
-			? `flex-shrink-0 overflow-x-auto overflow-y-hidden ${positionExtraClass}`
-			: `flex-shrink-0 overflow-y-auto overflow-x-hidden ${positionExtraClass}`
+			? `min-h-0 shrink overflow-x-auto overflow-y-auto ${positionExtraClass}`
+			: `min-w-0 shrink overflow-y-auto overflow-x-auto ${positionExtraClass}`
 	// Inside legends are unconstrained — let the inline-block box shrink
 	// to its content so the floating legend hugs its labels. Outside
 	// legends have an explicit `width: dynamicVerticalLegendWidth` on the
@@ -1422,7 +1443,20 @@ export const planLegendSections = ({
 		const plotBottomPx = CHART_PAD + BASE_MARGIN.bottom + insideExtras.bottom
 		const horizontalReserve = plotLeftPx + plotRightPx
 		const verticalReserve = plotTopPx + plotBottomPx
-		const top = `calc((100% - ${plotBottomPx}px) - ${legendCfg.insideY} * (100% - ${verticalReserve}px))`
+		// Hold the box on the canvas. The room ChartCanvas reserves brings an
+		// out-of-plot legend into view exactly when shrinking the plot moves
+		// it efficiently; where it does not (a tall legend anchored near the
+		// plot's top, a wide one near its left), the plot keeps its size and
+		// the legend slides to the edge instead. `clamp` returns its minimum
+		// when the box is larger than the canvas, so the top-left stays in view.
+		const keepInView = (value: string, size: number | undefined): string =>
+			size !== undefined && size > 0
+				? `clamp(${INSIDE_LEGEND_EDGE_BUFFER}px, ${value}, calc(100% - ${size + INSIDE_LEGEND_EDGE_BUFFER}px))`
+				: value
+		const top = keepInView(
+			`calc((100% - ${plotBottomPx}px) - ${legendCfg.insideY} * (100% - ${verticalReserve}px))`,
+			insideSize?.height
+		)
 		// Auto X (null): hug the plot's upper-right corner by anchoring the
 		// legend's RIGHT edge a small inset in from the plot's right edge —
 		// left-edge anchoring can't express "in the corner" without knowing
@@ -1434,7 +1468,10 @@ export const planLegendSections = ({
 			}
 		}
 		return {
-			left: `calc(${plotLeftPx}px + ${legendCfg.insideX} * (100% - ${horizontalReserve}px))`,
+			left: keepInView(
+				`calc(${plotLeftPx}px + ${legendCfg.insideX} * (100% - ${horizontalReserve}px))`,
+				insideSize?.width
+			),
 			top,
 		}
 	}
@@ -1448,6 +1485,14 @@ export const planLegendSections = ({
 		? {
 				...insideStyle(),
 				...(columnMaxWidth ? { maxWidth: columnMaxWidth } : {}),
+				// An inside legend can be no taller than the canvas it sits on
+				// (less the edge buffer it keeps on each side). One that is —
+				// several sections stacked — gives way like an outside legend
+				// does: it scrolls inside itself. Without the cap the position
+				// clamp above could only keep its top in view, and the rest ran
+				// off the bottom of the page.
+				maxHeight: `calc(100% - ${2 * INSIDE_LEGEND_EDGE_BUFFER}px)`,
+				overflowY: "auto",
 			}
 		: legendCfg.position === "left"
 			? {

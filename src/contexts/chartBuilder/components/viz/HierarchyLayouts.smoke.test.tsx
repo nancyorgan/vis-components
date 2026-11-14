@@ -65,6 +65,8 @@ const mountLayout = (
 		patternField?: string
 		dataLabelsValueField?: string
 		dataLabelsConfig?: Partial<DataLabelsConfig>
+		/** Extra channel configs merged over the layout pick. */
+		configsExtra?: Partial<ChannelConfigs>
 	} = {}
 ) => {
 	const store = installInMemoryLocalStorage()
@@ -79,6 +81,7 @@ const mountLayout = (
 	}
 	const configs: ChannelConfigs = {
 		connection: { hierarchyLayout: layout } as never,
+		...opts.configsExtra,
 	}
 	/* eslint-disable @vc/use-wrapped-json-functions */
 	store.set(
@@ -359,5 +362,65 @@ describe("SunburstPlot Data Labels fine-tuning (shared layer)", () => {
 		expect(labelByText(withBg, "Lemon")!.getAttribute("x")).toBe(
 			labelByText(plain, "Lemon")!.getAttribute("x")
 		)
+	})
+})
+
+/** A treemap tile and a sunburst arc are bodies like a bar: the default
+ *  pattern and the outline options the menus offer reach them. They were
+ *  offered and ignored — a pattern needed a Pattern variable, and the
+ *  outline took only its color. */
+describe("hierarchy marks — default pattern and outline options", () => {
+	const OUTLINED = { shape: { outlineColor: "#ff0000", outlineWidth: 2 } } as Partial<ChannelConfigs>
+	const tiles = (container: HTMLElement): Element[] => [...container.querySelectorAll("g > rect")]
+
+	it("Pattern → a default pattern tiles every treemap tile, with its defs registered", () => {
+		const container = mountLayout("treemap", { configsExtra: { defaultPattern: 2 } })
+		const rects = tiles(container)
+		expect(rects.length).toBe(5)
+		const defIds = new Set([...container.querySelectorAll("pattern")].map((p) => p.id))
+		for (const r of rects) {
+			const fill = r.getAttribute("fill") ?? ""
+			expect(fill).toMatch(/^url\(#vc-pat-/)
+			expect(defIds.has(fill.slice("url(#".length, -1))).toBe(true)
+		}
+	})
+
+	it("with no default pattern the tiles stay plain", () => {
+		const container = mountLayout("treemap")
+		for (const r of tiles(container)) expect(r.getAttribute("fill")).not.toMatch(/^url\(/)
+	})
+
+	it("Opacity → Cell outline sets the outline's opacity; untouched sets none", () => {
+		const plain = mountLayout("treemap", { configsExtra: OUTLINED })
+		expect(new Set(tiles(plain).map((r) => r.getAttribute("stroke-opacity")))).toEqual(new Set([null]))
+		const faded = mountLayout("treemap", {
+			configsExtra: { ...OUTLINED, opacitySlots: { border: { field: null, level: 0.3 } } },
+		})
+		expect(new Set(tiles(faded).map((r) => r.getAttribute("stroke-opacity")))).toEqual(new Set(["0.3"]))
+	})
+
+	it("Saturation → Cell outline shades the outline", () => {
+		const container = mountLayout("treemap", {
+			configsExtra: { ...OUTLINED, saturationSlots: { outline: { field: null, level: 0 } } },
+		})
+		const strokes = tiles(container).map((r) => r.getAttribute("stroke"))
+		expect(strokes.length).toBe(5)
+		for (const stroke of strokes) expect(stroke).not.toBe("#ff0000")
+	})
+
+	it("the same options reach sunburst arcs", () => {
+		const container = mountLayout("sunburst", {
+			configsExtra: {
+				...OUTLINED,
+				defaultPattern: 1,
+				opacitySlots: { border: { field: null, level: 0.5 } },
+			},
+		})
+		const arcs = [...container.querySelectorAll("g > path")].filter(
+			(p) => p.getAttribute("stroke") === "#ff0000"
+		)
+		expect(arcs.length).toBeGreaterThan(0)
+		for (const arc of arcs) expect(arc.getAttribute("stroke-opacity")).toBe("0.5")
+		expect(arcs.some((arc) => /^url\(#vc-pat-/.test(arc.getAttribute("fill") ?? ""))).toBe(true)
 	})
 })

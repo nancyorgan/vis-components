@@ -26,9 +26,10 @@ import { BrightnessOptionsPanel, SaturationOptionsPanel } from "./RangePanel"
 
 /** In polygon mode (radar) every aesthetic menu — Color, Opacity,
  *  Saturation, Brightness and Pattern — offers the same four targets under
- *  the same names, in the same order: Point fill, Point outline, Connection
- *  line (the polygon outline) and Polygon fill. The plain "Fill" / "Outline"
- *  / "Line" names never appear there, and Polygon fill needs a filled
+ *  the same names, in the same order: the Line (the polygon outline), the
+ *  Polygon fill it encloses, then the Point fill and Point outline on it —
+ *  the order every menu lists a line, its body and its points in. A bare
+ *  "Fill" / "Outline" never appears there, and Polygon fill needs a filled
  *  polygon (an unfilled one has no body to style). */
 
 const ID = "ds-radar-part-titles"
@@ -90,7 +91,7 @@ const subheaders = (c: HTMLElement): string[] =>
 		(b) => b.textContent?.trim() ?? ""
 	)
 
-const TARGETS = ["Point fill", "Point outline", "Connection line", "Polygon fill"]
+const TARGETS = ["Line", "Polygon fill", "Point fill", "Point outline"]
 
 const PANELS: Array<[string, React.ReactNode]> = [
 	["Color", <ColorPanel key="c" />],
@@ -107,21 +108,21 @@ describe.each(PANELS)("%s menu — radar targets", (_name, panel) => {
 		)
 	})
 
-	it("offers Point fill, Point outline, Connection line and Polygon fill, in that order, on a filled radar", () => {
+	it("offers Line, Polygon fill, Point fill and Point outline, in that order, on a filled radar", () => {
 		const headers = subheaders(mount(panel, FILLED).container)
 		expect(headers.filter((h) => TARGETS.includes(h))).toEqual(TARGETS)
 		expect(headers).not.toContain("Fill")
 		expect(headers).not.toContain("Outline")
-		expect(headers).not.toContain("Line")
+		expect(headers).not.toContain("Connection line")
 		expect(headers).not.toContain("Line dash")
 	})
 
 	it("drops Polygon fill on an unfilled radar (no body) and keeps the other three", () => {
 		const headers = subheaders(mount(panel, UNFILLED).container)
 		expect(headers.filter((h) => TARGETS.includes(h))).toEqual([
+			"Line",
 			"Point fill",
 			"Point outline",
-			"Connection line",
 		])
 	})
 })

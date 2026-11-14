@@ -169,7 +169,7 @@ export const AestheticsPanel = () => {
 					{panelBorder.enabled && (
 						<>
 							<NumberInput
-								label="Line width"
+								label="Border thickness"
 								labelClassName={LABEL_COL}
 								value={panelBorder.width}
 								onChange={(width) => setPanelBorder({ width })}

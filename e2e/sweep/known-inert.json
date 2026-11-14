@@ -1,0 +1,290 @@
+[
+	{
+		"row": "angle",
+		"section": "Spoke labels",
+		"label": "Label format",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"radar-dots",
+			"radar-filled",
+			"radar-polygon"
+		],
+		"note": "No visible effect by nature: a categorical angle draws one spoke per category, so the count and format are fixed. Not a defect."
+	},
+	{
+		"row": "angle",
+		"section": "Spokes",
+		"label": "Spokes",
+		"kind": "number",
+		"verdict": "inert",
+		"charts": [
+			"radar-dots",
+			"radar-filled",
+			"radar-polygon"
+		],
+		"note": "No visible effect by nature: a categorical angle draws one spoke per category, so the count and format are fixed. Not a defect."
+	},
+	{
+		"row": "brightness",
+		"section": "Bar outline",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "partly",
+		"charts": [
+			"histogram"
+		],
+		"note": "Works for some variables only, by nature of the data: a histogram bin combines many rows and reads a per-part \"Vary by\" off its first row, so a variable that is the same on every bin's first row changes nothing."
+	},
+	{
+		"row": "connection",
+		"section": "Connect points to axis",
+		"label": "Connect to custom Y",
+		"kind": "radio",
+		"verdict": "inert",
+		"charts": [
+			"stems"
+		],
+		"note": "No visible effect by nature: the custom value starts at 0, which is where the stems already end on this chart."
+	},
+	{
+		"row": "connection",
+		"section": "Line fill",
+		"label": "Stacking: Overlay",
+		"kind": "segment",
+		"verdict": "inert",
+		"charts": [
+			"area-stacked"
+		],
+		"note": "No visible effect by nature: the layers do not overlap enough in this data for the modes to differ. Not a defect."
+	},
+	{
+		"row": "connection",
+		"section": "Structure",
+		"label": "Flow to",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"chord",
+			"sankey"
+		],
+		"note": "No visible effect by nature: the option tried equals what was already picked automatically. Not a defect."
+	},
+	{
+		"row": "connection",
+		"section": "Structure",
+		"label": "ID column",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"packed-circles",
+			"sunburst",
+			"treemap"
+		],
+		"note": "No visible effect by nature: the option tried equals what was already picked automatically. Not a defect."
+	},
+	{
+		"row": "hue",
+		"section": "Bar fill",
+		"label": "Layout: Overlay",
+		"kind": "segment",
+		"verdict": "legend-only",
+		"charts": [
+			"bars-patterned"
+		],
+		"note": "Needs review: on this data the layout change reaches the legend only."
+	},
+	{
+		"row": "hue",
+		"section": "Node fill",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "partly",
+		"charts": [
+			"chord",
+			"sankey"
+		],
+		"note": "Works for some choices only, by nature: flows color by node over BOTH endpoint columns, so switching between the source and the target column gives the same colors."
+	},
+	{
+		"row": "hue",
+		"section": "Point outline",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "partly",
+		"charts": [
+			"area-overlay"
+		],
+		"note": "Needs review: on an area chart the points' outline variable works for some variables only (it was ignored outright before the outline resolver was shared)."
+	},
+	{
+		"row": "opacity",
+		"section": "Bar outline",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "partly",
+		"charts": [
+			"histogram"
+		],
+		"note": "Works for some variables only, by nature of the data: a histogram bin combines many rows and reads a per-part \"Vary by\" off its first row, so a variable that is the same on every bin's first row changes nothing."
+	},
+	{
+		"row": "pattern",
+		"section": "",
+		"label": "Layout: Overlay",
+		"kind": "segment",
+		"verdict": "inert",
+		"charts": [
+			"bars-patterned"
+		],
+		"note": "No visible effect by nature: the two layouts draw the same picture for this data. Not a defect."
+	},
+	{
+		"row": "pattern",
+		"section": "Violin / box fill",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "partly",
+		"charts": [
+			"box",
+			"violin",
+			"violin-horizontal"
+		],
+		"note": "Works for some variables only. Plan A5: the violin / box pattern does not vary by every variable it offers."
+	},
+	{
+		"row": "saturation",
+		"section": "Bar outline",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "partly",
+		"charts": [
+			"histogram"
+		],
+		"note": "Works for some variables only, by nature of the data: a histogram bin combines many rows and reads a per-part \"Vary by\" off its first row, so a variable that is the same on every bin's first row changes nothing."
+	},
+	{
+		"row": "saturation",
+		"section": "Density curve outline",
+		"label": "Enable override",
+		"kind": "enable",
+		"verdict": "inert",
+		"charts": [
+			"density",
+			"density-filled",
+			"histogram"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Density curve outline",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"density",
+			"density-filled",
+			"histogram"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Line",
+		"label": "Enable override",
+		"kind": "enable",
+		"verdict": "inert",
+		"charts": [
+			"area-unfilled",
+			"combo-horizontal",
+			"combo-line",
+			"dumbbell"
+		],
+		"note": "No visible effect by nature on a black line (black has no saturation to change); brightness works for some fields only. Needs review: not yet traced to a cause."
+	},
+	{
+		"row": "saturation",
+		"section": "Line",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"area-unfilled",
+			"combo-horizontal",
+			"combo-line",
+			"dumbbell"
+		],
+		"note": "No visible effect by nature on a black line (black has no saturation to change); brightness works for some fields only. Needs review: not yet traced to a cause."
+	},
+	{
+		"row": "saturation",
+		"section": "Point fill",
+		"label": "Enable override",
+		"kind": "enable",
+		"verdict": "inert",
+		"charts": [
+			"combo-horizontal",
+			"combo-line",
+			"combo-points"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Point fill",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"combo-horizontal",
+			"combo-line",
+			"combo-points"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Regression line",
+		"label": "Enable override",
+		"kind": "enable",
+		"verdict": "inert",
+		"charts": [
+			"scatter-regression"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Regression line",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"scatter-regression"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Stem",
+		"label": "Enable override",
+		"kind": "enable",
+		"verdict": "inert",
+		"charts": [
+			"stems"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	},
+	{
+		"row": "saturation",
+		"section": "Stem",
+		"label": "Vary by",
+		"kind": "select",
+		"verdict": "inert",
+		"charts": [
+			"stems"
+		],
+		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
+	}
+]

@@ -8,10 +8,10 @@ import {
 	areaPointsOn,
 	densityCurveFillOn,
 	densityCurveOn,
-	histogramOn,
 	overlayOn,
 	regressionCiOn,
 	regressionOn,
+	rugOn,
 } from "./colorSlots"
 import type { Encodings } from "./types"
 
@@ -85,8 +85,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 		// tassel config, so Rug opacity stays put across the Histogram ⇄ Density
 		// switch.
 		modes: m("bars-x", "bars-y", "scatter"),
-		isApplicable: (_encodings, configs) =>
-			histogramOn(configs) || densityCurveOn(configs),
+		isApplicable: (_encodings, configs) => rugOn(configs),
 		defaultLevel: 1,
 		acceptsFieldMapping: true,
 	},
@@ -183,13 +182,63 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 		defaultLevel: 1,
 		acceptsFieldMapping: true,
 	},
+	// Bar + marks combo: the points on the line, beside the bars (whose
+	// opacity is the Bar fill). Untouched, the points keep drawing at the
+	// opacity they always had — the bars' — so saved combos look the same;
+	// a level or a variable here is the points' own.
+	{
+		key: "comboPointFill",
+		label: "Point fill",
+		modes: m("combo-x", "combo-y"),
+		isApplicable: () => true,
+		defaultLevel: 1,
+		acceptsFieldMapping: true,
+	},
+	// Bubble map: the bubbles over the regions. Their color has its own
+	// targets (`geoPointFill` / `geoPointStroke` in the Color menu), and so
+	// do their opacities — the regions' are the Region fill / Region outline.
+	{
+		key: "geoPointFill",
+		label: "Point fill",
+		modes: m("geo-symbols"),
+		isApplicable: () => true,
+		defaultLevel: 1,
+		acceptsFieldMapping: true,
+	},
+	{
+		key: "geoPointStroke",
+		label: "Point outline",
+		modes: m("geo-symbols"),
+		isApplicable: () => true,
+		defaultLevel: 1,
+		acceptsFieldMapping: true,
+	},
+	// Dot map: the regions behind the points, apart from the points' own
+	// Opacity (the Point fill / Point outline). One level each: the regions
+	// carry no data to vary by.
+	{
+		key: "geoRegionFill",
+		label: "Region fill",
+		modes: m("geo-points"),
+		isApplicable: () => true,
+		defaultLevel: 1,
+		acceptsFieldMapping: false,
+	},
+	{
+		key: "geoRegionStroke",
+		label: "Region outline",
+		modes: m("geo-points"),
+		isApplicable: () => true,
+		defaultLevel: 1,
+		acceptsFieldMapping: false,
+	},
 	// Flow diagrams (chord / sankey) split opacity by mark part: node arcs /
 	// rects anchor the eye at full opacity while ribbons / links read as
 	// translucent washes of their source node's color. Flow marks aggregate
 	// many rows, so a per-row field mapping is ill-defined — level only.
 	{
 		key: "node",
-		label: "Nodes",
+		label: "Node fill",
 		modes: m("chord", "sankey"),
 		isApplicable: () => true,
 		defaultLevel: 1,
@@ -197,7 +246,7 @@ export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
 	},
 	{
 		key: "ribbon",
-		label: "Ribbons",
+		label: "Ribbon fill",
 		modes: m("chord", "sankey"),
 		isApplicable: () => true,
 		defaultLevel: 0.45,

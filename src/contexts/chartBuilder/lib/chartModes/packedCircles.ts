@@ -66,6 +66,7 @@ export const PackedCirclesMode: ChartModeDef = {
 		connectionRole: "key",
 		shapeRole: "outline",
 		areaRole: "layoutRadius",
+		mark: "circle",
 		statOverlays: false,
 		measureAxis: null,
 	},
