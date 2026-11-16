@@ -227,7 +227,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "edit-add-column",
 				anchor: "edit-add-column",
-				body: "Add a column or a row with the +. Right-click to delete rows or columns.",
+				body: "Add a column or a row with the +. Right-click a row number or a column name to delete it.",
 				placement: "left",
 			},
 			{

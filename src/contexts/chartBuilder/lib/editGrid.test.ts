@@ -89,10 +89,11 @@ describe("editGrid", () => {
 		const desc = applySort(grid, { col: 1, dir: "desc" })
 		expect(shown(desc)).toEqual(["Quito,20", "Lima,10", "Bogotá,5"])
 		expect(gridToCsv(desc)).toBe(gridToCsv(grid))
-		expect(shown(applySort(desc, null))).toEqual(shown(grid))
+		// A column's control goes ascending first, then flips between the two
+		// — never back to unsorted; another column starts ascending again.
 		expect(nextSort(null, 1)).toEqual({ col: 1, dir: "asc" })
 		expect(nextSort({ col: 1, dir: "asc" }, 1)).toEqual({ col: 1, dir: "desc" })
-		expect(nextSort({ col: 1, dir: "desc" }, 1)).toBeNull()
+		expect(nextSort({ col: 1, dir: "desc" }, 1)).toEqual({ col: 1, dir: "asc" })
 		expect(nextSort({ col: 1, dir: "desc" }, 0)).toEqual({ col: 0, dir: "asc" })
 	})
 

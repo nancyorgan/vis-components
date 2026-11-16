@@ -309,13 +309,22 @@ describe("Edit data in the tray", () => {
 				{ city: "Quito", sales: "20" },
 				{ city: "Bogotá", sales: "31" },
 			])
-			// A third click clears the sort.
+			// A third click goes back to ascending, not to unsorted; Undo is
+			// the way back to the order as opened.
 			openDialog()
 			const sort2 = screen.getByLabelText("Sort by sales")
 			fireEvent.click(sort2)
 			fireEvent.click(sort2)
 			fireEvent.click(sort2)
 			expect(gridRows().map((r) => r[0])).toEqual(["Lima", "Quito", "Bogotá"])
+			expect(header("sales").getAttribute("aria-sort")).toBe("ascending")
+			fireEvent.click(sort2)
+			expect(header("sales").getAttribute("aria-sort")).toBe("descending")
+			fireEvent.click(screen.getByText("Undo"))
+			fireEvent.click(screen.getByText("Undo"))
+			fireEvent.click(screen.getByText("Undo"))
+			fireEvent.click(screen.getByText("Undo"))
+			expect(header("sales").getAttribute("aria-sort")).toBe("none")
 		})
 
 		it("selects by drag, row number and column name; Delete clears, ⌘Z undoes", () => {
@@ -365,6 +374,44 @@ describe("Edit data in the tray", () => {
 			fireEvent.keyDown(proxy(), { key: "ArrowRight" })
 			fireEvent.keyDown(proxy(), { key: "ArrowDown", shiftKey: true })
 			expect(selectedCells()).toEqual(["10", "20"])
+		})
+
+		it("keeps the focus on the first cell of a whole column, row or table", () => {
+			mount(imported())
+			openDialog()
+			/** Where the next keystroke lands: [row, column] of the cell box. */
+			const typedInto = () => {
+				fireEvent.keyDown(proxy(), { key: "x" })
+				const td = screen.getByLabelText("Cell value").closest("td")!
+				const tr = td.closest("tr")!
+				const at = [
+					dataRows().indexOf(tr as HTMLElement),
+					[...tr.querySelectorAll("td[role=gridcell]")].indexOf(td),
+				]
+				fireEvent.keyDown(screen.getByLabelText("Cell value"), { key: "Escape" })
+				return at
+			}
+			// A column name: the top cell, not the last row's.
+			fireEvent.mouseDown(header("sales"))
+			expect(selectedCells()).toEqual(["10", "20", "30"])
+			expect(typedInto()).toEqual([0, 1])
+			// A row number: the row's first cell.
+			fireEvent.mouseDown(screen.getByText("3"))
+			expect(typedInto()).toEqual([2, 0])
+			// Select all: the table's first cell.
+			fireEvent.keyDown(proxy(), { key: "a", metaKey: true })
+			expect(selectedCells()).toHaveLength(6)
+			expect(typedInto()).toEqual([0, 0])
+			// Shift+click on a column name from a cell takes the columns whole.
+			fireEvent.mouseDown(cell(1, 0))
+			fireEvent.mouseDown(header("sales"), { shiftKey: true })
+			expect(selectedCells()).toEqual(["Lima", "10", "Quito", "20", "Bogotá", "30"])
+			// A sort leaves the selection and its focus where they were.
+			fireEvent.mouseDown(header("sales"))
+			fireEvent.click(screen.getByLabelText("Sort by sales"))
+			fireEvent.click(screen.getByLabelText("Sort by sales"))
+			expect(selectedCells()).toEqual(["30", "20", "10"])
+			expect(typedInto()).toEqual([0, 1])
 		})
 
 		it("copies the selection as TSV, pastes a block (growing rows) and fills a range from one value", () => {
@@ -495,13 +542,82 @@ describe("Edit data in the tray", () => {
 			fireEvent.keyDown(screen.getByLabelText("Cell value"), { key: "Enter" })
 			expect(gridRows()[3]).toEqual(["", "East"])
 
-			// Shift+F10 opens the menu for the keyboard, below the focus cell,
-			// offering both (a cell is neither a row nor a column).
+			// Shift+F10 opens the menu for the keyboard, below the focus cell:
+			// a cell is neither a row nor a column, so only its value.
 			fireEvent.keyDown(proxy(), { key: "F10", shiftKey: true })
-			expect(menuItems()).toEqual(["Delete row", "Delete column"])
+			expect(menuItems()).toEqual(["Delete value"])
 			expect(document.activeElement?.getAttribute("role")).toBe("menuitem")
+			fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+			// Shift+Space takes the row whole (the keyboard's row number), and
+			// then the menu offers the row too.
+			fireEvent.keyDown(proxy(), { key: " ", shiftKey: true })
+			expect(selectedCells()).toHaveLength(2)
+			fireEvent.keyDown(proxy(), { key: "F10", shiftKey: true })
+			expect(menuItems()).toEqual(["Delete 2 values", "Delete row"])
 			fireEvent.click(screen.getByRole("menuitem", { name: "Delete row" }))
 			expect(gridRows()).toHaveLength(3)
+			// Ctrl+Space takes the column whole.
+			fireEvent.mouseDown(cell(1, 1))
+			fireEvent.keyDown(proxy(), { key: " ", ctrlKey: true })
+			expect(selectedCells()).toHaveLength(3)
+			fireEvent.keyDown(proxy(), { key: "F10", shiftKey: true })
+			expect(menuItems()).toEqual(["Delete 3 values", "Delete column"])
+		})
+
+		it("right-click: a cell deletes values; only a row number or column name deletes rows or columns", () => {
+			mount(imported())
+			openDialog()
+			// One cell: its value, nothing about its row or column.
+			fireEvent.contextMenu(cell(1, 1))
+			expect(selectedCells()).toEqual(["20"])
+			expect(menuItems()).toEqual(["Delete value"])
+			fireEvent.click(screen.getByRole("menuitem", { name: "Delete value" }))
+			expect(screen.queryByRole("menu")).toBeNull()
+			expect(gridRows()).toEqual([
+				["Lima", "10"],
+				["Quito", ""],
+				["Bogotá", "30"],
+			])
+			fireEvent.click(screen.getByText("Undo"))
+
+			// Several cells: the menu counts them, and blanks them all.
+			fireEvent.mouseDown(cell(0, 0))
+			fireEvent.mouseEnter(cell(1, 1))
+			fireEvent.mouseUp(window)
+			fireEvent.contextMenu(cell(1, 0))
+			expect(menuItems()).toEqual(["Delete 4 values"])
+			fireEvent.click(screen.getByRole("menuitem", { name: "Delete 4 values" }))
+			expect(gridRows()).toEqual([
+				["", ""],
+				["", ""],
+				["Bogotá", "30"],
+			])
+			fireEvent.click(screen.getByText("Undo"))
+
+			// A row number inside a selection of CELLS takes its row whole
+			// first: what "Delete row" removes is what is highlighted.
+			fireEvent.mouseDown(cell(0, 0))
+			fireEvent.mouseEnter(cell(2, 0))
+			fireEvent.mouseUp(window)
+			expect(selectedCells()).toEqual(["Lima", "Quito", "Bogotá"])
+			fireEvent.contextMenu(screen.getByText("2"))
+			expect(selectedCells()).toEqual(["Quito", "20"])
+			expect(menuItems()).toEqual(["Delete row"])
+			fireEvent.mouseDown(document.body)
+			// …and a column name likewise.
+			fireEvent.mouseDown(cell(0, 0))
+			fireEvent.mouseEnter(cell(0, 1))
+			fireEvent.mouseUp(window)
+			fireEvent.contextMenu(header("sales"))
+			expect(selectedCells()).toEqual(["10", "20", "30"])
+			expect(menuItems()).toEqual(["Delete column"])
+			fireEvent.mouseDown(document.body)
+
+			// A cell of a whole selected row still offers only the values.
+			fireEvent.mouseDown(screen.getByText("3"))
+			fireEvent.contextMenu(cell(2, 1))
+			expect(selectedCells()).toEqual(["Bogotá", "30"])
+			expect(menuItems()).toEqual(["Delete 2 values"])
 		})
 	})
 })

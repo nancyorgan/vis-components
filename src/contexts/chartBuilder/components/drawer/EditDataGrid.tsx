@@ -35,8 +35,11 @@ import {
  *  whole row or column; double-click, Enter or just typing edits the cell;
  *  ⌘C / ⌘X / ⌘V move tab-separated blocks to and from the clipboard, so a
  *  block pastes straight in from a spreadsheet; Delete blanks the
- *  selection; ⌘Z / ⇧⌘Z undo and redo. A column's sort control reorders
- *  what is SHOWN only (`lib/editGrid.ts`). Column names are not edited
+ *  selection; a right-click deletes what it was made on — the selected
+ *  values from a cell, whole rows from a row number, whole columns from a
+ *  column name; ⌘Z / ⇧⌘Z undo and redo. A column's sort control reorders
+ *  what is SHOWN only (`lib/editGrid.ts`), ascending then descending in
+ *  turn, and leaves the view where it is. Column names are not edited
  *  here — a variable is renamed in the Fields panel — so a new column
  *  keeps its "Column N" name until then. Rows render through a window
  *  (`ROW_HEIGHT` each) so a large data set opens instantly.
@@ -96,6 +99,16 @@ type Editing = { kind: "cell"; pos: number; col: number; value: string }
 
 type DragMode = "cells" | "rows" | "cols"
 
+/** Which way the view may scroll to bring the focus cell into view. */
+type Reveal = { rows: boolean; cols: boolean }
+const REVEAL_CELL: Reveal = { rows: true, cols: true }
+const REVEAL_ROW: Reveal = { rows: true, cols: false }
+const REVEAL_COLUMN: Reveal = { rows: false, cols: true }
+const REVEAL_NOTHING: Reveal = { rows: false, cols: false }
+
+/** What the right-click menu can delete. */
+type MenuItem = "values" | "rows" | "cols"
+
 type Props = {
 	grid: Grid
 	/** The grid as opened, for the changed-cell outlines. */
@@ -116,11 +129,26 @@ export const EditDataGrid = ({
 	canUndo,
 	canRedo,
 }: Props) => {
-	const [rawSelection, setSelection] = useState<CellRange | null>(
+	const [rawSelection, setRawSelection] = useState<CellRange | null>(
 		grid.order.length > 0 && grid.columns.length > 0
 			? { anchor: { pos: 0, col: 0 }, focus: { pos: 0, col: 0 } }
 			: null
 	)
+	// What the next change of selection (or the start of an edit) may scroll
+	// to show its focus cell; the effect under "Windowing" reads it once.
+	// Nothing else scrolls the view, so a change to the cells alone — a sort
+	// above all — leaves it where the user put it.
+	const reveal = useRef<Reveal | null>(null)
+	/** Change the selection. A whole row, column or table is selected with
+	 *  its FIRST cell as the focus, and does not scroll along the way it
+	 *  runs: a column picked from its name keeps the rows in view. */
+	const setSelection = (
+		next: CellRange | null | ((prev: CellRange | null) => CellRange | null),
+		show: Reveal = REVEAL_CELL
+	) => {
+		reveal.current = show
+		setRawSelection(next)
+	}
 	const [editing, setEditingState] = useState<Editing | null>(null)
 	// Mirrors `editing` for handlers that run in the same tick (a blur and a
 	// keydown both trying to commit), so only one of them does.
@@ -130,12 +158,11 @@ export const EditDataGrid = ({
 		setEditingState(next)
 	}
 	const drag = useRef<DragMode | null>(null)
-	// The right-click menu at a viewport point: rows from a row number,
-	// columns from a column name, both from a cell.
+	// The right-click menu at a viewport point, and what it offers to delete.
 	const [menu, setMenu] = useState<{
 		x: number
 		y: number
-		offers: "rows" | "cols" | "both"
+		items: MenuItem[]
 	} | null>(null)
 	const proxy = useRef<HTMLTextAreaElement>(null)
 	const scroller = useRef<HTMLDivElement>(null)
@@ -186,44 +213,56 @@ export const EditDataGrid = ({
 		if (el && document.activeElement !== el) el.focus({ preventScroll: true })
 	}
 
-	// Keep the focus cell in view as the keyboard moves it.
+	// Bring the focus cell into view when the selection moves to it or an
+	// edit starts in it — once per request (`reveal`), so the cells changing
+	// under an unmoved selection scroll nothing.
 	const focusCell = selection?.focus
+	const editOpen = editing !== null
 	useEffect(() => {
+		const show = reveal.current
+		reveal.current = null
 		const el = scroller.current
-		if (!el || !focusCell) return
+		if (!el || !focusCell || !show) return
 		const top = focusCell.pos * ROW_HEIGHT
 		const bottom = top + ROW_HEIGHT
 		const viewTop = el.scrollTop
 		const viewBottom = viewTop + el.clientHeight - HEADER_HEIGHT
-		if (el.clientHeight > 0) {
+		if (show.rows && el.clientHeight > 0) {
 			if (top < viewTop) el.scrollTop = top
 			else if (bottom > viewBottom) el.scrollTop = bottom - el.clientHeight + HEADER_HEIGHT
 		}
 		const left = GUTTER_WIDTH + widths.slice(0, focusCell.col).reduce((a, b) => a + b, 0)
 		const right = left + (widths[focusCell.col] ?? 0)
-		if (el.clientWidth > 0) {
+		if (show.cols && el.clientWidth > 0) {
 			if (left - GUTTER_WIDTH < el.scrollLeft) el.scrollLeft = left - GUTTER_WIDTH
 			else if (right > el.scrollLeft + el.clientWidth)
 				el.scrollLeft = right - el.clientWidth
 		}
-	}, [focusCell, widths])
+	}, [focusCell, widths, editOpen])
 
 	// --- Selection -----------------------------------------------------------
 	const select = (cell: CellRef, extend: boolean) =>
 		setSelection((prev) =>
 			extend && prev ? { anchor: prev.anchor, focus: cell } : { anchor: cell, focus: cell }
 		)
+	// Whole rows and columns: the anchor sits at the far end and the focus
+	// on the first cell, so the keyboard carries on from the start of the
+	// row or the top of the column. Extending keeps the rows / columns whole.
 	const selectRow = (pos: number, extend: boolean) =>
-		setSelection((prev) =>
-			extend && prev
-				? { anchor: prev.anchor, focus: { pos, col: lastCol } }
-				: { anchor: { pos, col: 0 }, focus: { pos, col: lastCol } }
+		setSelection(
+			(prev) => ({
+				anchor: { pos: extend && prev ? prev.anchor.pos : pos, col: lastCol },
+				focus: { pos, col: 0 },
+			}),
+			REVEAL_ROW
 		)
 	const selectCol = (col: number, extend: boolean) =>
-		setSelection((prev) =>
-			extend && prev
-				? { anchor: prev.anchor, focus: { pos: lastPos, col } }
-				: { anchor: { pos: 0, col }, focus: { pos: lastPos, col } }
+		setSelection(
+			(prev) => ({
+				anchor: { pos: lastPos, col: extend && prev ? prev.anchor.col : col },
+				focus: { pos: 0, col },
+			}),
+			REVEAL_COLUMN
 		)
 	const moveFocus = (dPos: number, dCol: number, extend: boolean, jump = false) => {
 		setSelection((prev) => {
@@ -257,6 +296,9 @@ export const EditDataGrid = ({
 
 	// --- Editing -------------------------------------------------------------
 	const startEdit = (pos: number, col: number, value: string) => {
+		// The cell may be scrolled out of view — and then, with the rows drawn
+		// through a window, not drawn at all — so show it before its box opens.
+		reveal.current = REVEAL_CELL
 		setEditing({ kind: "cell", pos, col, value })
 	}
 	/** Commit the cell being edited. Reads the ref so a blur and a keydown
@@ -326,13 +368,31 @@ export const EditDataGrid = ({
 		if (mod && (key === "a" || key === "A")) {
 			e.preventDefault()
 			if (rowCount > 0 && colCount > 0)
-				setSelection({ anchor: { pos: 0, col: 0 }, focus: { pos: lastPos, col: lastCol } })
+				setSelection(
+					{ anchor: { pos: lastPos, col: lastCol }, focus: { pos: 0, col: 0 } },
+					REVEAL_NOTHING
+				)
 			return
 		}
 		e.currentTarget.value = ""
 		if (key === "ContextMenu" || (key === "F10" && e.shiftKey)) {
 			e.preventDefault()
 			openMenuAtFocus()
+			return
+		}
+		// Shift+Space takes the selection's rows whole and Ctrl+Space its
+		// columns (both: the table) — the keyboard's row number and column name.
+		if (key === " " && rect && (e.shiftKey || e.ctrlKey) && !e.metaKey && !e.altKey) {
+			e.preventDefault()
+			const rows = e.shiftKey
+			const cols = e.ctrlKey
+			setSelection(
+				{
+					anchor: { pos: cols ? lastPos : rect.bottom, col: rows ? lastCol : rect.right },
+					focus: { pos: cols ? 0 : rect.top, col: rows ? 0 : rect.left },
+				},
+				REVEAL_NOTHING
+			)
 			return
 		}
 		switch (key) {
@@ -425,7 +485,17 @@ export const EditDataGrid = ({
 		commit((g) => addColumn(g, freshColumnName(grid)))
 		// The new column comes in selected; its name is changed in the Fields panel.
 		const col = colCount
-		setSelection({ anchor: { pos: 0, col }, focus: { pos: rowCount - 1, col } })
+		setSelection(
+			{ anchor: { pos: rowCount - 1, col }, focus: { pos: 0, col } },
+			REVEAL_COLUMN
+		)
+		focusProxy()
+	}
+	const onDeleteValues = () => {
+		setMenu(null)
+		if (!rect) return
+		commitEdit()
+		commit((g) => clearRect(g, rect))
 		focusProxy()
 	}
 	const onDeleteRows = () => {
@@ -447,46 +517,74 @@ export const EditDataGrid = ({
 
 	const selectedRows = rect ? rect.bottom - rect.top + 1 : 0
 	const selectedCols = rect ? rect.right - rect.left + 1 : 0
+	const selectedValues = selectedRows * selectedCols
+	/** The selection runs the table's full width / full height. */
+	const wholeRows = rect !== null && rect.left === 0 && rect.right === lastCol
+	const wholeCols = rect !== null && rect.top === 0 && rect.bottom === lastPos
 
 	// --- Delete menu -----------------------------------------------------------
-	// Right-clicking a row number, a column name or a cell opens the menu
-	// for the selection; a right-click outside the selection moves the
-	// selection there first, so the menu always names what it will delete.
-	const openMenuAt = (x: number, y: number, offers: "rows" | "cols" | "both") => {
+	// The menu deletes what is highlighted, and what it offers follows where
+	// the right-click landed: a cell offers the selected VALUES (the cells
+	// are blanked, as the Delete key does), a row number whole ROWS, a column
+	// name whole COLUMNS. A right-click outside the selection moves the
+	// selection there first, and a row number or column name takes its row or
+	// column whole unless whole rows / columns holding it are selected
+	// already — so a row or a column is only ever deleted fully highlighted.
+	const openMenuAt = (x: number, y: number, items: MenuItem[]) => {
 		commitEdit()
 		setMenu({
 			x: Math.max(0, Math.min(x, window.innerWidth - MENU_WIDTH)),
-			y: Math.max(0, Math.min(y, window.innerHeight - 96)),
-			offers,
+			y: Math.max(0, Math.min(y, window.innerHeight - 32 * (items.length + 1))),
+			items,
 		})
 	}
 	const onRowContextMenu = (pos: number) => (e: React.MouseEvent) => {
 		e.preventDefault()
-		if (!rect || pos < rect.top || pos > rect.bottom) selectRow(pos, false)
-		openMenuAt(e.clientX, e.clientY, "rows")
+		if (!rect || !wholeRows || pos < rect.top || pos > rect.bottom) selectRow(pos, false)
+		openMenuAt(e.clientX, e.clientY, ["rows"])
 	}
 	const onColContextMenu = (col: number) => (e: React.MouseEvent) => {
 		e.preventDefault()
-		if (!rect || col < rect.left || col > rect.right) selectCol(col, false)
-		openMenuAt(e.clientX, e.clientY, "cols")
+		if (!rect || !wholeCols || col < rect.left || col > rect.right) selectCol(col, false)
+		openMenuAt(e.clientX, e.clientY, ["cols"])
 	}
 	const onCellContextMenu = (pos: number, col: number) => (e: React.MouseEvent) => {
 		e.preventDefault()
 		if (!rect || !inRect(rect, pos, col)) select({ pos, col }, false)
-		openMenuAt(e.clientX, e.clientY, "both")
+		openMenuAt(e.clientX, e.clientY, ["values"])
 	}
-	/** The keyboard's way in (Shift+F10 / the Menu key): below the focus cell. */
+	/** The keyboard's way in (Shift+F10 / the Menu key): below the focus
+	 *  cell. It has no row number or column name to land on, so it offers
+	 *  the values, and rows / columns when the selection takes them whole
+	 *  (Shift+Space / Ctrl+Space). */
 	const openMenuAtFocus = () => {
 		const el = scroller.current
 		if (!el || !focusCell) return
 		const box = el.getBoundingClientRect()
 		const left =
 			GUTTER_WIDTH + widths.slice(0, focusCell.col).reduce((a, b) => a + b, 0)
+		const items: MenuItem[] = ["values"]
+		if (wholeRows) items.push("rows")
+		if (wholeCols) items.push("cols")
 		openMenuAt(
 			box.left + left - el.scrollLeft,
 			box.top + HEADER_HEIGHT + (focusCell.pos + 1) * ROW_HEIGHT - el.scrollTop,
-			"both"
+			items
 		)
+	}
+	const menuActions: Record<MenuItem, { label: string; run: () => void }> = {
+		values: {
+			label: selectedValues !== 1 ? `Delete ${selectedValues} values` : "Delete value",
+			run: onDeleteValues,
+		},
+		rows: {
+			label: selectedRows !== 1 ? `Delete ${selectedRows} rows` : "Delete row",
+			run: onDeleteRows,
+		},
+		cols: {
+			label: selectedCols !== 1 ? `Delete ${selectedCols} columns` : "Delete column",
+			run: onDeleteColumns,
+		},
 	}
 	useEffect(() => {
 		if (!menu) return
@@ -603,13 +701,7 @@ export const EditDataGrid = ({
 												<button
 													type="button"
 													aria-label={`Sort by ${column.name}`}
-													title={
-														sorted === null
-															? "Sort ascending"
-															: sorted === "asc"
-																? "Sort descending"
-																: "Clear sort"
-													}
+													title={sorted === "asc" ? "Sort descending" : "Sort ascending"}
 													onClick={() => {
 														commitEdit()
 														commit((g) => applySort(g, nextSort(g.sort, col)))
@@ -801,30 +893,19 @@ export const EditDataGrid = ({
 						style={{ position: "fixed", left: menu.x, top: menu.y, width: MENU_WIDTH }}
 						className="z-30 rounded border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800"
 					>
-						{menu.offers !== "cols" && (
+						{menu.items.map((item, i) => (
 							<button
+								key={item}
 								type="button"
 								role="menuitem"
-								onClick={onDeleteRows}
+								onClick={menuActions[item].run}
 								className={menuItem}
 								// eslint-disable-next-line jsx-a11y/no-autofocus -- the menu the user just opened takes focus, as a native one does
-								autoFocus
+								autoFocus={i === 0}
 							>
-								{selectedRows !== 1 ? `Delete ${selectedRows} rows` : "Delete row"}
+								{menuActions[item].label}
 							</button>
-						)}
-						{menu.offers !== "rows" && (
-							<button
-								type="button"
-								role="menuitem"
-								onClick={onDeleteColumns}
-								className={menuItem}
-								// eslint-disable-next-line jsx-a11y/no-autofocus -- as above, when this is the first item
-								autoFocus={menu.offers === "cols"}
-							>
-								{selectedCols !== 1 ? `Delete ${selectedCols} columns` : "Delete column"}
-							</button>
-						)}
+						))}
 					</div>
 				)}
 			</div>

@@ -253,10 +253,8 @@ export const deleteColumns = (grid: Grid, left: number, right: number): Grid => 
 	}
 }
 
-/** Sort the shown order by a column (a stable sort, so ties keep their
- *  current order), or restore row order when `sort` is null. */
-export const applySort = (grid: Grid, sort: SortState): Grid => {
-	if (!sort) return { ...grid, order: grid.rows.map((_, i) => i), sort: null }
+/** Sort the shown order by a column (ties keep their row order). */
+export const applySort = (grid: Grid, sort: NonNullable<SortState>): Grid => {
 	const column = grid.columns[sort.col]
 	if (!column) return grid
 	const indices = grid.rows.map((_, i) => i)
@@ -272,12 +270,10 @@ export const applySort = (grid: Grid, sort: SortState): Grid => {
 }
 
 /** The next sort state a click on this column's sort control produces:
- *  unsorted → ascending → descending → unsorted. */
-export const nextSort = (sort: SortState, col: number): SortState => {
-	if (!sort || sort.col !== col) return { col, dir: "asc" }
-	if (sort.dir === "asc") return { col, dir: "desc" }
-	return null
-}
+ *  ascending first, then descending and ascending in turn. There is no
+ *  third "unsorted" step — Undo steps back to the order as opened. */
+export const nextSort = (sort: SortState, col: number): NonNullable<SortState> =>
+	sort?.col === col && sort.dir === "asc" ? { col, dir: "desc" } : { col, dir: "asc" }
 
 /** The rectangle's cells as tab-separated lines, for the clipboard. A cell
  *  holding a tab, newline or quote is quoted the way spreadsheets do it. */

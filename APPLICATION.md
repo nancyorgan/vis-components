@@ -159,7 +159,10 @@ cells as imported, no reshape / conversion / derived columns) — plus
 a data set name box. The grid has plain spreadsheet manners
 (`drawer/EditDataGrid.tsx`, model in `lib/editGrid.ts`): click a cell
 to select it, drag or Shift+click / Shift+arrows for a range, click a
-row number or a column name for the whole row or column; double-click,
+row number or a column name for the whole row or column (its FIRST
+cell is the active one, so typing or the arrows carry on from the top
+of the column or the start of the row, and the view does not jump to
+the far end); double-click,
 Enter or simply typing edits a cell (Enter / Tab / arrows commit and
 move, Escape cancels the edit — a second Escape closes the dialog);
 Delete / Backspace blanks the selection; ⌘C / ⌘X / ⌘V move
@@ -172,15 +175,27 @@ column name adds a column (named "Column N" and selected; column
 names are NOT edited in the dialog — a variable is renamed in the
 Fields panel, §2.2), and the blank line under the data adds a row:
 its "+" in the row-number gutter lands on the first cell, a click in
-one of its cells lands on that column. Rows and columns are deleted
-from a right-click menu (Shift+F10 or the Menu key from the
-keyboard): right-clicking a row number, a column name or a cell
-outside the selection selects it first, and the menu names what it
-covers ("Delete 2 rows" from a row number, "Delete column" from a
-column name, both from a cell). The toolbar keeps Undo / Redo only.
-Each column header has a sort control (⇅ → ▲ → ▼ → off) that
+one of its cells lands on that column. The right-click menu deletes
+what is highlighted, and what it offers follows where the click
+landed: a **cell** offers only "Delete value" / "Delete 6 values"
+(the selected cells are blanked, as the Delete key does — the rows
+and columns stay); a **row number** offers "Delete row" / "Delete 2
+rows" and a **column name** "Delete column" / "Delete 2 columns".
+Right-clicking outside the selection selects there first, and a row
+number or a column name takes its row or column whole unless whole
+rows / columns holding it are already selected — so a row or a column
+is only ever deleted while it is highlighted end to end. From the
+keyboard, Shift+Space takes the selection's rows whole and Ctrl+Space
+its columns; Shift+F10 or the Menu key opens the menu under the focus
+cell with the values, plus the rows / columns when the selection
+takes them whole. The toolbar keeps Undo / Redo only.
+Each column header has a sort control (⇅, then ▲ and ▼ in turn —
+ascending first, never back to unsorted; Undo steps back to the order
+as opened) that
 reorders what is SHOWN only — the saved rows keep their import order,
-so sorting to find a cell never reads as a change. A
+so sorting to find a cell never reads as a change — and leaves the
+view where it is: only moving the selection, or starting an edit,
+scrolls the grid. A
 column that writes its numbers a particular way — comma-grouped
 "2,123,123", dollars "$1,234.56", accounting "(1,234)", percents
 "14%" — keeps writing them that way: a number typed or pasted into it
