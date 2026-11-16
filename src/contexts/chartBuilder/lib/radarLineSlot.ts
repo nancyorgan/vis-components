@@ -8,7 +8,7 @@ import { FOLLOW_LABEL } from "./colorSlots"
  *  single-color default. */
 export const RADAR_LINE_INHERIT = {
 	label: FOLLOW_LABEL,
-	help: "Each polygon's outline matches its fill.",
+	help: "Each polygon's outline takes its series' color — or the polygon's, once the polygon has a color of its own.",
 } as const
 
 /** The outline state the old radar Outline editor stored on the CONNECTION

@@ -139,18 +139,18 @@ describe("Pattern panel — Scale (no pattern variable)", () => {
 		expect(q.getByText("Ink color")).toBeTruthy()
 	})
 
-	it("writes pattern.defaultScale, and the bottom Reset clears it", async () => {
+	it("writes pattern.defaultScale, and the reset beside it clears it", async () => {
 		const store = seed(FILL, { defaultPattern: 0 })
 		const q = await mount()
 		type(q.getByLabelText("Scale"), "1.5")
 		expect(readSavedConfigs(store).pattern?.defaultScale).toBe(1.5)
-		// The panel-wide reset is the underlined link at the bottom; the Ink
-		// color / Background rows carry their own per-row "reset" links.
-		const panelReset = q
-			.getAllByText("reset")
-			.find((el) => el.className.includes("underline"))
-		expect(panelReset).toBeTruthy()
-		fireEvent.click(panelReset!)
+		// Every setting carries its own reset, beside it; there is no
+		// panel-wide link under everything any more.
+		expect(q.getAllByText("reset").some((el) => el.className.includes("underline"))).toBe(false)
+		fireEvent.click(q.getByLabelText("Reset scale"))
 		expect(readSavedConfigs(store).pattern?.defaultScale ?? null).toBeNull()
+		// The default pattern has its own, too.
+		fireEvent.click(q.getByLabelText("Reset pattern option"))
+		expect(readSavedConfigs(store).defaultPattern ?? null).toBeNull()
 	})
 })

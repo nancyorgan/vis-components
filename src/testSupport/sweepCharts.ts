@@ -82,6 +82,17 @@ export const SWEEP_CHARTS: readonly SweepChart[] = [
 		variation: "Horizontal bars and line",
 		encodings: { y: "Quarter", length: "Sales", x: "Profit", connection: "Region" },
 	},
+	{
+		// "Connect points to axis" on a combo: the stems are a part of their
+		// own, styled like a scatter's (Color, Opacity, Saturation, Brightness,
+		// and their thickness under Size).
+		id: "combo-stems",
+		label: "Bars and line with stems",
+		dataset: "sales",
+		variation: "Bars and line",
+		encodings: { x: "Quarter", length: "Sales", y: "Profit", connection: "Region", hue: "Region" },
+		settings: { channelConfigs: { connection: { axisStem: "x-axis" } } },
+	},
 	// ---- scatter family -------------------------------------------------
 	{
 		id: "scatter-plain",

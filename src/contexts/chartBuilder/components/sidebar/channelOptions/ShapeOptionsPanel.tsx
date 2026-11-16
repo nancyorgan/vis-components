@@ -86,11 +86,10 @@ export const ShapeOptionsPanel = () => {
 		updateCfg(resetShapeCategoryOverrides(cfg, value))
 
 	const defaultShapeIdx = configs.defaultShape ?? DEFAULT_SHAPE
-	// The panel-wide reset shows only when something it would write differs
-	// from that target (same fields the reset writes, below).
-	const panelChanged =
-		!glyphsInert &&
-		(defaultShapeIdx !== theme.defaultShape || cfg.outlineColor !== theme.outlineColor)
+	// The default shape's reset sits after its swatches, on their line. (It used to be a panel-wide link under everything that also
+	// put the outline COLOR back — a setting of the Color menu, which has a
+	// reset of its own there.)
+	const defaultShapeChanged = defaultShapeIdx !== theme.defaultShape
 
 	// Which row's "+" custom-glyph editor is open — the DEFAULT_GLYPH_ROW
 	// sentinel for the Default-shape row, a category value for per-category
@@ -178,7 +177,7 @@ export const ShapeOptionsPanel = () => {
 				<>
 					<div className="vc-divider-group text-sm">
 						<span className="vc-group-header">Default shape</span>
-						<div className="flex flex-wrap gap-1">
+						<div className="flex flex-wrap items-center gap-1">
 							{SHAPE_PALETTE.map((_, idx) => {
 								const selected = idx === defaultShapeIdx
 								return (
@@ -205,6 +204,18 @@ export const ShapeOptionsPanel = () => {
 									...prev,
 									defaultShape: idx,
 								}))
+							)}
+							{defaultShapeChanged && (
+								<ResetLink
+									ariaLabel="Reset default shape"
+									className="ml-1"
+									onClick={() =>
+										setConfigs((prev) => ({
+											...prev,
+											defaultShape: theme.defaultShape,
+										}))
+									}
+								/>
 							)}
 						</div>
 						{glyphEditorFor === DEFAULT_GLYPH_ROW && (
@@ -254,19 +265,6 @@ export const ShapeOptionsPanel = () => {
 						)
 					})}
 				</>
-			)}
-			{panelChanged && (
-				<ResetLink
-					onClick={() => {
-						setConfigs((prev) => ({
-							...prev,
-							defaultShape: theme.defaultShape,
-						}))
-						updateCfg({ outlineColor: theme.outlineColor })
-					}}
-					underline
-					className="self-start"
-				/>
 			)}
 			{thicknessLink}
 		</div>

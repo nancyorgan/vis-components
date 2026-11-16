@@ -4,6 +4,7 @@ import { combine as c } from "../../lib/cls"
 
 import { LABEL_COL } from "./LabeledField"
 import { NumberInput } from "./NumberInput"
+import { ResetLink } from "./ResetLink"
 
 /** A bounded value: a slider, with the number beside it in a box that can
  *  be typed into.
@@ -16,7 +17,12 @@ import { NumberInput } from "./NumberInput"
  *
  *  `percent` shows a 0–1 value as 0–100 %; `suffix` names any other unit
  *  ("×"). The label names the slider; the box is "{label} value" to a
- *  screen reader. */
+ *  screen reader.
+ *
+ *  `onReset` puts a "reset" link at the end of the row — to the right of
+ *  the setting, on its line — while the value is `changed`. The slider
+ *  gives up the width, so the row never wraps the link onto a line of its
+ *  own. */
 export const Slider = ({
 	label,
 	value,
@@ -31,6 +37,8 @@ export const Slider = ({
 	labelClassName = LABEL_COL,
 	labelTitle,
 	className,
+	onReset,
+	resetLabel,
 }: {
 	label: string
 	value: number
@@ -53,6 +61,11 @@ export const Slider = ({
 	 *  name in a per-category list). */
 	labelTitle?: string
 	className?: string
+	/** Put the value back to its default. With it, a changed value shows a
+	 *  "reset" link at the end of the row. */
+	onReset?: () => void
+	/** The reset link's accessible name ("Reset opacity"). */
+	resetLabel?: string
 }) => {
 	const id = useId()
 	const factor = percent ? 100 : 1
@@ -99,6 +112,7 @@ export const Slider = ({
 				inputClassName="w-14"
 				suffix={percent ? "%" : suffix}
 			/>
+			{changed && onReset && <ResetLink onClick={onReset} ariaLabel={resetLabel} />}
 		</div>
 	)
 }

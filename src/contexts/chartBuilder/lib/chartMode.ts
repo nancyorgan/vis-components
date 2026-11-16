@@ -57,6 +57,12 @@ export const getChartMode = (
 	return "scatter"
 }
 
+/** The mode definition for a mode id — for callers that hold only the id
+ * and need what the mode DECLARES (its `canvas` traits). An unknown id
+ * reads as scatter, the registry's catch-all. */
+export const chartModeDefById = (id: ChartMode): (typeof MODE_REGISTRY)[number] =>
+	MODE_REGISTRY.find((mode) => mode.id === id) ?? ScatterMode
+
 /** Return the full ChartModeDef, not just the id. Useful for callers that
  * need the mode's Renderer, legend config, or facet capabilities. */
 export const getChartModeDef = (

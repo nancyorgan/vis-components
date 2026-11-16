@@ -58,11 +58,37 @@ export const measureCaptionBox = (
 	return { width: Math.max(1, width), height: Math.max(1, height), lines }
 }
 
-/** Vertical space the caption reserves at the bottom of the canvas (box height
- *  plus a gap above and below). Fed to the solver as `extraBottomMargin` so the
- *  plot shrinks and the caption never pushes content past the viewport. */
-export const captionReservePx = (box: CaptionBox | null): number =>
-	box ? box.height + CAPTION_GAP * 2 : 0
+/** Vertical space the caption asks for at the bottom of the canvas: the box
+ *  plus a gap above and below, plus however far the caption is pushed DOWN
+ *  ("Adjust position" Y, resolved against `canvasH`). Fed to the solver as
+ *  `extraBottomMargin`, one more ask on the layout's one budget (LAYOUT.md
+ *  §2): the plot gives up the room and the caption stays on the canvas.
+ *
+ *  Pushing a caption down cannot move it — it already sits at the bottom
+ *  edge — so, like an x-axis title pushed away from the plot, the offset
+ *  becomes room between it and the plot instead (`positionCaptionBox` keeps
+ *  the box at the edge). The offset used to be applied to the box alone,
+ *  which slid it off the canvas and grew the page into a scrollbar. */
+export const captionReservePx = (
+	box: CaptionBox | null,
+	caption?: CaptionConfig,
+	canvasH = 0
+): number =>
+	box
+		? box.height +
+			CAPTION_GAP * 2 +
+			(caption
+				? Math.max(0, resolveCaptionUnit(caption.offsetY, caption.offsetYUnit, canvasH))
+				: 0)
+		: 0
+
+/** How far to move a span [lo, hi] so it lies inside [0, size]: back in
+ *  from whichever edge it passed. A span longer than `size` is pinned at
+ *  its start, so its beginning stays readable. */
+const shiftIntoView = (lo: number, hi: number, size: number): number => {
+	if (hi - lo >= size || lo < 0) return -lo
+	return hi > size ? size - hi : 0
+}
 
 export type CaptionLayout = {
 	left: number
@@ -78,24 +104,45 @@ export type CaptionLayout = {
 /** Position a measured caption box within the reserved bottom band. The box
  *  defaults to horizontally centered and pinned to the bottom of the canvas
  *  (`CAPTION_GAP` above the canvas edge); the position adjusters NUDGE it from
- *  there. Percent offsets resolve against canvas width (x) / height (y). */
+ *  there. Percent offsets resolve against canvas width (x) / height (y).
+ *
+ *  **The caption stays on the canvas.** Sideways and upward nudges move it
+ *  until what it DRAWS (`captionDrawnBox`) reaches an edge, and stop there.
+ *  A downward nudge does not move it at all: it is the room
+ *  `captionReservePx` asked for between the caption and the plot. */
 export const positionCaptionBox = (
 	caption: CaptionConfig,
 	box: CaptionBox,
 	canvasW: number,
 	canvasH: number
 ): CaptionLayout => {
+	const asked = layoutCaptionAt(
+		caption,
+		box,
+		(canvasW - box.width) / 2 +
+			resolveCaptionUnit(caption.offsetX, caption.offsetXUnit, canvasW),
+		canvasH -
+			box.height -
+			CAPTION_GAP +
+			Math.min(0, resolveCaptionUnit(caption.offsetY, caption.offsetYUnit, canvasH))
+	)
+	const drawn = captionDrawnBox(caption, asked)
+	const dx = shiftIntoView(drawn.left, drawn.right, canvasW)
+	const dy = shiftIntoView(drawn.top, drawn.bottom, canvasH)
+	return dx === 0 && dy === 0
+		? asked
+		: layoutCaptionAt(caption, box, asked.left + dx, asked.top + dy)
+}
+
+/** The caption's box and text geometry with the box's corner at (left, top). */
+const layoutCaptionAt = (
+	caption: CaptionConfig,
+	box: CaptionBox,
+	left: number,
+	top: number
+): CaptionLayout => {
 	const padding = Math.max(0, caption.padding)
 	const fontSize = Math.max(1, ptToPx(caption.fontSize))
-
-	const defaultLeft = (canvasW - box.width) / 2
-	const defaultTop = canvasH - box.height - CAPTION_GAP
-	const left =
-		defaultLeft +
-		resolveCaptionUnit(caption.offsetX, caption.offsetXUnit, canvasW)
-	const top =
-		defaultTop +
-		resolveCaptionUnit(caption.offsetY, caption.offsetYUnit, canvasH)
 
 	const textAnchor =
 		caption.align === "center"
@@ -129,19 +176,20 @@ const captionBoxVisible = (caption: CaptionConfig): boolean =>
 	caption.backgroundOpacity > 0 ||
 	(caption.borderEnabled && caption.borderWidth > 0)
 
-/** Right and bottom edges of what the caption actually DRAWS. A visible box
- *  (background or border) counts in full; an invisible box — the default —
- *  counts only its text ink, estimated with the same px/char heuristic that
- *  wrapped it. PlotCanvas grows the SVG (and adds a scroll viewport) only when
- *  this extent passes the canvas edge, so nudging an invisible auto-width
- *  caption a few px sideways doesn't summon scrollbars while the text itself
- *  still has room. */
-export const captionDrawnExtent = (
+/** The edges of what the caption actually DRAWS. A visible box (background
+ *  or border) counts in full; an invisible box — the default — counts only
+ *  its text ink, estimated with the same px/char heuristic that wrapped it.
+ *  This is what is kept on the canvas: an invisible auto-width box spans the
+ *  whole canvas, so holding the BOX in view would leave its text no room to
+ *  be nudged at all. */
+export const captionDrawnBox = (
 	caption: CaptionConfig,
 	layout: CaptionLayout
-): { right: number; bottom: number } => {
+): { left: number; top: number; right: number; bottom: number } => {
 	if (captionBoxVisible(caption)) {
 		return {
+			left: layout.left,
+			top: layout.top,
 			right: layout.left + layout.width,
 			bottom: layout.top + layout.height,
 		}
@@ -149,16 +197,22 @@ export const captionDrawnExtent = (
 	const fontSize = Math.max(1, ptToPx(caption.fontSize))
 	const widestChars = layout.lines.reduce((m, l) => Math.max(m, l.length), 0)
 	const widest = widestChars * fontSize * charWidthFactor
-	const right =
+	const left =
 		layout.textAnchor === "start"
-			? layout.textX + widest
+			? layout.textX
 			: layout.textAnchor === "middle"
-				? layout.textX + widest / 2
-				: layout.textX
-	// Lines stack 1.2em apart from the first baseline; descenders hang a
-	// quarter em below the last one.
+				? layout.textX - widest / 2
+				: layout.textX - widest
+	// Lines stack 1.2em apart from the first baseline; ascenders rise about
+	// 0.8em above the first one and descenders hang a quarter em below the
+	// last.
 	const lastBaseline = layout.firstBaseline + fontSize * 1.2 * (layout.lines.length - 1)
-	return { right, bottom: lastBaseline + fontSize * 0.25 }
+	return {
+		left,
+		top: layout.firstBaseline - fontSize * 0.8,
+		right: left + widest,
+		bottom: lastBaseline + fontSize * 0.25,
+	}
 }
 
 /** Render the caption box (optional background rect + border + wrapped text)

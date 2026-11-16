@@ -22,6 +22,7 @@ import {
 	emptyEncodings,
 	type Dataset,
 	type Encodings,
+	type Theme,
 } from "../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -34,7 +35,9 @@ import {
 	currentLabelsAtom,
 	loadedDatasetsAtom,
 	previewVersionIdAtom,
+	themeAtom,
 } from "../../store/atoms"
+import { LIGHT_THEME_BASE } from "../../lib/systemThemes"
 
 import { RadarPlot } from "./RadarPlot"
 
@@ -81,6 +84,8 @@ type Opts = {
 	extraEncodings?: Partial<Encodings>
 	/** Extra channel configs (e.g. pattern picks) merged over the base. */
 	extraConfigs?: Partial<ChannelConfigs>
+	/** Theme fields over the neutral base (e.g. a fill palette). */
+	theme?: Partial<Theme>
 }
 
 const seedStorage = (opts: Opts) => {
@@ -143,6 +148,8 @@ const initState =
 		snap.set(currentDataLabelsEncodingsAtom, emptyDataLabelsEncodings())
 		snap.set(currentFieldOverridesAtom, {})
 		snap.set(currentFieldLevelOrdersAtom, {})
+		// `currentThemeIdAtom` defaults null, so the chart reads `themeAtom`.
+		if (opts.theme) snap.set(themeAtom, { ...LIGHT_THEME_BASE, ...opts.theme })
 	}
 
 const mount = (opts: Opts = {}) => {
@@ -885,5 +892,77 @@ describe("RadarPlot — outline dash (Pattern → Line)", () => {
 		const pieces = outlinePieces(c)
 		expect(pieces).toHaveLength(2)
 		for (const el of pieces) expect(el.getAttribute("stroke-dasharray")).toBeNull()
+	})
+})
+
+describe("RadarPlot — a polygon on Auto takes the theme's fill palette", () => {
+	// A body under a line and points: on Auto it fills from the theme's fill
+	// palette (the pale twin of the palette its points draw in), and its
+	// outline stays in Color's palette. Before, a polygon could only match
+	// its points, and the outline followed the polygon.
+	const MARKS = ["#1f77b4", "#ff7f0e"]
+	const TINTS = ["#c6dbef", "#ffd8b1"]
+	const fillTheme: Partial<Theme> = {
+		categoricalPalettes: [
+			{ id: "marks", name: "Marks", colors: MARKS },
+			{ id: "tints", name: "Tints", colors: TINTS },
+		],
+		defaultCategoricalPaletteId: "marks",
+		defaultFillPaletteId: "tints",
+	}
+	const themedColor: Partial<ChannelConfigs> = {
+		categoricalPaletteId: "marks",
+		categoricalPalette: MARKS,
+		hue: { ...DEFAULT_CATEGORICAL_HUE_CONFIG },
+	}
+	const filled = (more: Partial<Opts> = {}) =>
+		mount({
+			withConnection: true,
+			connectionCfg: { fillPolygon: true },
+			extraEncodings: { hue: { field: "team" } },
+			extraConfigs: themedColor,
+			theme: fillTheme,
+			...more,
+		})
+	const paint = (c: HTMLElement) =>
+		[...c.querySelectorAll("polygon")].map((p) => ({
+			fill: p.getAttribute("fill"),
+			stroke: p.getAttribute("stroke"),
+		}))
+
+	it("bodies fill from the fill palette; outlines stay in Color's palette", () => {
+		const polygons = paint(filled())
+		expect(polygons.map((p) => p.fill).sort()).toEqual([...TINTS].sort())
+		expect(polygons.map((p) => p.stroke).sort()).toEqual([...MARKS].sort())
+		// Each body is the twin of its own outline's color, position for position.
+		for (const p of polygons) expect(TINTS.indexOf(p.fill!)).toBe(MARKS.indexOf(p.stroke!))
+	})
+
+	it("with no fill palette in the theme, a body still matches its points", () => {
+		const polygons = paint(filled({ theme: { ...fillTheme, defaultFillPaletteId: null } }))
+		for (const p of polygons) expect(p.fill).toBe(p.stroke)
+		expect(polygons.map((p) => p.fill).sort()).toEqual([...MARKS].sort())
+	})
+
+	it("with a palette of the user's for Color, a body still matches its points", () => {
+		const own = ["#aa0000", "#00aa00"]
+		const polygons = paint(
+			filled({ extraConfigs: { ...themedColor, categoricalPaletteId: "visual-pick", categoricalPalette: own } })
+		)
+		expect(polygons.map((p) => p.fill).sort()).toEqual([...own].sort())
+	})
+
+	it("an explicit polygon color wins, and the outline on Auto follows it as before", () => {
+		const polygons = paint(
+			filled({
+				extraConfigs: {
+					...themedColor,
+					colorSlots: { polygonFill: { field: null, singleColor: "#123456" } },
+				},
+			})
+		)
+		expect(new Set(polygons.map((p) => p.fill))).toEqual(new Set(["#123456"]))
+		// A polygon with a color of its own keeps its matching outline.
+		expect(new Set(polygons.map((p) => p.stroke))).toEqual(new Set(["#123456"]))
 	})
 })

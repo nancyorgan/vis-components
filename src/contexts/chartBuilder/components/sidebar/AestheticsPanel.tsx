@@ -168,23 +168,41 @@ export const AestheticsPanel = () => {
 					/>
 					{panelBorder.enabled && (
 						<>
-							<NumberInput
-								label="Border thickness"
-								labelClassName={LABEL_COL}
-								value={panelBorder.width}
-								onChange={(width) => setPanelBorder({ width })}
-								min={0}
-								max={20}
-								step={0.5}
-								clamp
-								suffix="px"
-							/>
-							<ColorInput
-								label="Line color"
-								labelClassName={LABEL_COL}
-								value={panelBorder.color}
-								onChange={(color) => setPanelBorder({ color })}
-							/>
+							<div className="flex items-center gap-2">
+								<NumberInput
+									label="Border thickness"
+									labelClassName={LABEL_COL}
+									changed={panelBorder.width !== themePanelBorder.width}
+									value={panelBorder.width}
+									onChange={(width) => setPanelBorder({ width })}
+									min={0}
+									max={20}
+									step={0.5}
+									clamp
+									suffix="px"
+								/>
+								{panelBorder.width !== themePanelBorder.width && (
+									<ResetLink
+										ariaLabel="Reset border thickness"
+										onClick={() => setPanelBorder({ width: themePanelBorder.width })}
+									/>
+								)}
+							</div>
+							<div className="flex flex-wrap items-center gap-2">
+								<ColorInput
+									label="Line color"
+									labelClassName={LABEL_COL}
+									value={panelBorder.color}
+									onChange={(color) => setPanelBorder({ color })}
+								/>
+								{panelBorder.color.toLowerCase() !==
+									themePanelBorder.color.toLowerCase() && (
+									<ResetLink
+										ariaLabel="Reset line color"
+										onClick={() => setPanelBorder({ color: themePanelBorder.color })}
+									/>
+								)}
+							</div>
 						</>
 					)}
 				</div>

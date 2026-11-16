@@ -191,6 +191,32 @@ const titleOffCanvas = (
 }
 
 /** How many generated layouts break `rule`. */
+/** Two neighbouring panels whose in-between text shares space: the first
+ *  panel's tick labels and the second's facet title (or tick labels, when
+ *  its axis is on that side). A cell's margin on a side that draws text is
+ *  that text's room, so where BOTH draw text between them the two cells
+ *  must not overlap. (One kind of text, or none: the gap is the user's.) */
+const textBetweenPanelsOverlaps = (input: SolverInput, spec: FacetLayoutSpec): boolean => {
+	const at = new Map(spec.panels.map((p) => [`${p.row}-${p.col}`, p]))
+	const xTop = input.xAxisTop === true
+	const yRight = input.yAxisRight === true
+	for (const p of spec.panels) {
+		const below = at.get(`${p.row + 1}-${p.col}`)
+		if (below) {
+			const aboveText = !xTop && p.showXTicks
+			const belowText = below.facetLabel !== null || (xTop && below.showXTicks)
+			if (aboveText && belowText && below.cell.y < p.cell.y + p.cell.height - EPS) return true
+		}
+		const right = at.get(`${p.row}-${p.col + 1}`)
+		if (right) {
+			const leftText = yRight && p.showYTicks
+			const rightText = !yRight && right.showYTicks
+			if (leftText && rightText && right.cell.x < p.cell.x + p.cell.width - EPS) return true
+		}
+	}
+	return false
+}
+
 const violations = (rule: (input: SolverInput, spec: FacetLayoutSpec) => boolean): number => {
 	let n = 0
 	for (const input of generated()) if (rule(input, solveFacetLayout(input))) n++
@@ -226,6 +252,17 @@ describe("layout invariants — fit mode, generated layouts", () => {
 			violations((_input, spec) => panelOutsideCanvas(spec)),
 			0
 		)
+	})
+
+	// Was 369 (of the layouts with more than one panel, about one in four). The
+	// gap is measured plot to plot with the chrome between
+	// two plots inside it, and a gap narrower than that chrome simply
+	// overlapped it: panels with their own x axes drew the next row's titles
+	// over their tick labels (LAYOUT.md §10). Where both plots put text
+	// between them, a gap of 0 or more is now widened until each keeps its
+	// room.
+	it("two neighbours' text never shares space", () => {
+		expectCeiling(violations(textBetweenPanelsOverlaps), 0)
 	})
 
 	it("the chart title stays on the canvas", () => {

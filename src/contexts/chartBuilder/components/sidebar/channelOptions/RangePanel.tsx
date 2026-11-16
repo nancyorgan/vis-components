@@ -526,6 +526,8 @@ const ModulationSlotSubsection = ({
 							step={0.05}
 							changed={range.min !== baseMin}
 							onChange={(min) => setRange({ min })}
+							onReset={() => setRange({ min: baseMin })}
+							resetLabel="Reset min"
 						/>
 						<Slider
 							label="Max"
@@ -535,14 +537,9 @@ const ModulationSlotSubsection = ({
 							step={0.05}
 							changed={range.max !== baseMax}
 							onChange={(max) => setRange({ max })}
+							onReset={() => setRange({ max: baseMax })}
+							resetLabel="Reset max"
 						/>
-						{(range.min !== baseMin || range.max !== baseMax) && (
-							<ResetLink
-								onClick={() => setRange({ min: baseMin, max: baseMax })}
-								underline
-								className="self-start"
-							/>
-						)}
 					</>
 				)}
 			</div>
@@ -1017,28 +1014,42 @@ const RangePanel = ({
 			    sliders; a pixel size stays a pair of number boxes. */}
 			{variant.channel === "area" ? (
 				<>
-					<NumberInput
-						label="Min"
-						labelClassName={LABEL_COL}
-						value={currentMin}
-						min={variant.hardMin}
-						max={variant.hardMax}
-						step={variant.step}
-						onChange={(min) => update({ min })}
-						inputClassName="w-16"
-						suffix={variant.suffix || undefined}
-					/>
-					<NumberInput
-						label="Max"
-						labelClassName={LABEL_COL}
-						value={currentMax}
-						min={variant.hardMin}
-						max={variant.hardMax}
-						step={variant.step}
-						onChange={(max) => update({ max })}
-						inputClassName="w-16"
-						suffix={variant.suffix || undefined}
-					/>
+					{/* Each end of the range is a setting of its own: its reset sits
+					    beside it. */}
+					<div className="flex items-center gap-2">
+						<NumberInput
+							label="Min"
+							labelClassName={LABEL_COL}
+							changed={currentMin !== variant.min}
+							value={currentMin}
+							min={variant.hardMin}
+							max={variant.hardMax}
+							step={variant.step}
+							onChange={(min) => update({ min })}
+							inputClassName="w-16"
+							suffix={variant.suffix || undefined}
+						/>
+						{currentMin !== variant.min && (
+							<ResetLink ariaLabel="Reset min" onClick={() => update({ min: variant.min })} />
+						)}
+					</div>
+					<div className="flex items-center gap-2">
+						<NumberInput
+							label="Max"
+							labelClassName={LABEL_COL}
+							changed={currentMax !== variant.max}
+							value={currentMax}
+							min={variant.hardMin}
+							max={variant.hardMax}
+							step={variant.step}
+							onChange={(max) => update({ max })}
+							inputClassName="w-16"
+							suffix={variant.suffix || undefined}
+						/>
+						{currentMax !== variant.max && (
+							<ResetLink ariaLabel="Reset max" onClick={() => update({ max: variant.max })} />
+						)}
+					</div>
 				</>
 			) : (
 				<>
@@ -1050,6 +1061,8 @@ const RangePanel = ({
 						step={variant.step}
 						changed={currentMin !== variant.min}
 						onChange={(min) => update({ min })}
+						onReset={() => update({ min: variant.min })}
+						resetLabel="Reset min"
 					/>
 					<Slider
 						label="Max"
@@ -1059,15 +1072,10 @@ const RangePanel = ({
 						step={variant.step}
 						changed={currentMax !== variant.max}
 						onChange={(max) => update({ max })}
+						onReset={() => update({ max: variant.max })}
+						resetLabel="Reset max"
 					/>
 				</>
-			)}
-			{(currentMin !== variant.min || currentMax !== variant.max) && (
-				<ResetLink
-					onClick={() => update({ min: variant.min, max: variant.max })}
-					underline
-					className="self-start"
-				/>
 			)}
 			{/* Saturation/Brightness can drive bar layout when 2+ stack channels
 			    are mapped to different vars. Area doesn't stack (and "area" isn't
@@ -1091,7 +1099,7 @@ const PointSizeDefault = () => {
 	const theme = useCurrentTheme()
 	const currentRadius = configs.defaultRadius ?? theme.defaultRadius
 	return (
-		<>
+		<div className="flex items-center gap-2">
 			<NumberInput
 				label="Size"
 				labelClassName={LABEL_COL}
@@ -1115,11 +1123,9 @@ const PointSizeDefault = () => {
 							defaultRadius: theme.defaultRadius,
 						}))
 					}
-					underline
-					className="self-start"
 				/>
 			)}
-		</>
+		</div>
 	)
 }
 
@@ -1184,6 +1190,8 @@ const ModulationLevelControl = ({
 				disabled={!enabled}
 				changed={enabled && !atAnchor}
 				onChange={onChange}
+				onReset={() => onChange(MODULATION_ANCHOR)}
+				resetLabel="Reset to the palette color"
 			/>
 			{(!enabled || atAnchor) && (
 				<div className="vc-help">
@@ -1191,14 +1199,6 @@ const ModulationLevelControl = ({
 						? `Off — ${partNoun}s use their ${colorNoun}s as-is.`
 						: `On, at ${MODULATION_ANCHOR} — every ${partNoun}'s ${colorNoun}, unchanged. Dial away from ${MODULATION_ANCHOR} to shift it.`}
 				</div>
-			)}
-			{enabled && !atAnchor && (
-				<ResetLink
-					ariaLabel="Reset to the palette color"
-					onClick={() => onChange(MODULATION_ANCHOR)}
-					underline
-					className="self-start"
-				/>
 			)}
 			<button
 				type="button"

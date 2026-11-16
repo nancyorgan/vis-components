@@ -86,6 +86,9 @@ import { sizeJumpId } from "./SizeThicknessSections"
  *  panel with every other thickness (`SizeThicknessSections`). Keeping
  *  each property in one menu means there's exactly one place to look when
  *  changing how lines are styled across the chart. */
+/** The amount "Smooth line" switches on at — the Amount slider's default. */
+const SMOOTHING_ON_AMOUNT = 0.6
+
 export const ConnectionOptionsPanel = () => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	const [encodings, setEncodings] = useAtom(currentEncodingsAtom)
@@ -621,7 +624,7 @@ export const ConnectionOptionsPanel = () => {
 								// Single stored field: on → a sensible default amount,
 								// off → 0. The Amount slider (shown below when on) is
 								// the fine control; no separate boolean is kept.
-								updateCfg({ smoothing: on ? 0.6 : 0 })
+								updateCfg({ smoothing: on ? SMOOTHING_ON_AMOUNT : 0 })
 							}
 							changed={ch.smoothing}
 						/>
@@ -633,7 +636,12 @@ export const ConnectionOptionsPanel = () => {
 								max={1}
 								step={0.05}
 								percent
+								// The amount's own default is the one switching smoothing
+								// on gives it.
+								changed={cfg.smoothing !== SMOOTHING_ON_AMOUNT}
 								onChange={(smoothing) => updateCfg({ smoothing })}
+								onReset={() => updateCfg({ smoothing: SMOOTHING_ON_AMOUNT })}
+								resetLabel="Reset smoothing amount"
 							/>
 						)}
 						<div className="flex items-center gap-2 text-sm">
@@ -654,26 +662,34 @@ export const ConnectionOptionsPanel = () => {
 							/>
 						</div>
 						{cfg.lineCap === "tick" && (
-							<NumberInput
-								label="Tick length"
-								labelClassName={LABEL_COL}
-								changed={
-									cfg.lineCapTickLength !== null &&
-									cfg.lineCapTickLength !== undefined
-								}
-								value={cfg.lineCapTickLength ?? null}
-								// Blank = auto (scales with the line thickness); the
-								// placeholder shows the resolved auto value.
-								placeholder={String(autoLineEndTickLength(cfg.thickness))}
-								onClear={() => updateCfg({ lineCapTickLength: null })}
-								min={0}
-								step={1}
-								onChange={(n) => {
-									if (n >= 0) updateCfg({ lineCapTickLength: n })
-								}}
-								inputClassName="w-16"
-								suffix="px"
-							/>
+							<div className="flex items-center gap-2">
+								<NumberInput
+									label="Tick length"
+									labelClassName={LABEL_COL}
+									changed={
+										cfg.lineCapTickLength !== null &&
+										cfg.lineCapTickLength !== undefined
+									}
+									value={cfg.lineCapTickLength ?? null}
+									// Blank = auto (scales with the line thickness); the
+									// placeholder shows the resolved auto value.
+									placeholder={String(autoLineEndTickLength(cfg.thickness))}
+									onClear={() => updateCfg({ lineCapTickLength: null })}
+									min={0}
+									step={1}
+									onChange={(n) => {
+										if (n >= 0) updateCfg({ lineCapTickLength: n })
+									}}
+									inputClassName="w-16"
+									suffix="px"
+								/>
+								{cfg.lineCapTickLength !== null && cfg.lineCapTickLength !== undefined && (
+									<ResetLink
+										ariaLabel="Reset tick length"
+										onClick={() => updateCfg({ lineCapTickLength: null })}
+									/>
+								)}
+							</div>
 						)}
 						<p className="vc-help">
 							Set the line thickness under{" "}
@@ -709,22 +725,38 @@ export const ConnectionOptionsPanel = () => {
 									</span>
 								</label>
 								{value === "custom-x" && axisStem === "custom-x" && (
-									<NumberInput
-										className="pl-5"
-										label="X ="
-										labelClassName="vc-muted"
-										value={cfg.axisStemCustomX ?? 0}
-										onChange={(n) => updateCfg({ axisStemCustomX: n })}
-									/>
+									<div className="flex items-center gap-2 pl-5">
+										<NumberInput
+											label="X ="
+											labelClassName="vc-muted"
+											changed={(cfg.axisStemCustomX ?? 0) !== 0}
+											value={cfg.axisStemCustomX ?? 0}
+											onChange={(n) => updateCfg({ axisStemCustomX: n })}
+										/>
+										{(cfg.axisStemCustomX ?? 0) !== 0 && (
+											<ResetLink
+												ariaLabel="Reset X"
+												onClick={() => updateCfg({ axisStemCustomX: null })}
+											/>
+										)}
+									</div>
 								)}
 								{value === "custom-y" && axisStem === "custom-y" && (
-									<NumberInput
-										className="pl-5"
-										label="Y ="
-										labelClassName="vc-muted"
-										value={cfg.axisStemCustomY ?? 0}
-										onChange={(n) => updateCfg({ axisStemCustomY: n })}
-									/>
+									<div className="flex items-center gap-2 pl-5">
+										<NumberInput
+											label="Y ="
+											labelClassName="vc-muted"
+											changed={(cfg.axisStemCustomY ?? 0) !== 0}
+											value={cfg.axisStemCustomY ?? 0}
+											onChange={(n) => updateCfg({ axisStemCustomY: n })}
+										/>
+										{(cfg.axisStemCustomY ?? 0) !== 0 && (
+											<ResetLink
+												ariaLabel="Reset Y"
+												onClick={() => updateCfg({ axisStemCustomY: null })}
+											/>
+										)}
+									</div>
 								)}
 							</div>
 						))}
@@ -799,19 +831,30 @@ export const ConnectionOptionsPanel = () => {
 									</span>
 								</label>
 								{value === "every-n" && cfg.pointSampling === "every-n" && (
-									<NumberInput
-										label="N"
-										labelClassName="vc-muted"
-										value={cfg.pointEveryN}
-										min={1}
-										step={1}
-										onChange={(n) =>
-											// Same normalization as the previous raw input: fractions
-											// floor, and anything below 1 pins to 1.
-											updateCfg({ pointEveryN: Math.max(1, Math.floor(n)) })
-										}
-										inputClassName="w-16"
-									/>
+									<div className="flex items-center gap-2">
+										<NumberInput
+											label="N"
+											labelClassName="vc-muted"
+											changed={cfg.pointEveryN !== themeCfg.pointEveryN}
+											value={cfg.pointEveryN}
+											min={1}
+											step={1}
+											onChange={(n) =>
+												// Same normalization as the previous raw input: fractions
+												// floor, and anything below 1 pins to 1.
+												updateCfg({ pointEveryN: Math.max(1, Math.floor(n)) })
+											}
+											inputClassName="w-16"
+										/>
+										{cfg.pointEveryN !== themeCfg.pointEveryN && (
+											<ResetLink
+												ariaLabel="Reset N"
+												onClick={() =>
+													updateCfg({ pointEveryN: themeCfg.pointEveryN })
+												}
+											/>
+										)}
+									</div>
 								)}
 								{value === "custom" && cfg.pointSampling === "custom" && (
 									<PointIndicesField

@@ -255,6 +255,12 @@ export type ChartModeCanvasTraits = {
 	 * controls (overlay outline width, regression dash) apply. Scatter only:
 	 * the overlays sit on scatter's continuous position scales. */
 	statOverlays: boolean
+	/** True when the mode's bars can be the BINS of a histogram (the axis's
+	 * "Histogram" toggle): the renderer then draws what goes with one — the
+	 * density-curve overlay and the rug — so their styling targets apply.
+	 * The bar modes only; a bar + line combo never bins. (Scatter draws the
+	 * standalone density curve and its rug as `statOverlays`.) */
+	histogram?: boolean
 	/** Polar-only: which POLAR axes the panel draws. Radar draws an R axis
 	 * plus the angle spokes (the Angle panel's Spokes / Spoke-label
 	 * sections); the pie variants draw neither — the slice angle consumed

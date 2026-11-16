@@ -396,11 +396,15 @@ const ColorSlotSubsection = ({
 	const hueType =
 		dataset && hueField ? effectiveType(dataset, hueField, overrides) : null
 	const dflt = defaultColorSlot(def.key, encodings, configs, hueType, theme)
-	const derivedCfg = storedCfg ? undefined : (dflt ?? legacyCfg)
+	// A part with an "Auto" entry shows Auto while untouched — its help line
+	// says what Auto follows — rather than the palette Auto resolves to
+	// (which the renderer derives the same way).
+	const showsAuto = def.inherit !== undefined
+	const derivedCfg = storedCfg ? undefined : showsAuto ? legacyCfg : (dflt ?? legacyCfg)
 	const slotCfg = storedCfg ?? derivedCfg
 	// The variable the untouched slot varies by, touched or not: re-picking
 	// it returns to the live default.
-	const defaultField = dflt?.field ?? null
+	const defaultField = showsAuto ? null : (dflt?.field ?? null)
 	// The single-color default for this slot: a Color-following fill's
 	// single-color default (the fill-palette color analogous to the marks'),
 	// else the legacy value it superseded, else the theme default for this

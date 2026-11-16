@@ -1,6 +1,12 @@
 import { useContext, useEffect } from "react"
 import { useSetAtom } from "jotai"
 import { autoLabelAngleFor } from "../../lib/autoLabelAngle"
+import {
+	X_TICK_LABEL_INSET_PX,
+	X_TICK_LABEL_INSET_ROTATED_PX,
+	X_TICK_LABEL_INSET_TOP_PX,
+	Y_TICK_LABEL_INSET_PX,
+} from "../../lib/layoutMetrics"
 import { SolvedXTickAngleContext } from "./solvedTickAngle"
 import { currentResolvedXTickLabelAngleAtom } from "../../store/atoms"
 import { measureLabelWidths } from "./plotCanvas/measureText"
@@ -734,9 +740,15 @@ export const Axis = ({
 							// top-edge unrotated gap is 8 rather than 12 because the
 							// alphabetic baseline already sits a descender's height
 							// above the ink's bottom edge.
-							const labelOffsetX = isX ? 0 : out * (tick.length + 4)
+							const labelOffsetX = isX ? 0 : out * (tick.length + Y_TICK_LABEL_INSET_PX)
 							const labelOffsetY = isX
-								? out * (tick.length + (rotated ? 6 : flipped ? 8 : 12))
+								? out *
+									(tick.length +
+										(rotated
+											? X_TICK_LABEL_INSET_ROTATED_PX
+											: flipped
+												? X_TICK_LABEL_INSET_TOP_PX
+												: X_TICK_LABEL_INSET_PX))
 								: 0
 							// Tick-label color rules: the first rule matching THIS
 							// tick's value recolors just this label; the rest keep

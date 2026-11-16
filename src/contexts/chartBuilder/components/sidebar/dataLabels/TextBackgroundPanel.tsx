@@ -43,10 +43,12 @@ const BackgroundControls = ({
 	borderColor,
 	borderWidth,
 	onChange,
+	resetColor,
 	resetRadius,
 	resetPadX,
 	resetPadY,
 	resetBorderWidth,
+	resetBorderColor,
 	colorHelp,
 	toggleId,
 }: {
@@ -58,10 +60,12 @@ const BackgroundControls = ({
 	borderColor: string
 	borderWidth: number
 	onChange: (p: BackgroundPatch) => void
+	resetColor: (() => void) | null
 	resetRadius: (() => void) | null
 	resetPadX: (() => void) | null
 	resetPadY: (() => void) | null
 	resetBorderWidth: (() => void) | null
+	resetBorderColor: (() => void) | null
 	colorHelp?: React.ReactNode
 	toggleId?: string
 }) => {
@@ -84,14 +88,19 @@ const BackgroundControls = ({
 			/>
 			{enabled && (
 				<>
-					<ColorInput
-						label="Background"
-						labelClassName={LABEL_COL}
-						value={color}
-						onChange={(textBackgroundColor) =>
-							onChange({ textBackgroundColor })
-						}
-					/>
+					<div className="flex flex-wrap items-center gap-2">
+						<ColorInput
+							label="Background"
+							labelClassName={LABEL_COL}
+							value={color}
+							onChange={(textBackgroundColor) =>
+								onChange({ textBackgroundColor })
+							}
+						/>
+						{resetColor && (
+							<ResetLink ariaLabel="Reset background" onClick={resetColor} />
+						)}
+					</div>
 					{colorHelp != null && <p className="vc-help">{colorHelp}</p>}
 					<div className="flex items-center gap-2">
 						<NumberInput
@@ -155,26 +164,43 @@ const BackgroundControls = ({
 					</div>
 					{borderOn && (
 						<>
-							<ColorInput
-								label="Border color"
-								labelClassName={LABEL_COL}
-								value={borderColor}
-								onChange={(textBackgroundBorderColor) =>
-									onChange({ textBackgroundBorderColor })
-								}
-							/>
-							<NumberInput
-								label="Border thickness"
-								labelClassName={LABEL_COL}
-								value={borderWidth}
-								min={0}
-								step={0.5}
-								onChange={(textBackgroundBorderWidth) =>
-									onChange({ textBackgroundBorderWidth })
-								}
-								inputClassName="w-16"
-								suffix="px"
-							/>
+							<div className="flex flex-wrap items-center gap-2">
+								<ColorInput
+									label="Border color"
+									labelClassName={LABEL_COL}
+									value={borderColor}
+									onChange={(textBackgroundBorderColor) =>
+										onChange({ textBackgroundBorderColor })
+									}
+								/>
+								{resetBorderColor && (
+									<ResetLink ariaLabel="Reset border color" onClick={resetBorderColor} />
+								)}
+							</div>
+							<div className="flex items-center gap-2">
+								<NumberInput
+									label="Border thickness"
+									labelClassName={LABEL_COL}
+									value={borderWidth}
+									min={0}
+									step={0.5}
+									onChange={(textBackgroundBorderWidth) =>
+										onChange({ textBackgroundBorderWidth })
+									}
+									inputClassName="w-16"
+									suffix="px"
+								/>
+								{/* The thickness's own default is the one the Border
+								    switch turns on at. */}
+								{borderWidth !== DEFAULT_BORDER_WIDTH && (
+									<ResetLink
+										ariaLabel="Reset border thickness"
+										onClick={() =>
+											onChange({ textBackgroundBorderWidth: DEFAULT_BORDER_WIDTH })
+										}
+									/>
+								)}
+							</div>
 						</>
 					)}
 				</>
@@ -231,6 +257,16 @@ export const TextBackgroundPanel = ({
 					borderColor={layerBorderColor}
 					borderWidth={layerBorderWidth}
 					onChange={(p) => onChange(p)}
+					resetColor={
+						cfg.textBackgroundColor != null
+							? () => onChange({ textBackgroundColor: null })
+							: null
+					}
+					resetBorderColor={
+						layerBorderColor.toLowerCase() !== DEFAULT_BG_BORDER_COLOR.toLowerCase()
+							? () => onChange({ textBackgroundBorderColor: undefined })
+							: null
+					}
 					resetRadius={
 						layerRadius !== D.textBackgroundRadius
 							? () => onChange({ textBackgroundRadius: D.textBackgroundRadius })
@@ -282,6 +318,16 @@ export const TextBackgroundPanel = ({
 							borderColor={own.textBackgroundBorderColor ?? layerBorderColor}
 							borderWidth={own.textBackgroundBorderWidth ?? layerBorderWidth}
 							onChange={(p) => write({ ...own, ...p })}
+							resetColor={
+								own.textBackgroundColor != null
+									? () => unset("textBackgroundColor")
+									: null
+							}
+							resetBorderColor={
+								own.textBackgroundBorderColor != null
+									? () => unset("textBackgroundBorderColor")
+									: null
+							}
 							resetRadius={
 								own.textBackgroundRadius != null
 									? () => unset("textBackgroundRadius")

@@ -192,12 +192,15 @@ describe("solveFacetLayout — gap math", () => {
 	})
 
 	it("gap 0 makes neighbouring plot rects touch, shared or not", () => {
+		// With one kind of text between two plots (tick labels, with no
+		// per-panel titles here) or none, the gap is taken as given.
 		for (const share of [true, false]) {
 			const spec = solveFacetLayout(
 				baseline({
 					rows: 2,
 					cols: 2,
 					panels: makePanels(2, 2, { xLabels: ["a", "b"], yLabels: ["c", "d"] }),
+					facetLabel: undefined,
 					gapX: 0,
 					gapY: 0,
 					shareX: share,
@@ -211,6 +214,74 @@ describe("solveFacetLayout — gap math", () => {
 			expect(at(0, 1).x).toBeCloseTo(at(0, 0).x + at(0, 0).width, 3)
 			expect(at(1, 0).y).toBeCloseTo(at(0, 0).y + at(0, 0).height, 3)
 		}
+	})
+
+	describe("two neighbours' text never shares space", () => {
+		// The gap is measured plot to plot and the chrome between two plots
+		// sits inside it, so a gap smaller than that chrome overlaps it. Where
+		// BOTH plots put text there — this row's tick labels and the next
+		// row's titles — that drew text over text (user-reported 2026-11-15:
+		// panels with their own x axes, at the default gap). There, and only
+		// there, the gap is widened until each keeps its room.
+		const grid = (more: Partial<SolverInput>) =>
+			solveFacetLayout(
+				baseline({
+					rows: 2,
+					cols: 2,
+					panels: makePanels(2, 2, {
+						xLabels: ["Jan", "Feb"],
+						yLabels: ["100", "200"],
+						xLabelMaxWidthPx: 24,
+						yLabelMaxWidthPx: 28,
+					}),
+					containerWidth: 1200,
+					containerHeight: 900,
+					...more,
+				})
+			)
+		const panel = (spec: ReturnType<typeof grid>, r: number, c: number) =>
+			spec.panels.find((p) => p.row === r && p.col === c)!
+		const bottomOf = (rect: { y: number; height: number }) => rect.y + rect.height
+
+		it("own x axes + panel titles: the next row's title band starts where this row's tick labels end", () => {
+			const spec = grid({ gapY: 10, shareX: false, shareY: true })
+			const above = panel(spec, 0, 0)
+			const below = panel(spec, 1, 0)
+			// The cells no longer overlap: tick labels and titles each keep
+			// their own room.
+			expect(below.cell.y).toBeCloseTo(bottomOf(above.cell), 3)
+			// And the plots are further apart than the 10 px asked for.
+			expect(below.inner.y - bottomOf(above.inner)).toBeGreaterThan(10)
+		})
+
+		it("a gap wider than the text is left exactly as asked", () => {
+			const spec = grid({ gapY: 200, shareX: false, shareY: true })
+			expect(panel(spec, 1, 0).inner.y - bottomOf(panel(spec, 0, 0).inner)).toBeCloseTo(200, 3)
+		})
+
+		it("panel titles alone (shared axes): the gap is taken as given", () => {
+			// Only one kind of text between the rows, so a small gap still
+			// closes them up — 0 makes the plots touch, as it always has.
+			const spec = grid({ gapY: 0, shareX: true, shareY: true })
+			expect(panel(spec, 1, 0).inner.y).toBeCloseTo(bottomOf(panel(spec, 0, 0).inner), 3)
+		})
+
+		it("tick labels alone (own x axes, no panel titles): the gap is taken as given", () => {
+			const spec = grid({ gapY: 0, shareX: false, shareY: true, facetLabel: undefined })
+			expect(panel(spec, 1, 0).inner.y).toBeCloseTo(bottomOf(panel(spec, 0, 0).inner), 3)
+		})
+
+		it("a NEGATIVE gap still overlaps the plots by that much (ridgeline)", () => {
+			const spec = grid({ gapY: -30, shareX: false, shareY: true })
+			expect(panel(spec, 1, 0).inner.y - bottomOf(panel(spec, 0, 0).inner)).toBeCloseTo(-30, 3)
+		})
+
+		it("the widened gap comes out of the plots, not off the page", () => {
+			const spec = grid({ gapY: 0, shareX: false, shareY: true })
+			expect(spec.scroll).toBeNull()
+			expect(spec.canvas.height).toBeCloseTo(900, 3)
+			expect(bottomOf(panel(spec, 1, 0).cell)).toBeLessThanOrEqual(900 + 1e-6)
+		})
 	})
 
 	it("negative gapY overlaps plot rects cumulatively (ridgeline)", () => {

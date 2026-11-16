@@ -9,7 +9,8 @@ import {
 	type HintedFormats,
 } from "../lib/formatHintDefaults"
 import { resolveDataLabelPositions } from "../lib/dataLabelsPosition"
-import { withColorSlotDefaults } from "../lib/colorSlotDefaults"
+import { getChartModeDef } from "../lib/chartMode"
+import { withAreaBodyDefault, withColorSlotDefaults } from "../lib/colorSlotDefaults"
 import { effectiveType } from "../lib/fieldType"
 import { linkColorConfigs } from "../lib/linkedHueColors"
 import type { LegendConfig } from "../lib/labelsConfig"
@@ -30,6 +31,7 @@ import {
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
 	currentLegendConfigAtom,
+	currentMapConfigAtom,
 	currentThemeIdAtom,
 	themeAtom,
 	themesAtom,
@@ -56,7 +58,9 @@ export const currentThemeAtom = atom((get): Theme => {
  * config write — and with every secondary color encoding varying by the
  * Color variable seeded from Color's palette positions (`linkColorConfigs`),
  * after the untouched violin / box and density-curve fill slots take their
- * Color-following default (`withColorSlotDefaults`).
+ * Color-following default (`withColorSlotDefaults`), and an area chart
+ * with nothing on Color takes the theme's fill color for its body
+ * (`withAreaBodyDefault`).
  *
  * Read these from the chart / legend / solver render path ONLY. The sidebar
  * panels and the persistence layer (save/autosave) must keep reading
@@ -65,19 +69,27 @@ export const currentThemeAtom = atom((get): Theme => {
  * a user spec returns to the hint default rather than baking it in. */
 export const renderChannelConfigsAtom = atom((get): ChannelConfigs => {
 	const encodings = get(currentEncodingsAtom)
-	const hinted = applyFormatHintsToChannelConfigs(
+	const formatted = applyFormatHintsToChannelConfigs(
 		get(currentChannelConfigsAtom),
 		encodings,
 		get(hintedFormatsAtom),
 	)
 	const hueField = encodings.hue?.field ?? null
 	const dataset = get(currentDatasetViewAtom)
-	if (!dataset) return hinted
+	if (!dataset) return formatted
 	const theme = get(currentThemeAtom)
+	const overrides = get(currentFieldOverridesAtom)
+	const modeDef = getChartModeDef(
+		encodings,
+		(name) => effectiveType(dataset, name, overrides),
+		formatted,
+		get(currentMapConfigAtom),
+	)
+	const hinted = withAreaBodyDefault(formatted, modeDef, encodings, theme)
 	// With no Color variable the fills still default — to the fill-palette
 	// color analogous to the marks' single color.
 	if (!hueField) return withColorSlotDefaults(hinted, encodings, null, theme)
-	const hueType = effectiveType(dataset, hueField, get(currentFieldOverridesAtom))
+	const hueType = effectiveType(dataset, hueField, overrides)
 	return linkColorConfigs(
 		withColorSlotDefaults(hinted, encodings, hueType, theme),
 		encodings,

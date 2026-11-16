@@ -23,6 +23,13 @@ import {
 	estimateLongestLineWidth,
 } from "./estimateMargins"
 import { autoLabelAngleFor } from "./autoLabelAngle"
+import {
+	AXIS_TITLE_LINE_EM,
+	TICK_LABEL_LINE_EM,
+	TITLE_LABEL_GAP_PX,
+	X_TITLE_PAD_PX,
+	Y_TICK_LABEL_INSET_PX,
+} from "./layoutMetrics"
 import { lineCount } from "./multilineText"
 import {
 	BASE_MARGIN,
@@ -491,44 +498,53 @@ const yTitleOuterBand = (input: SolverInput): number => {
 	return VIEWPORT_BUFFER_PX + block + Y_TITLE_STRIP_GAP
 }
 
-/** Clamp a baseline-anchored text's y coordinate so its bounding box
- *  (ascender + descender) doesn't cross the viewport edge with buffer.
- *  Used by chart title / subtitle / x-title. `extraAbove` is the height of
- *  the lines a `growUp` block stacks above `y` (its last line), so the
- *  block's FIRST line is what stays clear of the top edge. */
-const clampBaselineY = (
-	y: number,
-	fontSize: number,
-	canvasH: number,
-	extraAbove: number = 0,
+/** THE keep-in-view: every title is held on the page by this one function.
+ *
+ *  A piece of text occupies a SPAN along some direction — it runs `before`
+ *  ahead of its anchor `pos` and `after` past it. Keep that span inside
+ *  [`lo`, `hi`], moving `pos` only as far as that takes, so text that
+ *  already fits is untouched. A span longer than the room cannot be kept
+ *  in; `tooLong` says which part of it stays: its middle (it centers on
+ *  the room — also where the clamp lands as the room closes, so nothing
+ *  jumps on the way there), its start, or its end.
+ *
+ *  There used to be six of these, one per kind of title, each written out
+ *  by hand with its own idea of the span and of what a too-long one does.
+ *  The helpers below now only say what each title's span IS. */
+const keepSpanWithin = (
+	pos: number,
+	before: number,
+	after: number,
+	lo: number,
+	hi: number,
+	tooLong: "center" | "start" | "end" = "center",
 ): number => {
-	const ascender = fontSize * 0.8
-	const descender = fontSize * 0.2
-	const minY = VIEWPORT_BUFFER_PX + ascender + extraAbove
-	const maxY = canvasH - VIEWPORT_BUFFER_PX - descender
-	// Guard against degenerate (very small) canvases where minY > maxY.
-	if (minY > maxY) return Math.max(0, (minY + maxY) / 2)
-	return Math.max(minY, Math.min(maxY, y))
+	const min = lo + before
+	const max = hi - after
+	if (min > max) return tooLong === "start" ? min : tooLong === "end" ? max : (min + max) / 2
+	return Math.max(min, Math.min(max, pos))
 }
 
-/** Keep a span that runs `before` ahead of `pos` and `after` past it inside
- *  the canvas (with the viewport buffer), moving `pos` only as far as that
- *  takes. THE keep-in-view along a title's own direction: where its text
- *  runs sideways, `pos` is its anchor x; where it runs up and down (a
- *  rotated y-title), its anchor y. A span longer than the room cannot be
- *  kept in, so it centers on the canvas — which is also where the clamp
- *  lands as the room closes, so nothing jumps on the way there. */
+/** `keepSpanWithin` the canvas, less the viewport buffer on each side. */
 const keepSpanInView = (
 	pos: number,
 	before: number,
 	after: number,
 	size: number,
-): number => {
-	const min = VIEWPORT_BUFFER_PX + before
-	const max = size - VIEWPORT_BUFFER_PX - after
-	if (min > max) return (min + max) / 2
-	return Math.max(min, Math.min(max, pos))
-}
+): number =>
+	keepSpanWithin(pos, before, after, VIEWPORT_BUFFER_PX, size - VIEWPORT_BUFFER_PX)
+
+/** A baseline-anchored line of text ACROSS its direction (the chart title,
+ *  subtitle and x-title, held up and down): its ascender above the
+ *  baseline, its descender below. `extraAbove` is the height of the lines
+ *  a `growUp` block stacks above `y` (its last line), so the block's FIRST
+ *  line is what stays clear of the top edge. */
+const clampBaselineY = (
+	y: number,
+	fontSize: number,
+	canvasH: number,
+	extraAbove: number = 0,
+): number => keepSpanInView(y, fontSize * 0.8 + extraAbove, fontSize * 0.2, canvasH)
 
 /** How far a title's text runs BEFORE and AFTER its anchor, along its own
  *  direction, for a measured width. */
@@ -550,34 +566,21 @@ const measuredWidth = (t: SharedTitleInput | undefined): number =>
 const uprightYTitleWidth = (t: SharedTitleInput): number =>
 	measuredWidth(t) || estimateLongestLineWidth(t.text, t.fontSize)
 
-/** Clamp a rotated y-title's center.x (text-anchor="middle") so its
- *  bounding box (extending ±fontSize/2 horizontally around the anchor)
- *  doesn't clip the canvas left/right edge. */
+/** A rotated y-title ACROSS its direction (held left and right): one line
+ *  of text on its side is half a line box either way of its center x. */
 const clampRotatedTitleX = (
 	x: number,
 	fontSize: number,
 	canvasW: number,
-): number => {
-	const halfBbox = fontSize / 2
-	const minX = VIEWPORT_BUFFER_PX + halfBbox
-	const maxX = canvasW - VIEWPORT_BUFFER_PX - halfBbox
-	if (minX > maxX) return Math.max(0, (minX + maxX) / 2)
-	return Math.max(minX, Math.min(maxX, x))
-}
+): number => keepSpanInView(x, fontSize / 2, fontSize / 2, canvasW)
 
-/** Clamp a horizontal y-title's anchor.x (text-anchor="end", text
- *  extends LEFT from anchor) so the leftmost rendered character
- *  doesn't clip the canvas left edge. */
+/** An upright y-title on a LEFT axis, held left and right: end-anchored,
+ *  so all of its text lies before the anchor x. */
 const clampHorizontalYTitleX = (
 	anchorX: number,
 	textWidth: number,
 	canvasW: number,
-): number => {
-	const minX = VIEWPORT_BUFFER_PX + textWidth
-	const maxX = canvasW - VIEWPORT_BUFFER_PX
-	if (minX > maxX) return Math.max(0, (minX + maxX) / 2)
-	return Math.max(minX, Math.min(maxX, anchorX))
-}
+): number => keepSpanInView(anchorX, textWidth, 0, canvasW)
 
 /** Room past the canvas's left / right edge the chart title and subtitle
  *  may paint into — see `SolverInput.titleOverhang`. */
@@ -600,19 +603,16 @@ const clampTitleAnchorX = (
 	canvasW: number,
 	overhang: TitleOverhang,
 ): number => {
-	const leftExtent =
-		textAnchor === "start" ? 0 : textAnchor === "end" ? textWidth : textWidth / 2
-	const rightExtent = textWidth - leftExtent
-	const minX = VIEWPORT_BUFFER_PX - overhang.left + leftExtent
-	const maxX = canvasW + overhang.right - VIEWPORT_BUFFER_PX - rightExtent
-	if (minX > maxX) {
-		return textAnchor === "start"
-			? minX
-			: textAnchor === "end"
-				? maxX
-				: (minX + maxX) / 2
-	}
-	return Math.max(minX, Math.min(maxX, anchorX))
+	const { before, after } = spanAround(textAnchor, textWidth)
+	return keepSpanWithin(
+		anchorX,
+		before,
+		after,
+		VIEWPORT_BUFFER_PX - overhang.left,
+		canvasW + overhang.right - VIEWPORT_BUFFER_PX,
+		// Too long for the whole figure: keep the side it is anchored to.
+		textAnchor === "middle" ? "center" : textAnchor
+	)
 }
 
 /** Baseline-to-visual-center, as a fraction of font size (about half a cap
@@ -692,18 +692,15 @@ const horizontalYTitleAnchorXFromLeft = (
 			? leftEdge + blockWidth / 2
 			: leftEdge + blockWidth
 
-/** Clamp a right-side upright y-title's LEFT edge so its widest line stays
- *  inside the canvas's right buffer (the mirror of `clampHorizontalYTitleX`). */
+/** An upright y-title on a RIGHT axis, held left and right (the mirror of
+ *  `clampHorizontalYTitleX`): start-anchored, so all of its text lies after
+ *  its left edge. Text wider than the canvas centers but never starts left
+ *  of the canvas itself. */
 const clampHorizontalYTitleLeftX = (
 	leftEdge: number,
 	textWidth: number,
 	canvasW: number,
-): number => {
-	const minX = VIEWPORT_BUFFER_PX
-	const maxX = canvasW - VIEWPORT_BUFFER_PX - textWidth
-	if (minX > maxX) return Math.max(0, (minX + maxX) / 2)
-	return Math.max(minX, Math.min(maxX, leftEdge))
-}
+): number => Math.max(0, keepSpanInView(leftEdge, 0, textWidth, canvasW))
 
 /** Compute the per-side global margin floors that hold the SHARED axis
  *  titles. The left floor holds the y-title (lives to the left of the
@@ -890,7 +887,7 @@ const computeOuterReserves = (
 	// paints (ascender + descender + leading). 1.2 underestimated and
 	// let the descender of larger title fonts poke past the SVG bottom.
 	const xTitleHeight = input.xTitle
-		? input.xTitle.fontSize * 1.4 * xTitleLines + 6
+		? input.xTitle.fontSize * AXIS_TITLE_LINE_EM * xTitleLines + X_TITLE_PAD_PX
 		: 0
 	// Per APPLICATION.md §6.4: title position offsets ASYMMETRICALLY
 	// auto-grow the outer reserves. Moving a title AWAY from the plot
@@ -1050,7 +1047,7 @@ const cellMargins = (
 	cellMargin: CellMargin,
 	xAxisTop: boolean,
 	yAxisRight: boolean
-): { top: number; right: number; bottom: number; left: number } => {
+): CellChrome => {
 	// Chrome is uniform across each row (height) and each col (width) so
 	// cells stay regular. A row carries full x chrome whenever ANY
 	// column's axis panel lands on it (e.g. uneven wrap where row 3 col 1
@@ -1072,18 +1069,42 @@ const cellMargins = (
 	// the y chrome, so the title clears the tick labels whichever side the
 	// axis is on (facetSideLeft / facetSideRight: one is 0, both under a
 	// top placement).
+	const top = facetLabelHeight + (xAxisTop ? xChrome : cellMargin.top)
+	const bottom = xAxisTop ? cellMargin.top : xChrome
+	const left = facetSideLeft + (yAxisRight ? cellMargin.right : yChrome)
+	const right = facetSideRight + (yAxisRight ? yChrome : cellMargin.right)
+	// Which of that chrome is TEXT: the axis's tick labels (the 4 px reserve
+	// of a shared interior axis is not) and a facet title band. A margin
+	// that holds text counts in full — the title band sits at the cell's
+	// outer edge, so the pad between it and its plot is part of the room it
+	// needs. Two neighbours' text never shares space (`computeGridChrome`).
+	const xText = rowCarriesXAxis || !shareX
+	const yText = colCarriesYAxis || !shareY
 	return {
-		top: facetLabelHeight + (xAxisTop ? xChrome : cellMargin.top),
-		bottom: xAxisTop ? cellMargin.top : xChrome,
-		left: facetSideLeft + (yAxisRight ? cellMargin.right : yChrome),
-		right: facetSideRight + (yAxisRight ? yChrome : cellMargin.right),
+		top,
+		bottom,
+		left,
+		right,
+		text: {
+			top: facetLabelHeight > 0 || (xAxisTop && xText) ? top : 0,
+			bottom: !xAxisTop && xText ? bottom : 0,
+			left: facetSideLeft > 0 || (!yAxisRight && yText) ? left : 0,
+			right: facetSideRight > 0 || (yAxisRight && yText) ? right : 0,
+		},
 	}
 }
 
-type CellMarginsAt = (
-	row: number,
-	col: number
-) => { top: number; right: number; bottom: number; left: number }
+/** One cell's chrome: its margin on each side, and how much of each margin
+ *  holds text (tick labels, a facet title). */
+type CellChrome = {
+	top: number
+	right: number
+	bottom: number
+	left: number
+	text: { top: number; right: number; bottom: number; left: number }
+}
+
+type CellMarginsAt = (row: number, col: number) => CellChrome
 
 /** The chrome a laid-out grid carries, split by where it sits. The user's
  *  gap is measured PLOT EDGE TO PLOT EDGE (0 = neighbouring plot rects
@@ -1091,16 +1112,39 @@ type CellMarginsAt = (
  *  two neighbours (the first cell's right / bottom margin plus the next
  *  one's left / top) lives inside the gap rather than on top of it:
  *  `cellGapsX[i]` is the cell-edge gap between col i and col i+1 that puts
- *  their plot rects exactly `gapX` apart, and goes negative whenever the
+ *  their plot rects exactly that far apart, and goes negative whenever the
  *  gap is narrower than that chrome. Only the grid's OUTER edges reserve
  *  chrome of their own (`edgeX` / `edgeY`). Chrome is uniform per row
- *  (bottom) and per column (left), so row 0 / col 0 stand in for the rest. */
+ *  (bottom) and per column (left), so row 0 / col 0 stand in for the rest.
+ *
+ *  **Two neighbours' text never shares space.** The plot-to-plot distance
+ *  at a boundary (`gapsX` / `gapsY`) is the user's gap — except where BOTH
+ *  plots put text between them: the first plot's tick labels below (or
+ *  beside) it and the next plot's facet title above it. Text drawn over
+ *  text is unreadable whatever the gap was meant to do, so there the gap
+ *  is widened until each keeps its own room. Everywhere else the gap is
+ *  taken as given, as before: with one kind of text between two plots (or
+ *  none) a small gap still closes them up and 0 still makes them touch,
+ *  and a NEGATIVE gap is a ridgeline's deliberate overlap, left alone even
+ *  here. (Before, panels with their own x axes drew the next row's titles
+ *  over their tick labels at the default gap.) `spanGapsX` / `spanGapsY`
+ *  are the totals the panel sizes give up to those distances (a negative
+ *  gap gives up none, §10). */
 type GridChrome = {
 	readonly edgeX: number
 	readonly edgeY: number
 	readonly cellGapsX: readonly number[]
 	readonly cellGapsY: readonly number[]
+	readonly gapsX: readonly number[]
+	readonly gapsY: readonly number[]
+	readonly spanGapsX: number
+	readonly spanGapsY: number
 }
+
+/** The plot-to-plot distance for a user gap, given the text each of the two
+ *  plots puts between them (px; 0 = none). */
+const gapHoldingText = (gap: number, first: number, second: number): number =>
+	gap >= 0 && first > 0 && second > 0 ? Math.max(gap, first + second) : gap
 
 const computeGridChrome = (
 	rows: number,
@@ -1109,21 +1153,37 @@ const computeGridChrome = (
 	gapY: number,
 	marginsAt: CellMarginsAt
 ): GridChrome => {
+	const gapsX: number[] = []
 	const cellGapsX: number[] = []
 	for (let c = 0; c + 1 < cols; c++) {
-		cellGapsX.push(gapX - marginsAt(0, c).right - marginsAt(0, c + 1).left)
+		const before = marginsAt(0, c)
+		const after = marginsAt(0, c + 1)
+		const gap = gapHoldingText(gapX, before.text.right, after.text.left)
+		gapsX.push(gap)
+		cellGapsX.push(gap - before.right - after.left)
 	}
+	const gapsY: number[] = []
 	const cellGapsY: number[] = []
 	for (let r = 0; r + 1 < rows; r++) {
-		cellGapsY.push(gapY - marginsAt(r, 0).bottom - marginsAt(r + 1, 0).top)
+		const above = marginsAt(r, 0)
+		const below = marginsAt(r + 1, 0)
+		const gap = gapHoldingText(gapY, above.text.bottom, below.text.top)
+		gapsY.push(gap)
+		cellGapsY.push(gap - above.bottom - below.top)
 	}
 	const lastCol = Math.max(0, cols - 1)
 	const lastRow = Math.max(0, rows - 1)
+	const span = (gaps: readonly number[]): number =>
+		gaps.reduce((sum, gap) => sum + Math.max(0, gap), 0)
 	return {
 		edgeX: marginsAt(0, 0).left + marginsAt(0, lastCol).right,
 		edgeY: marginsAt(0, 0).top + marginsAt(lastRow, 0).bottom,
 		cellGapsX,
 		cellGapsY,
+		gapsX,
+		gapsY,
+		spanGapsX: span(gapsX),
+		spanGapsY: span(gapsY),
 	}
 }
 
@@ -1154,19 +1214,17 @@ const computeInnerDimsArrays = (
 	innerGrid: { width: number; height: number },
 	rows: number,
 	cols: number,
-	gapX: number,
-	gapY: number,
 	gridChrome: GridChrome,
 	colWeights: readonly number[],
 	rowWeights: readonly number[],
 	panelWidthOverride?: number | null,
 	panelHeightOverride?: number | null
 ): { innerWidths: number[]; innerHeights: number[] } => {
-	// LAYOUT.md §10: clamp negative gaps to 0 when sizing panels, so
-	// panels stay the SAME width they'd be at gap=0 once we cross into
-	// overlap territory. The cumulative overlap is applied at cell-
-	// positioning time (`cellOrigin`), not here.
-	const horizGapsForSizing = Math.max(0, gapX) * (cols - 1)
+	// LAYOUT.md §10: negative gaps count as 0 when sizing panels
+	// (`spanGaps`), so panels stay the SAME width they'd be at gap=0 once
+	// we cross into overlap territory. The cumulative overlap is applied at
+	// cell-positioning time (`cellOrigin`), not here.
+	const horizGapsForSizing = gridChrome.spanGapsX
 	const availableInnerW = innerGrid.width - gridChrome.edgeX - horizGapsForSizing
 	const colWeightSum =
 		colWeights.reduce((a, b) => a + b, 0) || cols || 1
@@ -1182,7 +1240,7 @@ const computeInnerDimsArrays = (
 					Math.max(0, availableInnerW * (w / colWeightSum)),
 				)
 
-	const vertGapsForSizing = Math.max(0, gapY) * (rows - 1)
+	const vertGapsForSizing = gridChrome.spanGapsY
 	const availableInnerH = innerGrid.height - gridChrome.edgeY - vertGapsForSizing
 	const rowWeightSum =
 		rowWeights.reduce((a, b) => a + b, 0) || rows || 1
@@ -1299,14 +1357,14 @@ const estimateNaturalDims = (
 			? 0
 			: Math.max(
 					naturalCellW,
-					cols * naturalInnerW + gridChrome.edgeX + (cols - 1) * input.gapX
+					cols * naturalInnerW + gridChrome.edgeX + gridChrome.spanGapsX
 				)
 	const naturalGridH =
 		fitMode || input.gapY < 0
 			? 0
 			: Math.max(
 					naturalCellH,
-					rows * naturalInnerH + gridChrome.edgeY + (rows - 1) * input.gapY
+					rows * naturalInnerH + gridChrome.edgeY + gridChrome.spanGapsY
 				)
 	// When the user has specified pixel-precise panel dimensions, the
 	// canvas MUST grow to honor them (even in fit mode). Take the
@@ -1878,13 +1936,12 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 	// X-title is always horizontal (anchor=middle, y=baseline). Title's
 	// TOP edge ≈ y - titleFontSize, and labels extend below the axis by
 	// `tickFontSize` past the tick-line pad.
-	const TITLE_LABEL_GAP_PX = 25
 	const TICK_LINE_PAD = 6
 	// Where the y tick labels' outer edge actually lands: Axes.tsx anchors
-	// them (text-anchor end) at `-(tick.length + 4)` from the spine.
-	const Y_LABEL_PAD = 4
+	// them (text-anchor end) at `-(tick.length + Y_TICK_LABEL_INSET_PX)`
+	// from the spine (`lib/layoutMetrics`).
 	const yLabelInset =
-		(input.yTickLength ?? DEFAULT_TICKMARK_CONFIG.length) + Y_LABEL_PAD
+		(input.yTickLength ?? DEFAULT_TICKMARK_CONFIG.length) + Y_TICK_LABEL_INSET_PX
 	const yTitleGap = input.yTitle
 		? Math.max(
 				// Floor for very short labels — keeps the title from sitting
@@ -1947,7 +2004,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 				if (n > maxLines) maxLines = n
 			}
 		}
-		return longestXLabelPx * sin + xTickFontSize * 1.4 * maxLines * cos
+		return longestXLabelPx * sin + xTickFontSize * TICK_LABEL_LINE_EM * maxLines * cos
 	})()
 	// The title's own extent between its baseline and the label band: below
 	// the plot the baseline sits an ascender (~fontSize) under the title's
@@ -2192,10 +2249,12 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 		container: number,
 		a: { fixed: number; soft: number },
 		b: { fixed: number; soft: number },
-		gaps: number,
+		/** The grid's chrome with the tick-label floors scaled by `k`: its
+		 *  outer edges plus the distances between its plots (which hold the
+		 *  interior tick labels, so they shrink with the floors too). */
 		edgeChromeAt: (k: number) => number
 	): { soft: number; floors: number; tooSmall: boolean; floor: number } => {
-		const fixed = a.fixed + b.fixed + gaps
+		const fixed = a.fixed + b.fixed
 		const soft = a.soft + b.soft
 		// The smallest container that still fits: nothing soft, no tick labels.
 		const floor = fixed + edgeChromeAt(0)
@@ -2233,8 +2292,10 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 				input.containerHeight,
 				top,
 				bottom,
-				Math.max(0, input.gapY) * (input.rows - 1),
-				(k) => chromeScaled(1, k).edgeY
+				(k) => {
+					const chrome = chromeScaled(1, k)
+					return chrome.edgeY + chrome.spanGapsY
+				}
 			)
 		: { soft: 1, floors: 1, tooSmall: false, floor: 0 }
 	const grantW = budgetW
@@ -2242,8 +2303,10 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 				input.containerWidth,
 				left,
 				right,
-				Math.max(0, input.gapX) * (input.cols - 1),
-				(k) => chromeScaled(k, 1).edgeX
+				(k) => {
+					const chrome = chromeScaled(k, 1)
+					return chrome.edgeX + chrome.spanGapsX
+				}
 			)
 		: { soft: 1, floors: 1, tooSmall: false, floor: 0 }
 	const outerReserves =
@@ -2331,13 +2394,13 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 					let rowRequired = 0
 					for (const p of input.panels) {
 						if (p.row !== r) continue
-						const lineHeight = p.yLabelFontSize * 1.4
+						const lineHeight = p.yLabelFontSize * TICK_LABEL_LINE_EM
 						const need = p.yLabels.length * lineHeight
 						if (need > rowRequired) rowRequired = need
 					}
 					requiredInner += rowRequired
 				}
-				const totalGaps = Math.max(0, input.gapY) * (input.rows - 1)
+				const totalGaps = gridChrome.spanGapsY
 				return (
 					requiredInner +
 					gridChrome.edgeY +
@@ -2365,7 +2428,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 					}
 					requiredInner += colRequired
 				}
-				const totalGaps = Math.max(0, input.gapX) * (input.cols - 1)
+				const totalGaps = gridChrome.spanGapsX
 				return (
 					requiredInner +
 					gridChrome.edgeX +
@@ -2444,8 +2507,6 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 		innerGrid,
 		input.rows,
 		input.cols,
-		input.gapX,
-		input.gapY,
 		gridChrome,
 		colWeights,
 		rowWeights,

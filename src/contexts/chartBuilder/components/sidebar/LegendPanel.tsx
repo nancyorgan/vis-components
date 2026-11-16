@@ -974,7 +974,8 @@ export const LegendPanel = () => {
 					labelClassName={LABEL_COL}
 					value={
 						merged.patternLegendBgColor ??
-						configs.defaultFill ??
+						// As drawn: an area body on Auto takes the theme's fill color.
+						renderConfigs.defaultFill ??
 						DEFAULT_FILL
 					}
 					onChange={(patternLegendBgColor) =>
@@ -2192,7 +2193,7 @@ export const LegendPanel = () => {
 										  )
 										? resolvedAuxSwatchColor
 										: (theme.legendSwatchColor ??
-											configs.defaultFill ??
+											renderConfigs.defaultFill ??
 											DEFAULT_FILL))
 							}
 							onChange={(shapeLegendFillColor) =>

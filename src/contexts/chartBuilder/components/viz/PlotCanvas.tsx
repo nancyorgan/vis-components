@@ -52,6 +52,7 @@ import {
 	currentMapConfigAtom,
 	currentRenderedFigureSlackAtom,
 	currentRenderedFitFloorAtom,
+	currentRenderedPlotInsetsAtom,
 	currentRenderedLayoutVersionAtom,
 	currentRenderedPanelInnerDimsAtom,
 } from "../../store/atoms"
@@ -67,6 +68,7 @@ import { computeDataLabelOverflow } from "./plotCanvas/dataLabelReserve"
 import { useFontsVersion } from "./plotCanvas/useFontsVersion"
 import { resolveFacetTitleStyles } from "./plotCanvas/facetTitleStyles"
 import { buildSolverPanelInputs } from "./plotCanvas/solverPanelInputs"
+import { plotInsetsOf } from "./plotCanvas/plotInsets"
 import { SolvedXTickAngleContext } from "./solvedTickAngle"
 import { buildSolverInput } from "./plotCanvas/solverSpec"
 import {
@@ -84,7 +86,6 @@ import { resolvePanelRenderInputs } from "./plotCanvas/panelRenderInputs"
 import { SharedText } from "./plotCanvas/SharedText"
 import {
 	CaptionOverlay,
-	captionDrawnExtent,
 	captionReservePx,
 	measureCaptionBox,
 	positionCaptionBox,
@@ -158,16 +159,19 @@ export const PlotCanvas = ({
 	}
 	const dataLabelsEncodings = useAtomValue(renderDataLabelsEncodingsAtom)
 	const annotations = useAtomValue(currentAnnotationsAtom)
-	const caption: CaptionConfig = {
-		...DEFAULT_CAPTION_CONFIG,
-		...useAtomValue(currentCaptionConfigAtom),
-	}
+	const storedCaption = useAtomValue(currentCaptionConfigAtom)
+	// One object per stored config, so the layout below can depend on it.
+	const caption: CaptionConfig = useMemo(
+		() => ({ ...DEFAULT_CAPTION_CONFIG, ...storedCaption }),
+		[storedCaption],
+	)
 	const levelOrders = useAtomValue(currentFieldLevelOrdersAtom)
 	const setRenderedPanelDims = useSetAtom(
 		currentRenderedPanelInnerDimsAtom,
 	)
 	const setFigureSlack = useSetAtom(currentRenderedFigureSlackAtom)
 	const setFitFloor = useSetAtom(currentRenderedFitFloorAtom)
+	const setPlotInsets = useSetAtom(currentRenderedPlotInsetsAtom)
 	const setLayoutVersion = useSetAtom(currentRenderedLayoutVersionAtom)
 	const setRenderedCaptionBox = useSetAtom(currentRenderedCaptionBoxAtom)
 	// Bumps when webfonts finish loading so the canvas-measured widths below
@@ -640,14 +644,17 @@ export const PlotCanvas = ({
 	])
 
 	// ─── Build SolverInput + call solver ──────────────────────────────────
-	// Measure the caption box against the container so the solver can reserve a
-	// matching band at the bottom of the canvas. Width/height are independent of
-	// that vertical reserve (a bottom reserve doesn't change canvas width, and
-	// the canvas matches the container when it fits), so there's no circular
-	// dependency — the post-solve box re-measures against the final canvas and
-	// lands at the same size.
+	// The caption asks the layout for its room (LAYOUT.md §2): its box, and
+	// however far it is pushed down from the plot. It is measured against
+	// the container first — in fit mode the canvas IS the container, so that
+	// is the size it will be drawn at. Where the canvas comes out a different
+	// size (scrolling, pixel panel sizes) the solve below measures it again
+	// against that canvas and solves once more, so the room reserved is the
+	// room the drawn caption takes.
 	const captionReserve = captionReservePx(
 		measureCaptionBox(caption, bounds.width || 0, bounds.height || 0),
+		caption,
+		bounds.height || 0,
 	)
 
 	// Annotations placed past the plot edge (percent coords outside 0–100, or
@@ -658,7 +665,10 @@ export const PlotCanvas = ({
 	// solveWithAnnotationReserves re-solves until the spill is gone — one
 	// plain solve when the visual has no annotations.
 	const spec: FacetLayoutSpec = useMemo(() => {
-		const solveAt = (box: { width: number; height: number }): FacetLayoutSpec => {
+		const solveAt = (
+			box: { width: number; height: number },
+			captionRoom = captionReserve,
+		): FacetLayoutSpec => {
 			const solve = (annotationReserve: AnnotationReserve) =>
 				solveFacetLayout(
 					buildSolverInput({
@@ -679,7 +689,7 @@ export const PlotCanvas = ({
 						sharedXAxisTitle,
 						sharedYAxisTitle,
 						dataLabelOverflow,
-						captionReserve,
+						captionReserve: captionRoom,
 						annotationReserve,
 						titlePrefixFont,
 						titleOverhang,
@@ -698,6 +708,21 @@ export const PlotCanvas = ({
 				}),
 			)
 		}
+		// The caption on the canvas it is DRAWN on: when the solved canvas is
+		// not the box the caption was measured against, measure again and
+		// solve once more with that room. (The canvas width does not depend on
+		// the bottom reserve, so one more pass settles it.)
+		const withCaptionOnCanvas = (
+			solved: FacetLayoutSpec,
+			box: { width: number; height: number },
+		): FacetLayoutSpec => {
+			const room = captionReservePx(
+				measureCaptionBox(caption, solved.canvas.width, solved.canvas.height),
+				caption,
+				solved.canvas.height,
+			)
+			return Math.abs(room - captionReserve) > 0.5 ? solveAt(box, room) : solved
+		}
 		const full = solveAt(bounds)
 		// Scrollbar gutter. A canvas that overflows the container on ONE axis
 		// (a tall ridgeline with a pixel panel height, a wide many-column
@@ -713,12 +738,16 @@ export const PlotCanvas = ({
 		if (gutter > 0 && bounds.width > 0 && bounds.height > 0) {
 			const overflowsX = full.canvas.width > bounds.width
 			const overflowsY = full.canvas.height > bounds.height
-			if (overflowsY && !overflowsX)
-				return solveAt({ width: bounds.width - gutter, height: bounds.height })
-			if (overflowsX && !overflowsY)
-				return solveAt({ width: bounds.width, height: bounds.height - gutter })
+			if (overflowsY && !overflowsX) {
+				const box = { width: bounds.width - gutter, height: bounds.height }
+				return withCaptionOnCanvas(solveAt(box), box)
+			}
+			if (overflowsX && !overflowsY) {
+				const box = { width: bounds.width, height: bounds.height - gutter }
+				return withCaptionOnCanvas(solveAt(box), box)
+			}
 		}
-		return full
+		return withCaptionOnCanvas(full, bounds)
 	},
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- facet title aligns/offsets/vertical aligns and facetRow/Col fields are pure derivations of labels.titleAlignments / labels.titleOffsets / labels.titleVerticalAlignments / encodings via panelData, which are already deps, so they can never go stale; the callback also forwards whole objects (labels, channelConfigs, facetCfg, bounds, facetTitles) to buildSolverInput, but the deps below list exactly the fields it reads
 		[
@@ -794,6 +823,7 @@ export const PlotCanvas = ({
 			channelConfigs.aspectRatio,
 			dataLabelOverflow,
 			captionReserve,
+			caption,
 			isPolar,
 			// Annotation reserve inputs. Text annotations are canvas-measured,
 			// so re-run once their font has loaded.
@@ -852,6 +882,26 @@ export const PlotCanvas = ({
 	// No chart, no floor: an empty state or another canvas must not inherit
 	// the last chart's minimum area.
 	useEffect(() => () => setFitFloor({ width: 0, height: 0 }), [setFitFloor])
+
+	// Where the solved plot sits in its canvas, for the legend to align to
+	// (`currentRenderedPlotInsetsAtom`). Whole pixels, and the same object
+	// while nothing moved, so the legend — an ancestor's sibling — is not
+	// re-laid-out on every pass.
+	const plotInsets = useMemo(() => plotInsetsOf(spec), [spec])
+	useEffect(() => {
+		setPlotInsets((prev) =>
+			prev === plotInsets ||
+			(prev !== null &&
+				plotInsets !== null &&
+				prev.top === plotInsets.top &&
+				prev.right === plotInsets.right &&
+				prev.bottom === plotInsets.bottom &&
+				prev.left === plotInsets.left)
+				? prev
+				: plotInsets
+		)
+	}, [plotInsets, setPlotInsets])
+	useEffect(() => () => setPlotInsets(null), [setPlotInsets])
 
 	// Re-measure the caption against the final canvas and publish its rendered
 	// box dims so the Caption panel's Width / Height inputs can step UP/DOWN from
@@ -922,23 +972,15 @@ export const PlotCanvas = ({
 		: undefined
 
 	// Position the caption in the reserved bottom band. The solver already
-	// shrank the plot by `captionReserve`, so the default placement fits inside
-	// the canvas; the SVG only grows if the user NUDGES what the caption DRAWS
-	// past the edge. The auto-width box spans the whole canvas, so an invisible
-	// box counts only its text ink — otherwise a few px of nudge would grow the
-	// SVG (and add scrollbars) while the text still has plenty of room.
+	// gave it its room, and `positionCaptionBox` holds what it draws on the
+	// canvas, so the SVG is the solved canvas and nothing else: a nudged
+	// caption used to slide past the edge, grow the SVG and raise a
+	// scrollbar in a chart that was meant to fit.
 	const captionLayout = captionBox
 		? positionCaptionBox(caption, captionBox, spec.canvas.width, spec.canvas.height)
 		: null
-	const captionExtent = captionLayout
-		? captionDrawnExtent(caption, captionLayout)
-		: null
-	const svgWidth = captionExtent
-		? Math.max(spec.canvas.width, captionExtent.right)
-		: spec.canvas.width
-	const svgHeight = captionExtent
-		? Math.max(spec.canvas.height, captionExtent.bottom)
-		: spec.canvas.height
+	const svgWidth = spec.canvas.width
+	const svgHeight = spec.canvas.height
 
 	const svg = (
 		<svg
@@ -1086,12 +1128,8 @@ export const PlotCanvas = ({
 		</svg>
 	)
 
-	// A caption nudged/sized past the solved canvas grows the SVG; when that
-	// happens (and the solver didn't already ask for a scroll viewport), pin the
-	// SVG inside an overflow-auto box sized to the container so the overflow
-	// scrolls into view instead of bleeding out of the chart area.
-	const captionOverflows =
-		svgWidth > spec.canvas.width || svgHeight > spec.canvas.height
+	// When the solver asks for a scroll viewport, pin the SVG inside an
+	// overflow-auto box sized to the container.
 	// The box is the CONTAINER, not the solved viewport: after the scrollbar-
 	// gutter re-solve the viewport is a gutter narrower than the container,
 	// and the bar belongs at the container's edge with the SVG beside it.
@@ -1100,7 +1138,7 @@ export const PlotCanvas = ({
 	const boxWidth = bounds.width || spec.scroll?.width || svgWidth
 	const boxHeight = bounds.height || spec.scroll?.height || svgHeight
 	const wrapped =
-		spec.scroll || captionOverflows ? (
+		spec.scroll ? (
 			<div
 				style={{
 					width: boxWidth,

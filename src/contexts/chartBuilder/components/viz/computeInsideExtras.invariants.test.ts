@@ -172,3 +172,55 @@ describe("inside-legend reservation invariants", () => {
 		expectCeiling(jumpy, 0, "(canvas, legend width) sweeps jump as X moves")
 	})
 })
+
+describe("inside-legend reservation — over the solved plot", () => {
+	// The legend's coordinates are fractions of the PLOT. The reservation used
+	// to assume the base margins (76 px on the left, 64 below); a chart whose
+	// y tick labels need 200 px has its plot elsewhere, so the room reserved
+	// was for a legend somewhere the legend was not.
+	const canvas = { w: 900, h: 600 }
+	const legend = { w: 160, h: 120 }
+	const reserve = (plotMargins: { top: number; right: number; bottom: number; left: number } | null) =>
+		computeInsideExtras({
+			insideX: 1,
+			insideY: 0,
+			canvasW: canvas.w,
+			canvasH: canvas.h,
+			legendW: legend.w,
+			legendH: legend.h,
+			titleReserves: 0,
+			plotMargins,
+		})
+
+	it("with no solved plot it assumes the base margins", () => {
+		const base = reserve(null)
+		const same = reserve({ top: 16, right: 24, bottom: 64, left: 76 })
+		expect(base).toEqual(same)
+	})
+
+	it("a plot with a wider right margin needs less room on the right", () => {
+		// The legend hangs right and down from the plot's bottom-right corner.
+		// With the plot's right edge further from the canvas edge, less of the
+		// legend passes it.
+		const narrow = reserve({ top: 16, right: 24, bottom: 64, left: 76 })
+		const wide = reserve({ top: 16, right: 120, bottom: 64, left: 76 })
+		expect(narrow.right).toBeGreaterThan(0)
+		expect(wide.right).toBeLessThan(narrow.right)
+	})
+
+	it("a plot with a taller bottom margin needs less room below", () => {
+		const short = reserve({ top: 16, right: 24, bottom: 64, left: 76 })
+		const tall = reserve({ top: 16, right: 24, bottom: 200, left: 76 })
+		expect(short.bottom).toBeGreaterThan(0)
+		expect(tall.bottom).toBeLessThan(short.bottom)
+	})
+
+	it("reserves exactly what brings the legend to the edge buffer", () => {
+		// insideX = 1: padding the right side moves the legend 1 px per px,
+		// so the room is exactly the spill.
+		const margins = { top: 16, right: 24, bottom: 64, left: 76 }
+		const { right } = reserve(margins)
+		const plotRight = canvas.w - 12 - margins.right
+		expect(right).toBeCloseTo(plotRight + legend.w - (canvas.w - 10), 5)
+	})
+})

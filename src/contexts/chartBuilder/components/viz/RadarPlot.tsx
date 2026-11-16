@@ -2,8 +2,6 @@ import { useMemo, useState } from "react"
 import { useAtomValue } from "jotai"
 import {
 	DEFAULT_CONNECTION_CONFIG,
-	DEFAULT_SHAPE,
-	DEFAULT_SHAPE_CONFIG,
 	type ChannelConfigs,
 	type ConnectionConfig,
 } from "../../lib/channelConfig"
@@ -25,23 +23,16 @@ import {
 } from "../../lib/resolveLayerColor"
 import { polygonBodyResolver } from "../../lib/radarPolygonFill"
 import { resolveMarkAesthetics } from "../../lib/resolveMarkAesthetics"
-import { applyHueScale } from "../../lib/scales"
-import { resolveRuleColor } from "../../lib/textColorRules"
-import {
-	dashArrayFor,
-	dashSpecForPatternValue,
-	resolveDashGapColor,
-	resolveDashGapFill,
-	sanitizeCustomDasharray,
-} from "../../lib/dashPatterns"
+import { dashArrayFor, sanitizeCustomDasharray } from "../../lib/dashPatterns"
 import { splitLoopAtRange } from "../../lib/dashLoopRange"
-import { inkPaletteForHue } from "../../lib/patterns"
+import { resolveLineStyle } from "../../lib/lineStyle"
+import { pointStyleResolver } from "../../lib/pointStyle"
+import { colorSlotOnAuto } from "../../lib/colorSlotDefaults"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import { buildRadarScales } from "../../lib/radarScales"
 import { uniqueFieldValues, uniqueValues } from "../../lib/uniqueFieldValues"
 import { GlyphMark, resolveGlyph } from "../../lib/customGlyphs"
-import { resolveShapeColors } from "../../lib/shapeColors"
 import type { DatasetView, FieldType } from "../../lib/types"
 import {
 	currentAnnotationsAtom,
@@ -57,6 +48,7 @@ import {
 	useAestheticScales,
 	type AestheticScales,
 } from "../../store/useAestheticScales"
+import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import {
 	rowHighlight,
@@ -116,6 +108,16 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 	const aestheticScales = useAestheticScales()
 	const legendHighlight = useLegendHighlight()
 	const [hovered, setHovered] = useState<TooltipState | null>(null)
+	// Whether the polygon bodies are on Auto (no color of their own): the
+	// outline's own Auto reads it (`buildPolygons`).
+	const theme = useCurrentTheme()
+	const polygonBodyOnAuto = colorSlotOnAuto(
+		"polygonFill",
+		channelConfigs,
+		encodings,
+		aestheticScales.hue?.field.type ?? null,
+		theme
+	)
 
 	const rField = encodings.r?.field ?? null
 	const angleField = encodings.angle?.field ?? null
@@ -374,7 +376,6 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 		// Compute screen position + per-row mark aesthetics up-front.
 		// Polygons read these indices when grouping by connection value;
 		// dots use the resolved shape/fill/stroke to render `<path>` glyphs.
-		const shapeAes = aestheticScales.shape
 		type RadarPoint = {
 			i: number
 			cx: number
@@ -397,17 +398,11 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 		const patternField = aestheticScales.pattern?.field.name ?? null
 		const wantsPointPattern =
 			!!patternField || channelConfigs.defaultPattern != null
-		// Point OUTLINE color: the `outlineHue` variable's scale, a matching
-		// outline rule, then the universal outline color — the scatter chain
-		// (`resolveShapeColors`) — shaded by the Point outline saturation /
-		// brightness slots (identity when neither is set).
-		const outlineHue = aestheticScales.outlineHue?.field ?? null
-		const outlineHueScale = aestheticScales.outlineHue?.scale ?? null
-		const modulateOutline = slotModulationResolver(
-			"outline",
-			channelConfigs,
-			aestheticScales
-		)
+		// The points' glyph and fill / outline colors, by the rules every
+		// chart's points share (`lib/pointStyle`): the outline from the
+		// Outline variable, a matching rule, or the single outline color,
+		// shaded by the Point outline's saturation / brightness.
+		const pointStyle = pointStyleResolver(channelConfigs, aestheticScales)
 		rowsForChart.forEach((row, i) => {
 			const a = angleScale(row[angleField])
 			const r = rScale(row[rField])
@@ -433,36 +428,8 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 						{ defaultToNone: !!connectionField, includeDefaultPattern: true }
 					)
 				: null
-			// Shape index — per-row palette index when shape is mapped,
-			// else the user's `defaultShape`. Matches ScatterPlot's path.
-			const shapeIdx = shapeAes
-				? shapeAes.idx(row[shapeAes.field.name])
-				: (channelConfigs.defaultShape ?? DEFAULT_SHAPE)
-			const shapeKey = shapeAes
-				? String(row[shapeAes.field.name] ?? "")
-				: null
-			const outlineScaleColor =
-				outlineHueScale && outlineHue
-					? applyHueScale(outlineHueScale, row[outlineHue.name], outlineHue.type)
-					: null
-			// An implicit rule tests the mapped outline variable's value; a
-			// `{Variable}` rule tests the row and fires either way.
-			const outlineRuleColor = resolveRuleColor(
-				channelConfigs.shape?.outlineColorRules,
-				outlineHue ? row[outlineHue.name] : undefined,
-				[row]
-			)
-			const { fill: shapeFill, stroke: baseStroke } = resolveShapeColors({
-				hueFill: fill,
-				shapeCategoryValue: shapeKey,
-				shapeConfig: channelConfigs.shape,
-				hueMapped: !!aestheticScales.hue,
-				fallbackOutline:
-					channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
-				outlineScaleColor,
-				outlineRuleColor,
-			})
-			const shapeStroke = modulateOutline(baseStroke, row)
+			const shapeIdx = pointStyle.shapeIndex(row)
+			const { fill: shapeFill, stroke: shapeStroke } = pointStyle.colors(row, fill)
 			points.push({
 				i,
 				cx: px,
@@ -510,6 +477,7 @@ export const RadarPlot = (props: RadarPlotProps = {}) => {
 						const numeric = Number(value)
 						return Number.isFinite(numeric) ? angleScale(numeric) : null
 					},
+					polygonBodyOnAuto,
 				)
 			: null
 
@@ -742,6 +710,9 @@ const buildPolygons = <P extends LocalPoint>(
 	 *  axis (radians, the unit of each point's `angle`); null when the value
 	 *  names no spoke. */
 	angleOf: (value: number | string | null) => number | null,
+	/** The polygon body's color is on Auto (`colorSlotOnAuto`): the user has
+	 *  not given the body a color of its own. */
+	bodyOnAuto = true,
 ): RadarSeries<P>[] => {
 	const cfg: ConnectionConfig = {
 		...DEFAULT_CONNECTION_CONFIG,
@@ -801,15 +772,6 @@ const buildPolygons = <P extends LocalPoint>(
 	// category of a Pattern variable, the gaps filled or left empty, and a
 	// range the dash applies within. A polygon is one series, so a Pattern
 	// variable resolves off its representative row like its color does.
-	const defaultDashArray =
-		(cfg.customDashPattern ? sanitizeCustomDasharray(cfg.customDashPattern) : null) ??
-		dashArrayFor(cfg.defaultDashPattern ?? "solid")
-	// "Blank": inside the range the outline is not drawn at all (just the gap
-	// underlay when gaps are filled). Without an active range it is inert.
-	const defaultBlank =
-		(cfg.defaultDashPattern ?? "solid") === "blank" && defaultDashArray === null
-	const dashOverrides = channelConfigs.pattern?.dashOverrides ?? {}
-	const customDashOverrides = channelConfigs.pattern?.customDashOverrides ?? {}
 	const patternValues = patternField
 		? uniqueValues(
 				points.map((p) => p.row[patternField]),
@@ -817,15 +779,15 @@ const buildPolygons = <P extends LocalPoint>(
 			)
 		: []
 	const hueField = aestheticScales.hue?.field ?? null
-	const gapFill = resolveDashGapFill({
-		configured: cfg.dashGapFill ?? null,
-		patternField,
-		hueField: hueField?.name ?? null,
-	})
-	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
+	const line = resolveLineStyle({
 		channelConfigs,
-		hueField?.type
-	)
+		patternField,
+		patternDomain: patternValues,
+		hueField: hueField?.name ?? null,
+		hueType: hueField?.type,
+		themeInkFallback: aestheticScales.themeInkFallback,
+	})
+	const gapFill = line.gapFill
 	// The range window, around the angle axis. It is ignored while a Pattern
 	// variable is mapped — the variable already says where each dash applies
 	// (and the panel hides the rows), as on a line chart.
@@ -846,11 +808,18 @@ const buildPolygons = <P extends LocalPoint>(
 		// The representative point: the first by angle (sorted has ≥ 2).
 		const rep = sorted[0]
 		const repRow = rep?.row ?? { [connectionField]: key }
-		// Body color: the Polygon fill slots' color when the body is filled
-		// (the series' point color unless it has its own); on an unfilled
-		// polygon — for the outline's "match fill" fallback — the point color.
+		// Body color: the Polygon fill slots' color when the body is filled —
+		// on Auto the theme's fill palette, or the series' point color where
+		// the theme has none; an explicit pick otherwise.
 		const body = fillEnabled && rep ? polygonBody(rep) : null
 		const fillColor = body?.fill ?? rep?.fill ?? "#888"
+		// What the OUTLINE takes on Auto. With the body on Auto too, the
+		// series' own color (its point color): a line draws in Color's
+		// palette, the body under it in the fill palette. Once the body has a
+		// color of its own, the outline follows that, as it always has. (It
+		// used to fall back to the body's fill in both cases — the same color
+		// while an untouched body could only match its points.)
+		const seriesColor = bodyOnAuto ? (rep?.fill ?? fillColor) : fillColor
 		// Polygon-fill pattern (separate from the points' pattern), tiled over
 		// the body color — the same item the upfront defs memo emitted for it.
 		const polygonPattern =
@@ -878,7 +847,7 @@ const buildPolygons = <P extends LocalPoint>(
 			linePalette: cfg.linePalette ?? null,
 			paletteIdx: groupIdx,
 			strokeColor: cfg.strokeColor ?? null,
-			fallback: fillColor,
+			fallback: seriesColor,
 			lineSlotCfg: channelConfigs.colorSlots?.line,
 			lineSlot,
 			slotRow: repRow,
@@ -902,22 +871,9 @@ const buildPolygons = <P extends LocalPoint>(
 		const rawPattern = patternField ? repRow[patternField] : null
 		const patternValue =
 			rawPattern === undefined || rawPattern === null ? null : String(rawPattern)
-		const spec =
-			patternValue !== null
-				? dashSpecForPatternValue(
-						patternValue,
-						dashOverrides,
-						customDashOverrides,
-						patternValues
-					)
-				: null
-		const dashArray =
-			spec?.kind === "custom"
-				? spec.dasharray
-				: spec?.kind === "pattern"
-					? dashArrayFor(spec.pattern)
-					: defaultDashArray
-		const blank = spec === null && defaultBlank
+		// "Blank": inside the range the outline is not drawn at all (just the gap
+		// underlay when gaps are filled). Without an active range it is inert.
+		const { dashArray, blank } = line.dashFor({ patternValue })
 		// The shared paint of every piece of the outline.
 		const strokePaint = {
 			strokeOpacity: mh.outline ? 1 : lineOpacity(repRow) * mh.opacityMul,
@@ -957,7 +913,7 @@ const buildPolygons = <P extends LocalPoint>(
 		// are filled (so the line reads as connected, two colors alternating),
 		// and solid pieces outside the range.
 		const gapColor = gapFill
-			? resolveDashGapColor({
+			? line.gapColor({
 					overrideKeys: [
 						hueField && rep ? String(rep.row[hueField.name] ?? "") || null : null,
 						key,
@@ -965,16 +921,6 @@ const buildPolygons = <P extends LocalPoint>(
 					patternValue,
 					hueColor: hueField && rep ? rep.preModulationHue : null,
 					lineColor: baseStroke,
-					overrides: cfg.dashAlternateColors ?? {},
-					singleOverride: cfg.dashGapColor ?? null,
-					inkColors: channelConfigs.pattern?.inkColors ?? {},
-					palette: inkPalette,
-					patternInks: palettePatternInks,
-					themeInkFallback: aestheticScales.themeInkFallback,
-					defaultInk:
-						channelConfigs.defaultPatternInk ??
-						channelConfigs.patternInkColor ??
-						null,
 				})
 			: null
 		const pointsAttr = (run: ReadonlyArray<{ x: number; y: number }>) =>

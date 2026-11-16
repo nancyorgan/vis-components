@@ -3,6 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { channelAccepts, channelsConflictIn, conflictsFor } from "../../lib/channels"
 import { effectiveType } from "../../lib/fieldType"
 import { buildQuantHueConfigFromTheme } from "../../lib/hueDefaults"
+import { withAreaFillFollowingColor } from "../../lib/connectionEdits"
 import { withLineFollowingColor } from "../../lib/lineFollowsColor"
 import { seedHueChannel } from "../../lib/seedColorSlot"
 import {
@@ -286,7 +287,18 @@ export const EncodingShelf = ({ channel }: Props) => {
 			const hueField = next.hue?.field
 			const hueType = hueField ? effectiveType(dataset, hueField, overrides) : null
 			const previous = { hueField: encodings.hue?.field ?? null, configs }
-			setConfigs((prev) => withLineFollowingColor(prev, next, hueType, theme, previous))
+			// …and a filled area's bodies follow the theme's fill palette: a
+			// Color variable picked AFTER the area was filled gets the palettes
+			// it would have had if it had been there at the time.
+			setConfigs((prev) =>
+				withAreaFillFollowingColor(
+					withLineFollowingColor(prev, next, hueType, theme, previous),
+					next,
+					hueType,
+					theme,
+					(name) => effectiveType(dataset, name, overrides)
+				)
+			)
 		}
 	}
 

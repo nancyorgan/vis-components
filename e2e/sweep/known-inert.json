@@ -199,6 +199,7 @@
 			"area-unfilled",
 			"combo-horizontal",
 			"combo-line",
+			"combo-stems",
 			"dumbbell"
 		],
 		"note": "No visible effect by nature on a black line (black has no saturation to change); brightness works for some fields only. Needs review: not yet traced to a cause."
@@ -213,6 +214,7 @@
 			"area-unfilled",
 			"combo-horizontal",
 			"combo-line",
+			"combo-stems",
 			"dumbbell"
 		],
 		"note": "No visible effect by nature on a black line (black has no saturation to change); brightness works for some fields only. Needs review: not yet traced to a cause."
@@ -226,7 +228,8 @@
 		"charts": [
 			"combo-horizontal",
 			"combo-line",
-			"combo-points"
+			"combo-points",
+			"combo-stems"
 		],
 		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
 	},
@@ -239,7 +242,8 @@
 		"charts": [
 			"combo-horizontal",
 			"combo-line",
-			"combo-points"
+			"combo-points",
+			"combo-stems"
 		],
 		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
 	},
@@ -272,6 +276,7 @@
 		"kind": "enable",
 		"verdict": "inert",
 		"charts": [
+			"combo-stems",
 			"stems"
 		],
 		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."
@@ -283,6 +288,7 @@
 		"kind": "select",
 		"verdict": "inert",
 		"charts": [
+			"combo-stems",
 			"stems"
 		],
 		"note": "No visible effect by nature: the stroke is black or grey, which has no saturation to change (its Brightness works). Not a defect."

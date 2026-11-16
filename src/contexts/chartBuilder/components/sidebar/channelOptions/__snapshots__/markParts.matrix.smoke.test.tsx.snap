@@ -3,7 +3,9 @@
 exports[`options matrix — what each mark-styling panel offers, per chart type > area-overlay 1`] = `
 {
   "Angle": {
-    "controls": [],
+    "controls": [
+      "(top) · Angle [number]",
+    ],
     "parts": [],
   },
   "Brightness": {
@@ -188,7 +190,14 @@ exports[`options matrix — what each mark-styling panel offers, per chart type 
     ],
   },
   "Shape": {
-    "controls": [],
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
     "parts": [],
   },
   "Size": {
@@ -213,7 +222,9 @@ exports[`options matrix — what each mark-styling panel offers, per chart type 
 exports[`options matrix — what each mark-styling panel offers, per chart type > area-stacked 1`] = `
 {
   "Angle": {
-    "controls": [],
+    "controls": [
+      "(top) · Angle [number]",
+    ],
     "parts": [],
   },
   "Brightness": {
@@ -357,7 +368,14 @@ exports[`options matrix — what each mark-styling panel offers, per chart type 
     ],
   },
   "Shape": {
-    "controls": [],
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
     "parts": [],
   },
   "Size": {
@@ -2028,6 +2046,209 @@ exports[`options matrix — what each mark-styling panel offers, per chart type 
     "parts": [
       "Point",
       "Bar outline",
+    ],
+  },
+}
+`;
+
+exports[`options matrix — what each mark-styling panel offers, per chart type > combo-stems 1`] = `
+{
+  "Angle": {
+    "controls": [
+      "(top) · Angle [number]",
+    ],
+    "parts": [],
+  },
+  "Brightness": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Brightness [range, disabled]",
+      "Bar fill · Brightness value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Brightness [range, disabled]",
+      "Bar outline · Brightness value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Line · Vary by [select]",
+      "Line · Brightness [range, disabled]",
+      "Line · Brightness value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Brightness [range, disabled]",
+      "Point fill · Brightness value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Stem · Vary by [select]",
+      "Stem · Brightness [range, disabled]",
+      "Stem · Brightness value [number, disabled]",
+      "Stem · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+      "Stem",
+    ],
+  },
+  "Color": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Stacking: Stack [segment]",
+      "Bar fill · Stacking: Group [segment]",
+      "Bar fill · Stacking: Overlay [segment]",
+      "Bar fill · Palette [select]",
+      "Bar fill · Color for ‹level› hex [hex]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Color hex [hex]",
+      "Line · Vary by [select]",
+      "Line · Color hex [hex]",
+      "Point fill · Vary by [select]",
+      "Stem · Vary by [select]",
+      "Stem · Color hex [hex]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+      "Stem",
+    ],
+  },
+  "Connection": {
+    "controls": [
+      "Line properties · Smooth line [checkbox]",
+      "Line properties · Line cap: Round [segment]",
+      "Line properties · Line cap: Square [segment]",
+      "Line properties · Line cap: Tick [segment]",
+      "Connect points to axis · None [radio]",
+      "Connect points to axis · Connect to X-axis [radio]",
+      "Connect points to axis · Connect to Y-axis [radio]",
+      "Connect points to axis · Connect to custom X [radio]",
+      "Connect points to axis · Connect to custom Y [radio]",
+      "Show points · All points [radio]",
+      "Show points · No points [radio]",
+      "Show points · First point only [radio]",
+      "Show points · Last point only [radio]",
+      "Show points · First and last only [radio]",
+      "Show points · Every Nth point (with endpoints) [radio]",
+      "Show points · Custom Nth point [radio]",
+    ],
+    "parts": [
+      "Line properties",
+      "Connect points to axis",
+      "Show points",
+    ],
+  },
+  "Length": {
+    "controls": [
+      "(top) · Draw as: Segments [segment]",
+      "(top) · Draw as: Bars [segment]",
+      "(top) · Bar gap [number]",
+    ],
+    "parts": [],
+  },
+  "Opacity": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Opacity [range]",
+      "Bar fill · Opacity value [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Opacity [range]",
+      "Bar outline · Opacity value [number]",
+      "Line · Vary by [select]",
+      "Line · Opacity [range]",
+      "Line · Opacity value [number]",
+      "Point fill · Vary by [select]",
+      "Point fill · Opacity [range]",
+      "Point fill · Opacity value [number]",
+      "Stem · Vary by [select]",
+      "Stem · Opacity [range]",
+      "Stem · Opacity value [number]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+      "Stem",
+    ],
+  },
+  "Pattern": {
+    "controls": [
+      "Bar fill · None [toggle]",
+      "Bar fill · Pattern option 1 [toggle]",
+      "Bar fill · Pattern option 2 [toggle]",
+      "Bar fill · Pattern option 3 [toggle]",
+      "Bar fill · Pattern option 4 [toggle]",
+      "Bar fill · Pattern option 5 [toggle]",
+      "Bar fill · Pattern option 6 [toggle]",
+      "Line · No dash for line [toggle]",
+      "Line · Line dash dashed [toggle]",
+      "Line · Line dash dotted [toggle]",
+      "Line · Line dash dash-dot [toggle]",
+      "Line · Custom dash for line [toggle]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Line",
+    ],
+  },
+  "Saturation": {
+    "controls": [
+      "Bar fill · Vary by [select]",
+      "Bar fill · Saturation [range, disabled]",
+      "Bar fill · Saturation value [number, disabled]",
+      "Bar fill · Enable override [enable]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Saturation [range, disabled]",
+      "Bar outline · Saturation value [number, disabled]",
+      "Bar outline · Enable override [enable]",
+      "Line · Vary by [select]",
+      "Line · Saturation [range, disabled]",
+      "Line · Saturation value [number, disabled]",
+      "Line · Enable override [enable]",
+      "Point fill · Vary by [select]",
+      "Point fill · Saturation [range, disabled]",
+      "Point fill · Saturation value [number, disabled]",
+      "Point fill · Enable override [enable]",
+      "Stem · Vary by [select]",
+      "Stem · Saturation [range, disabled]",
+      "Stem · Saturation value [number, disabled]",
+      "Stem · Enable override [enable]",
+    ],
+    "parts": [
+      "Bar fill",
+      "Bar outline",
+      "Line",
+      "Point fill",
+      "Stem",
+    ],
+  },
+  "Shape": {
+    "controls": [
+      "(top) · Default shape: Circle [toggle]",
+      "(top) · Default shape: Square [toggle]",
+      "(top) · Default shape: Triangle [toggle]",
+      "(top) · Default shape: Diamond [toggle]",
+      "(top) · Default shape: Cross [toggle]",
+      "(top) · Default shape: Star [toggle]",
+    ],
+    "parts": [],
+  },
+  "Size": {
+    "controls": [
+      "Point · Size [number]",
+      "Bar outline · Vary by [select]",
+      "Bar outline · Thickness [number]",
+      "Line · Vary by [select]",
+      "Line · Thickness [number]",
+      "Stem · Thickness [number]",
+    ],
+    "parts": [
+      "Point",
+      "Bar outline",
+      "Line",
+      "Stem",
     ],
   },
 }

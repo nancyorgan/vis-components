@@ -12,6 +12,16 @@
  * the chart simply has a bit more or less padding than strictly needed —
  * never a hard cutoff. */
 
+import {
+	AXIS_TITLE_LINE_EM,
+	TICK_LABEL_LINE_EM,
+	TICK_RESERVE_PX,
+	TITLE_LABEL_GAP_PX,
+	X_TICK_LABEL_END_PAD_PX,
+	X_TITLE_PAD_PX,
+	Y_TICK_CHROME_PAD_PX,
+} from "./layoutMetrics"
+
 /** Character-width heuristics come in two tiers, and the difference is
  *  deliberate — do not collapse them into one number.
  *
@@ -167,7 +177,7 @@ export const estimateExtraLeftMargin = ({
 		: Math.max(labelPx, 40 + yLabelFontSize)
 	// Floor is a delta above whatever base the solver already reserves
 	// (`baseMarginPx`). We shouldn't shrink — only grow.
-	const needed = labelAreaAllowance + titlePx + 24 // breathing room
+	const needed = labelAreaAllowance + titlePx + Y_TICK_CHROME_PAD_PX // breathing room
 	return Math.max(0, needed - baseMarginPx)
 }
 
@@ -217,14 +227,16 @@ export const estimateExtraBottomMargin = ({
 	const sin = Math.abs(Math.sin((xLabelAngleDeg * Math.PI) / 180))
 	const cos = Math.abs(Math.cos((xLabelAngleDeg * Math.PI) / 180))
 	const labelVerticalPx =
-		labelW * sin + xLabelFontSize * 1.4 * maxLineCountIn(xLabels) * cos
+		labelW * sin + xLabelFontSize * TICK_LABEL_LINE_EM * maxLineCountIn(xLabels) * cos
 	// Multiplier 1.4 (not 1.2) accounts for the FULL line-box height —
 	// ascender + descender + small leading. With 1.2 the bottom reserve
 	// fit only the ascender, and the descender of the title's last line
 	// poked 2–3px past the SVG with larger title fonts (a theme with a
 	// 15px axis-title font triggered the regression).
-	const titlePx = xTitleText ? xTitleFontSize * 1.4 * xTitleLineCount + 6 : 0
-	const tickReserve = 10 // tick mark + small gap before label
+	const titlePx = xTitleText
+		? xTitleFontSize * AXIS_TITLE_LINE_EM * xTitleLineCount + X_TITLE_PAD_PX
+		: 0
+	const tickReserve = TICK_RESERVE_PX // tick mark + small gap before label
 	// Gap between the tick-label band and the x-axis title (matches
 	// `TITLE_LABEL_GAP_PX` in facetLayoutSolver). Without this term the
 	// reserve fit only [tick + labels + title] back-to-back, but the
@@ -232,8 +244,9 @@ export const estimateExtraBottomMargin = ({
 	// title's bottom edge a few px past `BASE_MARGIN.bottom` — visible
 	// as the title clipping into whatever sits below the canvas
 	// (e.g. the data table). User-reported May 2026.
-	const titleLabelGap = xTitleText ? 25 : 0
-	const needed = tickReserve + labelVerticalPx + titleLabelGap + titlePx + 8
+	const titleLabelGap = xTitleText ? TITLE_LABEL_GAP_PX : 0
+	const needed =
+		tickReserve + labelVerticalPx + titleLabelGap + titlePx + X_TICK_LABEL_END_PAD_PX
 	// Floor is a delta above whatever base the solver already reserves.
 	return Math.max(0, needed - baseMarginPx)
 }
@@ -263,9 +276,8 @@ export const estimateInteriorBottomChrome = ({
 	const sin = Math.abs(Math.sin((xLabelAngleDeg * Math.PI) / 180))
 	const cos = Math.abs(Math.cos((xLabelAngleDeg * Math.PI) / 180))
 	const labelVerticalPx =
-		labelW * sin + xLabelFontSize * 1.4 * maxLineCountIn(xLabels) * cos
-	const tickReserve = 10
-	return tickReserve + labelVerticalPx + 8
+		labelW * sin + xLabelFontSize * TICK_LABEL_LINE_EM * maxLineCountIn(xLabels) * cos
+	return TICK_RESERVE_PX + labelVerticalPx + X_TICK_LABEL_END_PAD_PX
 }
 
 /** Mirror of `estimateInteriorBottomChrome` for the left side. Pixels
@@ -292,5 +304,5 @@ export const estimateInteriorLeftChrome = ({
 		yLabelMaxWidthPx && yLabelMaxWidthPx > 0
 			? yLabelMaxWidthPx
 			: estimateTextWidth(longestLineIn(yLabels), yLabelFontSize)
-	return labelW + 24
+	return labelW + Y_TICK_CHROME_PAD_PX
 }

@@ -22,6 +22,7 @@ import {
 } from "../../../store/atoms"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
 
@@ -36,7 +37,9 @@ import { Input } from "../../../../../components/ui/Input"
  *  open" flag — local state by default, or the caller's via `customOpen` +
  *  `onCustomOpenChange` when a reset link outside the row has to close it.
  *  `pattern: "solid"` doubles as None; a non-null `customDasharray` wins
- *  over `pattern` at render time. `showBlank` adds the range-mode "Blank"
+ *  over `pattern` at render time. `onReset` puts a "reset" link at the end
+ *  of the swatches — beside the setting, on its line — while it is
+ *  `changed`. `showBlank` adds the range-mode "Blank"
  *  swatch (`pattern: "blank"`). `ariaContext` names the owning control in
  *  the buttons' aria-labels (e.g. "regression line" → "No dash for
  *  regression line" / "Regression line dash dotted"). */
@@ -48,6 +51,8 @@ export const DashStylePicker = ({
 	customOpen: customOpenProp,
 	onCustomOpenChange,
 	showBlank = false,
+	changed = false,
+	onReset,
 }: {
 	pattern: LineDashPattern
 	customDasharray: string | null
@@ -61,6 +66,10 @@ export const DashStylePicker = ({
 	onCustomOpenChange?: (open: boolean) => void
 	/** Offers "Blank" after the dash swatches. */
 	showBlank?: boolean
+	/** The dash differs from its default. */
+	changed?: boolean
+	/** Put the dash back to its default. */
+	onReset?: () => void
 }) => {
 	const [localCustomOpen, setLocalCustomOpen] = useState(false)
 	const customOpen = customOpenProp ?? localCustomOpen
@@ -79,7 +88,7 @@ export const DashStylePicker = ({
 	}
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="flex flex-wrap gap-1">
+			<div className="flex flex-wrap items-center gap-1">
 				<button
 					type="button"
 					onClick={() => pick("solid")}
@@ -125,6 +134,16 @@ export const DashStylePicker = ({
 				>
 					Custom
 				</button>
+				{changed && onReset && (
+					<ResetLink
+						ariaLabel={`Reset ${ariaContext} dash`}
+						className="ml-1"
+						onClick={() => {
+							setCustomOpen(false)
+							onReset()
+						}}
+					/>
+				)}
 			</div>
 			{customActive && (
 				<CustomDashInput
@@ -141,14 +160,20 @@ export const DashStylePicker = ({
 	)
 }
 
-/** Dash pattern for the scatter regression-line overlay: the same
- *  None / dash swatches / Custom row per-category lines get, but a single
- *  choice for the one overlay line (per-group fits share it). Writes
- *  `configs.x.regression.lineStyle` / `.customDasharray` — regression
- *  styling stays on the x-axis config with the rest of the regression
- *  settings, so the pattern channel's own config is untouched. Gated on
- *  scatter mode with the regression line enabled. */
-export const RegressionDashSubsection = () => {
+/** The regression line's dash settings, what they are compared against,
+ *  and how to change them. */
+const useRegressionDash = (): {
+	reg: RegressionConfig
+	/** A dash is picked, so the range rows have something to act on. */
+	dashPicked: boolean
+	/** The dash or its range differs from the theme's (the section's dot). */
+	changed: boolean
+	/** The dash itself differs from the theme's. */
+	dashChanged: boolean
+	update: (next: Partial<RegressionConfig>) => void
+	/** Put the dash back to the theme's. */
+	resetDash: () => void
+} => {
 	const [configs, setConfigs] = useAtom(currentChannelConfigsAtom)
 	// Live theme (settings edits appear immediately) — same lookup as the
 	// Color panel's regression width control.
@@ -165,21 +190,37 @@ export const RegressionDashSubsection = () => {
 			x: {
 				...axisConfigFromTheme(theme, "x"),
 				...prev.x,
-				regression: { ...reg, ...next },
+				regression: { ...base, ...prev.x?.regression, ...next },
 			},
 		}))
 	// The range windows a dash: with a solid line there is nothing for it to
 	// act on, so the rows show (and count as an edit) only once a dash is
 	// picked — the same rule as the connecting line's (`lineDashInEffect`).
 	const dashPicked = reg.lineStyle !== "solid" || !!reg.customDasharray
-	const changed =
+	const dashChanged =
 		valueChanged(reg.lineStyle, base.lineStyle) ||
-		valueChanged(reg.customDasharray, base.customDasharray) ||
+		valueChanged(reg.customDasharray, base.customDasharray)
+	const changed =
+		dashChanged ||
 		(dashPicked &&
 			valueChanged(
 				{ ...DEFAULT_DASH_RANGE, ...reg.dashRange },
 				{ ...DEFAULT_DASH_RANGE, ...base.dashRange }
 			))
+	const resetDash = () =>
+		update({ lineStyle: base.lineStyle, customDasharray: base.customDasharray })
+	return { reg, dashPicked, changed, dashChanged, update, resetDash }
+}
+
+/** Dash pattern for the scatter regression-line overlay: the same
+ *  None / dash swatches / Custom row per-category lines get, but a single
+ *  choice for the one overlay line (per-group fits share it). Writes
+ *  `configs.x.regression.lineStyle` / `.customDasharray` — regression
+ *  styling stays on the x-axis config with the rest of the regression
+ *  settings, so the pattern channel's own config is untouched. Gated on
+ *  scatter mode with the regression line enabled. */
+export const RegressionDashSubsection = () => {
+	const { reg, dashPicked, changed, dashChanged, update, resetDash } = useRegressionDash()
 	return (
 		<CollapsibleSubsection
 			title="Regression line"
@@ -194,6 +235,8 @@ export const RegressionDashSubsection = () => {
 						update({ lineStyle: pattern, customDasharray })
 					}
 					ariaContext="regression line"
+					changed={dashChanged}
+					onReset={resetDash}
 				/>
 				{dashPicked && (
 					<DashRangeRows

@@ -74,3 +74,47 @@ describe("Slider", () => {
 		expect(container.querySelector("label")?.className).toContain("font-semibold")
 	})
 })
+
+/** A changed value's reset link ends the row: to the right of the setting,
+ *  on its line. */
+describe("Slider — reset", () => {
+	afterEach(cleanup)
+
+	const mount = (props: Partial<React.ComponentProps<typeof Slider>>) => {
+		const onReset = vi.fn()
+		const utils = render(
+			<Slider
+				label="Opacity"
+				value={0.4}
+				min={0}
+				max={1}
+				step={0.05}
+				onChange={vi.fn()}
+				onReset={onReset}
+				resetLabel="Reset opacity"
+				{...props}
+			/>
+		)
+		return { onReset, ...utils }
+	}
+
+	it("shows no link while the value is the default", () => {
+		const { queryByLabelText } = mount({ changed: false })
+		expect(queryByLabelText("Reset opacity")).toBeNull()
+	})
+
+	it("a changed value has the link as the last thing in its row", () => {
+		const { getByLabelText, onReset } = mount({ changed: true })
+		const reset = getByLabelText("Reset opacity")
+		const row = getByLabelText("Opacity").parentElement as HTMLElement
+		expect(reset.parentElement).toBe(row)
+		expect(row.lastElementChild).toBe(reset)
+		fireEvent.click(reset)
+		expect(onReset).toHaveBeenCalledTimes(1)
+	})
+
+	it("a slider given no way to reset shows none", () => {
+		const { queryByText } = mount({ changed: true, onReset: undefined })
+		expect(queryByText("reset")).toBeNull()
+	})
+})

@@ -2,6 +2,9 @@
  * settings path. */
 
 import type { ChannelConfigs, ConnectionConfig } from "./channelConfig"
+import { getChartModeDef } from "./chartMode"
+import { isAreaModeId } from "./chartModes/families"
+import type { FieldTypeLookup } from "./chartModes/types"
 import {
 	areaFillPalette,
 	areaLinePaletteId,
@@ -57,6 +60,28 @@ export const withAreaPaletteDefaults = (
 			linePalette: resolveCategoricalPalette(theme).colors,
 		},
 	}
+}
+
+/** A Color variable picked on a chart that is ALREADY a filled area: the
+ * body takes the area palette defaults then, exactly as if the variable
+ * had been there when the area was filled (`withAreaPaletteDefaults`, which
+ * only moves untouched picks). Without this the palettes were set at the
+ * moment of filling alone — a single-series area given a Color variable
+ * afterwards kept the regular palette for its bodies, the one case where
+ * an area's Auto did not follow the theme's fill palette. Applied at the
+ * moment of the pick (the encoding shelf), never on load. */
+export const withAreaFillFollowingColor = (
+	configs: ChannelConfigs,
+	encodings: Encodings,
+	hueType: FieldType | null | undefined,
+	theme: Theme,
+	getType: FieldTypeLookup
+): ChannelConfigs => {
+	if (hueType !== "categorical" || configs.connection?.fill !== "area") return configs
+	// The stored fill outlives a change of chart type, so ask what the chart
+	// IS now: only an area chart has a body to recolor.
+	if (!isAreaModeId(getChartModeDef(encodings, getType, configs).id)) return configs
+	return withAreaPaletteDefaults(configs, theme, hueType)
 }
 
 /** The reverse, for a chart that stops being a filled area: picks still

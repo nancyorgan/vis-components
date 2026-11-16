@@ -4,28 +4,17 @@ import {
 	DEFAULT_CONNECTION_CONFIG,
 	type ChannelConfigs,
 	type ColorSlotConfig,
-	type LineDashPattern,
 } from "../../../lib/channelConfig"
 import { resolveConnectionStroke } from "../../../lib/connectionStroke"
 import { resolveConnectionThickness } from "../../../lib/connectionThickness"
-import {
-	dashArrayFor,
-	dashSpecForPatternValue,
-	resolveDashGapColor,
-	resolveDashGapFill,
-	sanitizeCustomDasharray,
-	splitIntoValueRuns,
-} from "../../../lib/dashPatterns"
-import { inkPaletteForHue, type ThemeInkFallback } from "../../../lib/patterns"
+import { splitIntoValueRuns } from "../../../lib/dashPatterns"
+import { resolveLineStyle } from "../../../lib/lineStyle"
+import type { ThemeInkFallback } from "../../../lib/patterns"
 import { sortByDrawOrder } from "../../../lib/drawOrder"
 import { resolveSlotColor } from "../../../lib/resolveLayerColor"
 import { applyPositionScale, type PositionScale } from "../../../lib/scales"
 import { splitPolylineAtRange } from "../../../lib/dashRange"
-import {
-	connectionStrokeLinecap,
-	lineEndTicks,
-	resolveLineEndTickLength,
-} from "../../../lib/lineEndTicks"
+import { lineEndTicks, resolveLineEndTickLength } from "../../../lib/lineEndTicks"
 import type { DatasetView, Encodings, FieldType } from "../../../lib/types"
 import { uniqueValues } from "../../../lib/uniqueFieldValues"
 import type { AestheticScales } from "../../../store/useAestheticScales"
@@ -185,17 +174,44 @@ export const renderConnectionLines = (
 	// absent → every line uses the single `cfg.thickness`, byte-identical to
 	// before. Resolved per group inside the flatMap below.
 	const thicknessByValue = cfg.thicknessByValue
-	// "square" and "tick" map to SVG's butt cap so lines and dash segments
-	// end flush at the data position instead of extending half a
-	// stroke-width past it; "tick" then adds a perpendicular mark centered
-	// on each open end (`withTicks` below).
-	const strokeCap = connectionStrokeLinecap(cfg.lineCap)
-	const tickCap = cfg.lineCap === "tick"
+	// Pattern encoding on line charts drives the LINE DASH STYLE. When the
+	// pattern field varies WITHIN a connection group (e.g. a known-vs-
+	// projected column on a series that spans both), the polyline splits
+	// into runs of constant pattern value and each run renders with its own
+	// category's dash — see `splitIntoValueRuns`. Point-fill patterns are
+	// tracked SEPARATELY in `pattern.overrides` and resolved in the point
+	// render loop; the two effects don't share storage.
+	const patternField = encodings.pattern?.field ?? null
+	const patternValues = patternField
+		? uniqueValues(
+				marks.map((m) => m.row[patternField]),
+				{ skipBlank: false }
+			)
+		: []
+	// The panel's gap swatches key the gap colors by HUE value (the color
+	// encoding's categories); each line samples its hue value from its first
+	// row. The connection-group key is tried second for saved visuals keyed
+	// the old way.
+	const hueField = encodings.hue?.field ?? null
+	// The Line's style — cap, smoothing, dash, gap color — by the rules every
+	// chart's line shares (`lib/lineStyle`).
+	const line = resolveLineStyle({
+		channelConfigs,
+		patternField,
+		patternDomain: patternValues,
+		hueField,
+		hueType,
+		themeInkFallback,
+	})
+	// "square" and "tick" end flush at the data position; "tick" then adds a
+	// perpendicular mark centered on each open end (`withTicks` below).
+	const strokeCap = line.cap
+	const tickCap = line.tickCap
 	// Line smoothing: 0 (default) keeps the plain straight-segment <polyline>
 	// so existing visuals + tests render byte-identically; > 0 swaps in a
 	// cardinal-spline <path> through the same points. `renderLine` picks the
 	// right element so every solid/dashed/range branch below stays uniform.
-	const smoothing = cfg.smoothing ?? 0
+	const smoothing = line.smoothing
 	const renderLine = (
 		key: string,
 		points: Array<{ x: number; y: number }>,
@@ -211,66 +227,12 @@ export const renderConnectionLines = (
 			/>
 		)
 	const lineColors = cfg.lineColors
+	// A line's own stored dash (legacy data, no control writes it), keyed by
+	// its connection value.
 	const dashPatterns = cfg.dashPatterns ?? {}
-	const dashAlternateColors = cfg.dashAlternateColors ?? {}
-	const defaultDash: LineDashPattern = cfg.defaultDashPattern ?? "solid"
-	// The panel's "Custom" default dash: a user-typed dasharray that wins
-	// over the swatch pick when it parses; per-group `dashPatterns`
-	// overrides still win over both.
-	const defaultDashArray =
-		(cfg.customDashPattern
-			? sanitizeCustomDasharray(cfg.customDashPattern)
-			: null) ?? dashArrayFor(defaultDash)
-	// "Blank" dash pick: within the range window the line doesn't draw at
-	// all — a true gap, or the gap-color underlay alone when "Fill dash
-	// gaps" is on. A parsed custom dasharray wins over the swatch pick
-	// (defaultDashArray is non-null then), same precedence as the other
-	// swatches; without an active range blank is inert (falls through to
-	// solid below, since its dasharray is null).
-	const defaultBlank = defaultDash === "blank" && defaultDashArray === null
-	// Dash-gap color inputs — the same palette-paired pattern-ink options
-	// area patterns resolve their ink from (see `resolveDashGapColor`).
-	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
-		channelConfigs,
-		hueType
-	)
-	const patternInkColors = channelConfigs.pattern?.inkColors ?? {}
-	// Dash-gap fallback ink: the explicit default-pattern pick, else the
-	// theme's global pattern ink (the paired inks are tried first).
-	const defaultPatternInk =
-		channelConfigs.defaultPatternInk ?? channelConfigs.patternInkColor ?? null
-	const dashGapColor = cfg.dashGapColor ?? null
-	// The panel's gap swatches key `dashAlternateColors` by HUE value (the
-	// color encoding's categories); each line samples its hue value from its
-	// first row. The connection-group key is tried second for saved visuals
-	// keyed the old way.
-	const hueField = encodings.hue?.field ?? null
-	// Pattern encoding on line charts drives the LINE DASH STYLE. When the
-	// pattern field varies WITHIN a connection group (e.g. a known-vs-
-	// projected column on a series that spans both), the polyline splits
-	// into runs of constant pattern value and each run renders with its own
-	// category's dash — see `splitIntoValueRuns`. Per-category resolution
-	// (custom dasharray > swatch override > DASH_CYCLE auto-cycle) is the
-	// shared `dashSpecForPatternValue`. Point-fill patterns are tracked
-	// SEPARATELY in `pattern.overrides` and resolved in the point render
-	// loop above; the two effects don't share storage.
-	const patternField = encodings.pattern?.field ?? null
-	const dashOverrides = channelConfigs.pattern?.dashOverrides ?? {}
-	const customDashOverrides = channelConfigs.pattern?.customDashOverrides ?? {}
-	const patternValues = patternField
-		? uniqueValues(
-				marks.map((m) => m.row[patternField]),
-				{ skipBlank: false }
-			)
-		: []
 	// Whether dash gaps get the alternate-color underlay (connected
-	// two-color line) or stay empty (truly dashed). Auto unless the user
-	// chose: filled, except when pattern and hue map the same field.
-	const gapFill = resolveDashGapFill({
-		configured: cfg.dashGapFill ?? null,
-		patternField,
-		hueField: encodings.hue?.field ?? null,
-	})
+	// two-color line) or stay empty (truly dashed).
+	const gapFill = line.gapFill
 	const groups = new Map<string, Mark[]>()
 	marks.forEach((m) => {
 		const raw = m.row[connectionField]
@@ -528,7 +490,7 @@ export const renderConnectionLines = (
 					const hueValueRaw = hueField ? sorted[0]?.row[hueField] : null
 					els.push(
 						renderLine(`${keyBase}-bg`, pts, {
-							stroke: resolveDashGapColor({
+							stroke: line.gapColor({
 								// Pair on PRE-modulation colors (hue first, then the
 								// stroke) so the palette ink lookup can hit.
 								overrideKeys: [
@@ -540,13 +502,6 @@ export const renderConnectionLines = (
 								patternValue,
 								hueColor: gapHueColor,
 								lineColor: baseStroke,
-								overrides: dashAlternateColors,
-								singleOverride: dashGapColor,
-								inkColors: patternInkColors,
-								palette: inkPalette,
-								patternInks: palettePatternInks,
-								themeInkFallback,
-								defaultInk: defaultPatternInk,
 							}),
 							...lineProps,
 						})
@@ -577,23 +532,10 @@ export const renderConnectionLines = (
 					return raw === undefined || raw === null ? null : String(raw)
 				})
 				return withTicks(runs.flatMap((run, ri) => {
-					const spec =
-						run.value !== null
-							? dashSpecForPatternValue(
-									run.value,
-									dashOverrides,
-									customDashOverrides,
-									patternValues
-								)
-							: null
-					const dashArray =
-						spec?.kind === "custom"
-							? spec.dasharray
-							: dashPatterns[groupValue] !== undefined
-								? dashArrayFor(dashPatterns[groupValue] ?? "solid")
-								: spec?.kind === "pattern"
-									? dashArrayFor(spec.pattern)
-									: defaultDashArray
+					const { dashArray } = line.dashFor({
+						patternValue: run.value,
+						override: dashPatterns[groupValue],
+					})
 					return renderSegment(
 						runs.length === 1
 							? `conn-${groupValue}`
@@ -606,12 +548,10 @@ export const renderConnectionLines = (
 			}
 			// No pattern encoding: one dash for the whole line (per-line
 			// override > global default, custom dasharray included).
-			const groupDash = dashPatterns[groupValue]
-			const dashArray =
-				groupDash !== undefined
-					? dashArrayFor(groupDash ?? "solid")
-					: defaultDashArray
-			const blank = groupDash !== undefined ? groupDash === "blank" : defaultBlank
+			const { dashArray, blank } = line.dashFor({
+				patternValue: null,
+				override: dashPatterns[groupValue],
+			})
 			// "Apply pattern to range": dash only within [From, To] — the
 			// parts outside render solid (known vs forecast). Boundary
 			// points are interpolated so the segments meet exactly; the

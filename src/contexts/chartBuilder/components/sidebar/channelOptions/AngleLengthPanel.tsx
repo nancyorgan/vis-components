@@ -689,33 +689,37 @@ export const LengthOptionsPanel = () => {
 
 	return (
 		<div className="vc-option-panel">
-			<NumberInput
-				label="Length"
-				labelClassName={LABEL_COL}
-				min={2}
-				max={200}
-				step={1}
-				value={currentLength}
-				placeholder="—"
-				onChange={(defaultLength) =>
-					setConfigs((prev) => ({ ...prev, defaultLength }))
-				}
-				onClear={() => setConfigs((prev) => ({ ...prev, defaultLength: null }))}
-				suffix="px"
-			/>
+			<div className="flex items-center gap-2">
+				<NumberInput
+					label="Length"
+					labelClassName={LABEL_COL}
+					changed={currentLength !== null}
+					min={2}
+					max={200}
+					step={1}
+					value={currentLength}
+					placeholder="—"
+					onChange={(defaultLength) =>
+						setConfigs((prev) => ({ ...prev, defaultLength }))
+					}
+					onClear={() => setConfigs((prev) => ({ ...prev, defaultLength: null }))}
+					suffix="px"
+				/>
+				{currentLength !== null && (
+					<ResetLink
+						ariaLabel="Reset length"
+						onClick={() =>
+							setConfigs((prev) => ({
+								...prev,
+								defaultLength: null,
+							}))
+						}
+					/>
+				)}
+			</div>
 			<div className="vc-help">
 				Set a length to render all marks as line segments. Clear to use shapes.
 			</div>
-			<ResetLink
-				onClick={() =>
-					setConfigs((prev) => ({
-						...prev,
-						defaultLength: null,
-					}))
-				}
-				underline
-				className="self-start"
-			/>
 			{currentLength !== null && <SegmentPropertiesSection />}
 		</div>
 	)

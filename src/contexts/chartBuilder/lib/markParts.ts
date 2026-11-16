@@ -13,23 +13,23 @@
  *  own list the answers drifted (see `partsOffered`, and the matrix
  *  snapshot in `markParts.matrix.smoke.test.tsx`).
  *
- *  Today the per-part targets still live in three registries, one per menu
- *  (`colorSlots`, `opacitySlots`, `modulationSlots`), and this module
- *  arranges what they offer. They are the next thing to fold in. Pure: no
- *  store, no React. */
+ *  The per-part targets themselves — what each is called, which part it
+ *  styles, when the chart draws it — are one table, `PART_TARGETS`
+ *  (lib/partTargets); `colorSlots`, `opacitySlots` and `modulationSlots`
+ *  are each menu's view of it, and this module arranges what they offer.
+ *  (The Pattern menu's sections are `patternMenu`, in `lib/patternMenu` —
+ *  apart only because it reads the pattern tiles, which this module, shared
+ *  with the server, must not import.) Pure: no store, no React. */
 
 import type { ChannelConfigs } from "./channelConfig"
-import { getChartModeDef, type ChartMode } from "./chartMode"
-import { isAreaModeId, isFlowModeId } from "./chartModes/families"
+import { getChartModeDef } from "./chartMode"
 import type { ChartModeDef, FieldTypeLookup } from "./chartModes/types"
-import { applicableColorSlots, rugOn, type ColorSlotDef } from "./colorSlots"
+import { colorSlotsFor, type ColorSlotDef } from "./colorSlots"
 import { markNoun, markPartTitles, partTitle } from "./markPartTitles"
-import {
-	applicableModulationSlots,
-	type ModulationSlotDef,
-} from "./modulationSlots"
-import { applicableOpacitySlots, type OpacitySlotDef } from "./opacitySlots"
+import { modulationSlotsFor, type ModulationSlotDef } from "./modulationSlots"
+import { opacitySlotsFor, type OpacitySlotDef } from "./opacitySlots"
 import type { MapConfig } from "./mapConfig"
+import { rugOn, type PartId, type TargetContext, type TargetPart } from "./partTargets"
 import { RADAR_LINE_INHERIT } from "./radarLineSlot"
 import { segmentsDrawn } from "./segmentsDrawn"
 import type { Encodings } from "./types"
@@ -172,30 +172,7 @@ export const drawnParts = (ctx: PartsContext): DrawnParts => {
 // ---------------------------------------------------------------------------
 // The parts, and the one order every menu lists them in
 
-/** A part of a chart that the menus style on its own. */
-export type PartId =
-	/** The marks, when they are bodies of their own — bars, slices, cells,
-	 *  regions, nodes, circles. */
-	| "markFill"
-	| "markOutline"
-	/** A flow diagram's ribbons, beside its nodes. */
-	| "ribbon"
-	/** The connecting line, the body under it (an area's or a radar
-	 *  polygon's fill), and the points along it. A scatter's points are the
-	 *  same part with no line. */
-	| "line"
-	| "body"
-	| "pointFill"
-	| "pointOutline"
-	/** What is drawn over the marks. */
-	| "stem"
-	| "regressionLine"
-	| "regressionBand"
-	| "violinFill"
-	| "violinOutline"
-	| "densityFill"
-	| "densityOutline"
-	| "rug"
+export type { PartId } from "./partTargets"
 
 /** THE order. Every menu lists the parts it offers in this order, so a part
  *  sits in the same place in Color, Opacity, Saturation and Brightness:
@@ -249,33 +226,10 @@ export const inPartOrder = <T extends { part: PartId }>(sections: T[]): T[] =>
 		)
 		.map(({ section }) => section)
 
-/** Which part each stored per-part target styles. The same key means the
- *  same part in every menu's registry, with two exceptions that depend on
- *  the chart and are resolved where the sections are built: Opacity's
- *  `border` and the modulation `outline` are the marks' own outline — which
- *  on an area chart is its Line. */
-const TARGET_PART: Record<string, PartId> = {
-	line: "line",
-	areaPointFill: "pointFill",
-	areaPointOutline: "pointOutline",
-	comboPointFill: "pointFill",
-	geoPointFill: "pointFill",
-	geoPointStroke: "pointOutline",
-	// A dot map's regions are bodies of their own, behind its points.
-	geoRegionFill: "markFill",
-	geoRegionStroke: "markOutline",
-	polygonFill: "body",
-	stem: "stem",
-	regressionStroke: "regressionLine",
-	regressionCiFill: "regressionBand",
-	violinFill: "violinFill",
-	violinStroke: "violinOutline",
-	densityCurveFill: "densityFill",
-	densityCurveStroke: "densityOutline",
-	rug: "rug",
-	node: "markFill",
-	ribbon: "ribbon",
-}
+/** The marks are stacked layers — an area chart: its own outline is its
+ *  Line, its fill is the body under it, and its points are a second part. */
+export const isLayered = (modeDef: Pick<ChartModeDef, "canvas">): boolean =>
+	modeDef.canvas.connectionRole === "layer"
 
 /** The parts the marks' own fill and outline are, for this chart: an area
  *  chart's fill is the body under its Line; point marks are the points;
@@ -283,10 +237,31 @@ const TARGET_PART: Record<string, PartId> = {
 export const ownParts = (
 	modeDef: Pick<ChartModeDef, "canvas">
 ): { fill: PartId; outline: PartId } => {
-	if (modeDef.canvas.connectionRole === "layer") return { fill: "body", outline: "line" }
+	if (isLayered(modeDef)) return { fill: "body", outline: "line" }
 	if (modeDef.canvas.mark === "point") return { fill: "pointFill", outline: "pointOutline" }
 	return { fill: "markFill", outline: "markOutline" }
 }
+
+/** The part a target styles on this chart. The table names it, except for
+ *  the marks' own outline (Opacity's `border`, the modulation `outline`),
+ *  which is whichever part `ownParts` says — on an area chart, its Line. */
+const partOf = (part: TargetPart, own: { outline: PartId }): PartId =>
+	part === "ownOutline" ? own.outline : part
+
+/** The table answers "does the chart draw this target's part?" from the
+ *  mode and the setting that switches the part on. Whether the MARKS are
+ *  drawn at all — they are not on a pure density curve — is known only
+ *  here, and stems run from the marks: no marks, no stems to style. So
+ *  the Stem is listed exactly where the Size menu lists its thickness. */
+const targetDrawn = (def: { part: TargetPart }, parts: DrawnParts): boolean =>
+	def.part !== "stem" || parts.stems
+
+/** The chart, as the target table asks about it. */
+const targetContext = ({ modeDef, encodings, configs }: PartsContext): TargetContext => ({
+	canvas: modeDef.canvas,
+	encodings,
+	configs,
+})
 
 /** The title of the ring around the point markers of a chart whose marks
  *  are not points (an area chart's, whose own outline is its Line). */
@@ -312,12 +287,11 @@ export type ColorSection = { part: PartId } & (
 /** The Color menu's subsections, in `PART_ORDER`. */
 export const colorSections = (ctx: PartsContext): ColorSection[] => {
 	const { modeDef, encodings, configs } = ctx
-	const mode = modeDef.id as ChartMode
 	const titles = markPartTitles(modeDef, configs, encodings)
-	const isArea = isAreaModeId(mode)
+	const isArea = isLayered(modeDef)
 	const isPolygon = modeDef.canvas.connectionRole === "polygon"
-	const slots = applicableColorSlots(mode, encodings, configs)
 	const parts = drawnParts(ctx)
+	const slots = colorSlotsFor(targetContext(ctx)).filter((d) => targetDrawn(d, parts))
 	const own = ownParts(modeDef)
 
 	const out: ColorSection[] = []
@@ -335,7 +309,7 @@ export const colorSections = (ctx: PartsContext): ColorSection[] => {
 	for (const def of slots) {
 		const radarLine = isPolygon && def.key === "line"
 		out.push({
-			part: TARGET_PART[def.key] ?? "rug",
+			part: partOf(def.part, own),
 			kind: "slot",
 			// The radar's Line is its polygon outline: untouched, it matches
 			// each polygon's fill.
@@ -360,22 +334,21 @@ export type OpacitySection = { part: PartId } & (
 /** The Opacity menu's subsections, in `PART_ORDER`. */
 export const opacitySections = (ctx: PartsContext): OpacitySection[] => {
 	const { modeDef, encodings, configs } = ctx
-	const mode = modeDef.id as ChartMode
 	const titles = markPartTitles(modeDef, configs, encodings)
 	const parts = drawnParts(ctx)
 	const own = ownParts(modeDef)
 	// The area modes link fill and outline to the series (one layer = one
 	// value): the in-panel "Vary by" repeats the shelf's Opacity row, and
 	// the outline's opacity is resolved per layer, so both selectors go.
-	const linked = isAreaModeId(mode)
+	const linked = isLayered(modeDef)
 	// Marks with no outline of their own (the pure density curve, which
 	// draws none; line segments) leave the Border nothing to act on.
-	const slots = applicableOpacitySlots(mode, encodings, configs).filter(
-		(d) => parts.outline || d.key !== "border"
+	const slots = opacitySlotsFor(targetContext(ctx)).filter(
+		(d) => (parts.outline || d.key !== "border") && targetDrawn(d, parts)
 	)
 	const section = (def: OpacitySlotDef): OpacitySection => ({
 		// The Border target is the marks' own outline (an area's Line).
-		part: def.key === "border" ? own.outline : (TARGET_PART[def.key] ?? "rug"),
+		part: partOf(def.part, own),
 		kind: "slot",
 		// The Border target is the marks' outline and the Line target the
 		// connection line — titled per chart, like the Fill.
@@ -390,7 +363,7 @@ export const opacitySections = (ctx: PartsContext): OpacitySection[] => {
 	// Flow diagrams draw nothing from the overall opacity (nodes and ribbons
 	// each read their own target), and the pure density curve's fill is the
 	// Density curve fill target.
-	const hideFill = isFlowModeId(mode) || !parts.marks
+	const hideFill = modeDef.canvas.flowGeometry !== undefined || !parts.marks
 	return inPartOrder([
 		...(hideFill
 			? []
@@ -414,17 +387,16 @@ export type ModulationSection = { part: PartId } & (
  *  the same parts), in `PART_ORDER`. */
 export const modulationSections = (ctx: PartsContext): ModulationSection[] => {
 	const { modeDef, encodings, configs } = ctx
-	const mode = modeDef.id as ChartMode
 	const titles = markPartTitles(modeDef, configs, encodings)
 	const own = ownParts(modeDef)
 	const parts = drawnParts(ctx)
 	// No outline drawn (the pure density curve, line segments): no outline
 	// to shade.
-	const slots = applicableModulationSlots(mode, encodings, configs).filter(
-		(d) => parts.outline || d.key !== "outline"
+	const slots = modulationSlotsFor(targetContext(ctx)).filter(
+		(d) => (parts.outline || d.key !== "outline") && targetDrawn(d, parts)
 	)
 	const section = (def: ModulationSlotDef): ModulationSection => ({
-		part: def.key === "outline" ? own.outline : (TARGET_PART[def.key] ?? "rug"),
+		part: partOf(def.part, own),
 		kind: "slot",
 		def:
 			def.key === "outline"
@@ -501,7 +473,7 @@ export const sizeSections = (ctx: PartsContext): SizeSection[] => {
 	const titles = markPartTitles(modeDef, configs, encodings)
 	const parts = drawnParts(ctx)
 	const own = ownParts(modeDef)
-	const isArea = isAreaModeId(modeDef.id as ChartMode)
+	const isArea = isLayered(modeDef)
 	const colorTitles = new Map(colorSections(ctx).map((s) => [s.part, sectionTitle(s)]))
 
 	const out: SizeSection[] = []

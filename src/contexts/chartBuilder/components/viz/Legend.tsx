@@ -42,6 +42,7 @@ import {
 	legendSizeProbeWantedAtom,
 	currentRenderedLegendHeightAtom,
 	currentRenderedLegendWidthAtom,
+	currentRenderedPlotInsetsAtom,
 	currentThemeIdAtom,
 	currentTooltipConfigAtom,
 	themeAtom,
@@ -135,6 +136,9 @@ export const Legend = ({
 		[renderConfigs, modeDef.canvas.shapeRole]
 	)
 	const labels = useAtomValue(renderedLabelsAtom)
+	// Where the chart's solved plot sits, so the legend lines up with it
+	// (`null` while no chart is laid out — the legend on its own).
+	const plotInsets = useAtomValue(currentRenderedPlotInsetsAtom)
 	// Legend-hover highlighting is on only when BOTH the "Show hover" master
 	// toggle and its "highlight visual elements" sub-option are enabled (both
 	// default on; back-compat undefined → on). When off, entries never publish
@@ -282,6 +286,7 @@ export const Legend = ({
 		legendCfg,
 		modeDef,
 		insideExtras,
+		plotInsets,
 		insideSize,
 		levelOrders,
 		swatchTheme: theme,

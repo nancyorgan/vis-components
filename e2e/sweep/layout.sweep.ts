@@ -41,7 +41,10 @@ const OUT_DIR = path.resolve(
 )
 
 /** Charts with different things around the plot: a side legend, long
- *  category labels on each axis, several legends, polar marks, a heatmap. */
+ *  category labels on each axis, several legends, polar marks, a heatmap.
+ *  Every one draws a legend, so the legend knobs have something to move on
+ *  each (the area chart is the overlay one for that reason: the stacked
+ *  sample has nothing on Color, hence no legend). */
 const DEFAULT_CHARTS = [
 	"line",
 	"bars-grouped",
@@ -50,7 +53,7 @@ const DEFAULT_CHARTS = [
 	"pie-x",
 	"radar-polygon",
 	"tile",
-	"area-stacked",
+	"area-overlay",
 ]
 
 const ONLY = process.env.SWEEP_CHARTS?.split(",")

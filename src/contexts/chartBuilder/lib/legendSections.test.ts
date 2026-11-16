@@ -779,6 +779,67 @@ describe("planLegendSections — layout plan", () => {
 		).toBeGreaterThanOrEqual(2 * symbolExtent(5, 20))
 	})
 
+	describe("the legend aligns to the solved plot", () => {
+		// The plot sits where the layout solver put it. The legend used to work
+		// that out again from the base margins plus its own copy of the
+		// title-band rule, which is true only until something grows a margin:
+		// long tick labels, a nudged title, a facet strip. `plotInsets` is the
+		// solved plot's distance from each canvas edge; 12 px is the chart
+		// area's pad around the canvas.
+		const SOLVED = { top: 140, right: 60, bottom: 110, left: 180 }
+		const at = (position: "left" | "right" | "top" | "bottom", plotInsets: typeof SOLVED | null) =>
+			plan({
+				encodings: enc({ hue: "region" }),
+				legendCfg: legendCfg({ position }),
+				plotInsets,
+			})?.outerStyle
+
+		it("a side legend's top edge sits on the plot's top edge", () => {
+			expect(at("right", SOLVED)?.paddingTop).toBe(12 + 140)
+			expect(at("left", SOLVED)?.paddingTop).toBe(12 + 140)
+		})
+
+		it("a top legend's right edge sits on the plot's right edge", () => {
+			expect(at("top", SOLVED)?.marginRight).toBe(12 + 60)
+		})
+
+		it("a bottom legend centers under the plot, not under the chart area", () => {
+			// The plot's middle is right of the area's by half the difference
+			// between its left and right margins.
+			expect(at("bottom", SOLVED)?.marginLeft).toBe(180 - 60)
+		})
+
+		it("an inside legend's coordinates map over the solved plot", () => {
+			const style = plan({
+				encodings: enc({ hue: "region" }),
+				legendCfg: legendCfg({ position: "inside", insideX: 0.25, insideY: 0.5 }),
+				plotInsets: SOLVED,
+			})?.outerStyle
+			// left = plot's left edge + 25 % of the plot's width, where the
+			// plot's width is the area less both pads and both insets.
+			expect(style?.left).toBe(`calc(${12 + 180}px + 0.25 * (100% - ${12 + 180 + 12 + 60}px))`)
+			// top = the plot's bottom edge, up by 50 % of the plot's height.
+			expect(style?.top).toBe(
+				`calc((100% - ${12 + 110}px) - 0.5 * (100% - ${12 + 140 + 12 + 110}px))`
+			)
+		})
+
+		it("with no chart solved it falls back to the base margins and title bands", () => {
+			// The legend on its own (a split embed): there is no plot to ask.
+			const bare = at("right", null)?.paddingTop as number
+			expect(bare).toBeGreaterThan(12)
+			expect(at("top", null)?.marginRight).toBe(12 + 24)
+			expect(at("bottom", null)?.marginLeft).toBe(76 - 24)
+			// A chart title lowers the fallback plot top by its band.
+			const titled = plan({
+				encodings: enc({ hue: "region" }),
+				legendCfg: legendCfg({ position: "right" }),
+				labels: { ...labelsCfg(), title: "A title" },
+			})?.outerStyle?.paddingTop as number
+			expect(titled).toBeGreaterThan(bare)
+		})
+	})
+
 	it("an outside legend budgets a numeric width that grows with measured text", () => {
 		const base = plan({ encodings: enc({ hue: "region" }) })
 		const width = base?.outerStyle?.width

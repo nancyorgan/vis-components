@@ -1,6 +1,4 @@
 import {
-	DEFAULT_SHAPE,
-	DEFAULT_SHAPE_CONFIG,
 	DEFAULT_TEXT_CONFIG,
 	type ChannelConfigs,
 	type TextConfig,
@@ -17,19 +15,13 @@ import {
 import { effectiveType } from "../../../lib/fieldType"
 import { resolveMarkAesthetics } from "../../../lib/resolveMarkAesthetics"
 import { outlineWidthResolver } from "../../../lib/markOutline"
-import { slotModulationResolver } from "../../../lib/resolveLayerColor"
-import {
-	applyHueScale,
-	applyPositionScale,
-	makePositionScale,
-} from "../../../lib/scales"
+import { pointStyleResolver } from "../../../lib/pointStyle"
+import { applyPositionScale, makePositionScale } from "../../../lib/scales"
 import { GlyphMark, resolveGlyph } from "../../../lib/customGlyphs"
 import {
 	resolveSegmentThickness,
 	segmentStrokeLinecap,
 } from "../../../lib/segmentStroke"
-import { resolveShapeColors } from "../../../lib/shapeColors"
-import { resolveRuleColor } from "../../../lib/textColorRules"
 import { formatTextValue, resolveTextColor } from "../../../lib/textEncoding"
 import type { Encodings } from "../../../lib/types"
 import { uniqueValues } from "../../../lib/uniqueFieldValues"
@@ -301,24 +293,16 @@ export const buildMarks = ({
 	yType,
 }: BuildMarksArgs): Mark[] => {
 	const hue = aestheticScales.hue?.field ?? null
-	const outlineHue = aestheticScales.outlineHue?.field ?? null
-	const outlineHueScale = aestheticScales.outlineHue?.scale ?? null
-	const shape = aestheticScales.shape?.field ?? null
 	const length = aestheticScales.length?.field ?? null
 	const angle = aestheticScales.angle?.field ?? null
 	const pattern = aestheticScales.pattern?.field ?? null
-	const shapeIdx = aestheticScales.shape?.idx ?? null
 	const lengthScale = aestheticScales.length?.scale ?? null
 	const angleScale = aestheticScales.angle?.scale ?? null
 
 	const patternBgOverride = channelConfigs.pattern?.backgroundColor ?? null
-	// Outline saturation / brightness — its own slot, independent of the
-	// fill's modulation (identity when neither slot is set).
-	const modulateOutline = slotModulationResolver(
-		"outline",
-		channelConfigs,
-		aestheticScales
-	)
+	// The points' glyph and fill / outline colors, by the rules every chart's
+	// points share (`lib/pointStyle`).
+	const pointStyle = pointStyleResolver(channelConfigs, aestheticScales)
 
 	const xName = encodings.x?.field as string
 	const yName = encodings.y?.field as string
@@ -410,57 +394,14 @@ export const buildMarks = ({
 			const patternId = resolvedPattern?.svgId ?? null
 
 			// Shape (only used when length is not active)
-			const shapeIndex =
-				shapeIdx && shape
-					? shapeIdx(row[shape.name])
-					: (channelConfigs.defaultShape ?? DEFAULT_SHAPE)
 			const glyph =
 				lenValue === null
-					? resolveGlyph(shapeIndex, channelConfigs.shape?.customGlyphs)
+					? resolveGlyph(pointStyle.shapeIndex(row), channelConfigs.shape?.customGlyphs)
 					: null
-			// Per-category fill / stroke overrides. Keyed by the SHAPE
-			// encoding's value when it's mapped, so users can give one
-			// category a hollow look (`"none"`) or pair a light fill with a
-			// dark stroke without dropping into the hue palette.
-			// Per-category fill / stroke resolution lives in
-			// `lib/shapeColors.ts` so the precedence rules are testable
-			// without spinning up the whole chart pipeline. Pass the
-			// hue-derived `fill` and let the helper decide whether the
-			// stroke inherits it (hue mapped) or falls back to the theme
-			// outline color (hue unmapped).
-			const shapeKey = shape ? String(row[shape.name] ?? "") : null
-			// Field-driven outline color (the `outlineHue` channel). When
-			// mapped, the row's value resolves to a stroke color that sits
-			// between any per-category override and the universal outline
-			// fallback (see resolveShapeColors precedence).
-			const outlineScaleColor =
-				outlineHueScale && outlineHue
-					? applyHueScale(
-							outlineHueScale,
-							row[outlineHue.name],
-							outlineHue.type
-						)
-					: null
-			// Conditional outline rules override the scale color when one
-			// matches. An implicit rule tests the mapped outline variable's
-			// value (nothing to compare while unmapped); a `{Variable}` rule
-			// tests the row and fires with or without an Outline variable.
-			const outlineRuleColor = resolveRuleColor(
-				channelConfigs.shape?.outlineColorRules,
-				outlineHue ? row[outlineHue.name] : undefined,
-				[row]
-			)
-			const { fill: shapeFill, stroke: baseStroke } = resolveShapeColors({
-				hueFill: fill,
-				shapeCategoryValue: shapeKey,
-				shapeConfig: channelConfigs.shape,
-				hueMapped: !!hue,
-				fallbackOutline:
-					channelConfigs.shape?.outlineColor ?? DEFAULT_SHAPE_CONFIG.outlineColor,
-				outlineScaleColor,
-				outlineRuleColor,
-			})
-			const shapeStroke = modulateOutline(baseStroke, row)
+			// Fill and outline color: the Color mapping's `fill`, unless the
+			// point's Shape category has a look of its own; the outline from the
+			// Outline variable, a matching rule, or the single outline color.
+			const { fill: shapeFill, stroke: shapeStroke } = pointStyle.colors(row, fill)
 
 			// Line endpoints (centered on anchor at (cx, cy))
 			let line: { x1: number; y1: number; x2: number; y2: number } | null = null

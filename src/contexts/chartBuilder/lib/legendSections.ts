@@ -60,6 +60,7 @@ import {
 	INSIDE_LEGEND_EDGE_BUFFER,
 	subtitleBand,
 	titleBand,
+	type PlotInsets,
 } from "./plotLayout"
 import {
 	applyAreaScale,
@@ -331,6 +332,15 @@ export type PlanLegendSectionsInput = {
 	legendCfg: LegendConfig
 	modeDef: ChartModeDef
 	insideExtras: { top: number; right: number; bottom: number; left: number }
+	/** Where the SOLVED plot sits in its canvas (`PlotInsets`, published by
+	 *  PlotCanvas). The legend aligns to it: an outside legend's top edge to
+	 *  the plot's top, a top legend's right edge to the plot's right, a
+	 *  bottom legend under the plot's middle, and an inside legend's
+	 *  coordinates over the plot. Omitted / `null` (no chart solved — the
+	 *  legend alone in a split embed, pure callers) falls back to the base
+	 *  margins plus the title bands, which is where the plot sits while
+	 *  nothing has grown a margin. */
+	plotInsets?: PlotInsets | null
 	/** The inside legend's measured size (px). When known, its position is
 	 *  clamped so the whole box stays on the canvas; omitted / zero (before
 	 *  measurement, outside the editor's inside layout) leaves the position
@@ -401,6 +411,7 @@ export const planLegendSections = ({
 	legendCfg,
 	modeDef,
 	insideExtras,
+	plotInsets,
 	insideSize,
 	levelOrders,
 	swatchTheme,
@@ -1312,16 +1323,19 @@ export const planLegendSections = ({
 	const alignSwatchColumn =
 		sections.length >= 2 && legendCfg.orientation === "vertical"
 	// Align the legend's edge against the chart's *plot area* (where the
-	// gridlines actually live), not the wrapper edge. Pixel offsets mirror
-	// ChartCanvas's pad (`CHART_PAD`) plus `BASE_MARGIN`/title reserves —
-	// keep these in lockstep with `computePlotLayout`.
+	// gridlines actually live), not the wrapper edge: ChartCanvas's pad
+	// (`CHART_PAD`) plus where the plot sits in its canvas. That is the
+	// SOLVED plot when a chart has been laid out (`plotInsets`). Without one
+	// it is the base margins plus the title bands — the layout's starting
+	// point, true only while nothing has grown a margin (long tick labels,
+	// a nudged title, a facet strip), which is why the legend used to drift
+	// off the plot's edge on such charts.
 	const hasTitle = !!labels.title
 	const hasSubtitle = !!labels.subtitle
 	// The bands grow for multi-line titles exactly as the solver's do
 	// (`titleBand` / `subtitleBand`), so a wrapped chart title still leaves
 	// the legend's top on the plot's top edge.
-	const plotTopOffset =
-		CHART_PAD +
+	const fallbackPlotTop =
 		BASE_MARGIN.top +
 		(hasTitle
 			? titleBand(
@@ -1340,7 +1354,14 @@ export const planLegendSections = ({
 					).size
 				)
 			: 0)
-	const plotRightOffset = CHART_PAD + BASE_MARGIN.right
+	const insets: PlotInsets = plotInsets ?? {
+		top: fallbackPlotTop,
+		right: BASE_MARGIN.right,
+		bottom: BASE_MARGIN.bottom,
+		left: BASE_MARGIN.left,
+	}
+	const plotTopOffset = CHART_PAD + insets.top
+	const plotRightOffset = CHART_PAD + insets.right
 	// The OUTER element only reserves layout space (or, for "inside" mode,
 	// anchors absolutely-positioned coords). Background, padding, and border
 	// live on the INNER element so the visible legend hugs its content
@@ -1429,18 +1450,18 @@ export const planLegendSections = ({
 	//   (insideX, insideY) = (0, 0) is the bottom-left corner of the plot
 	//   (where the two axis spines meet); (1, 1) is the top-right.
 	// CSS calc() lets the browser resolve the chart's actual pixel size
-	// without us having to measure — the constants mirror `computePlotLayout`
-	// (BASE_MARGIN + p-3 wrapper padding + title/subtitle reserves), so the
+	// without us having to measure — the plot's insets (above) plus the
+	// wrapper pad are fixed distances from the chart area's edges, so the
 	// legend's anchor stays glued to the spines as the container resizes.
 	const insideStyle = (): CSSProperties => {
 		// `insideExtras` come from ChartCanvas — it has shrunk the chart by
 		// these amounts to make room for an out-of-plot legend, so the
 		// legend's calc() must reference the REDUCED plot rectangle for the
 		// user's normalized coord to land where they expect.
-		const plotLeftPx = CHART_PAD + BASE_MARGIN.left + insideExtras.left
-		const plotRightPx = CHART_PAD + BASE_MARGIN.right + insideExtras.right
+		const plotLeftPx = CHART_PAD + insets.left + insideExtras.left
+		const plotRightPx = plotRightOffset + insideExtras.right
 		const plotTopPx = plotTopOffset + insideExtras.top
-		const plotBottomPx = CHART_PAD + BASE_MARGIN.bottom + insideExtras.bottom
+		const plotBottomPx = CHART_PAD + insets.bottom + insideExtras.bottom
 		const horizontalReserve = plotLeftPx + plotRightPx
 		const verticalReserve = plotTopPx + plotBottomPx
 		// Hold the box on the canvas. The room ChartCanvas reserves brings an
@@ -1476,11 +1497,11 @@ export const planLegendSections = ({
 		}
 	}
 	// Bottom legend centers on the *plot's* horizontal midpoint, not the
-	// wrapper's — the asymmetric base margins (76 left / 24 right, to leave
-	// room for the y-axis title + tick labels) shift the plot center
-	// rightward by (left - right) / 2 from the wrapper center, so we add
-	// the equivalent marginLeft on top of `self-center` to compensate.
-	const plotCenterShiftPx = BASE_MARGIN.left - BASE_MARGIN.right
+	// wrapper's — the plot's left margin (y-axis title + tick labels) is
+	// wider than its right one, which shifts the plot center rightward by
+	// (left - right) / 2 from the wrapper center, so we add the equivalent
+	// marginLeft on top of `self-center` to compensate.
+	const plotCenterShiftPx = insets.left - insets.right
 	const positionOuterStyle: CSSProperties | undefined = isInside
 		? {
 				...insideStyle(),

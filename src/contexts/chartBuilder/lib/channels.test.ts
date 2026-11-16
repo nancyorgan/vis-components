@@ -167,7 +167,7 @@ describe("conflictsFor", () => {
 	})
 })
 
-describe("channelsConflictIn (Area and Length on an area chart)", () => {
+describe("channelsConflictIn (Size and Shape with Length on an area chart)", () => {
 	const enc = (fields: Partial<Record<EncodingChannel, string>>) => {
 		const e = emptyEncodings()
 		for (const [ch, field] of Object.entries(fields))
@@ -179,24 +179,33 @@ describe("channelsConflictIn (Area and Length on an area chart)", () => {
 	const SCATTER = enc({ x: "year", y: "sales" })
 	const LINE = enc({ x: "year", y: "sales", connection: "region" })
 
-	it("Area and Length coexist on an area chart, in both directions", () => {
-		for (const e of [AREA_X, AREA_Y]) {
-			expect(channelsConflictIn("area", "length", e)).toBe(false)
-			expect(channelsConflictIn("length", "area", e)).toBe(false)
-		}
+	// Length is the layers' measure there and the points along each line are
+	// still points: Size sizes them and Shape picks their glyph. (Shape used
+	// to keep conflicting, because an area's points were circles only.)
+	const withLength = (a: EncodingChannel, b: EncodingChannel): boolean =>
+		(a === "length" && (b === "area" || b === "shape")) ||
+		(b === "length" && (a === "area" || a === "shape"))
+
+	it("Size and Shape coexist with Length on an area chart, in both directions", () => {
+		for (const e of [AREA_X, AREA_Y])
+			for (const other of ["area", "shape"] as const) {
+				expect(channelsConflictIn(other, "length", e), other).toBe(false)
+				expect(channelsConflictIn("length", other, e), other).toBe(false)
+			}
 	})
 
 	it("they still conflict everywhere else", () => {
-		for (const e of [SCATTER, LINE, enc({ x: "year", length: "sales" })]) {
-			expect(channelsConflictIn("area", "length", e)).toBe(true)
-			expect(channelsConflictIn("length", "area", e)).toBe(true)
-		}
+		for (const e of [SCATTER, LINE, enc({ x: "year", length: "sales" })])
+			for (const other of ["area", "shape"] as const) {
+				expect(channelsConflictIn(other, "length", e), other).toBe(true)
+				expect(channelsConflictIn("length", other, e), other).toBe(true)
+			}
 	})
 
 	it("no other pair is relaxed on an area chart", () => {
 		for (const a of ALL_CHANNEL_IDS)
 			for (const b of ALL_CHANNEL_IDS) {
-				if ((a === "area" && b === "length") || (a === "length" && b === "area")) continue
+				if (withLength(a, b)) continue
 				expect(channelsConflictIn(a, b, AREA_X), `${a}/${b}`).toBe(channelsConflict(a, b))
 			}
 	})
@@ -212,10 +221,6 @@ describe("channelsConflictIn (Area and Length on an area chart)", () => {
 			expect(channelsConflictIn(other, "length", COMBO, {}), other).toBe(true)
 			expect(channelsConflictIn(other, "length", COMBO), other).toBe(true)
 		}
-	})
-
-	it("a Shape variable still conflicts with Length on an area chart, whose points are circles", () => {
-		for (const e of [AREA_X, AREA_Y]) expect(channelsConflictIn("shape", "length", e)).toBe(true)
 	})
 
 	it("the combo shape is the combo detection, whichever way the bars run", () => {

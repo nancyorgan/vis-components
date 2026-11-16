@@ -21,6 +21,7 @@ import {
 	type PartMenu,
 	type PartsContext,
 } from "./markParts"
+import { patternMenu } from "./patternMenu"
 import { LIGHT_THEME_BASE } from "./systemThemes"
 import { explainChannelCustomization } from "./themeConfig"
 
@@ -240,8 +241,8 @@ describe("mark parts — what the chart draws", () => {
 			expect(drawn(id), id).toMatchObject({ marks: true, points: false, glyphs: false, outline: true })
 	})
 
-	it("an area chart draws its line and the points along it, which are not glyphs", () => {
-		expect(drawn("area-stacked")).toMatchObject({ line: true, points: true, glyphs: false })
+	it("an area chart draws its line and the points along it, which are glyphs like a line chart's", () => {
+		expect(drawn("area-stacked")).toMatchObject({ line: true, points: true, glyphs: true })
 	})
 
 	it("a combo draws points whether or not a line joins them", () => {
@@ -592,5 +593,191 @@ describe("mark parts — every menu lists the same parts", () => {
 					expect(offered[menu], `${c.id} · ${menu}`).not.toContain(exception.part)
 			}
 		}
+	})
+})
+
+describe("mark parts — stems are styled wherever they are drawn", () => {
+	const withStems = (ctx: PartsContext): PartsContext => ({
+		...ctx,
+		configs: { ...ctx.configs, connection: { ...ctx.configs.connection, axisStem: "x-axis" } as never },
+	})
+	const menusListing = (ctx: PartsContext): string[] =>
+		Object.entries(partIdsOffered(ctx))
+			.filter(([, parts]) => parts.includes("stem"))
+			.map(([menu]) => menu)
+	const ALL_FOUR = ["color", "opacity", "saturation", "brightness"]
+	const sizeListsStem = (ctx: PartsContext): boolean =>
+		sizeSections(ctx).some((s) => s.kind === "stem")
+
+	it("a scatter, a line chart and a bar + line combo list the Stem in all four menus", () => {
+		for (const id of ["scatter-plain", "line", "combo-line", "combo-points", "combo-horizontal"]) {
+			const ctx = withStems(contextFor(chart(id)))
+			expect(menusListing(ctx), id).toEqual(ALL_FOUR)
+			expect(sizeListsStem(ctx), id).toBe(true)
+		}
+	})
+
+	it("no menu lists it while stems are switched off", () => {
+		for (const id of ["scatter-plain", "combo-line"]) {
+			expect(menusListing(contextFor(chart(id))), id).toEqual([])
+			expect(sizeListsStem(contextFor(chart(id))), id).toBe(false)
+		}
+	})
+
+	it("a chart that cannot draw stems lists none, whatever a leftover switch says", () => {
+		// Bars and areas have no points to run a stem from; a pure density
+		// curve draws no marks at all.
+		for (const id of ["bars-grouped", "area-stacked", "radar-polygon", "density"]) {
+			const ctx = withStems(contextFor(chart(id)))
+			expect(menusListing(ctx), id).toEqual([])
+			expect(sizeListsStem(ctx), id).toBe(false)
+		}
+	})
+
+	it("the four menus and Size agree about the Stem on every chart", () => {
+		for (const c of SWEEP_CHARTS) {
+			const ctx = withStems(contextFor(c))
+			expect(menusListing(ctx), c.id).toEqual(sizeListsStem(ctx) ? ALL_FOUR : [])
+		}
+	})
+})
+
+describe("mark parts — the Pattern menu", () => {
+	/** The menu for a sweep chart: how it reads Pattern, and each section as
+	 *  "Title" (under a header) or "(Title)" (listed bare). */
+	const menu = (id: string, patternMapped = false, tweak?: (ctx: PartsContext) => PartsContext) => {
+		const base = contextFor(chart(id))
+		const { mode, sections } = patternMenu(tweak ? tweak(base) : base, patternMapped)
+		return { mode, sections: sections.map((s) => (s.titled ? s.title : `(${s.title})`)) }
+	}
+	const withConfigs =
+		(patch: (configs: PartsContext["configs"]) => PartsContext["configs"]) =>
+		(ctx: PartsContext): PartsContext => ({ ...ctx, configs: patch(ctx.configs) })
+	const noPoints = withConfigs((c) => ({
+		...c,
+		connection: { ...c.connection, pointSampling: "none" } as never,
+	}))
+
+	it("marks with no line: Pattern is their fill, listed bare", () => {
+		expect(menu("bars-grouped")).toEqual({ mode: "fill", sections: ["(Bar fill)"] })
+		expect(menu("pie-single")).toEqual({ mode: "fill", sections: ["(Slice fill)"] })
+		expect(menu("scatter-plain")).toEqual({ mode: "fill", sections: ["(Point fill)"] })
+	})
+
+	it("a map's and a tree's Connection is a key, not a line: fill only", () => {
+		for (const id of ["choropleth", "bubble-map", "treemap", "sunburst", "sankey", "chord"])
+			expect(menu(id).mode, id).toBe("fill")
+	})
+
+	it("a line chart: the Line's dash, then the points' fill", () => {
+		expect(menu("line")).toEqual({ mode: "compound", sections: ["Line", "Point fill"] })
+		expect(menu("line", true)).toEqual({ mode: "compound", sections: ["Line", "Point fill"] })
+	})
+
+	it("a combo: the Line's dash and the bars' fill", () => {
+		expect(menu("combo-line")).toEqual({ mode: "compound", sections: ["Bar fill", "Line"] })
+	})
+
+	it("an area chart: the Line, the Area fill while it is filled, and the points on it", () => {
+		expect(menu("area-stacked")).toEqual({
+			mode: "compound",
+			sections: ["Line", "Area fill", "Point fill"],
+		})
+		expect(menu("area-unfilled")).toEqual({ mode: "compound", sections: ["Line", "Point fill"] })
+	})
+
+	it("a radar: the Line, the Polygon fill once filled, the points and the ring around them", () => {
+		expect(menu("radar-polygon")).toEqual({
+			mode: "compound",
+			sections: ["Line", "Point fill", "Point outline"],
+		})
+		expect(menu("radar-filled")).toEqual({
+			mode: "compound",
+			sections: ["Line", "Polygon fill", "Point fill", "Point outline"],
+		})
+	})
+
+	it("with the points hidden only the dash and the bodies are left", () => {
+		expect(menu("line", false, noPoints)).toEqual({ mode: "dashOnly", sections: ["Line"] })
+		expect(menu("area-stacked", false, noPoints)).toEqual({
+			mode: "dashOnly",
+			sections: ["Line", "Area fill"],
+		})
+		expect(menu("radar-filled", false, noPoints)).toEqual({
+			mode: "dashOnly",
+			sections: ["Line", "Polygon fill"],
+		})
+		// One kind of control once a variable is mapped: a dash per category,
+		// listed bare.
+		expect(menu("line", true, noPoints)).toEqual({ mode: "dashOnly", sections: ["(Line)"] })
+	})
+
+	it("beside a violin / box, the points' own picks get a header too", () => {
+		expect(menu("violin")).toEqual({
+			mode: "fill",
+			sections: ["Point fill", "Violin / box fill"],
+		})
+	})
+
+	const withRegression = withConfigs((c) => ({
+		...c,
+		x: { ...c.x, regression: { ...c.x?.regression, enabled: true } } as never,
+	}))
+	const withBox = withConfigs((c) => ({
+		...c,
+		y: { ...c.y, distributionOverlay: { ...c.y?.distributionOverlay, showBoxPlot: true } } as never,
+	}))
+
+	it("the regression line's dash is listed where the other menus list the line: before the violin / box", () => {
+		expect(menu("scatter-regression").sections).toContain("Regression line")
+		expect(menu("violin", false, withRegression).sections).toEqual([
+			"Point fill",
+			"Regression line",
+			"Violin / box fill",
+		])
+	})
+
+	it("the violin / box is listed exactly when the chart draws one", () => {
+		// A switch left on from when the chart was a scatter draws nothing on
+		// a bar chart: no section, and the bars' picks stay bare.
+		expect(menu("bars-grouped", false, withBox)).toEqual({
+			mode: "fill",
+			sections: ["(Bar fill)"],
+		})
+		expect(menu("line", false, withBox).sections).toContain("Violin / box fill")
+	})
+
+	it("lists the violin / box and the regression line on the charts Color lists them on", () => {
+		const titled = (sections: Array<{ kind: string; def?: { label: string }; title?: string }>) =>
+			sections.map((s) => (s.kind === "slot" ? s.def?.label : s.title))
+		for (const c of SWEEP_CHARTS)
+			for (const tweak of [(ctx: PartsContext) => ctx, withBox, withRegression]) {
+				const ctx = tweak(contextFor(c))
+				const color = titled(colorSections(ctx))
+				const pattern = patternMenu(ctx, false).sections.map((s) => s.title)
+				for (const title of ["Violin / box fill", "Regression line"])
+					expect(pattern.includes(title), `${c.id}: ${title}`).toBe(color.includes(title))
+			}
+	})
+
+	it("thin line segments: Pattern is their dash", () => {
+		const thin = withConfigs((c) => ({
+			...c,
+			pattern: { ...c.pattern, segmentPattern: "dash" } as never,
+		}))
+		expect(menu("vector-field", false, thin)).toEqual({
+			mode: "segmentDash",
+			sections: ["(Segment)"],
+		})
+		// A violin / box on such a chart is listed with or without a Pattern
+		// variable.
+		for (const mapped of [false, true])
+			expect(menu("vector-field", mapped, (ctx) => withBox(thin(ctx))), String(mapped)).toEqual({
+				mode: "segmentDash",
+				sections: ["(Segment)", "Violin / box fill"],
+			})
+		expect(patternMenu(thin(contextFor(chart("vector-field"))), false).segments?.mode).toBe("dash")
+		// With a line drawn the line owns the dash, and segments are not asked.
+		expect(patternMenu(contextFor(chart("line")), false).segments).toBeNull()
 	})
 })

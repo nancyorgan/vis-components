@@ -5,12 +5,12 @@ exports[`layout invariants — untouched layouts > default layouts are unchanged
   "2×3 facets, own axes": {
     "canvas": "900×600",
     "panels": [
-      "0-0 x96 y81 w240 h196.2",
-      "0-1 x366 y81 w240 h196.2",
-      "0-2 x636 y81 w240 h196.2",
-      "1-0 x96 y307.2 w240 h196.2",
-      "1-1 x366 y307.2 w240 h196.2",
-      "1-2 x636 y307.2 w240 h196.2",
+      "0-0 x96 y81 w240 h173",
+      "0-1 x366 y81 w240 h173",
+      "0-2 x636 y81 w240 h173",
+      "1-0 x96 y330.4 w240 h173",
+      "1-1 x366 y330.4 w240 h173",
+      "1-2 x636 y330.4 w240 h173",
     ],
     "scroll": false,
     "subtitle": null,

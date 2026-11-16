@@ -184,16 +184,15 @@ describe("Pattern panel — Rotate (no pattern variable)", () => {
 		expect(q.getByLabelText("Scale")).toBeTruthy()
 	})
 
-	it("writes pattern.defaultRotation, and the bottom Reset clears it", async () => {
+	it("writes pattern.defaultRotation, and the reset beside it clears it", async () => {
 		const store = seed(FILL, { defaultPattern: 0 })
 		const q = await mount()
 		type(q.getByLabelText("Rotate"), "60")
 		expect(readSavedConfigs(store).pattern?.defaultRotation).toBe(60)
-		const panelReset = q
-			.getAllByText("reset")
-			.find((el) => el.className.includes("underline"))
-		expect(panelReset).toBeTruthy()
-		fireEvent.click(panelReset!)
+		// Every setting carries its own reset, beside it; there is no
+		// panel-wide link under everything any more.
+		expect(q.getAllByText("reset").some((el) => el.className.includes("underline"))).toBe(false)
+		fireEvent.click(q.getByLabelText("Reset rotate"))
 		expect(readSavedConfigs(store).pattern?.defaultRotation ?? null).toBeNull()
 	})
 })

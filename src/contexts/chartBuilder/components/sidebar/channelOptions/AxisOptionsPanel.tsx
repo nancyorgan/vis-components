@@ -545,6 +545,7 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 						{isCategoricalSide && (
 							<JitterControl
 								jitterAmount={config.jitterAmount ?? 0}
+								defaultAmount={themeAxis.jitterAmount ?? 0}
 								overlappingOnly={config.jitterOverlappingOnly === true}
 								overlappingOnlyChanged={ch.jitterOverlappingOnly}
 								onChange={(next) => update(next)}
@@ -558,6 +559,9 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 				<Section title="Regression" changed={sectionChanged.Regression}>
 					<RegressionControls
 						regression={regression}
+						defaultCiLevel={
+							(themeAxis.regression ?? DEFAULT_REGRESSION_CONFIG).ciLevel
+						}
 						hueField={encodings.hue?.field ?? null}
 						fieldNames={(dataset?.fields ?? []).map((f) => f.name)}
 						onChange={(next) => update({ regression: { ...regression, ...next } })}
@@ -1846,11 +1850,14 @@ const TickLabelAlignmentControl = ({
  * position with another point. */
 const JitterControl = ({
 	jitterAmount,
+	defaultAmount,
 	overlappingOnly,
 	overlappingOnlyChanged,
 	onChange,
 }: {
 	jitterAmount: number
+	/** The amount the reset goes back to (the theme's). */
+	defaultAmount: number
 	overlappingOnly: boolean
 	overlappingOnlyChanged?: boolean
 	onChange: (next: {
@@ -1866,7 +1873,10 @@ const JitterControl = ({
 			max={1}
 			step={0.05}
 			percent
+			changed={jitterAmount !== defaultAmount}
 			onChange={(next) => onChange({ jitterAmount: next })}
+			onReset={() => onChange({ jitterAmount: defaultAmount })}
+			resetLabel="Reset jitter"
 		/>
 		{jitterAmount > 0 && (
 			<Checkbox
@@ -2151,7 +2161,10 @@ const DistributionTypeControls = ({
 							max={3}
 							step={0.25}
 							suffix="×"
+							changed={(overlay.boxWidthScale ?? 1) !== 1}
 							onChange={(boxWidthScale) => setOverlay({ boxWidthScale })}
+							onReset={() => setOverlay({ boxWidthScale: 1 })}
+							resetLabel={`Reset ${boxSizeLabel.toLowerCase()}`}
 						/>
 					)}
 					<p className="vc-help">
@@ -2189,11 +2202,14 @@ const DistributionTypeControls = ({
  * subheader. */
 const RegressionControls = ({
 	regression,
+	defaultCiLevel,
 	hueField,
 	fieldNames,
 	onChange,
 }: {
 	regression: RegressionConfig
+	/** The confidence level its reset goes back to (the theme's). */
+	defaultCiLevel: number
 	hueField: string | null
 	fieldNames: string[]
 	onChange: (next: Partial<RegressionConfig>) => void
@@ -2289,16 +2305,25 @@ const RegressionControls = ({
 							onChange={(showCi) => onChange({ showCi })}
 						/>
 						{regression.showCi && (
-							<NumberInput
-								label="Level %"
-								labelClassName={LABEL_COL}
-								value={regression.ciLevel}
-								min={50}
-								max={99.9}
-								step={1}
-								clamp
-								onChange={(ciLevel) => onChange({ ciLevel })}
-							/>
+							<div className="flex items-center gap-2">
+								<NumberInput
+									label="Level %"
+									labelClassName={LABEL_COL}
+									changed={regression.ciLevel !== defaultCiLevel}
+									value={regression.ciLevel}
+									min={50}
+									max={99.9}
+									step={1}
+									clamp
+									onChange={(ciLevel) => onChange({ ciLevel })}
+								/>
+								{regression.ciLevel !== defaultCiLevel && (
+									<ResetLink
+										ariaLabel="Reset confidence level"
+										onClick={() => onChange({ ciLevel: defaultCiLevel })}
+									/>
+								)}
+							</div>
 						)}
 					</div>
 					<p className="vc-help">

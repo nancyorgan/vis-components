@@ -1511,6 +1511,21 @@ export const currentRenderedFigureSlackAtom = atom<{
 	y: number
 }>({ x: 0, y: 0 })
 
+/** Where the solved plot sits inside its canvas, published by PlotCanvas
+ *  after each layout pass: the distance (px) from each canvas edge to the
+ *  plot — the union of every panel's plot rect, so a faceted grid counts as
+ *  one. The legend aligns to this (its top edge to the plot's, its inside
+ *  coordinates over the plot) instead of assuming the base margins, which
+ *  stop being true the moment a tick label, a title or a facet strip grows
+ *  one. `null` = no chart solved (the legend on its own in a split embed,
+ *  an empty state): the legend then falls back to the base margins. */
+export const currentRenderedPlotInsetsAtom = atom<{
+	top: number
+	right: number
+	bottom: number
+	left: number
+} | null>(null)
+
 /** The smallest chart area the chart still fits, published by PlotCanvas
  *  after each layout pass (`FacetLayoutSpec.fitFloor`): its title bands,
  *  base margins and panel gaps with everything soft given up. ChartCanvas

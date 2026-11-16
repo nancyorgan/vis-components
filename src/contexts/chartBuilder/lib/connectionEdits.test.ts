@@ -4,12 +4,13 @@ import type { ChannelConfigs } from "./channelConfig"
 import {
 	followAreaPaletteDefaults,
 	switchConnectionFill,
+	withAreaFillFollowingColor,
 	withAreaPaletteDefaults,
 	withoutAreaPaletteDefaults,
 } from "./connectionEdits"
 import { LIGHT_THEME_BASE } from "./systemThemes"
 import { configsFromTheme, explainChannelCustomization } from "./themeConfig"
-import { emptyEncodings, type Theme } from "./types"
+import { emptyEncodings, type FieldType, type Theme } from "./types"
 
 const palettes = (prefix: string) => [
 	{ id: `${prefix}-main`, name: "Main", colors: ["#110000", "#220000"] },
@@ -85,5 +86,52 @@ describe("filled-area palette defaults", () => {
 		// A hand-picked fill palette is not followed.
 		const picked = { ...prev, categoricalPaletteId: "a-other" }
 		expect(followAreaPaletteDefaults(picked, picked, next, THEME)).toBe(picked)
+	})
+})
+
+describe("a Color variable picked on a chart that is already a filled area", () => {
+	// The palettes used to be set at the moment of filling alone, so a
+	// single-series area given a Color variable afterwards kept the regular
+	// palette for its bodies.
+	const AREA = {
+		...emptyEncodings(),
+		x: { field: "month" },
+		length: { field: "sales" },
+		connection: { field: "region" },
+		hue: { field: "region" },
+	}
+	const typeOf = (name: string): FieldType => (name === "sales" ? "quantitative" : "categorical")
+	const filled = (): ChannelConfigs => ({
+		...fresh(),
+		connection: { ...fresh().connection!, fill: "area" },
+	})
+
+	it("puts the body on the fill palette and the line on the categorical one", () => {
+		const configs = withAreaFillFollowingColor(filled(), AREA, "categorical", THEME, typeOf)
+		expect(configs.categoricalPaletteId).toBe("a-fill")
+		expect(configs.connection?.linePaletteId).toBe("a-main")
+	})
+
+	it("leaves a palette the user picked, and a non-categorical Color variable", () => {
+		const picked = { ...filled(), categoricalPaletteId: "a-other", categoricalPalette: ["#000011", "#000022"] }
+		expect(withAreaFillFollowingColor(picked, AREA, "categorical", THEME, typeOf)).toBe(picked)
+		const cfg = filled()
+		expect(withAreaFillFollowingColor(cfg, AREA, "quantitative", THEME, typeOf)).toBe(cfg)
+	})
+
+	it("does nothing on a chart that is not an area, even with a stored area fill", () => {
+		// The stored fill outlives a change of chart type: bars must not take
+		// the pale fill palette because the chart was once an area.
+		const BARS = { ...emptyEncodings(), x: { field: "month" }, length: { field: "sales" }, hue: { field: "region" } }
+		const cfg = filled()
+		expect(withAreaFillFollowingColor(cfg, BARS, "categorical", THEME, typeOf)).toBe(cfg)
+	})
+
+	it("does nothing while the area is unfilled, or the theme has no fill palette", () => {
+		const unfilled = fresh()
+		expect(withAreaFillFollowingColor(unfilled, AREA, "categorical", THEME, typeOf)).toBe(unfilled)
+		const plain = themed("b", false)
+		const cfg: ChannelConfigs = { ...configsFromTheme(plain), connection: { ...configsFromTheme(plain).connection!, fill: "area" } }
+		expect(withAreaFillFollowingColor(cfg, AREA, "categorical", plain, typeOf)).toBe(cfg)
 	})
 })

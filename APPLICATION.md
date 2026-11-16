@@ -1769,7 +1769,10 @@ map polygons, so neither could be set without the other.
 **The overlays are parts too.** The Stem, the Regression line and its
 Confidence interval, the Density curve's fill and outline, and the Rug
 are listed in Color, Opacity, Saturation and Brightness alike, each only
-while it is drawn. Saturation and Brightness shade whatever color the
+while it is drawn. The Stem ("Connect points to axis") is listed
+wherever stems can be drawn — a scatter or line chart, and the points of
+a bar + line combo — exactly where Size lists its thickness; a chart that
+cannot draw stems lists none, whatever a leftover switch says. Saturation and Brightness shade whatever color the
 overlay resolved to (its own, or the one *Auto* follows), through the
 same resolver the marks use (`slotModulationResolver`).
 
@@ -1957,7 +1960,9 @@ palette section branches on field type:
   restores the stash instead of re-seeding the theme default.
 
 **Color slots** — every colorable mark part gets its own subheader in
-the Color panel, driven by a registry (`lib/colorSlots.ts`). Fill and
+the Color panel, driven by a registry (`lib/colorSlots.ts` — the Color
+menu's view of the one table of per-part targets, `lib/partTargets.ts`;
+see "One table of targets" below). Fill and
 Outline come first (they keep their own storage as the `hue` /
 `outlineHue` channels and are rendered via adapters); the remaining
 slots — Line, Rug, Violin fill/outline, Density-curve fill/stroke,
@@ -2020,6 +2025,42 @@ the theme default) and the theme sets a fill palette, the violin / box
 fill and density-curve fill take the fill palette's entry at the SAME
 position, the analogous pale tint. Otherwise they keep the theme's
 distribution fill color. The outline never changes here.
+
+**One rule for Auto: a body under a line or under points takes the
+theme's fill palette; a line, an outline or a point takes Color's.** The
+same derivation gives two more bodies their Auto, and these two keep an
+"Auto" entry in the list (shown while untouched, with a line saying what
+it follows) because they used to match their marks exactly:
+
+- **Polygon fill** (a filled radar): each polygon takes the fill-palette
+  color of its series — by the Color variable, read off the polygon's
+  first row, or with no Color variable the pale twin of the marks' single
+  color. The polygon's outline (the **Line**) on Auto stays in Color's
+  palette: the series' point color. Once the polygon is given a color of
+  its own the outline follows that, as before.
+- **Confidence interval** (a regression band): when the fits are split by
+  the Color variable, each band takes its group's fill-palette color. A
+  pooled band keeps the theme's band color.
+- **Area fill with nothing on Color** (one area, or several split by
+  another variable): left on the theme's color, the body takes the
+  fill-palette twin of that color, and the Line and the points on it keep
+  the color itself — the look areas colored by a variable already have
+  (`areaBodyAutoFill` / `withAreaBodyDefault`, applied to the render
+  configs only). The Color menu shows what is drawn: the pale color as
+  the **Area fill**, the series color as the **Line**. A fill the user
+  picks is theirs: it is stored, drawn as picked, and the Line follows it
+  as before; its reset goes back to the theme's color, and so to the
+  pale body. It applies where the theme's color has a twin in the
+  theme's fill palette; an unfilled area (drawn as lines) has no body
+  and keeps the series color.
+
+The first two apply only where the fill palette really is the marks' pale twin:
+the theme has a fill palette AND Color still draws in the theme's default
+categorical palette with no category recolored
+(`colorAtThemePalette`). With a palette picked for Color, a recolored
+category, an ordinal or continuous Color variable, or a theme with no
+fill palette, they match their marks as before. The built-in System
+themes set no fill palette, so charts in them are unchanged.
 
 The default is derived at render time (`lib/colorSlotDefaults.ts`,
 `withColorSlotDefaults`), never stored, so it keeps tracking the Color
@@ -2116,15 +2157,30 @@ the panel, for the single-variable violin) — so "Vary by" works for
 any field that's constant within the category, such as a facet field,
 not just the category-axis field. A field that varies within the
 category resolves from that first row.
-The Opacity panel mirrors this structure with its own registry
-(`lib/opacitySlots.ts`): a universal Outline (border) slot plus
-per-part slots matching the color registry's gates; Fill opacity
+The Opacity panel has the same structure (`lib/opacitySlots.ts`): a
+universal Outline (border) slot plus the per-part slots; Fill opacity
 reuses the overall `opacity` encoding. The Saturation and Brightness
-panels mirror it too (`lib/modulationSlots.ts`, scatter only — the
-one renderer that reads the parts): **Outline**, **Line** (with a
-connection) and, while a violin / box overlay is on, **Violin / box
-fill** and **Violin / box outline**; the Fill subheader reuses the
-overall encoding. A part's modulation is absolute (its slot alone,
+panels have it too (`lib/modulationSlots.ts`): **Outline**, **Line**
+(with a connection), the overlays and second parts each chart draws; the
+Fill subheader reuses the overall encoding.
+
+**One table of targets (2026-11-15).** Those three registries are views
+of one table, `PART_TARGETS` (`lib/partTargets.ts`). Each per-part
+target is written there once: its name, the part it styles, when the
+chart draws that part, and what each menu that keeps it needs (Color:
+the theme color it starts from and whether it has an *Auto*; Opacity:
+the level it starts at). So a part cannot be named differently, or
+offered on different charts, from one menu to the next — they used to
+be three hand-kept lists that mirrored each other by convention. "Does
+this chart draw it?" is asked of what the mode declares (its `canvas`
+traits: a line that joins marks, layers, points over bars, a
+distribution display, bubbles or dots over regions, a flow) and of the
+setting that switches the part on — never of a list of chart types.
+`lib/partTargets.test.ts` writes the answer out by chart type, so a
+change to a trait, or a new chart type, shows up there. The one place
+the menus differ is storage, and the table says so: an area chart's own
+outline is its Line, which Opacity keeps under `border` and Saturation /
+Brightness under `line`. A part's modulation is absolute (its slot alone,
 independent of the Fill); the overlay body's fill modulates BEFORE a
 body pattern tiles over it, and the pattern ink still pairs on the
 pre-modulation fill, exactly as a mark does. A filled radar (Connection
@@ -2147,7 +2203,28 @@ bar + line combo keeps the plain names — there the Fill is the bars'
 Which subsections each of those four menus shows for a chart, their
 titles and their order are decided in one place, `lib/markParts.ts`
 (`colorSections` / `opacitySections` / `modulationSections`); the
-panels render what it returns. Two tests keep the answer honest:
+panels render what it returns. The Pattern menu's are decided the same
+way, by `patternMenu` (`lib/patternMenu.ts`), in the same order as the
+other menus — the regression line's dash sits before the violin / box,
+with its own reset after its swatches — and by the same "is it
+drawn?" answers: **Violin / box fill** is listed exactly when the chart
+draws a violin or a box, with or without a Pattern variable. The
+function says how the menu reads Pattern
+for the chart (a fill, a dash, or both) and its sections in order. The
+matrix test checks, for one chart of every type, that the headers the
+Pattern panel shows are exactly the list that function returns.
+
+The renderers share the rules for the two parts most charts draw.
+`lib/lineStyle.ts` resolves the Line — cap, smoothing, the dash and its
+precedence (a Pattern category's custom dash, the line's own stored
+dash, the category's swatch, the default), "Blank", and the gap color —
+for a line chart's lines, an area's edges and a radar's outlines.
+`lib/pointStyle.ts` resolves a point's glyph and its fill and outline
+color (a Shape category's own, a matching outline rule, the Outline
+variable, the single outline color; shaded by the Point outline's
+Saturation / Brightness) for scatter and line charts, combos, radar,
+and the glyph of an area chart's points. Each renderer used to carry
+its own copy of those lines. Two tests keep the answer honest:
 `markParts.matrix.smoke.test.tsx` snapshots what every mark-styling
 panel offers for one chart of every type, and `lib/markParts.test.ts`
 records, per chart, the parts one menu lists and another does not — a
@@ -2176,18 +2253,29 @@ to Size sizes them through the Size panel's scale (Scale by, Min /
 Max), with the usual size legend: each point reads the rows aggregated
 into it (one layer at one category) — their total for a numeric
 variable, as the measure is totalled, else the first row's level — and
-a point with no rows keeps the default size. Size and Length therefore
-do NOT conflict on an area chart (`channelsConflictIn`, used by the
-shelf and the chart spec alike): the Size row and its panel stay live
-beside Length, and mapping either leaves the other mapped. The rule is
-about what Length MEANS: it shadows Size and Shape only where it turns
-the marks into segments (a scatter). Where it is a measure and points
-are still drawn the conflict lifts — Size on an area chart, Size and
-Shape on a bar + marks combo — and a shadowed row whose OPTIONS still
-style something stays live even where mapping a variable would
-conflict: the Shape row keeps its outline thickness wherever marks have
-an outline (a bar's border, the ring of an area chart's points), and
-the Size row its point size wherever points are drawn.
+a point with no rows keeps the default size.
+
+**The points are glyphs, like a line chart's.** They take the Shape row's
+**Default shape** (custom glyphs included), a **Shape variable** — read
+off the rows aggregated into the point, like its size — and the Angle
+row's default angle, which turns them. (They used to be circles whatever
+was picked, with the Shape row greyed out, though the same points on a
+line chart took all three.) An untouched point is still the one
+`<circle>` it was; any other glyph draws through `GlyphMark` with the
+same fill, outline, opacity and size. The area modes declare
+`canvas.shapeRole: "glyph"`, so the legend shows a Shape section for a
+mapped Shape variable and the Default shape reaches the legend's swatches.
+
+Size, Shape and Length therefore do NOT conflict on an area chart
+(`channelsConflictIn`, used by the shelf and the chart spec alike): the
+Size and Shape rows and their panels stay live beside Length, and mapping
+one leaves the others mapped. The rule is about what Length MEANS: it
+shadows Size and Shape only where it turns the marks into segments (a
+scatter). Where it is a measure and points are still drawn the conflict
+lifts — on an area chart and on a bar + marks combo — and a shadowed row
+whose OPTIONS still style something stays live even where mapping a
+variable would conflict: the Size row wherever a point or any stroke is
+drawn, the Shape row wherever glyphs are.
 
 **Area palette defaults.** When the theme designates a fill palette
 (Settings → Themes → Palettes; distinct from its default categorical
@@ -2201,7 +2289,12 @@ returns picks still at those defaults to the regular ones
 (`withoutAreaPaletteDefaults`), and a theme switch follows the new
 theme's pair (`followAreaPaletteDefaults`). They count as the area's
 untouched state for the Color dot. Charts already saved as filled
-areas are not changed.
+areas are not changed. A Color variable picked on the shelf AFTER the
+chart became a filled area gets the same pair at that moment
+(`withAreaFillFollowingColor`) — it used to keep the regular palette for
+its bodies, because the palettes were set when the area was filled and
+only then. A single-series area (no Color variable) fills in its one
+color, as before.
 
 ### 4.2 Pattern panel
 Behavior depends on chart context:
@@ -2218,7 +2311,7 @@ Behavior depends on chart context:
   owns. A `backgroundColor` an older save still carries (or the
   theme field that used to seed it) is inert everywhere — renderers,
   legends, chips — so such visuals follow their Color-menu fill like
-  any other; the panel's reset also clears it.
+  any other.
   A **Scale** box under each Color picker zooms that category's tile
   (×0–×4 by 0.1; blank = ×1). Dots and stripes swell by the full
   factor while their spacing grows a little less (tile side ∝
@@ -2759,7 +2852,11 @@ the same `FacetConfig` either way. Controls:
   touch**; negative values slide them over each other (ridgeline plot
   territory). Tick labels, axis margins and panel titles that sit between
   two panels live inside this distance, so a gap narrower than them lets
-  them overlap the neighbour. Panels expand or contract to keep the total
+  them overlap the neighbour — with one exception: where one panel's tick
+  labels and the next panel's title would land on each other (panels
+  with their own x axes), the gap is widened until both fit. Text is
+  never drawn over text unless the gap is negative (LAYOUT.md §10).
+  Panels expand or contract to keep the total
   layout area constant down to 0; below 0 they keep their touching size
   and only overlap. (Before 2026-10-20 the gap ran between whole cells,
   plot plus axis chrome; saved visuals and imported bundles move onto the
@@ -2882,6 +2979,30 @@ and no control can clear it, so it does not light the dot
 (`offeredTargets` in `lib/markParts.ts`, the same list the panels
 render from). It lights again if the chart goes back to a type that
 shows that part.
+
+**Reset links.** A changed setting carries a small **reset** link that
+puts it back to its default, and the link sits **to the right of the
+setting, on the same line** — never on a line of its own under it, and
+never one link at the bottom of a panel for everything above. It shows
+only while the setting differs from its default.
+
+- A number box, a color, a slider: the link ends the row (`Slider` takes
+  `onReset`; a number or color sits in a row with its `ResetLink`). The
+  two ends of a range (Min, Max) are two settings, each with its own.
+- A row of swatches (a shape, a pattern, a dash): the link follows the
+  last swatch, on the swatches' line.
+- A per-category block whose swatches fill the lines under the
+  category's name (Pattern, Shape): the link is on the name's line, at
+  its right end, and resets everything picked for that category.
+- A hand-built gradient is one setting — its stops come and go, so no
+  stop has a default of its own — and its link sits on the Palette row.
+- Switches, checkboxes, choice buttons and dropdowns have no link: using
+  them again puts them back.
+
+The browser audit `e2e/sweep/resets.sweep.ts` checks this where it can
+be seen: on one chart of every type it changes every control in every
+options panel and sidebar section, measures where each reset link sits,
+and fails if one is on a line of its own.
 
 ---
 
@@ -4475,6 +4596,15 @@ inside itself. Several legend sections stacked in one column on top of a
 chart can be taller than the whole page; that used to push the plot off
 the bottom and raise a scrollbar. A legend that fits is untouched.
 ("Legend columns" below is the way to make a tall legend short.)
+
+**The legend lines up with the plot as it was laid out.** A side legend's
+top sits on the plot's top edge, a top legend's right edge on the plot's
+right edge, a bottom legend under the plot's middle, and an inside
+legend's X / Y are fractions of the plot — the plot the layout solver
+actually produced (`currentRenderedPlotInsetsAtom`), not the base
+margins. So it stays aligned when long tick labels, a nudged title or a
+facet strip move the plot (LAYOUT.md §18). With no chart beside it (a
+split embed's legend) it falls back to the base margins.
 
 **Legend width** (its own group between Position and Orientation)
 fixes the legend box's width. The number input takes px, in, or cm

@@ -696,6 +696,16 @@ One helper does all three (`keepSpanInView(pos, before, after, size)`):
 longer than the room centers on the canvas — which is where the clamp
 lands as the room closes, so nothing jumps on the way.
 
+Every clamp above — across and along — is one primitive since
+2026-11-15: `keepSpanWithin(pos, before, after, lo, hi, tooLong)`, "keep
+the span `[pos − before, pos + after]` inside `[lo, hi]`".
+`clampBaselineY`, `clampRotatedTitleX`, `clampHorizontalYTitleX`,
+`clampHorizontalYTitleLeftX`, `clampTitleAnchorX` and `keepSpanInView`
+are one-line views of it that differ only in what they pass: the text's
+extent either side of the anchor, the bounds, and which end wins when
+the span is longer than the room (a title's start, its end, or its
+middle). Nothing moved: each keeps the numbers it had.
+
 It needs the title's measured width (`SharedTitleInput.textWidth`), which
 `buildSolverInput` now measures for the axis titles as it already did for
 the chart title and subtitle. Unmeasured (0 — no canvas API) the anchor is
@@ -795,6 +805,38 @@ the grid's outer edges (`edgeX` / `edgeY`): span = Σ inner + edge chrome
 + (n−1) × gap. (Until 2026-10-20 the gap ran cell edge to cell edge, so 0
 still left the chrome between plots; visuals v8 shifted stored gaps by
 +30 and stamps `facet.gapsFrom: "plot"`.)
+
+**Two neighbours' text never shares space (2026-11-15).** With the chrome
+inside the gap, a gap narrower than it overlaps it, and where BOTH plots
+put text between them that drew text over text: with each panel drawing
+its own x axis ("Share X axis: None", or an uneven wrap), the next row's
+panel titles landed on this row's tick labels at the default gap of 60
+(tick labels ≈ 40 px, title band + pad ≈ 44 px). So the plot-to-plot
+distance at a boundary is the user's gap, widened to the two text bands
+when both are there:
+
+```
+gapsY[r] = gapY                                  if gapY < 0, or either side has no text
+         = max(gapY, text.bottom(r) + text.top(r+1))   otherwise
+```
+
+and the same across columns. "Text" is a margin that holds tick labels
+(not the 4 px reserve of a shared interior axis) or a facet title band,
+counted in full (`cellMargins` → `text`). `cellGaps`, the panel sizes
+(`spanGapsX` / `spanGapsY`) and the budget of §2 all use the widened
+distance, so the room comes out of the plots and the canvas stays the
+container.
+
+Everything else about the gap is unchanged, on purpose: with one kind of
+text between two plots, or none, the gap is taken as given — a small gap
+still closes the plots up, 0 still makes them touch (panel titles then
+run over the plot above, tick labels over the plot below: the user's
+call), and a negative gap overlaps by exactly that much even where text
+meets text, because a ridgeline asks for it. The one place this is not
+smooth is that last case: a layout with both tick labels and titles
+between its rows steps when the gap crosses from 0 to negative.
+[facetLayoutSolver.invariants.test.ts](src/contexts/chartBuilder/lib/facetLayoutSolver.invariants.test.ts)
+checks the rule over the generated layouts (369 of 3,000 broke it before).
 
 `gapY < 0` means plot rects overlap cumulatively in the vertical
 direction. A negative gap pulls each successive plot BACK by `|gapY|`
@@ -1004,8 +1046,23 @@ explicit justification in the doc but materially affect layout:
 | `TITLE_RESERVE` | 36 | plotLayout.ts | Above chart, for chart title |
 | `SUBTITLE_RESERVE` | 22 | plotLayout.ts | Below chart title, for subtitle |
 | `SHARED_INTERIOR_AXIS_RESERVE` | 4 | facetLayoutSolver.ts | Interior row/col chrome under share-axes |
-| `TITLE_LABEL_GAP_PX` | 25 | facetLayoutSolver.ts AND estimateMargins.ts | Gap between tick labels and axis title |
+| `TITLE_LABEL_GAP_PX` | 25 | layoutMetrics.ts | Gap between tick labels and axis title |
+| `TICK_LABEL_LINE_EM`, `AXIS_TITLE_LINE_EM` | 1.4 | layoutMetrics.ts | Line height of a tick label / an axis title, in ems |
+| `X_TITLE_PAD_PX` | 6 | layoutMetrics.ts | Pad between a wrapped x-title's lines and the canvas edge |
+| `TICK_RESERVE_PX` | 10 | layoutMetrics.ts | Floor kept for tick labels when the budget runs out |
+| `X_TICK_LABEL_END_PAD_PX` | 8 | layoutMetrics.ts | Room past the last x tick label |
+| `Y_TICK_CHROME_PAD_PX` | 24 | layoutMetrics.ts | Tick line + pad beside the y tick labels |
+| `Y_TICK_LABEL_INSET_PX`, `X_TICK_LABEL_INSET_PX`, `X_TICK_LABEL_INSET_TOP_PX`, `X_TICK_LABEL_INSET_ROTATED_PX` | 4, 12, 8, 6 | layoutMetrics.ts | Where the axis draws its labels relative to the plot edge — the solver predicts with the same numbers the axis draws with |
 | `TICK_LINE_PAD` | 6 | facetLayoutSolver.ts | Gap between plot edge and tick labels |
+
+The `layoutMetrics.ts` rows are the numbers the solver, the margin
+estimator (`estimateMargins.ts`) and the axis renderer (`Axes.tsx`) each
+used to keep a copy of — a prediction only holds while it uses the number
+the renderer draws with, so they are one export now (2026-11-15; a pure
+move, no value changed).
+
+| Constant | Value | Where | Why |
+|---|---|---|---|
 | `charWidthFactor` | 0.55 | estimateMargins.ts | Avg sans-serif px-per-char per fontSize unit |
 | `charWidthConservativeFactor` | 0.6 | estimateMargins.ts | Deliberate OVERestimate for fit/overlap gating (data-label nudging, hierarchy label fitting) — not a layout-reservation number |
 | `MIN_TITLE_X` | 12 + fontSize/2 | facetLayoutSolver.ts | Floor for y-title's distance from canvas left edge |
@@ -1345,7 +1402,62 @@ A legend that fits is untouched by all of this: nothing shrinks and
 nothing is capped until the legend and the chart's floor together exceed
 the page.
 
-Still outside the solver, and so outside these rules: the legend's own
-placement (sized from fixed base margins rather than the solved plot) and
-the caption band (measured at one size, drawn at another). Those are the
-remaining layout work.
+### The legend lines up with the solved plot (2026-11-15)
+
+Where the legend sits is defined against the plot: a side legend's top
+edge on the plot's top edge, a top legend's right edge on the plot's
+right edge, a bottom legend under the plot's middle, an inside legend's
+X / Y as fractions of the plot. The legend used to work out where the
+plot was on its own — the base margins plus its own copy of the
+title-band rule — and that is the plot's position only while nothing has
+grown a margin. With long tick labels, a nudged axis title or a facet
+strip the plot is elsewhere, and the legend sat beside where it used to
+be (on a chart with 170 px of y tick labels: a bottom legend 85 px off
+center, an inside legend's corner 170 px from the plot's).
+
+- PlotCanvas publishes the solved plot's distance from each canvas edge
+  (`plotInsetsOf` → `currentRenderedPlotInsetsAtom`): the union of every
+  panel's plot rect, so a faceted grid is one plot. Each panel's `<g>`
+  also carries its rect as `data-inner-left / -top / -right / -bottom`.
+- `planLegendSections` takes those insets (`plotInsets`) for all four
+  placements and for the inside legend's `calc()`s. With no chart solved
+  — the legend alone in a split embed — it falls back to the base margins
+  and title bands, as before.
+- The inside legend's reservation (`computeInsideExtras`) is computed
+  over the same plot. It pads the chart, so it must not depend on what
+  the pad changes: it is given the plot's MARGINS (the insets without a
+  fixed aspect ratio's centering slack), which padding does not move. The
+  slack is only ever added to the legend's own mapping.
+
+None of this feeds back into the solve: a side legend's top pad changes
+its height, not the chart's width; a top or bottom legend's margin moves
+it sideways; and the plot's margins do not depend on the container's
+size.
+
+### The caption asks from the same budget, and stays on the canvas
+
+The caption is drawn inside the SVG, in a band the solver reserves at the
+bottom (`extraBottomMargin`). Two things were loose:
+
+- **Its position was not part of the layout.** "Adjust position" moved
+  the box by the offset and nothing else; pushed down or sideways it left
+  the canvas, the SVG grew to hold it and the chart scrolled. Now a push
+  DOWN is room, not movement — the caption already sits at the bottom
+  edge, so the offset is added to the band it asks for
+  (`captionReservePx`) and the plot gives way, like an x-axis title
+  pushed away from the plot. A push up or sideways moves it until what it
+  DRAWS reaches a canvas edge and stops there (`positionCaptionBox`; an
+  invisible box counts only its text ink, `captionDrawnBox`). The SVG is
+  always exactly the solved canvas.
+- **It was measured at one size and drawn at another.** The band was
+  sized from the caption wrapped to the CONTAINER's width, then the
+  caption was drawn wrapped to the CANVAS's. In fit mode those are the
+  same; with scrolling or pixel panel sizes the canvas is wider, the
+  caption wraps to fewer lines, and the band was too tall. The solve now
+  measures the caption against the canvas it produced and, if the room
+  differs, solves once more (the canvas width does not depend on the
+  bottom reserve, so one pass settles it).
+
+Still outside the solver: the data-label reserve subtracts the cartesian
+base margin on its own (polar charts included) and is cached on a
+hand-kept input list. That is the remaining layout work.

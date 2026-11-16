@@ -992,17 +992,22 @@ const CHANNEL_DOT_CONTROLS: Record<string, (ctx: DotCtx) => DotControl[]> = {
 				differs(configs.defaultShape, theme.defaultShape),
 		},
 	],
-	pattern: ({ configs, theme, fieldMapped }) => [
+	pattern: ({ configs, theme, fieldMapped, offered }) => [
 		{ label: "pattern config", changed: differs(configs.pattern, patternConfigFromTheme(theme)) },
 		{ label: "default pattern", changed: differs(configs.defaultPattern, null) },
 		{ label: "default pattern ink", changed: differs(configs.defaultPatternInk ?? null, null) },
 		{ label: "pattern ink color", changed: differs(configs.patternInkColor, theme.patternInkColor) },
 		// The violin / box body's "Vary by": absent = Auto. An explicit `null`
 		// ("none") is a real pick `differs` would read as unset, so it's
-		// tested by presence.
+		// tested by presence. Counted only while the chart draws a violin or
+		// box — the question the Color menu's Violin / box fill is offered
+		// by — so a pick left over on another chart type lights no dot that
+		// no control can clear.
 		{
 			label: "violin / box pattern vary-by",
-			changed: configs.pattern?.violinField !== undefined,
+			changed:
+				(!offered || offered.color.has("violinFill")) &&
+				configs.pattern?.violinField !== undefined,
 		},
 		// Line-dash state the Pattern menu writes onto the CONNECTION config
 		// (the line renderers' source): the no-field default dash, the

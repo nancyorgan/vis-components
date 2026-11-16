@@ -18,9 +18,9 @@ import { buildLinePath } from "../../lib/linePath"
 import {
 	DEFAULT_CONNECTION_CONFIG,
 	DEFAULT_RADIUS,
+	DEFAULT_SHAPE,
 	DEFAULT_SHAPE_CONFIG,
 	type ChannelConfigs,
-	type LineDashPattern,
 	type StackMode,
 	type LabelPointsScope,
 	type DataLabelsConfig,
@@ -28,28 +28,22 @@ import {
 import { getChartMode } from "../../lib/chartMode"
 import type { MeasureAxisRendererProps, ScatterRendererProps } from "../../lib/chartRendererProps"
 import { resolveConnectionStroke } from "../../lib/connectionStroke"
+import { GlyphMark, resolveGlyph } from "../../lib/customGlyphs"
 import { resolveConnectionThickness } from "../../lib/connectionThickness"
 import { outlineWidthResolver } from "../../lib/markOutline"
 import {
-	connectionStrokeLinecap,
 	lineEndTicks,
 	resolveLineEndTickLength,
 } from "../../lib/lineEndTicks"
 import { cartesian } from "./coords"
-import {
-	dashArrayFor,
-	dashSpecForPatternValue,
-	resolveDashGapColor,
-	resolveDashGapFill,
-	sanitizeCustomDasharray,
-} from "../../lib/dashPatterns"
 import { splitPolylineAtRange } from "../../lib/dashRange"
 import { sampleConnectionPointIndices } from "../../lib/dataLabelsLayout"
 import { sortByDrawOrder } from "../../lib/drawOrder"
 import { effectiveType } from "../../lib/fieldType"
 import { resolveTextFont, resolveTitleFont } from "../../lib/labelsConfig"
 import { PatternDefs, type PatternDefSpec } from "../../lib/patternDefs"
-import { inkPaletteForHue } from "../../lib/patterns"
+import { resolveLineStyle } from "../../lib/lineStyle"
+import { pointStyleResolver } from "../../lib/pointStyle"
 import {
 	resolveAreaPointPatternDef,
 	resolveLayerColor,
@@ -797,23 +791,29 @@ const buildAreas = ({
 	const patternBgOverride = channelConfigs.pattern?.backgroundColor ?? null
 	const thickness =
 		channelConfigs.connection?.thickness ?? DEFAULT_CONNECTION_CONFIG.thickness
-	// "square" / "tick" map to SVG's butt cap so line ends and dash segments
-	// end flush at the data position instead of extending half a
-	// stroke-width past it. Mirrors ScatterPlot's renderConnectionLines;
-	// "tick" additionally draws a perpendicular end mark on LINE-mode layer
-	// edges (below), never on filled areas, where the edge has no open end
-	// to cap.
-	const lineCapChoice = channelConfigs.connection?.lineCap ?? "round"
-	const strokeCap = connectionStrokeLinecap(lineCapChoice)
-	const tickCap = lineCapChoice === "tick"
+	// The layer edge is the chart's Line: its cap, smoothing, dash and gap
+	// color resolve by the rules every chart's line shares (`lib/lineStyle`).
+	// In area mode the pattern channel GROUPS layers, so a layer's Pattern
+	// value is constant along its edge — no within-line runs here.
+	const patternField = aestheticScales.pattern?.field?.name ?? null
+	const line = resolveLineStyle({
+		channelConfigs,
+		patternField,
+		patternDomain: aestheticScales.pattern?.categories ?? [],
+		hueField: aestheticScales.hue?.field?.name ?? null,
+		hueType: aestheticScales.hue?.field?.type,
+		themeInkFallback: aestheticScales.themeInkFallback,
+	})
+	// "square" / "tick" end flush at the data position; "tick" additionally
+	// draws a perpendicular end mark on LINE-mode layer edges (below), never
+	// on filled areas, where the edge has no open end to cap.
+	const strokeCap = line.cap
+	const tickCap = line.tickCap
 	// Line smoothing: 0 (default) builds straight `M/L` edges exactly as
 	// before; > 0 rounds the top edge (and, for the fill polygon, the bottom
 	// edge too, so stacked layers keep tiling) via a cardinal spline. Shared
 	// with ScatterPlot's connection lines through `buildLinePath`.
-	const smoothing =
-		channelConfigs.connection?.smoothing ??
-		DEFAULT_CONNECTION_CONFIG.smoothing ??
-		0
+	const smoothing = line.smoothing
 	// Build an edge path from points. `continueFrom` emits a leading `L`
 	// (instead of `M`) so the segment appends to an open path — used for the
 	// area polygon's return baseline.
@@ -861,63 +861,14 @@ const buildAreas = ({
 		hueScaleForLines?.kind === "categorical"
 			? hueScaleForLines.scale.domain()
 			: []
-	// Per-layer dash pattern + alternate color overrides. ScatterPlot's
-	// renderConnectionLines already reads these; the line-fill branch in
-	// AreaPlot was missing the wiring, so dashed patterns silently
-	// rendered solid (the user-reported "patterns aren't showing" bug).
+	// A layer's own stored dash (legacy data, no control writes it), keyed by
+	// its Color value.
 	const dashPatterns =
 		channelConfigs.connection?.dashPatterns ??
 		DEFAULT_CONNECTION_CONFIG.dashPatterns
-	const dashAlternateColors =
-		channelConfigs.connection?.dashAlternateColors ??
-		DEFAULT_CONNECTION_CONFIG.dashAlternateColors
-	const defaultDashPattern: LineDashPattern =
-		channelConfigs.connection?.defaultDashPattern ??
-		DEFAULT_CONNECTION_CONFIG.defaultDashPattern
-	// The panel's "Custom" default dash: a user-typed dasharray that wins
-	// over the swatch pick when it parses; per-layer `dashPatterns`
-	// overrides still win over both. Mirrors ScatterPlot.
-	const customDashPattern = channelConfigs.connection?.customDashPattern ?? null
-	const defaultDashArray =
-		(customDashPattern ? sanitizeCustomDasharray(customDashPattern) : null) ??
-		dashArrayFor(defaultDashPattern)
-	// "Blank" dash pick: within the range window the edge doesn't draw at
-	// all — a true gap, or the gap-color underlay alone when "Fill dash
-	// gaps" is on. A parsed custom dasharray wins over the swatch pick;
-	// without an active range blank is inert (its dasharray is null, so the
-	// edge renders solid). Mirrors ScatterPlot.
-	const defaultBlank =
-		defaultDashPattern === "blank" && defaultDashArray === null
-	// Pattern encoding → per-layer LINE DASH, mirroring ScatterPlot's
-	// connection polylines: each layer's pattern group value resolves via
-	// the shared `dashSpecForPatternValue` (custom dasharray > swatch
-	// override > DASH_CYCLE auto-cycle by category position). In area mode
-	// the pattern channel GROUPS layers, so the value is constant per layer
-	// — no within-line runs needed here.
-	const patternField = aestheticScales.pattern?.field?.name ?? null
-	const patternDashOverrides = channelConfigs.pattern?.dashOverrides ?? {}
-	const patternCustomDashOverrides =
-		channelConfigs.pattern?.customDashOverrides ?? {}
-	const patternDomain = aestheticScales.pattern?.categories ?? []
-	// Dash-gap color inputs — the same palette-paired pattern-ink options
-	// area patterns resolve their ink from (see `resolveDashGapColor`).
-	const { palette: inkPalette, inks: palettePatternInks } = inkPaletteForHue(
-		channelConfigs,
-		aestheticScales.hue?.field?.type
-	)
-	const patternInkColors = channelConfigs.pattern?.inkColors ?? {}
-	// Dash-gap fallback ink: the explicit default-pattern pick, else the
-	// theme's global pattern ink (the paired inks are tried first).
-	const defaultPatternInk =
-		channelConfigs.defaultPatternInk ?? channelConfigs.patternInkColor ?? null
 	// Whether dash gaps get the alternate-color underlay (connected
-	// two-color line) or stay empty (truly dashed). Auto unless the user
-	// chose: filled, except when pattern and hue map the same field.
-	const gapFill = resolveDashGapFill({
-		configured: channelConfigs.connection?.dashGapFill ?? null,
-		patternField,
-		hueField: aestheticScales.hue?.field?.name ?? null,
-	})
+	// two-color line) or stay empty (truly dashed).
+	const gapFill = line.gapFill
 	// "Apply pattern to range": resolve From/To to pixel boundaries on the
 	// category axis (the axis the line walks along) once — raw axis values,
 	// band scales resolve to the category's center. A value that doesn't
@@ -1014,6 +965,9 @@ const buildAreas = ({
 	// The thickness of the ring around each point: one value, or the
 	// layer's level's ("Vary by", off the layer's representative row).
 	const pointOutlineWidthFor = outlineWidthResolver(channelConfigs)
+	// The points' glyph and turn (Shape, Angle), as on a line chart.
+	const pointStyle = pointStyleResolver(channelConfigs, aestheticScales)
+	const pointRotation = channelConfigs.defaultAngle ?? 0
 	// Areas have no meaningful "group" mode — degrade to overlay.
 	const effectiveStackMode: "stack" | "overlay" =
 		stackMode === "stack" ? "stack" : "overlay"
@@ -1155,7 +1109,16 @@ const buildAreas = ({
 		})
 
 		// Compute per-stack tops and the pixel coords for this layer.
-		type Point = { px: number; pyTop: number; pyBottom: number; radius: number }
+		type Point = {
+			px: number
+			pyTop: number
+			pyBottom: number
+			radius: number
+			/** The first of the rows aggregated into this point (one layer at
+			 *  one category) — what a per-point variable (Shape) reads, the way
+			 *  Size reads those rows. */
+			row: Record<string, unknown> | undefined
+		}
 		const points: Point[] = []
 		stackValues.forEach((sv, i) => {
 			const value = sv.byKey.get(layerKey) ?? 0
@@ -1168,13 +1131,13 @@ const buildAreas = ({
 				aggregation.categoryType
 			)
 			if (px === null) return
+			const pointRows = sv.stack.slices.find((sl) => sl.key === layerKey)?.rows
 			points.push({
 				px,
 				pyTop: measureScale(clampToDomain(top)),
 				pyBottom: measureScale(clampToDomain(bottom)),
-				radius: pointRadiusFor(
-					sv.stack.slices.find((sl) => sl.key === layerKey)?.rows
-				),
+				radius: pointRadiusFor(pointRows),
+				row: pointRows?.[0],
 			})
 		})
 
@@ -1307,23 +1270,47 @@ const buildAreas = ({
 			)
 			return top.flatMap(([x, y], i) => {
 				if (!sampledIndices.has(i)) return []
+				const key = `${layerKey || "__layer__"}__pt-${i}`
+				const r = points[i]?.radius ?? defaultPointRadius
+				const paint = {
+					fill: mh.fill ?? pointFillProp,
+					fillOpacity: pointFillOpacity(repRow) * mh.opacityMul,
+					stroke: pointOutline ?? "none",
+					strokeWidth: pointOutline ? pointOutlineWidth : undefined,
+					strokeOpacity: pointOutline
+						? pointOutlineOpacity(repRow) * mh.opacityMul
+						: undefined,
+				}
+				// The point's glyph: its Shape category's (read off the rows
+				// aggregated into the point, like its size), else the default
+				// shape; turned by the default angle. These are the same glyphs a
+				// line chart's points draw — an area's used to be circles only.
+				const glyph = resolveGlyph(
+					pointStyle.shapeIndex(points[i]?.row ?? repRow),
+					channelConfigs.shape?.customGlyphs
+				)
+				// The plain circle, unturned, stays the one <circle> it always was.
+				if (glyph.kind === "symbol" && glyph.idx === DEFAULT_SHAPE && !pointRotation)
+					return [
+						<circle
+							key={key}
+							data-area-point="true"
+							cx={x}
+							cy={y}
+							r={r}
+							{...paint}
+							pointerEvents="none"
+						/>,
+					]
 				return [
-					<circle
-						// eslint-disable-next-line react/no-array-index-key -- one circle per point in this layer; index is stable per render
-						key={`${layerKey || "__layer__"}__pt-${i}`}
-						data-area-point="true"
-						cx={x}
-						cy={y}
-						r={points[i]?.radius ?? defaultPointRadius}
-						fill={mh.fill ?? pointFillProp}
-						fillOpacity={pointFillOpacity(repRow) * mh.opacityMul}
-						stroke={pointOutline ?? "none"}
-						strokeWidth={pointOutline ? pointOutlineWidth : undefined}
-						strokeOpacity={
-							pointOutline ? pointOutlineOpacity(repRow) * mh.opacityMul : undefined
-						}
-						pointerEvents="none"
-					/>,
+					<g key={key} data-area-point="true" pointerEvents="none">
+						<GlyphMark
+							glyph={glyph}
+							r={r}
+							transform={`translate(${x},${y})${pointRotation ? ` rotate(${pointRotation})` : ""}`}
+							{...paint}
+						/>
+					</g>,
 				]
 			})
 		}
@@ -1342,29 +1329,12 @@ const buildAreas = ({
 			patternField && groupValues.pattern !== undefined
 				? String(groupValues.pattern)
 				: null
-		const patternSpec =
-			patternValue !== null
-				? dashSpecForPatternValue(
-						patternValue,
-						patternDashOverrides,
-						patternCustomDashOverrides,
-						patternDomain
-					)
-				: null
-		const layerDash = dashPatterns[layerDashKey ?? ""]
-		const dashArray =
-			patternSpec?.kind === "custom"
-				? patternSpec.dasharray
-				: layerDash !== undefined
-					? dashArrayFor(layerDash ?? "solid")
-					: patternSpec?.kind === "pattern"
-						? dashArrayFor(patternSpec.pattern)
-						: defaultDashArray
 		// "Blank" only means anything while the range gates the dash — a
 		// mapped pattern field ignores the range (and never offers blank).
-		const layerBlank =
-			!patternField &&
-			(layerDash !== undefined ? layerDash === "blank" : defaultBlank)
+		const { dashArray, blank: layerBlank } = line.dashFor({
+			patternValue,
+			override: dashPatterns[layerDashKey ?? ""],
+		})
 		// Solid → one path. Dashed → underlay (alternate color) +
 		// dashed top, so the gaps render as the alternate color
 		// instead of transparent. Blank-in-range → the range branch
@@ -1385,7 +1355,7 @@ const buildAreas = ({
 				/>
 			)
 		} else {
-			const altColor = resolveDashGapColor({
+			const altColor = line.gapColor({
 				// The hue value IS the panel's gap-swatch key; the layer key
 				// covers hue-less layers and legacy saved visuals.
 				overrideKeys: [hueValue, layerDashKey],
@@ -1395,13 +1365,6 @@ const buildAreas = ({
 				// pre-highlight stroke for hue-less layers.
 				hueColor: hueValue != null ? layerResolved.preModulationHue : null,
 				lineColor: layerStroke,
-				overrides: dashAlternateColors,
-				singleOverride: channelConfigs.connection?.dashGapColor ?? null,
-				inkColors: patternInkColors,
-				palette: inkPalette,
-				patternInks: palettePatternInks,
-				themeInkFallback: aestheticScales.themeInkFallback,
-				defaultInk: defaultPatternInk,
 			})
 			const lineProps = {
 				fill: "none",

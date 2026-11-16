@@ -11,7 +11,7 @@ import { labelEntry, withLabelEntry } from "../../../lib/labelPieces"
 import { pickLabelPalette } from "../../../lib/paletteEdits"
 import { CATEGORICAL_HUE_PALETTE } from "../../../lib/scales"
 import { uniqueFieldValues } from "../../../lib/uniqueFieldValues"
-import { resolveTextPickerPalette } from "../../../lib/themeConfig"
+import { dataLabelsConfigFromTheme, resolveTextPickerPalette } from "../../../lib/themeConfig"
 import type { DatasetView, FieldType } from "../../../lib/types"
 import {
 	currentChannelConfigsAtom,
@@ -25,6 +25,7 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { ColorSlotControls } from "../channelOptions/ColorPanel"
 import {
 	CategoricalSwatchList,
@@ -94,6 +95,9 @@ export const LabelColorPanel = ({
 	// theme id is missing from `themesAtom` (e.g., a deleted custom theme
 	// or a fresh chart that hasn't picked a theme yet).
 	const theme = useCurrentTheme()
+	// The label color a new chart starts with on this theme: what the color's
+	// reset goes back to.
+	const themeLabelColor = dataLabelsConfigFromTheme(theme).color
 	const hueFieldMapped = hueFieldType !== null
 	const isQuantitative =
 		hueFieldType === "quantitative" || hueFieldType === "temporal"
@@ -139,20 +143,28 @@ export const LabelColorPanel = ({
 					 *  advanced text-color rules drop below it. The palette-icon
 					 *  palette picker rides along like every other single-color
 					 *  swatch (theme's default categorical palette). */}
-					<ColorInput
-						label={
-							(cfg.textColorRules?.length ?? 0) > 0
-								? "Else (fallback)"
-								: usesScale
-									? "Fallback"
-									: "Color"
-						}
-						labelClassName={LABEL_COL}
-						value={cfg.color}
-						onChange={(color) => onChange({ color })}
-						paletteKind="text"
-						pickerLabel="Pick palette color for label text"
-					/>
+					<div className="flex flex-wrap items-center gap-2">
+						<ColorInput
+							label={
+								(cfg.textColorRules?.length ?? 0) > 0
+									? "Else (fallback)"
+									: usesScale
+										? "Fallback"
+										: "Color"
+							}
+							labelClassName={LABEL_COL}
+							value={cfg.color}
+							onChange={(color) => onChange({ color })}
+							paletteKind="text"
+							pickerLabel="Pick palette color for label text"
+						/>
+						{cfg.color.toLowerCase() !== themeLabelColor.toLowerCase() && (
+							<ResetLink
+								ariaLabel="Reset label color"
+								onClick={() => onChange({ color: themeLabelColor })}
+							/>
+						)}
+					</div>
 					<TextColorRulesRow
 						rules={cfg.textColorRules ?? []}
 						onChange={(textColorRules) => onChange({ textColorRules })}

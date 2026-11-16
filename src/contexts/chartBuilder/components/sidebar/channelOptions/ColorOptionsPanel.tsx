@@ -8,6 +8,7 @@ import {
 } from "../../../lib/channelConfig"
 import { channelAccepts } from "../../../lib/channels"
 import { useVaryByFieldFilter } from "../../../store/useVaryByFieldFilter"
+import { areaBodyAutoFill } from "../../../lib/colorSlotDefaults"
 import { FOLLOW_LABEL } from "../../../lib/colorSlots"
 import {
 	GRADIENT_INTERPOLATIONS,
@@ -452,6 +453,10 @@ export const ColorOptionsPanel = ({
 	// --- SINGLE COLOR (no field and no measure source mapped) ---
 	if (!dataset || (!hueFieldName && !measureSource)) {
 		const currentFill = configs.defaultFill ?? theme.defaultFill
+		// An area chart's body, left on the theme's color, draws the theme's
+		// FILL color for it (a pale body under the line): the swatch shows
+		// what is drawn. A color picked here is stored and drawn as picked.
+		const autoFill = areaBodyAutoFill(modeDef, encodings, configs, theme)
 		// On-palette shortcut beside the open-ended picker: the chart's picked
 		// categorical palette when one is stored, else the theme default.
 		const singleColorScheme =
@@ -469,7 +474,7 @@ export const ColorOptionsPanel = ({
 					<ColorInput
 						label="Color"
 						labelClassName={LABEL_COL}
-						value={currentFill}
+						value={autoFill ?? currentFill}
 						onChange={(defaultFill) =>
 							setConfigs((prev) => ({ ...prev, defaultFill }))
 						}
@@ -940,14 +945,25 @@ export const AreaRadarOutlinePanel = () => {
 				selectClassName="flex-1"
 			/>
 			{isSingleColor && (
-				<ColorInput
-					label="Color"
-					labelClassName={LABEL_COL}
-					value={strokeColor}
-					onChange={setSingleColor}
-					palette={scheme}
-					pickerLabel="Pick palette outline color"
-				/>
+				<div className="flex flex-wrap items-center gap-2">
+					<ColorInput
+						label="Color"
+						labelClassName={LABEL_COL}
+						value={strokeColor}
+						onChange={setSingleColor}
+						palette={scheme}
+						pickerLabel="Pick palette outline color"
+					/>
+					{/* The one outline color starts as the series color: its reset
+					    goes back to that. */}
+					{(strokeColor ?? singleColorSeed).toLowerCase() !==
+						singleColorSeed.toLowerCase() && (
+						<ResetLink
+							ariaLabel="Reset outline color"
+							onClick={() => setSingleColor(singleColorSeed)}
+						/>
+					)}
+				</div>
 			)}
 			{!isSingleColor && orderedLevels(uniqueValues, type, levelOrder).map(({ value: v, index: i }) => {
 				const linePaletteColors = configs.connection?.linePalette ?? null
@@ -1245,50 +1261,60 @@ export const QuantitativePanel = ({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<label className="flex items-center gap-2 text-sm">
-				<span className={LABEL_COL}>Palette</span>
-				<Select
-					value={activeGradientId}
-					onChange={(e) => onPaletteChange(e.target.value)}
-					className="flex-1"
-				>
-					<optgroup label="Linear presets">
-						{LINEAR_PRESETS.map((p) => (
-							<option key={p} value={p}>
-								{p}
-							</option>
-						))}
-					</optgroup>
-					<optgroup label="Diverging presets">
-						{DIVERGING_PRESETS.map((p) => (
-							<option key={p} value={p}>
-								{p}
-							</option>
-						))}
-					</optgroup>
-					{theme.linearGradients.length > 0 && (
-						<optgroup label="Linear gradients">
-							{theme.linearGradients.map((g) => (
-								<option key={g.id} value={g.id}>
-									{g.name}
+			{/* The Palette row. A hand-built gradient (manual stops) is one
+			 *  setting — its rows come and go, so no row has a default of its
+			 *  own to go back to — and its reset sits here, beside the choice it
+			 *  undoes. Every other mode has per-row reset links; presets are
+			 *  pristine by definition. */}
+			<div className="flex items-center gap-2 text-sm">
+				<label className="flex min-w-0 flex-1 items-center gap-2">
+					<span className={LABEL_COL}>Palette</span>
+					<Select
+						value={activeGradientId}
+						onChange={(e) => onPaletteChange(e.target.value)}
+						className="min-w-0 flex-1"
+					>
+						<optgroup label="Linear presets">
+							{LINEAR_PRESETS.map((p) => (
+								<option key={p} value={p}>
+									{p}
 								</option>
 							))}
 						</optgroup>
-					)}
-					{theme.divergingGradients.length > 0 && (
-						<optgroup label="Diverging gradients">
-							{theme.divergingGradients.map((g) => (
-								<option key={g.id} value={g.id}>
-									{g.name}
+						<optgroup label="Diverging presets">
+							{DIVERGING_PRESETS.map((p) => (
+								<option key={p} value={p}>
+									{p}
 								</option>
 							))}
 						</optgroup>
-					)}
-					<optgroup label="Manual">
-						<option value="custom">Custom (manual stops)</option>
-					</optgroup>
-				</Select>
-			</label>
+						{theme.linearGradients.length > 0 && (
+							<optgroup label="Linear gradients">
+								{theme.linearGradients.map((g) => (
+									<option key={g.id} value={g.id}>
+										{g.name}
+									</option>
+								))}
+							</optgroup>
+						)}
+						{theme.divergingGradients.length > 0 && (
+							<optgroup label="Diverging gradients">
+								{theme.divergingGradients.map((g) => (
+									<option key={g.id} value={g.id}>
+										{g.name}
+									</option>
+								))}
+							</optgroup>
+						)}
+						<optgroup label="Manual">
+							<option value="custom">Custom (manual stops)</option>
+						</optgroup>
+					</Select>
+				</label>
+				{paletteMode === "custom" && (
+					<ResetLink onClick={resetColors} />
+				)}
+			</div>
 			{/* Blend-space picker — the color space the scale interpolates
 			 *  through between stops. Custom gradients only: presets are
 			 *  continuous baked ramps with every in-between color already
@@ -1315,13 +1341,6 @@ export const QuantitativePanel = ({
 					</Select>
 				</label>
 			)}
-			{/* Manual-stops mode keeps a whole-palette reset (rows come and go,
-			 *  so there's no per-row default to restore). Every other mode gets
-			 *  per-row reset links instead; presets are pristine by definition. */}
-			{paletteMode === "custom" && (
-				<ResetLink onClick={resetColors} underline className="self-start" />
-			)}
-
 			{/* Linear preset mode: N rows sampled from the interpolator,
 			 *  labeled Step 1..N. Editing any color or value transitions
 			 *  to `palette: "custom"` with `customStops` pre-populated, so

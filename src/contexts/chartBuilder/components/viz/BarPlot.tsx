@@ -930,7 +930,9 @@ export const BarPlot = (props: BarPlotProps = {}) => {
 						channelConfigs.colorSlots?.stem,
 						slotOpacityResolver("stem", channelConfigs, aestheticScales),
 						connectionColor,
-						legendHighlight
+						legendHighlight,
+						// The stems' own Saturation / Brightness, as on a scatter.
+						slotModulationResolver("stem", channelConfigs, aestheticScales)
 					)}
 					{renderConnectionLines(
 						marks,

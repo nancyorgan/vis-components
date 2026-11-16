@@ -3,256 +3,48 @@ import type {
 	OpacitySlotConfig,
 	OpacitySlotKey,
 } from "./channelConfig"
-import type { ChartMode } from "./chartMode"
+import { chartModeDefById, type ChartMode } from "./chartMode"
 import {
-	areaPointsOn,
-	densityCurveFillOn,
-	densityCurveOn,
-	overlayOn,
-	regressionCiOn,
-	regressionOn,
-	rugOn,
-} from "./colorSlots"
+	menuTargets,
+	type OpacityFacet,
+	type TargetContext,
+	type TargetPart,
+} from "./partTargets"
 import type { Encodings } from "./types"
 
-/** Static description of one opacity-slot target: its label, which chart modes
- * surface it (`null` = every mode, for the universal border), an extra
- * applicability gate, the good-looking default opacity, and whether it supports
- * mapping a variable (flow nodes / ribbons are level-only). Mirrors
- * `ColorSlotDef`. */
-export type OpacitySlotDef = {
+/** One opacity target: the Opacity menu's view of a row of `PART_TARGETS`
+ * (lib/partTargets) — its label, the part it styles, when the chart draws
+ * that part, the level it starts at, and whether it supports mapping a
+ * variable (flow nodes / ribbons are level-only). */
+export type OpacitySlotDef = OpacityFacet & {
 	key: OpacitySlotKey
 	label: string
-	/** `null` = applicable in every chart mode (universal, e.g. border). */
-	modes: ReadonlySet<ChartMode> | null
+	/** The part the target styles. */
+	part: TargetPart
+	/** The chart draws that part. */
+	drawn: (ctx: TargetContext) => boolean
+	/** `drawn`, for a caller that holds the mode's id. */
 	isApplicable: (
 		encodings: Encodings,
 		configs: ChannelConfigs,
 		mode: ChartMode
 	) => boolean
-	/** Default opacity when the slot has no explicit level — replaces the color
-	 * registry's `themeColor`. Parts that read semi-transparent today (violin
-	 * fill) keep a sensible default rather than snapping to 1. */
-	defaultLevel: number
-	/** When false, the slot offers a single level only — no "vary by" field
-	 * dropdown (e.g. flow nodes / ribbons). */
-	acceptsFieldMapping: boolean
 }
 
-const m = (...modes: ChartMode[]): ReadonlySet<ChartMode> => new Set(modes)
-
-/** Registry of every opacity slot, in display order. Fill is NOT here — it
- * reuses the overall `opacity` encoding. Border is universal; the remaining
- * slots mirror `COLOR_SLOT_REGISTRY`'s gates exactly. */
-export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = [
-	{
-		// Area charts: the point markers' fill. The Opacity panel hoists the
-		// Border slot (the area's Line) above the Fill there, so the menu
-		// reads Line, Area fill, Point fill, Point outline. Level only in
-		// practice: the Opacity panel
-		// drops the Vary by on area charts (one layer = one value).
-		key: "areaPointFill",
-		label: "Point fill",
-		modes: m("areas-x", "areas-y"),
-		isApplicable: areaPointsOn,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		// Stroke/outline opacity. Labeled "Outline" to match the Color menu's
-		// outline subheader; the storage key stays `border` for back-compat.
-		key: "border",
-		label: "Outline",
-		modes: null,
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		// Area charts: the ring around each point marker. (The Border slot
-		// is the area's Line there, so the points' ring gets its own.)
-		key: "areaPointOutline",
-		label: "Point outline",
-		modes: m("areas-x", "areas-y"),
-		isApplicable: areaPointsOn,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		key: "rug",
-		label: "Rug",
-		// Histogram rug (bars) + the density display's rug (scatter) — same
-		// tassel config, so Rug opacity stays put across the Histogram ⇄ Density
-		// switch.
-		modes: m("bars-x", "bars-y", "scatter"),
-		isApplicable: (_encodings, configs) => rugOn(configs),
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		key: "line",
-		label: "Line",
-		// Scatter / combo connection lines, and the radar polygon OUTLINE (the
-		// "Connection line" — the Opacity menu titles it so in polygon mode,
-		// beside the points' "Point outline" = the Border slot). A polygon is
-		// one series, so a mapped field resolves off its representative row.
-		modes: m("scatter", "combo-x", "combo-y", "radar"),
-		isApplicable: (encodings) => !!encodings.connection?.field,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		key: "violinFill",
-		label: "Violin / box fill",
-		modes: m("scatter"),
-		isApplicable: (_encodings, configs) => overlayOn(configs),
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		key: "violinStroke",
-		label: "Violin / box outline",
-		modes: m("scatter"),
-		isApplicable: (_encodings, configs) => overlayOn(configs),
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	// Density-curve opacity is level-only BY DESIGN, even though the color
-	// slots of the same name accept a field: curve GROUPING is driven by the
-	// color slots' field, and both renderers resolve curve opacity once per
-	// curve (not per row), so a field mapped here would render per-category
-	// controls that have no effect on the canvas. Same rationale as the flow
-	// node/ribbon slots above. Making this functional means threading per-row
-	// opacity through buildDensityCurve — a feature, not a flag flip.
-	{
-		key: "densityCurveFill",
-		label: "Density curve fill",
-		modes: m("scatter", "bars-x", "bars-y"),
-		// Mirrors the color slot's gate: only when "Fill under curve" is on.
-		isApplicable: (_encodings, configs) => densityCurveFillOn(configs),
-		defaultLevel: 0.25,
-		acceptsFieldMapping: false,
-	},
-	{
-		key: "densityCurveStroke",
-		label: "Density curve outline",
-		modes: m("scatter", "bars-x", "bars-y"),
-		isApplicable: (_encodings, configs) => densityCurveOn(configs),
-		defaultLevel: 1,
-		acceptsFieldMapping: false,
-	},
-	{
-		key: "regressionStroke",
-		label: "Regression line",
-		modes: m("scatter"),
-		isApplicable: (_encodings, configs) => regressionOn(configs),
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		// The band reads as a translucent wash under the line — full opacity
-		// would bury the dots it overlaps.
-		key: "regressionCiFill",
-		label: "Confidence interval",
-		modes: m("scatter"),
-		isApplicable: (_encodings, configs) => regressionCiOn(configs),
-		defaultLevel: 0.15,
-		acceptsFieldMapping: true,
-	},
-	{
-		key: "stem",
-		label: "Stem",
-		modes: m("scatter"),
-		isApplicable: (_encodings, configs) =>
-			(configs.connection?.axisStem ?? "none") !== "none",
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		// Filled-radar polygon interiors. Multiplies each series' own opacity
-		// (the Point fill section) rather than replacing it, so the default of
-		// 1 leaves filled radars unchanged; the "Filled radar" quick start
-		// sets 0.25 for the watercolor look. A mapped field resolves off each
-		// series' representative row (one polygon = one series), like the
-		// Polygon fill color slot.
-		key: "polygonFill",
-		label: "Polygon fill",
-		modes: m("radar"),
-		isApplicable: (_encodings, configs) => !!configs.connection?.fillPolygon,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	// Bar + marks combo: the points on the line, beside the bars (whose
-	// opacity is the Bar fill). Untouched, the points keep drawing at the
-	// opacity they always had — the bars' — so saved combos look the same;
-	// a level or a variable here is the points' own.
-	{
-		key: "comboPointFill",
-		label: "Point fill",
-		modes: m("combo-x", "combo-y"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	// Bubble map: the bubbles over the regions. Their color has its own
-	// targets (`geoPointFill` / `geoPointStroke` in the Color menu), and so
-	// do their opacities — the regions' are the Region fill / Region outline.
-	{
-		key: "geoPointFill",
-		label: "Point fill",
-		modes: m("geo-symbols"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	{
-		key: "geoPointStroke",
-		label: "Point outline",
-		modes: m("geo-symbols"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: true,
-	},
-	// Dot map: the regions behind the points, apart from the points' own
-	// Opacity (the Point fill / Point outline). One level each: the regions
-	// carry no data to vary by.
-	{
-		key: "geoRegionFill",
-		label: "Region fill",
-		modes: m("geo-points"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: false,
-	},
-	{
-		key: "geoRegionStroke",
-		label: "Region outline",
-		modes: m("geo-points"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: false,
-	},
-	// Flow diagrams (chord / sankey) split opacity by mark part: node arcs /
-	// rects anchor the eye at full opacity while ribbons / links read as
-	// translucent washes of their source node's color. Flow marks aggregate
-	// many rows, so a per-row field mapping is ill-defined — level only.
-	{
-		key: "node",
-		label: "Node fill",
-		modes: m("chord", "sankey"),
-		isApplicable: () => true,
-		defaultLevel: 1,
-		acceptsFieldMapping: false,
-	},
-	{
-		key: "ribbon",
-		label: "Ribbon fill",
-		modes: m("chord", "sankey"),
-		isApplicable: () => true,
-		defaultLevel: 0.45,
-		acceptsFieldMapping: false,
-	},
-]
+/** Every opacity target, in the table's order. Fill is NOT here — it reuses
+ * the overall `opacity` encoding. The marks' own outline is the `border`
+ * target, on every chart. */
+export const OPACITY_SLOT_REGISTRY: readonly OpacitySlotDef[] = menuTargets("opacity").map(
+	({ key, label, part, drawn, facet }) => ({
+		...facet,
+		key: key as OpacitySlotKey,
+		label,
+		part,
+		drawn,
+		isApplicable: (encodings, configs, mode) =>
+			drawn({ canvas: chartModeDefById(mode).canvas, encodings, configs }),
+	})
+)
 
 export const OPACITY_SLOT_DEFS: Record<OpacitySlotKey, OpacitySlotDef> =
 	Object.fromEntries(OPACITY_SLOT_REGISTRY.map((d) => [d.key, d])) as Record<
@@ -278,15 +70,14 @@ export const opacitySlotEdited = (
 	return def != null && slotCfg.level != null && slotCfg.level !== def.defaultLevel
 }
 
-/** Slots shown for a given chart mode + config — mode matches (or is universal)
- * AND the feature gate passes. Used by the Opacity panel to pick subheaders. */
+/** The opacity targets a chart offers: those whose part it draws. */
+export const opacitySlotsFor = (ctx: TargetContext): OpacitySlotDef[] =>
+	OPACITY_SLOT_REGISTRY.filter((d) => d.drawn(ctx))
+
+/** `opacitySlotsFor`, for a caller that holds the mode's id. */
 export const applicableOpacitySlots = (
 	mode: ChartMode,
 	encodings: Encodings,
 	configs: ChannelConfigs
 ): OpacitySlotDef[] =>
-	OPACITY_SLOT_REGISTRY.filter(
-		(d) =>
-			(d.modes === null || d.modes.has(mode)) &&
-			d.isApplicable(encodings, configs, mode)
-	)
+	opacitySlotsFor({ canvas: chartModeDefById(mode).canvas, encodings, configs })

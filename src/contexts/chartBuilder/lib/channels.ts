@@ -275,9 +275,8 @@ export const isComboShape = (
  * neither. Where Length is a measure and the chart still draws points, the
  * conflict does not hold:
  *  - on an AREA chart Length is the layers' measure and the points on each
- *    layer's line are still points, so Size coexists with it (Size sizes
- *    the points; they are circles, so a Shape variable still has nothing
- *    to act on and keeps conflicting);
+ *    layer's line are still points, so both Size and Shape coexist with
+ *    it (Size sizes the points, Shape picks their glyph);
  *  - on a bar + marks COMBO Length is the bars' measure and the marks are
  *    ordinary points, so both Size and Shape coexist with it.
  * The shelf and the chart spec both ask this, never the bare pair check,
@@ -291,11 +290,8 @@ export const channelsConflictIn = (
 	if (!channelsConflict(a, b)) return false
 	const withLength = (other: EncodingChannel): boolean =>
 		(a === other && b === "length") || (a === "length" && b === other)
-	if ((withLength("area") || withLength("shape")) && isComboShape(encodings, configs))
-		return false
-	const areaLengthPair =
-		(a === "area" && b === "length") || (a === "length" && b === "area")
-	return !(areaLengthPair && isAreaChartShape(encodings))
+	if (!withLength("area") && !withLength("shape")) return true
+	return !(isComboShape(encodings, configs) || isAreaChartShape(encodings))
 }
 
 /** For a given channel, all OTHER channels that conflict with it (computed

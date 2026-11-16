@@ -13,6 +13,9 @@ import {
 import { TestProvider, type TestStore } from "../../../../../testSupport/TestProvider"
 import { composeVisual } from "../../../lib/chartSpec"
 import { DEFAULT_MAP_CONFIG } from "../../../lib/mapConfig"
+import { partsContext } from "../../../lib/markParts"
+import { isHierarchyModeId, packedSourceOf } from "../../../lib/packedMeasure"
+import { patternMenu } from "../../../lib/patternMenu"
 import { LIGHT_THEME_BASE } from "../../../lib/systemThemes"
 import type { EncodingChannel, Visual } from "../../../lib/types"
 import {
@@ -157,4 +160,32 @@ describe("options matrix — what each mark-styling panel offers, per chart type
 			matrix[ROW_LABEL[channel] ?? channel] = describePanel(visual, dataset, channel, normalize)
 		expect(matrix).toMatchSnapshot()
 	})
+
+	/** The Pattern panel renders the sections `patternMenu` (lib/patternMenu)
+	 *  returns: the headers it shows are that list's titled sections, in its
+	 *  order. So the pure function can be asked what the menu offers — by
+	 *  the "edited" dots, by tests — and be right about the panel. */
+	it.each(SWEEP_CHARTS.map((chart) => [chart.id, chart] as const))(
+		"%s: the Pattern panel shows what patternMenu lists",
+		(_id, chart) => {
+			const dataset = SWEEP_DATASETS[chart.dataset]
+			const visual = compose(chart, dataset)
+			const ctx = partsContext({
+				encodings: visual.encodings,
+				configs: visual.channelConfigs,
+				mapConfig: visual.mapConfig ?? DEFAULT_MAP_CONFIG,
+				getType: (name) => dataset.fields.find((f) => f.name === name)?.inferredType,
+			})
+			// A variable drives Pattern: a field, or a hierarchy's derived source.
+			const patternMapped =
+				!!visual.encodings.pattern?.field ||
+				(isHierarchyModeId(ctx.modeDef.id) && !!packedSourceOf(visual.encodings.pattern))
+			const shown = describePanel(visual, dataset, "pattern", levelNormalizer(dataset)).parts
+			expect(shown).toEqual(
+				patternMenu(ctx, patternMapped)
+					.sections.filter((s) => s.titled)
+					.map((s) => s.title)
+			)
+		}
+	)
 })

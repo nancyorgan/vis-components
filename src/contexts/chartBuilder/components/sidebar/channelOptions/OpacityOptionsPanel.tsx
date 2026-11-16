@@ -557,7 +557,10 @@ const QuantOpacityRange = ({
 			min={0}
 			max={1}
 			step={0.05}
+			changed={cfg.min !== DEFAULT_OPACITY_QUANTITATIVE.min}
 			onChange={(min) => onChange({ ...cfg, min })}
+			onReset={() => onChange({ ...cfg, min: DEFAULT_OPACITY_QUANTITATIVE.min })}
+			resetLabel="Reset min opacity"
 		/>
 		<Slider
 			label="Max"
@@ -565,7 +568,10 @@ const QuantOpacityRange = ({
 			min={0}
 			max={1}
 			step={0.05}
+			changed={cfg.max !== DEFAULT_OPACITY_QUANTITATIVE.max}
 			onChange={(max) => onChange({ ...cfg, max })}
+			onReset={() => onChange({ ...cfg, max: DEFAULT_OPACITY_QUANTITATIVE.max })}
+			resetLabel="Reset max opacity"
 		/>
 	</div>
 )
@@ -584,25 +590,17 @@ const OpacityLevelInput = ({
 	defaultLevel: number
 	onChange: (next: number) => void
 }) => (
-	<>
-		<Slider
-			label="Opacity"
-			value={value}
-			min={0}
-			max={1}
-			step={0.05}
-			changed={value !== defaultLevel}
-			onChange={onChange}
-		/>
-		{value !== defaultLevel && (
-			<ResetLink
-				ariaLabel="Reset opacity"
-				onClick={() => onChange(defaultLevel)}
-				underline
-				className="self-start"
-			/>
-		)}
-	</>
+	<Slider
+		label="Opacity"
+		value={value}
+		min={0}
+		max={1}
+		step={0.05}
+		changed={value !== defaultLevel}
+		onChange={onChange}
+		onReset={() => onChange(defaultLevel)}
+		resetLabel="Reset opacity"
+	/>
 )
 
 /** Per-value opacity rows: a truncated value label + a number input + a reset

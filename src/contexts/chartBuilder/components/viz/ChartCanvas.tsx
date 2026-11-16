@@ -25,6 +25,7 @@ import {
 	INSIDE_LEGEND_EDGE_BUFFER,
 	subtitleReserve,
 	titleReserve,
+	type PlotInsets,
 } from "../../lib/plotLayout"
 import { resolveCanvasMargins } from "../../lib/themeConfig"
 import { ALL_ENCODING_CHANNELS } from "../../lib/types"
@@ -35,6 +36,7 @@ import {
 	currentRenderedCanvasSlackAtom,
 	currentRenderedFigureSlackAtom,
 	currentRenderedFitFloorAtom,
+	currentRenderedPlotInsetsAtom,
 	currentRenderedInsideAutoXAtom,
 	currentRenderedLayoutVersionAtom,
 } from "../../store/atoms"
@@ -483,6 +485,26 @@ const InsideLegendLayout = ({
 					).size
 				)
 			: 0)
+	const figureSlack = useAtomValue(currentRenderedFigureSlackAtom)
+	// Where the solved plot sits in its canvas (`null` before the first
+	// solve). The legend's coordinates are fractions of THAT plot, so both
+	// the room reserved for it and its own position are worked out from it —
+	// not from the base margins, which stop being the plot's as soon as a
+	// tick label, a title or a facet strip grows one.
+	const plotInsets = useAtomValue(currentRenderedPlotInsetsAtom)
+	// The reservation pads the chart, and the pad must not feed back into
+	// what it was computed from. The plot's MARGINS (its insets without the
+	// centering slack of a fixed aspect ratio) do not move when the chart is
+	// padded; the slack does. So the reservation sees the margins, and the
+	// slack is only ever added to the legend's own mapping.
+	const plotMargins = plotInsets
+		? {
+				top: plotInsets.top - figureSlack.y / 2,
+				right: plotInsets.right - figureSlack.x / 2,
+				bottom: plotInsets.bottom - figureSlack.y / 2,
+				left: plotInsets.left - figureSlack.x / 2,
+			}
+		: null
 	const extras = computeInsideExtras({
 		insideX: legendCfg.insideX,
 		insideY: legendCfg.insideY,
@@ -491,18 +513,19 @@ const InsideLegendLayout = ({
 		legendW: legendBounds.width,
 		legendH: legendBounds.height,
 		titleReserves,
+		plotMargins,
 	})
-	const figureSlack = useAtomValue(currentRenderedFigureSlackAtom)
 	// The legend's inside coords map over the plot area via insideExtras.
-	// With the grid centered, the plot edges moved inward by slack/2 per
-	// side — reflect that ONLY in the legend's mapping extras, never in
-	// the chart padding (which would trigger a measure→solve feedback loop).
-	const legendExtras: InsideExtras = {
-		top: extras.top + figureSlack.y / 2,
-		right: extras.right + figureSlack.x / 2,
-		bottom: extras.bottom + figureSlack.y / 2,
-		left: extras.left + figureSlack.x / 2,
-	}
+	// The solved insets already include the centering slack; without them
+	// (first paint) the slack is added here, to the legend's mapping only.
+	const legendExtras: InsideExtras = plotInsets
+		? extras
+		: {
+				top: extras.top + figureSlack.y / 2,
+				right: extras.right + figureSlack.x / 2,
+				bottom: extras.bottom + figureSlack.y / 2,
+				left: extras.left + figureSlack.x / 2,
+			}
 	// When X is auto (null = right-edge-anchored upper-right corner), publish
 	// the equivalent top-left-anchored X so the Legend panel's X input can
 	// show it as its placeholder — typing/stepping then starts from where the
@@ -510,10 +533,11 @@ const InsideLegendLayout = ({
 	// the legend's own calc(): plot width = canvas minus the same horizontal
 	// reserve (extras.left/right are 0 in the auto case).
 	const setRenderedAutoX = useSetAtom(currentRenderedInsideAutoXAtom)
-	const autoPlotW =
-		canvasBounds.width -
-		(2 * CHART_PAD + BASE_MARGIN.left + BASE_MARGIN.right) -
-		figureSlack.x
+	const autoPlotW = plotInsets
+		? canvasBounds.width - 2 * CHART_PAD - plotInsets.left - plotInsets.right
+		: canvasBounds.width -
+			(2 * CHART_PAD + BASE_MARGIN.left + BASE_MARGIN.right) -
+			figureSlack.x
 	const autoX =
 		legendCfg.insideX == null && autoPlotW > 0 && legendBounds.width > 0
 			? 1 - INSIDE_AUTO_X_INSET - legendBounds.width / autoPlotW
@@ -610,6 +634,7 @@ export const computeInsideExtras = ({
 	legendW,
 	legendH,
 	titleReserves,
+	plotMargins,
 }: {
 	/** `null` = auto: right-edge-anchored in the plot's upper-right corner,
 	 *  which by construction never extends past the plot horizontally — no
@@ -620,26 +645,36 @@ export const computeInsideExtras = ({
 	canvasH: number
 	legendW: number
 	legendH: number
+	/** The chart title / subtitle bands, for the fallback margins below. */
 	titleReserves: number
+	/** The solved plot's margins inside its canvas (its insets without any
+	 *  aspect-ratio centering slack). Omitted / `null` before the first solve:
+	 *  the base margins plus the title bands stand in. */
+	plotMargins?: PlotInsets | null
 }): InsideExtras => {
 	if (canvasW <= 0 || canvasH <= 0) {
 		return { top: 0, right: 0, bottom: 0, left: 0 }
 	}
-	const horizontalConst = 2 * CHART_PAD + BASE_MARGIN.left + BASE_MARGIN.right
-	const verticalConst =
-		2 * CHART_PAD + BASE_MARGIN.top + BASE_MARGIN.bottom + titleReserves
+	const margins: PlotInsets = plotMargins ?? {
+		top: BASE_MARGIN.top + titleReserves,
+		right: BASE_MARGIN.right,
+		bottom: BASE_MARGIN.bottom,
+		left: BASE_MARGIN.left,
+	}
+	const horizontalConst = 2 * CHART_PAD + margins.left + margins.right
+	const verticalConst = 2 * CHART_PAD + margins.top + margins.bottom
 	// The plot with no extras. A side can give up at most all of it.
 	const plotW = Math.max(0, canvasW - horizontalConst)
 	const plotH = Math.max(0, canvasH - verticalConst)
 	const reserve = (spill: number, efficiency: number, available: number): number =>
 		Math.min(available, Math.max(0, spill) * reserveGain(efficiency))
 
-	const boxTop = canvasH - CHART_PAD - BASE_MARGIN.bottom - insideY * plotH
+	const boxTop = canvasH - CHART_PAD - margins.bottom - insideY * plotH
 	const bottom = reserve(boxTop + legendH - (canvasH - EDGE_BUFFER), 1 - insideY, plotH)
 	const top = reserve(EDGE_BUFFER - boxTop, insideY, plotH)
 	if (insideX == null) return { top, right: 0, bottom, left: 0 }
 
-	const boxLeft = CHART_PAD + BASE_MARGIN.left + insideX * plotW
+	const boxLeft = CHART_PAD + margins.left + insideX * plotW
 	const right = reserve(boxLeft + legendW - (canvasW - EDGE_BUFFER), insideX, plotW)
 	const left = reserve(EDGE_BUFFER - boxLeft, 1 - insideX, plotW)
 	return { top, right, bottom, left }

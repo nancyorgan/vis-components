@@ -10,6 +10,10 @@ export const BASE_MARGIN = { top: 16, right: 24, bottom: 64, left: 76 } as const
  *  y-title (pies-x / pies-y) still fall back to BASE_MARGIN on that
  *  side — see `solveFacetLayout`'s per-side resolution. */
 export const POLAR_MARGIN = { top: 4, right: 8, bottom: 8, left: 8 } as const
+/** The distance (px) from each edge of the canvas to the plot — the union
+ *  of every panel's plot rect. What the legend aligns to. */
+export type PlotInsets = { top: number; right: number; bottom: number; left: number }
+
 /** The pad (px) between the chart area's edge and the SVG inside it —
  *  ChartCanvas's `p-3`. One definition: the page layout holds the chart
  *  area to the solver's floor plus this pad, the legend aligns to the plot

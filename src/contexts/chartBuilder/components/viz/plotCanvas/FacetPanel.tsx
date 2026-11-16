@@ -243,10 +243,15 @@ export const FacetPanel = ({
 		<g
 			data-panel={p.key}
 			data-panel-key={p.key}
-			// The plot area's right edge (where the x axis ends), in this
-			// group's coordinates: the data table's View data / Chart · Data
-			// links right-align to it (DataTableBlock).
+			// The plot rect in the canvas's coordinates. The right edge (where
+			// the x axis ends) is what the data table's View data / Chart · Data
+			// links right-align to (DataTableBlock); all four let a test or the
+			// browser sweep read the SOLVED plot instead of guessing it from the
+			// group's bounding box, which also holds tick labels.
+			data-inner-left={p.inner.x}
+			data-inner-top={p.inner.y}
 			data-inner-right={p.inner.x + p.inner.width}
+			data-inner-bottom={p.inner.y + p.inner.height}
 			data-x-scale-rows={xScaleRowCount}
 			data-y-scale-rows={yScaleRowCount}
 		>

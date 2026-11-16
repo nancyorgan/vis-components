@@ -103,8 +103,11 @@ describe("markPartTitles", () => {
 		expect(keys("all")).toEqual({
 			// Point outline is not a color slot: it is the marks' own outline.
 			color: ["areaPointFill"],
-			opacity: ["areaPointFill", "border", "areaPointOutline"],
-			modulation: ["areaPointFill", "line", "areaPointOutline"],
+			// In the menus' one order: the Line (an area's own outline — Opacity
+			// keeps it as `border`, Saturation / Brightness as `line`), then the
+			// points on it.
+			opacity: ["border", "areaPointFill", "areaPointOutline"],
+			modulation: ["line", "areaPointFill", "areaPointOutline"],
 		})
 		expect(keys("none")).toEqual({ color: [], opacity: ["border"], modulation: ["line"] })
 		// A line chart's points are the marks themselves — no area parts there.

@@ -44,7 +44,9 @@ export const AreasYMode: ChartModeDef = {
 		cartesianAxes: { x: true, y: true },
 		lengthRole: "measure",
 		connectionRole: "layer",
-		shapeRole: "none",
+		// The points along each layer's line are glyphs: they take the Shape
+		// row's pick (and the default angle), like a line chart's.
+		shapeRole: "glyph",
 		areaRole: "mark",
 		mark: "area",
 		statOverlays: false,

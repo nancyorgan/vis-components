@@ -468,20 +468,22 @@ export const DataTablePanel = () => {
 								)}
 							</>
 						)}
-						<NumberInput
-							label="Max rows"
-							labelClassName={LABEL_COL}
-							value={cfg.maxRows}
-							placeholder="All"
-							min={1}
-							step={1}
-							stepBase={10}
-							onChange={(n) => {
-								if (n >= 1) update({ maxRows: Math.round(n) })
-							}}
-							onClear={() => update({ maxRows: null })}
-							inputClassName="w-20"
-						/>
+						<ResetRow label="max rows" onReset={resetOf("maxRows")}>
+							<NumberInput
+								label="Max rows"
+								labelClassName={LABEL_COL}
+								value={cfg.maxRows}
+								placeholder="All"
+								min={1}
+								step={1}
+								stepBase={10}
+								onChange={(n) => {
+									if (n >= 1) update({ maxRows: Math.round(n) })
+								}}
+								onClear={() => update({ maxRows: null })}
+								inputClassName="w-20"
+							/>
+						</ResetRow>
 						<div className="flex items-center gap-2">
 							<LabelSpacer />
 							<Checkbox
