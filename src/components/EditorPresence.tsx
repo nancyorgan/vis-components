@@ -151,7 +151,13 @@ const avatarColor = (id: string): string => {
 const MAX_AVATARS = 4
 
 const AVATAR =
-	"flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-white ring-2 ring-white select-none dark:ring-stone-900"
+	"group relative flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-white select-none"
+
+/** The full name under a circle, shown at once on hover (a native `title`
+ *  waits a second and is easy to miss). It's also the circle's accessible
+ *  name, so it stays in the tree while invisible. */
+const TOOLTIP =
+	"pointer-events-none absolute top-full left-1/2 z-50 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-stone-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 dark:bg-stone-100 dark:text-stone-900"
 
 /** The editor header's "who's here" row: an initials circle for each
  *  person with this visual open, you included. Only on a server that
@@ -177,21 +183,22 @@ export const EditorPresence = () => {
 	return (
 		<ul
 			aria-label="In this editor"
-			className="hidden items-center -space-x-1.5 sm:flex"
+			className="hidden items-center gap-1 sm:flex"
 		>
 			{overflow > 0 && (
-				<li
-					title={hidden.map(label).join(", ")}
-					className={`${AVATAR} bg-stone-500${faded ? " opacity-50 grayscale" : ""}`}
-				>
+				<li className={`${AVATAR} bg-stone-500${faded ? " opacity-50 grayscale" : ""}`}>
 					<span aria-hidden>+{overflow}</span>
-					<span className="sr-only">{hidden.map(label).join(", ")}</span>
+					<span role="tooltip" className={TOOLTIP}>
+						{hidden.map(label).join(", ")}
+					</span>
 				</li>
 			)}
 			{shown.map((u) => (
-				<li key={u.id} title={label(u)} className={`${AVATAR} ${avatarColor(u.id)}${fade(u)}`}>
+				<li key={u.id} className={`${AVATAR} ${avatarColor(u.id)}${fade(u)}`}>
 					<span aria-hidden>{initials(u.name)}</span>
-					<span className="sr-only">{label(u)}</span>
+					<span role="tooltip" className={TOOLTIP}>
+						{label(u)}
+					</span>
 				</li>
 			))}
 		</ul>

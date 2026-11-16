@@ -72,7 +72,9 @@ const stubPresenceServer = () => {
 	}
 }
 
-const titles = () => screen.getAllByRole("listitem").map((li) => li.getAttribute("title"))
+/** Each circle's hover name (its tooltip, which is also its accessible name). */
+const tipOf = (li: HTMLElement) => li.querySelector("[role=tooltip]")?.textContent
+const titles = () => screen.getAllByRole("listitem").map(tipOf)
 const tick = (ms: number) => act(async () => vi.advanceTimersByTimeAsync(ms).then(() => {}))
 
 const renderIn = (visualId: string | null) =>
@@ -88,7 +90,7 @@ describe("EditorPresence", () => {
 		renderIn("v1")
 		await act(async () => {})
 		const circles = screen.getAllByRole("listitem")
-		expect(circles.map((li) => li.getAttribute("title"))).toEqual([
+		expect(circles.map(tipOf)).toEqual([
 			"Jane Doe",
 			"Nancy Organ (you)",
 		])
@@ -105,7 +107,7 @@ describe("EditorPresence", () => {
 	it("shows just you on an unsaved draft, without asking the server", () => {
 		const fetchMock = stubPresence([JANE])
 		renderIn(null)
-		expect(screen.getAllByRole("listitem").map((li) => li.getAttribute("title"))).toEqual([
+		expect(titles()).toEqual([
 			"Nancy Organ (you)",
 		])
 		expect(fetchMock).not.toHaveBeenCalled()
@@ -192,6 +194,6 @@ describe("EditorPresence", () => {
 		const circles = screen.getAllByRole("listitem")
 		expect(circles).toHaveLength(4)
 		expect(circles[0].querySelector("[aria-hidden]")?.textContent).toBe("+3")
-		expect(circles[0].getAttribute("title")).toBe("Ann A, Bo B, Cy C")
+		expect(tipOf(circles[0])).toBe("Ann A, Bo B, Cy C")
 	})
 })
