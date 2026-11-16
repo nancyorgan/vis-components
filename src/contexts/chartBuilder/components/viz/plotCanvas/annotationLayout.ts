@@ -1,4 +1,5 @@
 import {
+	DEFAULT_ANNOTATION_WRAP_CHARS,
 	DEFAULT_RECTANGLE_TEXT,
 	type CircleAnnotation,
 	type ImageAnnotation,
@@ -40,7 +41,7 @@ import {
 	type FacetPanelRef,
 } from "../../../lib/facetPanelRef"
 import { ptToPx } from "../../../lib/fontUnit"
-import { lineCount } from "../../../lib/multilineText"
+import { lineCount, wrapByCharCount } from "../../../lib/multilineText"
 import {
 	applyPositionScale,
 	makePositionScale,
@@ -288,6 +289,24 @@ export const buildAnnotationScales = ({
 	return { xScale, yScale }
 }
 
+/** The label as drawn: with "Wrap text" on, folded at the space / hyphen
+ *  nearest the Characters target (`wrapByCharCount`, the Data Labels rule)
+ *  on top of any typed `\n` breaks; otherwise the stored text unchanged.
+ *  Text annotations and rectangle labels both go through this, and so do
+ *  the box sizing and the canvas reserve, so they agree with the render. */
+export const annotationDisplayText = (a: {
+	text?: string
+	textWrap?: boolean
+	textWrapChars?: number
+}): string => {
+	const text = a.text ?? ""
+	if (a.textWrap !== true) return text
+	return wrapByCharCount(
+		text,
+		a.textWrapChars ?? DEFAULT_ANNOTATION_WRAP_CHARS
+	).join("\n")
+}
+
 /** Width of a text annotation's widest line at its actual font: canvas
  *  `measureText` when available, the shared character-count estimate in a
  *  headless render (so the box never collapses to zero width). */
@@ -295,14 +314,15 @@ export const textAnnotationWidthPx = (
 	anno: TextAnnotation,
 	fontSizePx: number
 ): number => {
+	const text = annotationDisplayText(anno)
 	const measured = measureMaxLabelWidth(
-		[anno.text],
+		[text],
 		anno.textFontFamily,
 		fontSizePx,
 		anno.textFontWeight,
 		anno.textItalic
 	)
-	return measured > 0 ? measured : estimateLongestLineWidth(anno.text, fontSizePx)
+	return measured > 0 ? measured : estimateLongestLineWidth(text, fontSizePx)
 }
 
 /** Place every annotation of a panel in canvas px. Annotations that can't
@@ -518,7 +538,7 @@ export const layoutPanelAnnotations = ({
 			anchorX: point.x,
 			anchorY: point.y,
 			textWidthPx: textAnnotationWidthPx(t, fontSizePx),
-			lines: lineCount(t.text),
+			lines: lineCount(annotationDisplayText(t)),
 			fontSizePx,
 			padding: t.textPadding,
 			align: t.textAlign,
@@ -567,7 +587,10 @@ export const layoutPanelAnnotations = ({
 /** Resolve a rectangle's inner-label styling with the pre-text defaults, so
  *  rectangles saved before text shipped still draw sensibly. */
 export const rectangleTextStyle = (rect: RectangleAnnotation) => ({
-	text: rect.text ?? DEFAULT_RECTANGLE_TEXT.text,
+	text: annotationDisplayText({
+		...rect,
+		text: rect.text ?? DEFAULT_RECTANGLE_TEXT.text,
+	}),
 	fontSizePx: ptToPx(rect.textFontSize ?? DEFAULT_RECTANGLE_TEXT.textFontSize),
 	align: rect.textAlign ?? DEFAULT_RECTANGLE_TEXT.textAlign,
 	padding: rect.textPadding ?? DEFAULT_RECTANGLE_TEXT.textPadding,

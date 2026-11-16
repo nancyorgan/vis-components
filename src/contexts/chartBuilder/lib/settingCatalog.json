@@ -691,6 +691,18 @@
 				"boolean"
 			]
 		},
+		"annotationsConfig.rectangles[].textWrap": {
+			"doc": "\"Wrap text\": fold the label onto extra lines at the space / internal hyphen nearest `textWrapChars` characters (`wrapByCharCount`, the Data Labels rule); typed `\\n` breaks still apply. Absent = off.",
+			"kinds": [
+				"boolean"
+			]
+		},
+		"annotationsConfig.rectangles[].textWrapChars": {
+			"doc": "\"Characters\" under Wrap text — the target line length. Absent = `DEFAULT_ANNOTATION_WRAP_CHARS`. Only read while `textWrap` is on.",
+			"kinds": [
+				"number"
+			]
+		},
 		"annotationsConfig.rectangles[].xMax": {
 			"kinds": [
 				"number",
@@ -896,6 +908,18 @@
 		"annotationsConfig.texts[].textUnderline": {
 			"kinds": [
 				"boolean"
+			]
+		},
+		"annotationsConfig.texts[].textWrap": {
+			"doc": "\"Wrap text\": fold the label onto extra lines at the space / internal hyphen nearest `textWrapChars` characters (`wrapByCharCount`, the Data Labels rule); typed `\\n` breaks still apply. Absent = off.",
+			"kinds": [
+				"boolean"
+			]
+		},
+		"annotationsConfig.texts[].textWrapChars": {
+			"doc": "\"Characters\" under Wrap text — the target line length. Absent = `DEFAULT_ANNOTATION_WRAP_CHARS`. Only read while `textWrap` is on.",
+			"kinds": [
+				"number"
 			]
 		},
 		"annotationsConfig.texts[].x": {

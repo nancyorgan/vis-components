@@ -103,6 +103,13 @@ export type RectangleAnnotation = {
 	/** Italic / underlined label text. Absent = off (pre-Style-row saves). */
 	textItalic?: boolean
 	textUnderline?: boolean
+	/** "Wrap text": fold the label onto extra lines at the space / internal
+	 *  hyphen nearest `textWrapChars` characters (`wrapByCharCount`, the
+	 *  Data Labels rule); typed `\n` breaks still apply. Absent = off. */
+	textWrap?: boolean
+	/** "Characters" under Wrap text — the target line length. Absent =
+	 *  `DEFAULT_ANNOTATION_WRAP_CHARS`. Only read while `textWrap` is on. */
+	textWrapChars?: number
 }
 
 /** Fallback text styling for rectangles saved before the text feature (and
@@ -177,6 +184,10 @@ export const DEFAULT_LINE_END_STYLE = {
 	arrowheadScale: 1,
 }
 
+/** "Characters" a wrapped annotation label starts at — the same 20 Data
+ *  Labels' Wrap text starts at. */
+export const DEFAULT_ANNOTATION_WRAP_CHARS = 20
+
 /** The line segment's cap + arrowhead styling. */
 export type LineEndStyle = typeof DEFAULT_LINE_END_STYLE
 
@@ -190,6 +201,13 @@ export type RectangleTextStyle = Omit<typeof DEFAULT_RECTANGLE_TEXT, "text"> & {
 	textItalic?: boolean
 	/** Underlined label text. Optional: absent = no underline. */
 	textUnderline?: boolean
+	/** "Wrap text": fold the label onto extra lines at the space / internal
+	 *  hyphen nearest `textWrapChars` characters (`wrapByCharCount`, the
+	 *  Data Labels rule); typed `\n` breaks still apply. Absent = off. */
+	textWrap?: boolean
+	/** "Characters" under Wrap text — the target line length. Absent =
+	 *  `DEFAULT_ANNOTATION_WRAP_CHARS`. Only read while `textWrap` is on. */
+	textWrapChars?: number
 }
 
 /** The line segment's stroke styling. */
@@ -263,6 +281,13 @@ export type TextAnnotation = {
 	/** Italic / underlined label text. Absent = off (pre-Style-row saves). */
 	textItalic?: boolean
 	textUnderline?: boolean
+	/** "Wrap text": fold the label onto extra lines at the space / internal
+	 *  hyphen nearest `textWrapChars` characters (`wrapByCharCount`, the
+	 *  Data Labels rule); typed `\n` breaks still apply. Absent = off. */
+	textWrap?: boolean
+	/** "Characters" under Wrap text — the target line length. Absent =
+	 *  `DEFAULT_ANNOTATION_WRAP_CHARS`. Only read while `textWrap` is on. */
+	textWrapChars?: number
 	backgroundColor: string
 	/** 0..1 fill alpha applied on top of the fill color. */
 	backgroundOpacity: number

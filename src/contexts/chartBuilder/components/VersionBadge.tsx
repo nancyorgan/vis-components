@@ -3,8 +3,9 @@ import { useAtom, useSetAtom } from "jotai"
 import { pruneOrphanFields } from "../lib/datasetCompat"
 import { withFreshContentHash } from "../lib/datasetDedupe"
 import type { DatasetLike } from "../lib/datasetMeta"
-import type { Dataset } from "../lib/types"
+import type { Dataset, DatasetMeta } from "../lib/types"
 import { normalizeVersionFields } from "../lib/versionFields"
+import { downloadVersionLog } from "../lib/versionLog"
 import { describeVersionOrigin } from "../lib/versionTransforms"
 import {
 	datasetIndexAtom,
@@ -59,6 +60,7 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 	// the click just silently does nothing.
 	const [mutateError, setMutateError] = useState<string | null>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
+	const datasetMeta = useDatasetById(view?.id ?? "")
 
 	useEffect(() => {
 		if (!open) return
@@ -216,6 +218,18 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 							canDelete={view.totalVersions > 1}
 						/>
 					</ul>
+					{datasetMeta && (
+						<button
+							type="button"
+							onClick={() => {
+								void downloadVersionLog(datasetMeta)
+								setOpen(false)
+							}}
+							className="block w-full border-t border-stone-200 px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50 dark:border-stone-700 dark:text-blue-300 dark:hover:bg-blue-900/30"
+						>
+							Export list of changes
+						</button>
+					)}
 				</div>
 			)}
 		</div>
@@ -348,7 +362,7 @@ const VersionList = ({
 // The version list is pure metadata (id, filename, createdAt, note), so it
 // reads the INDEX — present for every dataset — rather than the loaded-bodies
 // map, which is empty for a dataset opened lazily and left the popover blank.
-const useDatasetById = (id: string): DatasetLike | undefined => {
+const useDatasetById = (id: string): DatasetMeta | undefined => {
 	const [index] = useAtom(datasetIndexAtom)
 	return index[id]
 }

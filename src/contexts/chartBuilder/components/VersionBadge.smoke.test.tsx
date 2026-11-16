@@ -160,3 +160,39 @@ describe("VersionBadge with a hand-edited version", () => {
 		)
 	})
 })
+
+describe("VersionBadge export list of changes", () => {
+	it("sits at the bottom of the popover and downloads a CSV of the versions", async () => {
+		const blobs: Blob[] = []
+		vi.stubGlobal("URL", {
+			...URL,
+			createObjectURL: (b: Blob) => {
+				blobs.push(b)
+				return "blob:test"
+			},
+			revokeObjectURL: () => {},
+		})
+		const click = vi
+			.spyOn(HTMLAnchorElement.prototype, "click")
+			.mockImplementation(() => {})
+		mount(computed)
+		fireEvent.click(screen.getByTitle("Data set versions"))
+		const link = screen.getByRole("button", { name: "Export list of changes" })
+		// Last thing in the popover, after the version list.
+		expect(link.previousElementSibling?.tagName).toBe("UL")
+		expect(link.nextElementSibling).toBeNull()
+		fireEvent.click(link)
+		await vi.waitFor(() => expect(click).toHaveBeenCalled())
+		const anchor = click.mock.contexts[0] as HTMLAnchorElement
+		expect(anchor.download).toBe("sales-reshaped-versions.csv")
+		const text = await blobs[0]?.text()
+		const lines = text?.split("\n") ?? []
+		expect(lines[0]).toBe(
+			"Data set,Version,Date,Type,Change,Made from,File,Note,Rows,Columns,Latest"
+		)
+		expect(lines).toHaveLength(4)
+		expect(lines[3]).toContain("v3")
+		expect(lines[3]).toContain("Derived data")
+		click.mockRestore()
+	})
+})

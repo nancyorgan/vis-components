@@ -14,6 +14,7 @@ import type { Rect } from "../../../lib/facetLayoutSolver"
 import { lineCount, renderMultilineTspans } from "../../../lib/multilineText"
 import {
 	annotationClipsToPanel,
+	annotationDisplayText,
 	layoutPanelAnnotations,
 	rectangleTextStyle,
 	type AnnotationAxisFields,
@@ -123,7 +124,7 @@ const TextAnnotationMark = ({
 				textDecoration={anno.textUnderline ? "underline" : undefined}
 				fill={anno.textColor}
 			>
-				{renderMultilineTspans(anno.text, box.textX)}
+				{renderMultilineTspans(annotationDisplayText(anno), box.textX)}
 			</text>
 		</g>
 	)

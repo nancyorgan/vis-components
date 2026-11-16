@@ -2,7 +2,8 @@ import type { ReactNode } from "react"
 import { useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
-import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import { Checkbox } from "../../../../../components/ui/Checkbox"
+import { LABEL_COL, LABEL_COL_NESTED } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
@@ -16,9 +17,10 @@ import {
 	type CoordCorner,
 	type CoordUnit,
 } from "../../../lib/annotationPixels"
-import type {
-	BoxAnnotationStyle,
-	RectangleTextStyle,
+import {
+	DEFAULT_ANNOTATION_WRAP_CHARS,
+	type BoxAnnotationStyle,
+	type RectangleTextStyle,
 } from "../../../lib/annotationsConfig"
 import type { FontConfig } from "../../../lib/labelsConfig"
 import { currentRenderedPanelInnerDimsAtom } from "../../../store/atoms"
@@ -734,6 +736,33 @@ export const TextStyleSection = ({
 				baseFamily={defaults.textFontFamily}
 				baseWeight={defaults.textFontWeight}
 			/>
+			{/* Same pair as Data Labels' Wrap text: a toggle, then the target
+			 *  line length nested under it while on. */}
+			<Checkbox
+				label="Wrap text"
+				checked={style.textWrap === true}
+				onChange={(on) => onChange({ textWrap: on || undefined })}
+			/>
+			{style.textWrap === true && (
+				<div className="ml-6 flex items-center gap-2 text-sm">
+					<NumberInput
+						label="Characters"
+						labelClassName={LABEL_COL_NESTED}
+						value={style.textWrapChars ?? DEFAULT_ANNOTATION_WRAP_CHARS}
+						min={1}
+						step={1}
+						clamp
+						onChange={(textWrapChars) => onChange({ textWrapChars })}
+						inputClassName="w-16"
+					/>
+					{(style.textWrapChars ?? DEFAULT_ANNOTATION_WRAP_CHARS) !==
+						DEFAULT_ANNOTATION_WRAP_CHARS && (
+						<ResetLink
+							onClick={() => onChange({ textWrapChars: undefined })}
+						/>
+					)}
+				</div>
+			)}
 			{showPadding && (
 				<PaddingRow
 					value={style.textPadding ?? defaults.textPadding}
