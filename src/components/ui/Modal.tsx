@@ -197,7 +197,6 @@ export const Modal = ({
 						<button
 							type="button"
 							onClick={onClose}
-							title="Close"
 							aria-label="Close"
 							className="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200 vc-muted"
 						>

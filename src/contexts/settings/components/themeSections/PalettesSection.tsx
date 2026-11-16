@@ -118,7 +118,6 @@ const PaletteCard = ({
 				data-testid="palette-drag-handle"
 				aria-hidden
 				draggable={!isReadOnly}
-				title={isReadOnly ? undefined : "Drag to reorder palettes"}
 				onDragStart={(e) => {
 					if (isReadOnly) {
 						e.preventDefault()
@@ -140,7 +139,6 @@ const PaletteCard = ({
 						type="button"
 						onClick={onMoveUp ?? undefined}
 						disabled={onMoveUp === null}
-						title="Move palette up"
 						aria-label={`Move ${paletteLabel} up`}
 						className={paletteMoveButton}
 					>
@@ -150,7 +148,6 @@ const PaletteCard = ({
 						type="button"
 						onClick={onMoveDown ?? undefined}
 						disabled={onMoveDown === null}
-						title="Move palette down"
 						aria-label={`Move ${paletteLabel} down`}
 						className={paletteMoveButton}
 					>
@@ -194,7 +191,6 @@ const PaletteCard = ({
 					key={i}
 					data-testid="palette-swatch"
 					draggable={!isReadOnly}
-					title={isReadOnly ? undefined : "Drag to reorder"}
 					onDragStart={(e) => {
 						if (isReadOnly) {
 							e.preventDefault()
@@ -304,7 +300,6 @@ const PaletteCard = ({
 					})
 				}}
 				className="flex h-6 w-10 items-center justify-center self-start rounded border border-dashed border-stone-400 hover:border-stone-600 hover:text-stone-900 dark:border-stone-700 dark:hover:text-white vc-muted"
-				title="Add color"
 				aria-label="Add color"
 			>
 				+

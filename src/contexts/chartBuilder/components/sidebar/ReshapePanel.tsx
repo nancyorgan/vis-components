@@ -197,14 +197,14 @@ const useColumnLabel = (candidates: ReadonlyArray<{ id: string; name: string }>)
 						const id = derivedIdByName.get(f.name)
 						if (id) setDerivedEditor({ mode: "edit", id })
 					}}
-					title={`Edit the derived variable ${f.name}`}
+					title="Edit calculation"
 					aria-label={`Edit derived variable ${f.name}`}
 					className="flex-shrink-0 font-serif text-xs italic text-brand-500 hover:text-brand-700 dark:text-indigo-400 dark:hover:text-indigo-300"
 				>
 					ƒ
 				</button>
 			) : null}
-			<span className="min-w-0 truncate" title={f.name}>
+			<span className="min-w-0 truncate">
 				{f.name}
 			</span>
 		</>

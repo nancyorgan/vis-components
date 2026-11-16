@@ -65,7 +65,7 @@ const SectionRow = ({
 					<li key={line}>{line}</li>
 				))}
 				{hidden.length > 0 && (
-					<li className="list-none" title={hidden.join("\n")}>
+					<li className="list-none">
 						+{hidden.length} more
 					</li>
 				)}

@@ -162,12 +162,13 @@ export const VersionBadge = ({ compact = false }: { compact?: boolean }) => {
 			<button
 				type="button"
 				onClick={() => setOpen((v) => !v)}
+				data-testid="version-badge"
+				aria-expanded={open}
 				className={`flex items-center gap-2 rounded-control border px-2 py-1 text-sm transition-colors ${
 					view.isLatest
 						? "border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
 						: "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
 				}`}
-				title="Data set versions"
 			>
 				{!compact && (
 					<span className="truncate font-medium">{view.name}</span>

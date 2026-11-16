@@ -843,7 +843,6 @@ const ModulationCategoryList = ({
 					<div key={value} className="flex items-center gap-2 text-sm">
 						<Slider
 							label={value}
-							labelTitle={value}
 							labelClassName={`${LABEL_COL} truncate`}
 							className="min-w-0 flex-1"
 							changed={overridden}
@@ -935,7 +934,6 @@ const DerivedLevelsPanel = ({
 					<div key={value} className="flex items-center gap-2 text-sm">
 						<Slider
 							label={source === "depth" ? `Level ${value}` : value}
-							labelTitle={value}
 							labelClassName={`${LABEL_COL} truncate`}
 							className="min-w-0 flex-1"
 							changed={overridden}

@@ -125,6 +125,15 @@ const renderTree = (
 	)
 
 /** The folder row is the [data-folder-row] div wrapping the folder name. */
+/** A visual's row in the tree (the draggable, selectable element). */
+const queryVisualRow = (name: string): HTMLElement | null =>
+	document.querySelector<HTMLElement>(`[data-visual-row="${CSS.escape(name)}"]`)
+const visualRow = (name: string): HTMLElement => {
+	const row = queryVisualRow(name)
+	if (!row) throw new Error(`no visual row "${name}"`)
+	return row
+}
+
 const folderRow = (container: HTMLElement, name: string): HTMLElement => {
 	const rows = [...container.querySelectorAll("[data-folder-row]")]
 	const row = rows.find((r) => r.textContent?.includes(name))
@@ -196,8 +205,8 @@ describe("FolderTree drag-and-drop", () => {
 
 	it("cmd-click selects a visual without navigating; second cmd-click deselects", () => {
 		seedStorage([], [mkVisual("vis-1", null, "Loose")])
-		const { getByTitle } = renderTree()
-		const link = getByTitle("Loose")
+		renderTree()
+		const link = visualRow("Loose")
 		fireEvent.click(link, { metaKey: true })
 		expect(link.getAttribute("data-selected")).toBe("true")
 		fireEvent.click(link, { metaKey: true })
@@ -213,10 +222,10 @@ describe("FolderTree drag-and-drop", () => {
 				mkVisual("vis-3", null, "cc"),
 			]
 		)
-		const { getByTitle } = renderTree()
-		fireEvent.click(getByTitle("aa"), { metaKey: true })
-		fireEvent.click(getByTitle("cc"), { shiftKey: true })
-		expect(getByTitle("bb").getAttribute("data-selected")).toBe("true")
+		renderTree()
+		fireEvent.click(visualRow("aa"), { metaKey: true })
+		fireEvent.click(visualRow("cc"), { shiftKey: true })
+		expect(visualRow("bb").getAttribute("data-selected")).toBe("true")
 	})
 
 	it("dropping a visual on a folder row moves it into that folder", () => {
@@ -224,8 +233,8 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha")],
 			[mkVisual("vis-1", null, "Loose")]
 		)
-		const { container, getByTitle } = renderTree()
-		dragTo(getByTitle("Loose"), folderRow(container, "Alpha"))
+		const { container } = renderTree()
+		dragTo(visualRow("Loose"), folderRow(container, "Alpha"))
 		expect(readStoredVisuals().find((v) => v.id === "vis-1")?.folderId).toBe(
 			"fl-a"
 		)
@@ -236,10 +245,10 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha")],
 			[mkVisual("vis-1", null, "aa"), mkVisual("vis-2", null, "bb")]
 		)
-		const { container, getByTitle } = renderTree()
-		fireEvent.click(getByTitle("aa"), { metaKey: true })
-		fireEvent.click(getByTitle("bb"), { metaKey: true })
-		dragTo(getByTitle("aa"), folderRow(container, "Alpha"))
+		const { container } = renderTree()
+		fireEvent.click(visualRow("aa"), { metaKey: true })
+		fireEvent.click(visualRow("bb"), { metaKey: true })
+		dragTo(visualRow("aa"), folderRow(container, "Alpha"))
 		const stored = readStoredVisuals()
 		expect(stored).toHaveLength(2)
 		expect(stored.every((v) => v.folderId === "fl-a")).toBe(true)
@@ -315,8 +324,8 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha")],
 			[mkVisual("vis-1", null, "Loose"), mkVisual("vis-2", "fl-a", "Inside")]
 		)
-		const { getByTitle } = renderTree()
-		dragTo(getByTitle("Loose"), getByTitle("Inside"))
+		renderTree()
+		dragTo(visualRow("Loose"), visualRow("Inside"))
 		expect(readStoredVisuals().find((v) => v.id === "vis-1")?.folderId).toBe(
 			"fl-a"
 		)
@@ -327,17 +336,17 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha")],
 			[mkVisual("vis-1", null, "Loose"), mkVisual("vis-2", "fl-a", "Inside")]
 		)
-		const { container, getByTitle } = renderTree()
+		const { container } = renderTree()
 		const dataTransfer = makeFakeDataTransfer()
-		fireEvent.dragStart(getByTitle("Loose"), { dataTransfer })
-		fireEvent.dragEnter(getByTitle("Inside"), { dataTransfer })
-		fireEvent.dragOver(getByTitle("Inside"), { dataTransfer })
+		fireEvent.dragStart(visualRow("Loose"), { dataTransfer })
+		fireEvent.dragEnter(visualRow("Inside"), { dataTransfer })
+		fireEvent.dragOver(visualRow("Inside"), { dataTransfer })
 		expect(folderRow(container, "Alpha").getAttribute("data-drop-zone")).toBe(
 			"inside"
 		)
 		// The hovered row itself stays plain — the target is the folder.
-		expect(getByTitle("Inside").getAttribute("data-drop-zone")).toBeNull()
-		fireEvent.dragLeave(getByTitle("Inside"), { dataTransfer })
+		expect(visualRow("Inside").getAttribute("data-drop-zone")).toBeNull()
+		fireEvent.dragLeave(visualRow("Inside"), { dataTransfer })
 		expect(
 			folderRow(container, "Alpha").getAttribute("data-drop-zone")
 		).toBeNull()
@@ -348,8 +357,8 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha")],
 			[mkVisual("vis-1", "fl-a", "Filed"), mkVisual("vis-2", null, "Loose")]
 		)
-		const { getByTitle } = renderTree()
-		dragTo(getByTitle("Filed"), getByTitle("Loose"))
+		renderTree()
+		dragTo(visualRow("Filed"), visualRow("Loose"))
 		expect(readStoredVisuals().find((v) => v.id === "vis-1")?.folderId).toBe(
 			null
 		)
@@ -360,8 +369,8 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha"), mkFolder("fl-b", null, "Beta")],
 			[mkVisual("vis-1", "fl-a", "Inside")]
 		)
-		const { container, getByTitle } = renderTree()
-		dragTo(folderRow(container, "Beta"), getByTitle("Inside"))
+		const { container } = renderTree()
+		dragTo(folderRow(container, "Beta"), visualRow("Inside"))
 		expect(readStoredFolders().find((f) => f.id === "fl-b")?.parentId).toBe(
 			"fl-a"
 		)
@@ -372,8 +381,8 @@ describe("FolderTree drag-and-drop", () => {
 			[mkFolder("fl-a", null, "Alpha"), mkFolder("fl-b", "fl-a", "Beta")],
 			[mkVisual("vis-1", "fl-b", "Deep")]
 		)
-		const { container, getByTitle } = renderTree()
-		dragTo(folderRow(container, "Alpha"), getByTitle("Deep"))
+		const { container } = renderTree()
+		dragTo(folderRow(container, "Alpha"), visualRow("Deep"))
 		expect(readStoredFolders().find((f) => f.id === "fl-a")?.parentId).toBe(
 			null
 		)
@@ -612,13 +621,13 @@ describe("FolderTree row menu (touch/keyboard fallback for drag)", () => {
 
 	it("Escape in a visual's rename box keeps the old name", () => {
 		seedStorage([], [mkVisual("v-a", null, "Loose")])
-		const { getByLabelText, container, getByTitle } = renderTree()
+		const { getByLabelText, container } = renderTree()
 		fireEvent.click(getByLabelText("Rename Loose"))
 		const input = container.querySelector('input[type="text"]') as HTMLInputElement
 		fireEvent.change(input, { target: { value: "Nope" } })
 		fireEvent.keyDown(input, { key: "Escape" })
 		expect(container.querySelector('input[type="text"]')).toBeNull()
-		expect(getByTitle("Loose")).not.toBeNull()
+		expect(visualRow("Loose")).not.toBeNull()
 		expect(readStoredVisuals().find((v) => v.id === "v-a")?.name).toBe("Loose")
 	})
 
@@ -692,8 +701,8 @@ describe("the stock shelf (shipped examples' folder)", () => {
 
 	it("still takes a visual dropped onto it", () => {
 		installStock([], [mkVisual("vis-1", null, "Loose")])
-		const { container, getByTitle } = renderTree()
-		dragTo(getByTitle("Loose"), folderRow(container, "Aardvark examples"))
+		const { container } = renderTree()
+		dragTo(visualRow("Loose"), folderRow(container, "Aardvark examples"))
 		expect(readStoredVisuals().find((v) => v.id === "vis-1")?.folderId).toBe(
 			"fl-stock"
 		)
@@ -721,16 +730,16 @@ describe("FolderTree kind filter", () => {
 
 	it("lists ordinary visuals only by default", () => {
 		seed()
-		const { queryByTitle } = renderKind(undefined)
-		expect(queryByTitle("Chart")).not.toBeNull()
-		expect(queryByTitle("Starter")).toBeNull()
+		renderKind(undefined)
+		expect(queryVisualRow("Chart")).not.toBeNull()
+		expect(queryVisualRow("Starter")).toBeNull()
 	})
 
 	it("lists templates only under Templates, chipped and linked to a new visual", () => {
 		seed()
-		const { queryByTitle, getByTitle } = renderKind("templates")
-		expect(queryByTitle("Chart")).toBeNull()
-		const row = getByTitle("Starter")
+		renderKind("templates")
+		expect(queryVisualRow("Chart")).toBeNull()
+		const row = visualRow("Starter")
 		expect(row.textContent).toContain("Template")
 		expect(row.querySelector("a")?.getAttribute("href")).toBe(
 			"/editor/new?templateId=tpl-1"
@@ -739,15 +748,15 @@ describe("FolderTree kind filter", () => {
 
 	it("lists both under All", () => {
 		seed()
-		const { queryByTitle } = renderKind("all")
-		expect(queryByTitle("Chart")).not.toBeNull()
-		expect(queryByTitle("Starter")).not.toBeNull()
+		renderKind("all")
+		expect(queryVisualRow("Chart")).not.toBeNull()
+		expect(queryVisualRow("Starter")).not.toBeNull()
 	})
 
 	it("a move while filtered keeps the rows the filter hides", () => {
 		seed()
-		const { container, getByTitle } = renderKind("templates")
-		dragTo(getByTitle("Starter"), folderRow(container, "Alpha"))
+		const { container } = renderKind("templates")
+		dragTo(visualRow("Starter"), folderRow(container, "Alpha"))
 		const stored = readStoredVisuals()
 		expect(stored.map((v) => v.id).sort()).toEqual(["tpl-1", "vis-1"])
 		expect(stored.find((v) => v.id === "tpl-1")?.folderId).toBe("fl-a")

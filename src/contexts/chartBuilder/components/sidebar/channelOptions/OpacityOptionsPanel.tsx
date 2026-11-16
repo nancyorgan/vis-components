@@ -644,7 +644,6 @@ const CategoricalOpacityList = ({
 				<div key={v} className="flex items-center gap-2 text-sm">
 					<Slider
 						label={labels?.[i] ?? v}
-						labelTitle={labels?.[i] ?? v}
 						labelClassName="w-24 truncate vc-text"
 						className="min-w-0 flex-1"
 						value={current}

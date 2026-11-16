@@ -237,7 +237,6 @@ export const AxisRangeSection = ({
 						{entry.label !== undefined && (
 							<span
 								className="truncate vc-group-header"
-								title={entry.label}
 							>
 								{entry.label}
 							</span>

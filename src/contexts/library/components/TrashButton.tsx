@@ -61,7 +61,7 @@ export const TrashButton = () => {
 			<button
 				type="button"
 				onClick={() => setOpen(true)}
-				title={count === 0 ? "Trash is empty" : `Trash · ${plural(count, "visualization")}`}
+				title="Trash"
 				data-tip="trash"
 				aria-label={
 					count === 0 ? "Open trash (empty)" : `Open trash, ${plural(count, "item")}`
@@ -123,7 +123,6 @@ export const TrashButton = () => {
 										type="button"
 										onClick={() => purgeVisuals([v.id])}
 										className="text-sm whitespace-nowrap hover:text-red-700 dark:hover:text-red-300 vc-muted"
-										title="Delete this visualization permanently"
 									>
 										Delete forever
 									</button>

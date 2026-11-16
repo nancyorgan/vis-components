@@ -125,7 +125,7 @@ export const PatternLegend = ({
 						<EntryHoverWrap key={v} field={highlightField} value={v}>
 							<div className={cellClass}>
 								<SwatchCell>{segmentDashSwatch(v, segmentSwatch)}</SwatchCell>
-								<span className={labelClass} title={v}>
+								<span className={labelClass} data-legend-label={v}>
 									{v}
 								</span>
 							</div>
@@ -174,7 +174,7 @@ export const PatternLegend = ({
 									</svg>
 									)}
 								</SwatchCell>
-								<span className={labelClass} title={v}>
+								<span className={labelClass} data-legend-label={v}>
 									{v}
 								</span>
 							</div>
@@ -226,7 +226,7 @@ export const PatternLegend = ({
 								</svg>
 								)}
 							</SwatchCell>
-							<span className={labelClass} title={v}>
+							<span className={labelClass} data-legend-label={v}>
 								{v}
 							</span>
 						</div>

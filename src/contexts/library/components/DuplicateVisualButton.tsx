@@ -26,7 +26,7 @@ export const DuplicateVisualButton = ({
 		<button
 			type="button"
 			onClick={onClick}
-			title="Duplicate visualization…"
+			title="Duplicate"
 			aria-label={`Duplicate ${visualName}`}
 			className="flex h-6 w-6 items-center justify-center rounded bg-white/90 shadow-sm ring-1 ring-stone-200 hover:bg-stone-100 hover:text-stone-700 dark:bg-stone-800/90 dark:ring-stone-700 dark:hover:bg-stone-700 dark:hover:text-stone-200 vc-muted"
 		>

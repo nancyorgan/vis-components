@@ -88,10 +88,6 @@ export const Header = () => {
 				 *  badge is the first thing to give. */}
 				<span
 					className="-ml-4 hidden rounded bg-vc-option-panel px-1.5 py-0.5 text-[11px] font-medium text-vc-section-header tabular-nums sm:inline dark:bg-vc-brand-text/20 dark:text-brand-200"
-					title={`Built ${new Date(__BUILD_DATE__).toLocaleString(undefined, {
-						dateStyle: "medium",
-						timeStyle: "short",
-					})}`}
 				>
 					v{__APP_VERSION__}
 				</span>
@@ -459,7 +455,6 @@ const NewVisualizationButton = () => {
 					compact
 					className="rounded-r-none whitespace-nowrap"
 					onClick={onFreshDataset}
-					title="Start a new visualization"
 					data-tip="new-visual"
 				>
 					<NewVisualizationLabel />
@@ -511,11 +506,6 @@ const NewVisualizationButton = () => {
 						role="menuitem"
 						onClick={onPickTemplate}
 						disabled={!hasTemplates}
-						title={
-							hasTemplates
-								? undefined
-								: "Save a template from the editor's Save menu first"
-						}
 						className={currentDataset ? MENU_ITEM_DIVIDED : MENU_ITEM}
 					>
 						<div className={MENU_TITLE}>New from template…</div>
@@ -693,11 +683,7 @@ const BlackAndWhiteToggle = () => {
 		<button
 			type="button"
 			onClick={() => setActive(!active)}
-			title={
-				active
-					? "Disable black-and-white preview"
-					: "Black-and-white preview"
-			}
+			title="Black-and-white preview"
 			aria-pressed={active}
 			data-tip="bw-toggle"
 			className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${

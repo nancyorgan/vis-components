@@ -87,8 +87,8 @@ describe("DataTable hand-edit outlines", () => {
 		expect(bodyRows().map((r) => r.edited)).toEqual([[], ["25"], []])
 
 		// sales ascending, then descending: the outlined cell follows its row.
-		fireEvent.click(utils.getByTitle("sales"))
-		fireEvent.click(utils.getByTitle("sales"))
+		fireEvent.click(utils.getByRole("button", { name: /^sales/ }))
+		fireEvent.click(utils.getByRole("button", { name: /^sales/ }))
 		const rows = bodyRows()
 		expect(rows.map((r) => r.cells[0])).toEqual(["Bogotá", "Quito", "Lima"])
 		expect(rows.map((r) => r.edited)).toEqual([[], ["25"], []])

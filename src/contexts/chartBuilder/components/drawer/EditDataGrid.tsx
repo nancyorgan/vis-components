@@ -677,7 +677,6 @@ export const EditDataGrid = ({
 											aria-sort={
 												sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"
 											}
-											title={column.name}
 											onContextMenu={onColContextMenu(col)}
 											onMouseDown={(e) => {
 												if (e.button !== 0) return

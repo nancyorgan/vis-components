@@ -66,7 +66,7 @@ export const OpacityLegend = ({
 								style={{ backgroundColor: swatchHex, opacity: o }}
 							/>
 						</SwatchCell>
-						<span className="min-w-0 truncate" title={v}>
+						<span className="min-w-0 truncate" data-legend-label={v}>
 							{v} ({o.toFixed(2)})
 						</span>
 					</div>

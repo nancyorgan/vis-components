@@ -105,7 +105,7 @@ export const CustomGlyphChips = ({
 			onClick={onAdd}
 			aria-label="Add custom shape"
 			data-tip="custom-shape"
-			title="Custom shape — type characters or upload an image"
+			title="Custom shape"
 			className={swatchChipClass(false, "w-7")}
 		>
 			+

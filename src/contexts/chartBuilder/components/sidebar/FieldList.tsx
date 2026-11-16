@@ -146,7 +146,7 @@ export const FieldList = () => {
 											<span
 												{...dnd.sourceProps(i, field.name)}
 												aria-hidden
-												title="Drag to reorder"
+												data-drag-handle
 												className="flex-shrink-0 cursor-grab select-none text-sm leading-none vc-muted"
 											>
 												⠿
@@ -159,7 +159,6 @@ export const FieldList = () => {
 										) : (
 											<span
 												className="min-w-0 flex-1 truncate text-sm vc-text"
-												title={field.name}
 											>
 												{field.name}
 											</span>
@@ -174,7 +173,7 @@ export const FieldList = () => {
 													})
 												}
 												aria-label={`Edit derived variable ${field.name}`}
-												title="Derived variable — click to edit the calculation"
+												title="Edit calculation"
 												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-brand-500 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
 											>
 												ƒ
@@ -182,7 +181,7 @@ export const FieldList = () => {
 										) : field.derived ? (
 											<span
 												aria-label="Derived variable"
-												title="Derived variable — computed from other variables"
+												title="Derived variable"
 												className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-100 font-serif text-sm font-bold italic text-brand-500 dark:bg-indigo-900/30 dark:text-indigo-300"
 											>
 												ƒ
@@ -190,7 +189,6 @@ export const FieldList = () => {
 										) : null}
 										<span
 											className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-sm font-bold ${TYPE_BADGE_CLASSES[effective]}`}
-											title={effective}
 										>
 											{TYPE_ABBR[effective]}
 										</span>
@@ -308,16 +306,11 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 	}
 
 	if (!editing) {
-		const original = originalFieldName(field)
 		return (
 			<button
 				type="button"
 				onClick={startEditing}
-				title={
-					original !== field.name
-						? `${field.name} (originally “${original}”) — click to rename. Clear the name to revert.`
-						: `${field.name} — click to rename`
-				}
+				title="Rename"
 				aria-label={`Rename ${field.name}`}
 				data-tip="field-name"
 				className="group -my-0.5 flex min-w-0 flex-1 items-center gap-1 py-0.5 text-left text-sm vc-text"
@@ -351,6 +344,9 @@ const FieldNameEditor = ({ field }: { field: Field }) => {
 					if (e.key === "Escape") cancel()
 				}}
 				aria-label={`New name for ${field.name}`}
+				// Clearing the box reverts to the uploaded name; the placeholder
+				// shows which name that is.
+				placeholder={originalFieldName(field)}
 				aria-invalid={error ? true : undefined}
 				aria-describedby={error ? errorId : undefined}
 				// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the inline rename editor the user just opened
@@ -390,7 +386,6 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 		return (
 			<span
 				className="min-w-0 flex-1 truncate text-sm vc-text"
-				title={field.name}
 			>
 				{field.name}
 			</span>
@@ -429,7 +424,7 @@ const DerivedFieldName = ({ field }: { field: Field }) => {
 			<button
 				type="button"
 				onClick={startEditing}
-				title={`${field.name} — click to rename`}
+				title="Rename"
 				aria-label={`Rename ${field.name}`}
 				data-tip="field-name"
 				className="group -my-0.5 flex min-w-0 flex-1 items-center gap-1 py-0.5 text-left text-sm vc-text"
@@ -787,7 +782,6 @@ const LevelReorderPanel = ({
 							type="button"
 							onClick={reverse}
 							className="underline hover:text-stone-900 dark:hover:text-white vc-muted"
-							title="Flip the current level order end to end"
 						>
 							reverse
 						</button>
@@ -797,7 +791,6 @@ const LevelReorderPanel = ({
 							type="button"
 							onClick={reset}
 							className="underline hover:text-stone-900 dark:hover:text-white vc-muted"
-							title="Drop the pinned order and use smart-sort"
 						>
 							reset
 						</button>
@@ -817,7 +810,6 @@ const LevelReorderPanel = ({
 						<li
 							key={value}
 							draggable
-							title="Drag to reorder"
 							onDragStart={(e) => {
 								setDragIndex(i)
 								setDropSlot(null)
@@ -858,14 +850,13 @@ const LevelReorderPanel = ({
 							>
 								⠿
 							</span>
-							<span className="min-w-0 flex-1 truncate" title={value}>
+							<span className="min-w-0 flex-1 truncate" data-level-name={value}>
 								{value}
 							</span>
 							<button
 								type="button"
 								onClick={() => move(i, -1)}
 								disabled={i === 0}
-								title="Move up"
 								aria-label={`Move ${value} up`}
 								className="flex h-5 w-5 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:hover:bg-stone-700 vc-muted"
 							>
@@ -875,7 +866,6 @@ const LevelReorderPanel = ({
 								type="button"
 								onClick={() => move(i, 1)}
 								disabled={i === ordered.length - 1}
-								title="Move down"
 								aria-label={`Move ${value} down`}
 								className="flex h-5 w-5 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:hover:bg-stone-700 vc-muted"
 							>

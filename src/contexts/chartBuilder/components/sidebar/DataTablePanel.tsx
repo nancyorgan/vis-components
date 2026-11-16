@@ -704,7 +704,7 @@ export const DataTablePanel = () => {
 									>
 										{/* div, not label: AlignmentControl is a button group, not a form control */}
 										<div className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-											<span className={`${LABEL_COL} shrink-0 truncate`} title={col.name}>
+											<span className={`${LABEL_COL} shrink-0 truncate`}>
 												{col.name}
 											</span>
 											<AlignmentControl

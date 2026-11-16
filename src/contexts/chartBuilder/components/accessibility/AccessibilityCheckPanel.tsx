@@ -171,7 +171,7 @@ export const AccessibilityCheckCard = ({
 					 *  muting a RadioGroup legend gets — so the baselines line up. */}
 					<span
 						className="text-sm vc-muted"
-						title="Contrast model — change it under Settings → Accessibility"
+						title="Contrast model"
 					>
 						{model.name}
 					</span>
@@ -193,7 +193,7 @@ export const AccessibilityCheckCard = ({
 						type="button"
 						onClick={onClose}
 						aria-label="Close accessibility check"
-						title="Close accessibility check"
+						title="Close"
 						className="rounded px-1 text-lg leading-none hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
 					>
 						×

@@ -164,9 +164,9 @@ describe("Pattern panel — Rotate (pattern variable mapped)", () => {
 		// beside the category name); clicking it drops the entry like the
 		// pattern / ink / scale picks. North has nothing left, so only
 		// south's row carries one.
-		const southRow = q.getByTitle("south").parentElement
+		const southRow = q.getByText("south", { exact: true }).parentElement
 		expect(southRow).toBeTruthy()
-		expect(q.getByTitle("north").parentElement?.textContent).not.toContain("reset")
+		expect(q.getByText("north", { exact: true }).parentElement?.textContent).not.toContain("reset")
 		fireEvent.click(within(southRow!).getByText("reset"))
 		expect(readSavedConfigs(store).pattern?.rotations ?? {}).toEqual({})
 	})

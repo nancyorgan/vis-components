@@ -217,7 +217,7 @@ export const TooltipPanel = () => {
 							<Checkbox
 								key={name}
 								className="min-w-0 [&>label]:min-w-0 [&>label]:truncate"
-								label={<span title={name}>{name}</span>}
+								label={<span>{name}</span>}
 								checked={isVisible(name)}
 								onChange={(on) => toggleField(name, on)}
 							/>

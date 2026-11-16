@@ -187,7 +187,6 @@ const RailItem = ({
 		aria-current={active ? "true" : undefined}
 		className={`${RAIL_ITEM} ${active ? "vc-nav-active" : RAIL_IDLE}`}
 		style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
-		title={label}
 	>
 		{label}
 	</button>

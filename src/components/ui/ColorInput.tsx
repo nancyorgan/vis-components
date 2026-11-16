@@ -178,9 +178,6 @@ export const ColorInput = ({
 					aria-haspopup="dialog"
 					aria-expanded={pickerOpen}
 					data-color={swatchColor}
-					title={
-						inherited ? "Inherited — pick a color to override" : "Pick a color"
-					}
 					className={c(
 						"h-6 w-10 shrink-0 cursor-pointer rounded border border-stone-400 vc-focus-ring disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700",
 						// Dashed border = "nothing chosen here; previewing the inherited

@@ -263,7 +263,7 @@ test.describe("keyboard", () => {
 test.describe("modal dialog", () => {
 	test("Export modal: named, traps focus, Escape restores", async ({ page }) => {
 		await openEditor(page)
-		const trigger = page.getByTitle("Download or publish this visualization")
+		const trigger = page.getByRole("button", { name: "Export", exact: true })
 		await trigger.focus()
 		// Keyboard modality, as a keyboard user opening the dialog would have.
 		await page.keyboard.press("Tab")

@@ -94,7 +94,6 @@ const RepublishControl = ({ visualId }: { visualId: string }) => {
 			</Button>
 			{republishOnSave && (
 				<span
-					title="Republishes on every save (your setting, on this browser)"
 					className="inline-flex flex-shrink-0 items-center rounded bg-brand-100 px-1.5 py-0.5 text-xs font-semibold tracking-wide text-brand-800 uppercase dark:bg-brand-900/40 dark:text-brand-200"
 				>
 					Republishes on save
@@ -109,7 +108,6 @@ const RepublishControl = ({ visualId }: { visualId: string }) => {
 							? "truncate text-xs vc-muted"
 							: "sr-only"
 				}
-				title={error ?? undefined}
 			>
 				{error !== null
 					? error
@@ -142,7 +140,6 @@ const FolderBreadcrumbs = ({ visualId }: { visualId: string | null }) => {
 					<Link
 						to="/"
 						search={{ folder: folder.id }}
-						title={folder.name}
 						className="max-w-40 min-w-0 truncate rounded px-1 text-sm vc-muted hover:text-brand-700 hover:underline dark:hover:text-brand-300"
 					>
 						{folder.name}
@@ -230,7 +227,6 @@ export const SaveBar = () => {
 			onClick={() => setBarOpen(false)}
 			aria-expanded
 			aria-label="Collapse title and actions"
-			title="Collapse title and actions"
 			className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
 		>
 			<DisclosureChevron open />
@@ -272,7 +268,6 @@ export const SaveBar = () => {
 						onClick={() => setBarOpen(true)}
 						aria-expanded={false}
 						aria-label="Show title and actions"
-						title="Show title and actions"
 						className="flex w-full items-center justify-between gap-2 px-4 py-1 text-left"
 					>
 						<span className="truncate text-xs vc-muted">
@@ -300,13 +295,6 @@ export const SaveBar = () => {
 				role="status"
 				className={
 					indicator ? "sr-only text-sm sm:not-sr-only vc-muted" : "sr-only"
-				}
-				title={
-					savedVisual && saveStatus !== "saving"
-						? `${savedVisual.updatedBy ? `${savedVisual.updatedBy.name}, ` : ""}${new Date(
-								savedVisual.updatedAt
-							).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
-						: undefined
 				}
 			>
 				{indicator}

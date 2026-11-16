@@ -109,7 +109,7 @@ const mount = (
 describe("VersionBadge with a hand-edited version", () => {
 	it("counts the copy's versions and tags the edited one in the popover", () => {
 		mount()
-		const badge = screen.getByTitle("Data set versions")
+		const badge = screen.getByTestId("version-badge")
 		expect(badge.textContent).toContain("sales (edited)")
 		expect(badge.textContent).toContain("v2 of 2 · latest")
 
@@ -125,7 +125,7 @@ describe("VersionBadge with a hand-edited version", () => {
 
 	it("tags reshaped and derived versions with what made them", () => {
 		mount(computed)
-		const badge = screen.getByTitle("Data set versions")
+		const badge = screen.getByTestId("version-badge")
 		expect(badge.textContent).toContain("v3 of 3 · latest")
 		fireEvent.click(badge)
 		const items = [...document.querySelectorAll("li")].map((li) => li.textContent)
@@ -145,7 +145,7 @@ describe("VersionBadge with a hand-edited version", () => {
 		}
 		// v3 (latest) is active, so v1 offers Delete; v2 was made from v1.
 		mount(computed)
-		fireEvent.click(screen.getByTitle("Data set versions"))
+		fireEvent.click(screen.getByTestId("version-badge"))
 		deleteIn([...document.querySelectorAll("li")][2])
 		expect(confirm).toHaveBeenLastCalledWith(
 			'Delete v1? Iframes pinned to this version will show a "version not found" error. Versions made from it (v2) lose their source, and this data can\'t be recovered.'
@@ -153,7 +153,7 @@ describe("VersionBadge with a hand-edited version", () => {
 		// Nothing was made from v3; preview v1 so the latest offers Delete.
 		cleanup()
 		mount(computed, "v1")
-		fireEvent.click(screen.getByTitle("Data set versions"))
+		fireEvent.click(screen.getByTestId("version-badge"))
 		deleteIn([...document.querySelectorAll("li")][0])
 		expect(confirm).toHaveBeenLastCalledWith(
 			'Delete v3? Iframes pinned to this version will show a "version not found" error.'
@@ -176,7 +176,7 @@ describe("VersionBadge export list of changes", () => {
 			.spyOn(HTMLAnchorElement.prototype, "click")
 			.mockImplementation(() => {})
 		mount(computed)
-		fireEvent.click(screen.getByTitle("Data set versions"))
+		fireEvent.click(screen.getByTestId("version-badge"))
 		const link = screen.getByRole("button", { name: "Export list of changes" })
 		// Last thing in the popover, after the version list.
 		expect(link.previousElementSibling?.tagName).toBe("UL")

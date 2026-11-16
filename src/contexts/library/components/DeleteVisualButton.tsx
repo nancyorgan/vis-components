@@ -50,7 +50,6 @@ export const DeleteVisualButton = ({
 		<button
 			type="button"
 			onClick={() => trashVisuals([visualId])}
-			title="Move to trash"
 			className="text-sm hover:text-red-700 dark:hover:text-red-300 vc-muted"
 		>
 			Delete

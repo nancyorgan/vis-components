@@ -29,7 +29,6 @@ export const RailTab = ({
 			// Inside the resize handle, a press on the tab must not start a
 			// drag-resize.
 			onPointerDown={(e) => e.stopPropagation()}
-			title={title}
 			aria-label={title}
 			// The button is a transparent 24px-wide hit area (WCAG 2.2 target
 			// size); the visible 16px tab is the inner span, so the look is

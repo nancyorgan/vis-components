@@ -187,7 +187,7 @@ const DatasetNameEditor = ({ id, name }: { id: string; name: string }) => {
 			<button
 				type="button"
 				onClick={startEditing}
-				title={`${name} — click to rename`}
+				title="Rename"
 				aria-label={`${name} — rename data set`}
 				className="group -mt-0.5 flex w-full min-w-0 items-center gap-1 py-0.5 text-left font-medium vc-text"
 			>

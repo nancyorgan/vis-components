@@ -50,7 +50,7 @@ export const CanvasZoomControls = ({
 				className={`${BUTTON} ${IDLE} w-12 tabular-nums`}
 				onClick={() => onChange(MAX_ZOOM)}
 				disabled={scale >= MAX_ZOOM && !fitOn}
-				title="Reset to 100%"
+				title="Reset zoom"
 				aria-label={`Zoom ${formatZoom(scale)}, reset to 100%`}
 			>
 				{formatZoom(scale)}
@@ -72,7 +72,7 @@ export const CanvasZoomControls = ({
 				className={`${BUTTON} ${fitOn ? "vc-toggle-on" : IDLE} px-2.5`}
 				onClick={() => onChange("fit")}
 				aria-pressed={fitOn}
-				title="Fit the whole canvas in view"
+				title="Fit to view"
 			>
 				Fit
 			</button>

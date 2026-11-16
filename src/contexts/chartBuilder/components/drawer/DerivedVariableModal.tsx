@@ -719,7 +719,6 @@ const DerivedVariableEditor = ({
 							<button
 								key={f}
 								type="button"
-								title={`Insert {${f}}`}
 								// Keep focus (and the caret) in the box being edited.
 								onMouseDown={(e) => e.preventDefault()}
 								onClick={() => insertVariable(f)}

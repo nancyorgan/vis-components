@@ -96,7 +96,6 @@ export const PalettePickerButton = ({
 						onBlur={closeIfFocusLeft}
 						onKeyDown={closeOnEscape}
 						aria-label={`Use ${c}`}
-						title={c}
 						className={`h-5 w-5 flex-shrink-0 rounded ${
 							isCurrent
 								? "ring-1 ring-stone-900 dark:ring-white"
@@ -120,7 +119,7 @@ export const PalettePickerButton = ({
 				aria-label={label}
 				aria-haspopup="true"
 				aria-expanded={open}
-				title="Pick a palette color"
+				title="Palette"
 				className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 hover:text-stone-900 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 			>
 				<svg
@@ -174,11 +173,7 @@ export const PalettePickerButton = ({
 									: "Show other theme palettes"
 							}
 							aria-expanded={showOthers}
-							title={
-								showOthers
-									? "Hide other theme palettes"
-									: "Show other theme palettes"
-							}
+							title="Other palettes"
 							className="-my-0.5 flex h-4 w-full flex-shrink-0 items-center justify-center rounded hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
 						>
 							<DisclosureChevron open={showOthers} />

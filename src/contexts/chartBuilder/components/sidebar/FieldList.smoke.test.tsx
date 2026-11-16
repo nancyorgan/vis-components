@@ -113,8 +113,8 @@ const mount = (
 
 /** The level rows are the nested <li>s inside a field's reorder panel. */
 const levelValues = (container: HTMLElement): Array<string | null> =>
-	[...container.querySelectorAll("li li span[title]")].map((el) =>
-		el.getAttribute("title")
+	[...container.querySelectorAll("li li span[data-level-name]")].map((el) =>
+		el.getAttribute("data-level-name")
 	)
 
 const openRegionPanel = (utils: ReturnType<typeof render>) => {
@@ -257,7 +257,7 @@ describe("FieldList — Order by picker", () => {
 		pickOrderBy(utils, "f:sales")
 		expect(levelValues(utils.container)).toEqual(["A", "C", "B"])
 		// Move the last row ("B") up one slot.
-		const upButtons = utils.getAllByTitle("Move up")
+		const upButtons = utils.getAllByRole("button", { name: /^Move .+ up$/ })
 		fireEvent.click(upButtons[2]!)
 		expect(levelValues(utils.container)).toEqual(["A", "B", "C"])
 		expect(select.value).toBe("")
@@ -334,7 +334,7 @@ describe("FieldList — the Order by picker is remembered", () => {
 		expect(utils.atomStore.get(currentFieldLevelOrderSpecsAtom)).toEqual({})
 
 		pickOrderBy(utils, "f:sales")
-		fireEvent.click(utils.getAllByTitle("Move up")[2]!)
+		fireEvent.click(utils.getAllByRole("button", { name: /^Move .+ up$/ })[2]!)
 		expect(utils.atomStore.get(currentFieldLevelOrderSpecsAtom)).toEqual({})
 		openRegionPanel(utils)
 		openRegionPanel(utils)

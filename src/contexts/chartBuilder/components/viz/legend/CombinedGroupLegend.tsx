@@ -1004,7 +1004,7 @@ export const CombinedGroupLegend = ({
 						<EntryHoverWrap key={v} field={highlightField} value={v}>
 							<div className="vc-legend-hentry flex flex-shrink-0 flex-row items-center gap-1.5">
 								<ComposedSwatch {...entry} swatchShape={swatchShape} swatchSize={swatchSize} />
-								<span className="vc-legend-label whitespace-nowrap" title={v}>
+								<span className="vc-legend-label whitespace-nowrap" data-legend-label={v}>
 									{v}
 								</span>
 							</div>
@@ -1026,7 +1026,7 @@ export const CombinedGroupLegend = ({
 						 * (`minWidth`) while also honoring the legend-wide shared
 						 * swatch column when multiple sections stack. */}
 						<SwatchCell minWidth={swatchColWidth}>{swatch}</SwatchCell>
-						<span className="min-w-0 truncate" title={v}>
+						<span className="min-w-0 truncate" data-legend-label={v}>
 							{v}
 						</span>
 					</div>

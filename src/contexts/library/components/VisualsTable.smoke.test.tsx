@@ -99,8 +99,7 @@ afterEach(cleanup)
 describe("VisualsTable Pin State · auto", () => {
 	it("appends · auto to a published pin of a visual flagged on this device", () => {
 		renderTable(row(true), ["dv-1"])
-		const badge = screen.getByText("Published · latest · auto")
-		expect(badge.getAttribute("title")).toContain("Republishes on every save (your setting).")
+		expect(screen.getByText("Published · latest · auto")).not.toBeNull()
 	})
 
 	it("leaves an unflagged visual, and an unpublished pin, alone", () => {

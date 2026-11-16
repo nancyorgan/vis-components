@@ -503,7 +503,6 @@ export const ThemesPage = ({
 							onClick={() => {
 								void exportTheme()
 							}}
-							title={`Download "${draftName}" as a JSON file`}
 						>
 							Export theme
 						</Button>
@@ -511,7 +510,6 @@ export const ThemesPage = ({
 							compact
 							onClick={() => fileInputRef.current?.click()}
 							disabled={isReadOnly}
-							title="Replace this theme's settings with a JSON file"
 						>
 							Import theme…
 						</Button>

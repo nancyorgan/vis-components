@@ -460,7 +460,7 @@ export const Swatch = ({
 					? "vc-legend-label whitespace-nowrap"
 					: "min-w-0 truncate"
 			}
-			title={String(children)}
+			data-legend-label={String(children)}
 		>
 			{children}
 		</span>

@@ -35,7 +35,6 @@ export const Slider = ({
 	changed = false,
 	disabled = false,
 	labelClassName = LABEL_COL,
-	labelTitle,
 	className,
 	onReset,
 	resetLabel,
@@ -57,9 +56,6 @@ export const Slider = ({
 	/** Label column classes; the shared sidebar column by default. Pass
 	 *  `"sr-only"` when a visible label sits elsewhere in the row. */
 	labelClassName?: string
-	/** Hover text for the label, for one that may be cut short (a category
-	 *  name in a per-category list). */
-	labelTitle?: string
 	className?: string
 	/** Put the value back to its default. With it, a changed value shows a
 	 *  "reset" link at the end of the row. */
@@ -77,7 +73,6 @@ export const Slider = ({
 		<div className={c("flex items-center gap-2 text-sm", className)}>
 			<label
 				htmlFor={id}
-				title={labelTitle}
 				className={c(
 					"shrink-0",
 					labelClassName,

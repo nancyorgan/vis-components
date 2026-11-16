@@ -523,7 +523,6 @@ export const LabelsPanel = () => {
 							 *  values truncate with a tooltip. */}
 							<span
 								className="w-24 flex-shrink-0 truncate vc-text"
-								title={v}
 							>
 								{v}
 							</span>
@@ -1245,7 +1244,6 @@ export const AlignmentControl = <A extends AlignmentValue = LabelAlignment>({
 			// Only the outward button hands back "outward", and it only
 			// renders for a caller whose `A` admits it.
 			onClick={() => onChange(a as A)}
-			title={title}
 			aria-label={title}
 			aria-pressed={shown === a}
 			className={segmentButtonClass(shown === a)}
@@ -1258,7 +1256,7 @@ export const AlignmentControl = <A extends AlignmentValue = LabelAlignment>({
 			{opt("left", "Align left")}
 			{opt("center", "Center")}
 			{opt("right", "Align right")}
-			{outward && opt("outward", "Align outward (away from the center)")}
+			{outward && opt("outward", "Align outward")}
 		</div>
 	)
 }
@@ -1298,7 +1296,6 @@ const VerticalAlignmentControl = ({
 		<button
 			type="button"
 			onClick={() => onChange(a)}
-			title={title}
 			aria-label={title}
 			aria-pressed={value === a}
 			className={segmentButtonClass(value === a)}

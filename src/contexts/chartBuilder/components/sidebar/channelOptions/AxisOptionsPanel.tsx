@@ -872,11 +872,6 @@ export const AxisOptionsPanel = ({ channel }: Props) => {
 	)
 }
 
-/** Hover help for the custom format box — the one place the "text around
- *  the value" grammar (`parseFormatSpec`) is spelled out to the user. */
-export const FORMAT_BOX_HELP =
-	"A format code such as ,.0f, or text to show around each value. Write literal where the value goes: literal% shows 3 as 3%, €literal shows 3 as €3, literal units shows 3 as 3 units. Text after a code works too: ,.0f kg shows 1234 as 1,234 kg."
-
 /** The tick "Label format" control: the shared preset dropdown
  *  (`FormatPresetOptions`) over a free-typed custom format box. Shared with
  *  the chord ring axis's Tick Labels section, the radar Spoke Labels AND
@@ -936,7 +931,6 @@ export const TickFormatControl = ({
 				onChange={(e) => onChange(e.target.value)}
 				placeholder="Auto"
 				aria-label="Custom text format"
-				title={FORMAT_BOX_HELP}
 				className="flex-1 font-mono"
 			/>
 		</div>

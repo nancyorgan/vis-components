@@ -531,7 +531,6 @@ export const LibraryPage = () => {
 							value={selectedDatasetName ?? ""}
 							onChange={(e) => setSelectedDatasetName(e.target.value || null)}
 							className="w-48"
-							title="Filter by data set"
 							aria-label="Filter by data set"
 						>
 							<option value="">All data sets</option>
@@ -547,7 +546,6 @@ export const LibraryPage = () => {
 								compact
 								disabled={backfillProgress !== null}
 								onClick={onRegeneratePreviews}
-								title="Render each visualization without a preview offscreen and save a new thumbnail"
 							>
 								{backfillProgress
 									? `Regenerating ${Math.min(
@@ -591,7 +589,6 @@ export const LibraryPage = () => {
 									compact
 									danger
 									onClick={onBulkDelete}
-									title="Move the selected visualizations to the trash"
 								>
 									Move to trash
 								</Button>
@@ -698,7 +695,7 @@ export const LibraryPage = () => {
 											{refreshingPreviewId === d.visual.id && (
 												<span
 													className="absolute right-2 bottom-2 flex h-6 w-6 items-center justify-center rounded bg-white/90 shadow-sm ring-1 ring-stone-200 dark:bg-stone-800/90 dark:ring-stone-700 vc-muted"
-													title="Rendering a fresh preview"
+													title="Rendering preview"
 													aria-label="Rendering a fresh preview"
 													role="status"
 												>
@@ -734,9 +731,6 @@ export const LibraryPage = () => {
 												: "opacity-0 group-hover/card:opacity-100 kbd:group-has-focus-visible/card:opacity-100 pointer-coarse:opacity-100"
 										}`}
 										onClick={(e) => e.stopPropagation()}
-										title={
-											isSelected ? "Deselect this visualization" : "Select this visualization"
-										}
 									>
 										<input
 											type="checkbox"

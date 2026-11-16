@@ -174,7 +174,6 @@ const TrailCrumb = ({
 			type="button"
 			data-folder-crumb
 			className={`max-w-full truncate rounded px-1 py-0.5 text-left hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-white ${dropZoneClass(dropZone)}`}
-			title={label}
 			{...dropHandlers}
 			onClick={onClick}
 		>
@@ -263,8 +262,8 @@ const VisualTreeItem = ({
 					: "hover:bg-stone-100 dark:hover:bg-stone-800 vc-text"
 			}`}
 			style={{ paddingLeft: `${depth * 16 + 4}px` }}
-			title={visual.name}
 			data-selected={isSelected || undefined}
+			data-visual-row={visual.name}
 			onClick={(e) => {
 				if (!editing) onClick(visual.id, e)
 			}}

@@ -84,7 +84,6 @@ export const SaveTemplateButton = ({
 					compact
 					data-tip="save-template"
 					onClick={openDialog}
-					title="Save this design as a template to start new visualizations from"
 				>
 					Save as template
 				</Button>

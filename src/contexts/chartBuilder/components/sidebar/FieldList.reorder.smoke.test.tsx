@@ -63,7 +63,7 @@ const names = (): string[] =>
 	rows().map((li) => li.querySelector("label")?.textContent?.replace("Type for ", "") ?? "")
 const handleOf = (name: string): HTMLElement => {
 	const li = rows()[names().indexOf(name)]
-	const handle = li?.querySelector("[title='Drag to reorder']")
+	const handle = li?.querySelector("[data-drag-handle]")
 	if (!handle) throw new Error(`no drag handle on ${name}`)
 	return handle as HTMLElement
 }

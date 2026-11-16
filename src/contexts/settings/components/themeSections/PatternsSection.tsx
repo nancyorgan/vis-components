@@ -76,7 +76,6 @@ export const PatternsSection = ({
 													type="button"
 													onClick={() => setInk(null)}
 													className="text-xs leading-none underline hover:text-stone-900 dark:hover:text-white vc-muted"
-													title="Reset to global default"
 												>
 													reset
 												</button>

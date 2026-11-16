@@ -44,7 +44,6 @@ export const UpdateTemplateButton = () => {
 			<Button
 				compact
 				onClick={() => setOpen(true)}
-				title={`Bring this visualization's changes into the template "${template.name}"`}
 			>
 				Update template
 			</Button>

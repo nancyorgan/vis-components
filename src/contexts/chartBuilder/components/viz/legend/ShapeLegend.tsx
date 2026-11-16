@@ -103,7 +103,7 @@ export const ShapeLegend = ({
 							/>
 						</svg>
 					</SwatchCell>
-					<span className={labelClass} title={v}>
+					<span className={labelClass} data-legend-label={v}>
 						{v}
 					</span>
 				</div>

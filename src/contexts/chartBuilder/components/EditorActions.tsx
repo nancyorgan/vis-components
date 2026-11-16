@@ -210,9 +210,9 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 				<Button
 					compact
 					onClick={() => setExportOpen(true)}
-					title="Download or publish this visualization"
 					data-tip="export"
 					aria-label={compact ? "Export" : undefined}
+					title={compact ? "Export" : undefined}
 					className={iconBtn}
 				>
 					{compact ? <ExportIcon /> : "Export"}
@@ -229,7 +229,6 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 						compact
 						onClick={onSave}
 						disabled={saving || nameTaken || templatePending}
-						title={templatePending ? "Attach a data set first" : undefined}
 						className={visualId ? "rounded-r-none whitespace-nowrap" : undefined}
 					>
 						{visualId ? "Save" : compact ? "Save" : "Save visualization"}
@@ -278,7 +277,6 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 											void onDownloadBundle()
 										}}
 										className={MENU_ITEM_DIVIDED}
-										title="Download this visualization as a JSON bundle someone else can import"
 									>
 										<div className={MENU_TITLE}>
 											{bundleBusy ? "Downloading…" : "Download as Zafiro file (.json)"}

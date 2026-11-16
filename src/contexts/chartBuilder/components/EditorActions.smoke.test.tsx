@@ -58,14 +58,12 @@ describe("EditorActions Save while a template is pending", () => {
 		renderActions(null)
 		const save = screen.getByRole("button", { name: "Save visualization" })
 		expect((save as HTMLButtonElement).disabled).toBe(true)
-		expect(save.getAttribute("title")).toBe("Attach a data set first")
 	})
 
 	it("enables Save once a data set is bound", () => {
 		renderActions("ds-1")
 		const save = screen.getByRole("button", { name: "Save visualization" })
 		expect((save as HTMLButtonElement).disabled).toBe(false)
-		expect(save.getAttribute("title")).toBeNull()
 	})
 })
 

@@ -45,7 +45,7 @@ export const FacetScopeControl = ({
 						<Checkbox
 							key={o.key}
 							className="min-w-0 [&>label]:min-w-0 [&>label]:truncate"
-							label={<span title={o.label}>{o.label}</span>}
+							label={<span>{o.label}</span>}
 							checked={ticked(o.key)}
 							onChange={(on) => {
 								const set = new Set(

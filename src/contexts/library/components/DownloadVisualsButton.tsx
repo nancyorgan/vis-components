@@ -44,11 +44,6 @@ export const DownloadVisualsButton = ({
 				onClick={() => {
 					void onDownload()
 				}}
-				title={
-					selected.length === 1
-						? "Download this visualization as a JSON bundle"
-						: "Download the selected visualizations as one JSON bundle"
-				}
 			>
 				{downloading ? "Downloading…" : "Download"}
 			</Button>

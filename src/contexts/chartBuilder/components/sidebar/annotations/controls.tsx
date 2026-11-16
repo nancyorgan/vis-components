@@ -185,7 +185,6 @@ const AnnotationNameEditor = ({
 			{/* Double-click is a shortcut; the pencil button is the keyboard-reachable control. */}
 			<span
 				className="min-w-0 truncate"
-				title={`${shown} — double-click to rename`}
 				onDoubleClick={startEditing}
 			>
 				{shown}

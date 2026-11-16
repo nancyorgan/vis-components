@@ -260,11 +260,6 @@ export const ThemesSubNav = ({
 									{!t.isSystem && (
 										<button
 											type="button"
-											title={
-												managed
-													? "Move to Custom Themes"
-													: "Move to Managed Themes"
-											}
 											aria-label={
 												managed
 													? `Move ${t.name} to Custom Themes`

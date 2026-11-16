@@ -101,20 +101,17 @@ const PinStateBadge = ({ row }: { row: DecoratedRow }) => {
 	const publish = row.kind === "instance" ? row.publish : null
 	const auto = republishOnSaveFor(useAtomValue(republishOnSaveVisualsAtom), row.visual.id)
 	const badge = (() => {
-		if (publish === null) return { style: BADGE_GREY, label: "Not published", title: undefined as string | undefined }
-		const date = formatDate(publish.publishedAt)
+		if (publish === null) return { style: BADGE_GREY, label: "Not published" }
 		if (row.pinState === "dangling") {
 			return {
 				style: BADGE_AMBER,
 				label: "Published · pin deleted",
-				title: `Published ${date}. The published snapshot still works, but its pinned data version was deleted, so it can't be republished.`,
 			}
 		}
 		if (row.pinState === "pinned") {
 			return {
 				style: BADGE_BLUE,
 				label: "Published",
-				title: `Published ${date}, pinned to ${row.kind === "instance" ? row.versionLabel : ""}.`,
 			}
 		}
 		// "latest" embeds: flag when the dataset has moved past the snapshot.
@@ -122,23 +119,16 @@ const PinStateBadge = ({ row }: { row: DecoratedRow }) => {
 			return {
 				style: BADGE_AMBER,
 				label: "Published · behind",
-				title: `Published ${date} at ${publish.resolvedVersionLabel ?? "an older version"}; the data set has newer versions. Republish to update the embed.`,
 			}
 		}
 		return {
 			style: BADGE_GREEN,
 			label: "Published · latest",
-			title: `Published ${date}${publish.resolvedVersionLabel ? ` at ${publish.resolvedVersionLabel}` : ""}. Republish any time to refresh.`,
 		}
 	})()
 	const withAuto = publish !== null && auto
 	return (
 		<span
-			title={
-				withAuto
-					? `${badge.title ?? ""}${badge.title ? " " : ""}Republishes on every save (your setting).`
-					: badge.title
-			}
 			className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.style}`}
 		>
 			{withAuto ? `${badge.label} · auto` : badge.label}

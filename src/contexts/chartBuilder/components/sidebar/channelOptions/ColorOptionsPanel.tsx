@@ -177,7 +177,6 @@ export const CategoricalSwatchList = ({
 					 *  the dropdown controls. Long names truncate with a tooltip. */}
 					<span
 						className="w-24 flex-shrink-0 truncate vc-text"
-						title={v}
 					>
 						{v}
 					</span>
@@ -984,7 +983,6 @@ export const AreaRadarOutlinePanel = () => {
 						 *  line up under the Palette dropdown. */}
 						<span
 							className="w-24 flex-shrink-0 truncate vc-text"
-							title={v}
 						>
 							{v}
 						</span>

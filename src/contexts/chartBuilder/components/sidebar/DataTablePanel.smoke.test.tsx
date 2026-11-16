@@ -248,7 +248,7 @@ describe("DataTablePanel", () => {
 		)
 		openSections(utils, "Table text")
 		expect(utils.queryByText("Numbers")).toBeNull()
-		const row = (name: string) => within(utils.getByTitle(name).parentElement!)
+		const row = (name: string) => within(utils.getByText(name, { exact: true }).parentElement!)
 		const pressed = (name: string) =>
 			row(name)
 				.getAllByRole("button")

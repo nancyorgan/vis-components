@@ -126,10 +126,14 @@ const cell = (pos: number, col: number): HTMLElement => {
 
 const proxy = () => screen.getByLabelText("Selected cells") as HTMLTextAreaElement
 
-/** The grid's header cell for a column (the tray's data table behind the
- *  dialog titles its headers the same way). */
+/** The grid's header cell for a column. */
 const header = (name: string): HTMLElement =>
-	within(screen.getByRole("grid")).getByTitle(name)
+	within(screen.getByRole("grid"))
+		.getAllByRole("columnheader")
+		.find((h) => h.querySelector("span")?.textContent === name) ??
+	(() => {
+		throw new Error(`no column header "${name}"`)
+	})()
 
 const menuItems = () =>
 	within(screen.getByRole("menu"))

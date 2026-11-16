@@ -107,7 +107,6 @@ export const ArrowheadStylePicker = ({
 					onClick={() => onChange(style)}
 					aria-pressed={selected}
 					aria-label={`${ARROWHEAD_LABEL[style]} arrowhead`}
-					title={ARROWHEAD_LABEL[style]}
 					className={swatchChipClass(selected, "w-7")}
 				>
 					<ArrowheadGlyph style={style} selected={selected} />

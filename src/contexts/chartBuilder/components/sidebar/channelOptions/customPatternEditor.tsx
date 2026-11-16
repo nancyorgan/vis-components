@@ -79,7 +79,7 @@ export const CustomPatternChips = ({
 			type="button"
 			onClick={onAdd}
 			aria-label="Add custom pattern"
-			title="Custom pattern — upload a black-and-white image"
+			title="Custom pattern"
 			className={swatchChipClass(false, "w-7")}
 		>
 			+

@@ -453,7 +453,7 @@ describe("Header → New from template…", () => {
 			| HTMLButtonElement
 			| undefined
 
-	it("is disabled with a hint until a live template exists", () => {
+	it("is disabled until a live template exists", () => {
 		mount((s) => {
 			s.set(visualsAtom, [
 				vis("v-1"),
@@ -463,7 +463,6 @@ describe("Header → New from template…", () => {
 		openMenu()
 		const item = templateItem()!
 		expect(item.disabled).toBe(true)
-		expect(item.title).toBe("Save a template from the editor's Save menu first")
 		fireEvent.click(item)
 		expect(screen.queryByText("New from template")).toBeNull()
 	})

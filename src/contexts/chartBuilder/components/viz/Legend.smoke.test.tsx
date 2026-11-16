@@ -1057,8 +1057,8 @@ describe("categorical legend ordering follows the pinned field order", () => {
 	// entries in the same order, while each value keeps its own color so the
 	// legend still matches the (unchanged) marks.
 	const labelOrder = (container: HTMLElement): string[] =>
-		[...container.querySelectorAll<HTMLElement>("span[title]")].map(
-			(el) => el.getAttribute("title") ?? ""
+		[...container.querySelectorAll<HTMLElement>("span[data-legend-label]")].map(
+			(el) => el.getAttribute("data-legend-label") ?? ""
 		)
 
 	it("ColorLegend (via CombinedGroupLegend) lists swatches in the pinned order", () => {
@@ -1081,7 +1081,7 @@ describe("categorical legend ordering follows the pinned field order", () => {
 			for (const row of container.querySelectorAll<HTMLElement>(
 				"div.flex.items-center.gap-2"
 			)) {
-				const label = row.querySelector("span[title]")?.getAttribute("title")
+				const label = row.querySelector("span[data-legend-label]")?.getAttribute("data-legend-label")
 				const swatch = row.querySelector<HTMLElement>("[style*='background']")
 				if (label && swatch) out[label] = swatch.style.backgroundColor
 			}
@@ -1490,9 +1490,9 @@ describe("Legend — flow modes list hue nodes over the endpoint UNION domain", 
 		const { container } = mountLegend()
 		const nodeSet = new Set(UNION_ORDER)
 		const labels = [
-			...container.querySelectorAll<HTMLElement>("span[title]"),
+			...container.querySelectorAll<HTMLElement>("span[data-legend-label]"),
 		]
-			.map((el) => el.getAttribute("title") ?? "")
+			.map((el) => el.getAttribute("data-legend-label") ?? "")
 			.filter((t) => nodeSet.has(t))
 		expect(labels).toEqual(UNION_ORDER)
 	})
@@ -1513,7 +1513,7 @@ describe("Legend — flow modes list hue nodes over the endpoint UNION domain", 
 		]
 		const memphisRow = rows.find(
 			(r) =>
-				r.querySelector("span[title]")?.getAttribute("title") === "Memphis"
+				r.querySelector("span[data-legend-label]")?.getAttribute("data-legend-label") === "Memphis"
 		)
 		expect(memphisRow).toBeDefined()
 		const swatch = memphisRow?.querySelector<HTMLElement>(
@@ -1527,16 +1527,16 @@ describe("Legend — flow modes list hue nodes over the endpoint UNION domain", 
 	it("hue on the TARGET column (Stop) gets the same union domain", () => {
 		const { container } = mountLegend("Stop")
 		const nodeSet = new Set(UNION_ORDER)
-		const labels = [...container.querySelectorAll<HTMLElement>("span[title]")]
-			.map((el) => el.getAttribute("title") ?? "")
+		const labels = [...container.querySelectorAll<HTMLElement>("span[data-legend-label]")]
+			.map((el) => el.getAttribute("data-legend-label") ?? "")
 			.filter((t) => nodeSet.has(t))
 		expect(labels).toEqual(UNION_ORDER)
 	})
 
 	it("hue on a NON-endpoint column keeps its own domain (no union leak)", () => {
 		const { container } = mountLegend("Region")
-		const titles = [...container.querySelectorAll<HTMLElement>("span[title]")]
-			.map((el) => el.getAttribute("title") ?? "")
+		const titles = [...container.querySelectorAll<HTMLElement>("span[data-legend-label]")]
+			.map((el) => el.getAttribute("data-legend-label") ?? "")
 		expect(titles.filter((t) => t === "South" || t === "North")).toEqual([
 			"South",
 			"North",
@@ -2118,9 +2118,9 @@ describe("Legend — columns arrange sections, orientation flows entries", () =>
 describe("Shape / Pattern legends — hover publishes the highlight entry", () => {
 	const values = ["cat", "dog", "bird"]
 
-	// span[title=v] → cell div → EntryHoverWrap div (the hover target).
+	// span[data-legend-label=v] → cell div → EntryHoverWrap div (the hover target).
 	const hoverWrapOf = (container: HTMLElement, v: string) => {
-		const label = container.querySelector(`span[title="${v}"]`) as HTMLElement
+		const label = container.querySelector(`span[data-legend-label="${v}"]`) as HTMLElement
 		expect(label).not.toBeNull()
 		return label.parentElement!.parentElement as HTMLElement
 	}
@@ -2256,8 +2256,8 @@ describe("Legend — bar-mode categorical flip only applies when stacked", () =>
 	}
 
 	const labelOrder = (container: HTMLElement): string[] =>
-		[...container.querySelectorAll<HTMLElement>("span[title]")].map(
-			(el) => el.getAttribute("title") ?? ""
+		[...container.querySelectorAll<HTMLElement>("span[data-legend-label]")].map(
+			(el) => el.getAttribute("data-legend-label") ?? ""
 		)
 
 	it("stacked bars keep the flip: legend top matches stack top", () => {

@@ -89,7 +89,7 @@ export const CopyButton = ({
 			<button
 				type="button"
 				onClick={() => void onCopy()}
-				title={text}
+				title="Copy"
 				aria-label={text}
 				className={`${GHOST_CLASS}${className ? ` ${className}` : ""}`}
 			>
@@ -102,7 +102,7 @@ export const CopyButton = ({
 			compact
 			type="button"
 			onClick={() => void onCopy()}
-			title={text}
+			title="Copy"
 			aria-label={text}
 			className={`px-2${className ? ` ${className}` : ""}`}
 		>

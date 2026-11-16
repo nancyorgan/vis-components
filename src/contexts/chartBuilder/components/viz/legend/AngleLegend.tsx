@@ -52,7 +52,7 @@ export const AngleLegend = ({
 									/>
 								</svg>
 							</SwatchCell>
-							<span className="min-w-0 truncate" title={v}>
+							<span className="min-w-0 truncate" data-legend-label={v}>
 								{v}
 							</span>
 						</div>

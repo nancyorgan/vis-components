@@ -485,11 +485,6 @@ export const EncodingShelf = ({ channel }: Props) => {
 	const row = (
 		<div
 			className={`flex flex-col gap-1 ${rowOpacity}`}
-			title={
-				blockedByConflict
-					? `Not used while ${shadowedBy} ${conflictingActiveChannels.length === 1 ? "is" : "are"} mapped`
-					: undefined
-			}
 		>
 			<SelectInput
 				label={ENCODING_CHANNEL_LABELS[channel]}

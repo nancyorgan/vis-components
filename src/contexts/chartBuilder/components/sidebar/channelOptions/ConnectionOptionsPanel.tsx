@@ -432,11 +432,6 @@ export const ConnectionOptionsPanel = () => {
 										// explicit pick and Auto found nothing) — disable
 										// rather than no-op silently.
 										disabled={!(storedFlowTarget ?? inferredTargetField)}
-										title={
-											storedFlowTarget ?? inferredTargetField
-												? undefined
-												: "No target column resolved — pick one above first"
-										}
 										className="text-sm hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-stone-600 dark:hover:text-white dark:disabled:hover:text-stone-400 vc-muted"
 									>
 										⇄ Swap direction

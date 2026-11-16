@@ -110,7 +110,6 @@ export const CheckButton = ({
 		compact
 		onClick={onClick}
 		aria-label={label}
-		title={label}
 		className="shrink-0 !px-2.5"
 	>
 		<svg

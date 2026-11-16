@@ -381,7 +381,6 @@ export const ColorPickerPopover = ({
 						type="button"
 						onClick={pickFromScreen}
 						aria-label="Pick a color from the screen"
-						title="Pick a color from the screen"
 						className="flex h-6 w-6 shrink-0 items-center justify-center rounded-control border border-stone-400 text-stone-700 transition-colors vc-focus-ring hover:border-stone-600 hover:text-stone-900 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-white"
 					>
 						<svg

@@ -465,7 +465,7 @@ const ThicknessControl = ({
 						const value = varyBy.byValue[level] ?? model.value
 						return (
 							<div key={level} className="flex items-center gap-2 text-sm">
-								<span className="w-24 shrink-0 truncate vc-text" title={level}>
+								<span className="w-24 shrink-0 truncate vc-text">
 									{level}
 								</span>
 								<NumberInput
