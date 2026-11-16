@@ -420,7 +420,8 @@ export const QuickStartIconBar = () => {
 	const setMapConfig = useSetAtom(currentMapConfigAtom)
 	const theme = useCurrentTheme()
 	const [pending, setPending] = useState<Pending | null>(null)
-	// Custom hover tooltip (instant, unlike the native `title` delay). Fixed
+	// Custom hover tooltip (`.vc-tooltip`, like TitleTooltipLayer's; these
+	// buttons carry aria-label, not title, so they draw their own). Fixed
 	// positioning so it escapes the sidebar's overflow-y-auto clipping; the
 	// x-center is clamped so long labels don't run off the window edge.
 	const reasonIdPrefix = useId()
@@ -629,7 +630,7 @@ export const QuickStartIconBar = () => {
 						// replacing it, which is exactly how the tip ran off-screen.
 						if (dx !== 0) el.style.translate = `calc(-50% + ${dx}px)`
 					}}
-					className="pointer-events-none fixed z-50 max-w-56 -translate-x-1/2 rounded-md bg-white px-2 py-1 text-center text-xs font-medium text-vc-brand-text shadow-md ring-1 ring-stone-200"
+					className="vc-tooltip -translate-x-1/2"
 					style={{ left: hovered.x, top: hovered.y + 6 }}
 				>
 					{hovered.label}
