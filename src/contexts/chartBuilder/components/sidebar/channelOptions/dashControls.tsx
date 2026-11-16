@@ -30,10 +30,10 @@ import { Checkbox } from "../../../../../components/ui/Checkbox"
 import { LineDashGlyph, swatchChipClass } from "./glyphShared"
 import { Input } from "../../../../../components/ui/Input"
 
-/** The None / dash swatches / Custom button row every single-choice dash
+/** The None / dash swatches / "+" (custom) button row every single-choice dash
  *  picker shares (the Pattern panel's default + per-category Line dash rows,
  *  regression line, annotation borders + lines). The states are mutually
- *  exclusive: picking a swatch clears any custom dasharray, and Custom opens
+ *  exclusive: picking a swatch clears any custom dasharray, and "+" opens
  *  the dasharray text box, which stays open while empty via the "custom
  *  open" flag — local state by default, or the caller's via `customOpen` +
  *  `onCustomOpenChange` when a reset link outside the row has to close it.
@@ -131,9 +131,10 @@ export const DashStylePicker = ({
 					onClick={() => setCustomOpen(true)}
 					aria-pressed={customActive}
 					aria-label={`Custom dash for ${ariaContext}`}
-					className={swatchChipClass(customActive, "px-2 text-sm")}
+					title="Custom dash"
+					className={swatchChipClass(customActive, "w-7")}
 				>
-					Custom
+					+
 				</button>
 				{changed && onReset && (
 					<ResetLink
@@ -353,7 +354,7 @@ export const CustomDashInput = ({
 		type="text"
 		value={value}
 		placeholder="2,2"
-		// eslint-disable-next-line jsx-a11y/no-autofocus -- box only mounts on an explicit "Custom" click, so focusing it is the expected next action
+		// eslint-disable-next-line jsx-a11y/no-autofocus -- box only mounts on an explicit "+" (custom dash) click, so focusing it is the expected next action
 		autoFocus
 		aria-label="Custom dash pattern"
 		onChange={(e) => onChange(e.target.value)}

@@ -2388,7 +2388,7 @@ Behavior depends on chart context:
   default to "None" until the user specifically picks a fill. With no
   pattern variable mapped, the default Line-dash row writes
   `connection.defaultDashPattern` (the field the line renderers read;
-  its "Custom" option writes `connection.customDashPattern`, which
+  its "+" (custom dash) chip writes `connection.customDashPattern`, which
   wins when it parses) — storage deliberately SEPARATE from the
   Point-fill row's `defaultPattern`, so picking a dash never silently
   picks a point fill. With a variable mapped, per-category picks resolve through
@@ -2468,7 +2468,9 @@ Behavior depends on chart context:
   dash pickers with fills defaulting to "none").
 
 **Custom dash patterns** — alongside the built-in dash swatches, a
-"Custom" option opens an editable text input where the user types a
+trailing **"+" chip** (hover label "Custom dash", the same "+" the
+Shape and fill-Pattern rows use to add a custom glyph / pattern) opens
+an editable text input where the user types a
 custom dash pattern as a comma-separated list (e.g., `2,2` for 2px
 dash / 2px gap; `2,4,5,2` for an alternating pattern). The input is
 placeholder-prefilled with a faint `2,2` to prompt the format.
@@ -5661,9 +5663,9 @@ has:
     endpoints land on.
 - Fill color + fill opacity.
 - Border color, thickness, opacity, and dash. Dash is the same
-  None / dash-swatch / Custom button row the Pattern panel's
+  None / dash-swatch / "+" button row the Pattern panel's
   regression-line control uses (swatches preview dashed / dotted /
-  dash-dot); Custom opens a dasharray text box (e.g. `2,2`), and a
+  dash-dot); "+" opens a dasharray text box (e.g. `2,2`), and a
   custom dasharray wins over the swatch pick at render time.
 - Layer toggle: **Behind chart** (under marks) or **In front** (over
   marks). It is the last row of every kind's Position subsection (one
@@ -6965,7 +6967,7 @@ These are intentional design decisions worth pinning explicitly:
    compound form).
 4. **DASH_CYCLE is 3 entries** (`dashed`, `dotted`, `dash-dot`); the
    "None" button maps to solid. Custom dash patterns extend this via
-   the "Custom" text input on every dash row (per-category, the
+   the "+" chip's text input on every dash row (per-category, the
    no-variable default row, and the regression line).
 5. **Tooltip Fields list always shows every dataset field** — mapped
    or not. Aggregating modes show aggregated values for mapped

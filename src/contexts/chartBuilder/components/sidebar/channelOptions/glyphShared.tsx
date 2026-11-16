@@ -21,7 +21,7 @@ export const PREVIEW_SIZE = 20
  *  the theme editor's default-shape row. These chips are the documented GRAY
  *  exception to the purple `<Button>` rule, so this is the one copy of the
  *  look. `extra` carries the per-use sizing: `"w-7"` for a glyph chip,
- *  `"px-2 text-sm"` for a text chip ("None" / "Custom" / "Blank"). */
+ *  `"px-2 text-sm"` for a text chip ("None" / "Blank"). */
 export const swatchChipClass = (selected: boolean, extra?: string) =>
 	c(
 		"flex h-7 items-center justify-center rounded border transition-colors",
