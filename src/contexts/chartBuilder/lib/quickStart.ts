@@ -52,14 +52,12 @@ const CONTINUOUS_HUE_TYPES: readonly FieldType[] = ["quantitative", "temporal"]
 
 /** Probability levers for the showcase fill — the single place to tune how
  * often the auto-gen reaches for each optional aesthetic. `0` = never, `1` =
- * always. `pattern` / `shape` are rolled independently; `colorModulation` is
- * the chance of including exactly ONE of brightness/saturation/opacity (none
- * otherwise). Hue is always prioritized and `area` is always added on point
- * charts, so neither has a lever here. */
+ * always. Hue is always prioritized and `area` is always added on point
+ * charts, so neither has a lever here. Pattern, opacity, brightness and
+ * saturation are deliberately NOT showcase channels: the autogen never adds
+ * them (a user maps them by hand). */
 const AUTOGEN_FILL_WEIGHTS = {
-	pattern: 0.45,
 	shape: 0.4,
-	colorModulation: 0.55,
 	/** Chance that an opportunistic hue maps a QUANTITATIVE (gradient) field
 	 * instead of a categorical (palette) one — so the autogen alternates
 	 * between the two color modes. Falls back to whichever type the dataset
@@ -71,105 +69,43 @@ const AUTOGEN_FILL_WEIGHTS = {
  * NEVER required — the fill skips any with no eligible field and reuses
  * fields freely, so it never affects satisfiability.
  *   - `alwaysQuant`: filled every time (point size on point charts).
- *   - `decorativeCat`: categorical glyph channels, each rolled by its weight.
- *   - `colorModQuant`: brightness/saturation/opacity — at most one is chosen.
- * Tile omits opacity/shape/area (glyph channels flip it to scatter); the
- * non-point families (bar/area/pie/radar) omit shape/area (no point marks);
- * area also omits the color modulations (they would split its layers). */
+ *   - `rollShape`: roll `shape` (categorical glyphs) by its weight — only the
+ *     families with free-standing point marks. */
 const AESTHETIC_FILL: Record<
 	QuickStartChartType,
 	{
 		alwaysQuant: readonly EncodingChannel[]
-		decorativeCat: readonly EncodingChannel[]
-		colorModQuant: readonly EncodingChannel[]
+		rollShape: boolean
 	}
 > = {
-	bar: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	// Combo: bars plus a marks layer. Shape and area conflict with Length on
-	// the shelves, so like bars the fill only layers pattern + a color
-	// modulation on top.
-	combo: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	scatter: {
-		alwaysQuant: ["area"],
-		decorativeCat: ["pattern", "shape"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	// Dumbbell requires shape + area in its channels, so the fill only layers
-	// pattern + a color modulation on top.
-	dumbbell: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	line: {
-		alwaysQuant: ["area"],
-		decorativeCat: ["pattern", "shape"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	// Area: NO color modulation. An area layer is one series across the
-	// whole category axis, and brightness / saturation / opacity are GROUP
-	// channels there — a quantitative field on one splits every series into
-	// a layer per value (each a spike at one x, zero elsewhere), which draws
-	// as a tangle of overlaid figures.
-	area: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: [],
-	},
-	pie: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	radar: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	violin: {
-		alwaysQuant: ["area"],
-		decorativeCat: ["pattern", "shape"],
-		colorModQuant: ["brightness", "saturation", "opacity"],
-	},
-	// Density curve: the chart is a single stroked/filled KDE line with no
-	// point marks (points show only as optional rug tassels), so none of the
-	// showcase aesthetics would land on anything the renderer draws.
-	density: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
-	tile: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: ["brightness", "saturation"],
-	},
-	// Maps: pattern is the one showcase channel the geo renderers draw
-	// (patterned region fills / dots / bubbles). Positional + size channels
-	// stay out — the geo chart modes detect off which channels are mapped (an
-	// `area` fill would flip a choropleth into a symbol map) — and the geo
-	// fill resolvers don't apply color modulation.
-	map: {
-		alwaysQuant: [],
-		decorativeCat: ["pattern"],
-		colorModQuant: [],
-	},
+	bar: { alwaysQuant: [], rollShape: false },
+	// Combo: shape and area conflict with Length on the shelves.
+	combo: { alwaysQuant: [], rollShape: false },
+	scatter: { alwaysQuant: ["area"], rollShape: true },
+	// Dumbbell requires shape + area in its own channels.
+	dumbbell: { alwaysQuant: [], rollShape: false },
+	line: { alwaysQuant: ["area"], rollShape: true },
+	area: { alwaysQuant: [], rollShape: false },
+	pie: { alwaysQuant: [], rollShape: false },
+	radar: { alwaysQuant: [], rollShape: false },
+	violin: { alwaysQuant: ["area"], rollShape: true },
+	// Density curve: a single stroked/filled KDE line with no point marks.
+	density: { alwaysQuant: [], rollShape: false },
+	// Tile: glyph channels would flip it to scatter.
+	tile: { alwaysQuant: [], rollShape: false },
+	// Maps: the geo chart modes detect off which channels are mapped (an
+	// `area` fill would flip a choropleth into a symbol map).
+	map: { alwaysQuant: [], rollShape: false },
 	// Hierarchy trees + flows: hue is seeded by the variation itself
-	// (`hueMeasureSource` / `hueFrom`), the size channel IS the required
-	// `area`, and a random extra categorical on pattern/shape wouldn't land
-	// on anything these renderers draw — keep the showcase fill empty.
-	circles: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
-	treemap: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
-	sunburst: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
-	sankey: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
-	chord: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
-	// Hexbin: cells are fills on a lattice — no point glyphs (shape / area /
-	// pattern are inert) and hue is the derived count, so nothing to layer.
-	hexbin: { alwaysQuant: [], decorativeCat: [], colorModQuant: [] },
+	// (`hueMeasureSource` / `hueFrom`) and the size channel IS the required
+	// `area`.
+	circles: { alwaysQuant: [], rollShape: false },
+	treemap: { alwaysQuant: [], rollShape: false },
+	sunburst: { alwaysQuant: [], rollShape: false },
+	sankey: { alwaysQuant: [], rollShape: false },
+	chord: { alwaysQuant: [], rollShape: false },
+	// Hexbin: cells on a lattice — no point glyphs; hue is the derived count.
+	hexbin: { alwaysQuant: [], rollShape: false },
 }
 
 /** Resolve a field's effective type (user override if set, else the inferred
@@ -364,14 +300,8 @@ export const assignFields = (
 	// time, not in `isVariationSatisfiable`). See `AUTOGEN_FILL_WEIGHTS`.
 	if (chartType) {
 		const assignedChannels = new Set(assignments.map((a) => a.channel))
-		const hueField = assignments.find((a) => a.channel === "hue")?.field ?? null
-		/** Map `channel` to an eligible field. `preferField`, when type-eligible,
-		 * wins outright (used to point pattern at the hue field). */
-		const fill = (
-			channel: EncodingChannel,
-			types: readonly FieldType[],
-			preferField?: Field | null
-		) => {
+		/** Map `channel` to an eligible field, preferring one not yet used. */
+		const fill = (channel: EncodingChannel, types: readonly FieldType[]) => {
 			if (
 				assignedChannels.has(channel) ||
 				variation.channels[channel] !== undefined
@@ -382,15 +312,10 @@ export const assignFields = (
 				types.includes(effectiveTypeOf(f, overrides))
 			)
 			if (typeEligible.length === 0) return
-			let picked: Field | undefined
-			if (preferField && typeEligible.some((f) => f.name === preferField.name)) {
-				picked = preferField
-			} else {
-				const fresh = typeEligible.filter((f) => !used.has(f.name))
-				const pool = fresh.length > 0 ? fresh : typeEligible
-				const idx = pickIndex(pool, channel)
-				picked = pool[Math.max(0, Math.min(idx, pool.length - 1))]
-			}
+			const fresh = typeEligible.filter((f) => !used.has(f.name))
+			const pool = fresh.length > 0 ? fresh : typeEligible
+			const idx = pickIndex(pool, channel)
+			const picked = pool[Math.max(0, Math.min(idx, pool.length - 1))]
 			if (!picked) return
 			used.add(picked.name)
 			assignedChannels.add(channel)
@@ -400,32 +325,9 @@ export const assignFields = (
 		const plan = AESTHETIC_FILL[chartType]
 		// Point size: always, on chart families with point marks.
 		for (const channel of plan.alwaysQuant) fill(channel, QUANTITATIVE_FILL_TYPES)
-		// Decorative glyph channels: each rolled independently. Pattern points
-		// at the hue field when possible so its ink pairs with the categorical
-		// palette (colored patterns) instead of the dark default.
-		for (const channel of plan.decorativeCat) {
-			const weight =
-				channel === "shape"
-					? AUTOGEN_FILL_WEIGHTS.shape
-					: AUTOGEN_FILL_WEIGHTS.pattern
-			if (random() >= weight) continue
-			fill(
-				channel,
-				CATEGORICAL_FILL_TYPES,
-				channel === "pattern" ? hueField : null
-			)
-		}
-		// Color modulation: at most ONE of brightness / saturation / opacity.
-		if (
-			plan.colorModQuant.length > 0 &&
-			random() < AUTOGEN_FILL_WEIGHTS.colorModulation
-		) {
-			const i = Math.min(
-				Math.floor(random() * plan.colorModQuant.length),
-				plan.colorModQuant.length - 1
-			)
-			const channel = plan.colorModQuant[i]
-			if (channel) fill(channel, QUANTITATIVE_FILL_TYPES)
+		// Shape: rolled on families with free-standing point marks.
+		if (plan.rollShape && random() < AUTOGEN_FILL_WEIGHTS.shape) {
+			fill("shape", CATEGORICAL_FILL_TYPES)
 		}
 	}
 

@@ -39,7 +39,7 @@ export const SWEEP_CHARTS: readonly SweepChart[] = [
 		id: "bars-patterned",
 		label: "Patterned stacked bars",
 		dataset: "sales",
-		variation: "Patterned stacked bars",
+		variation: "Vertical stacked bars",
 		encodings: { x: "Quarter", length: "Sales", hue: "Region", pattern: "Tier" },
 	},
 	{

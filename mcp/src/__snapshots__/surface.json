@@ -86,7 +86,7 @@
 					},
 					"variation": {
 						"type": "string",
-						"description": "Only for a chart type the person names, one of: Vertical bars, Vertical grouped bars, Patterned stacked bars, Horizontal bars, Horizontal stacked bars, Bars and line, Bars and points, Horizontal bars and line, Scatter, Bubble, Shape scatter, Multi-encoded scatter, Vector field, Hexbin, Dumbbell, Dumbbell (vertical), Line chart, Horizontal line chart, Stacked area, Overlay area, Single pie, Pie (categorical x), Pie (categorical y), Radar polygon, Filled radar, Radar (dots), Violin (vertical), Box plot (vertical), Violin (horizontal), Density curve, Filled density curve, Tile heatmap, Tile heatmap with cell labels, Categorical tile heatmap, Choropleth, Bubble map, Dot map, Packed circles, Treemap, Sunburst, Sankey diagram, Chord diagram."
+						"description": "Only for a chart type the person names, one of: Vertical bars, Vertical grouped bars, Vertical stacked bars, Horizontal bars, Horizontal stacked bars, Bars and line, Bars and points, Horizontal bars and line, Scatter, Bubble, Shape scatter, Multi-encoded scatter, Vector field, Hexbin, Dumbbell, Dumbbell (vertical), Line chart, Horizontal line chart, Stacked area, Overlay area, Single pie, Pie (categorical x), Pie (categorical y), Radar polygon, Filled radar, Radar (dots), Violin (vertical), Box plot (vertical), Violin (horizontal), Density curve, Filled density curve, Tile heatmap, Tile heatmap with cell labels, Categorical tile heatmap, Choropleth, Bubble map, Dot map, Packed circles, Treemap, Sunburst, Sankey diagram, Chord diagram."
 					},
 					"fieldTypes": {
 						"type": "object",

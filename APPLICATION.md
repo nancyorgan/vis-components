@@ -1598,9 +1598,12 @@ each chart family (bar, combo, scatter, hexbin, dumbbell, line, area,
 pie, radar, violin, density curve, tile, map, packed circles, treemap,
 sunburst, sankey, chord) — every registered chart mode has a button.
 Each icon cycles through random *variations* (e.g., bars → vertical →
-grouped → patterned stacked → horizontal). The scaffold assigns
+grouped → stacked → horizontal). The scaffold assigns
 eligible fields automatically and optionally drops in a hue encoding
-for free if a spare categorical field is available. Each variation
+for free if a spare categorical field is available. On point-mark
+families (scatter, line, violin) the showcase fill also adds size and
+sometimes shape. The quick-start never maps pattern, opacity,
+brightness or saturation — those are left for the user to add. Each variation
 declares which channels need which field types; a chart-type button is
 greyed out if the dataset can't satisfy any variation. Quickstart is a
 starting point only — not a recommendation system.
@@ -1622,8 +1625,8 @@ and line" and "Horizontal bars and line" variations and none in "Bars
 and points". Its `lengthAsBars` knob writes the Length panel's Draw as
 = Bars; every other variation that maps Length clears a leftover
 opt-in, so a bar / area / segment scaffold after a combo renders as its
-own family. Like bars, its showcase fill layers only pattern and a
-color modulation (shape and area conflict with Length).
+own family. Like bars, it gets no showcase fill beyond hue (shape and
+area conflict with Length).
 
 The **Density curve** icon scaffolds a single quantitative field on x
 with nothing on the opposite axis (the density axis is implied), and
@@ -4595,6 +4598,21 @@ canvas. A vertical side-placed title (Placement Left / Right without
 rotation wins. A non-zero angle lights the changed dot. Non-facet
 titles do not offer the control (the y-axis title keeps its dedicated
 "Read horizontally" toggle instead).
+
+**Color by facet.** A checkbox directly under the facet-title font
+editor's Color row (in a grid split, under the column and row editors;
+one shared setting) gives every facet value its own title color, with
+one swatch per value (`facetTitleColors`, keyed by the value). While
+checked, the editor's own Color row hides; unchecking keeps the picks
+but stops applying them, and only the checked state lights the changed
+dot. An unpicked value's title uses the slot's title color — EXCEPT when
+the facet variable (wrap, row or column) is also the Color variable:
+then it defaults to its marks' color, as the text-palette entry at the
+same palette position its marks use (the pairing data labels use; a
+theme with no text palette gives the exact mark color, and a custom
+Color pick carries over as-is). That default is worked out at render
+time (`facetTitleLinkedColors`), shown in the swatch, never saved, and
+follows later Color changes; a pick on the swatch overrides it.
 
 ---
 

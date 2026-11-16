@@ -199,14 +199,11 @@ export const QUICK_START_VARIATIONS: Record<
 			stackMode: "group",
 		},
 		{
-			// Pattern-encoded bars — same hue+pattern combination shows off the
-			// pattern overlay capability for users who haven't discovered it.
-			name: "Patterned stacked bars",
+			name: "Vertical stacked bars",
 			channels: {
 				x: CATEGORICAL_LIKE,
 				length: QUANTITATIVE_LIKE,
 				hue: CATEGORICAL_LIKE,
-				pattern: CATEGORICAL_LIKE,
 			},
 			stackMode: "stack",
 		},

@@ -26,15 +26,6 @@ const field = (name: string, inferredType: FieldType): Field => ({
 	inferredType,
 })
 
-/** Deterministic stand-in for the `random` arg: returns the given values in
- * order, repeating the last once exhausted. Roll order in `assignFields`:
- * [hue cat-vs-quant], then per showcase-fill — [pattern], [shape?],
- * [colorMod include], [colorMod index]. A high value (≥ weight) excludes,
- * a low value (< weight) includes. */
-const seq = (values: number[]) => {
-	let i = 0
-	return () => values[Math.min(i++, values.length - 1)] ?? 0
-}
 /** Force a categorical opportunistic hue (quant-hue roll fails). */
 const CAT_HUE = () => 0.99
 
@@ -294,78 +285,75 @@ describe("assignFields", () => {
 			field("sales", "quantitative"),
 		]
 
-		it("showcase fill (random→0) adds pattern + exactly ONE color-mod channel, no shape/area on a pie", () => {
-			// random()=0 → every roll passes: pattern in; color-mod picks index 0
-			// (brightness). Only ONE of brightness/saturation/opacity is ever
-			// chosen, and a pie has no point marks so no shape/area.
-			const result = assignFields(pieVariation, pieFields, {}, () => 0, "pie", () => 0)
-			expect(result).not.toBeNull()
-			const channels = new Set<string>(result!.map((a) => a.channel))
-			expect(channels.has("pattern")).toBe(true)
-			const colorMods = ["brightness", "saturation", "opacity"].filter((c) =>
-				channels.has(c)
-			)
-			expect(colorMods).toHaveLength(1)
-			expect(channels.has("shape")).toBe(false)
-			expect(channels.has("area")).toBe(false)
-		})
+		/** The autogen never maps these — users add them by hand. */
+		const NEVER_AUTOGEN = ["pattern", "opacity", "brightness", "saturation"]
 
-		it("showcase fill never adds a color modulation to an AREA chart", () => {
-			// Reported: the Area quick start mapped Saturation to the measure,
-			// which splits every series into one layer per value — a tangle
-			// that reads as two overlaid figures. random()=0 passes every roll.
-			const areaFields = [
+		it("showcase fill never maps pattern / opacity / brightness / saturation, on any family", () => {
+			// random()=0 passes every roll, so anything the fill could add, it does.
+			const fields = [
 				field("year", "temporal"),
-				field("category", "categorical"),
-				field("value", "quantitative"),
+				field("region", "categorical"),
+				field("segment", "categorical"),
+				field("sales", "quantitative"),
+				field("profit", "quantitative"),
+				field("units", "quantitative"),
 			]
-			for (const variation of QUICK_START_VARIATIONS.area) {
-				const result = assignFields(variation, areaFields, {}, () => 0, "area", () => 0)
-				expect(result).not.toBeNull()
-				const channels = new Set<string>(result!.map((a) => a.channel))
-				for (const mod of ["brightness", "saturation", "opacity"]) {
-					expect(channels.has(mod), `${variation.name}: ${mod}`).toBe(false)
+			for (const [family, variations] of Object.entries(QUICK_START_VARIATIONS)) {
+				for (const variation of variations) {
+					const result = assignFields(
+						variation,
+						fields,
+						{},
+						() => 0,
+						family as keyof typeof QUICK_START_VARIATIONS,
+						() => 0
+					)
+					if (!result) continue
+					for (const a of result) {
+						expect(
+							NEVER_AUTOGEN.includes(a.channel),
+							`${variation.name}: ${a.channel}`
+						).toBe(false)
+					}
 				}
 			}
 		})
 
-		it("showcase fill (random→0.99) adds no optional aesthetics", () => {
-			// Every roll fails → just the required angle (no pattern, no color-mod).
-			const result = assignFields(
-				pieVariation,
-				pieFields,
-				{},
-				() => 0,
-				"pie",
-				() => 0.99
-			)
+		it("no quick-start variation REQUIRES pattern / opacity / brightness / saturation", () => {
+			for (const variations of Object.values(QUICK_START_VARIATIONS)) {
+				for (const v of variations) {
+					for (const c of NEVER_AUTOGEN) {
+						expect(v.channels, `variation "${v.name}"`).not.toHaveProperty(c)
+					}
+				}
+			}
+		})
+
+		it("showcase fill adds nothing optional to a pie (no point marks)", () => {
+			const result = assignFields(pieVariation, pieFields, {}, () => 0, "pie", () => 0)
 			expect(result!.map((a) => a.channel)).toEqual(["angle"])
 		})
 
-		it("showcase fill points pattern at the hue field so its ink pairs with the palette", () => {
-			// A bar variation gets hue=region opportunistically; the fill then
-			// reuses region for pattern (pattern === hue → colored inks).
-			const bar = {
-				name: "bars",
+		it("showcase fill rolls shape on a scatter (random→0 includes, →0.99 skips)", () => {
+			const scatter = {
+				name: "scatter",
 				channels: {
-					x: ["categorical"] as readonly FieldType[],
-					length: ["quantitative"] as readonly FieldType[],
+					x: ["quantitative"] as readonly FieldType[],
+					y: ["quantitative"] as readonly FieldType[],
 				},
+				allowOpportunisticHue: false,
 			}
-			// Rolls: [hue→categorical (0.99)], [pattern→include (0)], [colorMod
-			// include (0)], [colorMod index (0)]. Categorical hue lets pattern
-			// reuse the hue field.
-			const result = assignFields(
-				bar,
-				pieFields,
-				{},
-				() => 0,
-				"bar",
-				seq([0.99, 0, 0, 0])
+			const fields = [
+				field("region", "categorical"),
+				field("a", "quantitative"),
+				field("b", "quantitative"),
+			]
+			const on = assignFields(scatter, fields, {}, () => 0, "scatter", () => 0)
+			expect(new Set(on!.map((a) => a.channel))).toEqual(
+				new Set(["x", "y", "area", "shape"])
 			)
-			const assigned = new Map(result!.map((a) => [a.channel, a.field.name]))
-			expect(assigned.get("pattern")).toBe(assigned.get("hue"))
-			expect(assigned.get("pattern")).toBe("region")
+			const off = assignFields(scatter, fields, {}, () => 0, "scatter", () => 0.99)
+			expect(new Set(off!.map((a) => a.channel))).toEqual(new Set(["x", "y", "area"]))
 		})
 
 		it("does not fill aesthetic channels without a chartType (satisfiability path)", () => {
@@ -436,8 +424,8 @@ describe("satisfiableVariationIndices", () => {
 
 	it("treats variations needing extra fields as reachable via reuse", () => {
 		// Only one categorical, but double-encoding is allowed: grouped (1),
-		// patterned stacked (2), and horizontal stacked (4) reuse the single
-		// categorical for hue / pattern, so every bar variation is reachable.
+		// stacked (2), and horizontal stacked (4) reuse the single
+		// categorical for hue, so every bar variation is reachable.
 		const fields = [field("cat", "categorical"), field("sales", "quantitative")]
 		const indices = satisfiableVariationIndices("bar", fields, {})
 		expect(indices).toEqual([0, 1, 2, 3, 4])
@@ -1050,11 +1038,11 @@ describe("map variations (QUICK_START_VARIATIONS.map)", () => {
 		expect(encodings.connection.field).toBeNull()
 	})
 
-	it("map showcase fill adds pattern only — no positional/size/color-mod channels", () => {
+	it("map showcase fill adds nothing — no positional/size/decorative channels", () => {
 		const fields = [stateField, salesField, field("segment", "categorical")]
-		// chartType "map" + random→0 fires every available fill roll. Only
-		// pattern is in the map plan (an `area` fill would flip a choropleth
-		// into a symbol map; geo fills don't apply color modulation).
+		// chartType "map" + random→0 fires every available fill roll. An
+		// `area` fill would flip a choropleth into a symbol map, and the
+		// autogen never maps pattern.
 		const assignments = assignFields(
 			choropleth,
 			fields,
@@ -1065,11 +1053,7 @@ describe("map variations (QUICK_START_VARIATIONS.map)", () => {
 			regionDetection
 		)
 		const channels = assignments!.map((a) => a.channel).sort()
-		expect(channels).toEqual(["connection", "hue", "pattern"])
-		// The spare categorical (segment) drives the pattern — not the region
-		// field, which is already on connection.
-		const pattern = assignments!.find((a) => a.channel === "pattern")
-		expect(pattern?.field.name).toBe("segment")
+		expect(channels).toEqual(["connection", "hue"])
 	})
 })
 
