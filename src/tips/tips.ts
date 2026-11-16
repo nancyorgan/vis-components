@@ -1,5 +1,7 @@
 /**
  * THE TIP CATALOG — every helper bubble the app can show, in one place.
+ * The header's Info tips toggle shows every tip for the current view at
+ * once, straight from this list (TipBoard; APPLICATION.md §10e).
  *
  * Edit freely: titles and bodies are plain strings, and the order of
  * MOMENTS is the order of priority. Nothing else needs to change when you

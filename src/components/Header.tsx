@@ -39,6 +39,7 @@ import {
 	type ImportBundleOutcome,
 } from "../contexts/chartBuilder/store/importBundle"
 import { getSignOutUrl } from "../lib/signOutUrl"
+import { InfoTipsToggle } from "../tips/InfoTipsToggle"
 import { EditorPresence } from "./EditorPresence"
 import { Button } from "./ui/Button"
 import { Modal } from "./ui/Modal"
@@ -99,6 +100,7 @@ export const Header = () => {
 				<EditorPresence />
 				{!inSettings && <NewVisualizationButton />}
 				<EditorOnlyBlackAndWhiteToggle />
+				<InfoTipsToggle />
 				<Link
 					to="/settings"
 					className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-stone-100 hover:text-stone-900 pointer-coarse:h-10 pointer-coarse:w-10 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"

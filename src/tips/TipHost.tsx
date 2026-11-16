@@ -7,7 +7,10 @@ import {
 	currentEncodingsAtom,
 } from "../contexts/chartBuilder/store/atoms"
 import { stringifyJsonDangerous } from "../lib/json"
+import { infoTipsAtom } from "./infoTips"
+import { TipBoard } from "./TipBoard"
 import { TipBubble } from "./TipBubble"
+import { findAnchor, menuOpen, openDialog, pageFor } from "./tipDom"
 import {
 	eligibleMoments,
 	markMomentDone,
@@ -21,7 +24,6 @@ import {
 	VISIT_HOURS,
 	type Tip,
 	type TipMoment,
-	type TipPage,
 	type TipSignals,
 } from "./tips"
 
@@ -93,59 +95,7 @@ const applyUrlSwitch = () => {
 	if (flag === "on") writeState({ ...s, off: false })
 }
 
-const pageFor = (pathname: string): TipPage | null =>
-	pathname === "/"
-		? "library"
-		: pathname.startsWith("/editor/")
-			? "editor"
-			: pathname.startsWith("/settings")
-				? "settings"
-				: null
-
-/** Hidden from the eye: `visibility: hidden`, or faded out by itself or
- *  an ancestor (hover-only controls sit at opacity 0 until hovered). */
-const invisible = (el: Element): boolean => {
-	if (window.getComputedStyle(el).visibility === "hidden") return true
-	for (let n: Element | null = el; n && n !== document.body; n = n.parentElement)
-		if (window.getComputedStyle(n).opacity === "0") return true
-	return false
-}
-
-/** Actually in view right now: its center is inside the window and not
- *  clipped away by a scrolled container or covered by something else. */
-const inView = (el: Element): boolean => {
-	const r = el.getBoundingClientRect()
-	const x = r.left + r.width / 2
-	const y = r.top + r.height / 2
-	if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false
-	// The tip bubble itself doesn't count as covering it.
-	const hit = document
-		.elementsFromPoint(x, y)
-		.find((e) => !e.closest("[data-tip-bubble]"))
-	return hit !== undefined && (hit === el || el.contains(hit))
-}
-
-/** The first rendered element carrying `data-tip="<anchor>"`. With
- *  `onScreen` (first-sight tips) it must already be in view: those explain
- *  what the person is looking at, so they never scroll to find it. */
-const findAnchor = (anchor: string, onScreen = false): Element | null => {
-	for (const el of document.querySelectorAll(`[data-tip="${anchor}"]`)) {
-		const r = el.getBoundingClientRect()
-		if (r.width > 0 && r.height > 0 && !invisible(el) && (!onScreen || inView(el)))
-			return el
-	}
-	return null
-}
-
 const sight = (m: TipMoment) => m.pace === "sight"
-
-/** The open dialog's tip name (Modal `tipDialog`), "other" for an
- *  unnamed one, or null when no dialog is open. */
-const openDialog = (): string | null => {
-	const modal = document.querySelector('[aria-modal="true"]')
-	if (modal) return modal.getAttribute("data-tip-dialog") ?? "other"
-	return document.querySelector("dialog[open]") ? "other" : null
-}
 
 /** Typing = a key pressed within this long. Judged by keystrokes, not by
  *  focus: some controls (the Edit dialog's grid) park focus in a hidden
@@ -159,7 +109,7 @@ if (typeof window !== "undefined")
  *  typing. (Dialogs are handled by matching moments to them.) */
 const busy = (): boolean => {
 	if (document.hidden) return true
-	if (document.querySelector('[role="menu"]')) return true
+	if (menuOpen()) return true
 	return Date.now() - lastKeyAt < TYPING_MS
 }
 
@@ -176,8 +126,13 @@ type Active = {
  * the pacing). Mounted once, at the root. Off under automation
  * (`navigator.webdriver`) so bubbles never sit over an e2e click target —
  * unless the tab opted in with `?tips=fast`, `?tips=reset` or `?tips=on`.
+ *
+ * While the header's Info tips toggle is on, the paced tips wait (a tip
+ * that was up comes back after) and TipBoard shows every tip for the
+ * view at once; that works under automation too.
  */
 export const TipHost = () => {
+	const showAll = useAtomValue(infoTipsAtom)
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
 	const page = pageFor(pathname)
 	const datasetId = useAtomValue(currentDatasetIdAtom)
@@ -230,7 +185,7 @@ export const TipHost = () => {
 
 	// Look for a moment to start.
 	useEffect(() => {
-		if (!enabled || active || !page) return
+		if (!enabled || active || !page || showAll) return
 		const check = () => {
 			if (busy()) {
 				candidateSince.current = null
@@ -277,7 +232,7 @@ export const TipHost = () => {
 		check()
 		const id = window.setInterval(check, POLL_MS)
 		return () => window.clearInterval(id)
-	}, [enabled, active, page, pathname, hasData, hasChart, paceCtx])
+	}, [enabled, active, page, pathname, hasData, hasChart, paceCtx, showAll])
 
 	const finish = useCallback(() => {
 		if (!active) return
@@ -304,9 +259,9 @@ export const TipHost = () => {
 	// While a tip is up: hide a page tip behind a dialog, end a dialog's
 	// tips when it closes, follow a re-rendered
 	// anchor, move on when the anchor is gone (page change, collapse), and
-	// let Escape acknowledge it.
+	// let Escape acknowledge it. Paused while the Info tips board is up.
 	useEffect(() => {
-		if (!active) return
+		if (!active || showAll) return
 		const watch = () => {
 			// Leaving the page a moment belongs to ends it.
 			if (pageRef.current !== active.moment.page) {
@@ -340,8 +295,12 @@ export const TipHost = () => {
 			window.clearInterval(id)
 			window.removeEventListener("keydown", onKey)
 		}
-	}, [active, advance, finish])
+	}, [active, advance, finish, showAll])
 
+	if (showAll)
+		return page ? (
+			<TipBoard page={page} pathname={pathname} hasData={hasData} hasChart={hasChart} />
+		) : null
 	if (!active || hidden || active.moment.page !== page) return null
 	const tip = active.tips[active.index]
 	if (!tip) return null

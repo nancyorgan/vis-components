@@ -10,6 +10,7 @@ import {
 	SOON_GAP_MINUTES,
 	type TipMoment,
 	type TipPage,
+	type TipPlacement,
 	type TipSignals,
 } from "./tips"
 
@@ -132,4 +133,65 @@ export const parseTipState = (raw: string | null): TipState => {
 	} catch {
 		return { ...EMPTY_TIP_STATE }
 	}
+}
+
+/** One bubble on the Info tips board: every catalog tip that points at
+ *  the same anchor, merged so two tips never stack on one control. */
+export type BoardTip = {
+	anchor: string
+	/** The first tip's preferred side. */
+	placement: TipPlacement
+	/** Catalog order, duplicates dropped. */
+	bodies: string[]
+}
+
+/** The view the Info tips board is drawn over. */
+export type TipView = {
+	page: TipPage
+	pathname: string
+	/** As `eligibleMoments` takes it: the open dialog's name, or null. */
+	dialog: string | null
+	hasData: boolean
+	hasChart: boolean
+}
+
+/**
+ * Every tip that belongs to `view` (the header's Info tips toggle), in
+ * catalog order, one entry per anchor. Pacing and "already seen" don't
+ * apply; a moment's `when` still does, judged on the view as it stands
+ * (data loaded? chart drawn?) with the sticky milestones treated as
+ * reached, since those only stage the teaching over time. Whether each
+ * anchor is on screen is the caller's check.
+ */
+export const tipsForView = (
+	catalog: readonly TipMoment[],
+	view: TipView
+): BoardTip[] => {
+	const signals: TipSignals = {
+		hasData: view.hasData,
+		hasChart: view.hasChart,
+		editorVisited: true,
+		chartMade: true,
+		visits: Infinity,
+	}
+	const byAnchor = new Map<string, BoardTip>()
+	for (const m of catalog) {
+		if (m.page !== view.page) continue
+		if ((m.dialog ?? null) !== view.dialog) continue
+		if (m.path && !m.path.test(view.pathname)) continue
+		if (m.when && !m.when(signals)) continue
+		for (const t of m.tips) {
+			const entry = byAnchor.get(t.anchor)
+			if (!entry) {
+				byAnchor.set(t.anchor, {
+					anchor: t.anchor,
+					placement: t.placement ?? "bottom",
+					bodies: [t.body],
+				})
+			} else if (!entry.bodies.includes(t.body)) {
+				entry.bodies.push(t.body)
+			}
+		}
+	}
+	return [...byAnchor.values()]
 }

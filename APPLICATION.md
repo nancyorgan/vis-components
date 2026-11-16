@@ -5330,7 +5330,7 @@ with the table off, so no storage version bump.
 ## 10c. Accessibility preview and check
 
 Two header toggles, shown only on editor routes, side by side left of
-Settings. Both are transient editor views: in memory only, never saved
+Info tips (§10e) and Settings. Both are transient editor views: in memory only, never saved
 with a visual, never in exports, thumbnails, the embed page or published
 embeds.
 
@@ -5565,6 +5565,50 @@ duplicate ids.
 covered by undo. Optional: a visual saved before it existed (or a
 malformed value) loads as automatic via `migrateAccessibilityConfig`, so
 there is no content-version bump.
+
+---
+
+## 10e. Helper tips and the Info tips board
+
+**Helper tips** are the speech bubbles that point at a control and
+explain it, each closed with a check button. Every tip lives in one
+catalog, `src/tips/tips.ts`, grouped into short "moments"; the catalog's
+header explains when each moment shows on its own (pacing, first sight,
+dialogs) and the `?tips=reset|fast|off|on` preview switches. A tip points
+at the element carrying `data-tip="<anchor>"`.
+
+**Info tips** (header button, speech bubble with three dots, title "Info
+tips", `aria-pressed`; `infoTipsAtom`) shows every tip for the current
+view at once. On every page (library, editor, settings), between the
+editor's Accessibility check and Settings; hidden on phones (below `sm`),
+where the header must stay one line. In memory only, like the other
+header toggles; it stays on across navigation, so the next view shows its
+tips too.
+
+- **Which tips:** every catalog tip for this page (and sub-page `path`)
+  whose anchor is on screen right now — visible, in the window, not
+  covered. Pacing and "already seen" don't apply. A moment's `when` does,
+  judged on the view as it stands (data loaded, chart drawn), with the
+  sticky milestones ("has made a chart", visit count) treated as reached.
+  Over a dialog only that dialog's tips show (Export, Edit data); an
+  unnamed dialog shows none. Tips that share an anchor merge into one
+  bubble, one paragraph each, catalog order.
+- **Layout** (`layoutBoard`, `src/tips/bubbleLayout.ts`): no bubble
+  overlaps another or the header; then as little as possible of another
+  tip's control is covered, and no pointer tip ends under a bubble; then
+  each bubble sits as near its control as it can, on its preferred side.
+  When that's crowded a bubble moves further out on a longer pointer
+  that may lean toward the control; a pointer passing another bubble goes
+  under it, never across its words. The board follows scrolling and lays
+  itself out afresh once things stop moving, and picks up controls as
+  they come into view.
+- **Hiding:** a bubble's check hides it until the board is next turned
+  on. Hovering a bubble brings it to the front. The wheel over a bubble
+  scrolls the panel beneath it. An open menu clears the board until it
+  closes.
+- While the board is on the paced tips wait; one that was up comes back
+  when it's turned off. Showing a tip on the board doesn't mark it seen.
+  The board works under automation (the paced tips don't).
 
 ---
 
