@@ -3,8 +3,12 @@ import { describe, expect, it } from "vitest"
 import { applySettings } from "./applySettings"
 import { DEFAULT_FACET_CONFIG, type DataLabelsConfig } from "./channelConfig"
 import { DEFAULT_CANVAS_HEIGHT, DEFAULT_CANVAS_WIDTH } from "./canvasSizeEdits"
+import { withColorSlotDefaults } from "./colorSlotDefaults"
+import { OPACITY_SLOT_DEFS } from "./opacitySlots"
+import { settingsReadRows } from "./settingEffects"
 import { LIGHT_THEME_BASE } from "./systemThemes"
-import type { FieldType, Visual } from "./types"
+import { OUTLINE_THICKNESS_MAX, OVERLAY_LINE_THICKNESS_MAX } from "./thicknessRanges"
+import type { FieldType, Theme, Visual } from "./types"
 import { newVisualDraft } from "./visualDefaults"
 
 const theme = LIGHT_THEME_BASE
@@ -323,6 +327,185 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 		const r = applySettings(base(), { legendConfig: { position: "bottom" } })
 		expect(r.problems).toEqual([])
 		expect(r.visual.legendConfig!.position).toBe("bottom")
+	})
+})
+
+/** What the Color, Opacity, Saturation, Brightness and Size menus do for
+ * one PART of the marks (a stem, a violin's fill, an outline), reached by a
+ * settings patch: the path a program writes through. */
+describe("applySettings: a part's own color, opacity, saturation, brightness and thickness", () => {
+	const scatter = (): Visual => {
+		const v = base()
+		return { ...v, encodings: { ...v.encodings, x: { field: "year" }, y: { field: "sales" } } }
+	}
+	/** Violins by region, colored by region: the violin fill follows Color. */
+	const violin = (): Visual => {
+		const v = base()
+		return {
+			...v,
+			encodings: { ...v.encodings, x: { field: "region" }, y: { field: "sales" }, hue: { field: "region" } },
+			channelConfigs: {
+				...v.channelConfigs,
+				y: { ...v.channelConfigs.y, distributionOverlay: { showDensityViolin: true, showBoxPlot: false } } as never,
+			},
+		}
+	}
+	/** The part colors the chart draws with: the stored ones plus Auto's. */
+	const drawn = (v: Visual) => withColorSlotDefaults(v.channelConfigs, v.encodings, "categorical", theme).colorSlots
+
+	it("stores only the part the patch names, so every other part stays on Auto", () => {
+		expect(drawn(violin())?.violinFill?.field).toBe("region")
+		const v = ok({ channelConfigs: { colorSlots: { rug: { singleColor: "#ff0000" } } } }, violin())
+		expect(Object.keys(v.channelConfigs.colorSlots ?? {})).toEqual(["rug"])
+		expect(v.channelConfigs.colorSlots?.rug).toMatchObject({ field: null, singleColor: "#ff0000" })
+		// The violins still take the Color variable's colors.
+		expect(drawn(v)?.violinFill?.field).toBe("region")
+	})
+
+	it("starts a part's first color edit from what its menu shows", () => {
+		const auto = drawn(violin())?.violinFill
+		const v = ok({ channelConfigs: { colorSlots: { violinFill: { hue: { colors: { West: "#ff0000" } } } } } }, violin())
+		const fill = v.channelConfigs.colorSlots?.violinFill
+		// Recoloring one category keeps the variable and the palette.
+		expect(fill?.field).toBe("region")
+		expect(fill?.palette).toEqual(auto?.palette)
+		expect(fill?.hue).toMatchObject({ kind: "categorical", colors: { West: "#ff0000" } })
+	})
+
+	it("stores a color that says no more than Auto as unset", () => {
+		const v = ok({ channelConfigs: { colorSlots: { violinFill: { field: "region" } } } }, violin())
+		expect(v.channelConfigs.colorSlots?.violinFill).toBeUndefined()
+		expect(drawn(v)?.violinFill?.field).toBe("region")
+	})
+
+	it("puts a part back on Auto with a null, in each of the four menus", () => {
+		const colored = ok({ channelConfigs: { colorSlots: { rug: { singleColor: "#ff0000" }, stem: { singleColor: "#00ff00" } } } }, scatter())
+		const back = ok({ channelConfigs: { colorSlots: { rug: null } } }, colored)
+		expect(Object.keys(back.channelConfigs.colorSlots ?? {})).toEqual(["stem"])
+		for (const map of ["opacitySlots", "saturationSlots", "brightnessSlots"] as const) {
+			const set = ok({ channelConfigs: { [map]: { stem: { level: 0.4 } } } }, scatter())
+			expect(set.channelConfigs[map]).toEqual({ stem: { field: null, level: 0.4 } })
+			expect(ok({ channelConfigs: { [map]: { stem: null } } }, set).channelConfigs[map]).toEqual({})
+		}
+		// A null on a chart with no entries, and a part that doesn't exist.
+		expect(ok({ channelConfigs: { colorSlots: { rug: null } } }, scatter()).channelConfigs.colorSlots ?? {}).toEqual({})
+		expect(paths({ channelConfigs: { colorSlots: { nope: null } } }, scatter())).toEqual(["channelConfigs.colorSlots.nope"])
+	})
+
+	it('seeds a color\'s "Vary by" with the theme\'s palette or gradient, the fill palette for a body', () => {
+		const fillTheme: Theme = {
+			...theme,
+			categoricalPalettes: [
+				{ id: "main", name: "Main", colors: ["#110000", "#220000"] },
+				{ id: "fill", name: "Fill", colors: ["#ffeeee", "#ffdddd"] },
+			],
+			defaultCategoricalPaletteId: "main",
+			defaultFillPaletteId: "fill",
+		}
+		const seeded = apply(
+			{ channelConfigs: { colorSlots: { stem: { field: "region" }, regressionCiFill: { field: "region" }, rug: { field: "sales" } } } },
+			scatter(),
+			{ ...deps, theme: fillTheme }
+		)
+		expect(seeded.problems).toEqual([])
+		const slots = seeded.visual.channelConfigs.colorSlots
+		expect(slots?.stem).toMatchObject({ field: "region", paletteId: "main", palette: ["#110000", "#220000"] })
+		expect(slots?.regressionCiFill).toMatchObject({ field: "region", paletteId: "fill", palette: ["#ffeeee", "#ffdddd"] })
+		expect(slots?.rug).toMatchObject({ field: "sales", hue: { kind: "quantitative" } })
+	})
+
+	it("leaves a part's colors alone when a patch restates its variable or brings its own", () => {
+		const varied = ok({ channelConfigs: { colorSlots: { stem: { field: "region" } } } }, scatter())
+		const recolored = ok({ channelConfigs: { colorSlots: { stem: { hue: { colors: { West: "#ff0000" } } } } } }, varied)
+		const restated = ok({ channelConfigs: { colorSlots: { stem: { field: "region", singleColor: "#000001" } } } }, recolored)
+		expect(restated.channelConfigs.colorSlots?.stem?.hue).toMatchObject({ colors: { West: "#ff0000" } })
+		expect(restated.channelConfigs.colorSlots?.stem?.palette).toEqual(varied.channelConfigs.colorSlots?.stem?.palette)
+		const own = ok(
+			{ channelConfigs: { colorSlots: { stem: { field: "region", hue: { kind: "categorical", colors: { East: "#0000ff" } } } } } },
+			scatter()
+		)
+		expect(own.channelConfigs.colorSlots?.stem?.hue).toMatchObject({ colors: { East: "#0000ff" } })
+	})
+
+	it("stores an opacity entry whole and seeds its scale when it varies by a variable", () => {
+		const level = OPACITY_SLOT_DEFS.stem.defaultLevel
+		const quant = ok({ channelConfigs: { opacitySlots: { stem: { field: "sales" } } } }, scatter())
+		expect(quant.channelConfigs.opacitySlots?.stem).toMatchObject({ field: "sales", level, opacity: { kind: "quantitative" } })
+		const cat = ok({ channelConfigs: { opacitySlots: { stem: { field: "region" } } } }, scatter())
+		expect(cat.channelConfigs.opacitySlots?.stem).toMatchObject({ field: "region", level, opacity: { kind: "categorical" } })
+		// Its own scale is kept, and restating the variable doesn't reseed it.
+		const own = ok({ channelConfigs: { opacitySlots: { stem: { field: "sales", opacity: { kind: "quantitative", min: 0.2, max: 0.9 } } } } }, scatter())
+		expect(own.channelConfigs.opacitySlots?.stem?.opacity).toMatchObject({ min: 0.2, max: 0.9 })
+		const restated = ok({ channelConfigs: { opacitySlots: { stem: { field: "sales", level: 0.5 } } } }, own)
+		expect(restated.channelConfigs.opacitySlots?.stem).toMatchObject({ level: 0.5, opacity: { min: 0.2, max: 0.9 } })
+	})
+
+	it("seeds the theme's range when a saturation or brightness varies by a variable", () => {
+		const sat = ok({ channelConfigs: { saturationSlots: { stem: { field: "region" } } } }, scatter())
+		expect(sat.channelConfigs.saturationSlots?.stem).toEqual({
+			field: "region",
+			level: null,
+			range: { min: theme.saturationMin, max: theme.saturationMax },
+		})
+		const bri = ok({ channelConfigs: { brightnessSlots: { stem: { field: "region", range: { min: 0.1, max: 0.2 } } } } }, scatter())
+		expect(bri.channelConfigs.brightnessSlots?.stem?.range).toEqual({ min: 0.1, max: 0.2 })
+	})
+
+	it("seeds one outline thickness per level, and reads the rows for it", () => {
+		expect(settingsReadRows({ channelConfigs: { shape: { outlineWidthField: "region" } } })).toBe(true)
+		const v = ok({ channelConfigs: { shape: { outlineWidthField: "region" } } }, scatter())
+		const width = v.channelConfigs.shape!.outlineWidth
+		expect(v.channelConfigs.shape?.outlineWidthByValue).toEqual({ East: width, North: width, West: width })
+		expect(ok({ channelConfigs: { shape: { outlineWidthField: null } } }, v).channelConfigs.shape?.outlineWidthByValue).toEqual({})
+		const own = ok({ channelConfigs: { shape: { outlineWidthField: "region", outlineWidthByValue: { West: 3 } } } }, scatter())
+		expect(own.channelConfigs.shape?.outlineWidthByValue).toEqual({ West: 3 })
+	})
+
+	it("keeps a thickness to its box's range and a level to its slider's", () => {
+		const v = ok(
+			{
+				channelConfigs: {
+					connection: { thickness: -4, stemThickness: -5, smoothing: 7, thicknessByValue: { West: -1 } },
+					length: { segmentThickness: -2 },
+					shape: {
+						outlineWidth: 99,
+						outlineWidthByValue: { West: 99 },
+						distributionOutlineWidth: -1,
+						regionOutlineWidth: 99,
+						densityCurveOutlineWidth: 99,
+					},
+					x: { regression: { strokeWidth: 99 } },
+					defaultOpacity: 5,
+					defaultSaturation: -3,
+					saturation: { min: -2, max: 3 },
+					opacitySlots: { stem: { level: 4 } },
+					saturationSlots: { stem: { level: 9, range: { min: -1, max: 2, overrides: { West: 7 } } } },
+					brightnessSlots: { outline: { level: -9 } },
+				},
+			},
+			scatter()
+		)
+		const c = v.channelConfigs
+		expect(c.connection).toMatchObject({ thickness: 0, stemThickness: 0, smoothing: 1, thicknessByValue: { West: 0 } })
+		expect(c.length?.segmentThickness).toBe(0)
+		expect(c.shape).toMatchObject({
+			outlineWidth: OUTLINE_THICKNESS_MAX,
+			outlineWidthByValue: { West: OUTLINE_THICKNESS_MAX },
+			distributionOutlineWidth: 0,
+			regionOutlineWidth: OUTLINE_THICKNESS_MAX,
+			densityCurveOutlineWidth: OVERLAY_LINE_THICKNESS_MAX,
+		})
+		expect(c.x?.regression?.strokeWidth).toBe(OVERLAY_LINE_THICKNESS_MAX)
+		expect(c.defaultOpacity).toBe(1)
+		expect(c.defaultSaturation).toBe(0)
+		expect(c.saturation).toMatchObject({ min: 0, max: 1 })
+		expect(c.opacitySlots?.stem?.level).toBe(1)
+		expect(c.saturationSlots?.stem).toMatchObject({ level: 1, range: { min: 0, max: 1, overrides: { West: 1 } } })
+		expect(c.brightnessSlots?.outline?.level).toBe(0)
+		// In range: stored as sent.
+		const kept = ok({ channelConfigs: { shape: { outlineWidth: 2.5 }, connection: { smoothing: 0.3 } } }, scatter())
+		expect(kept.channelConfigs.shape?.outlineWidth).toBe(2.5)
+		expect(kept.channelConfigs.connection?.smoothing).toBe(0.3)
 	})
 })
 

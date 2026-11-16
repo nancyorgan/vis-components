@@ -614,7 +614,11 @@ export const DEFAULT_AXIS_CONFIG: AxisConfig = {
 }
 
 export type AreaConfig = {
+	/** Point size at the smallest value: the radius (px) the Size range
+	 * starts from when a variable is on Size (`area`). */
 	minRadius: number
+	/** Point size at the largest value: the radius (px) the Size range ends
+	 * at when a variable is on Size (`area`). */
 	maxRadius: number
 	/** How the mapped value translates to circle size:
 	 *  - "area" (default, absent): the value drives the circle's AREA —
@@ -1997,6 +2001,10 @@ export type ChannelConfigs = Partial<{
 	 * Color panel since the hue mapping is what enables hexbin mode). */
 	hexbin: HexbinConfig
 	// Defaults for when no field is mapped
+	/** The marks' fill color when no variable is on Color (`hue`): the
+	 * Color menu's one color for the points, bars, slices or cells. An area
+	 * chart left on it fills with the theme's paler fill color instead (drawn,
+	 * not stored), and its line keeps this one. */
 	defaultFill: string // DEFAULT_FILL
 	/** Conditional FILL color rules (Color → Fill → "+ Add color rule").
 	 * An implicit rule (`> 0`) tests the Color variable's value for the
@@ -2007,7 +2015,11 @@ export type ChannelConfigs = Partial<{
 	 * Shape panel's per-category `fillOverrides` still win on top. Mirrors
 	 * `ShapeConfig.outlineColorRules` and `ColorSlotConfig.colorRules`. */
 	fillColorRules?: TextColorRule[]
+	/** Point size: the radius (px) of every point when no variable is on
+	 * Size (`area`). The Size menu's size box. */
 	defaultRadius: number // DEFAULT_RADIUS
+	/** The marks' fill opacity, 0 to 1, when no variable is on Opacity. One
+	 * part's own opacity is in `opacitySlots`. */
 	defaultOpacity: number // DEFAULT_OPACITY (the Fill / overall opacity)
 	defaultShape: number // DEFAULT_SHAPE (palette index)
 	// Anchored levels (see SaturationConfig): null = channel off, 0.5 = the
@@ -2089,22 +2101,27 @@ export type ChannelConfigs = Partial<{
 	/** Aesthetics → Chart background → panel border (see PanelBorderConfig).
 	 * Absent = off. */
 	panelBorder: PanelBorderConfig
-	/** Generic color targets beyond fill (`hue`) and outline (`outlineHue`):
-	 * line, rug, violin/box stroke + fill, lollipop stem, radar spine. Each is
-	 * an independent optional color encoding surfaced as a subheader in the
-	 * Color menu. Sparse — an absent slot means the renderer falls back to the
-	 * legacy per-feature color field (e.g. `histogram.rugColor`), so visuals
-	 * saved before this existed render unchanged. */
+	/** One color per PART of the marks (a line, a stem, a violin's fill, a
+	 * regression band; the Color menu lists each by name). A part with no
+	 * entry is on Auto. In a settings patch, name only the part to change;
+	 * `null` for a part puts it back on Auto.
+	 *
+	 * (The setting catalog keeps the first 300 characters: the sentences
+	 * above.) The marks' fill is `hue` and their own outline `outlineHue`.
+	 * Auto draws what the part's menu says it follows: the Color variable's
+	 * colors, the theme's fill palette for a body, else the theme's color for
+	 * the part; a chart saved before parts had colors of their own reads its
+	 * older per-feature field (`histogram.rugColor`). */
 	colorSlots: ColorSlots
-	/** Per-part opacity targets (border + the same set of slots as color, minus
-	 * fill which reuses the overall `opacity` encoding). Each is an independent
-	 * optional opacity encoding surfaced as a subheader in the Opacity menu.
-	 * Sparse — an absent slot means the part renders at its registry
-	 * `defaultLevel`. */
+	/** The opacity of one part of the marks, by part (the Opacity menu); the
+	 * marks' own outline is `border`, and their fill reuses the overall
+	 * `opacity` encoding. Sparse: a part with no entry draws at its default
+	 * level. In a settings patch, `null` for a part removes its entry. */
 	opacitySlots: OpacitySlots
-	/** Per-part saturation targets (outline / line) beyond the Fill, which
-	 * reuses the `saturation` encoding. Sparse — an absent slot means that
-	 * part isn't modulated. Surfaced as subheaders in the Saturation menu. */
+	/** The saturation of one part of the marks, by part (the Saturation
+	 * menu); the fill reuses the `saturation` encoding. Sparse: a part with
+	 * no entry isn't shaded. In a settings patch, `null` for a part removes
+	 * its entry. */
 	saturationSlots: ModulationSlots
 	/** Brightness counterpart of `saturationSlots`. */
 	brightnessSlots: ModulationSlots

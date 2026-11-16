@@ -13,7 +13,7 @@ import { formatSpecProblem } from "./formatTick"
 import { COUNTRY_NAME_FORMAT } from "./geo/countryNames"
 import { structureVisualKeys } from "./savedKeyStructure"
 import catalogJson from "./settingCatalog.json"
-import { applySettingEffects, settingDefaults, type SettingsDeps } from "./settingEffects"
+import { applySettingEffects, PER_PART_MAPS, settingDefaults, type SettingsDeps } from "./settingEffects"
 import type { Visual } from "./types"
 
 export type { SettingsDeps } from "./settingEffects"
@@ -152,13 +152,21 @@ export const applySettings = (
 		}
 		if (kind === "list") return replaceList(value as unknown[], type, at, real)
 		if (kind !== "object") return value
-		const start = base === undefined ? fallback : base
+		// A per-part map is sparse: a part without an entry is on Auto. Only
+		// the parts the patch names are stored (each from its own default),
+		// and a null removes a part's entry.
+		const perPart = PER_PART_MAPS.has(at)
+		const start = base === undefined ? (perPart ? undefined : fallback) : base
 		const next: Record<string, unknown> = isObj(start) ? { ...start } : {}
 		for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
 			const named = paths[`${at}.${key}`]
 			const entry = named ?? paths[`${at}.*`]
 			const child = named ? `${at}.${key}` : `${at}.*`
 			const where = `${real}.${key}`
+			if (perPart && named && v === null) {
+				delete next[key]
+				continue
+			}
 			if (!entry) {
 				const names = childrenOf(at).filter((n) => n !== "*")
 				bad(where, `unknown setting "${key}"${didYouMean(key, names)}`)

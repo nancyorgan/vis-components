@@ -13,6 +13,7 @@ import {
 	type ShapeConfig,
 } from "../../../lib/channelConfig"
 import { MIN_LINE_THICKNESS } from "../../../lib/connectionThickness"
+import { OUTLINE_THICKNESS_MAX, OVERLAY_LINE_THICKNESS_MAX } from "../../../lib/thicknessRanges"
 import { effectiveType } from "../../../lib/fieldType"
 import { sizeSections, type SizeSection } from "../../../lib/markParts"
 import {
@@ -266,7 +267,7 @@ const useOutlineThickness = (noun: string): ThicknessModel => {
 		resetTo: theme.outlineWidth,
 		changed: valueChanged(cfg.outlineWidth, theme.outlineWidth) || field !== null,
 		min: 0,
-		max: 10,
+		max: OUTLINE_THICKNESS_MAX,
 		clamp: true,
 		set: (outlineWidth) => update({ outlineWidth }),
 		varyBy: {
@@ -301,7 +302,7 @@ const useViolinOutlineThickness = (noun: string): ThicknessModel => {
 		resetTo: dflt,
 		changed: valueChanged(cfg.distributionOutlineWidth, DEFAULT_SHAPE_CONFIG.distributionOutlineWidth),
 		min: 0,
-		max: 10,
+		max: OUTLINE_THICKNESS_MAX,
 		clamp: true,
 		set: (distributionOutlineWidth) => update({ distributionOutlineWidth }),
 	}
@@ -321,7 +322,7 @@ const useRegressionThickness = (noun: string): ThicknessModel => {
 		resetTo: themeRegression.strokeWidth,
 		changed: valueChanged(configs.x?.regression?.strokeWidth, themeRegression.strokeWidth),
 		min: 0,
-		max: 12,
+		max: OVERLAY_LINE_THICKNESS_MAX,
 		clamp: true,
 		// The same theme-seeding merge the X-axis panel uses, so untouched
 		// fields keep matching the changed-dot baseline.
@@ -349,7 +350,7 @@ const useRegionOutlineThickness = (noun: string): ThicknessModel => {
 		resetTo: cfg.outlineWidth,
 		changed: own !== undefined,
 		min: 0,
-		max: 10,
+		max: OUTLINE_THICKNESS_MAX,
 		clamp: true,
 		set: (regionOutlineWidth) => update({ regionOutlineWidth }),
 		reset: () => update({ regionOutlineWidth: undefined }),
@@ -392,7 +393,7 @@ const useDensityCurveThickness = (noun: string): ThicknessModel => {
 		resetTo: DEFAULT_DENSITY_CURVE_WIDTH,
 		changed: value !== DEFAULT_DENSITY_CURVE_WIDTH,
 		min: 0,
-		max: 12,
+		max: OVERLAY_LINE_THICKNESS_MAX,
 		clamp: true,
 		set: (densityCurveOutlineWidth) => update({ densityCurveOutlineWidth }),
 	}

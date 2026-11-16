@@ -3,6 +3,7 @@
  * same lib calls the editor makes at the pick, with the notes a program
  * reads in `warnings`. Pure. */
 
+import { withAreaFillFollowingColor } from "./connectionEdits"
 import { barLabelPositionNote, barValueAxis } from "./dataLabelsPosition"
 import {
 	keepLineFollowingColor,
@@ -30,7 +31,9 @@ export type SpecPickOptions = {
 
 /** `visual` with the lines following Color when the spec mapped Color or
  * Connection on a line chart (`withLineFollowingColor`, after the settings so
- * a line color they choose is kept), plus a note for each pick effect: the
+ * a line color they choose is kept), and a filled area's bodies taking the
+ * theme's fill palette when Color is mapped on it afterwards
+ * (`withAreaFillFollowingColor`), plus a note for each pick effect: the
  * lines' color, and bar labels positioned on the Length variable (that seed
  * runs in `settingEffects`). */
 export const withSpecPickEffects = (
@@ -41,10 +44,11 @@ export const withSpecPickEffects = (
 	let out = visual
 	if (opts.mapsColorOrSeries) {
 		const hueField = visual.encodings.hue?.field ?? null
+		const hueType = hueField ? opts.typeOf(hueField) : null
 		const configs = withLineFollowingColor(
 			visual.channelConfigs,
 			visual.encodings,
-			hueField ? opts.typeOf(hueField) : null,
+			hueType,
 			opts.theme,
 			opts.previousColor
 		)
@@ -52,6 +56,17 @@ export const withSpecPickEffects = (
 			out = { ...visual, channelConfigs: configs }
 			warnings.push(lineFollowsColorNote(hueField))
 		}
+		// The same call the encoding shelf makes at the pick: an area that was
+		// filled before it had a Color variable gets the palettes it would
+		// have had with one. Picks already made are kept.
+		const filled = withAreaFillFollowingColor(
+			out.channelConfigs,
+			out.encodings,
+			hueType,
+			opts.theme,
+			opts.typeOf
+		)
+		if (filled !== out.channelConfigs) out = { ...out, channelConfigs: filled }
 	} else if (opts.previousColor) {
 		// An edit that keeps the Color variable but changes its palette or
 		// gradient (through `settings`): lines that followed Color keep

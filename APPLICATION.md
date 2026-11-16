@@ -6679,6 +6679,33 @@ one the encodings can't make (a line chart without a series field on
 `connection`, a choropleth with `x` still mapped) is refused naming what
 it needs. A family alone on an edit is only checked, not applied.
 
+**One part's settings through the API.** A settings patch
+(`lib/applySettings.ts`, with the panel behaviors in
+`lib/settingEffects.ts`) treats one PART of the marks the way its menu
+does. The four per-part maps (`channelConfigs.colorSlots`,
+`opacitySlots`, `saturationSlots`, `brightnessSlots`: `PER_PART_MAPS`)
+are sparse, and a part with no entry is on Auto:
+
+- Only a part the patch names is stored. It starts from what its menu
+  shows (a body following the Color variable keeps its "Vary by" and
+  palette), and a color that says no more than Auto is stored as unset.
+- `null` for a part removes its entry, which puts it back on Auto.
+- A new "Vary by" (`field`) seeds what the menu seeds: the theme's
+  palette or gradient for a color (the fill palette for a body), the
+  scale for an opacity, the theme's range for a saturation or brightness,
+  and one thickness per level for `shape.outlineWidthField`. A patch
+  that brings its own palette, scale or range keeps it, and one that only
+  restates the variable changes nothing.
+- A thickness keeps to its box's range (`lib/thicknessRanges.ts`, the
+  numbers the Size menu's boxes read) and a level to its slider's 0 to 1.
+- Color mapped by an edit on an area that is already filled gives its
+  bodies the theme's fill palette, as the encoding shelf does at the pick
+  (`lib/chartSpecPicks.ts`).
+
+The MCP server runs from `mcp/dist/main.js`: after a change to any of
+this, `pnpm build` (or `pnpm mcp:build`) and a restart of the MCP are
+what make it take effect there.
+
 ### Single-file distribution & library bundles
 
 `pnpm build` emits ONE self-contained `dist/index.html` (JS + CSS

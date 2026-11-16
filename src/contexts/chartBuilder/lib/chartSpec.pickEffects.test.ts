@@ -126,6 +126,49 @@ describe("chart spec: an edit moving Color", () => {
 	})
 })
 
+describe("chart spec: Color mapped on an area that is already filled", () => {
+	// A theme with a paler fill palette beside its main one.
+	const fillTheme = {
+		...theme,
+		categoricalPalettes: [
+			{ id: "main", name: "Main", colors: ["#110000", "#220000"] },
+			{ id: "fill", name: "Fill", colors: ["#ffeeee", "#ffdddd"] },
+		],
+		defaultCategoricalPaletteId: "main",
+		defaultFillPaletteId: "fill",
+	}
+	const areaDeps = { ...deps, theme: fillTheme }
+	const AREA = { x: "Quarter", length: "rate", connection: "Region" }
+
+	it("the bodies take the theme's fill palette and the line its main one, as at the editor's pick", () => {
+		const made = composeVisual(spec({ variation: "Stacked area", encodings: AREA }), areaDeps)
+		expect(made.problems).toEqual([])
+		expect(made.visual.channelConfigs.connection?.fill).toBe("area")
+		expect(made.visual.channelConfigs.categoricalPaletteId).toBe("main")
+		const { visual, problems } = editVisual(made.visual, { encodings: { hue: "Region" } }, areaDeps)
+		expect(problems).toEqual([])
+		expect(visual.channelConfigs.categoricalPaletteId).toBe("fill")
+		expect(visual.channelConfigs.categoricalPalette).toEqual(["#ffeeee", "#ffdddd"])
+		expect(visual.channelConfigs.connection?.linePalette).toEqual(["#110000", "#220000"])
+	})
+
+	it("a palette the chart already picked is kept", () => {
+		const made = composeVisual(spec({ variation: "Stacked area", encodings: AREA }), areaDeps)
+		const { visual } = editVisual(
+			made.visual,
+			{ encodings: { hue: "Region" }, settings: { channelConfigs: { categoricalPaletteId: "main" } } },
+			{ ...areaDeps, theme: { ...fillTheme, categoricalPalettes: [...fillTheme.categoricalPalettes, { id: "other", name: "Other", colors: ["#000011"] }] } }
+		)
+		expect(visual.channelConfigs.categoricalPaletteId).not.toBe("other")
+	})
+
+	it("a line chart given Color is left on its main palette", () => {
+		const made = composeVisual(spec({ encodings: { x: "Quarter", y: "rate", connection: "Region" } }), areaDeps)
+		const { visual } = editVisual(made.visual, { encodings: { hue: "Region" } }, areaDeps)
+		expect(visual.channelConfigs.categoricalPaletteId).toBe("main")
+	})
+})
+
 describe("chart spec: bar labels sit on the Length variable", () => {
 	it("vertical bars with a label value store y = the Length variable, with a note", () => {
 		const { visual, warnings } = compose({

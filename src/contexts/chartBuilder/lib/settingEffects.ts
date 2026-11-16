@@ -12,17 +12,24 @@ import {
 	DEFAULT_CATEGORICAL_HUE_CONFIG,
 	DEFAULT_HISTOGRAM_CONFIG,
 	DEFAULT_LENGTH_CONFIG,
+	DEFAULT_OPACITY_CATEGORICAL,
+	DEFAULT_OPACITY_QUANTITATIVE,
 	DEFAULT_SEGMENT_THICKNESS,
 	type AxisConfig,
 	type ChannelConfigs,
 	type ColorSlotConfig,
+	type ColorSlotKey,
 	type FacetConfig,
+	type ModulationSlotConfig,
+	type OpacitySlotConfig,
 } from "./channelConfig"
 import { getChartModeDef } from "./chartMode"
 import type { ChartModeDef } from "./chartModes/types"
 import type { SpecProblem } from "./chartSpec"
-import { COLOR_SLOT_DEFS } from "./colorSlots"
+import { defaultColorSlot, isDefaultColorSlot } from "./colorSlotDefaults"
+import { COLOR_SLOT_DEFS, legacySlotColor } from "./colorSlots"
 import { axisStemPatch, switchConnectionFill, withConnectionConfig } from "./connectionEdits"
+import { MIN_LINE_THICKNESS } from "./connectionThickness"
 import { resolveDashGapFill } from "./dashGapFill"
 import { seedLabelTextPalette } from "./dataLabelsHue"
 import {
@@ -56,10 +63,14 @@ import {
 	type TooltipBoxKey,
 } from "./labelsConfig"
 import { legendHiddenPatch, swatchOutlineWidthPatch, swatchShapePatch, swatchSizePatch } from "./legendEdits"
+import { partPaletteKind } from "./markParts"
+import { MODULATION_SLOT_REGISTRY, MODULATION_SLOTS_KEY } from "./modulationSlots"
 import { UNTITLED_VISUAL_NAME } from "./nameUniqueness"
+import { OPACITY_SLOT_DEFS, OPACITY_SLOT_REGISTRY } from "./opacitySlots"
 import { levelOrderFromSpec, withoutSelfScope } from "./orderLevelsByField"
 import { paletteIdsOf, pickHuePalette, pickLabelPalette, pickSlotPalette } from "./paletteEdits"
-import { seedQuantHue } from "./seedColorSlot"
+import { seedColorSlot, seedQuantHue } from "./seedColorSlot"
+import { OUTLINE_THICKNESS_MAX, OVERLAY_LINE_THICKNESS_MAX } from "./thicknessRanges"
 import { fieldLevels, thicknessByLevel } from "./thicknessVaryBy"
 import { customHtmlPatch } from "./tooltipDefaults"
 import type { FieldLevelOrderSpec, FieldType, Theme, Visual } from "./types"
@@ -82,6 +93,7 @@ export const SETTINGS_READING_ROWS = [
 	"fieldLevelOrderSpecs",
 	"channelConfigs.connection.thicknessField",
 	"channelConfigs.length.segmentThicknessField",
+	"channelConfigs.shape.outlineWidthField",
 	"channelConfigs.facet.rows",
 	"channelConfigs.facet.cols",
 	"channelConfigs.facet.proportionalSizingX",
@@ -109,10 +121,46 @@ const has = (patch: unknown, ...path: string[]) => sent(patch, ...path) !== unde
 
 const continuous = (t: FieldType | undefined) => t === "quantitative" || t === "temporal"
 
+/** The maps that hold one entry per mark PART: a part's color, opacity,
+ * saturation or brightness (what the Color, Opacity, Saturation and
+ * Brightness menus list under each part's name). A part with no entry is
+ * on Auto, so these maps are sparse and `applySettings` treats them part
+ * by part: only a part the patch names is stored, starting from what its
+ * menu shows, and a `null` for a part removes its entry (back to Auto). */
+export const PER_PART_MAPS: ReadonlySet<string> = new Set([
+	"channelConfigs.colorSlots",
+	"channelConfigs.opacitySlots",
+	"channelConfigs.saturationSlots",
+	"channelConfigs.brightnessSlots",
+])
+
+/** What the Color menu starts the first edit of a part from
+ * (`ColorSlotSubsection`): the Auto default it displays (a body following
+ * the Color variable keeps its "Vary by" and palette), else one color: the
+ * older per-feature field it superseded, else the theme's color for it. */
+const colorSlotStart = (
+	key: ColorSlotKey,
+	visual: Visual,
+	hueType: FieldType | null,
+	theme: Theme
+): ColorSlotConfig => {
+	const def = COLOR_SLOT_DEFS[key]
+	const configs = visual.channelConfigs
+	const dflt = defaultColorSlot(key, visual.encodings, configs, hueType, theme)
+	// A part whose menu leads with "Auto" shows Auto, not what Auto resolves to.
+	const shown = def.inherit !== undefined ? undefined : dflt
+	const singleColor =
+		(dflt && dflt.field === null ? dflt.singleColor : undefined) ??
+		legacySlotColor(key, configs) ??
+		def.themeColor(theme)
+	return { field: null, singleColor, hue: DEFAULT_CATEGORICAL_HUE_CONFIG, ...shown }
+}
+
 /** The default tree a patch merges into where the visual has no stored
  * value yet (an absent slice, an absent `channelConfigs.x`): the editor's
  * own theme-seeded draft, with the color configs seeded by the mapped
- * field as the shelves seed them. */
+ * field as the shelves seed them. The per-part maps (`PER_PART_MAPS`)
+ * give each part's starting entry; only a part the patch names takes it. */
 export const settingDefaults = (visual: Visual, deps: SettingsDeps): Partial<Visual> | undefined => {
 	if (!deps.theme) return undefined
 	const theme = deps.theme
@@ -122,9 +170,11 @@ export const settingDefaults = (visual: Visual, deps: SettingsDeps): Partial<Vis
 		continuous(field ? typeOf(field) : undefined)
 			? buildQuantHueConfigFromTheme(theme)
 			: DEFAULT_CATEGORICAL_HUE_CONFIG
+	const hueField = visual.encodings.hue?.field ?? null
+	const hueType = hueField ? (typeOf(hueField) ?? null) : null
 	const slots: Record<string, ColorSlotConfig> = {}
-	for (const [key, def] of Object.entries(COLOR_SLOT_DEFS))
-		slots[key] = { field: null, singleColor: def.themeColor(theme), hue: DEFAULT_CATEGORICAL_HUE_CONFIG }
+	for (const key of Object.keys(COLOR_SLOT_DEFS) as ColorSlotKey[])
+		slots[key] = colorSlotStart(key, visual, hueType, theme)
 	return {
 		...draft,
 		channelConfigs: {
@@ -176,6 +226,48 @@ const CLAMPS: Record<string, (n: number) => number> = {
 	"tooltipConfig.tooltipShadowOpacity": (n) => clamp(n, 0, 1),
 	"dataTableConfig.maxRows": (n) => Math.max(1, Math.round(n)),
 }
+
+const unit = (n: number) => clamp(n, 0, 1)
+const lineThickness = (n: number) => Math.max(MIN_LINE_THICKNESS, n)
+const outlineThickness = (n: number) => clamp(n, 0, OUTLINE_THICKNESS_MAX)
+const overlayLineThickness = (n: number) => clamp(n, 0, OVERLAY_LINE_THICKNESS_MAX)
+
+// The Size menu's thickness boxes (`thicknessRanges.ts`) and the 0 to 1
+// sliders of the Opacity, Saturation and Brightness menus and of line
+// smoothing. A slider cannot leave its range in the editor; a patch can.
+Object.assign(CLAMPS, {
+	"channelConfigs.connection.thickness": lineThickness,
+	"channelConfigs.connection.thicknessByValue.*": lineThickness,
+	"channelConfigs.connection.stemThickness": lineThickness,
+	"channelConfigs.length.segmentThickness": lineThickness,
+	"channelConfigs.length.segmentThicknessByValue.*": lineThickness,
+	"channelConfigs.shape.outlineWidth": outlineThickness,
+	"channelConfigs.shape.outlineWidthByValue.*": outlineThickness,
+	"channelConfigs.shape.distributionOutlineWidth": outlineThickness,
+	"channelConfigs.shape.regionOutlineWidth": outlineThickness,
+	"channelConfigs.shape.densityCurveOutlineWidth": overlayLineThickness,
+	"channelConfigs.x.regression.strokeWidth": overlayLineThickness,
+	"channelConfigs.connection.smoothing": unit,
+	"channelConfigs.defaultOpacity": unit,
+	"channelConfigs.defaultSaturation": unit,
+	"channelConfigs.defaultBrightness": unit,
+} satisfies Record<string, (n: number) => number>)
+for (const channel of ["opacity", "saturation", "brightness"])
+	for (const leaf of ["min", "max", "overrides.*"]) CLAMPS[`channelConfigs.${channel}.${leaf}`] = unit
+// A part's own level, and the scale it varies over, for every part the
+// menus list.
+for (const { key } of OPACITY_SLOT_REGISTRY)
+	for (const leaf of ["level", "opacity.min", "opacity.max", "opacity.overrides.*"])
+		CLAMPS[`channelConfigs.opacitySlots.${key}.${leaf}`] = unit
+for (const map of Object.values(MODULATION_SLOTS_KEY))
+	for (const { key } of MODULATION_SLOT_REGISTRY)
+		for (const leaf of ["level", "range.min", "range.max", "range.overrides.*"])
+			CLAMPS[`channelConfigs.${map}.${key}.${leaf}`] = unit
+
+/** The field a per-part entry newly varies by: the sent `field` when it is
+ * a name the stored entry did not already vary by. */
+const freshField = (entry: unknown, before: string | null | undefined): string | null =>
+	isObj(entry) && typeof entry.field === "string" && entry.field !== (before ?? null) ? entry.field : null
 
 /** Walk the sent paths of `patch` and clamp the stored number at each one
  * the table names. */
@@ -375,6 +467,81 @@ export const applySettingEffects = (
 			length: { ...l, segmentThicknessByValue: field ? thicknessByLevel(levelsOf(field), thickness) : {} },
 		})
 	}
+	const outlined = configs().shape
+	if (
+		outlined &&
+		has(patch, "channelConfigs", "shape", "outlineWidthField") &&
+		!has(patch, "channelConfigs", "shape", "outlineWidthByValue")
+	) {
+		const field = outlined.outlineWidthField ?? null
+		setConfigs({
+			...configs(),
+			shape: {
+				...outlined,
+				outlineWidthByValue: field ? thicknessByLevel(levelsOf(field), outlined.outlineWidth) : {},
+			},
+		})
+	}
+
+	// A part's own color, opacity, saturation or brightness (PER_PART_MAPS).
+	// An entry is stored whole, as its menu stores it, and a new "Vary by"
+	// seeds what the menu seeds: the theme's palette or gradient for a color
+	// (the fill palette for a body), the scale for an opacity, the theme's
+	// range for a saturation or brightness. A patch that brings its own
+	// (`hue`, `opacity`, `range`) keeps it.
+	const colorSent = sent(patch, "channelConfigs", "colorSlots")
+	if (theme && isObj(colorSent)) {
+		const slots = { ...configs().colorSlots } as Record<string, ColorSlotConfig>
+		for (const [key, entry] of Object.entries(colorSent)) {
+			const slot = slots[key]
+			const field = freshField(entry, prev.channelConfigs?.colorSlots?.[key as ColorSlotKey]?.field)
+			if (!slot || !(key in COLOR_SLOT_DEFS) || field === null || has(entry, "hue")) continue
+			const type = typeOf(field)
+			if (!type) continue
+			const part = COLOR_SLOT_DEFS[key as ColorSlotKey].part
+			const kind = part === "ownOutline" ? "categorical" : partPaletteKind(part)
+			slots[key] = { ...slot, ...seedColorSlot(field, type, theme, kind) }
+		}
+		setConfigs({ ...configs(), colorSlots: slots as ChannelConfigs["colorSlots"] })
+	}
+	const opacitySent = sent(patch, "channelConfigs", "opacitySlots")
+	if (isObj(opacitySent)) {
+		// A patch can name a part with only some of its members: the stored
+		// entry always carries a field and a level.
+		const slots = { ...configs().opacitySlots } as Record<string, Partial<OpacitySlotConfig> | undefined>
+		for (const [key, entry] of Object.entries(opacitySent)) {
+			const stored = slots[key]
+			if (!stored || !(key in OPACITY_SLOT_DEFS)) continue
+			const def = OPACITY_SLOT_DEFS[key as keyof typeof OPACITY_SLOT_DEFS]
+			let slot: OpacitySlotConfig = {
+				...stored,
+				field: stored.field ?? null,
+				level: stored.level ?? def.defaultLevel,
+			}
+			const field = freshField(entry, prev.channelConfigs?.opacitySlots?.[key as keyof typeof OPACITY_SLOT_DEFS]?.field)
+			const type = field !== null && !has(entry, "opacity") ? typeOf(field) : undefined
+			if (type)
+				slot = { ...slot, opacity: continuous(type) ? DEFAULT_OPACITY_QUANTITATIVE : DEFAULT_OPACITY_CATEGORICAL }
+			slots[key] = slot
+		}
+		setConfigs({ ...configs(), opacitySlots: slots as ChannelConfigs["opacitySlots"] })
+	}
+	for (const channel of ["saturation", "brightness"] as const) {
+		const map = MODULATION_SLOTS_KEY[channel]
+		const modulationSent = sent(patch, "channelConfigs", map)
+		if (!isObj(modulationSent)) continue
+		const slots = { ...configs()[map] } as Record<string, Partial<ModulationSlotConfig> | undefined>
+		const before = prev.channelConfigs?.[map] as Record<string, ModulationSlotConfig | undefined> | undefined
+		for (const [key, entry] of Object.entries(modulationSent)) {
+			const stored = slots[key]
+			if (!stored) continue
+			let slot: ModulationSlotConfig = { ...stored, field: stored.field ?? null, level: stored.level ?? null }
+			if (theme && freshField(entry, before?.[key]?.field) !== null && !has(entry, "range"))
+				slot = { ...slot, range: { min: theme[`${channel}Min`], max: theme[`${channel}Max`] } }
+			slots[key] = slot
+		}
+		setConfigs({ ...configs(), [map]: slots as ChannelConfigs[typeof map] })
+	}
 
 	// Palette picks: the id brings its colors (and pattern inks) along and
 	// resets the per-value colors.
@@ -401,6 +568,20 @@ export const applySettingEffects = (
 				}
 				const type = slot.field ? (typeOf(slot.field) ?? null) : null
 				slots[key] = { ...slot, ...pickSlotPalette(theme, id, type) }
+			}
+			setConfigs({ ...configs(), colorSlots: slots as ChannelConfigs["colorSlots"] })
+		}
+		// A part's color that says no more than its Auto default is stored as
+		// unset, as the Color menu stores it, so the part keeps following.
+		if (isObj(colorSent)) {
+			const hueField = v.encodings.hue?.field ?? null
+			const hueType = hueField ? (typeOf(hueField) ?? null) : null
+			const slots = { ...configs().colorSlots } as Record<string, ColorSlotConfig>
+			for (const key of Object.keys(colorSent)) {
+				const slot = slots[key]
+				if (!slot || !(key in COLOR_SLOT_DEFS)) continue
+				const dflt = defaultColorSlot(key as ColorSlotKey, v.encodings, configs(), hueType, theme)
+				if (isDefaultColorSlot(slot, dflt)) delete slots[key]
 			}
 			setConfigs({ ...configs(), colorSlots: slots as ChannelConfigs["colorSlots"] })
 		}

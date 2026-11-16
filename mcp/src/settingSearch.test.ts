@@ -203,4 +203,27 @@ describe("searchSettings", () => {
 			for (const q of ["line", "line color", "legend position", "data labels"])
 				expect(size(searchSettings({ query: q, visual })), q).toBeLessThan(3000)
 	})
+
+	it("11. the editor's words for one part of the marks find that part's settings", () => {
+		const first = (q: string) => searchSettings({ query: q }).rows[0]?.path
+		const firstPage = (q: string) => searchSettings({ query: q }).rows.map((r) => r.path)
+		expect(first("stem color")).toBe("channelConfigs.colorSlots.stem")
+		expect(first("violin fill color")).toBe("channelConfigs.colorSlots.violinFill")
+		expect(first("line opacity")).toBe("channelConfigs.opacitySlots.line")
+		expect(first("stem thickness")).toBe("channelConfigs.connection.stemThickness")
+		expect(first("region outline thickness")).toBe("channelConfigs.shape.regionOutlineWidth")
+		expect(first("density curve thickness")).toBe("channelConfigs.shape.densityCurveOutlineWidth")
+		expect(firstPage("outline thickness")).toContain("channelConfigs.shape.outlineWidth")
+		expect(firstPage("vary thickness by")).toContain("channelConfigs.shape.outlineWidthField")
+		// The Size row's own settings, by its name.
+		expect(firstPage("size range")).toEqual(
+			expect.arrayContaining(["channelConfigs.area.minRadius", "channelConfigs.area.maxRadius"])
+		)
+		expect(firstPage("point size")).toContain("channelConfigs.defaultRadius")
+		// How to put a part back on Auto is said where the parts are listed.
+		const parts = searchSettings({ query: "channelConfigs.colorSlots", descriptions: true }).rows[0]
+		expect(parts?.path).toBe("channelConfigs.colorSlots")
+		expect(parts?.doc?.replace(/\s+/g, " ")).toMatch(/`null` for a part puts it back on Auto/)
+		expect(parts?.doc).not.toContain("—")
+	})
 })

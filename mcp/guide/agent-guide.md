@@ -8,7 +8,8 @@ You never pick a chart type first.
 ## Channels and what they make
 
 A channel is a visual property a field can drive. The channels are `x`, `y`,
-`length`, `hue` (color), `outlineHue`, `area` (size), `shape`, `pattern`,
+`length`, `hue` (the editor's Color), `outlineHue`, `area` (the editor's
+Size), `shape`, `pattern`,
 `connection` (lines joining points, or a hierarchy), `angle`, `r`, `opacity`,
 `saturation`, `brightness`, `facet`, `facetRow`, `facetCol`. Each accepts some
 data types; `create_chart`'s `variation` description lists the exact
@@ -171,6 +172,28 @@ its colors, thickness by field seeds every level, numbers clamp to the
 input's range, and a value equal to its default is stored as unset. A refusal
 names the setting that unlocks it; read it and change that setting rather than
 retrying. Read a chart (`get_chart`) before replacing one of its lists.
+
+## One part of the marks
+
+The editor's Color, Opacity, Saturation, Brightness and Size menus list every
+part a chart draws under its own name: the line, the stems, a violin's fill
+and outline, a regression line and its band, the points on an area. The
+stored settings follow the same split: `channelConfigs.colorSlots`,
+`opacitySlots`, `saturationSlots` and `brightnessSlots` each hold one entry
+per part (`list_settings` with "stem color" or "violin opacity" finds them),
+and the thicknesses sit beside what they belong to
+(`connection.stemThickness`, `shape.outlineWidth`).
+
+- A part with no entry is on Auto: it follows the Color variable, or takes
+  the theme's paler fill palette if it is a body under a line or points.
+  Name only the part being changed; the others stay on Auto.
+- `null` for a part puts it back on Auto.
+- A part can vary by a variable (`field`). The palette, gradient, opacity
+  scale or range is seeded as the menu seeds it; outline thickness by a
+  variable (`shape.outlineWidthField`) gets one thickness per level.
+- An area chart with nothing on `hue` fills with the theme's paler fill
+  color; its line and points keep the main color. That is drawn, not stored:
+  `defaultFill` still reads as the theme's color.
 
 ## Year axes
 

@@ -274,6 +274,35 @@ describe("settings", () => {
 		expect(s.visuals.get(id)?.channelConfigs.y?.gridlines?.enabled).toBe(false)
 	})
 
+	it("one part's color stores that part alone, null puts it back on Auto, and an outline by a variable gets a thickness per level", async () => {
+		const s = await withDataset()
+		const { id } = parsed(
+			await s.tools.create_chart({ datasetId: s.datasetId, folderId: null, encodings: { x: "year", y: "sales" } })
+		)
+		const slots = () => s.visuals.get(id)?.channelConfigs.colorSlots ?? {}
+		const colored = await s.tools.edit_chart({
+			id,
+			patch: { settings: { channelConfigs: { colorSlots: { stem: { singleColor: "#ff0000" } } } } },
+		})
+		expect(colored.isError).toBeFalsy()
+		expect(Object.keys(slots())).toEqual(["stem"])
+		const back = await s.tools.edit_chart({ id, patch: { settings: { channelConfigs: { colorSlots: { stem: null } } } } })
+		expect(back.isError).toBeFalsy()
+		expect(slots()).toEqual({})
+		// Undo puts the part's color back, and a second one takes it off again.
+		expect((await s.tools.undo_chart_edit({ id })).isError).toBeFalsy()
+		expect(slots().stem).toMatchObject({ field: null, singleColor: "#ff0000" })
+		expect((await s.tools.undo_chart_edit({ id })).isError).toBeFalsy()
+		expect(slots()).toEqual({})
+		// The levels come from the data set's rows, which the edit reads.
+		const varied = await s.tools.edit_chart({
+			id,
+			patch: { settings: { channelConfigs: { shape: { outlineWidthField: "region" } } } },
+		})
+		expect(varied.isError).toBeFalsy()
+		expect(Object.keys(s.visuals.get(id)?.channelConfigs.shape?.outlineWidthByValue ?? {}).sort()).toEqual(["North", "South"])
+	})
+
 	it("refuses a bad setting with nothing written", async () => {
 		const s = await lineChart()
 		const result = await s.tools.edit_chart({

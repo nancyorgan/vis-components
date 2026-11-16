@@ -1170,11 +1170,13 @@
 			]
 		},
 		"channelConfigs.area.maxRadius": {
+			"doc": "Point size at the largest value: the radius (px) the Size range ends at when a variable is on Size (`area`).",
 			"kinds": [
 				"number"
 			]
 		},
 		"channelConfigs.area.minRadius": {
+			"doc": "Point size at the smallest value: the radius (px) the Size range starts from when a variable is on Size (`area`).",
 			"kinds": [
 				"number"
 			]
@@ -2341,7 +2343,7 @@
 			]
 		},
 		"channelConfigs.colorSlots": {
-			"doc": "Generic color targets beyond fill (`hue`) and outline (`outlineHue`): line, rug, violin/box stroke + fill, lollipop stem, radar spine. Each is an independent optional color encoding surfaced as a subheader in the Color menu.",
+			"doc": "One color per PART of the marks (a line, a stem, a violin's fill, a regression band; the Color menu lists each by name). A part with no entry is on Auto. In a settings patch, name only the part to change; `null` for a part puts it back on Auto.",
 			"kinds": [
 				"object"
 			]
@@ -5887,6 +5889,7 @@
 		},
 		"channelConfigs.defaultFill": {
 			"color": true,
+			"doc": "The marks' fill color when no variable is on Color (`hue`): the Color menu's one color for the points, bars, slices or cells. An area chart left on it fills with the theme's paler fill color instead (drawn, not stored), and its line keeps this one.",
 			"kinds": [
 				"string"
 			]
@@ -5924,6 +5927,7 @@
 			]
 		},
 		"channelConfigs.defaultOpacity": {
+			"doc": "The marks' fill opacity, 0 to 1, when no variable is on Opacity. One part's own opacity is in `opacitySlots`.",
 			"kinds": [
 				"number"
 			]
@@ -5942,6 +5946,7 @@
 			]
 		},
 		"channelConfigs.defaultRadius": {
+			"doc": "Point size: the radius (px) of every point when no variable is on Size (`area`). The Size menu's size box.",
 			"kinds": [
 				"number"
 			]
@@ -6869,7 +6874,7 @@
 			]
 		},
 		"channelConfigs.opacitySlots": {
-			"doc": "Per-part opacity targets (border + the same set of slots as color, minus fill which reuses the overall `opacity` encoding). Each is an independent optional opacity encoding surfaced as a subheader in the Opacity menu. Sparse — an absent slot means the part renders at its registry `defaultLevel`.",
+			"doc": "The opacity of one part of the marks, by part (the Opacity menu); the marks' own outline is `border`, and their fill reuses the overall `opacity` encoding. Sparse: a part with no entry draws at its default level. In a settings patch, `null` for a part removes its entry.",
 			"kinds": [
 				"object"
 			]
@@ -9355,7 +9360,7 @@
 			]
 		},
 		"channelConfigs.saturationSlots": {
-			"doc": "Per-part saturation targets (outline / line) beyond the Fill, which reuses the `saturation` encoding. Sparse — an absent slot means that part isn't modulated. Surfaced as subheaders in the Saturation menu.",
+			"doc": "The saturation of one part of the marks, by part (the Saturation menu); the fill reuses the `saturation` encoding. Sparse: a part with no entry isn't shaded. In a settings patch, `null` for a part removes its entry.",
 			"kinds": [
 				"object"
 			]
