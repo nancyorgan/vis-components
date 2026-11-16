@@ -163,7 +163,7 @@ export const SingleValuePanel = ({
 	 *  dropdown — countries-level geo charts only. */
 	countryNames?: boolean
 }) => (
-	<div className="flex flex-col gap-1">
+	<div className="vc-divider-group">
 		<span className="vc-group-header">Label format</span>
 		<TickFormatControl
 			label={field}

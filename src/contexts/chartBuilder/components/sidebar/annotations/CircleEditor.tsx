@@ -306,12 +306,10 @@ export const CircleEditor = ({
 						</div>
 					)}
 				</div>
-				<div className="vc-divider-group">
-					<LayerRow
-						zOrder={circle.zOrder}
-						onChange={(zOrder) => onChange({ zOrder })}
-					/>
-				</div>
+				<LayerRow
+					zOrder={circle.zOrder}
+					onChange={(zOrder) => onChange({ zOrder })}
+				/>
 			</CollapsibleSubsection>
 
 			<FillSection style={circle} defaults={defaults} onChange={onChange} />

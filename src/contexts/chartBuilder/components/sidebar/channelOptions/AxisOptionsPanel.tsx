@@ -52,6 +52,7 @@ import { FormatPresetOptions } from "../FormatPresetOptions"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { rowGroup } from "../../../../../components/ui/rowGroup"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { Select } from "../../../../../components/ui/Select"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
@@ -1300,7 +1301,8 @@ const MirroredAxisControls = ({
 				? "This variable no longer has exactly two options; pick another."
 				: "Only variables with exactly two options are listed."
 	return (
-		<div className={divider ? "vc-divider-group" : "flex flex-col gap-2"}>
+		// Off, the block is its checkbox alone: one row, so no divider.
+		<div className={rowGroup(divider && mirror.enabled)}>
 			<Checkbox
 				label="Use a mirrored axis"
 				checked={mirror.enabled}
@@ -2084,16 +2086,17 @@ const DistributionTypeControls = ({
 						histogram={histogram}
 						onChange={(h) => onChange({ histogram: h })}
 					/>
-					{/* Rug (points) — grouped below the histogram shape and divided
-					    off so the two clusters read as distinct groups. Shares the
-					    tassel config with the Density display. */}
-					<div className="vc-divider-group">
+					{/* Rug (points) — below the histogram shape; divided off as its
+					    own group once it is on and has rows of its own (off, it is
+					    one checkbox). Shares the tassel config with the Density
+					    display. */}
+					<div className={rowGroup(histogram.showRug === true)}>
 						<RugControls histogram={histogram} onChange={onChange} />
 					</div>
 					{/* Density curve — a smooth KDE overlaid on the bars, rescaled to
-					    their count / relative-frequency units. Divided off as its own
-					    cluster, like the rug above. */}
-					<div className="vc-divider-group">
+					    their count / relative-frequency units. Its own group once it
+					    is on, like the rug above. */}
+					<div className={rowGroup(histogram.showDensity === true)}>
 						<Checkbox
 							label="Show density curve"
 							checked={histogram.showDensity === true}
@@ -2123,7 +2126,8 @@ const DistributionTypeControls = ({
 					{/* Same tassel config as the histogram rug, so switching between
 					    Histogram and Density keeps the ticks and their sizes. */}
 					<RugControls histogram={histogram} onChange={onChange} />
-					<div className="vc-divider-group">
+					{/* With the rug off there is one row above: no divider. */}
+					<div className={rowGroup(histogram.showRug === true)}>
 						<DensityCurveControls
 							bandwidthScale={histogram.densityBandwidthScale ?? 1}
 							fill={histogram.densityFill === true}
@@ -2267,7 +2271,7 @@ const RegressionControls = ({
 							onChange={(drawPosition) => onChange({ drawPosition })}
 						/>
 					</div>
-					<div className="vc-divider-group">
+					<div className={rowGroup(regression.perGroup)}>
 						<Checkbox
 							label="Line per group"
 							checked={regression.perGroup}
@@ -2298,7 +2302,7 @@ const RegressionControls = ({
 							/>
 						)}
 					</div>
-					<div className="vc-divider-group">
+					<div className={rowGroup(regression.showCi)}>
 						<Checkbox
 							label="Confidence interval"
 							checked={regression.showCi}

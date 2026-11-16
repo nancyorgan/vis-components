@@ -30,6 +30,7 @@ import { ColorInput } from "../../../../components/ui/ColorInput"
 import { LABEL_COL, LABEL_COL_NESTED } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
+import { rowGroup } from "../../../../components/ui/rowGroup"
 import { Textarea } from "../../../../components/ui/Input"
 
 /** Sidebar panel for the tooltip subsystem. Drives `TooltipConfig` —
@@ -387,8 +388,10 @@ export const TooltipPanel = () => {
 					)}
 				</div>
 			)}
+			{/* Off, the template switch is one row and follows the Box rows; on,
+			 *  it and its two editors are a group under a divider. */}
 			{merged.enabled && (
-				<div className="vc-divider-group">
+				<div className={rowGroup(!!merged.useCustomHtml)}>
 					<Checkbox
 						label="Use custom HTML template"
 						checked={!!merged.useCustomHtml}

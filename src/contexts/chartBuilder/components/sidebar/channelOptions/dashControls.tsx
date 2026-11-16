@@ -23,6 +23,7 @@ import {
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { PLAIN_ROWS } from "../../../../../components/ui/rowGroup"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
 
@@ -267,7 +268,8 @@ const DashRangeRows = ({
 	range: DashRangeConfig
 	onChange: (next: Partial<DashRangeConfig>) => void
 }) => (
-	<div className="vc-divider-group">
+	// No divider: these rows follow the dash row, which is a single row.
+	<div className={PLAIN_ROWS}>
 		<Checkbox
 			label="Apply pattern to range"
 			checked={range.enabled}

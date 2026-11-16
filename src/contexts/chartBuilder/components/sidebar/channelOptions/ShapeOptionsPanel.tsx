@@ -23,6 +23,7 @@ import { useCurrentTheme } from "../../../store/useCurrentTheme"
 import { useDrawnParts } from "../../../store/usePartsContext"
 
 import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { PLAIN_ROWS } from "../../../../../components/ui/rowGroup"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 
 import { CustomGlyphChips, CustomGlyphEditor } from "./customGlyphEditor"
@@ -175,7 +176,7 @@ export const ShapeOptionsPanel = () => {
 		<div className="vc-option-panel">
 			{!fieldMapped && (
 				<>
-					<div className="vc-divider-group text-sm">
+					<div className={`${PLAIN_ROWS} text-sm`}>
 						<span className="vc-group-header">Default shape</span>
 						<div className="flex flex-wrap items-center gap-1">
 							{SHAPE_PALETTE.map((_, idx) => {

@@ -59,6 +59,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { LABEL_COL, LabelSpacer } from "../../../../../components/ui/LabeledField"
 import { Input } from "../../../../../components/ui/Input"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
+import { PLAIN_ROWS } from "../../../../../components/ui/rowGroup"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
 import { Slider } from "../../../../../components/ui/Slider"
@@ -761,7 +762,7 @@ export const ConnectionOptionsPanel = () => {
 							</div>
 						))}
 						{axisStem !== "none" && (
-							<div className="vc-divider-group">
+							<div className={PLAIN_ROWS}>
 								<p className="vc-help">
 									Set stem color under{" "}
 									<SidebarJumpText target={channelJump("hue", "color:stem")}>Color → Stem</SidebarJumpText>{" "}

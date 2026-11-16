@@ -100,6 +100,7 @@ import {
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
+import { PLAIN_ROWS, rowGroup } from "../../../../components/ui/rowGroup"
 import { renderChannelConfigsAtom } from "../../store/renderConfigs"
 import { SwatchShapePicker } from "./SwatchShapePicker"
 import { RadioGroup } from "../../../../components/ui/RadioGroup"
@@ -1130,7 +1131,7 @@ export const LegendPanel = () => {
 					 *  section + one title, instead of a legend per channel. Only
 					 *  offered when there's actually a shared field to combine. */}
 					{sharedVariableExists && (
-						<div className="vc-divider-group">
+						<div className={PLAIN_ROWS}>
 							<Checkbox
 								label="Combine legends with same variables"
 								checked={combineLegendSections}
@@ -1152,10 +1153,11 @@ export const LegendPanel = () => {
 						title="Legend properties"
 						changed={groupChanged("properties")}
 					>
-					{/* Placement group — position (+ inside coords) and orientation.
-					 *  Each group is wrapped in its own `flex flex-col gap-2` so rows
-					 *  get vertical breathing room, and groups are split by a gray
-					 *  `border-t` rule matching the encoding option panels. */}
+					{/* Three groups: where the legend sits (Position, and X / Y for
+					 *  custom coordinates), its box (width, height), and how its
+					 *  entries run (orientation, columns). A divider goes between
+					 *  groups, never around one row: with no X / Y, Position is a
+					 *  single row and joins the box rows (see `rowGroup`). */}
 					<div className="flex flex-col gap-2">
 						<SelectInput
 							label="Position"
@@ -1213,10 +1215,11 @@ export const LegendPanel = () => {
 						)}
 					</div>
 
-					{/* Legend width group — a fixed box width (px truth, shown in
-					 *  px / in / cm) between Position and Orientation. Blank = auto.
-					 *  Labels that stop fitting wrap onto extra lines in the render. */}
-					<div className="vc-divider-group">
+					{/* The box: a fixed width (px truth, shown in px / in / cm;
+					 *  blank = auto; labels that stop fitting wrap onto extra lines
+					 *  in the render) and a fixed height (the gap between stacked
+					 *  entries stretches or tightens to fill it). */}
+					<div className={rowGroup(merged.position === "inside")}>
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend width"
@@ -1246,11 +1249,6 @@ export const LegendPanel = () => {
 								<ResetLink onClick={() => update({ width: null })} />
 							)}
 						</div>
-					</div>
-
-					{/* Legend height group — a fixed box height; the gap between
-					 *  stacked entries stretches or tightens to fill it. */}
-					<div className="vc-divider-group">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend height"
@@ -1295,9 +1293,6 @@ export const LegendPanel = () => {
 								onChange={(orientation) => update({ orientation })}
 							/>
 						</div>
-					</div>
-
-					<div className="vc-divider-group">
 						<div className="flex items-center gap-2">
 							<NumberInput
 								label="Legend columns"
@@ -1391,7 +1386,9 @@ export const LegendPanel = () => {
 						/>
 					</div>
 
-					<div className="vc-divider-group">
+					{/* Border alone is one row and joins the Background rows; its
+					 *  radius, thickness and color make it a group of its own. */}
+					<div className={rowGroup(merged.showBorder)}>
 						<Checkbox
 							label="Border"
 							checked={merged.showBorder}
@@ -1691,7 +1688,7 @@ export const LegendPanel = () => {
 							 *  convention): 0 (the default) draws no border and hides
 							 *  the color picker, which is inert until there's a stroke
 							 *  to color. */}
-							<div className="vc-divider-group">
+							<div className={rowGroup(bar.borderWidth > 0)}>
 								<div className="flex items-center gap-2">
 									<NumberInput
 										label="Border thickness"
@@ -1735,7 +1732,7 @@ export const LegendPanel = () => {
 									</div>
 								)}
 							</div>
-							<div className="vc-divider-group">
+							<div className={rowGroup(bar.tickLength > 0)}>
 								<div className="flex items-center gap-2">
 									<NumberInput
 										label="Tick length"

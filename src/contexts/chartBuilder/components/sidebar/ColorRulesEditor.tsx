@@ -1,6 +1,7 @@
 import type { TextColorRule } from "../../lib/channelConfig"
 
 import { ColorInput } from "../../../../components/ui/ColorInput"
+import { rowGroup } from "../../../../components/ui/rowGroup"
 import {
 	RuleCombineHelp,
 	RuleConditionInput,
@@ -66,7 +67,10 @@ export const ColorRulesEditor = ({
 	const removeRule = (i: number) => update(stored.filter((_, idx) => idx !== i))
 	const addRule = () => update([...stored, { condition: "", color: defaultColor }])
 	return (
-		<div className={divider ? "vc-divider-group" : "flex flex-col gap-2"}>
+		// The line above the block stays even while the block is the add link
+		// alone: it marks where the rules go. (The one place a divider sits
+		// over a single row; the divider audit knows this block.)
+		<div className={rowGroup(divider)}>
 			{stored.map((rule, i) => (
 				<div
 					// Index key is stable here: rules are ordered, identity == position

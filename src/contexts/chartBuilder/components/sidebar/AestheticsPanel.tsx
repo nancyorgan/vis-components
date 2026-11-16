@@ -291,6 +291,11 @@ export const AestheticsPanel = () => {
 							</div>
 						</>
 					)}
+					<Checkbox
+						label="Allow scrolling for tall/wide charts"
+						checked={scrollMode === "scroll"}
+						onChange={(on) => setScrollMode(on ? "scroll" : "fit")}
+					/>
 				</div>
 				{canvasSize?.enabled && (
 					<div className="vc-divider-group" data-canvas-margins>
@@ -337,13 +342,6 @@ export const AestheticsPanel = () => {
 						})}
 					</div>
 				)}
-				<div className="vc-divider-group">
-					<Checkbox
-						label="Allow scrolling for tall/wide charts"
-						checked={scrollMode === "scroll"}
-						onChange={(on) => setScrollMode(on ? "scroll" : "fit")}
-					/>
-				</div>
 			</CollapsibleSubsection>
 			<CollapsibleSubsection title="Aspect ratio" changed={aspectChanged}>
 				<div className="flex flex-col gap-2">
@@ -454,13 +452,11 @@ export const AestheticsPanel = () => {
 						Dataset order draws later rows on top. Sorting only affects
 						the drawing order, never the data.
 					</p>
-					<div className="vc-divider-group">
-						<Checkbox
-							label="Draw axes behind marks"
-							checked={axesBehindMarks}
-							onChange={setAxesBehindMarks}
-						/>
-					</div>
+					<Checkbox
+						label="Draw axes behind marks"
+						checked={axesBehindMarks}
+						onChange={setAxesBehindMarks}
+					/>
 				</div>
 			</CollapsibleSubsection>
 		</>

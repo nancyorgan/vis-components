@@ -288,9 +288,7 @@ export const EdgePositionSection = ({
 					<p className="vc-help">{coordHelpFor(coords.coordSystem)}</p>
 				)}
 			</div>
-			<div className="vc-divider-group">
-				<LayerRow zOrder={zOrder} onChange={onZOrderChange} />
-			</div>
+			<LayerRow zOrder={zOrder} onChange={onZOrderChange} />
 		</CollapsibleSubsection>
 	)
 }
@@ -407,9 +405,7 @@ export const PointPositionSection = ({
 				<p className="vc-help">{coordHelpFor(coords.coordSystem)}</p>
 			)}
 			{children}
-			<div className="vc-divider-group">
-				<LayerRow zOrder={zOrder} onChange={onZOrderChange} />
-			</div>
+			<LayerRow zOrder={zOrder} onChange={onZOrderChange} />
 		</CollapsibleSubsection>
 	)
 }

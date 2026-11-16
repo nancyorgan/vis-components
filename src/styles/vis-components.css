@@ -304,10 +304,17 @@
 	}
 
 	/* A run of control rows separated from the rows above by a hairline.
-	 * Used for the optional sub-blocks inside option panels (e.g. the
-	 * mirrored-axis block, legend fine-tuning). Owns the rule, the
-	 * top padding and the same column rhythm as .vc-option-panel; a call
-	 * site may still override the gap or padding with its own utility. */
+	 * Owns the rule, the top padding and the same column rhythm as
+	 * .vc-option-panel; a call site may still override the gap or padding
+	 * with its own utility.
+	 *
+	 * When to use it: a divider breaks a long run of settings into a few
+	 * general groups. It is never drawn around a single row: a plain divider
+	 * has at least two rows of settings on each side, and a block whose rows
+	 * come and go takes it only while it has two (`rowGroup` in
+	 * components/ui/rowGroup.ts). A group with its own .vc-group-header
+	 * keeps its divider however short it is. Checked in the browser by
+	 * e2e/sweep/dividers.sweep.ts. */
 	.vc-divider-group {
 		display: flex;
 		flex-direction: column;
@@ -317,6 +324,18 @@
 	}
 	.dark .vc-divider-group {
 		border-top-color: var(--vc-divider-color, var(--color-stone-700));
+	}
+
+	/* A row opened to show settings of its own (a title's font settings):
+	 * the same hairline marks where they end, when another row follows.
+	 * Closed rows are one line each and take no divider between them; the
+	 * last row has nothing after it to be told apart from. */
+	.vc-open-block:not(:last-child) {
+		border-bottom: 1px solid var(--vc-divider-color, var(--color-stone-200));
+		padding-bottom: 0.5rem; /* matches pb-2 */
+	}
+	.dark .vc-open-block:not(:last-child) {
+		border-bottom-color: var(--vc-divider-color, var(--color-stone-700));
 	}
 
 	/* Toggle / segmented-control states. Every ACTION button in the app is

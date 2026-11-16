@@ -1826,6 +1826,10 @@ export const PatternOptionsPanel = () => {
 				</div>
 			</CollapsibleSubsection>
 		)
+		// The headed default row opens the panel, so it has nothing above to
+		// divide from, unless the Segments row sits over it: then the heading
+		// starts part-way down and takes its divider.
+		const headedUnderSegments = segmentsRow ? "vc-divider-group px-2" : "px-2"
 		return (
 			<div className="vc-option-panel">
 				{segmentsRow}
@@ -1834,14 +1838,14 @@ export const PatternOptionsPanel = () => {
 					// Thin segments: Pattern is the segment dash. No range window
 					// (a segment has no "from / to").
 					<>
-						<div className="px-2">{renderDefaultDashRow("Line dash")}</div>
+						<div className={headedUnderSegments}>{renderDefaultDashRow("Line dash")}</div>
 						{dashInEffect && <div className="px-2">{gapFillRow}</div>}
 					</>
 				) : (
 					patternMode === "fill" &&
 					!ownFillTitled && (
 						<>
-							<div className="px-2">
+							<div className={headedUnderSegments}>
 								{renderDefaultSwatchRow(
 									"Default pattern",
 									activePalette,
@@ -1949,7 +1953,6 @@ export const PatternOptionsPanel = () => {
 			 *  kind of control there is would be redundant. */}
 			{fieldValues && fieldValues.values.length > 0 && listedBare && (
 				<>
-					<hr className="border-stone-200 dark:border-stone-700" />
 					<div className="flex flex-col gap-4 px-2">
 						{orderedLevels(
 							fieldValues.values,

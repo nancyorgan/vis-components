@@ -275,10 +275,9 @@ export const AxisValueInput = ({
 }
 
 /** Behind-chart / in-front layer toggle — identical across all four
- *  annotation kinds. Each kind's Position subsection renders it last, under
- *  a hairline divider (`.vc-divider-group`): where the annotation sits in
- *  the stack is part of where it sits, and a bare row trailing the card's
- *  subsections read as an orphan. */
+ *  annotation kinds. Each kind's Position subsection renders it as its last
+ *  row: where the annotation sits in the stack is part of where it sits. It
+ *  is one row, so it takes no divider of its own (`ui/rowGroup`). */
 export const LayerRow = ({
 	zOrder,
 	onChange,

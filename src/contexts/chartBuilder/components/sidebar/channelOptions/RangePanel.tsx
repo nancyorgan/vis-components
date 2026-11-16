@@ -829,8 +829,9 @@ const ModulationCategoryList = ({
 	const resolve = (value: string) =>
 		Math.round((scale(value) ?? min) * 100) / 100
 
+	// A headed group, always under the "Vary by" row: it takes its divider.
 	return (
-		<>
+		<div className="vc-divider-group">
 			<span className="vc-group-header">{label} per category</span>
 			{orderedLevels(
 				discrete.values,
@@ -861,7 +862,7 @@ const ModulationCategoryList = ({
 					</div>
 				)
 			})}
-		</>
+		</div>
 	)
 }
 

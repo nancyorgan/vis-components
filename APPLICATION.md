@@ -3014,6 +3014,34 @@ only while the setting differs from its default.
 - Switches, checkboxes, choice buttons and dropdowns have no link: using
   them again puts them back.
 
+**Dividers.** The gray hairline inside a card breaks a long run of
+settings into a few general groups. It is **never drawn around a single
+row**: a plain divider has at least two rows of settings on each side.
+
+- Rows that come and go decide it. A switch that reveals more rows
+  (Border, Confidence interval, Line per group, Show points (rug)) is one
+  row while off and sits with the rows above; switched on, it and its
+  rows are a group and take the divider (`rowGroup(on)` in
+  `components/ui/rowGroup.ts`). Legend properties is Position (with X
+  and Y for custom coordinates) / Legend width and height / Orientation
+  and columns: with no X and Y, Position is one row and joins the width
+  and height.
+- A group with its own heading (Margins, Tick marks, Adjust position,
+  Placement) keeps its divider however short it is: the heading is what
+  makes it a group.
+- A row opened to show settings of its own (a title's font settings)
+  ends them with a divider when another row follows; closed, the rows
+  are one line each with no divider between them (`.vc-open-block`).
+- Nothing puts a divider at the top of a card or over a line of help
+  text.
+- One exception, kept on purpose: the color rules keep the line above
+  "+ Add color rule" (and "+ Add text color rule") even before a rule
+  exists, where the link is the block's only row.
+
+`e2e/sweep/dividers.sweep.ts` checks this in the browser: on every panel
+of every sample chart it changes every setting and, after each change,
+counts the rows on each side of every divider.
+
 The browser audit `e2e/sweep/resets.sweep.ts` checks this where it can
 be seen: on one chart of every type it changes every control in every
 options panel and sidebar section, measures where each reset link sits,
@@ -4488,8 +4516,9 @@ facet channel is mapped; a grid split shows the Column and Row title
 rows plus — when Hide empty panels is on — the textless **Panel
 titles** row, see §4.5a; otherwise the single Facet title row), and
 **Legend titles** (present only when legend channels are active;
-one row per legend, a shared-field group counting as one, with a
-hairline divider between rows when there is more than one).
+one row per legend, a shared-field group counting as one). Title rows
+are one line each with no divider between them; a row opened to show its
+font settings ends them with a hairline before the next row.
 Each subsection header carries the standard changed dot (§4.6) when
 any row inside deviates in STYLING — a font override, a non-center
 alignment, a non-zero orientation, a side placement, a position
@@ -4831,8 +4860,10 @@ between a gradient bar and sampled swatches; both honor the legend's
 orientation setting (horizontal swatches lay out in one no-wrap row).
 
 When "Show gradient bar" is selected, the subsection grows bar-styling
-controls, in three hairline-divided groups with no headers — the bar
-rows, the border rows, then the tick rows:
+controls with no headers — the bar rows, the border rows, then the tick
+rows. The border and tick rows are each one row while their thickness /
+length is 0 and sit with the rows above; set, each is a group under a
+hairline:
 
 - **Bar length** (px, clear-to-auto) — the bar's height when the
   legend is stacked, its width when horizontal. Auto keeps the
@@ -5617,8 +5648,8 @@ has:
   dash-dot); Custom opens a dasharray text box (e.g. `2,2`), and a
   custom dasharray wins over the swatch pick at render time.
 - Layer toggle: **Behind chart** (under marks) or **In front** (over
-  marks). It sits at the bottom of every kind's Position subsection,
-  under a hairline divider — not as a loose row after the subsections.
+  marks). It is the last row of every kind's Position subsection (one
+  row, so no divider of its own).
 
 **Circles** (`lib/circleAnnotationGeometry.ts`) are defined by a
 center (x, y) and a radius, with the same Percent / Values coordinate

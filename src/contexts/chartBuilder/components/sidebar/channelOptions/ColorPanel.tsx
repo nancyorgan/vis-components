@@ -41,6 +41,7 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
+import { PLAIN_ROWS } from "../../../../../components/ui/rowGroup"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 
@@ -183,7 +184,7 @@ export const ColorPanel = () => {
  *  panel's "Regression line" subheader: each property lives in the menu
  *  for its kind. */
 const RegressionLineElsewhere = () => (
-	<div className="vc-divider-group">
+	<div className={PLAIN_ROWS}>
 		<p className="vc-help">
 			Set the thickness under{" "}
 			<SidebarJumpText target={channelJump("area", sizeJumpId("regressionLine"))}>Size → Regression line</SidebarJumpText>

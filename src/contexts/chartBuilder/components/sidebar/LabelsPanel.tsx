@@ -701,14 +701,9 @@ export const LabelsPanel = () => {
 				}
 			/>
 			)}
-			{/* Divider above Subtitle so the two primary title rows read as
-			 * separate groups rather than one run of controls. */}
-			{showSubtitle &&
-				(showTitle ? (
-					<div className="vc-divider-group">{subtitleRow}</div>
-				) : (
-					subtitleRow
-				))}
+			{/* No divider between the two rows: each is one line. Opening a
+			 * row's font settings ends them with one (`LabelRow`). */}
+			{showSubtitle && subtitleRow}
 				</div>
 			</CollapsibleSubsection>
 			)}
@@ -1005,7 +1000,7 @@ export const LabelsPanel = () => {
 					jumpId="legend-titles"
 				>
 					<div className="flex flex-col gap-2">
-					{shownLegendTitleGroups.map((group, gi) => {
+					{shownLegendTitleGroups.map((group) => {
 						// One row per shared-field group. Reads come from the first
 						// member that carries a value (so titles set before combining
 						// still surface); every write fans out to ALL members, keeping
@@ -1070,15 +1065,7 @@ export const LabelsPanel = () => {
 								}
 							/>
 						)
-						// Hairline between rows when there's more than one, the
-						// same divider Primary titles puts above Subtitle.
-						return gi === 0 ? (
-							row
-						) : (
-							<div key={group.join("+")} className="vc-divider-group">
-								{row}
-							</div>
-						)
+						return row
 					})}
 					</div>
 				</CollapsibleSubsection>
@@ -1364,7 +1351,7 @@ const OffsetControl = ({
 		)
 	}
 	return (
-		<div className="flex flex-col gap-2">
+		<div className="vc-divider-group">
 			<span className="vc-group-header">Adjust position</span>
 			{row("x", "X")}
 			{row("y", "Y")}
@@ -1617,7 +1604,14 @@ const LabelRow = ({
 		onVerticalAlignment && verticalAlignment && verticalAlignment !== "middle"
 	const hasAngle = onAngle && !!angle
 	return (
-		<Disclosure as="div" className="flex flex-col gap-1">
+		// Open, the row is a block of its own settings: `vc-open-block` ends
+		// it with a divider when another row follows, so the next title does
+		// not read as one more of this one's settings. Closed, rows are one
+		// line each and take no divider between them.
+		<Disclosure
+			as="div"
+			className={({ open }) => `flex flex-col gap-1${open ? " vc-open-block" : ""}`}
+		>
 			{({ open }) => (
 				<>
 					<div className="flex items-start gap-2">

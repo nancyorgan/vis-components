@@ -93,6 +93,7 @@ import {
 	LABEL_COL_NESTED,
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
+import { PLAIN_ROWS } from "../../../../components/ui/rowGroup"
 import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
 import { Segmented } from "../../../../components/ui/Segmented"
@@ -1404,7 +1405,10 @@ export const DataLabelsPanel = () => {
 							onChange={updateCfg}
 							levels={containerWrapLevels}
 						/>
-						<hr className="border-stone-200 dark:border-stone-700" />
+						{/* A divider once the levels are a group, not a single row. */}
+						{containerWrapLevels.length > 1 && (
+							<hr className="border-stone-200 dark:border-stone-700" />
+						)}
 					</>
 				)}
 				{/* Separate labels (Combine variables unchecked): every variable is
@@ -1720,7 +1724,6 @@ export const DataLabelsPanel = () => {
 						<ResetLink onClick={() => updateCfg({ textAngle: 0 })} />
 					)}
 				</div>
-				<hr className="border-stone-200 dark:border-stone-700" />
 				<Checkbox
 					label="Wrap text"
 					checked={merged.wrapText === true}
@@ -1755,7 +1758,7 @@ export const DataLabelsPanel = () => {
 				</>
 				)}
 				{isComboMode && primaryLabel && primaryLayerKey !== null && (
-					<div className="vc-divider-group">
+					<div className={PLAIN_ROWS}>
 						{layerControl(primaryLayerKey, primaryLayerFields)}
 						<p className="vc-help">
 							Whether the labels sit on the bars or on the {marksLayerName.toLowerCase()}.
