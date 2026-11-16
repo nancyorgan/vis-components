@@ -6816,6 +6816,12 @@ first-run user. How it lands depends on which seed and which mode:
     pin — and the same name: the folder is read under the public
     seed's name at every folder load, whatever a library stored it
     as, and re-persists under it on its next save.
+  - **The examples bring no themes.** Every stock example is on
+    System (Light) or System (Dark), and the public seed's `themes`
+    list is empty, so an account's theme list starts as exactly the
+    two built-in themes. A bundle download carries its author's
+    custom themes; they come out before the file is committed as the
+    public seed (`lib/publicSeed.test.ts` fails until they do).
   - **Copies are real work.** Duplicating an example (or otherwise
     saving something of your own that points at one) persists in
     full, so whatever it still references in the overlay — its data

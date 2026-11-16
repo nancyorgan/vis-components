@@ -7,6 +7,11 @@
  *  saved as the gitignored `src/seed/examples.local.json` it overrides the
  *  public seed for private shared builds (see main.tsx).
  *
+ *  The PUBLIC seed ships no themes: its examples use the two built-in themes,
+ *  so an account's theme list starts as exactly those two. The download
+ *  carries the author's custom themes (a backup needs them), so they have to
+ *  come out before it is committed — publicSeed.test.ts fails until they do.
+ *
  *  Two ways a bundle reaches the user, picked in main.tsx:
  *
  *   - {@link installEphemeralExamples} — the PUBLIC seed in the browser-local
