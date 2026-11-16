@@ -48,7 +48,9 @@ const seedStorage = ({
 			"vis-components:currentLabels",
 			stringifyJsonDangerous({
 				_v: 1,
-				data: { ...DEFAULT_LABELS_CONFIG, ...labels },
+				// Seeded labels stand for a titled chart, so the Title box is
+				// checked (a fresh chart starts with it unchecked).
+				data: { ...DEFAULT_LABELS_CONFIG, hiddenTitles: undefined, ...labels },
 			})
 		)
 	}
@@ -310,7 +312,7 @@ describe("LabelsPanel — collapsible subsections", () => {
 	]
 
 	it("renders every subsection header collapsed by default", () => {
-		seedStorage({ encodings: fullEncodings() })
+		seedStorage({ encodings: fullEncodings(), labels: {} })
 		const { container } = renderPanel()
 
 		for (const title of SECTION_TITLES) {
@@ -329,7 +331,7 @@ describe("LabelsPanel — collapsible subsections", () => {
 	})
 
 	it("expanding 'Primary titles' reveals the Title + Subtitle rows", () => {
-		seedStorage({ encodings: fullEncodings() })
+		seedStorage({ encodings: fullEncodings(), labels: {} })
 		const { container } = renderPanel()
 
 		expandSection(container, "Primary titles")
@@ -385,7 +387,7 @@ describe("LabelsPanel — collapsible subsections", () => {
 	})
 
 	it("non-faceted + no legend channels → Facet/Legend subsections absent entirely", () => {
-		seedStorage({ encodings: emptyEncodings() })
+		seedStorage({ encodings: emptyEncodings(), labels: {} })
 		const { container } = renderPanel()
 
 		expect(sectionHeader(container, "Primary titles")).not.toBeNull()

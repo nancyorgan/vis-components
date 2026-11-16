@@ -72,7 +72,7 @@ const seed = (opts: { faceted: boolean; labels?: Partial<LabelsConfig> }) => {
 		"vis-components:currentLabels",
 		JSON.stringify({
 			_v: 1,
-			data: { ...DEFAULT_LABELS_CONFIG, ...(opts.labels ?? {}) },
+			data: { ...DEFAULT_LABELS_CONFIG, hiddenTitles: undefined, ...(opts.labels ?? {}) },
 		})
 	)
 	/* eslint-enable @vc/use-wrapped-json-functions */
@@ -211,7 +211,7 @@ const seedGrid = (opts?: { labels?: Partial<LabelsConfig> }) => {
 		"vis-components:currentLabels",
 		JSON.stringify({
 			_v: 1,
-			data: { ...DEFAULT_LABELS_CONFIG, ...(opts?.labels ?? {}) },
+			data: { ...DEFAULT_LABELS_CONFIG, hiddenTitles: undefined, ...(opts?.labels ?? {}) },
 		})
 	)
 	/* eslint-enable @vc/use-wrapped-json-functions */

@@ -972,8 +972,9 @@ describe("theme-default swatch resolvers", () => {
  * state) without touching the stored text; legend titles blank only at the
  * header so same-field legend grouping (driven by title text) is unchanged. */
 describe("visibleLabels / shownLegendTitle", () => {
+	const { hiddenTitles: _fresh, ...shown } = DEFAULT_LABELS_CONFIG
 	const typed = {
-		...DEFAULT_LABELS_CONFIG,
+		...shown,
 		title: "Sales",
 		subtitle: "By region",
 		xAxisTitle: "Month",

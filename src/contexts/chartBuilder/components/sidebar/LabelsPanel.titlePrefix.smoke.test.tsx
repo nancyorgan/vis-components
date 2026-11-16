@@ -16,7 +16,8 @@ describe("LabelsPanel — title prefix", () => {
 	afterEach(cleanup)
 
 	const initState = (snap: TestStore) => {
-		snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)
+		// Title box checked (a fresh chart starts with it unchecked).
+		snap.set(currentLabelsAtom, { ...DEFAULT_LABELS_CONFIG, hiddenTitles: undefined })
 	}
 
 	const AtomProbe = () => {

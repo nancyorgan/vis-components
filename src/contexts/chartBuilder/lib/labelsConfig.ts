@@ -1296,8 +1296,10 @@ export type LabelsConfig = {
 	titlePrefix?: TitlePrefixConfig
 	/** "Titles shown" unchecks: a title slot set to `true` is not drawn and
 	 * reserves no space, whatever text it holds. Sparse — showing a title
-	 * deletes its entry, so absent = shown (the default). The typed text,
-	 * font and offsets survive a hidden title, so re-checking restores it.
+	 * deletes its entry, so absent = shown. A new chart starts with the chart
+	 * title and subtitle unchecked (they have no text yet); stored visuals keep what
+	 * they saved. The typed text, font and offsets survive a hidden title,
+	 * so re-checking restores it.
 	 * Covers the chart title (prefix included), subtitle, axis titles,
 	 * per-channel legend titles (`legend:<channel>`) and facet titles (the
 	 * facet slots — see `hiddenFacetTitles`). Read through `visibleLabels` /
@@ -1326,6 +1328,9 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	facetTitleColors: {},
 	yAxisTitleHorizontal: false,
 	titleOffsets: {},
+	// A new chart has no title or subtitle text, so their boxes start
+	// unchecked rather than reading "shown" over nothing.
+	hiddenTitles: { title: true, subtitle: true },
 }
 
 /** Theme-seeded base alignment for a title slot: the chart title / subtitle

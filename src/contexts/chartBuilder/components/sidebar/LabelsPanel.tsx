@@ -440,9 +440,9 @@ export const LabelsPanel = () => {
 	).find((k) => (k !== "facetPanelTitle" || hideEmptyOn) && showFacet(k))
 	const facetJumpId = (key: LabelFontKey) =>
 		key === firstGridFacetKey ? "facet-titles" : undefined
+	// The chart title and subtitle start unchecked on a new chart and
+	// checked on any titled one, so neither state of their boxes dots.
 	const titlesShownChanged =
-		!showTitle ||
-		!showSubtitle ||
 		(!xTitleInert && !showXTitle) ||
 		(!yTitleInert && !showYTitle) ||
 		shownLegendTitleGroups.length < legendTitleGroups.length ||

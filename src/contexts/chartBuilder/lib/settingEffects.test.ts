@@ -302,6 +302,23 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 		expect(dash.channelConfigs.connection?.dashGapFill).toBeNull()
 	})
 
+	it("a new chart's Title and Subtitle boxes start unchecked; typing one checks it", () => {
+		const fresh = { title: true, subtitle: true }
+		expect(base().labelsConfig.hiddenTitles).toEqual(fresh)
+		const titled = ok({ labelsConfig: { title: "Sales" } })
+		expect(titled.labelsConfig.title).toBe("Sales")
+		// The other box stays unchecked.
+		expect(titled.labelsConfig.hiddenTitles).toEqual({ subtitle: true })
+		expect(ok({ labelsConfig: { subtitle: "By region" } }).labelsConfig.hiddenTitles).toEqual({ title: true })
+		// Sparse once nothing is hidden.
+		expect(ok({ labelsConfig: { title: "Sales", subtitle: "By region" } }).labelsConfig.hiddenTitles).toBeUndefined()
+		// Blank text, or the patch setting the box itself, leaves the box alone.
+		expect(ok({ labelsConfig: { title: " " } }).labelsConfig.hiddenTitles).toEqual(fresh)
+		expect(
+			ok({ labelsConfig: { title: "Sales", hiddenTitles: { title: true } } }).labelsConfig.hiddenTitles
+		).toEqual(fresh)
+	})
+
 	it("runs without deps as a plain merge", () => {
 		const r = applySettings(base(), { legendConfig: { position: "bottom" } })
 		expect(r.problems).toEqual([])

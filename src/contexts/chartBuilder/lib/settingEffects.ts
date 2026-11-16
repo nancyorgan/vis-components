@@ -432,9 +432,20 @@ export const applySettingEffects = (
 		setConfigs({ ...configs(), aspectRatio: aspectRatioToggled(configs().aspectRatio, true) })
 
 	// Titles: the visual name follows the chart title while it still
-	// tracks it; a legend title covers every channel sharing the field.
+	// tracks it; typing a title or subtitle checks its "Titles shown" box (a
+	// new chart starts with both unchecked) unless the patch sets that box
+	// itself; a legend title covers every channel sharing the field.
 	if (typeof sent(patch, "labelsConfig", "title") === "string")
 		v.name = mirroredVisualName(prev.name, prev.labelsConfig?.title ?? "", v.labelsConfig.title, UNTITLED_VISUAL_NAME)
+	for (const key of ["title", "subtitle"] as const) {
+		const text = sent(patch, "labelsConfig", key)
+		const hidden = v.labelsConfig.hiddenTitles
+		if (typeof text !== "string" || text.trim() === "" || !hidden?.[key]) continue
+		if (sent(patch, "labelsConfig", "hiddenTitles", key) !== undefined) continue
+		const { [key]: _shown, ...rest } = hidden
+		const { hiddenTitles: _h, ...labels } = v.labelsConfig
+		v.labelsConfig = Object.keys(rest).length > 0 ? { ...labels, hiddenTitles: rest } : labels
+	}
 	const titlesSent = sent(patch, "labelsConfig", "legendTitles")
 	if (isObj(titlesSent)) {
 		const titles = { ...v.labelsConfig.legendTitles } as Partial<Record<LegendChannel, string>>

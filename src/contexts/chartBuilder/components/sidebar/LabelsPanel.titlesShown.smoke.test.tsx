@@ -24,6 +24,7 @@ describe("LabelsPanel — Titles shown", () => {
 	const initState = (snap: TestStore) => {
 		snap.set(currentLabelsAtom, {
 			...DEFAULT_LABELS_CONFIG,
+			hiddenTitles: undefined,
 			title: "Sales",
 			subtitle: "By region",
 		})
@@ -93,6 +94,36 @@ describe("LabelsPanel — Titles shown", () => {
 		// Sparse: nothing hidden → no block at all.
 		expect(probe.dataset.hidden).toBe("null")
 		expect(probe.dataset.drawnTitle).toBe("Sales")
+	})
+
+	it("a fresh chart starts with Title and Subtitle unchecked (no dot); checking Title brings its row", () => {
+		installInMemoryLocalStorage()
+		const { container } = render(
+			<TestProvider
+				initializeState={(snap) => snap.set(currentLabelsAtom, DEFAULT_LABELS_CONFIG)}
+			>
+				<LabelsPanel />
+				<AtomProbe />
+			</TestProvider>
+		)
+		const el = container as HTMLElement
+		const probe = el.querySelector<HTMLElement>('[data-testid="probe"]')!
+		const header = button(el, "Titles shown")!
+		expect(header.querySelector("span.rounded-full")).toBeNull()
+		fireEvent.click(header)
+		const checked = (name: string) =>
+			el.querySelector<HTMLInputElement>(
+				`input[id="${toggleLabel(el, name).htmlFor}"]`
+			)?.checked
+		expect(checked("Title")).toBe(false)
+		expect(checked("Subtitle")).toBe(false)
+		// Nothing to edit yet, so no Primary titles subsection.
+		expect(button(el, "Primary titles")).toBeUndefined()
+
+		fireEvent.click(toggleLabel(el, "Title"))
+		expect(JSON.parse(probe.dataset.hidden!)).toEqual({ subtitle: true })
+		fireEvent.click(button(el, "Primary titles")!)
+		expect(titleRow(el)).not.toBeNull()
 	})
 
 	it("hiding both axis titles drops the Axis titles subsection", () => {
