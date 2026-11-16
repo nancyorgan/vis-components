@@ -14,8 +14,6 @@ import {
 	useCurrentDatasetView,
 } from "../../store/useCurrentDatasetView"
 import { useEditedCells } from "../../store/useEditedCells"
-import { useReorderField } from "../../store/useReorderField"
-import { useDragReorder } from "../useDragReorder"
 
 const MAX_ROWS_RENDERED = 500
 const MIN_COL_WIDTH = 40
@@ -163,23 +161,6 @@ export const DataTable = () => {
 
 	const rowsSource = useMemo(() => dataset?.rows ?? [], [dataset])
 
-	// Drag a column header to reorder the table's columns (the Fields panel
-	// follows). The order is the visual's own, applied last in the view
-	// chain, so every column drags — a reshape's minted columns and live
-	// derived columns included. Same rule as the Fields panel.
-	const reorderField = useReorderField()
-	const viewFields = dataset?.fields ?? []
-	const canReorder = viewFields.length > 1
-	const dnd = useDragReorder({
-		axis: "x",
-		count: viewFields.length,
-		onMove: (from, slot) => {
-			const moved = viewFields[from]
-			if (!moved) return
-			reorderField(moved.name, viewFields[slot]?.name ?? null)
-		},
-	})
-
 	const alignmentByField = useMemo<Map<string, ColumnAlignment>>(() => {
 		const m = new Map<string, ColumnAlignment>()
 		if (!dataset) return m
@@ -240,31 +221,14 @@ export const DataTable = () => {
 			>
 				<thead className="sticky top-0 z-[1] bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
 					<tr>
-						{dataset.fields.map((f, i) => {
+						{dataset.fields.map((f) => {
 							const alignment = alignmentByField.get(f.name) ?? "default"
 							const isActive = sort?.field === f.name
 							const width = colWidths[f.name]
-							const source = canReorder ? dnd.sourceProps(i, f.name) : null
-							const last = i === dataset.fields.length - 1
 							return (
 								<th
 									key={f.name}
 									scope="col"
-									{...(canReorder ? dnd.targetProps(i) : {})}
-									{...(source
-										? {
-												...source,
-												title: "Drag to reorder",
-												onDragStart: (e: React.DragEvent) => {
-													// The resize strip is its own pointer gesture.
-													if ((e.target as HTMLElement).closest("[role=separator]")) {
-														e.preventDefault()
-														return
-													}
-													source.onDragStart(e)
-												},
-											}
-										: {})}
 									aria-sort={
 										isActive
 											? sort?.dir === "asc"
@@ -284,13 +248,7 @@ export const DataTable = () => {
 									}
 									className={`relative border-r border-b border-stone-200 px-3 py-2 font-medium whitespace-nowrap dark:border-stone-700 ${alignmentClasses(
 										alignment
-									)}${canReorder ? " cursor-grab" : ""}${
-										dnd.isSlot(i) ? " border-l-2 border-l-indigo-500 dark:border-l-indigo-400" : ""
-									}${
-										last && dnd.isSlot(dataset.fields.length)
-											? " border-r-2 border-r-indigo-500 dark:border-r-indigo-400"
-											: ""
-									}${dnd.dragIndex === i ? " opacity-50" : ""}`}
+									)}`}
 								>
 									{/* `flex` lets the sort button shrink + clip the field name
 									 * when the column is narrow, instead of leaking past the th's
@@ -317,7 +275,6 @@ export const DataTable = () => {
 											type="button"
 											onClick={() => onHeaderClick(f.name)}
 											className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden hover:text-stone-900 dark:hover:text-white"
-											title={f.name}
 										>
 											<span className="min-w-0 flex-1 truncate text-left">
 												{f.name}

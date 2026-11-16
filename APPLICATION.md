@@ -671,20 +671,20 @@ occurrences as CELL VALUES of the variable column (hue colors,
 per-value overrides, facet settings, pinned orders).
 
 **Reordering variables** — a field row in the Fields panel drags by its
-⠿ handle, and a column header in the data tray drags as a whole; the
-drop gap is marked while the drag is on. Column order is a property of
-the VISUAL (`Visual.fieldOrder`, `currentFieldOrderAtom`,
-`store/useReorderField.ts` → `lib/reorderFields.ts`): a list of names
-applied as the LAST stage of the view chain, after the reshape and the
-derived variables, so EVERY column the table shows drags — a reshape's
-minted columns and live derived columns included, reshape applied or
-not. A drop writes the whole order as shown; a column the list doesn't
-name (one added later) keeps its place after the ones it does, and a
-name no longer in the table is ignored. Renaming a column renames it in
-the list. Other visuals on the same data set keep their own order, the
-data set itself is not rewritten, and the Edit dialog's grid follows
-the data set's stored order, not a visual's. The order is saved with
-the visual and covered by undo.
+⠿ handle; the drop gap is marked while the drag is on. (The data tray's
+column headers don't drag; the table follows the Fields panel's order.)
+Column order is a property of the VISUAL (`Visual.fieldOrder`,
+`currentFieldOrderAtom`, `store/useReorderField.ts` →
+`lib/reorderFields.ts`): a list of names applied as the LAST stage of
+the view chain, after the reshape and the derived variables, so EVERY
+column drags — a reshape's minted columns and live derived columns
+included, reshape applied or not. A drop writes the whole order as
+shown; a column the list doesn't name (one added later) keeps its place
+after the ones it does, and a name no longer in the table is ignored.
+Renaming a column renames it in the list. Other visuals on the same data
+set keep their own order, the data set itself is not rewritten, and the
+Edit dialog's grid follows the data set's stored order, not a visual's.
+The order is saved with the visual and covered by undo.
 
 ### 2.3 Visuals (save/load)
 A "visual" is a named snapshot of: chart name, the dataset (and the
