@@ -1,5 +1,9 @@
 import type { ChannelConfigs, ColorSlots, HueConfig } from "./channelConfig"
-import { CATEGORICAL_HUE_PALETTE, outlinePaletteForHueType } from "./scales"
+import {
+	CATEGORICAL_HUE_PALETTE,
+	makeHueScale,
+	outlinePaletteForHueType,
+} from "./scales"
 import type { Encodings, FieldType } from "./types"
 
 /** The main Color (fill hue) mapping, as the other color encodings see it
@@ -151,4 +155,59 @@ export const linkColorConfigs = (
 	// Same object when nothing was inherited, so render consumers keyed on
 	// the configs' identity don't see a change.
 	return changed ? out : configs
+}
+
+/** True when a facet slot (wrap facet, grid row or grid column) varies by
+ *  the Color variable — the case where "Color by facet" titles default to
+ *  the marks' colors (`facetTitleLinkedColors`). */
+export const facetSharesColorField = (
+	encodings: Pick<Encodings, "hue" | "facet" | "facetRow" | "facetCol">
+): boolean => {
+	const field = encodings.hue?.field ?? null
+	if (!field) return false
+	return [encodings.facet, encodings.facetRow, encodings.facetCol].some(
+		(e) => e?.field === field
+	)
+}
+
+/** Default "Color by facet" title colors when a facet variable IS the
+ *  Color variable: each value's title takes the TEXT-palette entry at the
+ *  palette position its marks use — the same pairing data labels get from
+ *  `linkedCategoryColors`, so a title reads as its marks' color in the
+ *  legible text shade (a theme with no text palette falls back to the
+ *  categorical one, i.e. the exact mark colors). A mark color that isn't
+ *  in the Color palette (a custom pick) carries over as-is.
+ *
+ *  Built from the same inputs as the chart's own hue scale
+ *  (`useAestheticScales`), so value → color matches the marks. Keyed by
+ *  value string like `facetTitleColors`; callers lay the stored picks ON
+ *  TOP (`withFacetTitleColorDefaults`). Empty unless Color is a
+ *  categorical / ordinal mapping and a facet slot shares its field. Never
+ *  persisted. */
+export const facetTitleLinkedColors = (
+	encodings: Pick<Encodings, "hue" | "facet" | "facetRow" | "facetCol">,
+	configs: Pick<ChannelConfigs, "hue" | "categoricalPalette" | "ordinalPalette">,
+	hueType: FieldType,
+	hueValues: unknown[],
+	textPalette: readonly string[]
+): Record<string, string> => {
+	if (!facetSharesColorField(encodings)) return {}
+	if (hueType !== "categorical" && hueType !== "ordinal") return {}
+	const palette =
+		hueType === "ordinal"
+			? (configs.ordinalPalette ?? configs.categoricalPalette)
+			: configs.categoricalPalette
+	const hs = makeHueScale(hueValues, hueType, configs.hue, palette)
+	if (hs.kind !== "categorical") return {}
+	const source = (palette ?? CATEGORICAL_HUE_PALETTE).map(norm)
+	const out: Record<string, string> = {}
+	for (const value of hs.scale.domain()) {
+		const color = hs.scale(value)
+		const pos = source.indexOf(norm(color))
+		out[value] =
+			pos >= 0 && textPalette.length > 0
+				? textPalette[pos % textPalette.length]
+				: color
+	}
+	return out
 }

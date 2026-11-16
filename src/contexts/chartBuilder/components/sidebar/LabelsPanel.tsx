@@ -53,6 +53,7 @@ import {
 } from "../../store/atoms"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
+import { useFacetTitleLinkedColors } from "../../store/useFacetTitleLinkedColors"
 import {
 	useFamilyDisplayName,
 	useFontFamilyOptions,
@@ -502,6 +503,9 @@ export const LabelsPanel = () => {
 	// doesn't designate one.
 	const theme = useCurrentTheme()
 	const facetSwatchPalette = resolveTextPickerPalette(theme)
+	// When the facet variable is also the Color variable, an unpicked swatch
+	// shows the marks' color for that value (what the title draws).
+	const facetTitleDefaults = useFacetTitleLinkedColors()
 	const facetColorControls = (values: string[], baseColor: string) => (
 		<div className="flex flex-col gap-1.5">
 			<Checkbox
@@ -526,7 +530,7 @@ export const LabelsPanel = () => {
 							<ColorInput
 								label={`Title color for ${v}`}
 								labelClassName="sr-only"
-								value={current ?? baseColor}
+								value={current ?? facetTitleDefaults[v] ?? baseColor}
 								onChange={(color) => setFacetTitleColor(v, color)}
 								className="contents"
 								palette={facetSwatchPalette}

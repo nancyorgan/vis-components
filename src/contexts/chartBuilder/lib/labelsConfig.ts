@@ -1375,6 +1375,23 @@ export const facetTitleColorOf = (
 		? labels.facetTitleColors?.[value]
 		: undefined
 
+/** RENDER-side facet-title colors with defaults (e.g. the marks' colors when
+ * the facet variable is also the Color variable — `facetTitleLinkedColors`)
+ * laid UNDER the stored per-value picks, so an explicit pick still wins.
+ * Never persisted. Same object back when there's nothing to add. */
+export const withFacetTitleColorDefaults = <
+	L extends Pick<LabelsConfig, "facetTitleColors">,
+>(
+	labels: L,
+	defaults: Record<string, string>
+): L =>
+	Object.keys(defaults).length === 0
+		? labels
+		: {
+				...labels,
+				facetTitleColors: { ...defaults, ...labels.facetTitleColors },
+			}
+
 /** Resolve the stored offset for a title slot, defaulting to zeros. */
 export const titleOffsetOf = (
 	labels: LabelsConfig,

@@ -12,6 +12,7 @@ import {
 	DEFAULT_LABELS_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
 	facetTitleColorOf,
+	withFacetTitleColorDefaults,
 	hasChartTitle,
 	fontWeightDisplayName,
 	fontWeightOptionsFor,
@@ -189,6 +190,34 @@ describe("facetTitleColorOf", () => {
 		expect(facetTitleColorOf(labels, "West")).toBeUndefined()
 		expect(facetTitleColorOf(labels, null)).toBeUndefined()
 		expect(facetTitleColorOf(labels, undefined)).toBeUndefined()
+	})
+})
+
+/** Linked defaults (marks' colors when the facet variable is the Color
+ *  variable) sit UNDER the stored picks and stay behind the checkbox. */
+describe("withFacetTitleColorDefaults", () => {
+	it("lays defaults under stored picks; the checkbox still gates", () => {
+		const labels = {
+			facetTitleColorByValue: true,
+			facetTitleColors: { East: "#ff0000" },
+		}
+		const merged = withFacetTitleColorDefaults(labels, {
+			East: "#111111",
+			West: "#222222",
+		})
+		expect(facetTitleColorOf(merged, "East")).toBe("#ff0000")
+		expect(facetTitleColorOf(merged, "West")).toBe("#222222")
+		expect(
+			facetTitleColorOf(
+				withFacetTitleColorDefaults({ facetTitleColors: {} }, { West: "#222222" }),
+				"West"
+			)
+		).toBeUndefined()
+	})
+
+	it("returns the same object when there are no defaults", () => {
+		const labels = { facetTitleColors: { East: "#ff0000" } }
+		expect(withFacetTitleColorDefaults(labels, {})).toBe(labels)
 	})
 })
 

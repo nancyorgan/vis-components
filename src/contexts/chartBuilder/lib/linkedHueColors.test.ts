@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 import type { ChannelConfigs, HueConfig } from "./channelConfig"
 import {
 	colorLinkSource,
+	facetSharesColorField,
+	facetTitleLinkedColors,
 	linkColorConfigs,
 	linkedCategoryColors,
 	withLinkedColors,
@@ -122,5 +124,83 @@ describe("linkColorConfigs", () => {
 	it("returns the configs untouched when Color has no palette picks", () => {
 		const c = configs({ East: "#custom" })
 		expect(linkColorConfigs(c, encodings(), "categorical")).toBe(c)
+	})
+})
+
+describe("facetTitleLinkedColors", () => {
+	const enc = (over: Partial<Encodings> = {}) =>
+		({
+			hue: { field: "company" },
+			facet: { field: null },
+			facetRow: { field: null },
+			facetCol: { field: null },
+			...over,
+		}) as Pick<Encodings, "hue" | "facet" | "facetRow" | "facetCol">
+	const values = ["Merck", "Pfizer", "AstraZeneca", "Merck"]
+
+	it("is empty unless a facet slot shares the Color field", () => {
+		expect(facetSharesColorField(enc())).toBe(false)
+		expect(
+			facetTitleLinkedColors(
+				enc({ facet: { field: "other" } }),
+				configs({}),
+				"categorical",
+				values,
+				TEXT
+			)
+		).toEqual({})
+		expect(
+			facetSharesColorField(enc({ hue: { field: null }, facet: { field: null } }))
+		).toBe(false)
+	})
+
+	it("pairs each value with the text color at its mark's palette position", () => {
+		for (const slot of ["facet", "facetRow", "facetCol"] as const) {
+			expect(
+				facetTitleLinkedColors(
+					enc({ [slot]: { field: "company" } }),
+					configs({}),
+					"categorical",
+					values,
+					TEXT
+				)
+			).toEqual({ Merck: "#t1", Pfizer: "#t2", AstraZeneca: "#t3" })
+		}
+	})
+
+	it("follows Color picks: palette picks by position, custom colors as-is", () => {
+		expect(
+			facetTitleLinkedColors(
+				enc({ facet: { field: "company" } }),
+				configs({ Merck: "#C4", Pfizer: "#abcdef" }),
+				"categorical",
+				values,
+				TEXT
+			)
+		).toEqual({ Merck: "#t4", Pfizer: "#abcdef", AstraZeneca: "#t3" })
+	})
+
+	it("uses the exact mark colors when there's no text palette", () => {
+		expect(
+			facetTitleLinkedColors(
+				enc({ facet: { field: "company" } }),
+				configs({}),
+				"categorical",
+				values,
+				[]
+			)
+		).toEqual({ Merck: "#c1", Pfizer: "#c2", AstraZeneca: "#c3" })
+	})
+
+	it("is empty for a gradient (quantitative) Color", () => {
+		expect(
+			facetTitleLinkedColors(
+				enc({ facet: { field: "company" } }),
+				configs({}),
+				"quantitative",
+				[1, 2, 3],
+				TEXT
+			)
+		).toEqual({})
 	})
 })

@@ -26,6 +26,7 @@ import {
 	chartTitlePrefixOf,
 	resolveTitleFont,
 	resolveTitlePrefixFont,
+	withFacetTitleColorDefaults,
 } from "../../lib/labelsConfig"
 import {
 	DEFAULT_CAPTION_CONFIG,
@@ -64,6 +65,7 @@ import {
 import { DEFAULT_DATA_LABELS_CONFIG } from "../../lib/channelConfig"
 import type { FieldType } from "../../lib/types"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
+import { useFacetTitleLinkedColors } from "../../store/useFacetTitleLinkedColors"
 import { computeDataLabelOverflow } from "./plotCanvas/dataLabelReserve"
 import { useFontsVersion } from "./plotCanvas/useFontsVersion"
 import { resolveFacetTitleStyles } from "./plotCanvas/facetTitleStyles"
@@ -153,6 +155,13 @@ export const PlotCanvas = ({
 	const channelConfigs = useAtomValue(renderChannelConfigsAtom)
 	const mapConfig = useAtomValue(currentMapConfigAtom)
 	const labels = useAtomValue(renderedLabelsAtom)
+	// "Color by facet" titles default to the marks' colors when the facet
+	// variable is also the Color variable; stored picks still win.
+	const facetTitleDefaults = useFacetTitleLinkedColors()
+	const facetTitleLabels = useMemo(
+		() => withFacetTitleColorDefaults(labels, facetTitleDefaults),
+		[labels, facetTitleDefaults]
+	)
 	const dataLabels = {
 		...DEFAULT_DATA_LABELS_CONFIG,
 		...useAtomValue(renderDataLabelsConfigAtom),
@@ -1037,7 +1046,7 @@ export const PlotCanvas = ({
 							levelOrders={levelOrders}
 							isRadar={isRadar}
 							multiPanel={spec.panels.length > 1}
-							labels={labels}
+							labels={facetTitleLabels}
 							facetTitles={facetTitles}
 							facetRow={facetPanelRow(
 								panelData,
@@ -1080,7 +1089,11 @@ export const PlotCanvas = ({
 				)}
 				{/* Grid-mode column / row header strips (empty in wrap and
 				    single modes) — see StripHeaders. */}
-				<StripHeaders spec={spec} labels={labels} facetTitles={facetTitles} />
+				<StripHeaders
+					spec={spec}
+					labels={facetTitleLabels}
+					facetTitles={facetTitles}
+				/>
 				{captionLayout && (
 					<CaptionOverlay caption={caption} layout={captionLayout} />
 				)}
