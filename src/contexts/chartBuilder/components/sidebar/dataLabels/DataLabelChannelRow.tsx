@@ -1,8 +1,11 @@
-import { useId } from "react"
+import { useEffect, useId, useRef } from "react"
 import { Disclosure } from "@headlessui/react"
+import { useAtom } from "jotai"
 
 import { RowChevron } from "../../../../../components/ui/Chevron"
 import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import { dataLabelRowId } from "../../../../../components/ui/SidebarJumpLink"
+import { sidebarJumpTargetAtom } from "../../../store/atoms"
 import type { DataLabelsChannel } from "./shared"
 import { Select } from "../../../../../components/ui/Select"
 
@@ -36,7 +39,7 @@ type DataLabelChannelRowProps = {
 }
 
 export const DataLabelChannelRow = ({
-	channel: _channel,
+	channel,
 	label,
 	value,
 	onChange,
@@ -48,6 +51,10 @@ export const DataLabelChannelRow = ({
 }: DataLabelChannelRowProps) => {
 	// Associates the visible channel label with its field dropdown.
 	const selectId = useId()
+	// The options toggle, clicked by `LabelRowJumpOpener` when a sidebar
+	// jump link targets this row (headless Disclosure has no controlled
+	// `open`).
+	const toggleRef = useRef<HTMLButtonElement>(null)
 	const selectClass = `flex-1 ${value ? "text-vc-section-header font-semibold" : ""}`
 	const fieldSelect = (
 		<div className="flex min-w-0 flex-1 items-center gap-2">
@@ -91,7 +98,10 @@ export const DataLabelChannelRow = ({
 	// the chevroned rows' dropdowns do.
 	if (children == null) {
 		return (
-			<div className="flex items-center gap-1 px-2">
+			<div
+				id={dataLabelRowId(channel)}
+				className="vc-jump-target flex items-center gap-1 px-2"
+			>
 				{fieldSelect}
 				<div className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
 			</div>
@@ -99,12 +109,22 @@ export const DataLabelChannelRow = ({
 	}
 
 	return (
-		<Disclosure as="div" className="flex flex-col gap-1">
+		<Disclosure
+			as="div"
+			id={dataLabelRowId(channel)}
+			className="vc-jump-target flex flex-col gap-1"
+		>
 			{({ open }) => (
 				<>
+					<LabelRowJumpOpener
+						channel={channel}
+						open={open}
+						buttonRef={toggleRef}
+					/>
 					<div className="flex items-center gap-1 px-2">
 						{fieldSelect}
 						<Disclosure.Button
+							ref={toggleRef}
 							className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded hover:bg-stone-200 dark:hover:bg-stone-700"
 							aria-label={`Toggle settings for ${label}`}
 						>
@@ -122,4 +142,29 @@ export const DataLabelChannelRow = ({
 			)}
 		</Disclosure>
 	)
+}
+
+/** Opens this row's options when a sidebar jump link names it
+ *  (`dataLabelJump`), scrolls it into view and clears the target — the
+ *  Data Labels twin of `EncodingShelf`'s `ChannelJumpOpener`. */
+const LabelRowJumpOpener = ({
+	channel,
+	open,
+	buttonRef,
+}: {
+	channel: DataLabelsChannel
+	open: boolean
+	buttonRef: React.RefObject<HTMLButtonElement | null>
+}) => {
+	const [target, setTarget] = useAtom(sidebarJumpTargetAtom)
+	const hit = target?.labelChannel === channel ? target : null
+	useEffect(() => {
+		if (!hit) return
+		if (!open) buttonRef.current?.click()
+		setTarget(null)
+		document
+			.getElementById(dataLabelRowId(channel))
+			?.scrollIntoView?.({ block: "start", behavior: "smooth" })
+	}, [hit, open, channel, buttonRef, setTarget])
+	return null
 }

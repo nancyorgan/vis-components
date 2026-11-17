@@ -109,6 +109,10 @@ import {
 import { LabelColorPanel } from "./dataLabels/LabelColorPanel"
 import { PositionRulesEditor } from "./dataLabels/PositionRulesEditor"
 import { SizePanel } from "./dataLabels/SizePanel"
+import {
+	SidebarJumpText,
+	dataLabelJump,
+} from "../../../../components/ui/SidebarJumpLink"
 import { TextBackgroundPanel } from "./dataLabels/TextBackgroundPanel"
 import { TextPositionPanel } from "./dataLabels/TextPositionPanel"
 import { TextPropertiesPanel } from "./dataLabels/TextPropertiesPanel"
@@ -2014,6 +2018,12 @@ export const DataLabelsPanel = () => {
 					splitToggle={splitToggleFor("text")}
 					keysFor={sectionKeys("text")}
 				/>
+				{/* Font size is the Size row's (it maps like Color), so Text
+				 *  points there rather than repeating the control. */}
+				<p className="vc-help">
+					Set the font size under{" "}
+					<SidebarJumpText target={dataLabelJump("size")}>Size</SidebarJumpText>.
+				</p>
 			</CollapsibleSubsection>
 
 			{fineTuningApplies && (

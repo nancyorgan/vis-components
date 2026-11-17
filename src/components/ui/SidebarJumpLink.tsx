@@ -21,11 +21,25 @@ export const channelJump = (
 	subsection?: string
 ): SidebarJumpTarget => ({ section: "Encodings", channel, subsection })
 
+type LabelChannel = NonNullable<SidebarJumpTarget["labelChannel"]>
+
+/** DOM id of a Data Labels shelf row, the scroll fallback for a jump that
+ *  names a `labelChannel`. */
+export const dataLabelRowId = (channel: LabelChannel): string =>
+	`data-label-row-${channel}`
+
+/** A jump into a Data Labels shelf row's options panel. */
+export const dataLabelJump = (channel: LabelChannel): SidebarJumpTarget => ({
+	section: "Data Labels",
+	labelChannel: channel,
+})
+
 /** Returns `jumpTo(target)`: un-collapses the named AsideSection and sets the
  *  transient jump target, which the `CollapsibleSubsection` with a matching
  *  `jumpId` consumes (opens + scrolls into view). If no subsection claims the
  *  target (none named, or the named one isn't rendered — e.g. its "Titles
- *  shown" box is off), the encoding row (when `channel` is named) or else the
+ *  shown" box is off), the shelf row (when `labelChannel` / `channel` is
+ *  named) or else the
  *  section body is scrolled into view instead after the section has had a
  *  couple of frames to mount. */
 export const useSidebarJump = () => {
@@ -41,6 +55,8 @@ export const useSidebarJump = () => {
 				if (store.get(sidebarJumpTargetAtom) !== target) return
 				store.set(sidebarJumpTargetAtom, null)
 				const el =
+					(target.labelChannel &&
+						document.getElementById(dataLabelRowId(target.labelChannel))) ||
 					(target.channel &&
 						document.getElementById(encodingRowId(target.channel))) ||
 					document.getElementById(asideSectionId(target.section))

@@ -131,7 +131,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "new-folder",
 				anchor: "new-folder",
-				body: "Click + to make a folder. Your visualizations live here; click one to see what's inside.",
+				body: "Click + to make a folder.",
 				placement: "right",
 			},
 		],
@@ -177,13 +177,13 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "quickstart",
 				anchor: "quickstart",
-				body: "Not sure where to begin? Use Quickstart to randomly generate a chart using your data, then tweak it to your liking.",
+				body: "Use Quickstart to randomly generate a chart using your data, then tweak it to your liking.",
 				placement: "right",
 			},
 			{
 				id: "encodings",
 				anchor: "section-encodings",
-				body: "Assign variables to X, Y, Color, Length and more. The chart type follows from the variables you encode.",
+				body: "Assign variables to X, Y, Color, Length and more. The chart type emerges from the variables you encode.",
 				placement: "right",
 			},
 		],
@@ -255,7 +255,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "export-image-tab",
 				anchor: "export-image-tab",
-				body: "Download image saves a PNG, JPEG, SVG or PDF at the size you choose.",
+				body: "Download image saves a PNG, JPEG, SVG or PDF at the size and resolution you choose.",
 				placement: "bottom",
 			},
 		],
@@ -275,7 +275,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "library-view",
 				anchor: "library-view",
-				body: "Table view lists everything with sortable columns.",
+				body: "Table view lists your projects into sortable columns.",
 				placement: "bottom",
 			},
 			{
@@ -302,7 +302,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "library-kind",
 				anchor: "library-kind",
-				body: "Templates you save live here too. Switch to see them, or both at once.",
+				body: "Templates you save live here too. Switch to see them, or see both at once.",
 				placement: "bottom",
 			},
 		],
@@ -335,7 +335,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "settings",
 				anchor: "settings",
-				body: "Settings holds your themes, fonts and sharing. Set a house style once; every chart can use it.",
+				body: "Settings holds your themes, fonts and sharing.",
 				placement: "bottom",
 			},
 		],
@@ -349,7 +349,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "import-json",
 				anchor: "new-visual-menu",
-				body: "Import from JSON brings in a visualization, or a whole library, that someone shared with you.",
+				body: "Import from JSON brings in a single visualization or a whole library.",
 				placement: "bottom",
 			},
 			{
@@ -389,7 +389,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "palette-picker",
 				anchor: "palette-picker",
-				body: "The palette icon picks a color straight from your theme.",
+				body: "The palette icon picks a color from your theme.",
 				placement: "right",
 			},
 		],
@@ -402,7 +402,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "reset-link",
 				anchor: "reset-link",
-				body: "Reset puts a setting back to its default.",
+				body: "Reset puts a setting back to its theme default.",
 				placement: "left",
 			},
 		],
@@ -428,7 +428,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "color-rules",
 				anchor: "color-rules",
-				body: "Color rules color marks by a condition, like red for anything under zero.",
+				body: "Color rules color marks according to a condition, like red for anything under zero.",
 				placement: "left",
 			},
 		],
@@ -441,7 +441,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "axis-scale",
 				anchor: "axis-scale",
-				body: "Set the axis range here. Leave it blank to fit your data.",
+				body: "Set the axis range here. Leave it blank to auto fit to your data.",
 				placement: "right",
 			},
 		],
@@ -555,19 +555,19 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "rename-field",
 				anchor: "field-name",
-				body: "Click a field's name to rename it. Your chart and later uploads follow along.",
+				body: "Click a field's name to rename it. Your chart and later data uploads follow along.",
 				placement: "right",
 			},
 			{
 				id: "reshape",
 				anchor: "reshape-data",
-				body: "Years spread across columns? Reshape stacks them into one long column, or spreads them back out.",
+				body: "Values spread across columns? Reshape stacks them into one long column, or spreads them back out.",
 				placement: "top",
 			},
 			{
 				id: "edit-data",
 				anchor: "edit-data",
-				body: "Fix a typo or add a row in a spreadsheet-style editor. Your original data stays untouched.",
+				body: "Fix a typo or add a row in a spreadsheet-style editor. Your original data stay untouched.",
 				placement: "top",
 			},
 		],
@@ -581,13 +581,13 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "a11y-check",
 				anchor: "a11y-check",
-				body: "Lists anything that may be hard to read — low contrast, tiny text, colors that clash.",
+				body: "Lists anything that may be hard to read like low contrast, tiny text, colors that clash.",
 				placement: "bottom",
 			},
 			{
 				id: "bw-toggle",
 				anchor: "bw-toggle",
-				body: "Does your chart still read without color? Check here; nothing is saved.",
+				body: "Check if your chart works in black and white.",
 				placement: "bottom",
 			},
 			{
@@ -640,7 +640,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "theme-default",
 				anchor: "theme-default",
-				body: "New charts start with the theme marked Default.",
+				body: "New charts start with the theme designated as Default.",
 				placement: "bottom",
 			},
 		],
@@ -728,7 +728,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "data-labels",
 				anchor: "section-data-labels",
-				body: "Print values right on the marks — totals, percents, or any field.",
+				body: "Directly label values right on the visual.",
 				placement: "right",
 			},
 			{
@@ -760,7 +760,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "undo",
 				anchor: "undo",
-				body: "Undo and redo cover every change — ⌘Z / Ctrl+Z works too.",
+				body: "Undo and redo cover every change. ⌘Z / Ctrl+Z works too.",
 				placement: "bottom",
 			},
 		],
@@ -814,7 +814,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "facets",
 				anchor: "shelf-facet",
-				body: "Map a field to Facet to split the chart into one panel per value — or pick Two variables… for a rows × columns grid.",
+				body: "Map a field to Facet to split the chart into one panel per value, or pick Two variables for a Rows x Columns grid.",
 				placement: "right",
 			},
 			{
@@ -834,7 +834,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "templates",
 				anchor: "export",
-				body: "In Export, save this chart as a template. Then New → From template starts from it with fresh data.",
+				body: "In Export, save this chart as a template. Then use New → From template to start the same design from fresh data.",
 				placement: "bottom",
 			},
 			{

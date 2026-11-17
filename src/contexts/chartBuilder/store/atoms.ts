@@ -1104,11 +1104,13 @@ export const sidebarCollapsedAtom = persistedAtom<Record<string, boolean>>(
  * itself into view and clears it. Never persisted. See `useSidebarJump`
  * (components/ui/SidebarJumpLink). */
 /** Where a sidebar jump link lands: an AsideSection, optionally an encoding
- *  row inside it (`channel` — the row's options disclosure opens), and
- *  optionally a `CollapsibleSubsection` by its `jumpId`. */
+ *  row inside it (`channel` — the row's options disclosure opens) or a Data
+ *  Labels shelf row (`labelChannel`, same), and optionally a
+ *  `CollapsibleSubsection` by its `jumpId`. */
 export type SidebarJumpTarget = {
 	section: string
 	channel?: EncodingChannel
+	labelChannel?: Exclude<keyof DataLabelsEncodings, "r">
 	subsection?: string
 }
 export const sidebarJumpTargetAtom = atom<SidebarJumpTarget | null>(null)
