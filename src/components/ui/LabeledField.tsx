@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useId, type ReactNode } from "react"
 import { combine as c } from "../../lib/cls"
 
 /** Canonical sidebar label column, passed as `labelClassName`: a fixed w-24
@@ -28,6 +28,50 @@ export const LabelSpacer = ({ className }: { className?: string }) => (
 export const LabelSpacerNested = () => (
 	<span className="w-18 shrink-0" aria-hidden />
 )
+
+/** A labeled row of swatch chips (the pattern, dash and map no-data
+ *  pickers): the label in the LABEL_COL column, the chips starting on the
+ *  label's own line in the control column. Chips that don't fit wrap, and
+ *  every wrapped line starts at the first chip's x, so the chips keep the
+ *  column the rows under them (Ink color, Scale, Rotate) use. `pt-1` sets
+ *  the label's first line level with the h-7 chips; a long label wraps in
+ *  its column.
+ *
+ *  `chips` fill the wrapping line (a reset link may end it). `children`
+ *  stack under them in the same column (an upload editor), or, with no
+ *  `chips`, are the whole control (a `DashStylePicker`, which wraps its
+ *  own chips). The control column is a group named by the label, so a chip
+ *  named only "Pattern option 2" is announced with its row. */
+export const LabeledChipRow = ({
+	label,
+	chips,
+	children,
+	className,
+}: {
+	label: ReactNode
+	chips?: ReactNode
+	children?: ReactNode
+	className?: string
+}) => {
+	const labelId = useId()
+	return (
+		<div className={c("flex items-start gap-2 text-sm", className)}>
+			<span id={labelId} className={c(LABEL_COL, "shrink-0 break-words pt-1")}>
+				{label}
+			</span>
+			<div
+				role="group"
+				aria-labelledby={labelId}
+				className="flex min-w-0 flex-1 flex-col gap-1"
+			>
+				{chips !== undefined && (
+					<div className="flex flex-wrap items-center gap-1">{chips}</div>
+				)}
+				{children}
+			</div>
+		</div>
+	)
+}
 
 /** Wraps a form control with its visual label. Used internally by every
  *  labeled primitive (`NumberInput`, `ColorInput`, `SelectInput`,

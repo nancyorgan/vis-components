@@ -142,7 +142,10 @@ export const resolveGeoFill = (
  *  fill. One def per chart: the tile background is the no-data fill, the ink
  *  is `noDataPatternInk`, so the id can be a fixed slug. Applies to unmatched
  *  regions and matched rows whose measure value didn't resolve — see
- *  `buildRegionStyleResolvers`. */
+ *  `buildRegionStyleResolvers`. A custom pick (an index from
+ *  `CUSTOM_PATTERN_BASE`) passes through as is: `PatternTile` resolves it
+ *  against the chart's `customPatterns` (`CustomPatternsContext`), like
+ *  every mark's custom pattern, and draws the upload's 32 px masked tile. */
 export const resolveNoDataPatternDef = (mapConfig: {
 	noDataPattern: number | null
 	noDataFill: string

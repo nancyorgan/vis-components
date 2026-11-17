@@ -5,9 +5,15 @@ import { TestProvider } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
+import { CUSTOM_PATTERN_TILE_PX } from "../../lib/customPatterns"
+import { CUSTOM_PATTERN_BASE } from "../../lib/customPatternSlots"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
-import { MAP_CONFIG_VERSION } from "../../lib/storage/migrations"
+import {
+	CHANNEL_CONFIGS_VERSION,
+	MAP_CONFIG_VERSION,
+} from "../../lib/storage/migrations"
 import { emptyEncodings, type Dataset } from "../../lib/types"
+import { CustomPatternsProvider } from "../../store/CustomPatternsProvider"
 
 import { GeoChoroplethPlot } from "./GeoChoroplethPlot"
 
@@ -591,6 +597,56 @@ describe("GeoChoroplethPlot (states choropleth)", () => {
 		expect(
 			container.querySelector('pattern[id="vc-pat-nodata"]')
 		).not.toBeNull()
+	})
+
+	it("no-data pattern: a CUSTOM pick tiles the chart's uploaded pattern", async () => {
+		// The Maps "+" stores uploads in the chart's one custom list
+		// (`pattern.customPatterns`) and the pick as its index from
+		// CUSTOM_PATTERN_BASE; the def resolves it like any mark's custom
+		// pattern — the upload as an inverted luminance mask, the no-data
+		// fill behind, the no-data ink through it.
+		const svg = "data:image/svg+xml,%3Csvg%20id%3D%22rings%22%2F%3E"
+		seed([{ state: "CA", rate: "1" }], {
+			noDataPattern: CUSTOM_PATTERN_BASE,
+			noDataPatternInk: "#123456",
+		})
+		localStorage.setItem(
+			"vis-components:currentChannelConfigs",
+			// eslint-disable-next-line @vc/use-wrapped-json-functions -- seeding raw storage
+			JSON.stringify({
+				_v: CHANNEL_CONFIGS_VERSION,
+				data: { pattern: { customPatterns: [{ svg }] } },
+			})
+		)
+		const { container } = render(
+			<TestProvider>
+				<CustomPatternsProvider>
+					<svg width={800} height={600}>
+						<GeoChoroplethPlot />
+					</svg>
+				</CustomPatternsProvider>
+			</TestProvider>
+		)
+		await waitFor(() => {
+			expect(container.querySelectorAll("path").length).toBeGreaterThanOrEqual(50)
+		})
+		const markFills = [...container.querySelectorAll("path")]
+			.filter((p) => p.closest("defs") === null)
+			.map((p) => p.getAttribute("fill"))
+		expect(markFills).toContain("url(#vc-pat-nodata)")
+		const def = container.querySelector('pattern[id="vc-pat-nodata"]')
+		expect(def).not.toBeNull()
+		// The upload's own tile size (×1), not a built-in's.
+		expect(def?.getAttribute("width")).toBe(String(CUSTOM_PATTERN_TILE_PX))
+		expect(def?.querySelector("mask image")?.getAttribute("href")).toBe(svg)
+		// No-data fill behind, no-data ink through the mask.
+		const rects = [...(def?.children ?? [])].filter(
+			(el) => el.tagName.toLowerCase() === "rect"
+		)
+		expect(rects.map((r) => r.getAttribute("fill"))).toEqual([
+			DEFAULT_MAP_CONFIG.noDataFill,
+			"#123456",
+		])
 	})
 
 	it("shows a tooltip with the row's fields when hovering a matched region", async () => {

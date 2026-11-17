@@ -30,6 +30,11 @@ import { defaultColorSlot, isDefaultColorSlot } from "./colorSlotDefaults"
 import { COLOR_SLOT_DEFS, legacySlotColor } from "./colorSlots"
 import { axisStemPatch, switchConnectionFill, withConnectionConfig } from "./connectionEdits"
 import { MIN_LINE_THICKNESS } from "./connectionThickness"
+import {
+	deletedCustomPatternSlots,
+	removeCustomPattern,
+	removeCustomPatternFromMap,
+} from "./customPatternSlots"
 import { resolveDashGapFill } from "./dashGapFill"
 import { seedLabelTextPalette } from "./dataLabelsHue"
 import {
@@ -687,6 +692,18 @@ export const applySettingEffects = (
 		v.mapConfig = {
 			...map,
 			...focusRegionPatch(prev.mapConfig, "custom", () => levelDefaultViewport(map.geographyLevel)),
+		}
+
+	// A custom pattern the patch deletes (its slot emptied) takes every pick
+	// of it along — the Pattern menu's and the map's no-data pick — as the
+	// × on its chip does.
+	if (has(patch, "channelConfigs", "pattern", "customPatterns"))
+		for (const slot of deletedCustomPatternSlots(
+			prev.channelConfigs.pattern?.customPatterns,
+			configs().pattern?.customPatterns
+		)) {
+			setConfigs(removeCustomPattern(configs(), slot))
+			if (v.mapConfig) v.mapConfig = removeCustomPatternFromMap(v.mapConfig, slot)
 		}
 
 	// ---- Gates -----------------------------------------------------------

@@ -74,11 +74,15 @@ export type MapConfig = {
 	customViewport: GeoViewport | null
 	noDataFill: string
 	/** Optional pattern overlay for no-data regions: an index into
-	 *  `PATTERN_PALETTE` (lib/patterns), or null (default) for the solid
-	 *  `noDataFill`. Applies to regions absent from the dataset and to matched
-	 *  rows whose mapped measure value is blank/NA — NOT to maps with no
-	 *  measure mapped at all (there every region is "no measure", not
-	 *  "missing data"). */
+	 *  `PATTERN_PALETTE` (lib/patterns), a custom pattern's index (from
+	 *  `CUSTOM_PATTERN_BASE`, into `channelConfigs.pattern.customPatterns`),
+	 *  or null (default) for the solid `noDataFill`. Applies to regions
+	 *  absent from the dataset and to matched rows whose mapped measure value
+	 *  is blank/NA — NOT to maps with no measure mapped at all (there every
+	 *  region is "no measure", not "missing data"). The custom list is the
+	 *  chart's one list, shared with the Pattern menu
+	 *  (`lib/customPatternSlots`); deleting a pattern from either puts a
+	 *  pick of it back to null. */
 	noDataPattern: number | null
 	/** Ink color for `noDataPattern` (the pattern tiles' background is
 	 *  `noDataFill`). Inert while `noDataPattern` is null. */

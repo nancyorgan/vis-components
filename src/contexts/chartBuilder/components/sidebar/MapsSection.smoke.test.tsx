@@ -4,22 +4,39 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react"
 import { TestProvider, type TestStore } from "../../../../testSupport/TestProvider"
 import { installInMemoryLocalStorage } from "../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../testSupport/fixtures"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { CUSTOM_PATTERN_BASE } from "../../lib/customPatternSlots"
 import { DEFAULT_MAP_CONFIG } from "../../lib/mapConfig"
 import { SYSTEM_DARK_THEME, SYSTEM_LIGHT_THEME } from "../../lib/systemThemes"
 import {
+	currentChannelConfigsAtom,
 	currentMapConfigAtom,
 	currentThemeIdAtom,
 	themesAtom,
 } from "../../store/atoms"
-import { MAP_CONFIG_VERSION } from "../../lib/storage/migrations"
+import {
+	CHANNEL_CONFIGS_VERSION,
+	MAP_CONFIG_VERSION,
+} from "../../lib/storage/migrations"
 import { emptyEncodings } from "../../lib/types"
 
 import { MapsSection } from "./MapsSection"
+
+/** The "+" upload reads the file through `fileToCustomPattern` (FileReader,
+ *  an <img>, a canvas — none of which happy-dom draws); stand in for it so
+ *  the no-data row's upload flow can run end to end. */
+const UPLOADED = vi.hoisted(() => ({
+	svg: "data:image/svg+xml,%3Csvg%20id%3D%22uploaded%22%2F%3E",
+}))
+vi.mock("../../lib/customPatterns", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../lib/customPatterns")>()),
+	fileToCustomPattern: vi.fn(() => Promise.resolve(UPLOADED)),
+}))
 
 /** Active-mode-gated toggles need the right encodings to resolve a mode:
  *  - geo-choropleth: connection mapped, NO area → "Fill regions with no data"
@@ -396,6 +413,110 @@ describe("MapsSection", () => {
 		])
 		mount()
 		expect(screen.queryByText(/outside the mapped area/i)).toBeNull()
+	})
+})
+
+/** The chart's custom patterns, seeded through the channel configs the
+ *  Pattern menu stores them in. Must run AFTER `seed(...)`. */
+const SAVED = { svg: "data:image/svg+xml,%3Csvg%20id%3D%22saved%22%2F%3E" }
+const seedCustomPatterns = (customPatterns: unknown[]) => {
+	/* eslint-disable no-restricted-globals, @vc/no-storage-outside-try, @vc/use-wrapped-json-functions */
+	localStorage.setItem(
+		"vis-components:currentChannelConfigs",
+		JSON.stringify({
+			_v: CHANNEL_CONFIGS_VERSION,
+			data: { pattern: { customPatterns } },
+		})
+	)
+	/* eslint-enable no-restricted-globals, @vc/no-storage-outside-try, @vc/use-wrapped-json-functions */
+}
+
+const mountWithStore = () => {
+	let store: TestStore | null = null
+	render(
+		<TestProvider
+			initializeState={(s) => {
+				store = s
+			}}
+		>
+			<MapsSection />
+		</TestProvider>
+	)
+	return store as unknown as TestStore
+}
+
+describe("MapsSection — no-data pattern row", () => {
+	it("starts the chips on the label's line, in the control column", () => {
+		seed("geographic", {}, CHOROPLETH_ENC)
+		mount()
+		// The chips are one group named by the label beside them…
+		const chips = screen.getByRole("group", { name: "No-data pattern" })
+		const row = chips.parentElement as HTMLElement
+		expect(row.firstElementChild?.textContent).toBe("No-data pattern")
+		expect(row.lastElementChild).toBe(chips)
+		// …None, the built-ins and the "+" all on one wrapping line, so a
+		// wrapped chip starts under the first one, not under the label.
+		const line = within(chips).getByRole("button", { name: "None" }).parentElement
+		expect(line?.className).toContain("flex-wrap")
+		expect(
+			within(line as HTMLElement).getByRole("button", { name: /No-data pattern option 1/ })
+		).toBeTruthy()
+		expect(
+			within(line as HTMLElement).getByRole("button", { name: "Add custom pattern" })
+		).toBeTruthy()
+	})
+
+	it("offers the chart's custom patterns and picks one", () => {
+		seed("geographic", {}, CHOROPLETH_ENC)
+		seedCustomPatterns([SAVED])
+		const store = mountWithStore()
+		const chip = screen.getByRole("button", {
+			name: "No-data pattern option custom 1",
+		})
+		expect(chip.getAttribute("aria-pressed")).toBe("false")
+		fireEvent.click(chip)
+		expect(store.get(currentMapConfigAtom).noDataPattern).toBe(CUSTOM_PATTERN_BASE)
+		expect(chip.getAttribute("aria-pressed")).toBe("true")
+		// A custom pick is a pattern like any other: its ink follows.
+		expect(screen.getByLabelText("Pattern ink")).toBeTruthy()
+	})
+
+	it('"+" uploads a pattern into the chart\'s list and picks it for no data', async () => {
+		seed("geographic", {}, CHOROPLETH_ENC)
+		const store = mountWithStore()
+		fireEvent.click(screen.getByRole("button", { name: "Add custom pattern" }))
+		// The Pattern menu's upload editor, minus its pointer to a Scale box
+		// the no-data row doesn't have.
+		const editor = screen.getByText("upload image")
+		expect(document.body.textContent).toContain("black-and-white SVG, PNG or JPEG")
+		expect(document.body.textContent).not.toContain("Use Scale")
+		const input = editor.querySelector('input[type="file"]') as HTMLInputElement
+		fireEvent.change(input, {
+			target: { files: [new File(["<svg/>"], "tile.svg", { type: "image/svg+xml" })] },
+		})
+		await waitFor(() =>
+			expect(store.get(currentMapConfigAtom).noDataPattern).toBe(CUSTOM_PATTERN_BASE)
+		)
+		// Stored where every pattern picker reads it, and the editor closed.
+		expect(store.get(currentChannelConfigsAtom).pattern?.customPatterns).toEqual([UPLOADED])
+		expect(screen.queryByText("upload image")).toBeNull()
+		expect(
+			screen
+				.getByRole("button", { name: "No-data pattern option custom 1" })
+				.getAttribute("aria-pressed")
+		).toBe("true")
+	})
+
+	it("deleting the picked custom pattern puts the no-data pattern back to None", () => {
+		seed("geographic", { noDataPattern: CUSTOM_PATTERN_BASE }, CHOROPLETH_ENC)
+		seedCustomPatterns([SAVED])
+		const store = mountWithStore()
+		fireEvent.click(screen.getByRole("button", { name: "Delete custom pattern 1" }))
+		expect(store.get(currentMapConfigAtom).noDataPattern).toBeNull()
+		expect(store.get(currentChannelConfigsAtom).pattern?.customPatterns).toEqual([null])
+		expect(
+			screen.getByRole("button", { name: "None" }).getAttribute("aria-pressed")
+		).toBe("true")
 	})
 })
 

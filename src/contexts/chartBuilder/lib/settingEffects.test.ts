@@ -230,6 +230,26 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 		expect(map.mapConfig!.customViewport).not.toBeNull()
 	})
 
+	it("drops every pick of a custom pattern the patch deletes, the map's no-data pick included", () => {
+		const svg = (n: number) => ({ svg: `data:image/svg+xml,<svg id="${n}"/>` })
+		const withPatterns = ok({
+			channelConfigs: {
+				defaultPattern: 1000,
+				pattern: { customPatterns: [svg(0), svg(1)], overrides: { West: 1001, East: 2 } },
+			},
+			mapConfig: { noDataPattern: 1000 },
+		})
+		// Picking them is a plain store…
+		expect(withPatterns.mapConfig!.noDataPattern).toBe(1000)
+		// …deleting the first (the × on its chip) empties its slot, and every
+		// pick of it goes back to none; the other slot's picks stay.
+		const v = ok({ channelConfigs: { pattern: { customPatterns: [null, svg(1)] } } }, withPatterns)
+		expect(v.channelConfigs.pattern!.customPatterns).toEqual([null, svg(1)])
+		expect(v.channelConfigs.defaultPattern).toBeNull()
+		expect(v.mapConfig!.noDataPattern).toBeNull()
+		expect(v.channelConfigs.pattern!.overrides).toEqual({ West: 1001, East: 2 })
+	})
+
 	it("fills the label x / y from the chart's axes when a value is set without them", () => {
 		const v = ok({ dataLabelsEncodings: { value: { field: "sales" } } }, bars())
 		expect(v.dataLabelsEncodings!.x).toEqual({ field: "region" })

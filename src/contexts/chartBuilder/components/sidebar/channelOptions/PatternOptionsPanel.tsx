@@ -37,11 +37,6 @@ import {
 } from "../../../lib/packedMeasure"
 import { channelAccepts } from "../../../lib/channels"
 import {
-	insertCustomPattern,
-	removeCustomPattern,
-	type CustomPattern,
-} from "../../../lib/customPatterns"
-import {
 	DEFAULT_PATTERN_INK,
 	inkForHueColor,
 	inkPaletteForHue,
@@ -69,12 +64,16 @@ import { useChartModeDef } from "../../../store/useChartModeDef"
 import { usePartsContext } from "../../../store/usePartsContext"
 import { useCurrentDatasetView } from "../../../store/useCurrentDatasetView"
 import { useCurrentTheme } from "../../../store/useCurrentTheme"
+import { useCustomPatternEdits } from "../../../store/useCustomPatternEdits"
 import { useThemeInkFallback } from "../../../store/useThemeInkFallback"
 
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
-import { LABEL_COL } from "../../../../../components/ui/LabeledField"
+import {
+	LABEL_COL,
+	LabeledChipRow,
+} from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { Segmented } from "../../../../../components/ui/Segmented"
@@ -589,18 +588,13 @@ export const PatternOptionsPanel = () => {
 	}
 
 	// Custom (uploaded) fill patterns — chart-wide slots, selectable from
-	// every fill swatch row (point fill, polygon fill, violin / box fill).
-	const customPatterns = cfg.customPatterns ?? []
-	/** Store an uploaded pattern, then select it for the row that opened
-	 *  the editor (through that row's own setter, so every target writes
-	 *  its own pick field). */
-	const addCustomPattern = (p: CustomPattern, select: (idx: number) => void) => {
-		const { list, idx } = insertCustomPattern(customPatterns, p)
-		updateCfg({ customPatterns: list })
-		select(idx)
-	}
-	const deleteCustomPattern = (slot: number) =>
-		setConfigs((prev) => removeCustomPattern(prev, slot))
+	// every fill swatch row (point fill, polygon fill, violin / box fill)
+	// and from the Maps section's no-data pattern row. An upload is selected
+	// for the row that opened the editor (through that row's own setter, so
+	// every target writes its own pick field); a delete drops every pick of
+	// it, the map's no-data pick included.
+	const { customPatterns, addCustomPattern, deleteCustomPattern } =
+		useCustomPatternEdits()
 	/** The custom chips + "+" for one fill swatch row, and (below the row)
 	 *  its upload editor while open. */
 	const customPatternControls = (
@@ -1016,48 +1010,56 @@ export const PatternOptionsPanel = () => {
 				onClick={() => target.setIdx(null)}
 			/>
 		)
-		return (
-			<div className="flex flex-col gap-1 text-sm">
-				{/* Group title. These rows open the panel (nothing above to
-				 *  divide from), so the header carries no divider line. */}
-				{label && <span className="vc-group-header">{label}</span>}
-				<div className="flex flex-wrap items-center gap-1">
-					{showNone && (
+		const chips = (
+			<>
+				{showNone && (
+					<button
+						type="button"
+						onClick={() => target.setIdx(null)}
+						aria-pressed={target.activeIdx === null}
+						className={swatchChipClass(target.activeIdx === null, "px-2 text-sm")}
+					>
+						None
+					</button>
+				)}
+				{palette.map((_, idx) => {
+					const selected = idx === target.activeIdx
+					return (
 						<button
+							// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
+							key={idx}
 							type="button"
-							onClick={() => target.setIdx(null)}
-							aria-pressed={target.activeIdx === null}
-							className={swatchChipClass(target.activeIdx === null, "px-2 text-sm")}
+							onClick={() => target.setIdx(idx)}
+							aria-pressed={selected}
+							aria-label={`${target.ariaName} ${idx + 1}`}
+							className={swatchChipClass(selected, "w-7")}
 						>
-							None
+							<Glyph
+								idx={idx}
+								selected={selected}
+								inkColor={target.ink}
+								bgColor={target.bg ?? previewBg}
+								scale={target.scale}
+								rotation={target.rotation}
+							/>
 						</button>
-					)}
-					{palette.map((_, idx) => {
-						const selected = idx === target.activeIdx
-						return (
-							<button
-								// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
-								key={idx}
-								type="button"
-								onClick={() => target.setIdx(idx)}
-								aria-pressed={selected}
-								aria-label={`${target.ariaName} ${idx + 1}`}
-								className={swatchChipClass(selected, "w-7")}
-							>
-								<Glyph
-									idx={idx}
-									selected={selected}
-									inkColor={target.ink}
-									bgColor={target.bg ?? previewBg}
-									scale={target.scale}
-									rotation={target.rotation}
-								/>
-							</button>
-						)
-					})}
-					{custom?.chips}
-					{patternReset}
-				</div>
+					)
+				})}
+				{custom?.chips}
+				{patternReset}
+			</>
+		)
+		// Labeled ("Default pattern"): the chips start on the label's line,
+		// in the control column the Ink color / Scale / Rotate rows under
+		// them use, and wrap under the first chip. Unlabeled (inside a
+		// titled card): the chips alone.
+		return label ? (
+			<LabeledChipRow label={label} chips={chips}>
+				{custom?.editor}
+			</LabeledChipRow>
+		) : (
+			<div className="flex flex-col gap-1 text-sm">
+				<div className="flex flex-wrap items-center gap-1">{chips}</div>
 				{custom?.editor}
 			</div>
 		)
@@ -1075,9 +1077,8 @@ export const PatternOptionsPanel = () => {
 	// close the box. "Blank" is a range-mode option (a whole-line blank
 	// would erase the line), so the swatch only renders while the range
 	// below is on.
-	const renderDefaultDashRow = (label: string | null) => (
-		<div className="flex flex-col gap-1 text-sm">
-			{label && <span className="vc-group-header">{label}</span>}
+	const renderDefaultDashRow = (label: string | null) => {
+		const picker = (
 			<DashStylePicker
 				pattern={connDefaultDash}
 				customDasharray={configs.connection?.customDashPattern ?? null}
@@ -1099,8 +1100,15 @@ export const PatternOptionsPanel = () => {
 					updateConnectionCfg({ defaultDashPattern: "solid", customDashPattern: null })
 				}
 			/>
-		</div>
-	)
+		)
+		// Labeled ("Line dash"): the swatches start on the label's line, like
+		// the fill rows (`LabeledChipRow`).
+		return label ? (
+			<LabeledChipRow label={label}>{picker}</LabeledChipRow>
+		) : (
+			<div className="flex flex-col gap-1 text-sm">{picker}</div>
+		)
+	}
 
 	// Ink + background swatches for the point fill pattern. In compound
 	// mode these live inside the "Point fill" subsection (alongside the
@@ -1286,6 +1294,14 @@ export const PatternOptionsPanel = () => {
 			 *  default). The Polygon-fill rows pass "polygon pattern" so they
 			 *  stay distinguishable from the Point-fill rows beside them. */
 			ariaKind?: string
+			/** The category's name, in the label column (its display text when
+			 *  the key isn't user-friendly, e.g. "Level 1"). */
+			label: string
+			/** Something is picked for the category: its reset ends the chips. */
+			canReset: boolean
+			/** Clears everything picked for the category (pattern, ink, scale,
+			 *  rotation). */
+			onReset: () => void
 		}
 	) => {
 		const Glyph = args.Glyph
@@ -1303,45 +1319,60 @@ export const PatternOptionsPanel = () => {
 						ariaName: optionName,
 					})
 				: null
+		// The category's name in the label column with its chips starting on
+		// the same line (`LabeledChipRow`): they wrap under the first chip,
+		// on the control column its Ink color / Scale / Rotate rows use. The
+		// category's reset follows the last chip, on the chips' line.
 		return (
-			<>
-				<div className="flex flex-wrap gap-1">
-					<button
-						type="button"
-						onClick={args.setNone}
-						aria-pressed={args.isNone}
-						aria-label={`No ${kind} for ${v}`}
-						className={swatchChipClass(args.isNone, "px-2 text-sm")}
-					>
-						None
-					</button>
-					{args.palette.map((_, idx) => {
-						const selected = !args.isNone && idx === args.activeIdx
-						return (
-							<button
-								// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
-								key={idx}
-								type="button"
-								onClick={() => args.setIdx(idx)}
-								aria-pressed={selected}
-								aria-label={`${optionName} ${idx + 1}`}
-								className={swatchChipClass(selected, "w-7")}
-							>
-								<Glyph
-									idx={idx}
-									selected={selected}
-									inkColor={args.ink}
-									bgColor={args.bg ?? previewBg}
-									scale={args.scale ?? DEFAULT_PATTERN_SCALE}
-									rotation={args.rotation ?? DEFAULT_PATTERN_ROTATION}
-								/>
-							</button>
-						)
-					})}
-					{custom?.chips}
-				</div>
+			<LabeledChipRow
+				label={args.label}
+				chips={
+					<>
+						<button
+							type="button"
+							onClick={args.setNone}
+							aria-pressed={args.isNone}
+							aria-label={`No ${kind} for ${v}`}
+							className={swatchChipClass(args.isNone, "px-2 text-sm")}
+						>
+							None
+						</button>
+						{args.palette.map((_, idx) => {
+							const selected = !args.isNone && idx === args.activeIdx
+							return (
+								<button
+									// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
+									key={idx}
+									type="button"
+									onClick={() => args.setIdx(idx)}
+									aria-pressed={selected}
+									aria-label={`${optionName} ${idx + 1}`}
+									className={swatchChipClass(selected, "w-7")}
+								>
+									<Glyph
+										idx={idx}
+										selected={selected}
+										inkColor={args.ink}
+										bgColor={args.bg ?? previewBg}
+										scale={args.scale ?? DEFAULT_PATTERN_SCALE}
+										rotation={args.rotation ?? DEFAULT_PATTERN_ROTATION}
+									/>
+								</button>
+							)
+						})}
+						{custom?.chips}
+						{args.canReset && (
+							<ResetLink
+								ariaLabel={`Reset ${kind} for ${v}`}
+								className="ml-1"
+								onClick={args.onReset}
+							/>
+						)}
+					</>
+				}
+			>
 				{custom?.editor}
-			</>
+			</LabeledChipRow>
 		)
 	}
 
@@ -1414,30 +1445,17 @@ export const PatternOptionsPanel = () => {
 			onRotationClear: () => target.resetRotation(v),
 		})
 
-	const categoryNameRow = (
-		v: string,
-		canReset: boolean,
-		onReset: () => void,
-		/** Display text when the storage key isn't user-friendly (e.g. the
-		 * Nesting-depth key "1" shows as "Level 1"). Overrides still key on
-		 * `v`. */
-		display?: string
-	) => (
-		<div className="flex items-center justify-between gap-2">
-			<span
-				className="min-w-0 flex-1 truncate vc-text"
-			>
-				{display ?? v}
-			</span>
-			{canReset && <ResetLink onClick={onReset} />}
-		</div>
-	)
+	// Each category's block opens with its name in the label column and its
+	// swatches starting on the same line (`LabeledChipRow`). `display` is the
+	// name shown when the storage key isn't user-friendly (e.g. the
+	// Nesting-depth key "1" shows as "Level 1"); picks still key on `v`.
 
 	// One category's Line-dash controls: the shared DashStylePicker (None /
 	// the dash swatches / Custom as a single mutually-exclusive choice; the
 	// custom box opens below the row). The "Custom open" flag lives in this
 	// panel's `customDashOpen` so the category's Reset link can close it;
-	// Reset also clears the dash override and the custom dasharray.
+	// Reset also clears the dash override and the custom dasharray. The
+	// picker draws that reset after its last swatch.
 	const renderDashCategory = (v: string, i: number, display?: string) => {
 		const s = categoryState(v, i)
 		const customDash = customDashOverrides[v] ?? null
@@ -1454,17 +1472,7 @@ export const PatternOptionsPanel = () => {
 			? "solid"
 			: (DASH_CYCLE[s.dashActiveIdx % DASH_CYCLE.length] ?? "solid")
 		return (
-			<div key={v} className="flex flex-col gap-1 text-sm">
-				{categoryNameRow(
-					v,
-					s.hasDashOverride || customDash !== null || customOpen,
-					() => {
-						if (s.hasDashOverride) resetDashOverride(v)
-						if (customDash !== null) resetCustomDashOverride(v)
-						setCustomOpen(false)
-					},
-					display
-				)}
+			<LabeledChipRow key={v} label={display ?? v}>
 				<DashStylePicker
 					pattern={current}
 					customDasharray={customDash}
@@ -1486,8 +1494,14 @@ export const PatternOptionsPanel = () => {
 						}
 					}}
 					ariaContext={v}
+					changed={s.hasDashOverride || customDash !== null || customOpen}
+					onReset={() => {
+						if (s.hasDashOverride) resetDashOverride(v)
+						if (customDash !== null) resetCustomDashOverride(v)
+						setCustomOpen(false)
+					}}
 				/>
-			</div>
+			</LabeledChipRow>
 		)
 	}
 
@@ -1497,17 +1511,6 @@ export const PatternOptionsPanel = () => {
 		const s = categoryState(v, i)
 		return (
 			<div key={v} className="flex flex-col gap-1 text-sm">
-				{categoryNameRow(
-					v,
-					s.hasPaletteOverride || s.hasInk || s.hasScale || s.hasRotation,
-					() => {
-						if (s.hasPaletteOverride) resetPaletteOverride(v)
-						if (s.hasInk) resetCategoryInk(v)
-						if (s.hasScale) resetCategoryScale(v)
-						if (s.hasRotation) resetCategoryRotation(v)
-					},
-					display
-				)}
 				{renderSwatchRow(v, {
 					palette: patternMode === "fill" ? activePalette : PATTERN_PALETTE,
 					Glyph: patternMode === "fill" ? PatternSwatch : PatternGlyph,
@@ -1519,6 +1522,15 @@ export const PatternOptionsPanel = () => {
 					bg: effectiveBgFor(i, v),
 					setIdx: (idx) => setPaletteOverride(v, idx),
 					setNone: () => setPaletteOverride(v, PATTERN_NONE),
+					label: display ?? v,
+					canReset:
+						s.hasPaletteOverride || s.hasInk || s.hasScale || s.hasRotation,
+					onReset: () => {
+						if (s.hasPaletteOverride) resetPaletteOverride(v)
+						if (s.hasInk) resetCategoryInk(v)
+						if (s.hasScale) resetCategoryScale(v)
+						if (s.hasRotation) resetCategoryRotation(v)
+					},
 				})}
 				{/* Ink, scale and rotation style a pattern: with none picked for
 				 *  this category they have nothing to act on. */}
@@ -1557,17 +1569,6 @@ export const PatternOptionsPanel = () => {
 		const hasRotation = rotation !== null
 		return (
 			<div key={v} className="flex flex-col gap-1 text-sm">
-				{categoryNameRow(
-					v,
-					override !== undefined || hasInk || hasScale || hasRotation,
-					() => {
-						if (override !== undefined) t.resetOverride(v)
-						if (hasInk) t.resetInk(v)
-						if (hasScale) t.resetScale(v)
-						if (hasRotation) t.resetRotation(v)
-					},
-					display
-				)}
 				{renderSwatchRow(v, {
 					palette: PATTERN_PALETTE,
 					Glyph: PatternGlyph,
@@ -1580,6 +1581,14 @@ export const PatternOptionsPanel = () => {
 					setIdx: (idx) => t.setOverride(v, idx),
 					setNone: () => t.setOverride(v, PATTERN_NONE),
 					ariaKind: aria.kind,
+					label: display ?? v,
+					canReset: override !== undefined || hasInk || hasScale || hasRotation,
+					onReset: () => {
+						if (override !== undefined) t.resetOverride(v)
+						if (hasInk) t.resetInk(v)
+						if (hasScale) t.resetScale(v)
+						if (hasRotation) t.resetRotation(v)
+					},
 				})}
 				{!isNone &&
 					renderColorPicker(v, ink, hasInk, {
@@ -1825,10 +1834,9 @@ export const PatternOptionsPanel = () => {
 				</div>
 			</CollapsibleSubsection>
 		)
-		// The headed default row opens the panel, so it has nothing above to
-		// divide from, unless the Segments row sits over it: then the heading
-		// starts part-way down and takes its divider.
-		const headedUnderSegments = segmentsRow ? "vc-divider-group px-2" : "px-2"
+		// The labeled default row ("Line dash" / "Default pattern") is one
+		// more label-column row, like the Segments row that may sit over it:
+		// no divider between them (a divider never sets off a single row).
 		return (
 			<div className="vc-option-panel">
 				{segmentsRow}
@@ -1837,14 +1845,14 @@ export const PatternOptionsPanel = () => {
 					// Thin segments: Pattern is the segment dash. No range window
 					// (a segment has no "from / to").
 					<>
-						<div className={headedUnderSegments}>{renderDefaultDashRow("Line dash")}</div>
+						<div className="px-2">{renderDefaultDashRow("Line dash")}</div>
 						{dashInEffect && <div className="px-2">{gapFillRow}</div>}
 					</>
 				) : (
 					patternMode === "fill" &&
 					!ownFillTitled && (
 						<>
-							<div className={headedUnderSegments}>
+							<div className="px-2">
 								{renderDefaultSwatchRow(
 									"Default pattern",
 									activePalette,

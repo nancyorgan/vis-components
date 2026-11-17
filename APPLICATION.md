@@ -1306,7 +1306,25 @@ over the no-data fill. It does NOT apply when no measure is mapped at
 all (every region is "no measure" there, not "missing data"), and a
 region whose row carries a pattern-channel category keeps that
 encoding's pattern instead. The bubble map's region basemap paints the
-same way; the world backdrop stays solid.
+same way; the world backdrop stays solid. The chips start on the
+"No-data pattern" label's line and wrap under the first chip
+(`LabeledChipRow`, the same row the Pattern menu's pickers use).
+After the built-ins come the chart's **custom patterns** and the
+Pattern menu's **"+"** chip, which opens the same upload editor (a
+black-and-white SVG, PNG or JPEG; its help leaves out "Use Scale",
+since the no-data pattern has no Scale box). Custom patterns are one
+list per chart, `channelConfigs.pattern.customPatterns`, shared with
+every fill picker in the Pattern menu: an upload from either place is
+a pick in both, and the no-data pick stores the pattern's index from
+`CUSTOM_PATTERN_BASE` in the existing `mapConfig.noDataPattern` (no
+new field, no version bump). The map's no-data `<pattern>` def passes
+that index to `PatternTile` like any mark's custom pick, so the upload
+tiles the no-data regions at its ×1 size (32 px), over the no-data
+fill and in the no-data ink. Deleting a custom pattern (the × on its
+chip, in either place, or a settings patch that empties its slot)
+drops every pick of it, the no-data pick included, which goes back to
+None (`removeCustomPattern` + `removeCustomPatternFromMap`,
+`lib/customPatternSlots.ts`).
 
 Geo marks support the **pattern** channel with the same semantics as
 the cartesian renderers (per-category palette cycling, per-value
@@ -2467,6 +2485,19 @@ Behavior depends on chart context:
   the picker matches the drawn tiles (the compound form would show
   dash pickers with fills defaulting to "none").
 
+**Swatch rows.** A labeled swatch row puts its label in the label
+column and starts its swatches on the label's own line, in the control
+column (`LabeledChipRow`, components/ui/LabeledField): each category's
+fill or dash row (the category's name), the no-variable **Default
+pattern** row and the segments' **Line dash** row. Swatches that don't
+fit wrap, every wrapped line starting under the first swatch, so they
+keep the column the Ink color / Scale / Rotate rows below them use. A
+long category name wraps in its column. The category's reset follows
+its last swatch. Swatch rows inside a titled card with no label of
+their own (Point fill, Polygon fill, Violin / box fill defaults) keep
+the swatches alone on their line. The Maps section's no-data pattern
+row is the same row.
+
 **Custom dash patterns** — alongside the built-in dash swatches, a
 trailing **"+" chip** (hover label "Custom dash", the same "+" the
 Shape and fill-Pattern rows use to add a custom glyph / pattern) opens
@@ -3011,9 +3042,14 @@ only while the setting differs from its default.
   two ends of a range (Min, Max) are two settings, each with its own.
 - A row of swatches (a shape, a pattern, a dash): the link follows the
   last swatch, on the swatches' line.
+- A per-category Pattern block (the category's name in the label
+  column, its swatches starting on the name's line): the link follows
+  the last swatch, like any swatch row, and resets everything picked
+  for that category (pattern, ink, scale, rotation; or the dash and its
+  custom dasharray).
 - A per-category block whose swatches fill the lines under the
-  category's name (Pattern, Shape): the link is on the name's line, at
-  its right end, and resets everything picked for that category.
+  category's name (Shape): the link is on the name's line, at its right
+  end, and resets everything picked for that category.
 - A hand-built gradient is one setting — its stops come and go, so no
   stop has a default of its own — and its link sits on the Palette row.
 - Switches, checkboxes, choice buttons and dropdowns have no link: using

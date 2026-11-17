@@ -161,9 +161,9 @@ describe("Pattern panel — Rotate (pattern variable mapped)", () => {
 		type(north, "")
 		expect(readSavedConfigs(store).pattern?.rotations).toEqual({ south: 90 })
 		// A rotation alone lights the category's Reset link (the "reset"
-		// beside the category name); clicking it drops the entry like the
-		// pattern / ink / scale picks. North has nothing left, so only
-		// south's row carries one.
+		// after the swatches on the category name's row); clicking it drops
+		// the entry like the pattern / ink / scale picks. North has nothing
+		// left, so only south's row carries one.
 		const southRow = q.getByText("south", { exact: true }).parentElement
 		expect(southRow).toBeTruthy()
 		expect(q.getByText("north", { exact: true }).parentElement?.textContent).not.toContain("reset")

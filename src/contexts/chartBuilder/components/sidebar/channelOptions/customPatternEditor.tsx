@@ -93,9 +93,14 @@ export const CustomPatternChips = ({
 export const CustomPatternEditor = ({
 	onCreate,
 	onClose,
+	scalable = true,
 }: {
 	onCreate: (p: CustomPattern) => void
 	onClose: () => void
+	/** The row has a Scale box to size the tile (the Pattern menu's rows);
+	 *  false where it doesn't (the map's no-data pattern), so the help
+	 *  doesn't point at a control that isn't there. */
+	scalable?: boolean
 }) => {
 	const [error, setError] = useState<string | null>(null)
 	return (
@@ -139,7 +144,7 @@ export const CustomPatternEditor = ({
 				A black-and-white SVG, PNG or JPEG, used as one repeating tile.
 				Black takes the ink color, white the background. An SVG stays
 				sharp at any size. Non-square images are squeezed to a square.
-				Use Scale to size the tile.
+				{scalable && " Use Scale to size the tile."}
 			</span>
 			{error && (
 				<span className="text-red-600 dark:text-red-400">{error}</span>

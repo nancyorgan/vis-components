@@ -11,9 +11,12 @@ import {
 	isCustomPattern,
 	pixelsToInk,
 	removeCustomPattern,
+	removeCustomPatternFromMap,
 	resolveCustomPattern,
 	type CustomPattern,
 } from "./customPatterns"
+import { deletedCustomPatternSlots } from "./customPatternSlots"
+import { DEFAULT_MAP_CONFIG } from "./mapConfig"
 import { PatternTile, patternTileSide } from "./patternDefs"
 
 /** RGBA pixels from a predicate: `ink(x, y)` → black, else white. */
@@ -139,6 +142,25 @@ describe("insert / remove", () => {
 		expect(next.pattern?.defaultViolinPattern).toBeNull()
 		expect(resolveCustomPattern(idx, next.pattern?.customPatterns)).toBeNull()
 		expect(resolveCustomPattern(CUSTOM_PATTERN_BASE, next.pattern?.customPatterns)).toBe(a)
+	})
+
+	it("drops the map's no-data pick of the deleted slot, and only that one", () => {
+		const map = { ...DEFAULT_MAP_CONFIG, noDataPattern: CUSTOM_PATTERN_BASE + 1 }
+		expect(removeCustomPatternFromMap(map, 1).noDataPattern).toBeNull()
+		// Another slot, a built-in pick and no pick pass through untouched.
+		expect(removeCustomPatternFromMap(map, 0)).toBe(map)
+		const builtIn = { ...DEFAULT_MAP_CONFIG, noDataPattern: 1 }
+		expect(removeCustomPatternFromMap(builtIn, 1)).toBe(builtIn)
+		expect(removeCustomPatternFromMap(DEFAULT_MAP_CONFIG, 0)).toBe(DEFAULT_MAP_CONFIG)
+	})
+
+	it("names the slots a whole-list write emptied", () => {
+		expect(deletedCustomPatternSlots([a, b], [a, null])).toEqual([1])
+		expect(deletedCustomPatternSlots([a, b], [a])).toEqual([1])
+		expect(deletedCustomPatternSlots([a, null, b], [])).toEqual([0, 2])
+		// A slot refilled with another pattern isn't a delete.
+		expect(deletedCustomPatternSlots([a], [b])).toEqual([])
+		expect(deletedCustomPatternSlots(undefined, [a])).toEqual([])
 	})
 })
 

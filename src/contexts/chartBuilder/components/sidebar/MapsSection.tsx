@@ -5,6 +5,7 @@ import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
 	LabelSpacer,
+	LabeledChipRow,
 } from "../../../../components/ui/LabeledField"
 import { ResetLink } from "../../../../components/ui/ResetLink"
 import { Segmented } from "../../../../components/ui/Segmented"
@@ -29,10 +30,15 @@ import {
 } from "../../lib/mapConfig"
 import { PatternTile } from "../../lib/patternDefs"
 import { PATTERN_PALETTE } from "../../lib/patterns"
+import {
+	CustomPatternChips,
+	CustomPatternEditor,
+} from "./channelOptions/customPatternEditor"
 import { swatchChipClass } from "./channelOptions/glyphShared"
 import { mapConfigFromTheme } from "../../lib/themeConfig"
 import { currentMapConfigAtom } from "../../store/atoms"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
+import { useCustomPatternEdits } from "../../store/useCustomPatternEdits"
 import { useChartModeDef } from "../../store/useChartModeDef"
 import { useAutoFitViewport } from "../../store/useAutoFitViewport"
 import { useEffectiveGeographyLevel } from "../../store/useEffectiveGeographyLevel"
@@ -208,6 +214,13 @@ export const MapsSection = () => {
 
 	const update = (next: Partial<MapConfig>) =>
 		setMapConfig((prev) => ({ ...prev, ...next }))
+
+	// The no-data pattern's custom patterns: the chart's one uploaded list,
+	// shared with the Pattern menu (`useCustomPatternEdits`), and whether its
+	// "+" chip's upload editor is open.
+	const { customPatterns, addCustomPattern, deleteCustomPattern } =
+		useCustomPatternEdits()
+	const [patternEditorOpen, setPatternEditorOpen] = useState(false)
 
 	// Where "Whole map (auto)" is framing right now, when that's just the
 	// data-bearing regions: the choropleth with "Fill regions with no data" off
@@ -413,41 +426,67 @@ export const MapsSection = () => {
 							</div>
 						)}
 						{showNoDataFillColor && (
-							<div className="flex items-start gap-2">
-								<span className={`${LABEL_COL} shrink-0 pt-1 text-sm`}>
-									No-data pattern
-								</span>
-								<div className="flex flex-wrap gap-1">
-									<button
-										type="button"
-										onClick={() => update({ noDataPattern: null })}
-										aria-pressed={mapConfig.noDataPattern === null}
-										className={swatchChipClass(mapConfig.noDataPattern === null, "px-2 text-sm")}
-									>
-										None
-									</button>
-									{PATTERN_PALETTE.map((_, idx) => {
-										const selected = idx === mapConfig.noDataPattern
-										return (
-											<button
-												// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
-												key={idx}
-												type="button"
-												onClick={() => update({ noDataPattern: idx })}
-												aria-pressed={selected}
-												aria-label={`No-data pattern option ${idx + 1}`}
-												className={swatchChipClass(selected, "w-7")}
-											>
-												<NoDataPatternChip
-													idx={idx}
-													bg={mapConfig.noDataFill}
-													ink={mapConfig.noDataPatternInk}
-												/>
-											</button>
-										)
-									})}
-								</div>
-							</div>
+							// The chips start on the label's line and wrap under
+							// the first chip (`LabeledChipRow`, the Pattern menu's
+							// rows too). After the built-ins: the chart's custom
+							// patterns and the "+" that uploads one.
+							<LabeledChipRow
+								label="No-data pattern"
+								chips={
+									<>
+										<button
+											type="button"
+											onClick={() => update({ noDataPattern: null })}
+											aria-pressed={mapConfig.noDataPattern === null}
+											className={swatchChipClass(mapConfig.noDataPattern === null, "px-2 text-sm")}
+										>
+											None
+										</button>
+										{PATTERN_PALETTE.map((_, idx) => {
+											const selected = idx === mapConfig.noDataPattern
+											return (
+												<button
+													// eslint-disable-next-line react/no-array-index-key -- palette is a fixed static list
+													key={idx}
+													type="button"
+													onClick={() => update({ noDataPattern: idx })}
+													aria-pressed={selected}
+													aria-label={`No-data pattern option ${idx + 1}`}
+													className={swatchChipClass(selected, "w-7")}
+												>
+													<NoDataPatternChip
+														idx={idx}
+														bg={mapConfig.noDataFill}
+														ink={mapConfig.noDataPatternInk}
+													/>
+												</button>
+											)
+										})}
+										<CustomPatternChips
+											patterns={customPatterns}
+											activeIdx={mapConfig.noDataPattern}
+											onPick={(idx) => update({ noDataPattern: idx })}
+											onDelete={deleteCustomPattern}
+											onAdd={() => setPatternEditorOpen((open) => !open)}
+											inkColor={mapConfig.noDataPatternInk}
+											bgColor={mapConfig.noDataFill}
+											ariaName="No-data pattern option"
+										/>
+									</>
+								}
+							>
+								{patternEditorOpen && (
+									<CustomPatternEditor
+										onCreate={(p) =>
+											addCustomPattern(p, (idx) =>
+												update({ noDataPattern: idx })
+											)
+										}
+										onClose={() => setPatternEditorOpen(false)}
+										scalable={false}
+									/>
+								)}
+							</LabeledChipRow>
 						)}
 						{showNoDataFillColor && mapConfig.noDataPattern !== null && (
 							<div className="flex flex-wrap items-center gap-2">

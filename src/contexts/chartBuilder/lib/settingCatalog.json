@@ -17429,7 +17429,7 @@
 			]
 		},
 		"mapConfig.noDataPattern": {
-			"doc": "Optional pattern overlay for no-data regions: an index into `PATTERN_PALETTE` (lib/patterns), or null (default) for the solid `noDataFill`.",
+			"doc": "Optional pattern overlay for no-data regions: an index into `PATTERN_PALETTE` (lib/patterns), a custom pattern's index (from `CUSTOM_PATTERN_BASE`, into `channelConfigs.pattern.customPatterns`), or null (default) for the solid `noDataFill`.",
 			"kinds": [
 				"null",
 				"number"
