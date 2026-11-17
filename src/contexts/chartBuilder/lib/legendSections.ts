@@ -29,10 +29,12 @@ import {
 	type LabelsConfig,
 	type LegendChannel,
 	type LegendConfig,
+	type LegendPadding,
 	type LegendSwatchShape,
 	type LegendSwatchThemeDefaults,
 	QUANTITATIVE_LEGEND_CHANNELS,
 	type QuantitativeLegendChannel,
+	resolveLegendPadding,
 	resolveLegendSwatchShape,
 	resolveLegendSwatchSize,
 	resolveLegendTextFont,
@@ -357,6 +359,10 @@ export type PlanLegendSectionsInput = {
 	 *  so pure callers/tests can omit it (then only per-visual choices
 	 *  count). */
 	swatchTheme?: LegendSwatchThemeDefaults
+	/** The theme's legend box margins (`Theme.legendPadding`), the live
+	 *  fallback for each side the visual hasn't set. Optional: absent sides
+	 *  are automatic. */
+	themePadding?: LegendPadding
 	/** Optional text measurer (canvas `measureText`, in px) for the widest of
 	 *  `texts` at the given font. The component injects the real one so the
 	 *  legend column is budgeted from RENDERED glyph widths — the 0.55-em
@@ -415,6 +421,7 @@ export const planLegendSections = ({
 	insideSize,
 	levelOrders,
 	swatchTheme,
+	themePadding,
 	measureText,
 }: PlanLegendSectionsInput): LegendPlan | null => {
 	const hideLength = modeDef.legend.hideLengthInThisMode
@@ -1036,7 +1043,11 @@ export const planLegendSections = ({
 	)
 	const SWATCH_W = maxSwatchW
 	const SWATCH_GAP = 8
-	const INNER_PAD = 32 // matches the `p-4` on the inner div
+	// The box's padding (the Box subsection's Margins, automatic per
+	// position) — inline on the inner div, so the width estimate reads the
+	// same numbers.
+	const boxPadding = resolveLegendPadding(legendCfg, themePadding)
+	const INNER_PAD = boxPadding.left + boxPadding.right
 	const SAFETY_PAD = 6
 	const labelTexts: string[] = []
 	const longestLabelChars = sections.reduce((max, s) => {
@@ -1401,16 +1412,15 @@ export const planLegendSections = ({
 	// of overflowing past the legend column's right edge.
 	// A fixed width fills the outer's exact width (block) in every position
 	// and switches label overflow from truncate/overflow to wrapping.
+	// Padding is NOT a class: it comes from `boxPadding` (inline, below).
 	const baseInnerClass =
 		fixedWidth != null
-			? isInside
-				? "block p-3 vc-legend-fixed-width"
-				: "block p-4 vc-legend-fixed-width"
+			? "block vc-legend-fixed-width"
 			: isInside
-				? "inline-block p-3"
+				? "inline-block"
 				: wantsInnerXScroll
-					? "block p-4 overflow-x-auto"
-					: "block p-4"
+					? "block overflow-x-auto"
+					: "block"
 	const innerClass =
 		fixedHeight != null
 			? `${baseInnerClass} vc-legend-fixed-height`
@@ -1556,6 +1566,10 @@ export const planLegendSections = ({
 			: positionOuterStyle
 	const innerStyle: CSSProperties = {
 		...bodyStyle,
+		paddingTop: boxPadding.top,
+		paddingRight: boxPadding.right,
+		paddingBottom: boxPadding.bottom,
+		paddingLeft: boxPadding.left,
 		backgroundColor: legendCfg.backgroundColor ?? "transparent",
 		...(legendCfg.showBorder
 			? {

@@ -58,6 +58,8 @@ import {
 	DEFAULT_LABELS_CONFIG,
 	DEFAULT_LEGEND_CONFIG,
 	DEFAULT_TOOLTIP_CONFIG,
+	inheritedLegendPadding,
+	LEGEND_SIDES,
 	SWATCH_SHAPE_CHANNELS,
 	type LabelsConfig,
 	type LegendConfig,
@@ -1416,6 +1418,22 @@ export const explainLegendCustomization = (
 			group: "box",
 			changed: differs(cfg.backgroundColor, base.backgroundColor),
 		},
+		// Margins are sparse and inherit the theme live, so a set side dots
+		// only when it differs from what it would inherit.
+		...LEGEND_SIDES.map((side) => {
+			const px = cfg.padding?.[side]
+			return {
+				group: "box" as const,
+				changed:
+					px != null &&
+					px !==
+						inheritedLegendPadding(
+							cfg.position ?? base.position,
+							theme.legendPadding,
+							side,
+						),
+			}
+		}),
 		{ group: "properties", changed: differs(cfg.columns, base.columns) },
 		{ group: "properties", changed: differs(cfg.columnGap, base.columnGap) },
 		{

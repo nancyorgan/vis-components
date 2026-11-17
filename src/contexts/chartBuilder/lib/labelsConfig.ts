@@ -531,6 +531,13 @@ export type LegendConfig = {
 	/** Background color for the legend box. `null` means transparent — useful
 	 * for inside legends that should let the chart show through. */
 	backgroundColor: string | null
+	/** Space (px) between the legend box's edge and its contents, per side —
+	 * the Box subsection's "Margins". Sparse: an absent side follows the
+	 * theme's `legendPadding` live, else is automatic (`LEGEND_AUTO_PADDING`:
+	 * 12 px inside the plot, 16 px outside). A cleared side is deleted, not
+	 * nulled; read through `resolveLegendPadding`, write through
+	 * `withLegendPadding`. Applies whether or not the border shows. */
+	padding?: LegendPadding
 	/** How a quantitative hue legend renders. `"bar"` (default) shows a
 	 * single gradient strip with min / max labels — compact, classic
 	 * scientific-paper look. `"swatches"` samples five points along the
@@ -765,6 +772,58 @@ export const DEFAULT_LEGEND_CONFIG: LegendConfig = {
 	combineSameVariable: true,
 	textFont: {},
 	textAlign: null,
+}
+
+export type LegendSide = "top" | "right" | "bottom" | "left"
+export const LEGEND_SIDES: readonly LegendSide[] = ["top", "right", "bottom", "left"]
+export type LegendPadding = Partial<Record<LegendSide, number>>
+
+/** The legend box's automatic padding (px, every side): an inside legend
+ * floats over the plot and keeps a tighter box than one beside it. */
+export const LEGEND_AUTO_PADDING = { inside: 12, outside: 16 } as const
+
+/** Automatic padding for a legend at this position. */
+export const legendAutoPadding = (position: LegendPosition): number =>
+	position === "inside" ? LEGEND_AUTO_PADDING.inside : LEGEND_AUTO_PADDING.outside
+
+const paddingSide = (v: number | undefined): number | null =>
+	v != null && Number.isFinite(v) ? Math.max(0, v) : null
+
+/** What a side shows when the chart hasn't set it: the theme's margin
+ * (`Theme.legendPadding`, live), else the position's automatic amount. The
+ * Legend panel's placeholders read this; the renderer reads
+ * `resolveLegendPadding`. */
+export const inheritedLegendPadding = (
+	position: LegendPosition,
+	themePadding: LegendPadding | undefined,
+	side: LegendSide,
+): number => paddingSide(themePadding?.[side]) ?? legendAutoPadding(position)
+
+/** The padding the legend box renders with, every side resolved: the
+ * visual's value where set, else the theme's, else the position's
+ * automatic amount. */
+export const resolveLegendPadding = (
+	cfg: Pick<LegendConfig, "position" | "padding">,
+	themePadding?: LegendPadding,
+): Record<LegendSide, number> => {
+	const side = (s: LegendSide) =>
+		paddingSide(cfg.padding?.[s]) ??
+		inheritedLegendPadding(cfg.position, themePadding, s)
+	return { top: side("top"), right: side("right"), bottom: side("bottom"), left: side("left") }
+}
+
+/** Set or clear one side of the legend padding, keeping the record sparse:
+ * a cleared side is DELETED (automatic survives a JSON round trip as
+ * absence) and the whole record drops when nothing is set. */
+export const withLegendPadding = (
+	padding: LegendPadding | undefined,
+	side: LegendSide,
+	px: number | null,
+): LegendPadding | undefined => {
+	const next: LegendPadding = { ...padding }
+	if (px == null) delete next[side]
+	else next[side] = Math.max(0, px)
+	return Object.keys(next).length > 0 ? next : undefined
 }
 
 /** Default gradient-bar tick color — stone-500, legible on both the light

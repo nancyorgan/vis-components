@@ -16923,6 +16923,32 @@
 				"vertical"
 			]
 		},
+		"legendConfig.padding": {
+			"doc": "Space (px) between the legend box's edge and its contents, per side — the Box subsection's \"Margins\". Sparse: an absent side follows the theme's `legendPadding` live, else is automatic (`LEGEND_AUTO_PADDING`: 12 px inside the plot, 16 px outside).",
+			"kinds": [
+				"object"
+			]
+		},
+		"legendConfig.padding.bottom": {
+			"kinds": [
+				"number"
+			]
+		},
+		"legendConfig.padding.left": {
+			"kinds": [
+				"number"
+			]
+		},
+		"legendConfig.padding.right": {
+			"kinds": [
+				"number"
+			]
+		},
+		"legendConfig.padding.top": {
+			"kinds": [
+				"number"
+			]
+		},
 		"legendConfig.patternLegendBgColor": {
 			"color": true,
 			"doc": "Legend-swatch overrides for a PATTERN-led section that isn't paired with a hue color (standalone pattern legend).",

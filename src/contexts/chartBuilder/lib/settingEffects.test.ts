@@ -278,6 +278,7 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 		expect(v.tooltipConfig!.hoverFadeAmount).toBe(1)
 		expect(v.dataTableConfig!.maxRows).toBe(1)
 		expect(ok({ channelConfigs: { connection: { pointEveryN: 0 } } }).channelConfigs.connection?.pointEveryN).toBe(1)
+		expect(ok({ legendConfig: { padding: { left: -8, top: 20 } } }).legendConfig?.padding).toEqual({ left: 0, top: 20 })
 	})
 
 	it("keeps histogram, density, violin and box plot exclusive, and drops a mirror that's turned off", () => {

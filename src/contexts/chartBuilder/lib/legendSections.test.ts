@@ -895,7 +895,8 @@ describe("planLegendSections — layout plan", () => {
 		// Never taller than the canvas: past that it scrolls inside itself.
 		expect(auto?.outerStyle?.maxHeight).toMatch(/^calc\(100% - \d+px\)$/)
 		expect(auto?.outerStyle?.overflowY).toBe("auto")
-		expect(auto?.innerClass).toBe("inline-block p-3")
+		expect(auto?.innerClass).toBe("inline-block")
+		expect(auto?.innerStyle.paddingTop).toBe(12)
 		expect(auto?.outerStyle?.right).toMatch(/^calc\(/)
 		expect(auto?.outerStyle?.left).toBeUndefined()
 		const typed = plan({
@@ -904,6 +905,37 @@ describe("planLegendSections — layout plan", () => {
 		})
 		expect(typed?.outerStyle?.left).toMatch(/^calc\(/)
 		expect(typed?.outerStyle?.right).toBeUndefined()
+	})
+
+	it("Box margins: automatic 16 px outside / 12 px inside; set sides override and widen the estimate", () => {
+		const auto = plan({ encodings: enc({ hue: "region" }), legendCfg: legendCfg({ position: "right" }) })
+		expect(auto?.innerStyle).toMatchObject({
+			paddingTop: 16,
+			paddingRight: 16,
+			paddingBottom: 16,
+			paddingLeft: 16,
+		})
+		const inside = plan({ encodings: enc({ hue: "region" }), legendCfg: legendCfg({ position: "inside" }) })
+		expect(inside?.innerStyle.paddingLeft).toBe(12)
+		const set = plan({
+			encodings: enc({ hue: "region" }),
+			legendCfg: legendCfg({ position: "right", padding: { left: 40, bottom: 0 } }),
+		})
+		expect(set?.innerStyle).toMatchObject({
+			paddingTop: 16,
+			paddingRight: 16,
+			paddingBottom: 0,
+			paddingLeft: 40,
+		})
+		// The side column's width budget carries the extra 24 px of left margin.
+		expect(set?.outerStyle?.width).toBe((auto?.outerStyle?.width as number) + 24)
+		// The theme's margins fill every side the visual left unset.
+		const themed = plan({
+			encodings: enc({ hue: "region" }),
+			legendCfg: legendCfg({ position: "right", padding: { left: 40 } }),
+			themePadding: { left: 2, top: 4 },
+		})
+		expect(themed?.innerStyle).toMatchObject({ paddingTop: 4, paddingRight: 16, paddingLeft: 40 })
 	})
 
 	it("border + background + per-visual text font flow into the inner style", () => {

@@ -90,6 +90,22 @@ describe("LegendSection — layout, box, gradient defaults", () => {
 		expect(screen.getAllByLabelText("Border color").length).toBeGreaterThan(0)
 	})
 
+	it("Box margins: blank = auto; a side writes a sparse legendPadding, clearing removes it", () => {
+		const set = mount()
+		const left = screen.getByLabelText("Left") as HTMLInputElement
+		expect(left.value).toBe("")
+		expect(left.placeholder).toBe("auto")
+		fireEvent.change(left, { target: { value: "8" } })
+		expect(set).toHaveBeenCalledWith("legendPadding", { left: 8 })
+
+		cleanup()
+		const themed = mount({ ...THEME, legendPadding: { left: 8, top: 4 } })
+		const top = screen.getByLabelText("Top") as HTMLInputElement
+		expect(top.value).toBe("4")
+		fireEvent.change(top, { target: { value: "" } })
+		expect(themed).toHaveBeenCalledWith("legendPadding", { left: 8 })
+	})
+
 	it("Gradient legend: style + bar fields write their theme keys", () => {
 		const set = mount()
 		fireEvent.change(screen.getByLabelText("Gradient legend style"), {

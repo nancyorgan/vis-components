@@ -4725,8 +4725,21 @@ a smaller number is still allowed.
 legend box: **Background** (Transparent / Theme default / Custom with
 an inline swatch), then the **Border** toggle (`showBorder`; a 1px
 solid border), and — only while Border is on, since the radius rounds
-the border — **Corner radius** and **Border color**. Its settings dot
-is the `box` group of `explainLegendCustomization`.
+the border — **Corner radius** and **Border color**. Last comes
+**Margins** (its own headed group): **Top / Right / Bottom / Left**, the
+space in px between the box's edge and its contents, whether or not the
+border shows. A blank side inherits: the theme's margin for that side
+(Settings → Themes → Legend → Box → Margins, `Theme.legendPadding`,
+followed LIVE — never seeded, so a theme edit moves every chart that left
+the side blank), else automatic (12 px for an inside legend, 16 px
+outside — `LEGEND_AUTO_PADDING`). The inherited value is the placeholder,
+so the first spinner step starts there; `0` is flush. Stored sparse in
+`legendConfig.padding` (a cleared side is deleted; read via
+`resolveLegendPadding`), applied inline on the inner box, and fed to the
+side-column width estimate; the fixed width / height probes measure it
+from the DOM. A set side dots only when it differs from what it would
+inherit. Its settings dot is the `box` group of
+`explainLegendCustomization`.
 
 **Orientation and Legend columns are independent controls, and each
 owns exactly one axis of the layout.** Orientation (a Stacked /

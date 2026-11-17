@@ -290,6 +290,7 @@ export const Legend = ({
 		insideSize,
 		levelOrders,
 		swatchTheme: theme,
+		themePadding: theme.legendPadding,
 		measureText: measureMaxLabelWidth,
 	})
 	if (!plan) return null

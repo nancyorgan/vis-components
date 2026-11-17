@@ -213,6 +213,7 @@ const CLAMPS: Record<string, (n: number) => number> = {
 	"legendConfig.columnGap": (n) => clamp(n, -48, 96),
 	"legendConfig.width": (n) => Math.max(0, n),
 	"legendConfig.height": (n) => Math.max(0, n),
+	"legendConfig.padding.*": (n) => Math.max(0, n),
 	"legendConfig.gradientBarLength": (n) => Math.max(0, n),
 	"legendConfig.gradientBarThickness": (n) => Math.max(0, n),
 	"legendConfig.gradientBarBorderWidth": (n) => Math.max(0, n),

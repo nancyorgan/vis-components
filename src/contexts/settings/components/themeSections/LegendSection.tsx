@@ -1,11 +1,16 @@
 import { SwatchShapePicker } from "../../../chartBuilder/components/sidebar/SwatchShapePicker"
 import {
 	DEFAULT_LEGEND_CONFIG,
+	LEGEND_AUTO_PADDING,
 	LEGEND_ORIENTATION_OPTIONS,
 	LEGEND_POSITION_OPTIONS,
+	LEGEND_SIDES,
+	legendAutoPadding,
 	resolveGradientBarStyle,
+	withLegendPadding,
 	type LegendOrientation,
 	type LegendPosition,
+	type LegendSide,
 } from "../../../chartBuilder/lib/labelsConfig"
 import { legendConfigFromTheme } from "../../../chartBuilder/lib/themeConfig"
 import { Checkbox } from "../../../../components/ui/Checkbox"
@@ -21,6 +26,13 @@ import {
 } from "./controls"
 import type { ThemeSectionProps } from "./types"
 
+const SIDE_LABEL: Record<LegendSide, string> = {
+	top: "Top",
+	right: "Right",
+	bottom: "Bottom",
+	left: "Left",
+}
+
 const GRADIENT_STYLE_OPTIONS = [
 	{ value: "bar", label: "Show gradient bar" },
 	{ value: "swatches", label: "Show swatches" },
@@ -28,9 +40,10 @@ const GRADIENT_STYLE_OPTIONS = [
 
 /** Settings → Themes → Legend. Layout / Box / gradient style are SEEDED
  *  into a chart's legend config when it's created or switched onto the
- *  theme (`legendConfigFromTheme`); the gradient-bar look follows the theme
- *  LIVE (`resolveGradientBarStyle`). An unset field shows the built-in
- *  default. Labels match the sidebar's Legend panel. */
+ *  theme (`legendConfigFromTheme`); the box Margins and the gradient-bar
+ *  look follow the theme LIVE (`resolveLegendPadding`,
+ *  `resolveGradientBarStyle`). An unset field shows the built-in default.
+ *  Labels match the sidebar's Legend panel. */
 export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => {
 	const seed = legendConfigFromTheme(theme)
 	const bar = resolveGradientBarStyle(DEFAULT_LEGEND_CONFIG, theme)
@@ -119,6 +132,37 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 						/>
 					</>
 				)}
+				<span className="vc-group-header pt-1">Margins</span>
+				<p className="text-xs vc-muted">
+					Space between the legend box&apos;s edge and its contents. Charts
+					follow these unless they set their own in Legend → Box. A blank
+					side is automatic: {LEGEND_AUTO_PADDING.outside} px beside the
+					chart, {LEGEND_AUTO_PADDING.inside} px inside the plot.
+				</p>
+				{LEGEND_SIDES.map((side) => {
+					const px = theme.legendPadding?.[side]
+					return (
+						<UiNumberInput
+							key={side}
+							label={SIDE_LABEL[side]}
+							labelClassName={THEME_LABEL_CLASS}
+							value={px ?? null}
+							onChange={(v) =>
+								set("legendPadding", withLegendPadding(theme.legendPadding, side, v))
+							}
+							onClear={() =>
+								set("legendPadding", withLegendPadding(theme.legendPadding, side, null))
+							}
+							placeholder="auto"
+							stepBase={legendAutoPadding(seed.position)}
+							min={0}
+							step={1}
+							clamp
+							suffix="px"
+							inputClassName="w-20"
+						/>
+					)
+				})}
 			</Section>
 			<Section title="Swatch color">
 				<p className="text-xs vc-muted">

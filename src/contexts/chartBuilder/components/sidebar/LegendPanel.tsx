@@ -30,7 +30,9 @@ import {
 	LEGEND_ORIENTATION_OPTIONS,
 	LEGEND_POSITION_OPTIONS,
 	LEGEND_FRIENDLY_NAME,
+	LEGEND_SIDES,
 	QUANTITATIVE_LEGEND_CHANNELS,
+	inheritedLegendPadding,
 	legendSwatchOutlineColor,
 	resolveLegendSwatchOutlineColor,
 	resolveLegendSwatchSize,
@@ -45,8 +47,10 @@ import {
 	type LegendChannel,
 	type LegendChannelConfig,
 	type LegendConfig,
+	type LegendSide,
 	type QuantitativeLegendChannel,
 	type SwatchShapeChannel,
+	withLegendPadding,
 } from "../../lib/labelsConfig"
 import {
 	formatBreaksInput,
@@ -297,6 +301,13 @@ const QuantLegendChannelControls = ({
 	)
 }
 
+const LEGEND_SIDE_LABEL: Record<LegendSide, string> = {
+	top: "Top",
+	right: "Right",
+	bottom: "Bottom",
+	left: "Left",
+}
+
 export const LegendPanel = () => {
 	const [cfg, setCfg] = useAtom(currentLegendConfigAtom)
 	const encodings = useAtomValue(currentEncodingsAtom)
@@ -370,6 +381,11 @@ export const LegendPanel = () => {
 			: undefined
 
 	const update = (next: Partial<LegendConfig>) => setCfg({ ...merged, ...next })
+	// Box "Margins": blank = inherit — the theme's margin, else automatic for
+	// the current position (shown as the placeholder); a cleared side drops
+	// out of the sparse record.
+	const setPadding = (side: LegendSide, px: number | null) =>
+		update({ padding: withLegendPadding(merged.padding, side, px) })
 
 	// "Legend width": px-truth (`merged.width`) shown in the user's display
 	// unit. Blank = auto, with the RENDERED auto width (published by Legend
@@ -1432,6 +1448,45 @@ export const LegendPanel = () => {
 								</div>
 							</>
 						)}
+					</div>
+
+					{/* Margins — space between the box's edge and its contents,
+					 *  per side. Blank = the theme's margin, else automatic (12 px
+					 *  inside the plot, 16 px outside), shown as the placeholder. */}
+					<div className="vc-divider-group" data-legend-margins>
+						<span className="vc-group-header">Margins</span>
+						{LEGEND_SIDES.map((side) => {
+							const px = merged.padding?.[side]
+							return (
+								<div key={side} className="flex items-center gap-2">
+									<NumberInput
+										label={LEGEND_SIDE_LABEL[side]}
+										labelClassName={LABEL_COL}
+										value={px ?? null}
+										onChange={(v) => setPadding(side, v)}
+										onClear={() => setPadding(side, null)}
+										placeholder={String(
+											inheritedLegendPadding(
+												merged.position,
+												theme.legendPadding,
+												side,
+											),
+										)}
+										min={0}
+										step={1}
+										clamp
+										inputClassName="w-16"
+										suffix="px"
+									/>
+									{px != null && (
+										<ResetLink
+											ariaLabel={`Reset ${side} margin`}
+											onClick={() => setPadding(side, null)}
+										/>
+									)}
+								</div>
+							)
+						})}
 					</div>
 
 				</CollapsibleSubsection>

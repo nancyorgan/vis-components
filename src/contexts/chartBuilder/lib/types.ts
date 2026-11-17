@@ -344,7 +344,12 @@ import type {
 	DataLabelsConfig,
 	LineDashPattern,
 } from "./channelConfig"
-import type { LabelsConfig, LegendConfig, TooltipConfig } from "./labelsConfig"
+import type {
+	LabelsConfig,
+	LegendConfig,
+	LegendPadding,
+	TooltipConfig,
+} from "./labelsConfig"
 import type {
 	DerivedVariable,
 	DerivedVariablesConfig,
@@ -930,6 +935,12 @@ export type Theme = {
 	legendBorderColor?: string
 	legendBorderRadius?: number
 	legendGradientStyle?: LegendConfig["gradientLegendStyle"]
+	/** Legend box margins (Settings → Themes → Legend → Box), px, sparse per
+	 * side. LIVE, not seeded: a chart's `LegendConfig.padding` stays sparse,
+	 * and each side it hasn't set falls back to this, then to the automatic
+	 * 12 px inside / 16 px outside (`resolveLegendPadding`). Absent = no
+	 * theme default. */
+	legendPadding?: LegendPadding
 	/** Gradient-bar defaults. Unlike the fields above these follow the theme
 	 * LIVE: the visual's `gradientBar*` entries are null until edited, and
 	 * `resolveGradientBarStyle` falls back visual → theme → built-in. */

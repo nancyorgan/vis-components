@@ -29,8 +29,11 @@ import {
 	migrateLabelsConfig,
 	titlePlacementOf,
 	titlePlacementPatch,
+	inheritedLegendPadding,
 	resolveLegendHidden,
+	resolveLegendPadding,
 	resolveGradientBarStyle,
+	withLegendPadding,
 	resolveLegendTextFont,
 	resolveTitleFont,
 	resolveTitlePrefixFont,
@@ -1131,5 +1134,46 @@ describe("titlePlacementPatch / titlePlacementOf", () => {
 	it("migration seeds an empty map for older visuals", () => {
 		const migrated = migrateLabelsConfig({ ...DEFAULT_LABELS_CONFIG, titlePlacements: undefined } as never)
 		expect(migrated.titlePlacements).toEqual({})
+	})
+})
+
+describe("legend box padding (Box → Margins)", () => {
+	it("resolves absent sides to the position's automatic amount", () => {
+		expect(resolveLegendPadding({ position: "right" })).toEqual({
+			top: 16,
+			right: 16,
+			bottom: 16,
+			left: 16,
+		})
+		expect(resolveLegendPadding({ position: "inside", padding: { top: 4 } })).toEqual({
+			top: 4,
+			right: 12,
+			bottom: 12,
+			left: 12,
+		})
+		// 0 is a real value (flush), not "automatic"; negatives floor at 0.
+		expect(resolveLegendPadding({ position: "top", padding: { left: 0, right: -5 } })).toMatchObject({
+			left: 0,
+			right: 0,
+		})
+	})
+
+	it("an unset side follows the theme's margin live; the chart's own side wins", () => {
+		expect(
+			resolveLegendPadding({ position: "right", padding: { left: 30 } }, { left: 2, top: 6 }),
+		).toEqual({ top: 6, right: 16, bottom: 16, left: 30 })
+		expect(inheritedLegendPadding("inside", { top: 6 }, "top")).toBe(6)
+		expect(inheritedLegendPadding("inside", { top: 6 }, "left")).toBe(12)
+		expect(inheritedLegendPadding("bottom", undefined, "left")).toBe(16)
+	})
+
+	it("keeps the record sparse: a cleared side is deleted, an empty record dropped", () => {
+		const one = withLegendPadding(undefined, "left", 20)
+		expect(one).toEqual({ left: 20 })
+		const two = withLegendPadding(one, "top", 0)
+		expect(two).toEqual({ left: 20, top: 0 })
+		expect(withLegendPadding(two, "left", null)).toEqual({ top: 0 })
+		expect(withLegendPadding({ top: 0 }, "top", null)).toBeUndefined()
+		expect(withLegendPadding(undefined, "bottom", -3)).toEqual({ bottom: 0 })
 	})
 })

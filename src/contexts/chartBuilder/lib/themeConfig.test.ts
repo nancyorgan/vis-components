@@ -546,6 +546,19 @@ describe("legend section changed dot", () => {
 		).toBe(0)
 	})
 
+	it("a set Box margin lights the box group; an empty margins record does not", () => {
+		const groups = explainLegendCustomization({ ...base, padding: { left: 0 } }, STUB_THEME)
+		expect([...groups]).toEqual(["box"])
+		expect(explainLegendCustomization({ ...base, padding: {} }, STUB_THEME).size).toBe(0)
+	})
+
+	it("a Box margin equal to what it inherits (theme, else automatic) shows no dot", () => {
+		const themed = { ...STUB_THEME, legendPadding: { left: 8 } }
+		expect(explainLegendCustomization({ ...base, padding: { left: 8 } }, themed).size).toBe(0)
+		expect(explainLegendCustomization({ ...base, padding: { top: 16 } }, themed).size).toBe(0)
+		expect(explainLegendCustomization({ ...base, padding: { left: 16 } }, themed).has("box")).toBe(true)
+	})
+
 	it("a fixed legend height lights the properties group; the display unit alone does not", () => {
 		expect(
 			explainLegendCustomization({ ...base, height: 120 }, STUB_THEME).has(
