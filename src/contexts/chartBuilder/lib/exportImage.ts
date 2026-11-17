@@ -12,6 +12,7 @@ import {
 } from "./captureThumbnail"
 import { embedFontsInSvg } from "./fontEmbed"
 import { withJpegDpi, withPngDpi } from "./imageDpi"
+import { bleedTransparentColor, canEncodePng, encodeRgbaPng } from "./pngEncode"
 import { nameWeightedFaces } from "./portableSvg"
 
 export const IMAGE_FORMATS = ["png", "jpeg", "svg", "pdf"] as const
@@ -270,6 +271,28 @@ const canvasToBlob = (
 		)
 	})
 
+/** A transparent PNG whose invisible pixels carry their neighbors' color
+ *  instead of the canvas's hidden black — without it, PowerPoint/Word draw
+ *  a gray fringe around white point outlines and white legend boxes when
+ *  the slide shrinks the picture (see `pngEncode.ts`). Falls back to the
+ *  canvas's own encoder where the hand encoder can't run or fails (e.g. a
+ *  huge export running out of memory): a fringe beats no download. */
+const transparentPngBytes = async (
+	canvas: HTMLCanvasElement
+): Promise<Uint8Array<ArrayBuffer>> => {
+	const ctx = canvas.getContext("2d")
+	if (ctx && canEncodePng()) {
+		try {
+			const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+			bleedTransparentColor(data, canvas.width, canvas.height)
+			return await encodeRgbaPng(data, canvas.width, canvas.height)
+		} catch {
+			// fall through to toBlob
+		}
+	}
+	return new Uint8Array(await (await canvasToBlob(canvas, "image/png")).arrayBuffer())
+}
+
 const rasterizeSvg = async (
 	svgText: string,
 	width: number,
@@ -280,17 +303,19 @@ const rasterizeSvg = async (
 ): Promise<Blob> => {
 	const canvas = await renderChartToCanvas(svgText, width, height, pixelRatio, opaqueBackground)
 	const mime = format === "png" ? "image/png" : "image/jpeg"
-	const blob = await canvasToBlob(
-		canvas,
-		mime,
-		format === "jpeg" ? 0.92 : undefined
-	)
+	const bytes =
+		format === "png" && !opaqueBackground
+			? await transparentPngBytes(canvas)
+			: new Uint8Array(
+					await (
+						await canvasToBlob(canvas, mime, format === "jpeg" ? 0.92 : undefined)
+					).arrayBuffer()
+				)
 	// Stamp the true resolution (96 css-px/in × the export multiplier) so
 	// physical-size consumers (PowerPoint, Word, print layouts) insert the
 	// image at the inches/cm the user chose instead of guessing a DPI —
 	// without it, a 2× export lands at double size and gets shrunk-to-fit.
 	const dpi = 96 * pixelRatio
-	const bytes = new Uint8Array(await blob.arrayBuffer())
 	const stamped = format === "png" ? withPngDpi(bytes, dpi) : withJpegDpi(bytes, dpi)
 	return new Blob([stamped], { type: mime })
 }
