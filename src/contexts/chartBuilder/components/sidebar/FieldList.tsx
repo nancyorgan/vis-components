@@ -479,7 +479,7 @@ type EffectiveField = { name: string; type: FieldType }
 /** Fixed label column for the Order-by picker rows (the compact-panel
  * counterpart of LABEL_COL) so the "Order by" and "in" selects — and the
  * Decreasing checkbox via a matching spacer — share one vertical edge. */
-const ORDER_LABEL_COL = "w-14 text-xs vc-muted"
+const ORDER_LABEL_COL = "w-14 text-xs vc-text"
 
 /** Order-by select values are PREFIXED (`alpha` / `f:<name>`) so a dataset
  * field literally named "Alphabetical" can't collide with the standard

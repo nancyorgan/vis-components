@@ -308,7 +308,7 @@ const ScaleByRow = () => {
 				className={
 					sizeBy === "diameter"
 						? "text-sm font-semibold !text-vc-section-header"
-						: "text-sm vc-muted"
+						: "text-sm vc-text"
 				}
 			>
 				Scale by
@@ -328,7 +328,7 @@ const ScaleByRow = () => {
 						onChange={() => setSizeBy(value)}
 						className="h-3 w-3"
 					/>
-					<span className="vc-muted">{label}</span>
+					<span className="vc-text">{label}</span>
 				</label>
 			))}
 		</div>

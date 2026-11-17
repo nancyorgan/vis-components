@@ -599,7 +599,7 @@ export const TextContentField = ({
 	label?: string | null
 }) => (
 	<label className={`flex flex-col gap-1 text-sm ${className ?? ""}`}>
-		{label !== null && <span className="vc-muted">{label}</span>}
+		{label !== null && <span className="vc-text">{label}</span>}
 		<Textarea
 			aria-label={label === null ? "Text" : undefined}
 			value={value ?? ""}

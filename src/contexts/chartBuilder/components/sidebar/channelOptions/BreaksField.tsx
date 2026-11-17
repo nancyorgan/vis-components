@@ -64,7 +64,7 @@ export const BreaksField = ({
 					className={`w-24 shrink-0 ${
 						changed
 							? "font-semibold !text-vc-section-header"
-							: "vc-muted"
+							: "vc-text"
 					}`}
 				>
 					{label}

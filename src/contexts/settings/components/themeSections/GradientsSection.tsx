@@ -92,7 +92,7 @@ const GradientCard = ({
 				<ColorInput
 					key={stop.label}
 					label={stop.label}
-					labelClassName="vc-muted"
+					labelClassName="vc-text"
 					value={stop.value}
 					onChange={stop.onChange}
 					inline={false}

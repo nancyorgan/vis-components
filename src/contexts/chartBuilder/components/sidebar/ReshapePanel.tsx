@@ -266,7 +266,7 @@ const ApplyFooter = ({
 						copy.
 					</p>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="vc-muted">Data set name</span>
+						<span className="vc-text">Data set name</span>
 						<Input
 							type="text"
 							className="w-full"
@@ -509,7 +509,7 @@ const MeltForm = ({ raw }: { raw: DatasetView }) => {
 							))
 						)}
 						<label className="flex flex-col gap-1 text-sm">
-							<span className="vc-muted">Combined variable name{suffix}</span>
+							<span className="vc-text">Combined variable name{suffix}</span>
 							<Input
 								type="text"
 								className="w-full"
@@ -521,7 +521,7 @@ const MeltForm = ({ raw }: { raw: DatasetView }) => {
 							/>
 						</label>
 						<label className="flex flex-col gap-1 text-sm">
-							<span className="vc-muted">Value variable name{suffix}</span>
+							<span className="vc-text">Value variable name{suffix}</span>
 							<Input
 								type="text"
 								className="w-full"

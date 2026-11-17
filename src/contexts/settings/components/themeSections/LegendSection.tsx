@@ -72,7 +72,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 			</Section>
 			<Section title="Box">
 				<div className="flex flex-col gap-1.5">
-					<span className="text-sm vc-muted">
+					<span className="text-sm vc-text">
 						Legend background
 					</span>
 					<label className="flex items-center gap-2 text-sm">
@@ -215,7 +215,7 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 					onChange={(v) => set("legendSwatchOutlineWidth", v)}
 				/>
 				<div className="flex flex-col gap-1.5">
-					<span className="text-sm vc-muted">Outline color</span>
+					<span className="text-sm vc-text">Outline color</span>
 					<label className="flex items-center gap-2 text-sm">
 						<input
 							type="radio"

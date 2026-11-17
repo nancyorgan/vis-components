@@ -60,8 +60,9 @@ export const SectionGroup = ({
 
 /** Fixed-width label column used by every settings row on this page so the
  *  controls line up vertically. Passed to the shared primitives via
- *  `labelClassName` (the established pattern for pinning width + color). */
-export const THEME_LABEL_CLASS = "w-32 vc-muted"
+ *  `labelClassName` (the established pattern for pinning width + color).
+ *  Row labels are `.vc-text`, like the editor sidebar's LABEL_COL. */
+export const THEME_LABEL_CLASS = "w-32 vc-text"
 
 /** Thin page-local wrappers around the shared UI primitives — they only
  *  pin the page's label column so the ~45 call sites below stay terse. */

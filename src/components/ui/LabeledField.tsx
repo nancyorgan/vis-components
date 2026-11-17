@@ -3,14 +3,18 @@ import { combine as c } from "../../lib/cls"
 
 /** Canonical sidebar label column, passed as `labelClassName`: a fixed w-24
  *  column so every row's control starts on the same vertical edge, in the
- *  muted label color. One shared constant (rather than per-file copies) so
- *  the column width and shade can't drift between panels. */
-export const LABEL_COL = "w-24 vc-muted"
+ *  `.vc-text` row-label color (the same role as `LabeledField`'s own label
+ *  and the Checkbox / RadioGroup option text — row labels are never
+ *  `.vc-muted`, which is for hints, units, counts and timestamps). One shared
+ *  constant (rather than per-file copies) so the column width and shade
+ *  can't drift between panels. */
+export const LABEL_COL = "w-24 vc-text"
 
 /** Label column for rows nested inside an `ml-6` sub-block (controls
  *  subordinate to a toggle/group header): 1.5rem narrower than LABEL_COL so
- *  indent + label + gap still lands the control on the shared column. */
-export const LABEL_COL_NESTED = "w-18 vc-muted"
+ *  indent + label + gap still lands the control on the shared column. Same
+ *  `.vc-text` row-label color. */
+export const LABEL_COL_NESTED = "w-18 vc-text"
 
 /** Empty stand-in for the label column: indents a secondary control (one
  *  with no label of its own) so it aligns under the value column of

@@ -482,7 +482,7 @@ export const PatternOptionsPanel = () => {
 			>
 				<ColorInput
 					label={args.label}
-					labelClassName="w-24 truncate vc-muted"
+					labelClassName="w-24 truncate vc-text"
 					value={args.override}
 					onChange={args.onChange}
 					onClear={() => args.onChange(null)}
@@ -829,7 +829,7 @@ export const PatternOptionsPanel = () => {
 						args.label
 					)
 				}
-				labelClassName={args.labelClassName ?? "vc-muted"}
+				labelClassName={args.labelClassName ?? "vc-text"}
 				value={args.value}
 				onChange={args.onChange}
 				onClear={args.onClear}

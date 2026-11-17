@@ -903,7 +903,7 @@ export const TickFormatControl = ({
 				className={
 					changed
 						? "w-24 shrink-0 truncate font-semibold !text-vc-section-header"
-						: "w-24 shrink-0 truncate vc-muted"
+						: "w-24 shrink-0 truncate vc-text"
 				}
 			>
 				{label}
@@ -1169,7 +1169,7 @@ const DATE_BOUND_INPUT_CLASS = "w-40"
 const boundLabelClass = (on: boolean | undefined) =>
 	on
 		? "font-semibold !text-vc-section-header"
-		: "vc-muted"
+		: "vc-text"
 
 /** Custom domain bounds for a continuous (quantitative or temporal) axis.
  * The min/max here pin the scale's domain (the base default applied to every
@@ -1766,7 +1766,7 @@ const AxisSideControl = ({
 					className={
 						changed
 							? "w-24 shrink-0 font-semibold !text-vc-section-header"
-							: "w-24 shrink-0 vc-muted"
+							: "w-24 shrink-0 vc-text"
 					}
 				>
 					Side
@@ -1826,7 +1826,7 @@ const TickLabelAlignmentControl = ({
 				className={
 					changed
 						? "w-24 shrink-0 font-semibold !text-vc-section-header"
-						: "w-24 shrink-0 vc-muted"
+						: "w-24 shrink-0 vc-text"
 				}
 			>
 				Align

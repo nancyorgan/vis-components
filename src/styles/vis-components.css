@@ -285,14 +285,20 @@
 
 	/* ---- Text roles -------------------------------------------------------
 	 * The three stone text colors the UI is built from, named by ROLE so a
-	 * call site reads as "muted label" rather than a stone-600/stone-400
+	 * call site reads as "muted hint" rather than a stone-600/stone-400
 	 * pair. COLORS only (plus weight for headings): call sites keep their
 	 * own size (text-sm / text-xs / text-xl), truncation and spacing
 	 * utilities, which out-cascade this layer as usual.
 	 *
-	 *   .vc-muted    secondary text — row labels, hints, timestamps,
-	 *                counts (was text-stone-600 / dark:text-stone-400)
-	 *   .vc-text     primary body text — values, names, menu items
+	 *   .vc-muted    secondary text — hints beside a control ("max 70",
+	 *                "5th tick"), unit suffixes (px / pt / ° / %), counts,
+	 *                timestamps. NOT row labels or option text
+	 *                (was text-stone-600 / dark:text-stone-400)
+	 *   .vc-text     primary body text — values, names, menu items, every
+	 *                sidebar ROW LABEL (LABEL_COL / LABEL_COL_NESTED,
+	 *                stacked control labels, radio-group legends) and the
+	 *                text beside a checkbox or radio button. A disabled
+	 *                control dims its label with opacity, not .vc-muted
 	 *                (was text-stone-700 / dark:text-stone-300)
 	 *   .vc-heading  titles and emphasised names — semibold by default;
 	 *                add `font-medium` at the call site for a lighter one

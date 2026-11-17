@@ -400,7 +400,7 @@ export const TooltipPanel = () => {
 					{merged.useCustomHtml && (
 					<>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="vc-muted">
+						<span className="vc-text">
 							Custom HTML template
 						</span>
 						<Textarea
@@ -419,7 +419,7 @@ export const TooltipPanel = () => {
 						</div>
 					</label>
 					<label className="flex flex-col gap-1 text-sm">
-						<span className="vc-muted">
+						<span className="vc-text">
 							Custom CSS
 						</span>
 						<Textarea

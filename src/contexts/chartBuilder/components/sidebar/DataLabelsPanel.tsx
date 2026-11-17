@@ -1920,7 +1920,7 @@ export const DataLabelsPanel = () => {
 											: patchEndpoint(`${pop}Label`, { [k]: null })
 									return (
 										<div key={pop} className="flex flex-col gap-2">
-											<span className="text-sm vc-muted">
+											<span className="text-sm vc-text">
 												{POPULATION_LABEL[pop]}
 											</span>
 											<div className="ml-6 flex flex-col gap-2 text-sm">

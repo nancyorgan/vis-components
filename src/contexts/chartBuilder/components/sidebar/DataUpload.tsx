@@ -480,7 +480,7 @@ const UploadPromptModal = () => {
 								<div className="mt-2 flex flex-col gap-1">
 									<label
 										htmlFor="data-upload-new-name"
-										className="text-sm vc-muted"
+										className="text-sm vc-text"
 									>
 										Data set name
 									</label>

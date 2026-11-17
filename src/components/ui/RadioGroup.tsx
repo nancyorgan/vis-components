@@ -69,7 +69,7 @@ export const RadioGroup = <V extends string>({
 			)}
 			disabled={disabled}
 		>
-			<legend className={c(legendClassName ?? "mb-1", "vc-muted")}>
+			<legend className={c(legendClassName ?? "mb-1", "vc-text")}>
 				{legend}
 			</legend>
 			{options.map((opt) => {

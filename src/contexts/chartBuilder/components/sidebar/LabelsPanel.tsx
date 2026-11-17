@@ -1622,7 +1622,7 @@ const LabelRow = ({
 							// row; the chevron opens the styling controls. Used when a
 							// subsection has several such targets (grid Column/Row/Panel
 							// titles) that need to stay individually collapsible.
-							<span className="mt-1 min-w-0 flex-1 text-sm vc-muted">
+							<span className="mt-1 min-w-0 flex-1 text-sm vc-text">
 								{label}
 							</span>
 						) : (

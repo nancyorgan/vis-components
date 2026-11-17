@@ -298,7 +298,7 @@ export const ConnectionOptionsPanel = () => {
 								className={
 									ch.hierarchyLayout
 										? "text-sm font-semibold !text-vc-section-header"
-										: "text-sm vc-muted"
+										: "text-sm vc-text"
 								}
 							>
 								Layout
@@ -321,7 +321,7 @@ export const ConnectionOptionsPanel = () => {
 										onChange={() => updateCfg({ hierarchyLayout: value })}
 										className="h-3 w-3"
 									/>
-									<span className="vc-muted">
+									<span className="vc-text">
 										{label}
 									</span>
 								</label>
@@ -335,7 +335,7 @@ export const ConnectionOptionsPanel = () => {
 										className={
 											ch.hierarchyId
 												? "w-24 shrink-0 font-semibold !text-vc-section-header"
-												: "w-24 shrink-0 vc-muted"
+												: "w-24 shrink-0 vc-text"
 										}
 									>
 										ID column
@@ -393,7 +393,7 @@ export const ConnectionOptionsPanel = () => {
 										className={
 											ch.flowTarget
 												? "w-24 shrink-0 font-semibold !text-vc-section-header"
-												: "w-24 shrink-0 vc-muted"
+												: "w-24 shrink-0 vc-text"
 										}
 									>
 										Flow to
@@ -716,7 +716,7 @@ export const ConnectionOptionsPanel = () => {
 										onChange={() => updateCfg(axisStemPatch(cfg, value))}
 										className="h-3 w-3"
 									/>
-									<span className="vc-muted">
+									<span className="vc-text">
 										{label}
 									</span>
 								</label>
@@ -724,7 +724,7 @@ export const ConnectionOptionsPanel = () => {
 									<div className="flex items-center gap-2 pl-5">
 										<NumberInput
 											label="X ="
-											labelClassName="vc-muted"
+											labelClassName="vc-text"
 											changed={(cfg.axisStemCustomX ?? 0) !== 0}
 											value={cfg.axisStemCustomX ?? 0}
 											onChange={(n) => updateCfg({ axisStemCustomX: n })}
@@ -741,7 +741,7 @@ export const ConnectionOptionsPanel = () => {
 									<div className="flex items-center gap-2 pl-5">
 										<NumberInput
 											label="Y ="
-											labelClassName="vc-muted"
+											labelClassName="vc-text"
 											changed={(cfg.axisStemCustomY ?? 0) !== 0}
 											value={cfg.axisStemCustomY ?? 0}
 											onChange={(n) => updateCfg({ axisStemCustomY: n })}
@@ -822,7 +822,7 @@ export const ConnectionOptionsPanel = () => {
 										onChange={() => updateCfg({ pointSampling: value })}
 										className="h-3 w-3"
 									/>
-									<span className="vc-muted">
+									<span className="vc-text">
 										{label}
 									</span>
 								</label>
@@ -830,7 +830,7 @@ export const ConnectionOptionsPanel = () => {
 									<div className="flex items-center gap-2">
 										<NumberInput
 											label="N"
-											labelClassName="vc-muted"
+											labelClassName="vc-text"
 											changed={cfg.pointEveryN !== themeCfg.pointEveryN}
 											value={cfg.pointEveryN}
 											min={1}
@@ -911,7 +911,7 @@ const PointIndicesField = ({
 	return (
 		<>
 			<label className="flex items-center gap-2 text-sm">
-				<span className={`shrink-0 vc-muted ${LABEL_COL}`}>Points</span>
+				<span className={`shrink-0 ${LABEL_COL}`}>Points</span>
 				<Input
 					type="text"
 					inputMode="numeric"
