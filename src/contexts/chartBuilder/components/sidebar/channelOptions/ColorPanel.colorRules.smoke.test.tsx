@@ -3,6 +3,7 @@ import { TestProvider, type TestStore } from "../../../../../testSupport/TestPro
 import { installInMemoryLocalStorage } from "../../../../../testSupport/localStorageShim"
 import { buildDataset as buildDatasetFixture } from "../../../../../testSupport/fixtures"
 import { describe, expect, it } from "vitest"
+import { LABEL_AND_HEX_SPAN } from "../../../../../components/ui/ColorInput"
 import { EMPTY_CHANNEL_CONFIGS } from "../../../lib/channelConfig"
 import { emptyEncodings, type Dataset } from "../../../lib/types"
 import {
@@ -158,6 +159,16 @@ describe("ColorPanel — conditional color rules", () => {
 		expect(line?.colorRules?.[0]?.condition).toBe("{series} == B")
 		expect(line?.field).toBeNull()
 		expect(typeof line?.singleColor).toBe("string")
+	})
+
+	it("a rule's condition box spans the color row's label column + hex box, so the swatches share a column", () => {
+		const { container } = mount()
+		fireEvent.click(addLinks(container)[0])
+		const box = condition(container, "fill")!
+		for (const cls of LABEL_AND_HEX_SPAN.split(" "))
+			expect(box.classList.contains(cls)).toBe(true)
+		// Not the old row-filling box, whose swatch sat right of the one above.
+		expect(box.classList.contains("flex-1")).toBe(false)
 	})
 
 	it("removing the only rule leaves an empty list (no phantom rule row)", () => {

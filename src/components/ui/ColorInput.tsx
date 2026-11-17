@@ -15,6 +15,24 @@ const HEX_PATTERN = /^#(?:[\dA-Fa-f]{3}|[\dA-Fa-f]{6}|[\dA-Fa-f]{8})$/
  *  gray so the swatch reads as "nothing chosen" rather than as a pick. */
 const INHERIT_SWATCH = "#9CA3AF"
 
+/** The hex box's width: w-24, the same 6rem as the `LABEL_COL` column, and
+ *  the viewport width below which the box hides (the row goes swatch-only).
+ *  Kept as named classes so `LABEL_AND_HEX_SPAN` below can stand in for the
+ *  label + hex run and land a following swatch on this row's swatch column. */
+const HEX_BOX_WIDTH = "w-24"
+const HEX_BOX_SHOWN = "min-[360px]:block"
+
+/** Width of the run from a labeled ColorInput row's left edge to the end of
+ *  its hex box — `LABEL_COL` (w-24) + the row's gap-2 + `HEX_BOX_WIDTH`
+ *  (w-24) = w-50 — or, below the 360px breakpoint where the hex box hides,
+ *  just the label column (w-24). A control standing in for label + hex in a
+ *  row under a color row (a color rule's condition box, `ColorRulesEditor`)
+ *  takes this width, so it ends where the hex box above ends and the swatch,
+ *  palette icon and × after it start on the color row's swatch column.
+ *  Follows the three widths it sums; `formPrimitives.smoke.test.tsx` checks
+ *  the arithmetic against the rendered row. */
+export const LABEL_AND_HEX_SPAN = "w-24 min-[360px]:w-50"
+
 /** Paired color picker — a swatch button that opens the app's own
  *  `ColorPickerPopover` and a free-form hex text input that stay in sync.
  *  The swatch carries the field's id via `<label htmlFor>`, so clicking
@@ -158,7 +176,9 @@ export const ColorInput = ({
 						// palette picker, so the row goes swatch-only there: tapping the
 						// swatch still opens the picker, which has its own hex field.
 						className={c(
-							"hidden w-24 min-w-18 rounded-control border border-stone-400 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors vc-focus-ring placeholder:text-vc-faint hover:border-stone-600 focus:border-stone-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:placeholder:text-stone-500 dark:hover:border-stone-600 dark:focus:border-stone-500 min-[360px]:block",
+							"hidden min-w-18 rounded-control border border-stone-400 bg-white px-1.5 py-1 font-mono text-xs text-stone-900 transition-colors vc-focus-ring placeholder:text-vc-faint hover:border-stone-600 focus:border-stone-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-white dark:placeholder:text-stone-500 dark:hover:border-stone-600 dark:focus:border-stone-500",
+							HEX_BOX_WIDTH,
+							HEX_BOX_SHOWN,
 							!HEX_PATTERN.test(textValue) &&
 								!(textValue === "" && onClear) &&
 								"border-amber-400 focus:border-amber-500"

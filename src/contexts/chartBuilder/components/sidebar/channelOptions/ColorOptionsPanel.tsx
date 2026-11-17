@@ -1717,7 +1717,12 @@ const CustomStopRow = ({
 			 *  position the stop evenly / use the data extent). Arrow keys on a
 			 *  blank field step from the displayed auto placeholder instead of
 			 *  the native jump to 0/1. No visible label of its own, so an
-			 *  aria-label carries the association. */}
+			 *  aria-label carries the association. w-11 so the whole row
+			 *  (label column + hex box + swatch + palette icon + this box) fits
+			 *  the sidebar at its minimum width: at w-12 it ran 4px over and the
+			 *  squeeze came out of the hex box, pulling this row's swatch off
+			 *  the column every other color row (and the color-rule rows under
+			 *  it, ColorRulesEditor) lines up on. */}
 			<input
 				type="number"
 				value={value ?? ""}
@@ -1734,7 +1739,7 @@ const CustomStopRow = ({
 				}}
 				placeholder={placeholder ?? "Auto"}
 				aria-label={`${label} stop value`}
-				className="no-spinner w-12 min-w-0 flex-shrink rounded border border-stone-300 bg-white px-0.5 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+				className="no-spinner w-11 min-w-0 flex-shrink rounded border border-stone-300 bg-white px-0.5 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
 			/>
 			{trailing}
 		</div>

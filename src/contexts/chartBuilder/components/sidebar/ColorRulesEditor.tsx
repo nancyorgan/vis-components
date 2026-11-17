@@ -1,6 +1,9 @@
 import type { TextColorRule } from "../../lib/channelConfig"
 
-import { ColorInput } from "../../../../components/ui/ColorInput"
+import {
+	ColorInput,
+	LABEL_AND_HEX_SPAN,
+} from "../../../../components/ui/ColorInput"
 import { rowGroup } from "../../../../components/ui/rowGroup"
 import {
 	RuleCombineHelp,
@@ -78,13 +81,18 @@ export const ColorRulesEditor = ({
 					key={i}
 					className="flex items-start gap-2 text-sm"
 				>
-					{/* The condition box takes the row's full width (no label-column
-					 *  spacer) so a `{Variable} == value` rule fits. */}
+					{/* The condition box stands in for the label column + hex box of
+					 *  the color row above (every host puts its rules under a
+					 *  LABEL_COL ColorInput row): it ends where that hex box ends,
+					 *  so this rule's swatch, palette icon and × start on the
+					 *  color row's swatch column. A long `{Variable} == value`
+					 *  rule wraps onto more lines rather than widening the box. */}
 					<RuleConditionInput
 						value={rule.condition}
 						onChange={(condition) => setRule(i, { condition })}
 						placeholder="> 0"
 						ariaLabel={`Condition for ${ruleName(i)}`}
+						className={LABEL_AND_HEX_SPAN}
 					/>
 					<ColorInput
 						label={`Color for ${ruleName(i)}`}

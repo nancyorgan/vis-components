@@ -2,8 +2,9 @@ import { useState } from "react"
 import { cleanup, fireEvent, render } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { ColorInput } from "./ColorInput"
+import { ColorInput, LABEL_AND_HEX_SPAN } from "./ColorInput"
 import { Textarea } from "./Input"
+import { LABEL_COL } from "./LabeledField"
 import { NumberInput } from "./NumberInput"
 import { RadioGroup } from "./RadioGroup"
 import { SelectInput } from "./SelectInput"
@@ -507,6 +508,32 @@ describe("ColorInput", () => {
 		expect((getByLabelText("Fill hex") as HTMLInputElement).type).toBe("text")
 		expect((getByLabelText("Fill") as HTMLButtonElement).dataset.color).toBe(
 			"#123456"
+		)
+	})
+
+	it("LABEL_AND_HEX_SPAN = label column + row gap + hex box (label column alone where the hex box hides)", () => {
+		// A color rule's condition box takes this width so its swatch lands on
+		// the color row's swatch column; read the rendered row's own widths so
+		// a change to any of them fails here instead of drifting by eye.
+		const { container, getByLabelText } = render(
+			<ColorInput
+				label="Fill"
+				labelClassName={LABEL_COL}
+				value="#123456"
+				onChange={() => {}}
+			/>
+		)
+		const step = (cls: string, re: RegExp) => Number(re.exec(cls)?.[1])
+		const width = /(?:^|\s)w-(\d+)(?:\s|$)/
+		const labelW = step(container.querySelector("label")!.className, width)
+		const gap = step((container.firstChild as HTMLElement).className, /\bgap-(\d+)\b/)
+		const hex = getByLabelText("Fill hex").className
+		const hexW = step(hex, width)
+		const hexShownAt = step(hex, /min-\[(\d+)px\]:block/)
+		expect([labelW, gap, hexW, hexShownAt].every(Number.isFinite)).toBe(true)
+		expect(step(LABEL_AND_HEX_SPAN, width)).toBe(labelW)
+		expect(LABEL_AND_HEX_SPAN).toContain(
+			`min-[${hexShownAt}px]:w-${labelW + gap + hexW}`
 		)
 	})
 })

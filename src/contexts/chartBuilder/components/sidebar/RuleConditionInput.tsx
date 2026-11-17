@@ -1,21 +1,24 @@
 import { Textarea } from "../../../../components/ui/Input"
 
 /** The condition box of a conditional rule (text-color, position and
- *  outline-color rules — lib/textColorRules.ts). Fills its row and wraps,
- *  growing a line at a time, so a long `{Variable} == value` rule stays
- *  readable in full rather than scrolling out of a narrow box. Enter is
- *  swallowed: a condition is one line, and a newline would split an
- *  operand like `== New York`. */
+ *  outline-color rules — lib/textColorRules.ts). Fills its row by default
+ *  (or takes the width `className` gives it) and wraps, growing a line at a
+ *  time, so a long `{Variable} == value` rule stays readable in full rather
+ *  than scrolling out of a narrow box. Enter is swallowed: a condition is
+ *  one line, and a newline would split an operand like `== New York`. */
 export const RuleConditionInput = ({
 	value,
 	onChange,
 	placeholder,
 	ariaLabel,
+	className = "flex-1",
 }: {
 	value: string
 	onChange: (condition: string) => void
 	placeholder: string
 	ariaLabel: string
+	/** Layout utilities only (the box's width). Default `flex-1`. */
+	className?: string
 }) => (
 	<Textarea
 		autoSize
@@ -28,7 +31,7 @@ export const RuleConditionInput = ({
 		placeholder={placeholder}
 		aria-label={ariaLabel}
 		spellCheck={false}
-		className="flex-1"
+		className={className}
 	/>
 )
 
