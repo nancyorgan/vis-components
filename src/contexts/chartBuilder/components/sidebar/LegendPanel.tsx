@@ -1876,10 +1876,14 @@ export const LegendPanel = () => {
 					</div>
 					{/* Size glyphs: shape (default: the marks' own) — Length /
 					 *  Angle swatches are line segments, so only a Size legend
-					 *  takes one — plus the outline color + width below. */}
+					 *  takes one — plus the outline color + width below. The chips
+					 *  start on the label's row and wrap onto the control column
+					 *  (MapsSection's no-data pattern row). */}
 					{showAuxSwatchStroke && (
-						<div className="flex flex-col gap-1 text-sm">
-							<span className="vc-muted">Swatch shape</span>
+						<div className="flex items-start gap-2">
+							<span className={`${LABEL_COL} shrink-0 pt-1 text-sm`}>
+								Swatch shape
+							</span>
 							<SwatchShapePicker
 								value={merged.auxLegendSwatchShape ?? marksShape}
 								defaultShape={marksShape}
@@ -2034,11 +2038,15 @@ export const LegendPanel = () => {
 							>
 							<div className="flex flex-col gap-1 text-sm">
 								{controls.shape && (
-									<>
-										<span className="vc-muted">Swatch shape</span>
+									<div className="flex items-start gap-2">
+										<span className={`${LABEL_COL} shrink-0 pt-1 text-sm`}>
+											Swatch shape
+										</span>
 										{/* Glyph sections (Size / Angle folded in) draw the
 										 *  marks' shape by default and take glyphs only — a
-										 *  rectangle or line can't show a size or rotation. */}
+										 *  rectangle or line can't show a size or rotation.
+										 *  Chips start on the label's row and wrap onto the
+										 *  control column (MapsSection's no-data pattern row). */}
 										<SwatchShapePicker
 											value={shapeValue}
 											defaultShape={
@@ -2057,7 +2065,7 @@ export const LegendPanel = () => {
 												)
 											}
 										/>
-									</>
+									</div>
 								)}
 								{controls.size && (
 								<div className="flex items-center gap-2">

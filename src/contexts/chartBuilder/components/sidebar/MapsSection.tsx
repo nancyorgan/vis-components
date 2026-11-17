@@ -4,7 +4,6 @@ import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubs
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
-	LabelSpacer,
 	LabeledChipRow,
 } from "../../../../components/ui/LabeledField"
 import { ResetLink } from "../../../../components/ui/ResetLink"
@@ -380,27 +379,23 @@ export const MapsSection = () => {
 								join most reliably.
 							</p>
 						)}
+						{/* Checkbox rows sit flush left with the labels, like every
+						    other sidebar checkbox (not indented to the control column). */}
 						{showBasemapToggle && (
-							<div className="flex items-center gap-2">
-								<LabelSpacer />
-								<Checkbox
-									label="Show basemap"
-									checked={mapConfig.showBasemap}
-									onChange={(showBasemap) => update({ showBasemap })}
-								/>
-							</div>
+							<Checkbox
+								label="Show basemap"
+								checked={mapConfig.showBasemap}
+								onChange={(showBasemap) => update({ showBasemap })}
+							/>
 						)}
 						{showFillNoDataToggle && (
-							<div className="flex items-center gap-2">
-								<LabelSpacer />
-								<Checkbox
-									label="Fill regions with no data"
-									checked={mapConfig.showNoDataRegions}
-									onChange={(showNoDataRegions) =>
-										update({ showNoDataRegions })
-									}
-								/>
-							</div>
+							<Checkbox
+								label="Fill regions with no data"
+								checked={mapConfig.showNoDataRegions}
+								onChange={(showNoDataRegions) =>
+									update({ showNoDataRegions })
+								}
+							/>
 						)}
 						{showNoDataFillColor && (
 							<div className="flex flex-wrap items-center gap-2">

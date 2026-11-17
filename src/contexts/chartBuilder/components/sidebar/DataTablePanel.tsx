@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import { Input, Textarea } from "../../../../components/ui/Input"
-import { LABEL_COL, LabelSpacer } from "../../../../components/ui/LabeledField"
+import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../components/ui/SelectInput"
@@ -407,17 +407,15 @@ export const DataTablePanel = () => {
 										{plottedNames.map((name) => {
 											const checked = shownNames.has(name)
 											return (
-												<div key={name} className="flex items-center gap-2">
-													<LabelSpacer />
-													<Checkbox
-														label={name}
-														checked={checked}
-														// The last one can't go: an empty table
-														// describes nothing.
-														disabled={checked && shownNames.size === 1}
-														onChange={(on) => togglePlottedColumn(name, on)}
-													/>
-												</div>
+												<Checkbox
+													key={name}
+													label={name}
+													checked={checked}
+													// The last one can't go: an empty table
+													// describes nothing.
+													disabled={checked && shownNames.size === 1}
+													onChange={(on) => togglePlottedColumn(name, on)}
+												/>
 											)
 										})}
 									</fieldset>
@@ -451,17 +449,15 @@ export const DataTablePanel = () => {
 										{view.fields.map((f) => {
 											const checked = shownNames.has(f.name)
 											return (
-												<div key={f.name} className="flex items-center gap-2">
-													<LabelSpacer />
-													<Checkbox
-														label={f.name}
-														checked={checked}
-														// The last one can't go: an empty table
-														// describes nothing.
-														disabled={checked && shownNames.size === 1}
-														onChange={(on) => toggleColumn(f.name, on)}
-													/>
-												</div>
+												<Checkbox
+													key={f.name}
+													label={f.name}
+													checked={checked}
+													// The last one can't go: an empty table
+													// describes nothing.
+													disabled={checked && shownNames.size === 1}
+													onChange={(on) => toggleColumn(f.name, on)}
+												/>
 											)
 										})}
 									</fieldset>
@@ -484,14 +480,11 @@ export const DataTablePanel = () => {
 								inputClassName="w-20"
 							/>
 						</ResetRow>
-						<div className="flex items-center gap-2">
-							<LabelSpacer />
-							<Checkbox
-								label="Download link"
-								checked={cfg.showDownload}
-								onChange={(showDownload) => update({ showDownload })}
-							/>
-						</div>
+						<Checkbox
+							label="Download link"
+							checked={cfg.showDownload}
+							onChange={(showDownload) => update({ showDownload })}
+						/>
 					</CollapsibleSubsection>
 
 					<CollapsibleSubsection
@@ -647,7 +640,6 @@ export const DataTablePanel = () => {
 							label="Format first column like other columns"
 							onReset={resetOf("firstColumnLikeOthers")}
 						>
-							<LabelSpacer />
 							<Checkbox
 								className="min-w-0 flex-1"
 								label="Format first column like other columns"
@@ -734,7 +726,6 @@ export const DataTablePanel = () => {
 							/>
 						</ResetRow>
 						<ResetRow label="Striped rows" onReset={resetOf("striped")}>
-							<LabelSpacer />
 							<Checkbox
 								className="min-w-0 flex-1"
 								label="Striped rows"

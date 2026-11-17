@@ -189,8 +189,12 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 					its own glyphs. Legend&apos;s Swatches groups override
 					these per visual.
 				</p>
-				<div className="flex flex-col gap-1.5">
-					<span className="text-sm vc-muted">Swatch shape</span>
+				{/* Chips start on the label's row and wrap under the control
+				    column, like the editor's Legend → Swatch shape row. */}
+				<div className="flex items-start gap-2">
+					<span className={`${THEME_LABEL_CLASS} shrink-0 pt-1 text-sm`}>
+						Swatch shape
+					</span>
 					<SwatchShapePicker
 						value={theme.legendSwatchShape}
 						onChange={(shape) => set("legendSwatchShape", shape)}

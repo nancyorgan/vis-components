@@ -102,8 +102,9 @@ export const CheckboxRow = ({
 	checked: boolean
 	onChange: (v: boolean) => void
 }) => (
+	// Flush left with the row labels, like every sidebar checkbox — not
+	// indented to the control column.
 	<div className="flex items-center gap-2 text-sm">
-		<span className={`${THEME_LABEL_CLASS} shrink-0`} aria-hidden="true" />
 		<Checkbox label={label} checked={checked} onChange={onChange} />
 	</div>
 )
