@@ -7,11 +7,11 @@ export const MIN_CANVAS_DIM = 50
 export const DEFAULT_CANVAS_WIDTH = 1000
 export const DEFAULT_CANVAS_HEIGHT = 600
 
-/** The theme's starting canvas size (Settings → Themes → Exporting →
- *  Canvas size). Either side may be unset. */
+/** The theme's starting canvas (Settings → Themes → Exporting): its Canvas
+ *  size (either side may be unset) and the Units its sheet shows. */
 export type CanvasSizeThemeDefaults = Pick<
 	Theme,
-	"exportCanvasWidth" | "exportCanvasHeight"
+	"exportCanvasWidth" | "exportCanvasHeight" | "exportMarginUnit"
 >
 
 /** The size a canvas starts at — and the sidebar's reset target: the
@@ -24,20 +24,24 @@ export const canvasStartSize = (
 })
 
 /** "Set canvas size": a size the visual never had starts at the theme's
- *  Canvas size (else 1000 × 600). A size it had is kept — the theme is
- *  consulted only for a missing side, and never re-applied. */
+ *  Canvas size (else 1000 × 600), shown in the theme's Exporting Units —
+ *  so a theme margin entered as 0.1 in reads 0.1 in, not 10 px. A size it
+ *  had is kept with its unit — the theme is consulted only for a missing
+ *  side, and never re-applied. px stays sparse (absent = px). */
 export const canvasSizeToggled = (
 	prev: Partial<CanvasSizeConfig> | null | undefined,
 	enabled: boolean,
 	theme: CanvasSizeThemeDefaults | null | undefined
 ): CanvasSizeConfig => {
 	const start = canvasStartSize(theme)
+	const hadSize = prev?.width != null || prev?.height != null
+	const themeUnit = theme?.exportMarginUnit === "in" ? "in" : undefined
 	return {
 		...prev,
 		enabled,
 		width: prev?.width ?? start.width,
 		height: prev?.height ?? start.height,
-		unit: prev?.unit,
+		unit: prev?.unit ?? (hadSize ? undefined : themeUnit),
 	}
 }
 

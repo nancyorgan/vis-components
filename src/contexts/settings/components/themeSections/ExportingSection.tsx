@@ -59,8 +59,9 @@ export const ExportingSection = ({ theme, set, isReadOnly }: ThemeSectionProps) 
 		<SectionGroup title="Exporting" isReadOnly={isReadOnly}>
 			<Section title="Units">
 				<p className="text-sm vc-muted">
-					What the Canvas size and Canvas margins inputs below display in.
-					Values are stored in px; this only changes how they read.
+					What the Canvas size and Canvas margins inputs below display in,
+					and the unit a chart&apos;s canvas starts in. Values are stored in
+					px; this only changes how they read.
 				</p>
 				{/* The page's SelectInput wrapper stretches selects to the row
 				 *  (`flex-1`); a two-option unit picker only needs a short box, so

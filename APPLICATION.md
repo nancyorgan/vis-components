@@ -6087,15 +6087,17 @@ Theme settings:
   re-applied to a canvas that already has a size); and default **canvas
   margins** for visuals drawn on a fixed canvas (§13 "Canvas size"):
   Top / Right / Bottom / Left, entered in px or inches (a Units
-  select; stored in px at 96 px/inch). A margin is the white space
-  between the canvas edge and the nearest painted content, so 0 means
-  flush. Read live: a visual inherits every side it hasn't set in its
-  own Margins inputs (those show the theme value as their placeholder
-  and a changed dot when the visual deviates), and editing the theme
-  moves open charts. A blank side in the theme means auto — whatever
-  the layout leaves. Stored sparsely as `exportCanvasMargins` +
-  `exportMarginUnit`; themes saved before these fields existed set no
-  defaults.
+  select; stored in px at 96 px/inch). The Units pick is also the unit
+  a chart's canvas starts in when its size is first turned on, so the
+  sidebar's inherited margins read in the same unit as the theme. A
+  margin is the white space between the canvas edge and the nearest
+  painted content, so 0 means flush. Read live: a visual inherits every
+  side it hasn't set in its own Margins inputs (those show the theme
+  value as their placeholder and a changed dot when the visual
+  deviates), and editing the theme moves open charts. A blank side in
+  the theme means auto — whatever the layout leaves. Stored sparsely as
+  `exportCanvasMargins` + `exportMarginUnit`; themes saved before these
+  fields existed set no defaults.
 
 Custom themes can be set as the user's default; new charts pick that
 up automatically. The Hue panel reads palettes from the active theme
@@ -6115,8 +6117,10 @@ A small catch-all panel:
   custom pick stays (§12) — like the legend background.
 - **Canvas size** — a "Set canvas size" checkbox that, when on, draws
   the chart inside a fixed Width × Height rectangle (starting at the
-  theme's Exporting ▸ Canvas size, else 1000 × 600; px / in / cm display
-  units at 96 px/inch; stored in px) instead of filling the viewport.
+  theme's Exporting ▸ Canvas size, else 1000 × 600, and in the theme's
+  Exporting Units; px / in / cm display units at 96 px/inch; stored in
+  px) instead of filling the viewport. Turning the size off and on again
+  keeps the chart's own size and unit.
   Width and Height each show a reset link back to that starting size
   when changed. The editor shows the rectangle as a white canvas
   centered in a gray viewport; exports default to its dimensions. Scroll

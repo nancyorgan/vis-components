@@ -1085,8 +1085,9 @@ export type Theme = {
 	exportCanvasWidth?: number
 	exportCanvasHeight?: number
 	/** Unit the theme sheet's margin + size inputs display in (px-truth
-	 * stays in `exportCanvasMargins` / `exportCanvasWidth|Height`). Absent =
-	 * px. */
+	 * stays in `exportCanvasMargins` / `exportCanvasWidth|Height`), and the
+	 * unit a visual's canvas starts in when "Set canvas size" is first
+	 * turned on (`canvasSizeToggled`). Absent = px. */
 	exportMarginUnit?: "px" | "in"
 }
 
