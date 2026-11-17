@@ -17,7 +17,8 @@
  *   - unpublish deletes the embed's files (idempotent)
  *   - the filenames are a closed set — the part files plus `image.png` and
  *     `image.svg` — so no manifest file is needed (and nothing non-content
- *     ever sits in the public dir)
+ *     ever sits in an embed's folder; the one other thing in the publish dir
+ *     is the PowerPoint add-in under `addin/`, see addinFiles.ts)
  *   - an HTML (re)publish deletes both pictures, so the stable picture URLs
  *     never show a stale chart; the client's trailing uploads restore them
  *   - a picture is only ever written into an existing embed dir: an upload
@@ -155,8 +156,8 @@ export const composePartHtml = (
 /** Write one public file: temp + fsync + rename so a crash mid-write can never
  *  leave a half-written file at a public name, then read back and compare —
  *  only a verified byte-identical file counts as published. A string is
- *  written as UTF-8. */
-const writeAndVerify = async (
+ *  written as UTF-8. (Also how addinFiles.ts installs the add-in.) */
+export const writeAndVerify = async (
 	dir: string,
 	name: string,
 	content: Buffer | string

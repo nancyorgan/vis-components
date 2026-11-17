@@ -24,6 +24,7 @@ import { createServer } from "node:http"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { installAddin } from "./addinFiles.js"
 import { loadConfig } from "./config.js"
 import {
 	listDatasetFiles,
@@ -98,6 +99,24 @@ const main = (): void => {
 			logError(`data-dir sweep failed: ${String(error)}`)
 		}
 	})()
+
+	// The PowerPoint add-in goes out beside the embeds, refreshed from this
+	// build on every start (addinFiles.ts). Never blocks or fails startup.
+	void installAddin(distDir, config.publishDir, config.publishBaseUrl).then(
+		(result) => {
+			if (!result.installed) {
+				logInfo(`PowerPoint add-in not installed: ${result.reason}`)
+				return
+			}
+			logInfo(
+				`PowerPoint add-in installed (${result.files} files); manifest at ${result.manifestUrl}` +
+					(result.https
+						? ""
+						: " — Office loads add-ins only over HTTPS, so it won't load from this http address")
+			)
+		},
+		(error: unknown) => logError(`installing the PowerPoint add-in failed: ${String(error)}`)
+	)
 
 	const handler = createHandler({
 		config,

@@ -39,6 +39,23 @@
 //   figure stays PNG. No image.svg (older publish, failed upload) → PNG, and
 //   the status says so.
 //
+//   Coercion inserts at the CURRENT slide and returns nothing, so the new
+//   shape is found by diffing the slide's shape ids before and after — never
+//   by the selection, which the user can move mid-insert (tagging the wrong
+//   shape and then deleting the old one is how a figure used to drop off
+//   the refresh list). The old shape is deleted only once the new one is
+//   tagged.
+//
+//   UNCHANGED PICTURES ARE SKIPPED: each figure carries ZAFIRO_HASH, a
+//   fingerprint of the picture it holds; a refresh that fetches the same
+//   bytes leaves the figure alone. So auto-refresh no longer re-inserts
+//   every vector figure (and jumps to its slide) every 30 s — only when the
+//   chart was republished. After any re-insert the user is returned to the
+//   slide they were on.
+//
+//   One deck operation at a time: insert, refresh and link conversion all
+//   run through `exclusive`, since each can move the selection.
+//
 //   Other sets used: tags add/getItemOrNullObject/delete 1.3; shape
 //   left/top/width/height/name/type/lineFormat/textFrame 1.4; delete() 1.3;
 //   getSelectedSlides/getSelectedShapes 1.5; Office.addin.setStartupBehavior
@@ -71,6 +88,9 @@
 	// Second tag on every figure: which picture it holds, "png" or "svg"
 	// (absent on figures from before vector pictures = png).
 	const FORMAT_TAG = "ZAFIRO_FORMAT"
+	// Third tag: the fingerprint of the picture the figure holds (absent on
+	// older figures, which are replaced once and tagged).
+	const HASH_TAG = "ZAFIRO_HASH"
 	const REFRESH_EVERY_MS = 30_000
 	const CONVERT_POLL_MS = 2_000
 	// The published picture carries its dpi in a pHYs chunk (96 × the raster
@@ -105,6 +125,23 @@
 		if (!error) return "unknown error"
 		const debug = error.debugInfo ? ` [${error.debugInfo.code || ""} ${error.debugInfo.errorLocation || ""}]` : ""
 		return `${error.message || String(error)}${debug}`
+	}
+
+	// One deck operation at a time (see the header). `laneBusy` lets the 2 s
+	// link scan skip a tick instead of queueing behind a refresh.
+	let lane = Promise.resolve()
+	let laneBusy = false
+	const exclusive = (fn) => {
+		const run = lane.then(async () => {
+			laneBusy = true
+			try {
+				return await fn()
+			} finally {
+				laneBusy = false
+			}
+		})
+		lane = run.catch(() => {})
+		return run
 	}
 
 	const readPref = (key, fallback) => {
@@ -151,6 +188,15 @@
 
 	const shapeName = (id) => `Zafiro ${id}`
 
+	/** Name and tag a figure's shape inside an open context (caller syncs):
+	 *  its embed id, its picture format, and the picture's fingerprint. */
+	const tagFigure = (shape, id, picture) => {
+		shape.name = shapeName(id)
+		shape.tags.add(Zafiro.TAG_KEY, id)
+		shape.tags.add(FORMAT_TAG, picture.format)
+		if (picture.hash) shape.tags.add(HASH_TAG, picture.hash)
+	}
+
 	// ---- which picture ------------------------------------------------------
 
 	const wantVector = () => els.vector.checked && api.svgCoercion
@@ -182,9 +228,7 @@
 		const shape = slide.shapes.addGeometricShape(PowerPoint.GeometricShapeType.rectangle, geometry)
 		shape.fill.setImage(img.base64)
 		shape.lineFormat.visible = false
-		shape.name = shapeName(id)
-		shape.tags.add(Zafiro.TAG_KEY, id)
-		shape.tags.add(FORMAT_TAG, "png")
+		tagFigure(shape, id, img)
 		return shape
 	}
 
@@ -232,33 +276,56 @@
 		})
 	}
 
-	/** Coercion insert on the CURRENT slide: coerce the picture in, then tag
-	 *  whatever got selected (or, failing that, the slide's last shape). */
-	const insertViaCoercion = async (id, picture, geometry) => {
+	/** The id of the slide the user is on. Throws when none is (e.g. the
+	 *  slide sorter with nothing selected). */
+	const currentSlideId = () =>
+		PowerPoint.run(async (context) => {
+			const slide = context.presentation.getSelectedSlides().getItemAt(0)
+			slide.load("id")
+			await context.sync()
+			return slide.id
+		})
+
+	const shapeIdsOn = (slideId) =>
+		PowerPoint.run(async (context) => {
+			const shapes = context.presentation.slides.getItem(slideId).shapes
+			shapes.load("items/id")
+			await context.sync()
+			return shapes.items.map((shape) => shape.id)
+		})
+
+	/** Coercion insert on the CURRENT slide (the caller has made `slideId`
+	 *  current when it names one): coerce the picture in, then tag the shape
+	 *  that wasn't on the slide before. Never the selection — see the header.
+	 *  Throws, leaving any old figure in place, when no new shape turned up
+	 *  on that slide. */
+	const insertViaCoercion = async (id, picture, geometry, slideId) => {
+		const target = slideId || (await currentSlideId())
+		const before = new Set(await shapeIdsOn(target))
 		await setSelectedPicture(picture, geometry)
 		await PowerPoint.run(async (context) => {
-			const selected = context.presentation.getSelectedShapes()
-			const count = selected.getCount()
+			const shapes = context.presentation.slides.getItem(target).shapes
+			shapes.load("items/id,items/left,items/top")
 			await context.sync()
-			let shape
-			if (count.value > 0) {
-				shape = selected.getItemAt(0)
-			} else {
-				const shapes = context.presentation.getSelectedSlides().getItemAt(0).shapes
-				shapes.load("items/id")
-				await context.sync()
-				shape = shapes.items[shapes.items.length - 1]
+			const added = shapes.items.filter((shape) => !before.has(shape.id))
+			if (added.length === 0) {
+				throw new Error(
+					"the new picture didn't land on its slide (another slide was selected mid-insert?); the figure was left as it was",
+				)
 			}
-			shape.name = shapeName(id)
-			shape.tags.add(Zafiro.TAG_KEY, id)
-			shape.tags.add(FORMAT_TAG, picture.format)
+			// Normally exactly one; should the user have added a shape in the
+			// same instant, the picture is the one at the geometry asked for.
+			const offBy = (shape) => Math.abs(shape.left - geometry.left) + Math.abs(shape.top - geometry.top)
+			const shape = added.reduce((best, next) => (offBy(next) < offBy(best) ? next : best))
+			tagFigure(shape, id, picture)
 			await context.sync()
 		})
 	}
 
 	/** Place `picture` for `id` on the current slide by whichever path fits
 	 *  its format and this PowerPoint; `slideId` (optional) names the slide
-	 *  for the fill path, which can address a slide without selecting it. */
+	 *  — the fill path addresses it directly, the coercion path selects it
+	 *  first. */
 	const placePicture = async (id, picture, geometry, slideId) => {
 		if (picture.format === "png" && api.fillImage) {
 			await PowerPoint.run(async (context) => {
@@ -271,7 +338,7 @@
 			return
 		}
 		if (slideId) await goToSlide(slideId)
-		await insertViaCoercion(id, picture, geometry)
+		await insertViaCoercion(id, picture, geometry, slideId)
 	}
 
 	// ---- Insert -------------------------------------------------------------
@@ -287,7 +354,7 @@
 		try {
 			const picture = await fetchPicture(id)
 			const geometry = defaultGeometry(picture)
-			await placePicture(id, picture, geometry)
+			await exclusive(() => placePicture(id, picture, geometry))
 			setStatus(
 				els.insertStatus,
 				`Inserted ${formatLabel(picture)} at 100%: ${describeSize(geometry)}.` +
@@ -310,8 +377,9 @@
 	// ---- Refresh ------------------------------------------------------------
 
 	/** Every tagged figure in the deck: { slideId, shapeId, id, format,
-	 *  geometry }; `format` is the figure's picture format tag, "png" when
-	 *  the figure predates it. */
+	 *  hash, geometry }; `format` is the figure's picture format tag, "png"
+	 *  when the figure predates it; `hash` its picture fingerprint, null when
+	 *  it predates that. */
 	const collectFigures = () =>
 		PowerPoint.run(async (context) => {
 			const slides = context.presentation.slides
@@ -324,8 +392,8 @@
 				await context.sync()
 				const tags = shapes.items.map((shape) => shape.tags.getItemOrNullObject(Zafiro.TAG_KEY))
 				const formats = shapes.items.map((shape) => shape.tags.getItemOrNullObject(FORMAT_TAG))
-				tags.forEach((tag) => tag.load("value"))
-				formats.forEach((tag) => tag.load("value"))
+				const hashes = shapes.items.map((shape) => shape.tags.getItemOrNullObject(HASH_TAG))
+				for (const tag of [...tags, ...formats, ...hashes]) tag.load("value")
 				await context.sync()
 				shapes.items.forEach((shape, i) => {
 					const tag = tags[i]
@@ -338,6 +406,7 @@
 						shapeId: shape.id,
 						id,
 						format,
+						hash: hashes[i].isNullObject ? null : hashes[i].value,
 						geometry: { left: shape.left, top: shape.top, width: shape.width, height: shape.height },
 					})
 				})
@@ -345,7 +414,12 @@
 			return figures
 		})
 
+	/** Bring one figure up to date with `picture`. → "current" (same
+	 *  picture, untouched), "swapped" (fill replaced in place) or
+	 *  "reinserted" (new shape on the figure's slide, old one deleted — the
+	 *  user's slide selection moved). */
 	const refreshOne = async (figure, picture) => {
+		if (picture.hash && figure.hash === picture.hash) return "current"
 		const { geometry } = figure
 		const wantHeight = geometry.width * aspect(picture)
 		const aspectChanged = Math.abs(wantHeight - geometry.height) / Math.max(geometry.height, 1) > 0.01
@@ -358,10 +432,13 @@
 				const shape = context.presentation.slides.getItem(figure.slideId).shapes.getItem(figure.shapeId)
 				shape.fill.setImage(picture.base64)
 				if (aspectChanged) shape.height = wantHeight
+				if (picture.hash) shape.tags.add(HASH_TAG, picture.hash)
 				await context.sync()
 			})
-			return
+			return "swapped"
 		}
+		// placePicture throws if the new picture can't be placed AND tagged,
+		// so the old figure is only deleted once its replacement is tracked.
 		await placePicture(
 			figure.id,
 			picture,
@@ -372,13 +449,30 @@
 			context.presentation.slides.getItem(figure.slideId).shapes.getItem(figure.shapeId).delete()
 			await context.sync()
 		})
+		return "reinserted"
 	}
 
+	/** A failed picture fetch, in words: a 404 means nothing is published
+	 *  at that address — unpublished, or a republish caught mid-upload. */
+	const fetchFailure = (id, error) =>
+		error && error.status === 404
+			? `${id}: nothing published there (HTTP 404). If its chart was unpublished, republish it in Zafiro or delete this figure; a republish in progress clears up on the next refresh.`
+			: `${id}: ${errorText(error)}`
+
+	const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`
+
 	let refreshing = false
-	const refreshAll = async (trigger) => {
-		if (refreshing) return
+	const refreshAll = (trigger) => {
+		if (refreshing) return Promise.resolve()
 		refreshing = true
 		els.refresh.disabled = true
+		return exclusive(() => refreshFigures(trigger)).finally(() => {
+			refreshing = false
+			els.refresh.disabled = false
+		})
+	}
+
+	const refreshFigures = async (trigger) => {
 		setStatus(els.refreshStatus, "Looking for figures…")
 		try {
 			const figures = await collectFigures()
@@ -389,7 +483,7 @@
 			// One fetch per (id, format): a vector figure wants image.svg, a PNG
 			// figure image.png; the format sticks to the figure.
 			const wanted = [...new Set(figures.map((f) => `${f.format}:${f.id}`))]
-			setStatus(els.refreshStatus, `Fetching ${wanted.length} picture${wanted.length === 1 ? "" : "s"}…`)
+			setStatus(els.refreshStatus, `Checking ${plural(wanted.length, "picture")}…`)
 			const pictures = new Map()
 			const failures = []
 			for (const key of wanted) {
@@ -397,33 +491,46 @@
 				try {
 					pictures.set(key, await fetchPicture(id, format))
 				} catch (error) {
-					failures.push(`${id}: ${errorText(error)}`)
+					failures.push(fetchFailure(id, error))
 				}
 			}
-			let done = 0
+			// Where the user is, so a re-insert (which selects the figure's
+			// slide) can hand the slide back afterwards.
+			const home = await currentSlideId().catch(() => null)
+			let updated = 0
+			let current = 0
+			let moved = false
 			for (const figure of figures) {
 				const picture = pictures.get(`${figure.format}:${figure.id}`)
 				if (!picture) continue
 				try {
-					await refreshOne(figure, picture)
-					done += 1
+					const outcome = await refreshOne(figure, picture)
+					if (outcome === "current") current += 1
+					else updated += 1
+					if (outcome === "reinserted") moved = true
 				} catch (error) {
 					failures.push(`${figure.id} on slide ${figure.slideId}: ${errorText(error)}`)
 				}
 			}
-			const summary = `Refreshed ${done} figure${done === 1 ? "" : "s"}`
-			if (failures.length > 0) {
-				setStatus(els.refreshStatus, `${summary}; ${failures.length} failed:\n${failures.join("\n")}`, "err")
-			} else {
-				setStatus(els.refreshStatus, `${summary} (${new Date().toLocaleTimeString()}).`, "ok")
+			if (moved && home) {
+				await goToSlide(home).catch((error) => log(`couldn't return to the slide you were on: ${errorText(error)}`))
 			}
-			log(`refresh (${trigger}): ${done}/${figures.length} ok`)
+			const time = new Date().toLocaleTimeString()
+			const summary =
+				updated === 0 && failures.length === 0
+					? `All ${plural(current, "figure")} up to date (${time}).`
+					: `Updated ${plural(updated, "figure")}, ${current} already up to date (${time}).`
+			if (failures.length > 0) {
+				setStatus(els.refreshStatus, `${summary}\n${failures.length} failed:\n${failures.join("\n")}`, "err")
+			} else {
+				setStatus(els.refreshStatus, summary, "ok")
+			}
+			log(
+				`refresh (${trigger}): ${updated} updated, ${current} current, ${figures.length - updated - current} failed`,
+			)
 		} catch (error) {
 			setStatus(els.refreshStatus, `Refresh failed: ${errorText(error)}`, "err")
 			log(`refresh (${trigger}) FAILED: ${errorText(error)}`)
-		} finally {
-			refreshing = false
-			els.refresh.disabled = false
 		}
 	}
 
@@ -477,8 +584,18 @@
 
 	let converting = false
 	const convertLinksOnCurrentSlide = async () => {
-		if (converting || !els.autoConvert.checked) return
+		// A refresh or insert in flight: skip this tick (the scan repeats
+		// every 2 s) rather than queue behind it.
+		if (converting || laneBusy || !els.autoConvert.checked) return
 		converting = true
+		try {
+			await exclusive(convertLinks)
+		} finally {
+			converting = false
+		}
+	}
+
+	const convertLinks = async () => {
 		try {
 			const candidates = await findLinkShapes()
 			for (const candidate of candidates) {
@@ -506,8 +623,6 @@
 			// No slide selected (e.g. slide sorter) or a text frame we misjudged:
 			// not worth a red status every 2 s, just a log line.
 			log(`convert scan skipped: ${errorText(error)}`)
-		} finally {
-			converting = false
 		}
 	}
 

@@ -16,17 +16,31 @@
 		return match ? match[0].toLowerCase() : null
 	}
 
-	// Same-origin via the addin-dev proxy, so no CORS in the spike. For
-	// production the pictures must either be served from the add-in's own
-	// origin or the publish host must answer with Access-Control-Allow-Origin
-	// for the add-in origin — fetch() from a task pane is a normal browser
-	// cross-origin request. The ?t= defeats any intermediate cache.
-	const imageUrl = (id) => `${location.origin}/embeds/${id}/image.png?t=${Date.now()}`
+	// The add-in's pages sit in `addin/` beside the published `embeds/`, on
+	// the publish host (the self-host server installs them there) and on the
+	// addin-dev server (which proxies /embeds/*). So every picture is
+	// same-origin, resolved relative to this page — no CORS, and a publish
+	// base URL with a path prefix still works. The ?t= defeats any
+	// intermediate cache.
+	const embedFileUrl = (id, file) => new URL(`../embeds/${id}/${file}`, location.href).href
+	const imageUrl = (id) => `${embedFileUrl(id, "image.png")}?t=${Date.now()}`
 	// The vector picture published beside the PNG (the editor's portable SVG
 	// of the same figure). 404 when the publish predates vector pictures or
 	// that upload failed — callers fall back to the PNG.
-	const vectorUrl = (id) => `${location.origin}/embeds/${id}/image.svg?t=${Date.now()}`
-	const embedUrl = (id) => `${location.origin}/embeds/${id}/index.html`
+	const vectorUrl = (id) => `${embedFileUrl(id, "image.svg")}?t=${Date.now()}`
+	const embedUrl = (id) => embedFileUrl(id, "index.html")
+
+	// A short fingerprint of a picture's bytes, stored on the figure so a
+	// refresh can skip a picture that hasn't changed. Null where Web Crypto
+	// isn't available (it needs HTTPS) — callers then always replace.
+	const fingerprint = async (bytes) => {
+		try {
+			const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))
+			return Array.from(digest.subarray(0, 12), (b) => b.toString(16).padStart(2, "0")).join("")
+		} catch {
+			return null
+		}
+	}
 
 	const bytesToBase64 = (bytes) => {
 		let binary = ""
@@ -63,8 +77,9 @@
 		return null
 	}
 
-	// → { base64, width, height, dpi } (width/height null if the body isn't a
-	// PNG; dpi null when unstamped).
+	// → { base64, width, height, dpi, hash } (width/height null if the body
+	// isn't a PNG; dpi null when unstamped). Throws with the HTTP status so
+	// a 404 (unpublished, or mid-republish) can be told apart.
 	const fetchImage = async (id) => {
 		const url = imageUrl(id)
 		let response
@@ -74,7 +89,9 @@
 			throw new Error(`Couldn't reach ${url}: ${error.message}`)
 		}
 		if (!response.ok) {
-			throw new Error(`Picture for ${id} returned HTTP ${response.status} (${url})`)
+			const error = new Error(`Picture for ${id} returned HTTP ${response.status} (${url})`)
+			error.status = response.status
+			throw error
 		}
 		const bytes = new Uint8Array(await response.arrayBuffer())
 		if (bytes.length === 0) throw new Error(`Picture for ${id} is empty (${url})`)
@@ -84,6 +101,7 @@
 			width: size ? size.width : null,
 			height: size ? size.height : null,
 			dpi: pngDpi(bytes),
+			hash: await fingerprint(bytes),
 		}
 	}
 
@@ -107,7 +125,7 @@
 		return box ? { width: Number(box[1]), height: Number(box[2]) } : null
 	}
 
-	// → { text, width, height, dpi: 96 }. The SVG is CSS px at 96 dpi by
+	// → { text, width, height, dpi: 96, hash }. The SVG is CSS px at 96 dpi by
 	// construction, so it places at true size like a stamped PNG. Throws with
 	// the HTTP status so a 404 (no vector published) can fall back to the PNG.
 	const fetchVector = async (id) => {
@@ -133,6 +151,7 @@
 			width: size ? size.width : null,
 			height: size ? size.height : null,
 			dpi: 96,
+			hash: await fingerprint(new TextEncoder().encode(text)),
 		}
 	}
 
