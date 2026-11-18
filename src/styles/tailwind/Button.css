@@ -227,18 +227,31 @@
 .bg-success-text-aa:disabled:hover,
 .bg-success-text-aa[aria-disabled]:hover,
 .bg-success-text-aa:disabled,
-.bg-success-text-aa[aria-disabled],
+.bg-success-text-aa[aria-disabled] {
+	/* Disabled keeps the variant's own hue, just desaturated — Button.tsx
+	 * adds `disabled:opacity-60` for the fade, so together it reads as a
+	 * washed-out version of the live button rather than an unrelated gray
+	 * (Nancy, 2026-09-15). Brand is the exception, below. */
+	filter: saturate(0.35);
+	box-shadow: none;
+}
+
+/* Brand disabled is a LIGHT PURPLE, painted as its own colors — the
+ * desaturate-and-fade above turned the app's main buttons (Save, Undo,
+ * Redo) a dull gray (Nancy, 2026-11-18). No opacity fade either
+ * (Button.tsx leaves it off the filled variant), so the edges and the
+ * white label stay crisp. Disabled controls are exempt from WCAG
+ * contrast. */
 .bg-brand-text-aa:disabled:active,
 .bg-brand-text-aa[aria-disabled]:active,
 .bg-brand-text-aa:disabled:hover,
 .bg-brand-text-aa[aria-disabled]:hover,
 .bg-brand-text-aa:disabled,
 .bg-brand-text-aa[aria-disabled] {
-	/* Disabled keeps the variant's own hue, just desaturated — Button.tsx
-	 * adds `disabled:opacity-60` for the fade, so together it reads as a
-	 * washed-out version of the live button rather than an unrelated gray
-	 * (Nancy, 2026-09-15). */
-	filter: saturate(0.35);
+	background-color: var(--color-brand-300);
+	border-top-color: var(--color-brand-200);
+	border-bottom-color: var(--color-brand-400);
+	color: white;
 	box-shadow: none;
 }
 
@@ -260,14 +273,23 @@
 	.bg-error-text-aa:disabled:hover,
 	.bg-error-text-aa[aria-disabled]:hover,
 	.bg-error-text-aa:disabled,
-	.bg-error-text-aa[aria-disabled],
+	.bg-error-text-aa[aria-disabled] {
+		filter: saturate(0.35);
+		box-shadow: none;
+	}
+
+	/* Brand disabled on dark: a dimmed indigo with a light-purple label,
+	 * so it recedes behind the live brand-600 buttons instead of glowing. */
 	.bg-brand-text-aa:disabled:active,
 	.bg-brand-text-aa[aria-disabled]:active,
 	.bg-brand-text-aa:disabled:hover,
 	.bg-brand-text-aa[aria-disabled]:hover,
 	.bg-brand-text-aa:disabled,
 	.bg-brand-text-aa[aria-disabled] {
-		filter: saturate(0.35);
+		background-color: var(--color-brand-900);
+		border-top-color: var(--color-brand-800);
+		border-bottom-color: var(--color-brand-950);
+		color: var(--color-brand-300);
 		box-shadow: none;
 	}
 }

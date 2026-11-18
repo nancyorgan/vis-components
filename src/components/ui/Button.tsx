@@ -24,8 +24,10 @@ const spacing = {
 	regular: "rounded-control px-6 py-2 text-sm shadow",
 }
 
+// No `disabled:opacity-60` here: the brand fill paints its own light-purple
+// disabled colors (styles/tailwind/Button.css).
 const filled =
-	"bg-brand-text-aa bg-stone-900 text-white transition-all hover:shadow-lg hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
+	"bg-brand-text-aa bg-stone-900 text-white transition-all hover:shadow-lg hover:bg-stone-700 disabled:cursor-not-allowed dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
 
 // There is deliberately NO outline / secondary variant: every non-destructive
 // action button in the app is this filled brand purple (Nancy, 2026-09-15).
