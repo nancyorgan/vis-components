@@ -639,6 +639,7 @@ const AccessibilityCheckToggle = () => {
 			type="button"
 			onClick={() => setActive(!active)}
 			title="Accessibility check"
+			data-vc-title-instant=""
 			aria-label="Accessibility check"
 			data-tip="a11y-check"
 			aria-pressed={active}
@@ -684,6 +685,7 @@ const BlackAndWhiteToggle = () => {
 			type="button"
 			onClick={() => setActive(!active)}
 			title="Black-and-white preview"
+			data-vc-title-instant=""
 			aria-pressed={active}
 			data-tip="bw-toggle"
 			className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${

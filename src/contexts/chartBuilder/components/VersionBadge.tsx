@@ -316,7 +316,6 @@ const VersionList = ({
 											if (ok) onDelete(v.id)
 										}}
 										className="text-sm opacity-0 transition-opacity group-hover/v:opacity-100 hover:text-red-600 focus-visible:opacity-100 vc-muted"
-										title="Delete version"
 									>
 										Delete
 									</button>

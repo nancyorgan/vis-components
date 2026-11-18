@@ -13,6 +13,7 @@ export const InfoTipsToggle = () => {
 			type="button"
 			onClick={() => setActive(!active)}
 			title="Info tips"
+			data-vc-title-instant=""
 			aria-label="Info tips"
 			aria-pressed={active}
 			{...{ [INFO_TIPS_TOGGLE_ATTR]: "" }}

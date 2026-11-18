@@ -124,7 +124,6 @@ export const SwatchShapePicker = ({
 					onClick={() => onChange(opt)}
 					aria-pressed={selected}
 					aria-label={label}
-					title={label}
 					className={swatchChipClass(selected, "w-7")}
 				>
 					<SwatchShapeGlyph idx={opt} selected={selected} />

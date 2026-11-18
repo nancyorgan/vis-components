@@ -169,12 +169,7 @@ export const AccessibilityCheckCard = ({
 				<div className="flex items-center gap-2">
 					{/* Reads as the radio group's visible legend — the size and
 					 *  muting a RadioGroup legend gets — so the baselines line up. */}
-					<span
-						className="text-sm vc-muted"
-						title="Contrast model"
-					>
-						{model.name}
-					</span>
+					<span className="text-sm vc-muted">{model.name}</span>
 					<RadioGroup
 						legend={<span className="sr-only">Contrast level ({model.name})</span>}
 						legendClassName="mb-0"
@@ -193,7 +188,6 @@ export const AccessibilityCheckCard = ({
 						type="button"
 						onClick={onClose}
 						aria-label="Close accessibility check"
-						title="Close"
 						className="rounded px-1 text-lg leading-none hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
 					>
 						×

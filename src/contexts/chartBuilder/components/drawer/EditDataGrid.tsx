@@ -700,7 +700,6 @@ export const EditDataGrid = ({
 												<button
 													type="button"
 													aria-label={`Sort by ${column.name}`}
-													title={sorted === "asc" ? "Sort descending" : "Sort ascending"}
 													onClick={() => {
 														commitEdit()
 														commit((g) => applySort(g, nextSort(g.sort, col)))

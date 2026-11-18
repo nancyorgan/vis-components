@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { TitleTooltipLayer } from "./TitleTooltipLayer"
+import { HOVER_DELAY_MS, TitleTooltipLayer } from "./TitleTooltipLayer"
 
 const pointerOver = (
 	el: Element,
@@ -16,10 +16,20 @@ const pointerOver = (
 
 const tipText = () => screen.queryByTestId("title-tooltip")?.textContent ?? null
 
-afterEach(cleanup)
+/** Let the mouse rest for `ms` (the full hover wait by default). */
+const rest = (ms = HOVER_DELAY_MS) => act(() => vi.advanceTimersByTime(ms))
+
+beforeEach(() => {
+	vi.useFakeTimers()
+})
+
+afterEach(() => {
+	cleanup()
+	vi.useRealTimers()
+})
 
 describe("TitleTooltipLayer", () => {
-	it("shows a title instantly on mouse hover and restores it on leave", () => {
+	it("shows a title after the hover wait and restores it on leave", () => {
 		render(
 			<div data-testid="outside">
 				<button type="button" title="Black-and-white preview">
@@ -30,9 +40,12 @@ describe("TitleTooltipLayer", () => {
 		)
 		const btn = screen.getByRole("button")
 		pointerOver(btn)
-		expect(tipText()).toBe("Black-and-white preview")
-		// Stashed so the browser's slow gray box can't also appear…
+		// Stashed at once so the browser's gray box can't appear meanwhile…
 		expect(btn.hasAttribute("title")).toBe(false)
+		rest(HOVER_DELAY_MS - 1)
+		expect(tipText()).toBeNull()
+		rest(1)
+		expect(tipText()).toBe("Black-and-white preview")
 		// …while the icon-only button keeps its accessible name.
 		expect(btn.getAttribute("aria-label")).toBe("Black-and-white preview")
 
@@ -53,6 +66,7 @@ describe("TitleTooltipLayer", () => {
 		)
 		pointerOver(screen.getByRole("button"))
 		pointerOver(screen.getByTestId("inner"))
+		rest()
 		expect(tipText()).toBe("Settings")
 		// Has visible text, so no aria-label is added.
 		expect(screen.getByRole("button").hasAttribute("aria-label")).toBe(false)
@@ -71,10 +85,12 @@ describe("TitleTooltipLayer", () => {
 		)
 		const btn = screen.getByRole("button")
 		pointerOver(btn, "touch")
+		rest()
 		expect(tipText()).toBeNull()
 		expect(btn.getAttribute("title")).toBe("Inner")
 
 		pointerOver(btn)
+		rest()
 		expect(tipText()).toBe("Inner")
 		expect(screen.getByTestId("outer").hasAttribute("title")).toBe(false)
 	})
@@ -89,6 +105,7 @@ describe("TitleTooltipLayer", () => {
 			</>
 		)
 		pointerOver(screen.getByRole("button"), "mouse", { clientX: 300, clientY: 100 })
+		rest()
 		const tip = screen.getByTestId("title-tooltip")
 		// happy-dom has no layout (the tip measures 0 wide), so its left edge
 		// is the pointer's x and its top clears the cursor below the pointer.
@@ -105,6 +122,7 @@ describe("TitleTooltipLayer", () => {
 		)
 		const span = screen.getByText("Apples")
 		pointerOver(span)
+		rest()
 		expect(tipText()).toBeNull()
 		// Still stashed, so the browser's box doesn't show it either.
 		expect(span.hasAttribute("title")).toBe(false)
@@ -121,10 +139,49 @@ describe("TitleTooltipLayer", () => {
 		)
 		const btn = screen.getByRole("button")
 		pointerOver(btn)
+		rest()
+		expect(tipText()).toBe("Undo")
 		act(() => {
 			btn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
 		})
 		expect(tipText()).toBeNull()
 		expect(btn.hasAttribute("title")).toBe(false)
+	})
+
+	it("shows at once on a control marked instant", () => {
+		render(
+			<>
+				<button type="button" title="Info tips" data-vc-title-instant="">
+					<svg />
+				</button>
+				<TitleTooltipLayer />
+			</>
+		)
+		pointerOver(screen.getByRole("button"))
+		expect(tipText()).toBe("Info tips")
+	})
+
+	it("never shows when the pointer leaves or presses before the wait ends", () => {
+		render(
+			<div data-testid="outside">
+				<button type="button" title="Rename">
+					<svg />
+				</button>
+				<TitleTooltipLayer />
+			</div>
+		)
+		const btn = screen.getByRole("button")
+		pointerOver(btn)
+		rest(HOVER_DELAY_MS / 2)
+		pointerOver(screen.getByTestId("outside"))
+		rest()
+		expect(tipText()).toBeNull()
+
+		pointerOver(btn)
+		act(() => {
+			btn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
+		})
+		rest()
+		expect(tipText()).toBeNull()
 	})
 })

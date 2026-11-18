@@ -2,12 +2,16 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
 /**
- * App-wide instant hover labels for every `title` attribute.
+ * App-wide hover labels for every `title` attribute.
  *
- * The browser's own `title` tooltip waits about a second and draws a gray
- * system box. Mounted once at the app root, this layer replaces it: when a
- * mouse lands on an element that has a `title`, the label shows right away
- * in the app's `.vc-tooltip` style. Call sites keep writing plain `title=`.
+ * The browser's own `title` tooltip draws a gray system box. Mounted once
+ * at the app root, this layer replaces it: when a mouse rests on an
+ * element that has a `title` for HOVER_DELAY_MS, the label shows in the
+ * app's `.vc-tooltip` style. Call sites keep writing plain `title=`.
+ *
+ * A control marked `data-vc-title-instant` skips the wait (the header's
+ * accessibility check, black-and-white preview and info tips toggles).
+ * Keyboard focus never waits.
  *
  * Mouse hover: the `title` (and any titled ancestor's) is moved into
  * `data-vc-title` while the pointer is over the element, so the native box
@@ -35,6 +39,10 @@ import { createPortal } from "react-dom"
 
 const STASH = "data-vc-title"
 const ARIA_FLAG = "data-vc-title-aria"
+/** Marks a control whose label shows with no wait. */
+const INSTANT = "data-vc-title-instant"
+/** How long the mouse rests on a control before its label shows. */
+export const HOVER_DELAY_MS = 2000
 const GAP = 6
 const EDGE = 8
 /** Below the pointer's hotspot: clears a standard arrow cursor. */
@@ -106,11 +114,19 @@ export const TitleTooltipLayer = () => {
 
 	useEffect(() => {
 		let active: Active | null = null
-		// Where the pointer entered the current anchor; the label stays put
+		// Where the pointer was when the label showed; the label stays put
 		// there (like the browser's box) rather than chasing the pointer.
 		let point: Point | null = null
+		// The wait before a hovered label shows.
+		let pending: ReturnType<typeof setTimeout> | null = null
+
+		const cancelPending = () => {
+			if (pending != null) clearTimeout(pending)
+			pending = null
+		}
 
 		const show = (el: Element) => {
+			cancelPending()
 			const text = titleOf(el)
 			setTip(
 				text && !echoesVisibleText(el, text)
@@ -124,6 +140,7 @@ export const TitleTooltipLayer = () => {
 		}
 
 		const deactivate = () => {
+			cancelPending()
 			if (!active) return
 			active.observer?.disconnect()
 			for (const el of active.stripped ?? []) restore(el)
@@ -149,10 +166,15 @@ export const TitleTooltipLayer = () => {
 				const observer = new MutationObserver(() => {
 					if (!el.hasAttribute("title")) return
 					strip(el)
-					show(el)
+					// Still waiting: the timer reads the new text when it fires.
+					if (pending == null) show(el)
 				})
 				observer.observe(el, { attributes: true, attributeFilter: ["title"] })
 				active = { el, mode, stripped, observer }
+				if (!el.hasAttribute(INSTANT)) {
+					pending = setTimeout(() => show(el), HOVER_DELAY_MS)
+					return
+				}
 			} else {
 				active = { el, mode }
 			}
@@ -166,6 +188,11 @@ export const TitleTooltipLayer = () => {
 			point = { x: e.clientX, y: e.clientY }
 			if (anchor) activate(anchor, "hover")
 			else if (active?.mode === "hover") deactivate()
+		}
+
+		// While waiting, follow the pointer so the label shows where it rests.
+		const onPointerMove = (e: PointerEvent) => {
+			if (pending != null) point = { x: e.clientX, y: e.clientY }
 		}
 
 		const onPointerOut = (e: PointerEvent) => {
@@ -189,12 +216,16 @@ export const TitleTooltipLayer = () => {
 		// Like the native box: a press, a scroll or Escape hides the label.
 		// A hovered title stays stashed until the pointer leaves, so the
 		// browser's box can't appear late over the same control.
-		const hide = () => setTip(null)
+		const hide = () => {
+			cancelPending()
+			setTip(null)
+		}
 		const onKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") hide()
 		}
 
 		document.addEventListener("pointerover", onPointerOver, true)
+		document.addEventListener("pointermove", onPointerMove, true)
 		document.addEventListener("pointerout", onPointerOut, true)
 		document.addEventListener("focusin", onFocusIn, true)
 		document.addEventListener("focusout", onFocusOut, true)
@@ -205,6 +236,7 @@ export const TitleTooltipLayer = () => {
 		return () => {
 			deactivate()
 			document.removeEventListener("pointerover", onPointerOver, true)
+			document.removeEventListener("pointermove", onPointerMove, true)
 			document.removeEventListener("pointerout", onPointerOut, true)
 			document.removeEventListener("focusin", onFocusIn, true)
 			document.removeEventListener("focusout", onFocusOut, true)

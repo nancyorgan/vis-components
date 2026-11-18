@@ -139,7 +139,9 @@ describe("VersionBadge with a hand-edited version", () => {
 		const confirm = vi.fn(() => false)
 		vi.stubGlobal("confirm", confirm)
 		const deleteIn = (li: Element | undefined) => {
-			const btn = li?.querySelector('button[title="Delete version"]')
+			const btn = Array.from(li?.querySelectorAll("button") ?? []).find(
+				(b) => b.textContent?.trim() === "Delete"
+			)
 			if (!btn) throw new Error("no Delete button")
 			fireEvent.click(btn)
 		}
