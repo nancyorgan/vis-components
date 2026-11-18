@@ -209,7 +209,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "export",
 				anchor: "export",
-				body: "Export downloads a visualization as an image or publishes the chart for slides and web pages.",
+				body: "Publish puts the chart online for slides and web pages. To save it as an image, open the Save menu.",
 				placement: "bottom",
 			},
 		],
@@ -255,7 +255,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "export-image-tab",
 				anchor: "export-image-tab",
-				body: "Download image saves a PNG, JPEG, SVG or PDF at the size and resolution you choose.",
+				body: "Save image saves a PNG, JPEG, SVG or PDF at the size and resolution you choose.",
 				placement: "bottom",
 			},
 		],
@@ -833,8 +833,8 @@ export const TIP_MOMENTS: TipMoment[] = [
 		tips: [
 			{
 				id: "templates",
-				anchor: "export",
-				body: "In Export, save this chart as a template. Then use New → From template to start the same design from fresh data.",
+				anchor: "save-menu",
+				body: "In the Save menu, save this chart as a template. Then use New → From template to start the same design from fresh data.",
 				placement: "bottom",
 			},
 			{

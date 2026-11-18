@@ -16,14 +16,12 @@ import {
 	saveStatusAtom,
 	visualsAtom,
 } from "../store/atoms"
-import { republishStateAtom, useRepublishVisual } from "../store/republishVisual"
-import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
+import { republishStateAtom } from "../store/republishVisual"
 import { getStorageAdapter } from "../lib/storage/registry"
 import { folderAncestors } from "../../library/lib/folderSubtree"
 import { useMediaQuery, useNarrowLayout } from "../../../lib/useMediaQuery"
 import { pageTitle, useDocumentTitle } from "../../../lib/documentTitle"
 
-import { Button } from "../../../components/ui/Button"
 import { DisclosureChevron } from "../../../components/ui/Chevron"
 import { EditorActions } from "./EditorActions"
 import { UpdateTemplateButton } from "./UpdateTemplateButton"
@@ -62,36 +60,28 @@ export const saveIndicatorText = (
 	return `Saved by ${firstName(saved.updatedBy.name)} ${today ? "at" : "on"} ${when}`
 }
 
-/** One-click Republish for every published pin of the open visual (same
- *  urls, fresh snapshot — see `store/republishVisual.ts`). Shown only when
- *  the visual is published AND this session runs in server mode: in a
- *  browser-local session there is nowhere public to publish to. Beside the
- *  button, the last result: "Republished · 9:25 AM" after a pass that
- *  pushed at least one pin, or the first error of a failed pass — and a
- *  "Republishes on save" chip when this user has set the visual to
- *  republish on every save here (the library's Template chip, restyled as
- *  a status). */
-const RepublishControl = ({ visualId }: { visualId: string }) => {
+/** What the Publish menu's one-click Republish last did (the button itself
+ *  lives in EditorActions): "Publishing…" while a pass runs, then
+ *  "Republished · 9:25 AM" after one that pushed at least one pin, or the
+ *  first error of a failed pass — and a "Republishes on save" chip when
+ *  this user has set the visual to republish on every save here (the
+ *  library's Template chip, restyled as a status). Shown only when the
+ *  visual is published AND this session runs in server mode. */
+const RepublishStatus = ({ visualId }: { visualId: string }) => {
 	const { busy, error, lastAt } = useAtomValue(republishStateAtom)
 	const republishOnSave = republishOnSaveFor(
 		useAtomValue(republishOnSaveVisualsAtom),
 		visualId
 	)
-	const republish = useRepublishVisual()
-	// ZIP-level maps inline their boundary topology into the payload — the
-	// same flag the Export modal's Embed tab passes.
-	const geographyLevel = useEffectiveGeographyLevel()
+	const text = busy
+		? "Publishing…"
+		: error !== null
+			? error
+			: lastAt !== null
+				? `Republished · ${formatSavedWhen(lastAt)}`
+				: null
 	return (
 		<div className="flex min-w-0 items-center gap-2">
-			<Button
-				compact
-				disabled={busy}
-				onClick={() =>
-					void republish(visualId, { includeZctaTopology: geographyLevel === "zcta" })
-				}
-			>
-				{busy ? "Publishing…" : "Republish"}
-			</Button>
 			{republishOnSave && (
 				<span
 					className="inline-flex flex-shrink-0 items-center rounded bg-brand-100 px-1.5 py-0.5 text-xs font-semibold tracking-wide text-brand-800 uppercase dark:bg-brand-900/40 dark:text-brand-200"
@@ -102,18 +92,14 @@ const RepublishControl = ({ visualId }: { visualId: string }) => {
 			<span
 				role="status"
 				className={
-					error !== null
-						? "truncate text-xs text-red-700 dark:text-red-300"
-						: lastAt !== null
-							? "truncate text-xs vc-muted"
-							: "sr-only"
+					text === null
+						? "sr-only"
+						: !busy && error !== null
+							? "truncate text-xs text-red-700 dark:text-red-300"
+							: "truncate text-xs vc-muted"
 				}
 			>
-				{error !== null
-					? error
-					: lastAt !== null
-						? `Republished · ${formatSavedWhen(lastAt)}`
-						: null}
+				{text}
 			</span>
 		</div>
 	)
@@ -216,9 +202,9 @@ export const SaveBar = () => {
 
 	// Server mode only: `remoteLoad` is true exactly when the boot probe found
 	// the self-host server and installed the HTTP adapter.
-	const republishControl =
+	const republishStatus =
 		published && visualId !== null && getStorageAdapter().capabilities.remoteLoad ? (
-			<RepublishControl visualId={visualId} />
+			<RepublishStatus visualId={visualId} />
 		) : null
 
 	const collapseButton = (
@@ -242,7 +228,7 @@ export const SaveBar = () => {
 						{nameField}
 						<UpdateTemplateButton />
 						<VersionBadge compact />
-						{republishControl}
+						{republishStatus}
 						<EditorActions />
 						{collapseButton}
 					</div>
@@ -258,7 +244,7 @@ export const SaveBar = () => {
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<UpdateTemplateButton />
 							<VersionBadge compact />
-							{republishControl}
+							{republishStatus}
 							<EditorActions compact />
 						</div>
 					</div>
@@ -299,7 +285,7 @@ export const SaveBar = () => {
 			>
 				{indicator}
 			</span>
-			{republishControl}
+			{republishStatus}
 			<div className="ml-auto">
 				<EditorActions />
 			</div>

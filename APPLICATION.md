@@ -699,7 +699,7 @@ live in IndexedDB, not localStorage; see §14.)
 lands, so there is no "unsaved" state to discard; instead the editor
 keeps an in-memory history of whole-draft snapshots. `⌘Z` / `Ctrl+Z`
 steps back, `⇧⌘Z` / `Ctrl+Shift+Z` / `Ctrl+Y` forward, and the top
-bar's Undo / Redo buttons (left of Export) do the same and show
+bar's Undo / Redo buttons (left of Publish) do the same and show
 whether there is anything to step to. The history covers everything
 the visual saves — name, encodings, type overrides, every channel
 config, labels, legend, tooltip, data labels, level orders, annotations,
@@ -5356,7 +5356,7 @@ the table existed has no config, which reads as off.
 **In image exports only on request.** By default an image export is the
 chart alone at the requested size: the export preview (and the library's
 thumbnail refresh) load the embed page with `table=off`. While the
-visual has a table on, the Download image tab offers an **Include data table**
+visual has a table on, the Save image tab offers an **Include data table**
 checkbox (off by default, not saved). Checked, the preview loads the
 embed with `table=image`: the chart at the requested size and, under
 it, the table as a static "Below the chart" block whatever its
@@ -6578,15 +6578,21 @@ the source visual's dataset version changes.
 ### Export & embed
 
 One modal ("Export this visualization", `components/ExportModal.tsx`)
-with two tabs named by what the user wants: **Download image** (a
+with two tabs named by what the user wants: **Save image** (a
 file) and **Publish** (a public copy to link from slides, documents
-and web pages). An open lands on Publish when the visual is already
-published, Download image otherwise.
+and web pages). It has two ways in, and each lands on its own tab:
+the editor's **Save** menu has **Save image…** (third item, after
+Save as template… and Download as Zafiro file), and the header's
+**Publish** button (the old "Export" button; an icon on phones) opens
+the Publish tab. "Save" in the header always means the visual itself;
+saving a picture of it is one of the other ways to save. Whether the
+visual is already published no longer picks the tab. The dialog
+closes on its ×, on Escape, or on a click anywhere outside the popup.
 
 **One figure, on both tabs.** Each tab opens with the same block,
 always visible and in the same place on both: Width / Height / Units /
 Lock aspect ratio (+ Include data table while the visual has a table
-on), then the tab's own controls on the same row (Download image adds
+on), then the tab's own controls on the same row (Save image adds
 Format and Resolution), over a live preview of the embed laid out at that size, with drag handles on its
 edges and corner. That figure is what a download captures AND what a
 publish captures and sizes its iframe to — resizing in the dialog is
@@ -6596,7 +6602,7 @@ canvas size → the size this visual was last exported or published at
 on every successful download or publish, and shared by both tabs.
 Aesthetics → Canvas size is never required: it only seeds.
 
-On **Publish**, under the preview (where Download image has its
+On **Publish**, under the preview (where Save image has its
 button, so the controls and the preview stay put when switching
 tabs), sits the state of the pin it shows — "Not published yet" (with one sentence on
 what publishing does), or "Published · latest data · Nov 10, 2:45 PM"
@@ -6648,13 +6654,15 @@ becomes **Republish** once the pin has them: same URLs, fresh snapshot
 of the saved visual. Web embeds and the PowerPoint add-in only ever see
 PUBLISHED content, so after an edit the user pushes it out again — and
 a visual can have several pins (latest, plus any pinned versions),
-each its own publish. Two shortcuts cover that. The editor header
-carries a **Republish** button whenever the open visual is published
-(server mode only): one click republishes EVERY published pin of the
-visual — each with its own pin and its own combined / split choice,
-URLs unchanged — reading "Publishing…" while it runs and then
-"Republished · 9:25 AM" beside it (or the first error, if a pin
-failed; a later success clears it). Pins publish one after another,
+each its own publish. Two shortcuts cover that. Whenever the open
+visual is published (server mode only), the header's Publish button
+becomes a split button: its arrow ("More ways to publish") opens a
+menu whose **Republish** item republishes EVERY published pin of the
+visual in one click — each with its own pin and its own combined /
+split choice, URLs unchanged. The header's status slot (left of the
+action group) reads "Publishing…" while it runs and then
+"Republished · 9:25 AM" (or the first error, if a pin failed; a later
+success clears it). Pins publish one after another,
 never at once, because each publish captures the on-screen figure for
 its picture. Clicks that land mid-run never stack: a run that is asked
 again finishes and goes once more, so a burst ends with exactly one
@@ -6669,18 +6677,18 @@ the help says so — "This is your setting, on this browser — it
 doesn't change what happens when someone else edits the visual."
 Purging a visual drops its entry. Two badges make the setting
 visible: the editor header wears a small purple "Republishes on
-save" chip beside the Republish button (same chip as the library's
+save" chip in its republish status slot (same chip as the library's
 Template chip), and the library's Pin State column appends " · auto"
 to every published pin of such a visual — "Published · latest ·
 auto" — with the title "Republishes on every save (your setting)";
 "auto", not "live", because "live" already names the latest-version
 pin there. A failed autosave republish never breaks the save — the
-error shows beside the header's Republish button.
+error shows in the header's republish status slot.
 
 **Linked pictures.** Every publish also captures the figure and
 uploads it twice beside the HTML. The capture source is an embed laid
 out at the dialog's figure size: the dialog's own preview when the
-publish is clicked there, else — the header's Republish, "Republish on
+publish is clicked there, else — the Publish menu's Republish, "Republish on
 every save" — an embed booted off-screen at the visual's remembered
 size (`lib/offscreenEmbed.ts`), so every path publishes the same
 figure: a PNG at 2 raster px per CSS px, stamped with that resolution so
@@ -6722,7 +6730,7 @@ for a publish the user just made from the Export modal, and the frame
 costs no layout (an inset shadow, not a border) so it can't shift the
 export/embed size defaults measured off the viewport.
 
-**Download image** saves the figure block's preview as **PNG**,
+**Save image** saves the figure block's preview as **PNG**,
 **JPEG**, **SVG**, or **PDF** (the button reads "Download PNG" and so
 on), with **Format** and, for raster formats, **Resolution** after the
 shared size controls, and the export size ("Exports at W × H px", or

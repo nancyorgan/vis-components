@@ -103,3 +103,34 @@ describe("Modal close button", () => {
 		expect(screen.queryByRole("dialog")).toBeNull()
 	})
 })
+
+/** A fit-width dialog (the export modal) sits in an invisible slot that can
+ *  span the viewport, so the empty space beside the panel is the slot, not
+ *  the backdrop element. Clicking there still closes; a drag that began
+ *  inside the panel does not. */
+describe("Modal click-away with a fit-width slot", () => {
+	const Fit = () => {
+		const [open, setOpen] = useState(true)
+		return (
+			<Modal open={open} onClose={() => setOpen(false)} title="T" fitWidth maxWidthPx={2000}>
+				<p>Body</p>
+			</Modal>
+		)
+	}
+
+	it("closes on a click in the slot beside the panel", () => {
+		render(<Fit />)
+		const slot = screen.getByRole("dialog").parentElement!
+		fireEvent.mouseDown(slot)
+		fireEvent.click(slot)
+		expect(screen.queryByRole("dialog")).toBeNull()
+	})
+
+	it("stays open when the press began inside the panel", () => {
+		render(<Fit />)
+		const slot = screen.getByRole("dialog").parentElement!
+		fireEvent.mouseDown(screen.getByText("Body"))
+		fireEvent.click(slot)
+		expect(screen.getByRole("dialog")).toBeTruthy()
+	})
+})

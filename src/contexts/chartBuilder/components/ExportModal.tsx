@@ -58,12 +58,15 @@ type Props = {
 	open: boolean
 	onClose: () => void
 	visualId: string | null
+	/** The tab this open lands on — the opener's choice. */
+	initialTab: ExportTab
 }
 
 type PinMode = "live" | "pinned"
 /** The two tabs, named by what the user wants: an image file, or a
  *  published copy to link from slides, documents and web pages. */
-type Tab = "download" | "publish"
+export type ExportTab = "download" | "publish"
+type Tab = ExportTab
 
 /** What the Save-as dialog offers for each format. The first extension is
  *  the one the suggested filename carries. */
@@ -177,26 +180,18 @@ const useViewportSize = () => {
 	return size
 }
 
-export const ExportModal = ({ open, onClose, visualId }: Props) => {
-	const [tab, setTab] = useState<Tab>("download")
-	// Each open lands on the tab with work in it: Publish when this
-	// visual is already published (its links and republish live there, and
-	// the editor is showing the published-content warning), Download image
-	// otherwise. Tab state survives while the modal sits mounted but closed,
-	// so the choice is remade on the open transition — and only then, so
-	// publishing or unpublishing from the Publish tab never yanks the user
-	// off it. Same adjust-state-on-prop-change pattern as the snippet drafts.
-	const embedInstances = useAtomValue(embedInstancesAtom)
-	const isPublished = Object.values(embedInstances).some(
-		(i) =>
-			i.visualId === visualId &&
-			i.publishId !== undefined &&
-			i.publishedUrls !== undefined
-	)
+export const ExportModal = ({ open, onClose, visualId, initialTab }: Props) => {
+	const [tab, setTab] = useState<Tab>(initialTab)
+	// Each open lands on the tab its opener asked for: the Save menu's "Save
+	// image…" on Save image, the header's Publish button on Publish. Tab
+	// state survives while the modal sits mounted but closed, so the choice
+	// is remade on the open transition — and only then, so nothing yanks the
+	// user off a tab they switched to. Same adjust-state-on-prop-change
+	// pattern as the snippet drafts.
 	const [seenOpen, setSeenOpen] = useState(false)
 	if (open !== seenOpen) {
 		setSeenOpen(open)
-		if (open) setTab(isPublished ? "publish" : "download")
+		if (open) setTab(initialTab)
 	}
 	// ONE figure size for the whole dialog: the downloaded file and the
 	// published pictures / iframe are all the embed laid out at this size,
@@ -392,7 +387,7 @@ export const ExportModal = ({ open, onClose, visualId }: Props) => {
 						onClick={() => setTab("download")}
 						tipAnchor="export-image-tab"
 					>
-						Download image
+						Save image
 					</TabButton>
 					<TabButton
 						active={tab === "publish"}
@@ -859,7 +854,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 				>
 					Publishing embeds requires the self-host server — this session is
 					running browser-local, so there is nowhere public to publish to.
-					Use the Download image tab for a file.
+					Use the Save image tab for a file.
 				</div>
 				<FigureBlock figure={figure} />
 			</div>
@@ -897,7 +892,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 	}
 
 	// Whether this pin is live, and since when, with the actions beside it.
-	// It sits UNDER the preview (where Download image has its button), so
+	// It sits UNDER the preview (where Save image has its button), so
 	// the controls and the preview stay put when switching tabs. Unpublish
 	// is a quiet link — it kills the public URL, so it asks twice.
 	const stateRows = (
@@ -941,9 +936,9 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 
 	return (
 		<div className="flex flex-col gap-4">
-			<FigureBlock figure={figure} note="Same size as Download image" />
+			<FigureBlock figure={figure} note="Same size as Save image" />
 			{/* Everything under the preview fills its width and wraps, so the
-			    popup is the same width as on Download image. */}
+			    popup is the same width as on Save image. */}
 			<div className={`flex flex-col gap-4 ${FILL_WIDTH}`}>
 				{stateRows}
 
@@ -1083,7 +1078,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 }
 
 // ---------------------------------------------------------------------------
-// Download image tab
+// Save image tab
 // ---------------------------------------------------------------------------
 
 const DownloadTab = ({

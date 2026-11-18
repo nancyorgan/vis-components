@@ -6,8 +6,11 @@ import { TestProvider } from "../../../testSupport/TestProvider"
 import { EMPTY_CHANNEL_CONFIGS } from "../lib/channelConfig"
 import { SYSTEM_LIGHT_THEME } from "../lib/systemThemes"
 import { labelsFromTheme } from "../lib/themeConfig"
-import { emptyEncodings, type Visual } from "../lib/types"
+import { localStorageAdapter } from "../lib/storage/adapter"
+import { setStorageAdapter } from "../lib/storage/registry"
+import { type EmbedInstance, emptyEncodings, type Visual } from "../lib/types"
 import {
+	embedInstancesAtom,
 	currentDatasetIdAtom,
 	currentTemplateIdAtom,
 	currentVisualIdAtom,
@@ -16,6 +19,17 @@ import {
 import { EditorActions } from "./EditorActions"
 
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }))
+// The export modal has its own test; here it only reports the tab it was
+// opened on.
+vi.mock("./ExportModal", () => ({
+	ExportModal: ({ open, initialTab }: { open: boolean; initialTab: string }) =>
+		open ? <div data-testid="export-modal">{initialTab}</div> : null,
+}))
+const republish = vi.fn(async () => 1)
+vi.mock("../store/republishVisual", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../store/republishVisual")>()),
+	useRepublishVisual: () => republish,
+}))
 
 /** A template-pending draft (template id, no visual, no data set) can't be
  *  saved: Save is disabled and says why. */
@@ -50,8 +64,14 @@ const renderActions = (datasetId: string | null) =>
 		</TestProvider>
 	)
 
-beforeEach(installInMemoryLocalStorage)
-afterEach(cleanup)
+beforeEach(() => {
+	installInMemoryLocalStorage()
+	republish.mockClear()
+})
+afterEach(() => {
+	cleanup()
+	setStorageAdapter(localStorageAdapter)
+})
 
 describe("EditorActions Save while a template is pending", () => {
 	it("disables Save until a data set is attached", () => {
@@ -67,19 +87,38 @@ describe("EditorActions Save while a template is pending", () => {
 	})
 })
 
-/** Save is a split button for a SAVED visual: the arrow opens a menu whose
- *  one item today is "Save as template…" (the dialog is
- *  SaveTemplateButton's test). A draft has no arrow — nothing saved to
- *  build a template from. */
+/** Save is a split button for a SAVED visual: the arrow opens a menu of
+ *  the other ways to save — as a template (the dialog is
+ *  SaveTemplateButton's test), as a Zafiro file, as an image. A draft has
+ *  no arrow — nothing saved to build a template from. */
 describe("EditorActions Save menu", () => {
 	const SAVED: Visual = { ...TEMPLATE, id: "dv-1", name: "Sales", template: undefined }
 
-	const renderSaved = (visualId: string | null) =>
+	const PUBLISHED: EmbedInstance = {
+		id: "ei-1",
+		visualId: "dv-1",
+		versionId: null,
+		createdAt: 1,
+		lastExportedAt: 1,
+		publishId: "pub-1",
+		publishedAt: 2,
+		publishedParts: ["full"],
+		publishedUrls: { full: "https://example.test/embeds/pub-1/index.html" },
+		publishedVersionId: null,
+	}
+	const serverMode = () =>
+		setStorageAdapter({ ...localStorageAdapter, capabilities: { remoteLoad: true } })
+
+	const renderSaved = (visualId: string | null, instances: EmbedInstance[] = []) =>
 		render(
 			<TestProvider
 				initializeState={(store) => {
 					store.set(visualsAtom, [SAVED])
 					store.set(currentVisualIdAtom, visualId)
+					store.set(
+						embedInstancesAtom,
+						Object.fromEntries(instances.map((i) => [i.id, i]))
+					)
 					store.set(currentTemplateIdAtom, null)
 					store.set(currentDatasetIdAtom, "ds-1")
 				}}
@@ -102,5 +141,40 @@ describe("EditorActions Save menu", () => {
 	it("has no arrow while the visual is unsaved", () => {
 		renderSaved(null)
 		expect(screen.queryByRole("button", { name: "More ways to save" })).toBeNull()
+	})
+
+	it("opens the export modal on Save image from the Save menu's Save image…", () => {
+		renderSaved("dv-1")
+		fireEvent.click(screen.getByRole("button", { name: "More ways to save" }))
+		fireEvent.click(screen.getByRole("menuitem", { name: /Save image…/ }))
+		expect(screen.queryByRole("menu")).toBeNull()
+		expect(screen.getByTestId("export-modal").textContent).toBe("download")
+	})
+
+	it("opens the export modal on Publish from the Publish button", () => {
+		renderSaved("dv-1")
+		expect(screen.queryByRole("button", { name: "Export" })).toBeNull()
+		fireEvent.click(screen.getByRole("button", { name: "Publish" }))
+		expect(screen.getByTestId("export-modal").textContent).toBe("publish")
+	})
+
+	it("keeps Republish in the Publish button's menu for a published visual in server mode", () => {
+		serverMode()
+		renderSaved("dv-1", [PUBLISHED])
+		expect(screen.queryByRole("menuitem", { name: /Republish/ })).toBeNull()
+		fireEvent.click(screen.getByRole("button", { name: "More ways to publish" }))
+		fireEvent.click(screen.getByRole("menuitem", { name: /Republish/ }))
+		expect(screen.queryByRole("menu")).toBeNull()
+		expect(republish).toHaveBeenCalledTimes(1)
+		expect(republish).toHaveBeenCalledWith("dv-1", { includeZctaTopology: false })
+	})
+
+	it("has no Publish menu in a browser-local session or while nothing is published", () => {
+		renderSaved("dv-1", [PUBLISHED])
+		expect(screen.queryByRole("button", { name: "More ways to publish" })).toBeNull()
+		cleanup()
+		serverMode()
+		renderSaved("dv-1")
+		expect(screen.queryByRole("button", { name: "More ways to publish" })).toBeNull()
 	})
 })

@@ -84,7 +84,7 @@ test.describe("Info tips board", () => {
 		await expect(bubbles(page).filter({ hasText: "Assign variables to X, Y" })).toBeVisible()
 		expect(await expectCleanBoard(page)).toBeGreaterThanOrEqual(5)
 
-		await page.getByRole("button", { name: "Export", exact: true }).click()
+		await page.getByRole("button", { name: "Publish", exact: true }).click()
 		const dialog = page.getByRole("dialog", { name: /Export/ })
 		await expect(dialog).toBeVisible()
 		await expect(bubbles(page).filter({ hasText: "Publish puts the chart online" })).toBeVisible()

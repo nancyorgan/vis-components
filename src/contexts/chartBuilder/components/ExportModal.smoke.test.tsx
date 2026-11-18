@@ -17,7 +17,7 @@ import {
 } from "../store/atoms"
 import { ExportModal } from "./ExportModal"
 
-/** The Export modal's two tabs — Download image and Publish — and which
+/** The Export modal's two tabs — Save image and Publish — and which
  *  tab an open lands on. Save as template and the Zafiro bundle download
  *  live in the editor's Save menu (EditorActions' test). */
 
@@ -60,7 +60,11 @@ const PUBLISHED: EmbedInstance = {
 	publishedVersionId: null,
 }
 
-const renderModal = (open: boolean, instances: EmbedInstance[] = []) =>
+const renderModal = (
+	open: boolean,
+	instances: EmbedInstance[] = [],
+	initialTab: "download" | "publish" = "download"
+) =>
 	render(
 		<TestProvider
 			initializeState={(store) => {
@@ -72,14 +76,14 @@ const renderModal = (open: boolean, instances: EmbedInstance[] = []) =>
 				)
 			}}
 		>
-			<ExportModal open={open} onClose={vi.fn()} visualId="dv-1" />
+			<ExportModal open={open} onClose={vi.fn()} visualId="dv-1" initialTab={initialTab} />
 		</TestProvider>
 	)
 
 describe("Export modal tabs", () => {
-	it("offers Download image and Publish, with the figure size controls on the open tab", () => {
+	it("offers Save image and Publish, with the figure size controls on the open tab", () => {
 		renderModal(true)
-		expect(screen.getByRole("tab", { name: "Download image" })).toBeTruthy()
+		expect(screen.getByRole("tab", { name: "Save image" })).toBeTruthy()
 		expect(screen.getByRole("tab", { name: "Publish" })).toBeTruthy()
 		expect(screen.getByLabelText("Width (px)")).toBeTruthy()
 		expect(screen.getByRole("button", { name: "Download PNG" })).toBeTruthy()
@@ -94,13 +98,13 @@ describe("Export modal tabs", () => {
 const EMBED_PANE_TEXT = /Publishing embeds requires the self-host server/
 
 describe("Export modal opening tab", () => {
-	it("opens on Download for an unpublished visual", () => {
-		renderModal(true)
+	it("opens on Save image when its opener asks for it, even for a published visual", () => {
+		renderModal(true, [PUBLISHED], "download")
 		expect(screen.queryByText(EMBED_PANE_TEXT)).toBeNull()
 	})
 
-	it("opens on Publish when the visual is already published", () => {
-		renderModal(true, [PUBLISHED])
+	it("opens on Publish when its opener asks for it", () => {
+		renderModal(true, [], "publish")
 		expect(screen.getByText(EMBED_PANE_TEXT)).toBeTruthy()
 	})
 })
@@ -128,7 +132,7 @@ describe("Export modal Publish tab: Republish on every save", () => {
 					)
 				}}
 			>
-				<ExportModal open onClose={vi.fn()} visualId="dv-1" />
+				<ExportModal open onClose={vi.fn()} visualId="dv-1" initialTab="publish" />
 			</TestProvider>
 		)
 		return store

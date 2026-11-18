@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { installInMemoryLocalStorage } from "../../../testSupport/localStorageShim"
@@ -15,21 +15,17 @@ import {
 	republishOnSaveVisualsAtom,
 	visualsAtom,
 } from "../store/atoms"
+import { republishStateAtom } from "../store/republishVisual"
 import { SaveBar } from "./SaveBar"
 
-/** The header's one-click Republish: present only for a PUBLISHED visual in
- *  SERVER mode (a browser-local session has nowhere to publish to), and a
- *  click sends the open visual through the shared republish. */
+/** The header's republish STATUS (the Republish action itself is in the
+ *  Publish button's menu — EditorActions' test): the "Republishes on save"
+ *  chip and the last result, only for a PUBLISHED visual in SERVER mode. */
 
 // The action group and version chip have their own tests and their own
 // router / dataset needs; the header's republish slot is what's under test.
 vi.mock("./EditorActions", () => ({ EditorActions: () => null }))
 vi.mock("./VersionBadge", () => ({ VersionBadge: () => null }))
-const republish = vi.fn(async () => 1)
-vi.mock("../store/republishVisual", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../store/republishVisual")>()),
-	useRepublishVisual: () => republish,
-}))
 
 const VISUAL: Visual = {
 	id: "dv-1",
@@ -59,7 +55,11 @@ const PUBLISHED: EmbedInstance = {
 	publishedVersionId: null,
 }
 
-const renderBar = (instances: EmbedInstance[], flagged: string[] = []) =>
+const renderBar = (
+	instances: EmbedInstance[],
+	flagged: string[] = [],
+	republishState?: { busy: boolean; pending: boolean; error: string | null; lastAt: number | null }
+) =>
 	render(
 		<TestProvider
 			initializeState={(store) => {
@@ -73,49 +73,58 @@ const renderBar = (instances: EmbedInstance[], flagged: string[] = []) =>
 					republishOnSaveVisualsAtom,
 					Object.fromEntries(flagged.map((id) => [id, true as const]))
 				)
+				if (republishState) store.set(republishStateAtom, republishState)
 			}}
 		>
 			<SaveBar />
 		</TestProvider>
 	)
 
-beforeEach(() => {
-	installInMemoryLocalStorage()
-	republish.mockClear()
-})
+const serverMode = () =>
+	setStorageAdapter({ ...localStorageAdapter, capabilities: { remoteLoad: true } })
+
+beforeEach(installInMemoryLocalStorage)
 afterEach(() => {
 	cleanup()
 	setStorageAdapter(localStorageAdapter)
 })
 
-describe("SaveBar Republish", () => {
-	it("shows Republish for a published visual in server mode and republishes on click", () => {
-		setStorageAdapter({ ...localStorageAdapter, capabilities: { remoteLoad: true } })
+describe("SaveBar republish status", () => {
+	it("has no Republish button of its own", () => {
+		serverMode()
 		renderBar([PUBLISHED])
-		const button = screen.getByRole("button", { name: "Republish" })
-		fireEvent.click(button)
-		expect(republish).toHaveBeenCalledTimes(1)
-		expect(republish).toHaveBeenCalledWith("dv-1", { includeZctaTopology: false })
+		expect(screen.queryByRole("button", { name: "Republish" })).toBeNull()
 	})
 
 	it("wears the Republishes-on-save chip only when this user flagged the visual", () => {
-		setStorageAdapter({ ...localStorageAdapter, capabilities: { remoteLoad: true } })
+		serverMode()
 		renderBar([PUBLISHED])
 		expect(screen.queryByText("Republishes on save")).toBeNull()
 		cleanup()
 		renderBar([PUBLISHED], ["dv-1"])
 		expect(screen.getByText("Republishes on save")).toBeTruthy()
-		expect(screen.getByRole("button", { name: "Republish" })).toBeTruthy()
+	})
+
+	it("reports a running pass, then its result or error", () => {
+		serverMode()
+		renderBar([PUBLISHED], [], { busy: true, pending: false, error: null, lastAt: null })
+		expect(screen.getByText("Publishing…")).toBeTruthy()
+		cleanup()
+		renderBar([PUBLISHED], [], { busy: false, pending: false, error: null, lastAt: Date.now() })
+		expect(screen.getByText(/^Republished · /)).toBeTruthy()
+		cleanup()
+		renderBar([PUBLISHED], [], { busy: false, pending: false, error: "Server said no", lastAt: null })
+		expect(screen.getByText("Server said no")).toBeTruthy()
 	})
 
 	it("stays hidden in a browser-local session, even for a published visual", () => {
-		renderBar([PUBLISHED])
-		expect(screen.queryByRole("button", { name: "Republish" })).toBeNull()
+		renderBar([PUBLISHED], ["dv-1"])
+		expect(screen.queryByText("Republishes on save")).toBeNull()
 	})
 
 	it("stays hidden in server mode when nothing is published", () => {
-		setStorageAdapter({ ...localStorageAdapter, capabilities: { remoteLoad: true } })
-		renderBar([{ ...PUBLISHED, publishId: undefined, publishedUrls: undefined }])
-		expect(screen.queryByRole("button", { name: "Republish" })).toBeNull()
+		serverMode()
+		renderBar([{ ...PUBLISHED, publishId: undefined, publishedUrls: undefined }], ["dv-1"])
+		expect(screen.queryByText("Republishes on save")).toBeNull()
 	})
 })

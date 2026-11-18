@@ -3,9 +3,11 @@ import { useNavigate } from "@tanstack/react-router"
 import { useAtomValue } from "jotai"
 import { downloadVisualsBundle } from "../lib/downloadVisuals"
 import { nameCollides } from "../lib/nameUniqueness"
+import { getStorageAdapter } from "../lib/storage/registry"
 import {
 	currentVisualIdAtom,
 	currentVisualNameAtom,
+	currentVisualPublishedAtom,
 	liveVisualsAtom,
 	templatePendingAtom,
 } from "../store/atoms"
@@ -15,7 +17,9 @@ import {
 	useRedo,
 	useUndo,
 } from "../store/editorHistory"
+import { republishStateAtom, useRepublishVisual } from "../store/republishVisual"
 import { useSaveVisual } from "../store/saveVisual"
+import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
 
 import { Button } from "../../../components/ui/Button"
 import { DisclosureChevron } from "../../../components/ui/Chevron"
@@ -26,7 +30,7 @@ import {
 	MENU_PANEL,
 	MENU_TITLE,
 } from "../../../components/ui/menuStyles"
-import { ExportModal } from "./ExportModal"
+import { ExportModal, type ExportTab } from "./ExportModal"
 import { SaveTemplateButton } from "./SaveTemplateButton"
 
 /** "⌘" on Apple platforms, "Ctrl" elsewhere — for the shortcut hints. */
@@ -62,8 +66,8 @@ const RedoIcon = () => (
 	</svg>
 )
 
-/** Arrow out of a tray: the compact stand-in for the "Export" label. */
-const ExportIcon = () => (
+/** Arrow out of a tray: the compact stand-in for the "Publish" label. */
+const PublishIcon = () => (
 	<svg {...iconProps}>
 		<path d="M8 10V2.5" />
 		<path d="M5 5.5l3-3 3 3" />
@@ -71,11 +75,38 @@ const ExportIcon = () => (
 	</svg>
 )
 
-/** The editor's action group — undo / redo, Export, Save — plus the ⌘S
+/** A split button's dropdown: open state, the wrapper ref a pointer-down
+ *  outside of closes it, and the wrapper's Escape handler, which closes it
+ *  and hands focus back to the arrow segment. */
+const useSplitMenu = () => {
+	const [open, setOpen] = useState(false)
+	const ref = useRef<HTMLDivElement>(null)
+	useEffect(() => {
+		if (!open) return
+		const onPointerDown = (e: PointerEvent) => {
+			if (!ref.current?.contains(e.target as Node)) setOpen(false)
+		}
+		document.addEventListener("pointerdown", onPointerDown)
+		return () => document.removeEventListener("pointerdown", onPointerDown)
+	}, [open])
+	const onKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key !== "Escape" || !open) return
+		e.stopPropagation()
+		setOpen(false)
+		ref.current?.querySelector<HTMLElement>("[aria-haspopup=menu]")?.focus()
+	}
+	return { open, setOpen, ref, onKeyDown }
+}
+
+/** The editor's action group — undo / redo, Publish, Save — plus the ⌘S
  *  shortcut and the export modal. Rendered in exactly ONE place at a time:
  *  the SaveBar on wide layouts, the data tray's bottom strip on narrow ones
  *  (thumb reach, and the save bar shrinks to the name). `compact` swaps the
- *  Export label for an icon so the strip fits a 360px phone. */
+ *  Publish label for an icon so the strip fits a 360px phone.
+ *
+ *  The export modal has two ways in, named by what the user wants: the
+ *  Save menu's "Save image…" opens it on Save image, the Publish button on
+ *  Publish. */
 export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 	const name = useAtomValue(currentVisualNameAtom)
 	const visualId = useAtomValue(currentVisualIdAtom)
@@ -89,19 +120,41 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 	const templatePending = useAtomValue(templatePendingAtom)
 	const navigate = useNavigate()
 	const [saving, setSaving] = useState(false)
+	// The export modal, and the tab its next open lands on.
 	const [exportOpen, setExportOpen] = useState(false)
+	const [exportTab, setExportTab] = useState<ExportTab>("publish")
+	const openExport = (tab: ExportTab) => {
+		setExportTab(tab)
+		setExportOpen(true)
+	}
 	// The Save button's arrow segment opens a menu of other ways to save:
-	// today "Save as template…" (the dialog is SaveTemplateButton's).
-	const [saveMenuOpen, setSaveMenuOpen] = useState(false)
-	const saveMenuRef = useRef<HTMLDivElement>(null)
-	useEffect(() => {
-		if (!saveMenuOpen) return
-		const onPointerDown = (e: PointerEvent) => {
-			if (!saveMenuRef.current?.contains(e.target as Node)) setSaveMenuOpen(false)
-		}
-		document.addEventListener("pointerdown", onPointerDown)
-		return () => document.removeEventListener("pointerdown", onPointerDown)
-	}, [saveMenuOpen])
+	// as a template (the dialog is SaveTemplateButton's), as a Zafiro file,
+	// as an image.
+	const {
+		open: saveMenuOpen,
+		setOpen: setSaveMenuOpen,
+		ref: saveMenuRef,
+		onKeyDown: onSaveMenuKeyDown,
+	} = useSplitMenu()
+	// The Publish button grows an arrow once the visual is published, in
+	// server mode only (`remoteLoad` is true exactly when the boot probe
+	// found the self-host server; a browser-local session has nowhere public
+	// to publish to). Its menu holds the one-click Republish: every published
+	// pin of the open visual, same urls, fresh snapshot (see
+	// `store/republishVisual.ts`). The result shows in the SaveBar.
+	const {
+		open: publishMenuOpen,
+		setOpen: setPublishMenuOpen,
+		ref: publishMenuRef,
+		onKeyDown: onPublishMenuKeyDown,
+	} = useSplitMenu()
+	const published = useAtomValue(currentVisualPublishedAtom)
+	const canRepublish = published && getStorageAdapter().capabilities.remoteLoad
+	const republishBusy = useAtomValue(republishStateAtom).busy
+	const republish = useRepublishVisual()
+	// ZIP-level maps inline their boundary topology into the payload — the
+	// same flag the export modal's Publish tab passes.
+	const geographyLevel = useEffectiveGeographyLevel()
 	// "Download as Zafiro file": this visualization as a library bundle
 	// (JSON) — the same file Settings → Sharing writes and imports, so the
 	// recipient gets the chart, its data set, its folder, and its custom
@@ -120,13 +173,6 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 		} finally {
 			setBundleBusy(false)
 		}
-	}
-	// Escape closes the menu and hands focus back to the arrow segment.
-	const onSaveMenuKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key !== "Escape" || !saveMenuOpen) return
-		e.stopPropagation()
-		setSaveMenuOpen(false)
-		saveMenuRef.current?.querySelector<HTMLElement>("[aria-haspopup=menu]")?.focus()
 	}
 	const canUndo = useAtomValue(canUndoAtom)
 	const canRedo = useAtomValue(canRedoAtom)
@@ -206,17 +252,63 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 					<RedoIcon />
 				</Button>
 			</div>
+			{/* Publish is a split button once there is something to republish:
+			    the main segment opens the export modal on its Publish tab, the
+			    arrow holds Republish. */}
 			{visualId && (
-				<Button
-					compact
-					onClick={() => setExportOpen(true)}
-					data-tip="export"
-					aria-label={compact ? "Export" : undefined}
-					title={compact ? "Export" : undefined}
-					className={iconBtn}
-				>
-					{compact ? <ExportIcon /> : "Export"}
-				</Button>
+				// eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-to-close for the menu below; the interactive elements are the buttons inside
+				<div className="relative" ref={publishMenuRef} onKeyDown={onPublishMenuKeyDown}>
+					<div className="flex">
+						<Button
+							compact
+							onClick={() => openExport("publish")}
+							data-tip="export"
+							aria-label={compact ? "Publish" : undefined}
+							title={compact ? "Publish" : undefined}
+							className={[iconBtn, canRepublish ? "rounded-r-none" : undefined]
+								.filter(Boolean)
+								.join(" ")}
+						>
+							{compact ? <PublishIcon /> : "Publish"}
+						</Button>
+						{canRepublish && (
+							<Button
+								compact
+								className="rounded-l-none border-l border-l-white/30 px-2"
+								onClick={() => setPublishMenuOpen((v) => !v)}
+								aria-label="More ways to publish"
+								aria-haspopup="menu"
+								aria-expanded={publishMenuOpen}
+							>
+								<DisclosureChevron open={publishMenuOpen} />
+							</Button>
+						)}
+					</div>
+					{canRepublish && publishMenuOpen && (
+						<div className={MENU_PANEL} role="menu">
+							<button
+								type="button"
+								role="menuitem"
+								disabled={republishBusy}
+								onClick={() => {
+									setPublishMenuOpen(false)
+									void republish(visualId, {
+										includeZctaTopology: geographyLevel === "zcta",
+									})
+								}}
+								className={MENU_ITEM}
+							>
+								<div className={MENU_TITLE}>
+									{republishBusy ? "Publishing…" : "Republish"}
+								</div>
+								<div className={MENU_HINT}>
+									Update everything already published with the saved visualization.
+									Links stay the same.
+								</div>
+							</button>
+						</div>
+					)}
+				</div>
 			)}
 			{/* Save is a split button like the header's New visualization: the
 			    main segment saves, the arrow opens the other ways to save. The
@@ -286,6 +378,20 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 											another Zafiro.
 										</div>
 									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => {
+											setSaveMenuOpen(false)
+											openExport("download")
+										}}
+										className={MENU_ITEM_DIVIDED}
+									>
+										<div className={MENU_TITLE}>Save image…</div>
+										<div className={MENU_HINT}>
+											A PNG, JPEG, SVG or PDF at the size you choose.
+										</div>
+									</button>
 								</div>
 							) : null
 						}
@@ -301,6 +407,7 @@ export const EditorActions = ({ compact = false }: { compact?: boolean }) => {
 				open={exportOpen}
 				onClose={() => setExportOpen(false)}
 				visualId={visualId}
+				initialTab={exportTab}
 			/>
 		</div>
 	)

@@ -23,8 +23,9 @@ const openExportTab = async (page: import("@playwright/test").Page) => {
 	})
 	await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
 
-	await page.getByRole("button", { name: "Export" }).click()
-	// The modal opens on the "Download image" tab by default.
+	// The Save menu's "Save image…" opens the modal on its Save image tab.
+	await page.getByRole("button", { name: "More ways to save" }).click()
+	await page.getByRole("menuitem", { name: /Save image…/ }).click()
 
 	// The preview iframe cold-boots the embed app; wait for its chart AND
 	// legend so the capture has both to serialize.
@@ -116,11 +117,12 @@ test.describe("Export image", () => {
 			waitUntil: "networkidle",
 		})
 		await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
-		await page.getByRole("button", { name: "Export" }).click()
+		await page.getByRole("button", { name: "More ways to save" }).click()
+		await page.getByRole("menuitem", { name: /Save image…/ }).click()
 
 		// Both tabs share the pinned top-left layout: toggling between them
 		// must not move the popup's top-left corner or the tab buttons. The
-		// modal opens on "Download image", so toggle to Publish and back.
+		// modal opened on "Save image", so toggle to Publish and back.
 		const dialog = page.locator('[role="dialog"]')
 		const embedTab = page.getByRole("tab", { name: "Publish" })
 		const dialogBefore = (await dialog.boundingBox())!
@@ -134,7 +136,7 @@ test.describe("Export image", () => {
 		expect(tabExport.x).toBe(tabBefore.x)
 		expect(tabExport.y).toBe(tabBefore.y)
 
-		await page.getByRole("tab", { name: "Download image" }).click()
+		await page.getByRole("tab", { name: "Save image" }).click()
 		const dialogBack = (await dialog.boundingBox())!
 		const tabBack = (await embedTab.boundingBox())!
 		expect(dialogBack.x).toBe(dialogBefore.x)
@@ -227,8 +229,8 @@ test.describe("Export image", () => {
 		// Full reload — the size must come back from storage, not React state.
 		await page.reload({ waitUntil: "networkidle" })
 		await page.waitForSelector("svg#vc-scatter-svg", { timeout: 8_000 })
-		await page.getByRole("button", { name: "Export" }).click()
-		await page.getByRole("tab", { name: "Download image" }).click()
+		await page.getByRole("button", { name: "Publish", exact: true }).click()
+		await page.getByRole("tab", { name: "Save image" }).click()
 
 		await expect(page.getByLabel("Width (px)")).toHaveValue("800")
 		await expect(page.getByLabel("Height (px)")).toHaveValue("500")

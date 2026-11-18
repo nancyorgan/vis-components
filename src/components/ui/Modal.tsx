@@ -94,6 +94,13 @@ export const Modal = ({
 	const pressBeganOnBackdrop = useRef(false)
 
 	const panelRef = useRef<HTMLDivElement>(null)
+	// The fit-width slot is an invisible layout box that can span the whole
+	// viewport (the export modal's does), so the empty space around the panel
+	// is the SLOT, not the backdrop element. It counts as backdrop for
+	// click-away, or clicking beside such a dialog would do nothing.
+	const slotRef = useRef<HTMLDivElement>(null)
+	const isBackdrop = (e: React.MouseEvent) =>
+		e.target === e.currentTarget || e.target === slotRef.current
 	const titleId = useId()
 
 	useEffect(() => {
@@ -227,13 +234,12 @@ export const Modal = ({
 				anchorTop ? "items-start" : "items-center"
 			)}
 			onMouseDown={(e) => {
-				pressBeganOnBackdrop.current = e.target === e.currentTarget
+				pressBeganOnBackdrop.current = isBackdrop(e)
 			}}
 			onClick={
 				dismissOnBackdrop
 					? (e) => {
-							if (e.target === e.currentTarget && pressBeganOnBackdrop.current)
-								onClose()
+							if (isBackdrop(e) && pressBeganOnBackdrop.current) onClose()
 					  }
 					: undefined
 			}
@@ -246,6 +252,7 @@ export const Modal = ({
 				   gives the panel's max-h backstop a definite height to resolve
 				   against. */
 				<div
+					ref={slotRef}
 					className="flex h-full items-start justify-start"
 					style={{
 						width: maxWidthPx,
