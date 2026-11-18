@@ -1,6 +1,7 @@
 import { ColorInput as UiColorInput } from "../../../../components/ui/ColorInput"
 import { NumberInput as UiNumberInput } from "../../../../components/ui/NumberInput"
 import {
+	DATA_TABLE_PLACEMENT_OPTIONS,
 	themeDataTableStyle,
 	type DataTablePlacement,
 	type ResolvedDataTableStyle,
@@ -161,11 +162,7 @@ const TextBlockRows = ({
  *  theme's base text font, and empty title / caption rows follow the table
  *  text, so both track a later Text fonts change. */
 /** Same options and wording as the sidebar's Placement select. */
-const PLACEMENT_OPTIONS: Array<{ value: DataTablePlacement; label: string }> = [
-	{ value: "below", label: "Below the chart" },
-	{ value: "button", label: "Behind a button" },
-	{ value: "tabs", label: "In a tab" },
-]
+const PLACEMENT_OPTIONS = [...DATA_TABLE_PLACEMENT_OPTIONS]
 
 /** Settings → Themes → Data tables → Defaults: on / placement / max rows /
  *  download, SEEDED into a chart's `DataTableConfig` when it's created or

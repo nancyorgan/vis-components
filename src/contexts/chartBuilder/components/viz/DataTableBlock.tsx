@@ -104,6 +104,7 @@ const DataTable = ({
 	titleText,
 	fileName,
 	forImage = false,
+	hidden = false,
 }: {
 	cfg: DataTableConfig
 	look: ResolvedDataTableStyle
@@ -112,6 +113,10 @@ const DataTable = ({
 	/** The image export's copy: no Show all / Download CSV links (a picture
 	 *  can't click them); a cut table says so in a plain line instead. */
 	forImage?: boolean
+	/** The screen-reader-only copy (placement "hidden"): nothing in it takes
+	 *  keyboard focus, since a sighted keyboard user would land on something
+	 *  they can't see. So no links either, like the image export's. */
+	hidden?: boolean
 }) => {
 	const view = useCurrentDatasetView()
 	const encodings = useAtomValue(currentEncodingsAtom)
@@ -171,7 +176,7 @@ const DataTable = ({
 				role="region"
 				aria-label={titleText}
 				// eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region must be focusable (WCAG 2.1.1)
-				tabIndex={0}
+				tabIndex={hidden ? undefined : 0}
 			>
 				<table
 					className="vc-data-table"
@@ -226,7 +231,7 @@ const DataTable = ({
 					{model.note}
 				</p>
 			)}
-			{forImage ? (
+			{forImage || hidden ? (
 				cuttable && (
 					<p className="vc-data-table-note">
 						{/* One string, so the export's capture draws one <text>. */}
@@ -333,6 +338,8 @@ const EnabledDataTableBlock = ({
 	const { look, style, titleText, fileName } = useDataTableLook(cfg)
 	const rowRef = useRef<HTMLDivElement>(null)
 	const alignStyle = useAlignToPlotRight(rowRef)
+	// "For screen readers only": in the page, off the screen (`sr-only`).
+	const hidden = cfg.placement === "hidden"
 	const table = (
 		<DataTable
 			cfg={cfg}
@@ -340,12 +347,13 @@ const EnabledDataTableBlock = ({
 			titleText={titleText}
 			fileName={fileName}
 			forImage={forImage}
+			hidden={hidden}
 		/>
 	)
 
 	return (
 		<div
-			className={`vc-data-table-block${className ? ` ${className}` : ""}`}
+			className={`vc-data-table-block${hidden ? " sr-only" : ""}${className ? ` ${className}` : ""}`}
 			style={style}
 			data-data-table
 		>
@@ -477,6 +485,16 @@ export const ChartWithDataTable = ({
 }) => {
 	const cfg = migrateDataTableConfig(useAtomValue(currentDataTableConfigAtom))
 	if (!cfg.enabled || cfg.placement === "tabs") return <>{children}</>
+	if (cfg.placement === "hidden") {
+		// Off-screen, so it takes no room: it can follow the figure anywhere,
+		// a clipping fixed canvas included.
+		return (
+			<>
+				{children}
+				<DataTableBlock />
+			</>
+		)
+	}
 	if (cfg.placement === "below") {
 		if (inCanvas) return <>{children}</>
 		return (
@@ -680,6 +698,15 @@ export const EmbedTableLayout = ({ children }: { children: ReactNode }) => {
 		return (
 			<div data-export-root className="h-screen w-screen">
 				<DataTableTabs className="h-full">{children}</DataTableTabs>
+			</div>
+		)
+	}
+	if (cfg.placement === "hidden") {
+		// The chart keeps the whole viewport, as with no table.
+		return (
+			<div data-export-root className="h-screen w-screen">
+				{children}
+				<DataTableBlock />
 			</div>
 		)
 	}

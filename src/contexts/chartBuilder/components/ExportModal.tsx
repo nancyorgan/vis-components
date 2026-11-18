@@ -715,7 +715,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 			}
 		}
 		const iframe = (src: string, size: { width: number; height: number }) =>
-			`<iframe src="${src}" title="${embedTitleAttr}" width="${size.width}" height="${size.height}" frameborder="0"></iframe>`
+			`<iframe src="${src}" title="${embedTitleAttr}" width="${size.width}" height="${size.height}" frameborder="0" loading="lazy"></iframe>`
 		if (urls.full) {
 			return {
 				snippets: [

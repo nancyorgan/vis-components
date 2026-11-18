@@ -20,8 +20,10 @@ import type { FieldType, Theme } from "./types"
 
 /** "below" renders the table always; "button" renders a View data / Hide
  *  data toggle button under the chart that reveals it; "tabs" puts a Chart
- *  / Data tab strip above the figure, the Data tab covering the chart's box. */
-export type DataTablePlacement = "below" | "button" | "tabs"
+ *  / Data tab strip above the figure, the Data tab covering the chart's box.
+ *  "hidden" shows nothing on screen: the table is in the page for screen
+ *  readers only, read after the chart (a full text equivalent of it). */
+export type DataTablePlacement = "below" | "button" | "tabs" | "hidden"
 
 /** "encoded" = only the fields mapped to an encoding (x, y, the remaining
  *  channels, facets last); "all" = every column of the view; "select" =
@@ -200,6 +202,17 @@ const text = (v: unknown): string | null =>
 const stringSet = (v: unknown): string[] =>
 	Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string"))] : []
 
+/** The Placement options, in the sidebar's and the theme editor's wording. */
+export const DATA_TABLE_PLACEMENT_OPTIONS: ReadonlyArray<{
+	value: DataTablePlacement
+	label: string
+}> = [
+	{ value: "below", label: "Below the chart" },
+	{ value: "button", label: "Behind a button" },
+	{ value: "tabs", label: "In a tab" },
+	{ value: "hidden", label: "For screen readers only" },
+]
+
 export const migrateDataTableConfig = (raw: unknown): DataTableConfig => {
 	if (!isRecord(raw)) return { ...DEFAULT_DATA_TABLE_CONFIG }
 	const d = DEFAULT_DATA_TABLE_CONFIG
@@ -207,7 +220,9 @@ export const migrateDataTableConfig = (raw: unknown): DataTableConfig => {
 	return {
 		enabled: bool(raw.enabled, d.enabled),
 		placement:
-			raw.placement === "button" || raw.placement === "tabs"
+			raw.placement === "button" ||
+			raw.placement === "tabs" ||
+			raw.placement === "hidden"
 				? raw.placement
 				: "below",
 		title: text(raw.title),

@@ -224,7 +224,7 @@ describe("migrateDataTableConfig", () => {
 	})
 
 	it("keeps each placement", () => {
-		for (const placement of ["below", "button", "tabs"] as const) {
+		for (const placement of ["below", "button", "tabs", "hidden"] as const) {
 			expect(migrateDataTableConfig({ placement }).placement).toBe(placement)
 		}
 	})

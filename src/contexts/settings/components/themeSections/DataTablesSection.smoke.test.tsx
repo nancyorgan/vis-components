@@ -117,6 +117,7 @@ describe("DataTablesSection — seeded defaults", () => {
 			"Below the chart",
 			"Behind a button",
 			"In a tab",
+			"For screen readers only",
 		])
 	})
 

@@ -15,6 +15,7 @@ import {
 	columnAlignOf,
 	defaultColumnAlign,
 	resolveDataTableStyle,
+	DATA_TABLE_PLACEMENT_OPTIONS,
 	themeDataTableStyle,
 	type DataTableColumns,
 	type DataTablePlottedColumns,
@@ -376,14 +377,16 @@ export const DataTablePanel = () => {
 							label="Placement"
 							labelClassName={LABEL_COL}
 							value={cfg.placement}
-							options={[
-								{ value: "below", label: "Below the chart" },
-								{ value: "button", label: "Behind a button" },
-								{ value: "tabs", label: "In a tab" },
-							]}
+							options={[...DATA_TABLE_PLACEMENT_OPTIONS]}
 							onChange={(placement) => update({ placement })}
 							selectClassName="flex-1"
 						/>
+						{cfg.placement === "hidden" && (
+							<p className="vc-help">
+								The table isn&apos;t shown. Screen readers read it after the
+								chart.
+							</p>
+						)}
 						{aggregated ? (
 							<>
 								<p className="vc-help">

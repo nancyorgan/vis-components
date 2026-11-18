@@ -182,6 +182,21 @@ describe("DataTableBlock", () => {
 		expect(utils.getByRole("button", { name: "Show all 3 rows" })).toBeTruthy()
 	})
 
+	it("for screen readers only: the table is in the page, off screen, and nothing in it takes focus", () => {
+		const utils = mount({
+			enabled: true,
+			placement: "hidden",
+			maxRows: 2,
+			showDownload: true,
+		})
+		const table = utils.getByRole("table")
+		expect(table.closest("[data-data-table]")?.classList.contains("sr-only")).toBe(true)
+		expect(utils.getAllByRole("row")).toHaveLength(3) // header + 2
+		expect(utils.queryByRole("button")).toBeNull()
+		expect(utils.container.querySelector("[tabindex]")).toBeNull()
+		expect(utils.getByText("First 2 of 3 rows")).toBeTruthy()
+	})
+
 	it("behind a button: a real toggle wired with aria-expanded / aria-controls", () => {
 		const utils = mount({ enabled: true, placement: "button" })
 		const button = utils.getByRole("button", { name: "View data" })
