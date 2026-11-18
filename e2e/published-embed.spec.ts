@@ -84,6 +84,10 @@ const serveStatic = (dir: string): Promise<{ server: Server; port: number }> =>
 		const types: Record<string, string> = {
 			".html": "text/html",
 			".png": "image/png",
+			// The shared embed app under runtime/: a browser refuses a
+			// module script without a JavaScript type.
+			".js": "text/javascript",
+			".css": "text/css",
 		}
 		const server = createServer((req, res) => {
 			const path = normalize(join(dir, (req.url ?? "/").split("?")[0]))
@@ -235,6 +239,14 @@ test.describe("published embed (0016 contract)", () => {
 				!u.startsWith("https://fonts.")
 		)
 		expect(foreign).toEqual([])
+
+		// The app is not in the page: it loads from the shared runtime/
+		// folder, under names the publish host caches for a year.
+		const app = requests.filter((u) =>
+			/\/runtime\/[a-z0-9-]+-[0-9a-f]{16,64}\.(js|css)$/.test(u)
+		)
+		expect(app).toHaveLength(2)
+		expect((await (await fetch(publishedUrl)).text()).length).toBeLessThan(200_000)
 
 		staticServer.close()
 	})

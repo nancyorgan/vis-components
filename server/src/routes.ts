@@ -73,6 +73,7 @@ import {
 	unpublishEmbedFiles,
 	type EmbedPart,
 } from "./embedFiles.js"
+import { prepareEmbedTemplate } from "./embedRuntimeFiles.js"
 import { isSafeSvg } from "./svgCheck.js"
 import { HttpError, readBody, sendEmpty, sendError, sendJson } from "./http.js"
 import {
@@ -720,10 +721,13 @@ const publishEmbed = async (
 		throw new HttpError(500, "The embed runtime is not built")
 	}
 	const visual = (record.payload as { visual?: { name?: unknown } }).visual
+	// The app goes out as shared files, installed and verified before any
+	// page that points at them is written (embedRuntimeFiles.ts).
+	const sharedTemplate = await prepareEmbedTemplate(config.publishDir, template)
 	const paths = await publishEmbedFiles(
 		config.publishDir,
 		publishId,
-		template,
+		sharedTemplate,
 		JSON.stringify(record.payload),
 		parts,
 		typeof visual?.name === "string" ? visual.name : undefined

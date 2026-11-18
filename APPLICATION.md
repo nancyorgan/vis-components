@@ -5176,7 +5176,14 @@ properties** (open by default — the list below up to Download link),
   chart viewport — or, with a fixed canvas size, inside the canvas, the
   Data tab filling the canvas (zoomed with it). The
   tabs follow the WAI-ARIA tabs pattern (arrow keys / Home / End move
-  between them; the table is built when the Data tab is first opened).
+  between them; the table is built when the Data tab is first opened);
+  *For screen readers only* shows nothing on screen and takes no room:
+  the table is in the page, off screen, right after the chart, so a
+  screen reader reads it as the chart's text equivalent (in the editor,
+  the embed and the published embed alike). Nothing in it takes keyboard
+  focus, so it has no Show all / Download CSV links; a table cut at Max
+  rows says "First N of M rows". The sidebar notes under the select that
+  the table isn't shown.
 - **Columns** — *Encoded variables only* (the default), *All
   variables*, or *Select variables*. Select variables shows a checkbox
   for every variable in the data set (the main table, after reshape and
@@ -6655,8 +6662,10 @@ the embed inherits the size the user sees (fixed fallbacks when a
 piece can't be measured). The snippets are editable textareas: hand
 edits survive until an option that rebuilds the snippet changes.
 When the visual has a data table (§10b) it renders under the chart in
-the embed (in the chart part of a split embed), or as the embed's Data
-tab when placed in a tab. Copying a snippet
+the embed (in the chart part of a split embed), as the embed's Data
+tab when placed in a tab, or off screen when placed for screen readers
+only. The snippet carries `loading="lazy"`, so a browser loads an embed
+only as the reader scrolls near it. Copying a snippet
 records an embed instance, which is what lets live
 embeds follow later version uploads; the library's Data set column shows
 each instance's pinned version and when its snippet was last exported.
@@ -6667,7 +6676,14 @@ its upload date and note.
 only (a browser-local session has nowhere public to publish to, and the
 tab says so). **Publish embed** writes the pin's public files and
 becomes **Republish** once the pin has them: same URLs, fresh snapshot
-of the saved visual. Web embeds and the PowerPoint add-in only ever see
+of the saved visual. A published page holds the chart's own data and
+settings; the charting app itself is shared — files under `runtime/`
+on the publish host, named by a hash of their contents, never changed
+or deleted once written — so a browser downloads it once for all the
+embeds on a site. A page published before that (one carrying its own
+copy of the app) is converted in place when the server starts, onto
+the same app it was published with, so it looks the same; one that
+can't be converted is left as it is and keeps working. Web embeds and the PowerPoint add-in only ever see
 PUBLISHED content, so after an edit the user pushes it out again — and
 a visual can have several pins (latest, plus any pinned versions),
 each its own publish. Two shortcuts cover that. Whenever the open

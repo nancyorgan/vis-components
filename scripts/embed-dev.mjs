@@ -100,6 +100,10 @@ const serveStatic = () =>
 		const types = {
 			".html": "text/html; charset=utf-8",
 			".png": "image/png",
+			// The shared embed app under runtime/ (a module script needs a
+			// JavaScript type).
+			".js": "text/javascript; charset=utf-8",
+			".css": "text/css; charset=utf-8",
 		}
 		const server = createServer((req, res) => {
 			const path = normalize(join(dirs.publish, (req.url ?? "/").split("?")[0]))

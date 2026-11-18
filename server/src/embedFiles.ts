@@ -1,6 +1,8 @@
 /** Published-embed files (the 0016 public embed contract).
  *
- *  A publish writes one self-contained HTML file per requested part into
+ *  A publish writes one HTML file per requested part (the chart's data
+ *  inline; the charting app referenced from the shared `runtime/` folder,
+ *  see embedRuntimeFiles.ts) into
  *  `$VIS_PUBLISH_DIR/embeds/<publishId>/`, where a dumb static server makes
  *  it public at `$VIS_PUBLISH_BASE_URL/embeds/<publishId>/<file>`. The client
  *  then uploads pictures of the chart into the same folder — a PNG as
@@ -17,8 +19,9 @@
  *   - unpublish deletes the embed's files (idempotent)
  *   - the filenames are a closed set — the part files plus `image.png` and
  *     `image.svg` — so no manifest file is needed (and nothing non-content
- *     ever sits in an embed's folder; the one other thing in the publish dir
- *     is the PowerPoint add-in under `addin/`, see addinFiles.ts)
+ *     ever sits in an embed's folder; the other things in the publish dir
+ *     are the shared embed app under `runtime/`, see embedRuntimeFiles.ts,
+ *     and the PowerPoint add-in under `addin/`, see addinFiles.ts)
  *   - an HTML (re)publish deletes both pictures, so the stable picture URLs
  *     never show a stale chart; the client's trailing uploads restore them
  *   - a picture is only ever written into an existing embed dir: an upload
@@ -40,6 +43,9 @@ const PART_FILES: Record<EmbedPart, string> = {
 	chart: "chart.html",
 	legend: "legend.html",
 }
+
+/** Every page an embed's folder can hold (embedRuntimeFiles.ts walks them). */
+export const EMBED_PART_FILES: readonly string[] = Object.values(PART_FILES)
 
 /** The embed's picture file — not a part (it is uploaded separately, never
  *  composed from the template), but part of the closed filename set. */

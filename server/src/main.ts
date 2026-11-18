@@ -31,6 +31,8 @@ import {
 	listDatasetVersionFiles,
 } from "./datasetFiles.js"
 import { listAllDatasetVersionRows, listDatasetIds, openDb } from "./db.js"
+import { readEmbedTemplate } from "./embedFiles.js"
+import { convertPublishedEmbeds, prepareEmbedTemplate } from "./embedRuntimeFiles.js"
 import { identifyFromForwardedHeaders } from "./identity.js"
 import { logError, logInfo } from "./log.js"
 import { createHandler } from "./routes.js"
@@ -117,6 +119,36 @@ const main = (): void => {
 		},
 		(error: unknown) => logError(`installing the PowerPoint add-in failed: ${String(error)}`)
 	)
+
+	// The shared embed app (embedRuntimeFiles.ts): install this build's files
+	// (repairing a damaged copy), then convert any published embed that still
+	// carries its own inline app. Never blocks or fails startup; a page that
+	// can't be converted keeps working as it is.
+	void (async () => {
+		try {
+			const template = await readEmbedTemplate(distDir)
+			if (template === null) {
+				logInfo("embed app not installed: this build has no dist/embed-runtime.html")
+			} else {
+				await prepareEmbedTemplate(config.publishDir, template)
+				logInfo("embed app installed in the publish dir's runtime/ folder")
+			}
+		} catch (error) {
+			logError(`installing the embed app failed: ${String(error)}`)
+		}
+		try {
+			const pass = await convertPublishedEmbeds(config.publishDir)
+			for (const { path, reason } of pass.failed) {
+				logError(`embed page ${path} left unconverted: ${reason}`)
+			}
+			logInfo(
+				`embed pages: ${pass.converted} converted to the shared app, ` +
+					`${pass.current} already converted, ${pass.failed.length} left unconverted`
+			)
+		} catch (error) {
+			logError(`converting published embeds failed: ${String(error)}`)
+		}
+	})()
 
 	const handler = createHandler({
 		config,
