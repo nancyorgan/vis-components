@@ -175,7 +175,6 @@ const datasetVersionKey = (id: string, versionId: string): string =>
 	`vis-components:dataset:${id}:v:${versionId}`
 const KEY_EMBED_INSTANCES = "vis-components:embedInstances"
 const KEY_CURRENT_VISUAL = "vis-components:currentVisualId"
-const KEY_PUBLISHED_EDIT_SNOOZE = "vis-components:publishedEditSnoozeUntil"
 const KEY_REPUBLISH_ON_SAVE_VISUALS = "vis-components:republishOnSaveVisuals"
 const KEY_CURRENT_DATASET = "vis-components:currentDatasetId"
 const KEY_CURRENT_VISUAL_NAME = "vis-components:currentVisualName"
@@ -1063,14 +1062,6 @@ export const loadDrawerHeight = (): number =>
 export const saveDrawerHeight = (h: number): void =>
 	safeSet(KEY_DRAWER_HEIGHT, h)
 
-/** Epoch ms until which the "Already embedded" notice stays quiet on
- *  re-entry — for every visual, on this device ("Remind me in an hour").
- *  0 = not snoozed. A per-device convenience, so it lives here and not on
- *  the server. */
-export const loadPublishedEditSnoozeUntil = (): number =>
-	safeGet<number>(KEY_PUBLISHED_EDIT_SNOOZE, 0)
-export const savePublishedEditSnoozeUntil = (until: number): void =>
-	safeSet(KEY_PUBLISHED_EDIT_SNOOZE, until)
 
 /** "Republish on every save" (Export → Embed): the visuals THIS user, on
  *  THIS browser, has set to republish every published pin on each of their

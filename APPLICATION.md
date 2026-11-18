@@ -6687,8 +6687,8 @@ tab adds a **Republish on every save** checkbox (whichever pin the tab is
 showing): every autosave this user makes then republishes EVERY
 published pin of the visual — "so edits reach embedded pages and decks
 as you make them" — through the same coalesced run. It is PER USER
-and PER VISUAL, and it lives on this browser (device-local, like the
-"Remind me in an hour" snooze), never on the shared embed instances:
+and PER VISUAL, and it lives on this browser (device-local), never on
+the shared embed instances:
 the help says so — "This is your setting, on this browser — it
 doesn't change what happens when someone else edits the visual."
 Purging a visual drops its entry. Two badges make the setting
@@ -6723,26 +6723,15 @@ upload is gated server-side to the export pipeline's own plain SVG:
 anything that scripts, fetches or isn't an SVG document is refused,
 because the publish host serves the file as a document.
 
-**Editing a published visual is flagged twice.** The landing page's
-Pin State column reports publish reality per instance; the editor
-adds the two signals a user in the middle of editing actually sees.
-Opening a visual that has at least one PUBLISHED instance (a publish
-record with live urls — a copied-but-unpublished snippet does not
-count, its urls are dead) puts up an acknowledge-to-continue notice —
-"This visual is already embedded. Edits you make here will affect
-published content." — with **Just once!** (stay), **Remind me in an
-hour** (stay, and keep the notice quiet for every visual opened on
-this device for the next hour — for someone working through a batch
-of published visuals) and **Go back** (return to the library). While
-that visual stays open, the chart viewport wears a 4 px purple frame
-as the standing reminder; the frame never snoozes. When this user has
-set the visual to "Republish on every save" on this browser, the
-notice adds a second sentence — "You've set it to republish on every
-save, so your edits reach embedded pages and decks as you make them."
-— and no extra button: the choice is the same, the stakes are just
-more immediate. The notice
-re-appears on a later re-entry (once any snooze has lapsed) but not
-for a publish the user just made from the Export modal, and the frame
+**Editing a published visual is flagged by a frame.** The landing
+page's Pin State column reports publish reality per instance; in the
+editor, while the open visual has at least one PUBLISHED instance (a
+publish record with live urls — a copied-but-unpublished snippet does
+not count, its urls are dead), the chart viewport wears a 4 px purple
+frame as the reminder that edits here reach embedded content. (The
+header's "Republishes on save" chip covers the more immediate case.)
+There is deliberately no notice on opening the visual: it fired
+before anything had changed and interrupted every visit. The frame
 costs no layout (an inset shadow, not a border) so it can't shift the
 export/embed size defaults measured off the viewport.
 

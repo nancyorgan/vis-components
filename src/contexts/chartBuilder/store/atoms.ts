@@ -89,8 +89,6 @@ import {
 	saveCurrentReshapeConfig,
 	saveCurrentTooltip,
 	saveCurrentVisualId,
-	loadPublishedEditSnoozeUntil,
-	savePublishedEditSnoozeUntil,
 	loadRepublishOnSaveVisuals,
 	saveRepublishOnSaveVisuals,
 	saveCurrentVisualName,
@@ -927,8 +925,7 @@ export const templateRebindNoticeAtom = atom<{
  *  instance — the same test the Export modal's Embed tab uses (a publish id
  *  AND public urls). A copied-but-never-published instance does NOT count:
  *  its snippet urls are dead under the publish contract, so editing it
- *  affects nothing public. Drives the purple viewport frame and the
- *  on-entry warning in `PublishedEditGate`. */
+ *  affects nothing public. Drives the purple viewport frame. */
 export const currentVisualPublishedAtom = atom((get) => {
 	const visualId = get(currentVisualIdAtom)
 	if (visualId === null) return false
@@ -940,25 +937,8 @@ export const currentVisualPublishedAtom = atom((get) => {
 	)
 })
 
-/** Visual id whose "this is published content" warning has been
- *  acknowledged. Session-only and single-slot: the gate clears it when the
- *  editor unmounts, so coming back to a published visual warns again, and a
- *  publish made from inside the editor stamps it (the user just published on
- *  purpose — warning them about their own action would be noise). */
-export const publishedEditAckAtom = atom<string | null>(null)
-
-/** "Remind me in an hour" on that gate: epoch ms the notice stays quiet
- *  until, for every visual on this device. The session-only ack above still
- *  covers the visual that is open; this one survives leaving the editor. */
-export const PUBLISHED_EDIT_SNOOZE_MS = 60 * 60 * 1000
-export const publishedEditSnoozeUntilAtom = persistedAtom<number>(
-	loadPublishedEditSnoozeUntil,
-	savePublishedEditSnoozeUntil
-)
-
 /** Visuals set to "Republish on every save" — THIS user's choice on THIS
- *  browser (device-local, like the snooze above), keyed by visual id and
- *  sparse. Per visual, not per pin: every published pin of the visual
+ *  browser (device-local), keyed by visual id and sparse. Per visual, not per pin: every published pin of the visual
  *  republishes on this user's autosaves (`useAutoSave`). Not stored on the
  *  shared embed instances, so it never decides what another editor's saves
  *  do. Read one visual with `republishOnSaveFor`, write with

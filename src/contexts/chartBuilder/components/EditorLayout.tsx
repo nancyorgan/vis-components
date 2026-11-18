@@ -53,9 +53,9 @@ const MAX_WIDTH = 560
 const COLLAPSE_PAST_MIN = 80
 
 /** Purple frame around the chart viewport while the open visual is
- *  published: the standing reminder that edits here reach embedded content
- *  (the modal on entry is the other half — see PublishedEditGate). Drawn as
- *  an INSET SHADOW, not a border: the export/embed defaults measure this
+ *  published: the reminder that edits here reach embedded content (there is
+ *  deliberately no modal on entry — it fired before anything had changed).
+ *  Drawn as an INSET SHADOW, not a border: the export/embed defaults measure this
  *  element's bounding rect (`measureEditorChartSize` in ExportModal), so a
  *  real border would silently inflate every default export by 8px. */
 const PUBLISHED_FRAME_CLASS =

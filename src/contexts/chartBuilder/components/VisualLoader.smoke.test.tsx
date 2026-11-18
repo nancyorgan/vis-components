@@ -30,7 +30,6 @@ vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => navigate,
 }))
 vi.mock("./EditorLayout", () => ({ EditorLayout: () => null }))
-vi.mock("./PublishedEditGate", () => ({ PublishedEditGate: () => null }))
 vi.mock("../store/bindDatasetToDraft", async (importActual) => {
 	const actual =
 		await importActual<typeof import("../store/bindDatasetToDraft")>()

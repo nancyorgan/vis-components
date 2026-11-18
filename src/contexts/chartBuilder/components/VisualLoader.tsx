@@ -20,7 +20,6 @@ import {
 } from "../store/saveVisual"
 
 import { EditorLayout } from "./EditorLayout"
-import { PublishedEditGate } from "./PublishedEditGate"
 
 export const VisualLoaderForNew = () => {
 	const reset = useResetVisual()
@@ -144,12 +143,5 @@ export const VisualLoaderForExisting = () => {
 		}
 	}, [hydrated, visualId, load, refresh, navigate, readIsTemplate])
 
-	return (
-		<>
-			{/* Only an existing visual can be published — the new-visual route
-			 *  has nothing to warn about. */}
-			<PublishedEditGate />
-			<EditorLayout />
-		</>
-	)
+	return <EditorLayout />
 }
