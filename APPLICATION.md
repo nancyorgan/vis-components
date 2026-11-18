@@ -6676,7 +6676,33 @@ its upload date and note.
 only (a browser-local session has nowhere public to publish to, and the
 tab says so). **Publish embed** writes the pin's public files and
 becomes **Republish** once the pin has them: same URLs, fresh snapshot
-of the saved visual. A published page holds the chart's own data and
+of the saved visual. A published page is PUBLIC, so it holds only what
+the chart is drawn from — the visual's name and settings, the columns
+and rows of the one data version it draws, the theme's style values and
+the fonts its text uses — picked field by field from a fixed list
+(`server/src/publicEmbed.ts`). It never holds who saved the visual, its
+folder, the library's ids for the visual / data set / version / theme,
+file names, timestamps or thumbnails; the server refuses a publish
+carrying any field off the list (400), and the startup pass rewrites
+older pages to the same list. Of the data's COLUMNS, a publish carries
+only the ones the chart shows — drawn, labelled, used by a rule,
+listed in its data table, or readable on hover — and
+the per-variable settings of the others (type, order, level lists) are
+left out with them. The default tooltip lists every column of the
+hovered row, so a chart with the default tooltip publishes every
+column; unchecking a variable under Tooltip takes it out of the
+published data, as does anything else that stops showing it. A
+reshape or a derived variable that the visual still applies live is
+worked out at publish, so the page holds results, not recipes: the
+finished table, with no formula, no reshape settings, and no column
+that only fed them (a "Pass" made from Score is published without
+Score, unless the chart shows Score too). A data
+table set to All variables publishes every column too. Under the
+Publish button the tab says which: "Published columns: … Not
+published: …", or that every column is published and why. A tree or
+flow diagram left on Auto keeps the child / target column it finds.
+Embeds published earlier keep the columns they went out with until
+republished. A published page holds the chart's own data and
 settings; the charting app itself is shared — files under `runtime/`
 on the publish host, named by a hash of their contents, never changed
 or deleted once written — so a browser downloads it once for all the

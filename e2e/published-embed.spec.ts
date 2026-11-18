@@ -36,33 +36,27 @@ const payload = {
 	v: 1,
 	parts: ["full"],
 	payload: {
+		// Inside the public boundary (server/src/publicEmbed.ts): placeholder
+		// ids, and only what the chart draws from.
 		visual: {
-			id: "v-e2e",
+			id: "embed",
 			name: "Published embed e2e",
-			folderId: null,
-			datasetId: "ds-e2e",
-			createdAtVersionId: null,
+			datasetId: "embed-data",
+			themeId: null,
 			fieldTypeOverrides: {},
 			encodings: { x: { field: "category" }, length: { field: "value" } },
 			channelConfigs: {},
 			labelsConfig: {},
-			thumbnail: null,
-			createdAt: 1,
-			updatedAt: 1,
 		},
 		dataset: {
-			id: "ds-e2e",
-			name: "sales",
-			createdAt: 1,
+			id: "embed-data",
 			fields: [
 				{ name: "category", inferredType: "categorical" },
 				{ name: "value", inferredType: "quantitative" },
 			],
 			versions: [
 				{
-					id: "dv-1",
-					filename: "sales.csv",
-					createdAt: 1,
+					id: "embed-version",
 					rows: [
 						{ category: "A", value: "10" },
 						{ category: "B", value: "20" },
@@ -70,7 +64,7 @@ const payload = {
 					],
 				},
 			],
-			latestVersionId: "dv-1",
+			latestVersionId: "embed-version",
 		},
 		theme: null,
 		fonts: [],

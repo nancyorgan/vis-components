@@ -25,6 +25,7 @@ import {
 	unpublishEmbedRequest,
 	type EmbedPublishUrls,
 } from "../lib/embedPublish"
+import { pruneEmbedRecords } from "../lib/embedColumns"
 import {
 	DEFAULT_HEIGHT,
 	DEFAULT_WIDTH,
@@ -41,7 +42,7 @@ import type { Visual } from "../lib/types"
 import { getStorageAdapter } from "../lib/storage/registry"
 import type { Dataset, SavedTheme } from "../lib/types"
 import { isTemplate } from "../lib/visualTrash"
-import type { EmbedPart } from "../../../embedRuntime/payload"
+import { buildPublicEmbedPayload, type EmbedPart } from "../../../embedRuntime/payload"
 import {
 	datasetIndexAtom,
 	embedInstancesAtom,
@@ -175,13 +176,23 @@ export const usePublishEmbed = () =>
 				const publishId = existing?.publishId ?? newPublishId()
 				const parts: EmbedPart[] = args.split ? ["chart", "legend"] : ["full"]
 
-				const htmlUrls = await publishEmbedRequest(publishId, parts, {
-					visual,
-					dataset,
-					theme,
-					fonts,
-					...(zctaTopology !== undefined ? { zctaTopology } : {}),
-				})
+				// Only the columns the chart shows are published
+				// (lib/embedColumns.ts), and only the public fields of each record
+				// leave here (the public boundary: server/src/publicEmbed.ts).
+				const published = dataset
+					? pruneEmbedRecords(visual, dataset)
+					: { visual, dataset }
+				const htmlUrls = await publishEmbedRequest(
+					publishId,
+					parts,
+					buildPublicEmbedPayload({
+						visual: published.visual,
+						dataset: published.dataset,
+						theme,
+						fonts,
+						...(zctaTopology !== undefined ? { zctaTopology } : {}),
+					})
+				)
 
 				// The linked pictures ride further requests (the server 404s them
 				// until the HTML publish exists). Best-effort: the embed is already

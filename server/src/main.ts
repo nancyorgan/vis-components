@@ -122,7 +122,8 @@ const main = (): void => {
 
 	// The shared embed app (embedRuntimeFiles.ts): install this build's files
 	// (repairing a damaged copy), then convert any published embed that still
-	// carries its own inline app. Never blocks or fails startup; a page that
+	// carries its own inline app or a payload from before the public
+	// boundary (publicEmbed.ts). Never blocks or fails startup; a page that
 	// can't be converted keeps working as it is.
 	void (async () => {
 		try {
@@ -142,7 +143,7 @@ const main = (): void => {
 				logError(`embed page ${path} left unconverted: ${reason}`)
 			}
 			logInfo(
-				`embed pages: ${pass.converted} converted to the shared app, ` +
+				`embed pages: ${pass.converted} converted (shared app, public fields only), ` +
 					`${pass.current} already converted, ${pass.failed.length} left unconverted`
 			)
 		} catch (error) {

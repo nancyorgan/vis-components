@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { sanitizeVisualFilename } from "../lib/downloadVisuals"
+import { embedColumns, type EmbedColumns } from "../lib/embedColumns"
 import { publishedInstancesOf, upsertEmbedInstance } from "../lib/embedInstances"
 import {
 	DEFAULT_HEIGHT,
@@ -39,7 +40,10 @@ import {
 	usePublishEmbed,
 	useUnpublishEmbed,
 } from "../store/publishEmbed"
-import { useCurrentDatasetView } from "../store/useCurrentDatasetView"
+import {
+	currentRawDatasetViewAtom,
+	useCurrentDatasetView,
+} from "../store/useCurrentDatasetView"
 import { useEffectiveGeographyLevel } from "../store/useEffectiveGeographyLevel"
 import { LinkedPictureRow } from "./LinkedPictureRow"
 import { EXPORT_TABLE_HEIGHT_MESSAGE } from "./viz/DataTableBlock"
@@ -622,6 +626,21 @@ const FigureBlock = ({
 
 type LinkFor = "slides" | "web"
 
+/** Which of the data's columns a publish makes public, in words. A published
+ *  page carries only the columns the chart shows (lib/embedColumns.ts); the
+ *  author sees which before publishing. */
+const publicColumnsLine = (columns: EmbedColumns): string => {
+	if (columns.allBecause === "tooltip") {
+		return "Every column of the data is published, because the tooltip shows every variable. To keep a column private, uncheck it under Tooltip."
+	}
+	if (columns.allBecause === "dataTable") {
+		return "Every column of the data is published, because the data table shows all variables."
+	}
+	if (columns.dropped.length === 0) return "Every column of the data is published: the chart uses them all."
+	const kept = columns.kept.length > 0 ? columns.kept.join(", ") : "none"
+	return `Published columns: ${kept}. Not published: ${columns.dropped.join(", ")}.`
+}
+
 const LINK_FOR_SEGMENTS: ReadonlyArray<{ key: LinkFor; label: string }> = [
 	{ key: "slides", label: "Slides & documents" },
 	{ key: "web", label: "Web page" },
@@ -629,6 +648,15 @@ const LINK_FOR_SEGMENTS: ReadonlyArray<{ key: LinkFor; label: string }> = [
 
 const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProps }) => {
 	const view = useCurrentDatasetView()
+	// The SAVED visual is what a publish sends, read against the data as
+	// uploaded (before reshape and derived variables).
+	const rawView = useAtomValue(currentRawDatasetViewAtom)
+	const savedVisual = useAtomValue(visualsAtom).find((v) => v.id === visualId)
+	const publicColumns = useMemo(
+		() =>
+			savedVisual && rawView ? embedColumns(savedVisual, rawView) : null,
+		[savedVisual, rawView]
+	)
 	const instances = useAtomValue(embedInstancesAtom)
 	const setEmbedInstances = useSetAtom(embedInstancesAtom)
 	// "Republish on every save": this user's, this browser's, per visual —
@@ -929,6 +957,11 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 					Publishing puts a copy of this chart online, at this size, and
 					gives you links to paste into slides, documents and web pages.
 					Republish any time to update them in place.
+				</p>
+			)}
+			{publicColumns && (
+				<p className="text-sm vc-muted" data-public-columns>
+					{publicColumnsLine(publicColumns)}
 				</p>
 			)}
 		</>

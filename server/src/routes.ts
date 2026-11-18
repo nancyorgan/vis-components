@@ -74,6 +74,7 @@ import {
 	type EmbedPart,
 } from "./embedFiles.js"
 import { prepareEmbedTemplate } from "./embedRuntimeFiles.js"
+import { validatePublicPayload } from "./publicEmbed.js"
 import { isSafeSvg } from "./svgCheck.js"
 import { HttpError, readBody, sendEmpty, sendError, sendJson } from "./http.js"
 import {
@@ -714,6 +715,15 @@ const publishEmbed = async (
 		throw new HttpError(400, 'Expected { v: 1, parts: [...], payload: {...} }')
 	}
 	const parts = [...new Set(record.parts as EmbedPart[])]
+	// The public boundary (publicEmbed.ts): a field that isn't on the public
+	// list is refused, whoever is calling.
+	const notPublic = validatePublicPayload(record.payload)
+	if (notPublic !== null) {
+		throw new HttpError(
+			400,
+			`This can't be published: ${notPublic}. If you are in the editor, reload the page and publish again.`
+		)
+	}
 	const template = await readEmbedTemplate(distDir)
 	if (template === null) {
 		// A deploy gap, not a client mistake: the frontend build didn't ship

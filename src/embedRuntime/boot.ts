@@ -23,7 +23,7 @@ import { setZctaTopologyLoader } from "../contexts/chartBuilder/lib/geo/zctaTopo
 import { enableEphemeralStorage } from "../contexts/chartBuilder/lib/storage/ephemeral"
 import { disableIdb } from "../contexts/chartBuilder/lib/storage/idb"
 import { themeAtom } from "../contexts/chartBuilder/store/atoms"
-import type { EmbedFontFace, EmbedPayload } from "./payload"
+import { embedRecords, type EmbedFontFace, type EmbedPayload } from "./payload"
 
 export type EmbedStore = ReturnType<typeof createStore>
 
@@ -63,11 +63,12 @@ const registerEmbedFonts = (fonts: readonly EmbedFontFace[]): void => {
 export const bootEmbedRuntime = (payload: EmbedPayload): EmbedStore => {
 	enableEphemeralStorage()
 	disableIdb()
+	const { visual, dataset, theme } = embedRecords(payload)
 	installExampleOverlay({
-		visuals: [payload.visual],
+		visuals: [visual],
 		folders: [],
-		datasets: payload.dataset ? { [payload.dataset.id]: payload.dataset } : {},
-		themes: payload.theme ? [payload.theme] : [],
+		datasets: dataset ? { [dataset.id]: dataset } : {},
+		themes: theme ? [theme] : [],
 		userDefaultThemeId: null,
 	})
 	registerEmbedFonts(payload.fonts)
@@ -81,6 +82,6 @@ export const bootEmbedRuntime = (payload: EmbedPayload): EmbedStore => {
 	const store = createStore()
 	// The live theme the renderer reads. Its write-path save lands in the
 	// ephemeral map (enabled above), so seeding it writes nothing durable.
-	if (payload.theme) store.set(themeAtom, payload.theme)
+	if (theme) store.set(themeAtom, theme)
 	return store
 }

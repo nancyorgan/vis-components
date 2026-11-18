@@ -103,6 +103,40 @@ above 25 MB and are rejected above 100 MB (browser performance is the real
 constraint). Note: Node prints an `ExperimentalWarning` for `node:sqlite` on
 startup; it's expected.
 
+### The publish folder is public
+
+Everything under `VIS_PUBLISH_DIR` is on the public internet, with no
+sign-in, and can be copied by crawlers, caches and archives for good. So the
+rule for what goes there is default deny: nothing unless a published embed
+needs it to draw its chart, and every field has a reason to be there.
+
+- `server/src/publicEmbed.ts` is the one definition of what a published page
+  may hold: allowlists of fields, picked one by one. A stored record is
+  never passed through whole. Not published: who saved a visual, its
+  folder, library ids, file names, timestamps, thumbnails.
+- The publish route validates every request against those lists and
+  answers 400 for any other field, so a script calling the API gets the same
+  boundary as the editor.
+- Publishing a new field takes an edit to the list and to the expected list
+  in `publicEmbed.test.ts`. The typecheck fails until every field of a
+  stored visual, data set, version, column and theme is classified as
+  public or private (`src/embedRuntime/payload.ts`).
+- The shared app under `runtime/` is app code only: no build-time
+  environment values beyond the app version and build date.
+- A data set is published with only the columns its chart shows: drawn,
+  labelled, listed in its data table, or readable on hover
+  (`src/contexts/chartBuilder/lib/embedColumns.ts`). The default tooltip
+  lists every column of the hovered row, so a chart keeps every column
+  until its author unchecks variables in the Tooltip panel; the Publish tab
+  says which columns will be public. A reshape or a derived variable the
+  visual applies live is worked out before publishing, so the page holds
+  the finished table: no formula, no reshape settings, and no column that
+  only fed them. The editor does this, not the server:
+  an embed published before this existed, or by a program that sends more,
+  carries the columns it was sent until it is republished from the editor.
+- `node scripts/scan-embed.mjs <url | file | publish dir>` checks published
+  pages against the lists.
+
 ## Programs and MCP clients
 
 This repo ships no MCP server. A program that makes charts (an MCP server, a

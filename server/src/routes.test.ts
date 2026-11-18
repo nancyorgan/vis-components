@@ -16,6 +16,7 @@ import { openDb } from "./db.js"
 import { PAYLOAD_MARKER } from "./embedFiles.js"
 import { EMBED_IMAGE_BODY_CAP_BYTES, THUMBNAIL_BODY_CAP_BYTES } from "./limits.js"
 import { identifyFromForwardedHeaders } from "./identity.js"
+import { toPublicPayload } from "./publicEmbed.js"
 import { createHandler } from "./routes.js"
 
 let server: Server
@@ -699,6 +700,113 @@ describe("published embeds over HTTP", () => {
 	const uuid = (suffix: string): string =>
 		`01234567-89ab-4cde-8f01-2345678${suffix}`
 
+	/** The smallest payload inside the public boundary (publicEmbed.ts). */
+	const PUBLIC_PAYLOAD = {
+		visual: { id: "embed", name: "Sales", datasetId: null, themeId: null },
+		dataset: null,
+		theme: null,
+		fonts: [],
+	}
+
+	/** What the editor holds for a visual: stored records, private fields
+	 *  and all. */
+	const STORED = {
+		visual: {
+			id: "vis-internal-1",
+			name: "Sales",
+			folderId: "fl-internal-1",
+			datasetId: "ds-internal-1",
+			createdAtVersionId: "dv-internal-1",
+			themeId: "th-internal-1",
+			encodings: { x: "Region" },
+			thumbnail: "data:image/png;base64,THUMBNAIL",
+			createdAt: 1790000000001,
+			updatedAt: 1790000000002,
+			updatedBy: { id: "user-internal-1", name: "someone@example.com" },
+			sentinelField: "SENTINEL-VISUAL",
+		},
+		dataset: {
+			id: "ds-internal-1",
+			name: "Quarterly numbers",
+			fields: [{ name: "Region", inferredType: "categorical", sentinelField: "SENTINEL-FIELD" }],
+			versions: [
+				{
+					id: "dv-internal-1",
+					filename: "private file.csv",
+					note: "version note",
+					createdAt: 1790000000003,
+					rows: [{ Region: "North" }],
+					sentinelField: "SENTINEL-VERSION",
+				},
+			],
+			latestVersionId: "dv-internal-1",
+			createdAt: 1790000000004,
+			sentinelField: "SENTINEL-DATASET",
+		},
+		theme: {
+			id: "th-internal-1",
+			name: "House theme",
+			isSystem: false,
+			defaultFill: "#123456",
+			sentinelField: "SENTINEL-THEME",
+		},
+		fonts: [],
+		sentinelField: "SENTINEL-PAYLOAD",
+	}
+	const PRIVATE_TEXT = [
+		"someone@example.com",
+		"user-internal-1",
+		"updatedBy",
+		"SENTINEL",
+		"vis-internal-1",
+		"fl-internal-1",
+		"ds-internal-1",
+		"dv-internal-1",
+		"th-internal-1",
+		"private file.csv",
+		"version note",
+		"Quarterly numbers",
+		"House theme",
+		"THUMBNAIL",
+		"179000000000",
+	]
+
+	it("refuses a payload holding a field that isn't public", async () => {
+		const id = uuid("0eeee")
+		const put = (payload: unknown) =>
+			fetch(`${base}/api/embeds/${id}`, {
+				method: "PUT",
+				body: JSON.stringify({ v: 1, parts: ["full"], payload }),
+			})
+		const stored = await put(STORED)
+		expect(stored.status).toBe(400)
+		expect(JSON.stringify(await stored.json())).toContain("isn't public")
+		expect(
+			(await put({ ...PUBLIC_PAYLOAD, visual: { ...PUBLIC_PAYLOAD.visual, updatedBy: {} } }))
+				.status
+		).toBe(400)
+		expect(
+			(await put({ ...PUBLIC_PAYLOAD, visual: { ...PUBLIC_PAYLOAD.visual, id: "vis-internal-1" } }))
+				.status
+		).toBe(400)
+		expect(existsSync(join(publishDir, "embeds", id))).toBe(false)
+	})
+
+	it("a stored visual published through the public builder leaves its private fields behind", async () => {
+		const id = uuid("0ffff")
+		const res = await fetch(`${base}/api/embeds/${id}`, {
+			method: "PUT",
+			body: JSON.stringify({ v: 1, parts: ["full"], payload: toPublicPayload(STORED) }),
+		})
+		expect(res.status).toBe(200)
+		const html = readFileSync(join(publishDir, "embeds", id, "index.html"), "utf-8")
+		for (const text of PRIVATE_TEXT) expect(html).not.toContain(text)
+		// …and what the chart draws from is there.
+		expect(html).toContain('"encodings":{"x":"Region"}')
+		expect(html).toContain('"rows":[{"Region":"North"}]')
+		expect(html).toContain('"defaultFill":"#123456"')
+	})
+
 	it("PUT publishes the requested parts and answers with public file URLs", async () => {
 		const id = uuid("0aaaa")
 		const res = await fetch(`${base}/api/embeds/${id}`, {
@@ -706,7 +814,7 @@ describe("published embeds over HTTP", () => {
 			body: JSON.stringify({
 				v: 1,
 				parts: ["full", "chart"],
-				payload: { visual: { id: "v1" } },
+				payload: PUBLIC_PAYLOAD,
 			}),
 		})
 		expect(res.status).toBe(200)
@@ -722,13 +830,13 @@ describe("published embeds over HTTP", () => {
 			"utf-8"
 		)
 		expect(html).toContain('"part":"full"')
-		expect(html).toContain('"visual":{"id":"v1"}')
+		expect(html).toContain('"visual":{"id":"embed","name":"Sales"')
 	})
 
 	it("still accepts a gzipped publish body from a pre-release tab", async () => {
 		const id = uuid("0bbbb")
 		const body = gzipSync(
-			JSON.stringify({ v: 1, parts: ["full"], payload: { a: 1 } })
+			JSON.stringify({ v: 1, parts: ["full"], payload: PUBLIC_PAYLOAD })
 		)
 		const res = await fetch(`${base}/api/embeds/${id}`, {
 			method: "PUT",
@@ -743,7 +851,7 @@ describe("published embeds over HTTP", () => {
 		const put = (parts: string[]) =>
 			fetch(`${base}/api/embeds/${id}`, {
 				method: "PUT",
-				body: JSON.stringify({ v: 1, parts, payload: {} }),
+				body: JSON.stringify({ v: 1, parts, payload: PUBLIC_PAYLOAD }),
 			})
 		await put(["full", "legend"])
 		await put(["full"])
@@ -756,7 +864,7 @@ describe("published embeds over HTTP", () => {
 		const id = uuid("0dddd")
 		await fetch(`${base}/api/embeds/${id}`, {
 			method: "PUT",
-			body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+			body: JSON.stringify({ v: 1, parts: ["full"], payload: PUBLIC_PAYLOAD }),
 		})
 		expect(
 			(await fetch(`${base}/api/embeds/${id}`, { method: "DELETE" })).status
@@ -772,7 +880,7 @@ describe("published embeds over HTTP", () => {
 			(
 				await fetch(`${base}/api/embeds/ei-123-abc`, {
 					method: "PUT",
-					body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+					body: JSON.stringify({ v: 1, parts: ["full"], payload: PUBLIC_PAYLOAD }),
 				})
 			).status
 		).toBe(400)
@@ -784,11 +892,11 @@ describe("published embeds over HTTP", () => {
 				})
 			).status
 		expect(await bad("not json")).toBe(400)
-		expect(await bad(JSON.stringify({ v: 1, parts: [], payload: {} }))).toBe(400)
+		expect(await bad(JSON.stringify({ v: 1, parts: [], payload: PUBLIC_PAYLOAD }))).toBe(400)
 		expect(
-			await bad(JSON.stringify({ v: 1, parts: ["nope"], payload: {} }))
+			await bad(JSON.stringify({ v: 1, parts: ["nope"], payload: PUBLIC_PAYLOAD }))
 		).toBe(400)
-		expect(await bad(JSON.stringify({ v: 2, parts: ["full"], payload: {} }))).toBe(
+		expect(await bad(JSON.stringify({ v: 2, parts: ["full"], payload: PUBLIC_PAYLOAD }))).toBe(
 			400
 		)
 		expect(await bad(JSON.stringify({ v: 1, parts: ["full"] }))).toBe(400)
@@ -809,7 +917,7 @@ describe("published embeds over HTTP", () => {
 		const publish = (id: string) =>
 			fetch(`${base}/api/embeds/${id}`, {
 				method: "PUT",
-				body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+				body: JSON.stringify({ v: 1, parts: ["full"], payload: PUBLIC_PAYLOAD }),
 			})
 
 		const upload = (id: string, bytes: Buffer, name = "image") => {
@@ -906,7 +1014,7 @@ describe("published embeds over HTTP", () => {
 		const publish = (id: string) =>
 			fetch(`${base}/api/embeds/${id}`, {
 				method: "PUT",
-				body: JSON.stringify({ v: 1, parts: ["full"], payload: {} }),
+				body: JSON.stringify({ v: 1, parts: ["full"], payload: PUBLIC_PAYLOAD }),
 			})
 
 		const upload = (id: string, bytes: Buffer, name = "vector") => {

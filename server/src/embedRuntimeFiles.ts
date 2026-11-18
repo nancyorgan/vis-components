@@ -29,6 +29,7 @@ import { join } from "node:path"
 import { gunzipSync, gzipSync } from "node:zlib"
 
 import { EMBED_PART_FILES, isPublishId, writeAndVerify } from "./embedFiles.js"
+import { toPublicPayload, validatePublicPayload } from "./publicEmbed.js"
 
 export const RUNTIME_DIR = "runtime"
 /** How an embed page (always `embeds/<publishId>/<part>.html`) reaches the
@@ -97,6 +98,35 @@ export const splitEmbedPage = (
 	}
 	if (files.length === 0) return null
 	return { html: out + html.slice(position), files }
+}
+
+const PAYLOAD_OPENER = '<script type="application/json" id="embed-payload">'
+
+/** Rewrite a published page's payload into the public shape (publicEmbed.ts)
+ *  — for pages published when whole stored records went out, carrying who
+ *  saved the visual, library ids, file names and timestamps. Returns the
+ *  page unchanged when its payload is already public; throws when the page
+ *  has no readable payload, so the caller reports it and leaves it alone. */
+export const withPublicPayload = (html: string): string => {
+	const start = html.indexOf(PAYLOAD_OPENER)
+	const bodyStart = start + PAYLOAD_OPENER.length
+	const bodyEnd = start === -1 ? -1 : html.indexOf("</script>", bodyStart)
+	if (bodyEnd === -1) throw new Error("the page has no payload")
+	const wrapper = JSON.parse(html.slice(bodyStart, bodyEnd)) as {
+		v?: unknown
+		part?: unknown
+		payload?: unknown
+	}
+	if (validatePublicPayload(wrapper.payload) === null) return html
+	const payload = toPublicPayload(wrapper.payload)
+	const problem = payload === null ? "it holds no visual" : validatePublicPayload(payload)
+	if (problem !== null) throw new Error(`the payload can't be made public: ${problem}`)
+	// `<` escaped as at publish, so nothing in the payload can end the tag.
+	const json = JSON.stringify({ v: wrapper.v, part: wrapper.part, payload }).replaceAll(
+		"<",
+		"\\u003c"
+	)
+	return html.slice(0, bodyStart) + json + html.slice(bodyEnd)
 }
 
 const readIfPresent = async (path: string): Promise<Buffer | null> => {
@@ -176,17 +206,19 @@ export const prepareEmbedTemplate = async (
 }
 
 export type EmbedConversion = {
-	/** Pages rewritten into the shared form by this pass. */
+	/** Pages rewritten by this pass: app moved out, payload made public. */
 	converted: number
-	/** Pages already in the shared form. */
+	/** Pages that needed nothing. */
 	current: number
 	/** Pages left exactly as they were because converting them failed. */
 	failed: { path: string; reason: string }[]
 }
 
-/** Convert every published embed page still carrying its own inline app.
- *  Safe to run on every start: a converted page inlines nothing, so the next
- *  pass skips it. A page that can't be converted is left untouched and
+/** Convert every published embed page that predates today's form: one
+ *  still carrying its own inline app (moved out to runtime/), or a payload
+ *  from before the public boundary (rewritten to hold only public fields,
+ *  publicEmbed.ts). Safe to run on every start: a converted page comes out
+ *  of both steps unchanged, so the next pass skips it. A page that can't be converted is left untouched and
  *  reported; it keeps working as the self-contained page it is. The runtime
  *  files are installed and verified before the page that points at them is
  *  written, and the page write is whole-file with a read-back, as a publish.
@@ -209,17 +241,20 @@ export const convertPublishedEmbeds = async (publishDir: string): Promise<EmbedC
 			try {
 				const page = await readIfPresent(join(dir, name))
 				if (page === null) continue
-				const split = splitEmbedPage(page.toString("utf-8"))
-				if (split === null) {
+				const original = page.toString("utf-8")
+				const split = splitEmbedPage(original)
+				const shared = split?.html ?? original
+				const next = withPublicPayload(shared)
+				if (next === original) {
 					result.current += 1
 					continue
 				}
-				await installRuntimeFiles(publishDir, split.files)
+				if (split !== null) await installRuntimeFiles(publishDir, split.files)
 				// A republish or unpublish may have landed while the files were
 				// being installed; its page wins, and the next pass sees it.
 				const now = await readIfPresent(join(dir, name))
 				if (now === null || !now.equals(page)) continue
-				await writeAndVerify(dir, name, split.html)
+				await writeAndVerify(dir, name, next)
 				result.converted += 1
 			} catch (error) {
 				result.failed.push({ path: `embeds/${id}/${name}`, reason: String(error) })
