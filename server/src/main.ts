@@ -40,6 +40,8 @@ import { createHandler } from "./routes.js"
 /* eslint-disable no-console -- config errors go to stderr before log.ts matters */
 
 const SHUTDOWN_DRAIN_MS = 10_000
+/** When the embed conversion pass runs again after startup (see `main`). */
+const EMBED_CONVERSION_RETRY_MS = [15_000, 60_000, 300_000]
 
 const main = (): void => {
 	let config
@@ -137,17 +139,30 @@ const main = (): void => {
 		} catch (error) {
 			logError(`installing the embed app failed: ${String(error)}`)
 		}
-		try {
-			const pass = await convertPublishedEmbeds(config.publishDir)
-			for (const { path, reason } of pass.failed) {
-				logError(`embed page ${path} left unconverted: ${reason}`)
+		// A network-mounted publish dir can list as EMPTY for the first seconds
+		// after the process starts (seen on a blob mount: nothing at 5 s, all
+		// there at 10 s), so one pass at startup can find no pages at all. The
+		// pass is safe to repeat and skips converted pages, so it runs again
+		// a few times; a later pass is logged only when it did something.
+		const convert = async (first: boolean): Promise<void> => {
+			try {
+				const pass = await convertPublishedEmbeds(config.publishDir)
+				for (const { path, reason } of pass.failed) {
+					logError(`embed page ${path} left unconverted: ${reason}`)
+				}
+				if (first || pass.converted > 0 || pass.failed.length > 0) {
+					logInfo(
+						`embed pages: ${pass.converted} converted (shared app, public fields only), ` +
+							`${pass.current} already converted, ${pass.failed.length} left unconverted`
+					)
+				}
+			} catch (error) {
+				logError(`converting published embeds failed: ${String(error)}`)
 			}
-			logInfo(
-				`embed pages: ${pass.converted} converted (shared app, public fields only), ` +
-					`${pass.current} already converted, ${pass.failed.length} left unconverted`
-			)
-		} catch (error) {
-			logError(`converting published embeds failed: ${String(error)}`)
+		}
+		await convert(true)
+		for (const delayMs of EMBED_CONVERSION_RETRY_MS) {
+			setTimeout(() => void convert(false), delayMs).unref()
 		}
 	})()
 
