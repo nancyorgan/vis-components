@@ -31,7 +31,7 @@ import { CUSTOM_PATTERN_BASE, isCustomPatternIdx } from "./customPatternSlots"
  */
 
 /** A user-uploaded pattern. The type lives in `channelConfig.ts` (its only
- *  structural home, `PatternConfig.customPatterns`) so the pure-lib / mcp
+ *  structural home, `PatternConfig.customPatterns`) so the pure-lib
  *  typecheck never has to read this React-bound file; re-exported here for
  *  the editor and tests. */
 export type { CustomPattern }
@@ -261,7 +261,7 @@ export const fileToCustomPattern = async (file: File): Promise<CustomPattern> =>
 // ----- Config edits ---------------------------------------------------------
 
 // The slot edits are pure, so they live in `customPatternSlots.ts` (the
-// settings patch and the mcp build apply them too); re-exported here for
+// settings patch and programs outside the editor apply them too); re-exported here for
 // the sidebar and tests.
 export {
 	insertCustomPattern,

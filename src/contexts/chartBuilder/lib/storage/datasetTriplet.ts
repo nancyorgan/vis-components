@@ -1,6 +1,6 @@
 /** The dataset write triplet, parameterized by the caller's request
  *  function: the ONE implementation shared by the HTTP storage adapter
- *  (httpAdapter.ts) and the MCP package (mcp/src/api.ts), so the order and
+ *  (httpAdapter.ts) and any outside program (an MCP client), so the order and
  *  headers below can't drift between the editor and a program writing
  *  through the same API.
  *

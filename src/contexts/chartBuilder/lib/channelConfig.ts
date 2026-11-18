@@ -11,8 +11,8 @@ import type { FontConfig, LabelAlignment } from "./labelsConfig"
 /** A user-uploaded fill pattern (see `lib/customPatterns` for the picker,
  *  upload pipeline and tile renderer). Defined here, next to its only
  *  consumer `PatternConfig.customPatterns`, so this pure-lib module never
- *  imports the React/DOM-bound `customPatterns.tsx` — the `mcp/` typecheck
- *  has no JSX or DOM lib and must stay able to read this file.
+ *  imports the React/DOM-bound `customPatterns.tsx` — the pure-lib typecheck
+ *  (`tsconfig.purelib.json`) has no JSX or DOM lib and must stay able to read this file.
  *  - `svg`: an uploaded SVG kept as its own data URL (black = ink, white /
  *    transparent = background, as drawn). Vector, so the tile stays crisp
  *    at any Scale and export size.

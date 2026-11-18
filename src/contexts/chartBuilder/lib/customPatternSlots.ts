@@ -4,7 +4,7 @@ import type { MapConfig } from "./mapConfig"
 /**
  * The custom-pattern SLOTS and the picks that point into them — the pure
  * half of `lib/customPatterns` (no React, no DOM), so the settings patch
- * (`settingEffects`) and the mcp build can apply the same edits the
+ * (`settingEffects`) and a program outside the editor can apply the same edits the
  * sidebar does.
  *
  * Pattern references stay numeric palette indices tool-wide; an index

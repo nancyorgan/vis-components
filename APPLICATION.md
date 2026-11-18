@@ -1872,7 +1872,7 @@ outline. On a flow diagram only the endpoint columns are offered, as for
 every other "Vary by" there.
 
 Nothing moved in storage: each thickness is still saved with the part it
-belongs to, so saved charts, themes and the MCP setting paths are
+belongs to, so saved charts, themes and the API's setting paths are
 unchanged; the outline's "Vary by" adds two optional keys, absent on
 every chart saved before it. The panels the
 thicknesses used to sit in — Connection → Line properties, Shape, Length
@@ -6809,9 +6809,8 @@ version, or a failed capture appends `<pre id="export-error">` with the
 message instead. Nothing is saved or uploaded; without `export` the
 embed page behaves exactly as before.
 
-**Edits through the API.** A chart written by a program (the MCP
-server's `create_chart` / `edit_chart`, over the same per-item routes
-the editor uses) is a saved visual like any other, but it is not an
+**Edits through the API.** A chart written by a program (an MCP
+client or a script, over the same per-item routes the editor uses) is a saved visual like any other, but it is not an
 editor autosave: it does not republish any published pin, "Republish on
 every save" does not see it, and the published-visual edit gate is not
 asked. A published chart changed through the API shows the change in the
@@ -6863,9 +6862,10 @@ are sparse, and a part with no entry is on Auto:
   bodies the theme's fill palette, as the encoding shelf does at the pick
   (`lib/chartSpecPicks.ts`).
 
-The MCP server runs from `mcp/dist/main.js`: after a change to any of
-this, `pnpm build` (or `pnpm mcp:build`) and a restart of the MCP are
-what make it take effect there.
+A program that makes charts (an MCP client, a script) lives outside
+this repo and builds on this code at a pinned commit, so a change to
+any of this reaches it only when it is rebuilt on a newer commit
+(README, "Programs and MCP clients").
 
 ### Single-file distribution & library bundles
 

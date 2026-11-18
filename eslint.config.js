@@ -9,7 +9,7 @@ import vc from './tooling/eslint/vc-plugin.js'
 import { restrictedGlobals } from './tooling/eslint/restricted-globals.js'
 
 export default tseslint.config(
-	{ ignores: ['dist', 'server/dist', 'mcp/dist', 'coverage', 'node_modules', 'test-results', 'playwright-report'] },
+	{ ignores: ['dist', 'server/dist', 'coverage', 'node_modules', 'test-results', 'playwright-report'] },
 	{
 		files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts'],
 		extends: [
@@ -96,11 +96,11 @@ export default tseslint.config(
 		},
 	},
 	{
-		// Self-host server and MCP server: plain Node, no React/browser globals.
+		// Self-host server: plain Node, no React/browser globals.
 		// Logging to stdout/stderr is the server's logging contract, so
 		// `no-console` stays on but log.ts (the one sanctioned sink) carries a
-		// targeted disable. The MCP server's stdout IS its protocol channel.
-		files: ['server/src/**/*.ts', 'mcp/src/**/*.ts'],
+		// targeted disable.
+		files: ['server/src/**/*.ts'],
 		extends: [js.configs.recommended, ...tseslint.configs.recommended],
 		languageOptions: {
 			globals: { ...globals.node },

@@ -65,9 +65,9 @@ export default defineConfig({
 	},
 	test: {
 		environment: "happy-dom",
-		// Self-host server and MCP tests live under server/src and mcp/src and
+		// Self-host server tests live under server/src and
 		// opt into the node environment per-file via `// @vitest-environment node`.
-		include: ["src/**/*.test.{ts,tsx}", "server/src/**/*.test.ts", "mcp/src/**/*.test.ts"],
+		include: ["src/**/*.test.{ts,tsx}", "server/src/**/*.test.ts"],
 		// Runs once per test file, before the file's own module body. Puts
 		// every suite on an isolated in-memory localStorage (see the file).
 		setupFiles: ["src/testSupport/vitest.setup.ts"],
