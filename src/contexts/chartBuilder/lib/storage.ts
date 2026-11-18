@@ -28,6 +28,7 @@
  *  NEW read or write of those entities has to go through the same pair. */
 
 import { stringifyJsonDangerous } from "../../../lib/json"
+import { INFO_TIPS_MODES, type InfoTipsMode } from "../../../tips/infoTips"
 import {
 	CONTRAST_ALGORITHMS,
 	DEFAULT_CONTRAST_ALGORITHM,
@@ -214,6 +215,7 @@ const KEY_THEMES = "vis-components:themes"
 const KEY_USER_FONTS = "vis-components:userFonts"
 const KEY_USER_DEFAULT_THEME_ID = "vis-components:userDefaultThemeId"
 const KEY_CONTRAST_ALGORITHM = "vis-components:contrastAlgorithm"
+const KEY_INFO_TIPS_MODE = "vis-components:infoTipsMode"
 const KEY_EXAMPLE_SEED_APPLIED = "vis-components:exampleSeedApplied"
 const KEY_DATASET_CLEANUP_DONE = "vis-components:datasetCleanupDone"
 
@@ -1188,6 +1190,17 @@ export const loadContrastAlgorithm = (): ContrastAlgorithm => {
 export const saveContrastAlgorithm = (v: ContrastAlgorithm): void =>
 	safeSet(KEY_CONTRAST_ALGORITHM, v)
 export const watchContrastAlgorithm = watchOtherTabs(KEY_CONTRAST_ALGORITHM)
+
+/** The header's Info tips setting (paced / all / off). Device-local, kept
+ * across sessions; a stored value that isn't a known setting falls back to
+ * the paced tips. */
+export const loadInfoTipsMode = (): InfoTipsMode => {
+	const v = safeGet<unknown>(KEY_INFO_TIPS_MODE, "paced")
+	return INFO_TIPS_MODES.includes(v as InfoTipsMode) ? (v as InfoTipsMode) : "paced"
+}
+export const saveInfoTipsMode = (v: InfoTipsMode): void =>
+	safeSet(KEY_INFO_TIPS_MODE, v)
+export const watchInfoTipsMode = watchOtherTabs(KEY_INFO_TIPS_MODE)
 
 export const loadTheme = (): Theme | null =>
 	safeGet<Theme | null>(KEY_THEME, null)

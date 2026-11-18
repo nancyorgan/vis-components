@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { layoutBoard, layoutBubble, type BoardItem, type Rect } from "./bubbleLayout"
+import { nextInfoTipsMode } from "./infoTips"
 import { tipsForView, type TipView } from "./tipEngine"
 import { TIP_MOMENTS, type TipMoment } from "./tips"
 
@@ -13,6 +14,15 @@ const view = (over: Partial<TipView> = {}): TipView => ({
 	hasData: false,
 	hasChart: false,
 	...over,
+})
+
+describe("nextInfoTipsMode", () => {
+	it("goes out from paced to all first, back to paced, then out to off", () => {
+		expect(nextInfoTipsMode("paced", "off")).toBe("all")
+		expect(nextInfoTipsMode("all", "all")).toBe("paced")
+		expect(nextInfoTipsMode("paced", "all")).toBe("off")
+		expect(nextInfoTipsMode("off", "off")).toBe("paced")
+	})
 })
 
 describe("tipsForView", () => {

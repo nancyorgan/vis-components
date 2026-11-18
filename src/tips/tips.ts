@@ -1,7 +1,8 @@
 /**
  * THE TIP CATALOG — every helper bubble the app can show, in one place.
- * The header's Info tips toggle shows every tip for the current view at
- * once, straight from this list (TipBoard; APPLICATION.md §10e).
+ * The header's Info tips toggle can show every tip for the current view
+ * at once, straight from this list (TipBoard), or turn them all off
+ * (APPLICATION.md §10e).
  *
  * Edit freely: titles and bodies are plain strings, and the order of
  * MOMENTS is the order of priority. Nothing else needs to change when you
@@ -56,7 +57,7 @@
  * Add `?tips=reset` to any URL to forget which tips were seen, and
  * `?tips=fast` to drop the pacing waits for this tab (conditions still
  * apply) — handy for walking the whole sequence. `?tips=off` / `?tips=on`
- * switch tips off and back on for this browser.
+ * set the header's Info tips setting to "off" / "paced" for this browser.
  */
 
 export type TipPage = "library" | "editor" | "settings"

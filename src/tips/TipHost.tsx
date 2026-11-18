@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useAtomValue } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import { useRouterState } from "@tanstack/react-router"
 
 import {
 	currentDatasetIdAtom,
 	currentEncodingsAtom,
+	infoTipsModeAtom,
 } from "../contexts/chartBuilder/store/atoms"
 import { stringifyJsonDangerous } from "../lib/json"
-import { infoTipsAtom } from "./infoTips"
+import type { InfoTipsMode } from "./infoTips"
 import { TipBoard } from "./TipBoard"
 import { TipBubble } from "./TipBubble"
 import { findAnchor, menuOpen, openDialog, pageFor } from "./tipDom"
@@ -81,7 +82,8 @@ const currentVisit = (now: number): string => {
 	return id
 }
 
-/** `?tips=reset|fast|off|on` — preview and support switches (see tips.ts). */
+/** `?tips=reset|fast` — preview switches (see tips.ts). `off` / `on` are
+ *  the Info tips setting's, applied by TipHost. */
 const applyUrlSwitch = () => {
 	const flag = new URLSearchParams(window.location.search).get("tips")
 	if (!flag) return
@@ -91,8 +93,20 @@ const applyUrlSwitch = () => {
 		session.set(VISIT_KEY, "")
 	}
 	if (flag === "fast") session.set(FAST_KEY, "1")
-	if (flag === "off") writeState({ ...s, off: true })
-	if (flag === "on") writeState({ ...s, off: false })
+}
+
+/** The Info tips setting a page load asks for: `?tips=off` / `?tips=on`,
+ *  or "off" for a browser that turned tips off with the old `?tips=off`
+ *  flag in the tip record (which is cleared here; the setting holds it
+ *  from now on). Null leaves the setting as it is. */
+const startupMode = (): InfoTipsMode | null => {
+	const flag = new URLSearchParams(window.location.search).get("tips")
+	if (flag === "off") return "off"
+	if (flag === "on") return "paced"
+	const s = readState()
+	if (!s.off) return null
+	writeState({ ...s, off: false })
+	return "off"
 }
 
 const sight = (m: TipMoment) => m.pace === "sight"
@@ -127,12 +141,14 @@ type Active = {
  * (`navigator.webdriver`) so bubbles never sit over an e2e click target —
  * unless the tab opted in with `?tips=fast`, `?tips=reset` or `?tips=on`.
  *
- * While the header's Info tips toggle is on, the paced tips wait (a tip
- * that was up comes back after) and TipBoard shows every tip for the
- * view at once; that works under automation too.
+ * The header's Info tips setting (infoTips.ts) can pause them: on "all"
+ * TipBoard shows every tip for the view at once (that works under
+ * automation too); on "off" nothing shows. Either way a tip that was up
+ * comes back once the setting is back to "paced".
  */
 export const TipHost = () => {
-	const showAll = useAtomValue(infoTipsAtom)
+	const [mode, setMode] = useAtom(infoTipsModeAtom)
+	const paced = mode === "paced"
 	const pathname = useRouterState({ select: (s) => s.location.pathname })
 	const page = pageFor(pathname)
 	const datasetId = useAtomValue(currentDatasetIdAtom)
@@ -154,6 +170,10 @@ export const TipHost = () => {
 				new URLSearchParams(window.location.search).get("tips") ?? ""
 			)
 	)[0]
+	useEffect(() => {
+		const m = startupMode()
+		if (m) setMode(m)
+	}, [setMode])
 	const [active, setActive] = useState<Active | null>(null)
 	const [hidden, setHidden] = useState(false)
 	const candidateSince = useRef<{ id: string; at: number } | null>(null)
@@ -185,7 +205,7 @@ export const TipHost = () => {
 
 	// Look for a moment to start.
 	useEffect(() => {
-		if (!enabled || active || !page || showAll) return
+		if (!enabled || active || !page || !paced) return
 		const check = () => {
 			if (busy()) {
 				candidateSince.current = null
@@ -232,7 +252,7 @@ export const TipHost = () => {
 		check()
 		const id = window.setInterval(check, POLL_MS)
 		return () => window.clearInterval(id)
-	}, [enabled, active, page, pathname, hasData, hasChart, paceCtx, showAll])
+	}, [enabled, active, page, pathname, hasData, hasChart, paceCtx, paced])
 
 	const finish = useCallback(() => {
 		if (!active) return
@@ -259,9 +279,9 @@ export const TipHost = () => {
 	// While a tip is up: hide a page tip behind a dialog, end a dialog's
 	// tips when it closes, follow a re-rendered
 	// anchor, move on when the anchor is gone (page change, collapse), and
-	// let Escape acknowledge it. Paused while the Info tips board is up.
+	// let Escape acknowledge it. Paused while Info tips is on "all" or "off".
 	useEffect(() => {
-		if (!active || showAll) return
+		if (!active || !paced) return
 		const watch = () => {
 			// Leaving the page a moment belongs to ends it.
 			if (pageRef.current !== active.moment.page) {
@@ -295,12 +315,13 @@ export const TipHost = () => {
 			window.clearInterval(id)
 			window.removeEventListener("keydown", onKey)
 		}
-	}, [active, advance, finish, showAll])
+	}, [active, advance, finish, paced])
 
-	if (showAll)
+	if (mode === "all")
 		return page ? (
 			<TipBoard page={page} pathname={pathname} hasData={hasData} hasChart={hasChart} />
 		) : null
+	if (!paced) return null
 	if (!active || hidden || active.moment.page !== page) return null
 	const tip = active.tips[active.index]
 	if (!tip) return null

@@ -2,9 +2,11 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { SINGLE_PANEL, seedFixtureScript } from "./seed"
 
-// The header's Info tips toggle (src/tips/TipBoard.tsx): every helper
-// bubble for the current view at once, laid out so none overlaps another
-// or the header, each pointing at a control that's on screen.
+// The header's Info tips toggle (src/tips/InfoTipsToggle.tsx) steps
+// paced → all → paced → off. "All" (src/tips/TipBoard.tsx) shows every
+// helper bubble for the current view at once, laid out so none overlaps
+// another or the header, each pointing at a control that's on screen;
+// "off" hides every helper bubble, and the setting survives a reload.
 
 type Box = { x: number; y: number; width: number; height: number }
 
@@ -54,12 +56,12 @@ const expectCleanBoard = async (page: Page) => {
 test.describe("Info tips board", () => {
 	test("landing page: toggle shows every tip, Hide drops one, off clears", async ({ page }) => {
 		await page.goto("/")
-		const toggle = page.getByRole("button", { name: "Info tips" })
-		await expect(toggle).toHaveAttribute("aria-pressed", "false")
+		const toggle = page.locator("[data-info-tips-toggle]")
+		await expect(toggle).toHaveAttribute("data-mode", "paced")
 		await expect(bubbles(page)).toHaveCount(0)
 
 		await toggle.click()
-		await expect(toggle).toHaveAttribute("aria-pressed", "true")
+		await expect(toggle).toHaveAttribute("data-mode", "all")
 		await expect(bubbles(page).filter({ hasText: "Settings holds your themes" })).toBeVisible()
 		const n = await expectCleanBoard(page)
 		expect(n).toBeGreaterThanOrEqual(3)
@@ -71,8 +73,42 @@ test.describe("Info tips board", () => {
 		await expect(bubbles(page)).toHaveCount(n - 1)
 
 		await toggle.click()
-		await expect(toggle).toHaveAttribute("aria-pressed", "false")
+		await expect(toggle).toHaveAttribute("data-mode", "paced")
 		await expect(bubbles(page)).toHaveCount(0)
+	})
+
+	test("third click turns every tip off, and it stays off after a reload", async ({ page }) => {
+		// `?tips=fast` lets the paced tips run under automation (this tab).
+		await page.goto("/?tips=fast")
+		const toggle = page.locator("[data-info-tips-toggle]")
+		const pacedTip = page.getByRole("dialog", { name: "Tip" })
+		await expect(pacedTip).toBeVisible()
+
+		await toggle.click()
+		await expect(toggle).toHaveAttribute("data-mode", "all")
+		await expect(bubbles(page).first()).toBeVisible()
+		await expect(pacedTip).toHaveCount(0)
+
+		await toggle.click()
+		await expect(toggle).toHaveAttribute("data-mode", "paced")
+		await expect(bubbles(page)).toHaveCount(0)
+		await expect(pacedTip).toBeVisible()
+
+		await toggle.click()
+		await expect(toggle).toHaveAttribute("data-mode", "off")
+		await expect(page.getByRole("button", { name: "Info tips off" })).toBeVisible()
+		await expect(pacedTip).toHaveCount(0)
+		await expect(bubbles(page)).toHaveCount(0)
+
+		await page.reload()
+		await expect(toggle).toHaveAttribute("data-mode", "off")
+		// Long enough for a paced tip to have shown (settle + poll).
+		await page.waitForTimeout(1500)
+		await expect(pacedTip).toHaveCount(0)
+
+		await toggle.click()
+		await expect(toggle).toHaveAttribute("data-mode", "paced")
+		await expect(pacedTip).toBeVisible()
 	})
 
 	test("editor: page tips, then only the open dialog's", async ({ page }) => {

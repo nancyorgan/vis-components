@@ -51,6 +51,9 @@ import {
 	loadEmbedInstances,
 	loadContrastAlgorithm,
 	loadExportSizes,
+	loadInfoTipsMode,
+	saveInfoTipsMode,
+	watchInfoTipsMode,
 	loadExportUnit,
 	loadFolders,
 	loadLibraryCollapsedFolders,
@@ -109,6 +112,7 @@ import {
 	type ExportSize,
 	type ExportUnit,
 } from "../lib/storage"
+import type { InfoTipsMode } from "../../../tips/infoTips"
 import { datasetIndexFrom } from "../lib/datasetMeta"
 import { resolveVersionIdFromMeta } from "../lib/resolveDatasetVersion"
 import { isTemplatePending } from "../lib/templates/pending"
@@ -1352,6 +1356,15 @@ export const contrastAlgorithmAtom = persistedAtom<ContrastAlgorithm>(
 	loadContrastAlgorithm,
 	saveContrastAlgorithm,
 	watchContrastAlgorithm
+)
+
+/** The header's Info tips setting: paced helper tips, every tip at once,
+ * or none (src/tips/infoTips.ts). Device-local and kept across sessions,
+ * in step across tabs. */
+export const infoTipsModeAtom = persistedAtom<InfoTipsMode>(
+	loadInfoTipsMode,
+	saveInfoTipsMode,
+	watchInfoTipsMode
 )
 
 /** How many findings the open accessibility check currently lists — drives

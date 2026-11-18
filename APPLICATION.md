@@ -5626,13 +5626,28 @@ header explains when each moment shows on its own (pacing, first sight,
 dialogs) and the `?tips=reset|fast|off|on` preview switches. A tip points
 at the element carrying `data-tip="<anchor>"`.
 
-**Info tips** (header button, speech bubble with three dots, title "Info
-tips", `aria-pressed`; `infoTipsAtom`) shows every tip for the current
-view at once. On every page (library, editor, settings), between the
-editor's Accessibility check and Settings; hidden on phones (below `sm`),
-where the header must stay one line. In memory only, like the other
-header toggles; it stays on across navigation, so the next view shows its
-tips too.
+**Info tips** (header button, speech bubble with three dots;
+`infoTipsModeAtom`) has three settings, one click each, in the order
+**paced → all → paced → off → paced → …** (from "paced" a click goes to
+whichever of "all" / "off" it didn't visit last; a fresh page goes to
+"all" first):
+
+- **Paced** (title "Info tips", plain icon) — the default: helper tips
+  show on their own, as the catalog paces them.
+- **All** (title "All info tips", filled purple like the other on
+  toggles) — every tip for the current view at once, the board below.
+- **Off** (title "Info tips off", the bubble inside a circle with a
+  slash through it) — no helper bubbles at all, paced or board.
+
+The title doubles as the accessible name, so the three settings are told
+apart without the icon. On every page (library, editor, settings),
+between the editor's Accessibility check and Settings; hidden on phones
+(below `sm`), where the header must stay one line. Unlike the other
+header toggles the setting is kept: device-local (localStorage
+`vis-components:infoTipsMode`), across sessions, in step across tabs, and
+across navigation, so on "all" the next view shows its tips too. The
+`?tips=off` / `?tips=on` URL switches set it to off / paced (a browser that
+used the old `?tips=off` flag starts on "off").
 
 - **Which tips:** every catalog tip for this page (and sub-page `path`)
   whose anchor is on screen right now — visible, in the window, not
@@ -5655,8 +5670,9 @@ tips too.
   on. Hovering a bubble brings it to the front. The wheel over a bubble
   scrolls the panel beneath it. An open menu clears the board until it
   closes.
-- While the board is on the paced tips wait; one that was up comes back
-  when it's turned off. Showing a tip on the board doesn't mark it seen.
+- While the setting is on "all" or "off" the paced tips wait; one that
+  was up comes back on "paced". Showing a tip on the board doesn't mark
+  it seen.
   The board works under automation (the paced tips don't).
 
 ---

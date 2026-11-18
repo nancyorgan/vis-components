@@ -133,13 +133,12 @@ describe("pacing", () => {
 		expect(eligibleMoments([c], s, "editor", null, signals, ctx(long * 3, "v3")).map((m) => m.id)).toEqual(["c"])
 	})
 
-	it("respects page, conditions, done and off", () => {
+	it("respects page, conditions and done", () => {
 		const a = { ...moment("a", "now"), when: (x: TipSignals) => !x.hasData }
 		expect(eligibleMoments([a], EMPTY_TIP_STATE, "editor", null, signals, ctx(0))).toEqual([])
 		const b = moment("b", "now")
 		expect(eligibleMoments([b], EMPTY_TIP_STATE, "library", null, signals, ctx(0))).toEqual([])
 		expect(eligibleMoments([b], { ...EMPTY_TIP_STATE, done: ["b"] }, "editor", null, signals, ctx(0))).toEqual([])
-		expect(eligibleMoments([b], { ...EMPTY_TIP_STATE, off: true }, "editor", null, signals, ctx(0))).toEqual([])
 	})
 
 	it("shows one 'arrival' moment per arrival on the page", () => {

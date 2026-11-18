@@ -26,7 +26,8 @@ export type TipState = {
 	visits: number
 	editorVisited: boolean
 	chartMade: boolean
-	/** Tips are off (only via the `?tips=off` preview switch). */
+	/** Legacy: where the old `?tips=off` switch turned tips off. TipHost
+	 *  moves it into the Info tips setting on load and clears it here. */
 	off: boolean
 }
 
@@ -92,7 +93,6 @@ export const eligibleMoments = (
 	/** The URL path, for moments that name a sub-page (`path`). */
 	pathname = ""
 ): TipMoment[] => {
-	if (state.off) return []
 	return catalog.filter(
 		(m) =>
 			m.page === page &&
