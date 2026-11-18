@@ -4,41 +4,84 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Zafiro</title>
+		<!-- The app's UI face; the system font stands in when it can't load. -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" />
 		<link rel="stylesheet" href="taskpane.css" />
 		<!-- Office.js must come from the CDN (Microsoft's rule for add-ins). -->
 		<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 		<script src="zafiro.js"></script>
 	</head>
 	<body>
-		<h1>Zafiro</h1>
-		<p class="hint" id="env">Loading Office…</p>
+		<!-- Only for a PowerPoint the add-in can't run in; everyday environment
+		     facts live under Details. -->
+		<p class="notice" id="notice" role="alert" hidden></p>
 
-		<h2>Insert</h2>
-		<input type="text" id="link" placeholder="Paste a Zafiro link" autocomplete="off" spellcheck="false" />
-		<button id="insert" disabled>Insert</button>
-		<div class="status" id="insert-status"></div>
-		<label class="check"><input type="checkbox" id="vector" /> Insert as vector (SVG) when available</label>
-		<p class="hint">
-			A vector picture stays sharp at any zoom and in PDF or print, drawn with the fonts installed on this
-			computer. Off, or when no vector was published, the PNG picture is inserted instead.
-		</p>
+		<section class="card">
+			<h2>Add a figure</h2>
+			<div class="row">
+				<input type="text" id="link" aria-label="Zafiro link" placeholder="Paste a Zafiro link" autocomplete="off" spellcheck="false" />
+				<button class="primary" id="insert" disabled>Insert</button>
+			</div>
+			<div class="status" id="insert-status" role="status" hidden></div>
+			<div class="stack">
+				<div class="segmented" role="group" aria-label="Picture format">
+					<button type="button" id="format-vector" aria-pressed="false">
+						<svg class="icon tick" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+						Vector
+					</button>
+					<button type="button" id="format-picture" aria-pressed="true">
+						<svg class="icon tick" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+						Picture
+					</button>
+				</div>
+				<p class="hint" id="format-hint"></p>
+			</div>
+		</section>
 
-		<h2>Refresh</h2>
-		<button id="refresh" disabled>Refresh figures</button>
-		<div class="status" id="refresh-status"></div>
-		<label class="check"><input type="checkbox" id="auto-refresh" /> Keep figures current (every 30 s)</label>
+		<section class="card">
+			<div class="row">
+				<div class="grow">
+					<h2>Figures in this deck</h2>
+					<p class="hint" id="summary" role="status">Loading Office…</p>
+				</div>
+				<button class="primary compact" id="refresh" disabled>Refresh</button>
+			</div>
+			<ul class="figures" id="figures" hidden></ul>
+			<label class="switch-row">
+				<span class="grow">
+					<span class="label">Keep figures current</span>
+					<span class="hint">Checks every 30 seconds</span>
+				</span>
+				<input type="checkbox" role="switch" id="auto-refresh" />
+			</label>
+			<hr />
+			<label class="switch-row">
+				<span class="grow">
+					<span class="label">Convert pasted links</span>
+					<span class="hint">A pasted Zafiro link becomes its figure</span>
+				</span>
+				<input type="checkbox" role="switch" id="auto-convert" />
+			</label>
+			<div class="status" id="convert-status" role="status" hidden></div>
+		</section>
 
-		<h2>Pasted links</h2>
-		<label class="check"><input type="checkbox" id="auto-convert" /> Convert pasted Zafiro links</label>
-		<p class="hint">
-			A text box whose only content is a Zafiro link becomes the picture, at the same place and width.
-		</p>
-		<div class="status" id="convert-status"></div>
+		<details class="details">
+			<summary>
+				<svg class="icon chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></svg>
+				Details
+			</summary>
+			<p class="hint" id="env"></p>
+			<div class="log" id="log"></div>
+			<button class="quiet" id="copy-log" type="button">Copy log</button>
+		</details>
 
-		<h2>Log</h2>
-		<div class="log" id="log"></div>
+		<!-- Icons the figure list clones (taskpane.js `icon`). -->
+		<template id="icon-ok"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg></template>
+		<template id="icon-problem"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg></template>
+		<template id="icon-waiting"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></template>
 
 		<script src="taskpane.js"></script>
-		<p class="hint" id="build">build 2026-11-17 · refresh skips unchanged figures</p>
 	</body>
 </html>

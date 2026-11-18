@@ -155,6 +155,57 @@
 		}
 	}
 
+	// The chart's published page, for its name: the server writes the visual's
+	// name into the page <title> (the template's own title means unnamed).
+	// index.html is the combined page, chart.html the split one. Only the head
+	// is read — the page carries the chart's whole dataset after it.
+	const PAGE_FILES = ["index.html", "chart.html"]
+	const TEMPLATE_TITLE = "Chart embed"
+	const TITLE_SCAN_BYTES = 64 * 1024
+
+	const readTitle = async (response) => {
+		let head = ""
+		if (response.body && response.body.getReader) {
+			const reader = response.body.getReader()
+			const decoder = new TextDecoder()
+			while (head.length < TITLE_SCAN_BYTES && !/<\/title>/i.test(head)) {
+				const { done, value } = await reader.read()
+				if (done) break
+				head += decoder.decode(value, { stream: true })
+			}
+			reader.cancel().catch(() => {})
+		} else {
+			head = (await response.text()).slice(0, TITLE_SCAN_BYTES)
+		}
+		const match = /<title>([^<]*)<\/title>/i.exec(head)
+		if (!match) return null
+		// Entities decoded by the parser; the text never becomes markup here.
+		const title = new DOMParser().parseFromString(`<title>${match[1]}</title>`, "text/html").title.trim()
+		return title && title !== TEMPLATE_TITLE ? title : null
+	}
+
+	// → { published, name }. `published` is true when the chart has a page,
+	// false when it has none (unpublished), null when that couldn't be told
+	// (network trouble); `name` is the visual's name or null.
+	const fetchChartInfo = async (id) => {
+		for (const file of PAGE_FILES) {
+			let response
+			try {
+				response = await fetch(`${embedFileUrl(id, file)}?t=${Date.now()}`, { cache: "no-store" })
+			} catch {
+				return { published: null, name: null }
+			}
+			if (response.status === 404) continue
+			if (!response.ok) return { published: null, name: null }
+			try {
+				return { published: true, name: await readTitle(response) }
+			} catch {
+				return { published: true, name: null }
+			}
+		}
+		return { published: false, name: null }
+	}
+
 	window.Zafiro = {
 		TAG_KEY,
 		parseEmbedId,
@@ -164,6 +215,7 @@
 		fetchImage,
 		fetchImageBase64,
 		fetchVector,
+		fetchChartInfo,
 		svgSize,
 		pngSize,
 		pngDpi,

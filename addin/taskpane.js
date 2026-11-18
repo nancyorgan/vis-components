@@ -56,6 +56,15 @@
 //   One deck operation at a time: insert, refresh and link conversion all
 //   run through `exclusive`, since each can move the selection.
 //
+//   THE FIGURE LIST: every tagged figure in the deck is a row — its slide
+//   number, its chart's name (the <title> of the published page, see
+//   Zafiro.fetchChartInfo) and how its last check went. What a check found
+//   is remembered per slide + chart in `known`, so re-listing after an
+//   insert doesn't forget it. A picture that 404s is "waiting" while the
+//   chart's page is still published (a republish deletes the pictures until
+//   the editor's uploads land) and "no longer published" once the page is
+//   gone too. Chart names are other people's text: textContent only.
+//
 //   Other sets used: tags add/getItemOrNullObject/delete 1.3; shape
 //   left/top/width/height/name/type/lineFormat/textFrame 1.4; delete() 1.3;
 //   getSelectedSlides/getSelectedShapes 1.5; Office.addin.setStartupBehavior
@@ -67,18 +76,26 @@
 
 	const $ = (id) => document.getElementById(id)
 	const els = {
+		notice: $("notice"),
 		env: $("env"),
 		link: $("link"),
 		insert: $("insert"),
 		insertStatus: $("insert-status"),
-		vector: $("vector"),
+		formatVector: $("format-vector"),
+		formatPicture: $("format-picture"),
+		formatHint: $("format-hint"),
 		refresh: $("refresh"),
-		refreshStatus: $("refresh-status"),
+		summary: $("summary"),
+		figures: $("figures"),
 		autoRefresh: $("auto-refresh"),
 		autoConvert: $("auto-convert"),
 		convertStatus: $("convert-status"),
 		log: $("log"),
+		copyLog: $("copy-log"),
 	}
+
+	// Shown under Details, so a screenshot says which panel build it was.
+	const BUILD = "2026-11-18"
 
 	const PREFS = {
 		autoRefresh: "zafiro.autoRefresh",
@@ -116,10 +133,19 @@
 		els.log.textContent = `${line}\n${els.log.textContent}`.split("\n").slice(0, 60).join("\n")
 	}
 
+	/** A status line; an empty message hides it. */
 	const setStatus = (el, message, kind) => {
 		el.textContent = message
 		el.className = `status${kind ? ` ${kind}` : ""}`
+		el.hidden = !message
 	}
+
+	const setSummary = (message, kind) => {
+		els.summary.textContent = message
+		els.summary.className = `hint${kind ? ` ${kind}` : ""}`
+	}
+
+	const clockTime = (date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
 
 	const errorText = (error) => {
 		if (!error) return "unknown error"
@@ -183,8 +209,7 @@
 	const fitsSlide = (g) =>
 		g.width <= SLIDE_WIDTH_PT - 2 * SLIDE_MARGIN_PT && g.height <= SLIDE_HEIGHT_PT - 2 * SLIDE_MARGIN_PT
 
-	const describeSize = (g) =>
-		`${Math.round(g.width)}×${Math.round(g.height)} pt (${(g.width / 72).toFixed(1)}×${(g.height / 72).toFixed(1)} in)`
+	const describeSize = (g) => `${(g.width / 72).toFixed(1)} × ${(g.height / 72).toFixed(1)} in`
 
 	const shapeName = (id) => `Zafiro ${id}`
 
@@ -199,7 +224,19 @@
 
 	// ---- which picture ------------------------------------------------------
 
-	const wantVector = () => els.vector.checked && api.svgCoercion
+	// The Vector | Picture choice for new figures.
+	let vectorChoice = false
+	const wantVector = () => vectorChoice && api.svgCoercion
+	const showFormat = () => {
+		els.formatVector.setAttribute("aria-pressed", String(wantVector()))
+		els.formatPicture.setAttribute("aria-pressed", String(!wantVector()))
+		els.formatVector.disabled = !api.svgCoercion
+		els.formatHint.textContent = !api.svgCoercion
+			? "This PowerPoint can only insert PNG pictures."
+			: wantVector()
+				? "Stays sharp at any size and in print. Drawn with this computer's fonts."
+				: "A PNG picture: looks the same on every computer."
+	}
 
 	/** The picture to place for `id`, as the user's choice and the publish
 	 *  allow: `{ format: "svg", text, … }` or `{ format: "png", base64, … }`,
@@ -218,7 +255,7 @@
 		return { format: "png", ...(await Zafiro.fetchImage(id)) }
 	}
 
-	const formatLabel = (picture) => (picture.format === "svg" ? "vector (SVG)" : "picture (PNG)")
+	const formatLabel = (picture) => (picture.format === "svg" ? "vector" : "picture")
 
 	// ---- placing a picture (preferred PNG path, PowerPointApi 1.8) -----------
 
@@ -350,22 +387,27 @@
 			return
 		}
 		els.insert.disabled = true
-		setStatus(els.insertStatus, `Fetching picture ${id}…`)
+		setStatus(els.insertStatus, "Fetching the picture…")
 		try {
 			const picture = await fetchPicture(id)
 			const geometry = defaultGeometry(picture)
-			await exclusive(() => placePicture(id, picture, geometry))
+			await exclusive(async () => {
+				const slideId = await currentSlideId().catch(() => null)
+				await placePicture(id, picture, geometry)
+				if (slideId) known.set(figureKey({ slideId, id }), { kind: "current" })
+			})
 			setStatus(
 				els.insertStatus,
-				`Inserted ${formatLabel(picture)} at 100%: ${describeSize(geometry)}.` +
+				`Inserted as ${formatLabel(picture)}, ${describeSize(geometry)}.` +
 					(picture.note ? ` ${picture.note}` : "") +
 					(fitsSlide(geometry)
 						? ""
 						: " That is larger than a 16:9 slide. To shrink it on the slide, drag a corner handle (text shrinks with it). To keep text at its Zafiro size, give the visual a smaller canvas in Zafiro — Aesthetics → Canvas size — and Republish."),
 				"ok",
 			)
-			log(`insert ${id} ok (${picture.format})`)
+			log(`insert ${id} ok (${picture.format}, ${Math.round(geometry.width)}×${Math.round(geometry.height)} pt)`)
 			els.link.value = ""
+			listFigures()
 		} catch (error) {
 			setStatus(els.insertStatus, `Insert failed: ${errorText(error)}`, "err")
 			log(`insert ${id} FAILED: ${errorText(error)}`)
@@ -376,8 +418,9 @@
 
 	// ---- Refresh ------------------------------------------------------------
 
-	/** Every tagged figure in the deck: { slideId, shapeId, id, format,
-	 *  hash, geometry }; `format` is the figure's picture format tag, "png"
+	/** Every tagged figure in the deck, in slide order: { slideId,
+	 *  slideNumber, shapeId, id, format, hash, geometry }; `format` is the
+	 *  figure's picture format tag, "png"
 	 *  when the figure predates it; `hash` its picture fingerprint, null when
 	 *  it predates that. */
 	const collectFigures = () =>
@@ -386,7 +429,7 @@
 			slides.load("items/id")
 			await context.sync()
 			const figures = []
-			for (const slide of slides.items) {
+			for (const [slideIndex, slide] of slides.items.entries()) {
 				const shapes = slide.shapes
 				shapes.load("items/id,items/left,items/top,items/width,items/height")
 				await context.sync()
@@ -403,6 +446,7 @@
 					const format = !formats[i].isNullObject && formats[i].value === "svg" ? "svg" : "png"
 					figures.push({
 						slideId: slide.id,
+						slideNumber: slideIndex + 1,
 						shapeId: shape.id,
 						id,
 						format,
@@ -452,14 +496,167 @@
 		return "reinserted"
 	}
 
-	/** A failed picture fetch, in words: a 404 means nothing is published
-	 *  at that address — unpublished, or a republish caught mid-upload. */
-	const fetchFailure = (id, error) =>
-		error && error.status === 404
-			? `${id}: nothing published there (HTTP 404). If its chart was unpublished, republish it in Zafiro or delete this figure; a republish in progress clears up on the next refresh.`
-			: `${id}: ${errorText(error)}`
-
 	const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`
+
+	// ---- the figure list ----------------------------------------------------
+
+	/** What the last check found for a figure, by slide + chart:
+	 *  { kind: "current" | "updated" | "waiting" | "gone" | "failed",
+	 *    at?: Date (updated), detail?: string (failed) }.
+	 *  No entry = not checked yet. */
+	const known = new Map()
+	const figureKey = (figure) => `${figure.slideId}:${figure.id}`
+	/** Chart names by embed id, for this session; refetched after an update
+	 *  (a republish can rename the chart). */
+	const names = new Map()
+	let lastChecked = null
+
+	const fallbackName = (id) => `Chart ${id.slice(0, 8)}`
+
+	const ROW = {
+		current: { tone: "good", icon: "ok", state: () => "Up to date" },
+		updated: { tone: "good", icon: "ok", state: (found) => `Updated ${clockTime(found.at)}` },
+		waiting: {
+			tone: "waiting",
+			icon: "waiting",
+			state: () => "Waiting for its picture",
+			help: () =>
+				"It was republished and its picture hasn't arrived yet. If this stays, publish it again in Zafiro.",
+		},
+		gone: {
+			tone: "problem",
+			icon: "problem",
+			state: () => "No longer published",
+			help: () => "Publish it again in Zafiro, or delete the figure from the slide.",
+			goTo: true,
+		},
+		failed: {
+			tone: "problem",
+			icon: "problem",
+			state: () => "Couldn't update",
+			help: (found) => found.detail,
+			goTo: true,
+		},
+	}
+
+	const el = (tag, className, text) => {
+		const node = document.createElement(tag)
+		if (className) node.className = className
+		if (text !== undefined) node.textContent = text
+		return node
+	}
+
+	const icon = (name, label) => {
+		const svg = $(`icon-${name}`).content.firstElementChild.cloneNode(true)
+		svg.setAttribute("role", "img")
+		svg.setAttribute("aria-label", label)
+		return svg
+	}
+
+	const showSlide = (figure) =>
+		exclusive(() => goToSlide(figure.slideId)).catch((error) =>
+			log(`couldn't go to slide ${figure.slideNumber}: ${errorText(error)}`),
+		)
+
+	const figureRow = (figure) => {
+		const found = known.get(figureKey(figure))
+		const row = found ? ROW[found.kind] : null
+		const item = el("li", `figure${row ? ` ${row.tone}` : ""}`)
+		const head = el("div", "figure-head")
+		const number = el("span", "slide-number", String(figure.slideNumber))
+		number.setAttribute("aria-label", `Slide ${figure.slideNumber}`)
+		const text = el("div", "grow")
+		text.append(
+			el("span", "figure-name", names.get(figure.id) || fallbackName(figure.id)),
+			el("span", "hint figure-state", row ? row.state(found) : "Not checked yet"),
+		)
+		head.append(number, text)
+		if (row) head.append(icon(row.icon, row.state(found)))
+		item.append(head)
+		if (row && row.help) item.append(el("span", "figure-help", row.help(found)))
+		if (row && row.goTo) {
+			const go = el("button", "link", `Go to slide ${figure.slideNumber}`)
+			go.type = "button"
+			go.addEventListener("click", () => showSlide(figure))
+			item.append(go)
+		}
+		return item
+	}
+
+	const summarize = (figures) => {
+		const total = figures.length
+		if (total === 0) return ["No Zafiro figures in this deck yet."]
+		const kinds = figures.map((figure) => (known.get(figureKey(figure)) || {}).kind)
+		const count = (...wanted) => kinds.filter((kind) => wanted.includes(kind)).length
+		const problems = count("gone", "failed")
+		const waiting = count("waiting")
+		const unchecked = count(undefined)
+		const checked = lastChecked ? ` · checked ${clockTime(lastChecked)}` : ""
+		if (problems > 0) return [`${problems} of ${total} couldn't update${checked}`, "err"]
+		if (waiting > 0) return [`${waiting} of ${total} waiting for a picture${checked}`]
+		if (unchecked === total) return [`${plural(total, "figure")} · not checked yet`]
+		if (unchecked > 0) return [`${unchecked} of ${total} not checked yet${checked}`]
+		return [`${total === 1 ? "Up to date" : `All ${total} up to date`}${checked}`]
+	}
+
+	const drawFigures = (figures) => {
+		els.figures.replaceChildren(...figures.map(figureRow))
+		els.figures.hidden = figures.length === 0
+		setSummary(...summarize(figures))
+	}
+
+	/** Show `figures` as the list: at once with the names already known,
+	 *  then again once the missing ones have been fetched. */
+	let drawn = 0
+	const showFigures = async (figures) => {
+		const turn = ++drawn
+		const live = new Set(figures.map(figureKey))
+		for (const key of known.keys()) if (!live.has(key)) known.delete(key)
+		drawFigures(figures)
+		const missing = [...new Set(figures.map((figure) => figure.id))].filter((id) => !names.has(id))
+		if (missing.length === 0) return
+		await Promise.all(
+			missing.map(async (id) => {
+				const info = await Zafiro.fetchChartInfo(id)
+				if (info.name) names.set(id, info.name)
+			}),
+		)
+		if (turn === drawn) drawFigures(figures)
+	}
+
+	/** Re-list the deck's figures without checking their pictures (after an
+	 *  insert or a converted link, and when the pane opens). */
+	const listFigures = async () => {
+		try {
+			await showFigures(await collectFigures())
+		} catch (error) {
+			log(`listing figures failed: ${errorText(error)}`)
+		}
+	}
+
+	/** Why a picture couldn't be fetched, as a `known` entry (see the header
+	 *  for waiting vs gone). */
+	const fetchProblem = async (id, error) => {
+		if (error && error.status === 404) {
+			const info = await Zafiro.fetchChartInfo(id)
+			if (info.name) names.set(id, info.name)
+			return { kind: info.published ? "waiting" : "gone" }
+		}
+		return { kind: "failed", detail: errorText(error) }
+	}
+
+	/** Record what a check found; a change of outcome gets a log line (a
+	 *  figure that stays failed doesn't repeat every 30 s). */
+	const record = (figure, found) => {
+		const key = figureKey(figure)
+		const before = known.get(key)
+		if (found.kind !== "current" && found.kind !== "updated" && (!before || before.kind !== found.kind)) {
+			log(`slide ${figure.slideNumber}, ${figure.id}: ${ROW[found.kind].state(found)}${found.detail ? ` — ${found.detail}` : ""}`)
+		}
+		// An unchanged figure keeps its "Updated 9:43" from earlier.
+		if (found.kind === "current" && before && before.kind === "updated") return
+		known.set(key, found)
+	}
 
 	let refreshing = false
 	const refreshAll = (trigger) => {
@@ -473,25 +670,25 @@
 	}
 
 	const refreshFigures = async (trigger) => {
-		setStatus(els.refreshStatus, "Looking for figures…")
 		try {
 			const figures = await collectFigures()
 			if (figures.length === 0) {
-				setStatus(els.refreshStatus, "No Zafiro figures in this deck.")
+				lastChecked = new Date()
+				await showFigures(figures)
 				return
 			}
+			if (trigger === "manual") setSummary(`Checking ${plural(figures.length, "figure")}…`)
 			// One fetch per (id, format): a vector figure wants image.svg, a PNG
 			// figure image.png; the format sticks to the figure.
 			const wanted = [...new Set(figures.map((f) => `${f.format}:${f.id}`))]
-			setStatus(els.refreshStatus, `Checking ${plural(wanted.length, "picture")}…`)
 			const pictures = new Map()
-			const failures = []
+			const problems = new Map()
 			for (const key of wanted) {
 				const [format, id] = key.split(":")
 				try {
 					pictures.set(key, await fetchPicture(id, format))
 				} catch (error) {
-					failures.push(fetchFailure(id, error))
+					problems.set(key, await fetchProblem(id, error))
 				}
 			}
 			// Where the user is, so a re-insert (which selects the figure's
@@ -501,35 +698,37 @@
 			let current = 0
 			let moved = false
 			for (const figure of figures) {
-				const picture = pictures.get(`${figure.format}:${figure.id}`)
-				if (!picture) continue
+				const key = `${figure.format}:${figure.id}`
+				const picture = pictures.get(key)
+				if (!picture) {
+					record(figure, problems.get(key))
+					continue
+				}
 				try {
 					const outcome = await refreshOne(figure, picture)
-					if (outcome === "current") current += 1
-					else updated += 1
+					if (outcome === "current") {
+						current += 1
+						record(figure, { kind: "current" })
+					} else {
+						updated += 1
+						record(figure, { kind: "updated", at: new Date() })
+						names.delete(figure.id)
+					}
 					if (outcome === "reinserted") moved = true
 				} catch (error) {
-					failures.push(`${figure.id} on slide ${figure.slideId}: ${errorText(error)}`)
+					record(figure, { kind: "failed", detail: errorText(error) })
 				}
 			}
 			if (moved && home) {
 				await goToSlide(home).catch((error) => log(`couldn't return to the slide you were on: ${errorText(error)}`))
 			}
-			const time = new Date().toLocaleTimeString()
-			const summary =
-				updated === 0 && failures.length === 0
-					? `All ${plural(current, "figure")} up to date (${time}).`
-					: `Updated ${plural(updated, "figure")}, ${current} already up to date (${time}).`
-			if (failures.length > 0) {
-				setStatus(els.refreshStatus, `${summary}\n${failures.length} failed:\n${failures.join("\n")}`, "err")
-			} else {
-				setStatus(els.refreshStatus, summary, "ok")
-			}
+			lastChecked = new Date()
+			await showFigures(figures)
 			log(
 				`refresh (${trigger}): ${updated} updated, ${current} current, ${figures.length - updated - current} failed`,
 			)
 		} catch (error) {
-			setStatus(els.refreshStatus, `Refresh failed: ${errorText(error)}`, "err")
+			setSummary(`Refresh failed: ${errorText(error)}`, "err")
 			log(`refresh (${trigger}) FAILED: ${errorText(error)}`)
 		}
 	}
@@ -608,14 +807,14 @@
 						context.presentation.slides.getItem(candidate.slideId).shapes.getItem(candidate.shapeId).delete()
 						await context.sync()
 					})
-					setStatus(
-						els.convertStatus,
-						`Converted a pasted link into ${shapeName(id)} (${formatLabel(picture)}).${picture.note ? ` ${picture.note}` : ""}`,
-						"ok",
-					)
+					known.set(figureKey({ slideId: candidate.slideId, id }), { kind: "current" })
+					// The new figure shows up in the list; only a stand-in PNG
+					// needs words here.
+					setStatus(els.convertStatus, picture.note || "")
 					log(`convert ${id} ok (${picture.format})`)
+					listFigures()
 				} catch (error) {
-					setStatus(els.convertStatus, `Couldn't convert ${id}: ${errorText(error)}`, "err")
+					setStatus(els.convertStatus, `Couldn't convert a pasted link: ${errorText(error)}`, "err")
 					log(`convert ${id} FAILED: ${errorText(error)}`)
 				}
 			}
@@ -645,15 +844,41 @@
 		} else {
 			doc.removeHandlerAsync(Office.EventType.DocumentSelectionChanged, { handler: onSelectionChanged }, () => {})
 		}
-		setStatus(els.convertStatus, on ? "Watching the current slide for pasted links." : "")
+		if (!on) setStatus(els.convertStatus, "")
 		log(`auto-convert ${on ? "on" : "off"}`)
 	}
 
 	// ---- boot ---------------------------------------------------------------
 
+	/** The add-in can't run here: say so at the top of the pane. */
+	const cannotRun = (message) => {
+		els.notice.textContent = message
+		els.notice.hidden = false
+		setSummary("")
+	}
+
+	const copyLog = async () => {
+		const text = els.log.textContent
+		try {
+			await navigator.clipboard.writeText(text)
+		} catch {
+			// No clipboard permission in this webview: copy the selection.
+			const range = document.createRange()
+			range.selectNodeContents(els.log)
+			const selection = window.getSelection()
+			selection.removeAllRanges()
+			selection.addRange(range)
+			document.execCommand("copy")
+			selection.removeAllRanges()
+		}
+		els.copyLog.textContent = "Copied"
+		setTimeout(() => (els.copyLog.textContent = "Copy log"), 1500)
+	}
+
 	Office.onReady((info) => {
+		els.copyLog.addEventListener("click", copyLog)
 		if (info.host !== Office.HostType.PowerPoint) {
-			els.env.textContent = `This add-in is for PowerPoint (host: ${info.host || "none"}).`
+			cannotRun(`This add-in is for PowerPoint (host: ${info.host || "none"}).`)
 			return
 		}
 		const req = Office.context.requirements
@@ -662,15 +887,16 @@
 		api.shared = req.isSetSupported("SharedRuntime", "1.1")
 		api.svgCoercion = req.isSetSupported("ImageCoercion", "1.2")
 		if (!api.fillImage && !api.selectedShapes) {
-			els.env.textContent = "This PowerPoint is too old (needs PowerPointApi 1.5; 1.8 preferred)."
+			cannotRun("This PowerPoint is too old for Zafiro figures. Update PowerPoint and reopen this pane.")
 			return
 		}
-		els.env.textContent =
-			`PowerPoint on ${info.platform}. ` +
-			(api.fillImage ? "Picture-fill refresh (PowerPointApi 1.8)." : "Fallback: re-insert refresh (PowerPointApi 1.5).") +
-			(api.svgCoercion ? " Vector pictures available (ImageCoercion 1.2)." : " No vector pictures here (ImageCoercion 1.2 missing): PNG only.") +
-			(api.shared ? " Shared runtime." : " No shared runtime: watchers stop when the pane closes.")
-		els.vector.disabled = !api.svgCoercion
+		els.env.textContent = [
+			`PowerPoint on ${info.platform}`,
+			api.fillImage ? "picture-fill refresh (PowerPointApi 1.8)" : "re-insert refresh (PowerPointApi 1.5)",
+			api.svgCoercion ? "vector pictures (ImageCoercion 1.2)" : "no vector pictures (ImageCoercion 1.2 missing)",
+			api.shared ? "shared runtime" : "no shared runtime: watchers stop when the pane closes",
+			`build ${BUILD}`,
+		].join(" · ")
 
 		els.insert.disabled = false
 		els.refresh.disabled = false
@@ -682,15 +908,27 @@
 		els.autoRefresh.addEventListener("change", () => setAutoRefresh(els.autoRefresh.checked))
 		els.autoConvert.addEventListener("change", () => setAutoConvert(els.autoConvert.checked))
 
-		els.vector.checked = api.svgCoercion && readPref(PREFS.vector, true)
-		els.vector.addEventListener("change", () => {
-			writePref(PREFS.vector, els.vector.checked)
-			log(`vector pictures ${els.vector.checked ? "on" : "off"}`)
-		})
+		vectorChoice = api.svgCoercion && readPref(PREFS.vector, true)
+		showFormat()
+		const chooseFormat = (vector) => {
+			vectorChoice = vector
+			writePref(PREFS.vector, vector)
+			showFormat()
+			log(`new figures insert as ${vector ? "vector" : "picture"}`)
+		}
+		els.formatVector.addEventListener("click", () => chooseFormat(true))
+		els.formatPicture.addEventListener("click", () => chooseFormat(false))
+
 		els.autoRefresh.checked = readPref(PREFS.autoRefresh, false)
 		if (els.autoRefresh.checked) setAutoRefresh(true)
 		els.autoConvert.checked = readPref(PREFS.autoConvert, true)
 		if (els.autoConvert.checked) setAutoConvert(true)
+
+		// The list fills in as the pane opens: checked straight away when
+		// figures are kept current, otherwise listed and left alone until
+		// Refresh is clicked.
+		if (els.autoRefresh.checked) refreshAll("open")
+		else listFigures()
 
 		// Keep the shared runtime loading with the document so the watchers run
 		// even before the pane is opened (SharedRuntime 1.1; feature-detected).
