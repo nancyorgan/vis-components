@@ -16414,6 +16414,117 @@
 				"top"
 			]
 		},
+		"labelsConfig.titleWraps": {
+			"doc": "\"Wrap text\" per title slot: the target line length in CHARACTERS (`wrapByCharCount` — breaks at the space or hyphen nearest the target, never mid-word). Sparse: an entry exists only while wrapping is on, so absent = one line per title.",
+			"kinds": [
+				"object"
+			]
+		},
+		"labelsConfig.titleWraps.facetColTitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.facetPanelTitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.facetRowTitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.facetTitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:angle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:area": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:brightness": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:densityCurve": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:hue": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:length": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:opacity": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:outlineHue": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:pattern": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:rug": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:saturation": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.legend:shape": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.nodeTitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.subtitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.title": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.xAxisTitle": {
+			"kinds": [
+				"number"
+			]
+		},
+		"labelsConfig.titleWraps.yAxisTitle": {
+			"kinds": [
+				"number"
+			]
+		},
 		"labelsConfig.xAxisTitle": {
 			"doc": "Axis title text as a THREE-STATE value: • `undefined` — never customized → renderers fall back to the field name (the sidebar shows that field name as a grayed placeholder). • `\"\"` — user explicitly cleared it → NO title is drawn. • any other string — custom title.",
 			"kinds": [

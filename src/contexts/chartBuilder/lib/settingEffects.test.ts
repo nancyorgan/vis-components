@@ -321,6 +321,8 @@ describe("applySettings: what the panels do beyond storing a value", () => {
 		const labels = ok({ labelsConfig: { titleVerticalAlignments: { title: "middle" }, titleAngles: { title: 0 } } })
 		expect(labels.labelsConfig.titleVerticalAlignments).toEqual({})
 		expect(labels.labelsConfig.titleAngles).toEqual({})
+		const wraps = ok({ labelsConfig: { titleWraps: { facetTitle: 12.6, facetRowTitle: 0 } } })
+		expect(wraps.labelsConfig.titleWraps).toEqual({ facetTitle: 12, facetRowTitle: 1 })
 		const table = ok({ dataTableConfig: { columnAlign: { region: "left" } } }, bars())
 		expect(table.dataTableConfig!.columnAlign).toEqual({})
 		const dash = ok({ channelConfigs: { connection: { dashGapFill: true } } }, bars())

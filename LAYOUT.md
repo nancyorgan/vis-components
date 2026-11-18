@@ -160,7 +160,14 @@ that ensures the y-title has room from the canvas edge.
 column/row header strips (`columnHeaders` / `rowHeaders`) are outer
 bands at the grid edge (`columnHeaderHeight`, default 20;
 `rowHeaderWidth`, default 80); the `facetLabelBand` above is per-cell
-chrome. They are geometrically independent, and grid mode may combine
+chrome. Facet-title "Wrap text" (`labelsConfig.titleWraps`) reaches the
+solver as already-wrapped, `\n`-joined text (`wrapTitleText` in
+`solverSpec.ts`), so no solver rule is special to it: the caller grows
+`columnHeaderHeight` by 1.2em per extra line of the tallest column
+title (each title centers in the band), measures `rowHeaderWidth` from
+the widest wrapped LINE, and counts panel-label lines into
+`FacetLabelInput.lines`. A strip's `StripHeaderRect.value` keeps the
+unwrapped facet value for identity and "Color by facet". They are geometrically independent, and grid mode may combine
 ONE surviving strip with per-panel facet-label bands under hide-empty
 compaction (previously the two were never passed together). A strip
 whose input is omitted reserves no width/height — a suppressed left

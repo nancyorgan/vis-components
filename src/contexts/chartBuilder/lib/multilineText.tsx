@@ -257,6 +257,14 @@ export const wrapByCharCount = (text: string, maxChars: number): string[] => {
 	return out.length > 0 ? out : [""]
 }
 
+/** A title as drawn under a "Wrap text" setting: wrapped to `maxChars` per
+ *  line and `\n`-joined — the multi-line form every title site already
+ *  sizes and draws — or the text itself when wrapping is off (`null`). The
+ *  layout solver's inputs and the renderers both go through this, so the
+ *  band reserved matches the lines drawn. */
+export const wrapTitleText = (text: string, maxChars: number | null): string =>
+	maxChars === null ? text : wrapByCharCount(text, maxChars).join("\n")
+
 /** Wrap a run of styled text segments across lines, breaking exactly where
  *  `wrapByCharCount` would break their concatenated text. Returns one array
  *  of segment PIECES per line — a segment that straddles a line break is

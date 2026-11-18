@@ -101,6 +101,10 @@ export type TextRect = {
 
 export type SharedTitleInput = {
 	readonly text: string
+	/** Header strips only: the facet VALUE the header stands for, when
+	 *  `text` is a display form of it (wrapped onto several lines). Passed
+	 *  through to `StripHeaderRect.value`; omit = `text` is the value. */
+	readonly value?: string
 	readonly fontSize: number
 	readonly align: Alignment
 	/** Pixel shift from the natural position. `+x` moves the title right,
@@ -402,7 +406,11 @@ export type SolverPanelOutput = {
  *  lookup at render time). All other text rects (title, x/y title, facet
  *  label) keep text in their `SolverInput` source. */
 export type StripHeaderRect = TextRect & {
+	/** The text drawn — `\n`-separated when the title wraps. */
 	readonly text: string
+	/** The facet value the header stands for (its identity: React key,
+	 *  "Color by facet" lookup). Equals `text` unless the title wraps. */
+	readonly value: string
 }
 
 export type FacetLayoutSpec = {
@@ -3043,6 +3051,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 				// Shouldn't happen in a well-formed grid; emit a degenerate rect.
 				return {
 					text: h.text,
+					value: h.value ?? h.text,
 					x: 0,
 					y: 0,
 					textAnchor: "middle" as const,
@@ -3085,11 +3094,15 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 							p.inner.y +
 								p.inner.height / 2 -
 								Math.min(p.inner.width, p.inner.height) * POLAR_MARK_HALF_FRAC -
-								POLAR_HEADER_GAP,
+								POLAR_HEADER_GAP -
+								// A wrapped header is centered on y, so half its
+								// extra lines hang below it — toward the mark.
+								(h.fontSize * TITLE_LINE_STEP_EM * (lineCount(h.text) - 1)) / 2,
 						)
 					: stripCenterY
 			return {
 				text: h.text,
+				value: h.value ?? h.text,
 				x: headerX + (h.offsetX ?? 0),
 				y: y + (h.offsetY ?? 0),
 				textAnchor: textAnchorFor(h.align),
@@ -3105,6 +3118,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 			if (!p) {
 				return {
 					text: h.text,
+					value: h.value ?? h.text,
 					x: 0,
 					y: 0,
 					textAnchor: "middle" as const,
@@ -3209,6 +3223,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 					Math.min(p.inner.width, p.inner.height) * POLAR_MARK_HALF_FRAC
 				return {
 					text: h.text,
+					value: h.value ?? h.text,
 					x:
 						Math.max(stripCenterX, markLeft - POLAR_HEADER_GAP) +
 						(h.offsetX ?? 0),
@@ -3222,6 +3237,7 @@ const solveOnce = (rawInput: SolverInput): FacetLayoutSpec => {
 			}
 			return {
 				text: h.text,
+				value: h.value ?? h.text,
 				x: headerX + (h.offsetX ?? 0),
 				y: innerCenterY + (h.offsetY ?? 0),
 				textAnchor: textAnchorFor(h.align),

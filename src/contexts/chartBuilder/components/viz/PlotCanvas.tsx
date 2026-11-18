@@ -799,6 +799,9 @@ export const PlotCanvas = ({
 			// Placement side and the paint-time angle both feed the solver.
 			labels.titlePlacements,
 			labels.titleAngles,
+			// "Wrap text" changes the lines each facet title draws, and so the
+			// bands the solver reserves for them.
+			labels.titleWraps,
 			facetTitleFont.size,
 			facetTitleFont.family,
 			facetTitleFont.weight,

@@ -31,7 +31,7 @@ import type { FacetPanels } from "../../../lib/resolveFacetPanels"
 import type { Encodings } from "../../../lib/types"
 import type { resolveFacetTitleStyles } from "./facetTitleStyles"
 import { measureMaxLabelWidth, measureTitleWidth } from "./measureText"
-import { lineCount } from "../../../lib/multilineText"
+import { lineCount, wrapTitleText } from "../../../lib/multilineText"
 
 /** The text a panel's facet-label band shows. Compacted grid panels carry
  *  their compact label (row value / col value / "row · col" depending on
@@ -41,6 +41,24 @@ export const panelLabelTextOf = (panelData: FacetPanels, key: string): string =>
 	panelData.mode === "grid"
 		? (panelData.compact?.panels[key]?.label ?? key)
 		: key
+
+/** `panelLabelTextOf` as DRAWN: wrapped onto lines when the slot that
+ *  styles the panel titles has "Wrap text" on (`facetPanelTitle` for a
+ *  compacted grid, the shared `facetTitle` otherwise). */
+export const panelLabelDrawnTextOf = (
+	panelData: FacetPanels,
+	key: string,
+	facetTitles: Pick<
+		ReturnType<typeof resolveFacetTitleStyles>,
+		"facetTitleWrap" | "facetPanelTitleWrap"
+	>,
+): string =>
+	wrapTitleText(
+		panelLabelTextOf(panelData, key),
+		panelData.mode === "grid" && panelData.compact !== undefined
+			? facetTitles.facetPanelTitleWrap
+			: facetTitles.facetTitleWrap,
+	)
 
 const FACET_LABEL_HEIGHT_PX = 20
 /** Polar facet-label band. Polar charts (radar / pie) don't carry x-axis
@@ -190,7 +208,11 @@ export const buildSolverInput = ({
 	// per extra line; every label's bottom line at the single-line position),
 	// and the band is per-cell chrome shared by every panel, so size it for
 	// the tallest label.
-	const panelLabelTexts = panelInputs.map((p) => panelLabelTextOf(panelData, p.key))
+	// "Wrap text" breaks a long label the same way, so a wrapped label is
+	// already multi-line here and the band below is sized for its lines.
+	const panelLabelTexts = panelInputs.map((p) =>
+		panelLabelDrawnTextOf(panelData, p.key, facetTitles),
+	)
 	const facetLabelLines = Math.max(
 		1,
 		max(panelLabelTexts, (t) => lineCount(t)) ?? 1,
@@ -284,6 +306,22 @@ export const buildSolverInput = ({
 	// gate on mode + channel mapping — these booleans only encode the
 	// compaction veto, shared so rowHeaders and rowHeaderWidth can't
 	// drift apart.
+	// Header-strip titles as drawn: "Wrap text" breaks each value onto
+	// lines (`\n`-joined). The strip bands below are sized from these, so a
+	// wrapped column strip grows taller and a wrapped row strip narrower.
+	const colHeaderTexts =
+		panelData.mode === "grid"
+			? panelData.colValues.map((v) =>
+					wrapTitleText(v, facetTitles.facetColTitleWrap),
+				)
+			: []
+	const rowHeaderTexts =
+		panelData.mode === "grid"
+			? panelData.rowValues.map((v) =>
+					wrapTitleText(v, facetTitles.facetRowTitleWrap),
+				)
+			: []
+	const colHeaderLines = Math.max(1, max(colHeaderTexts, (t) => lineCount(t)) ?? 1)
 	const compactStrip =
 		panelData.mode === "grid" ? panelData.compact?.strip : undefined
 	const colStripSurvives =
@@ -411,13 +449,14 @@ export const buildSolverInput = ({
 			Boolean(encodings.facetCol?.field) &&
 			colStripSurvives &&
 			!facetHidden.col
-				? panelData.colValues.map((v) => ({
-						text: v,
+				? panelData.colValues.map((v, i) => ({
+						text: colHeaderTexts[i],
+						value: v,
 						fontSize: facetColTitleFont.size,
 						align: facetColTitleAlign,
 						offsetX: facetColTitleOffset.x,
 						offsetY: facetColTitleOffset.y,
-						textWidth: stripTextWidth(v, facetColTitleFont),
+						textWidth: stripTextWidth(colHeaderTexts[i], facetColTitleFont),
 						angleDeg: facetColTitleAngle,
 					}))
 				: undefined,
@@ -426,20 +465,25 @@ export const buildSolverInput = ({
 			Boolean(encodings.facetRow?.field) &&
 			rowStripSurvives &&
 			!facetHidden.row
-				? panelData.rowValues.map((v) => ({
-						text: v,
+				? panelData.rowValues.map((v, i) => ({
+						text: rowHeaderTexts[i],
+						value: v,
 						fontSize: facetRowTitleFont.size,
 						align: facetRowTitleAlign,
 						verticalAlign: facetRowTitleVAlign,
 						offsetX: facetRowTitleOffset.x,
 						offsetY: facetRowTitleOffset.y,
-						textWidth: stripTextWidth(v, facetRowTitleFont),
+						textWidth: stripTextWidth(rowHeaderTexts[i], facetRowTitleFont),
 						angleDeg: facetRowTitleAngle,
 					}))
 				: undefined,
 		// Grow the strip bands so a larger user-chosen facet-title font
 		// doesn't clip; small fonts keep the pinned defaults.
-		columnHeaderHeight: Math.max(20, Math.ceil(facetColTitleFont.size * 1.4)),
+		// A wrapped column title is centered in the band, which grows one
+		// line step per extra line of the tallest header.
+		columnHeaderHeight:
+			Math.max(20, Math.ceil(facetColTitleFont.size * 1.4)) +
+			Math.ceil(facetColTitleFont.size * 1.2 * (colHeaderLines - 1)),
 		// Row-header labels render centered in a left band. A fixed band
 		// clipped long facet values ("Garbanzo Bean") past the canvas's
 		// left edge. Measure the widest label at the facet-title font and
@@ -458,7 +502,7 @@ export const buildSolverInput = ({
 						80,
 						Math.ceil(
 							measureMaxLabelWidth(
-								panelData.rowValues,
+								rowHeaderTexts,
 								facetRowTitleFont.family,
 								facetRowTitleFont.size,
 							),

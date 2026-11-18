@@ -9,7 +9,7 @@ import type { resolveFacetTitleStyles } from "./facetTitleStyles"
 import { rectToInner } from "./panelGrouping"
 import { resolvePanelRenderInputs } from "./panelRenderInputs"
 import { SharedText } from "./SharedText"
-import { panelLabelTextOf } from "./solverSpec"
+import { panelLabelDrawnTextOf } from "./solverSpec"
 
 /** The render-wide inputs `resolvePanelRenderInputs` reads — everything but
  *  the panel itself: the share-mode row sources, the measure-group maxes /
@@ -71,6 +71,8 @@ export const FacetPanel = ({
 		| "facetTitleAngle"
 		| "facetPanelTitleFont"
 		| "facetPanelTitleAngle"
+		| "facetTitleWrap"
+		| "facetPanelTitleWrap"
 	>
 }) => {
 	const { panelData, measureAxis, axisFields } = shared
@@ -211,8 +213,8 @@ export const FacetPanel = ({
 		annotationOnPanel(m, p.key),
 	)
 	// Per-panel title text — the same text the solver sized the
-	// label band for (see `panelLabelTextOf`).
-	const facetLabelText = panelLabelTextOf(panelData, p.key)
+	// label band for, wrapped the same way (see `panelLabelDrawnTextOf`).
+	const facetLabelText = panelLabelDrawnTextOf(panelData, p.key, facetTitles)
 	// Compact-grid panel titles are styled by the `facetPanelTitle`
 	// slot; wrap-mode panel titles keep the shared `facetTitle`.
 	const isCompactPanelLabel =

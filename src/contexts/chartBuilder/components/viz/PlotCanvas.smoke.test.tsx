@@ -46,9 +46,30 @@ const buildFacetDataset = (): Dataset => ({
 	createdAt: 0,
 })
 
-const seed = (opts: { faceted: boolean; labels?: Partial<LabelsConfig> }) => {
+/** A copy of the dataset with one field's values renamed (long facet
+ *  values for the wrap-text cases). */
+const renamed = (ds: Dataset, field: string, names?: Record<string, string>): Dataset =>
+	names === undefined
+		? ds
+		: {
+				...ds,
+				versions: ds.versions.map((v) => ({
+					...v,
+					rows: v.rows.map((r) => ({
+						...r,
+						[field]: names[String(r[field])] ?? r[field],
+					})),
+				})),
+			}
+
+const seed = (opts: {
+	faceted: boolean
+	labels?: Partial<LabelsConfig>
+	/** Rename the facet values (`g`: A / B / C). */
+	facetNames?: Record<string, string>
+}) => {
 	const store = installInMemoryLocalStorage()
-	const ds = buildFacetDataset()
+	const ds = renamed(buildFacetDataset(), "g", opts.facetNames)
 	/* eslint-disable @vc/use-wrapped-json-functions */
 	store.set("vis-components:datasets", JSON.stringify({ [DATASET_ID]: ds }))
 	store.set("vis-components:currentDatasetId", JSON.stringify(DATASET_ID))
@@ -184,9 +205,13 @@ const buildGridDataset = (): Dataset => ({
 	createdAt: 0,
 })
 
-const seedGrid = (opts?: { labels?: Partial<LabelsConfig> }) => {
+const seedGrid = (opts?: {
+	labels?: Partial<LabelsConfig>
+	/** Rename the row-facet values (`region`: N / S). */
+	regionNames?: Record<string, string>
+}) => {
 	const store = installInMemoryLocalStorage()
-	const ds = buildGridDataset()
+	const ds = renamed(buildGridDataset(), "region", opts?.regionNames)
 	/* eslint-disable @vc/use-wrapped-json-functions */
 	store.set("vis-components:datasets", JSON.stringify({ [GRID_DATASET_ID]: ds }))
 	store.set("vis-components:currentDatasetId", JSON.stringify(GRID_DATASET_ID))
@@ -642,6 +667,54 @@ describe("PlotCanvas — facet-title orientation", () => {
 		}
 		for (const h of container.querySelectorAll("[data-row-header]")) {
 			expect(h.getAttribute("transform")).toMatch(/^rotate\(-45, /)
+		}
+	})
+})
+
+/** Facet-title "Wrap text" (labels.titleWraps): a title longer than the
+ *  chosen line length draws as stacked lines. */
+describe("PlotCanvas — facet-title wrap text", () => {
+	const linesOf = (el: Element) =>
+		[...el.querySelectorAll("tspan")].map((t) => t.textContent)
+
+	it("wrap mode: a long panel title breaks onto lines only when the box is on", () => {
+		const facetNames = { A: "North East Region" }
+		seed({ faceted: true, facetNames })
+		const plain = mountChartCanvas()
+		const plainLabel = plain.container.querySelector(
+			'[data-panel="North East Region"] [data-facet-label] text'
+		)!
+		expect(linesOf(plainLabel)).toEqual(["North East Region"])
+		plain.unmount()
+
+		seed({ faceted: true, facetNames, labels: { titleWraps: { facetTitle: 6 } } })
+		const { container } = mountChartCanvas()
+		const label = container.querySelector(
+			'[data-panel="North East Region"] [data-facet-label] text'
+		)!
+		expect(linesOf(label)).toEqual(["North", "East", "Region"])
+		// A short title is left on one line.
+		expect(
+			linesOf(container.querySelector('[data-panel="B"] [data-facet-label] text')!)
+		).toEqual(["B"])
+	})
+
+	it("grid mode: each header strip wraps by its own slot, and the shared slot is not read", () => {
+		const regionNames = { N: "North East Region" }
+		seedGrid({ regionNames, labels: { titleWraps: { facetTitle: 6 } } })
+		const shared = mountChartCanvas()
+		expect(
+			[...shared.container.querySelectorAll("[data-row-header]")].map(linesOf)
+		).toEqual([["North East Region"], ["S"]])
+		shared.unmount()
+
+		seedGrid({ regionNames, labels: { titleWraps: { facetRowTitle: 6 } } })
+		const { container } = mountChartCanvas()
+		expect(
+			[...container.querySelectorAll("[data-row-header]")].map(linesOf)
+		).toEqual([["North", "East", "Region"], ["S"]])
+		for (const h of container.querySelectorAll("[data-column-header]")) {
+			expect(linesOf(h).length).toBe(1)
 		}
 	})
 })

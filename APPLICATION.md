@@ -4562,8 +4562,8 @@ are one line each with no divider between them; a row opened to show its
 font settings ends them with a hairline before the next row.
 Each subsection header carries the standard changed dot (§4.6) when
 any row inside deviates in STYLING — a font override, a non-center
-alignment, a non-zero orientation, a side placement, a position
-offset, or the y-axis "Read horizontally" toggle. Typed title TEXT is
+alignment, a non-zero orientation, a side placement, wrapped text, a
+position offset, or the y-axis "Read horizontally" toggle. Typed title TEXT is
 content, not styling, and never lights a dot.
 
 **Placement.** The per-panel facet-title rows — the single **Facet
@@ -4590,6 +4590,30 @@ two-variable grid's column / row header strips keep their fixed top /
 left positions and offer no Placement. A side placement lights the
 changed dot; stored sparsely (`labelsConfig.titlePlacements`, absent =
 top).
+
+**Wrap text.** Every facet-title row (the single **Facet titles** row,
+and the two-variable grid's **row**, **column** and **panel** rows) has
+a **Wrap text** checkbox under Angle. Facet titles come from the data,
+so there is no textbox to type a line break into; checked, each title
+longer than the **Characters** box beneath it (default 20, minimum 1,
+with a Reset link once changed) breaks onto lines at the space or
+hyphen nearest that length — the same rule as Data Labels' Wrap text:
+never mid-word, so one long word stays whole on its own line. The
+layout makes room for the lines: a per-panel title's band grows by one
+line step per extra line of the tallest title (upward for a top band,
+outward for a vertical side band; an upright side band narrows to its
+widest line), the column strip grows taller the same way with each
+title centered in it, and the row strip is as wide as its widest LINE,
+so wrapping a long row title gives width back to the panels. A wrapped
+row title keeps its Vertical align edge (lines hang from the top,
+center on the middle, or stack up from the bottom). Titles shorter than
+the length are untouched. "Color by facet" still keys on the facet
+value, not the wrapped text. Unlike the other facet-title settings the
+grid's row / column / panel rows do NOT inherit wrapping from the
+shared facet-title slot: each row's checkbox is the only thing that
+turns its own wrapping on or off. Wrapping lights the changed dot;
+stored sparsely (`labelsConfig.titleWraps`, the line length per slot,
+absent = one line).
 
 **Facet titles stay on the canvas.** Whatever a facet title's
 placement, position offset or angle, it never runs off the canvas:

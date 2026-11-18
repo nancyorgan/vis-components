@@ -28,6 +28,8 @@ import {
 	mirroredVisualName,
 	titleAlignmentPatch,
 	titleAnglePatch,
+	titleWrapPatch,
+	DEFAULT_TITLE_WRAP_CHARS,
 	titlePlacementPatch,
 	titleVerticalAlignmentPatch,
 } from "../../lib/labelsConfig"
@@ -147,6 +149,8 @@ export const LabelsPanel = () => {
 		setLabels((prev) => ({ ...prev, ...titleVerticalAlignmentPatch(prev, key, value) }))
 	const setAngle = (key: LabelFontKey, value: number) =>
 		setLabels((prev) => ({ ...prev, ...titleAnglePatch(prev, key, value) }))
+	const setWrap = (key: LabelFontKey, maxChars: number | null) =>
+		setLabels((prev) => ({ ...prev, ...titleWrapPatch(prev, key, maxChars) }))
 	const setPlacement = (key: LabelFontKey, value: TitlePlacement) =>
 		setLabels((prev) => ({ ...prev, ...titlePlacementPatch(prev, key, value) }))
 	const setYAxisHorizontal = (value: boolean) => {
@@ -313,6 +317,8 @@ export const LabelsPanel = () => {
 
 	const titleAngles = labels.titleAngles ?? {}
 
+	const titleWraps = labels.titleWraps ?? {}
+
 	const titlePlacements = labels.titlePlacements ?? {}
 	const sidePlaced = (key: LabelFontKey) =>
 		(titlePlacements[key]?.side ?? "top") !== "top"
@@ -399,6 +405,7 @@ export const LabelsPanel = () => {
 		(titleVerticalAlignments[key] !== undefined &&
 			titleVerticalAlignments[key] !== "middle") ||
 		!!titleAngles[key] ||
+		titleWraps[key] !== undefined ||
 		sidePlaced(key) ||
 		!!labels.titleOffsets?.[key]
 	// An axis title the chart can't draw greys out: flow diagrams, the tree
@@ -823,6 +830,8 @@ export const LabelsPanel = () => {
 							}
 							angle={titleAngles.facetRowTitle}
 							onAngle={(deg) => setAngle("facetRowTitle", deg)}
+							wrap={titleWraps.facetRowTitle ?? null}
+							onWrap={(n) => setWrap("facetRowTitle", n)}
 							baseColor={
 								overrides.facetTitle?.color ??
 								secondaryInheritColor(labels.baseFont.titles)
@@ -866,6 +875,8 @@ export const LabelsPanel = () => {
 							onAlignment={(a) => setAlignment("facetColTitle", a)}
 							angle={titleAngles.facetColTitle}
 							onAngle={(deg) => setAngle("facetColTitle", deg)}
+							wrap={titleWraps.facetColTitle ?? null}
+							onWrap={(n) => setWrap("facetColTitle", n)}
 							baseColor={
 								overrides.facetTitle?.color ??
 								secondaryInheritColor(labels.baseFont.titles)
@@ -921,6 +932,8 @@ export const LabelsPanel = () => {
 								}
 								angle={titleAngles.facetPanelTitle}
 								onAngle={(deg) => setAngle("facetPanelTitle", deg)}
+								wrap={titleWraps.facetPanelTitle ?? null}
+								onWrap={(n) => setWrap("facetPanelTitle", n)}
 								baseColor={
 									overrides.facetTitle?.color ??
 									secondaryInheritColor(labels.baseFont.titles)
@@ -981,6 +994,8 @@ export const LabelsPanel = () => {
 						}
 						angle={titleAngles.facetTitle}
 						onAngle={(deg) => setAngle("facetTitle", deg)}
+						wrap={titleWraps.facetTitle ?? null}
+						onWrap={(n) => setWrap("facetTitle", n)}
 						baseColor={secondaryInheritColor(labels.baseFont.titles)}
 						baseSize={labels.baseFont.titles.secondarySize}
 						baseFamily={secondaryInheritFamily(labels.baseFont.titles)}
@@ -1447,6 +1462,13 @@ type LabelStyleControlsProps = {
 	 * to it (its along-panel position is the Vertical align row). */
 	placement?: TitlePlacement
 	onPlacement?: (p: TitlePlacement) => void
+	/** When provided, a "Wrap text" checkbox is shown, with a "Characters"
+	 * box (the target line length) under it while it is checked. `wrap` is
+	 * that length, `null` while wrapping is off. Only wired for the
+	 * facet-title slots — their text comes from the data, so there is no
+	 * textbox to type line breaks into. */
+	wrap?: number | null
+	onWrap?: (maxChars: number | null) => void
 	baseColor: string
 	/** Inherited size (pt) shown as the Size box's placeholder. */
 	baseSize: number
@@ -1475,6 +1497,8 @@ const LabelStyleControls = ({
 	onAngle,
 	placement,
 	onPlacement,
+	wrap,
+	onWrap,
 	baseColor,
 	baseSize,
 	baseFamily,
@@ -1554,6 +1578,31 @@ const LabelStyleControls = ({
 					inputClassName="w-16"
 					suffix="°"
 				/>
+			)}
+			{onWrap && (
+				<>
+					<Checkbox
+						label="Wrap text"
+						checked={wrap != null}
+						onChange={(on) => onWrap(on ? DEFAULT_TITLE_WRAP_CHARS : null)}
+					/>
+					{wrap != null && (
+						<div className="flex items-center gap-2 text-sm">
+							<NumberInput
+								label="Characters"
+								labelClassName={LABEL_COL}
+								value={wrap}
+								min={1}
+								step={1}
+								onChange={onWrap}
+								inputClassName="w-16"
+							/>
+							{wrap !== DEFAULT_TITLE_WRAP_CHARS && (
+								<ResetLink onClick={() => onWrap(DEFAULT_TITLE_WRAP_CHARS)} />
+							)}
+						</div>
+					)}
+				</>
 			)}
 			<FontEditor
 				value={override ?? {}}

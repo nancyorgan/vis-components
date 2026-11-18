@@ -2,6 +2,7 @@ import {
 	DEFAULT_TITLE_PLACEMENT,
 	layerFacetOverride,
 	resolveTitleFont,
+	titleWrapOf,
 	type LabelAlignment,
 	type LabelsConfig,
 	type TitlePlacement,
@@ -184,7 +185,25 @@ export const resolveFacetTitleStyles = (
 			labels.titleVerticalAlignments?.facetTitle ??
 			"middle")
 		: facetTitleVAlign
+	// "Wrap text" (characters per line, null = off). Unlike the styling
+	// above, the per-strip / per-panel slots do NOT layer over `facetTitle`:
+	// each shape reads only the key its own Labels subsection edits, so the
+	// box shown is always the one that turns the wrapping off.
+	const facetTitleWrap = titleWrapOf(labels, "facetTitle")
+	const facetColTitleWrap = facetGridSplit
+		? titleWrapOf(labels, "facetColTitle")
+		: facetTitleWrap
+	const facetRowTitleWrap = facetGridSplit
+		? titleWrapOf(labels, "facetRowTitle")
+		: facetTitleWrap
+	const facetPanelTitleWrap = facetGridSplit
+		? titleWrapOf(labels, "facetPanelTitle")
+		: facetTitleWrap
 	return {
+		facetTitleWrap,
+		facetColTitleWrap,
+		facetRowTitleWrap,
+		facetPanelTitleWrap,
 		facetTitleFont,
 		facetTitleOffset,
 		facetTitleAlign,

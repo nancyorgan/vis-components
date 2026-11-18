@@ -335,6 +335,97 @@ describe("buildSolverInput", () => {
 		expect(input.facetLabel?.lines).toBe(2)
 	})
 
+	it("\"Wrap text\" breaks panel labels onto lines and sizes the band for them", () => {
+		const e = emptyEncodings()
+		e.x = { field: "cat" }
+		e.y = { field: "val" }
+		e.facet = { field: "r" }
+		const panel = (key: string): SolverPanelInput => ({
+			key,
+			row: 0,
+			col: 0,
+			xLabels: [],
+			yLabels: [],
+			xLabelAngleDeg: 0,
+			xLabelFontSize: 12,
+			yLabelFontSize: 12,
+			xWeight: 1,
+			yWeight: 1,
+		})
+		const panelInputs = [panel("r1"), panel("North East South West")]
+		const off = build({ encodings: e, isFaceted: true, panelInputs })
+		expect(off.facetLabel?.lines).toBe(1)
+		const on = build({
+			encodings: e,
+			isFaceted: true,
+			panelInputs,
+			labels: { ...DEFAULT_LABELS_CONFIG, titleWraps: { facetTitle: 10 } },
+		})
+		expect(on.facetLabel?.lines).toBe(2)
+		// The widest LINE, not the whole title, is what the solver keeps in view.
+		expect(on.facetLabel!.textWidth!).toBeLessThan(off.facetLabel!.textWidth!)
+	})
+
+	it("\"Wrap text\" on a header strip wraps its text, keeps the value, and resizes the band", () => {
+		const rows = [
+			{ cat: "a", val: "1", r: "North East Region", c: "Fiscal Year One" },
+			{ cat: "b", val: "2", r: "South", c: "Fiscal Year Two" },
+		]
+		const e = gridEncodings()
+		const panelData = resolveFacetPanels(view(rows), e, {}, {}, DEFAULT_FACET_CONFIG)
+		const plain = build({ encodings: e, isFaceted: true, panelData })
+		const wrapped = build({
+			encodings: e,
+			isFaceted: true,
+			panelData,
+			labels: {
+				...DEFAULT_LABELS_CONFIG,
+				// The shared slot is NOT read in a both-axes grid: each strip
+				// wraps only by its own key.
+				titleWraps: { facetTitle: 3, facetColTitle: 8, facetRowTitle: 6 },
+			},
+		})
+		expect(plain.columnHeaders!.map((h) => h.text)).toEqual([
+			"Fiscal Year One",
+			"Fiscal Year Two",
+		])
+		expect(wrapped.columnHeaders!.map((h) => h.text)).toEqual([
+			"Fiscal\nYear One",
+			"Fiscal\nYear Two",
+		])
+		expect(wrapped.columnHeaders!.map((h) => h.value)).toEqual([
+			"Fiscal Year One",
+			"Fiscal Year Two",
+		])
+		expect(wrapped.rowHeaders![0].text).toBe("North\nEast\nRegion")
+		expect(wrapped.rowHeaders![0].value).toBe("North East Region")
+		// One extra line of column title = one more line step of band.
+		const size = resolveFacetTitleStyles(DEFAULT_LABELS_CONFIG, e).facetColTitleFont.size
+		expect(wrapped.columnHeaderHeight! - plain.columnHeaderHeight!).toBe(
+			Math.ceil(size * 1.2),
+		)
+		// The row strip is measured from the wrapped lines, never wider.
+		expect(wrapped.rowHeaderWidth!).toBeLessThanOrEqual(plain.rowHeaderWidth!)
+	})
+
+	it("a lone row / column strip wraps by the shared facetTitle slot", () => {
+		const e = emptyEncodings()
+		e.x = { field: "cat" }
+		e.y = { field: "val" }
+		e.facetRow = { field: "r" }
+		const rows = [
+			{ cat: "a", val: "1", r: "North East Region", c: "c1" },
+			{ cat: "b", val: "2", r: "South", c: "c1" },
+		]
+		const input = build({
+			encodings: e,
+			isFaceted: true,
+			panelData: resolveFacetPanels(view(rows), e, {}, {}, DEFAULT_FACET_CONFIG),
+			labels: { ...DEFAULT_LABELS_CONFIG, titleWraps: { facetTitle: 6 } },
+		})
+		expect(input.rowHeaders![0].text).toBe("North\nEast\nRegion")
+	})
+
 	it("honors explicit panel dims when faceted and sizing is off", () => {
 		const input = build({
 			encodings: gridEncodings(),

@@ -57,6 +57,7 @@ import {
 	titleAlignmentPatch,
 	titleAnglePatch,
 	titlePlacementPatch,
+	titleWrapPatch,
 	titleVerticalAlignmentPatch,
 	tooltipBoxPatch,
 	TOOLTIP_BOX_KEYS,
@@ -858,6 +859,10 @@ export const applySettingEffects = (
 			const value = labels.titlePlacements?.[key]
 			if (isObj(value) && typeof value.side === "string")
 				labels = { ...labels, ...titlePlacementPatch(labels, key, value as TitlePlacement) }
+		}
+		for (const key of Object.keys(isObj(labelsSent.titleWraps) ? labelsSent.titleWraps : {}) as LabelFontKey[]) {
+			const value = labels.titleWraps?.[key]
+			if (typeof value === "number") labels = { ...labels, ...titleWrapPatch(labels, key, value) }
 		}
 		v.labelsConfig = labels
 	}

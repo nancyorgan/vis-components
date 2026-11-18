@@ -1319,6 +1319,15 @@ export type LabelsConfig = {
 	 * solver reserves the side band in every cell's chrome
 	 * (`FacetLabelInput.side`), so a side title never overlaps the plot. */
 	titlePlacements?: Partial<Record<LabelFontKey, TitlePlacement>>
+	/** "Wrap text" per title slot: the target line length in CHARACTERS
+	 * (`wrapByCharCount` — breaks at the space or hyphen nearest the
+	 * target, never mid-word). Sparse: an entry exists only while wrapping
+	 * is on, so absent = one line per title. Only the facet-title slots
+	 * consume it, and each reads ONLY its own key (`facetTitle` for wrap
+	 * panels and a lone row / column strip; the per-strip / per-panel slots
+	 * in a both-axes grid) — no layering over `facetTitle`, so the box a
+	 * shape shows is always the one that turns its wrapping off. */
+	titleWraps?: Partial<Record<LabelFontKey, number>>
 	/** "Color by facet": when true, each facet title is colored per facet
 	 * VALUE via `facetTitleColors`. The stored colors stay put when this is
 	 * off — unchecking reverts every title to its slot's resolved color
@@ -1383,6 +1392,7 @@ export const DEFAULT_LABELS_CONFIG: LabelsConfig = {
 	titleVerticalAlignments: {},
 	titleAngles: {},
 	titlePlacements: {},
+	titleWraps: {},
 	facetTitleColorByValue: false,
 	facetTitleColors: {},
 	yAxisTitleHorizontal: false,
@@ -1792,6 +1802,7 @@ export const migrateLabelsConfig = (
 		titleOffsets: raw.titleOffsets ?? {},
 		titleAngles: raw.titleAngles ?? {},
 		titlePlacements: raw.titlePlacements ?? {},
+		titleWraps: raw.titleWraps ?? {},
 		facetTitleColorByValue: raw.facetTitleColorByValue ?? false,
 		facetTitleColors: raw.facetTitleColors ?? {},
 		// Sparse: only carried when the visual stored one (same dropped-on-
@@ -1853,6 +1864,29 @@ export const titleAnglePatch = (
 	else next[key] = value
 	return { titleAngles: next }
 }
+
+/** Line length a title's "Wrap text" box starts at when checked. */
+export const DEFAULT_TITLE_WRAP_CHARS = 20
+
+/** A title's "Wrap text" setting as the Labels panel stores it: the target
+ * characters per line (a whole number, at least 1) while wrapping is on,
+ * no entry while it is off (`null`). */
+export const titleWrapPatch = (
+	labels: Pick<LabelsConfig, "titleWraps">,
+	key: LabelFontKey,
+	maxChars: number | null
+): Pick<LabelsConfig, "titleWraps"> => {
+	const next = { ...labels.titleWraps }
+	if (maxChars === null || !Number.isFinite(maxChars)) delete next[key]
+	else next[key] = Math.max(1, Math.floor(maxChars))
+	return { titleWraps: next }
+}
+
+/** The stored wrap length of a title slot, `null` when wrapping is off. */
+export const titleWrapOf = (
+	labels: Pick<LabelsConfig, "titleWraps">,
+	key: LabelFontKey
+): number | null => labels.titleWraps?.[key] ?? null
 
 /** A facet-title placement as the Labels panel stores it: sparse against
  * the top band (the default), so a visual that never touched Placement

@@ -5,6 +5,7 @@ import {
 	wrapByCharCount,
 	wrapSegments,
 	wrapTextToWidth,
+	wrapTitleText,
 } from "./multilineText"
 
 describe("lineCount", () => {
@@ -300,5 +301,16 @@ describe("wrapSegments", () => {
 			"two",
 			"three",
 		])
+	})
+})
+
+describe("wrapTitleText", () => {
+	it("returns the text itself while wrapping is off", () => {
+		expect(wrapTitleText("North East Region", null)).toBe("North East Region")
+	})
+
+	it("joins the wrapped lines with line breaks", () => {
+		expect(wrapTitleText("North East Region", 6)).toBe("North\nEast\nRegion")
+		expect(wrapTitleText("Short", 20)).toBe("Short")
 	})
 })

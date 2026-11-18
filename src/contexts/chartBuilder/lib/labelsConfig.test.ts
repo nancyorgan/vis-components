@@ -29,6 +29,8 @@ import {
 	migrateLabelsConfig,
 	titlePlacementOf,
 	titlePlacementPatch,
+	titleWrapOf,
+	titleWrapPatch,
 	inheritedLegendPadding,
 	resolveLegendHidden,
 	resolveLegendPadding,
@@ -49,6 +51,16 @@ import {
  *  by asserting newly-added LabelsConfig fields round-trip through the
  *  migrate function. */
 describe("migrateLabelsConfig", () => {
+	it("preserves titleWraps when present, and defaults it to none", () => {
+		const out = migrateLabelsConfig({
+			...DEFAULT_LABELS_CONFIG,
+			titleWraps: { facetTitle: 14, facetRowTitle: 8 },
+		})
+		expect(out.titleWraps).toEqual({ facetTitle: 14, facetRowTitle: 8 })
+		const { titleWraps: _dropped, ...older } = DEFAULT_LABELS_CONFIG
+		expect(migrateLabelsConfig(older).titleWraps).toEqual({})
+	})
+
 	it("preserves titleAlignments when present on the saved config", () => {
 		const out = migrateLabelsConfig({
 			title: "My chart",
@@ -1096,6 +1108,26 @@ describe("resolveTooltipBox", () => {
 		expect(box.shadowSize).toBe(0)
 		expect(box.cornerRadius).toBe(6)
 		expect(hasTooltipBoxOverride({ tooltipBackgroundColor: null })).toBe(true)
+	})
+})
+
+describe("titleWrapPatch / titleWrapOf", () => {
+	it("stores the line length while wrapping is on and no entry while off", () => {
+		const on = titleWrapPatch({ titleWraps: {} }, "facetTitle", 20)
+		expect(on.titleWraps).toEqual({ facetTitle: 20 })
+		expect(titleWrapOf(on, "facetTitle")).toBe(20)
+		expect(titleWrapOf(on, "facetRowTitle")).toBeNull()
+		const off = titleWrapPatch(on, "facetTitle", null)
+		expect(off.titleWraps).toEqual({})
+		expect(titleWrapOf(off, "facetTitle")).toBeNull()
+		expect(titleWrapOf({}, "facetTitle")).toBeNull()
+	})
+
+	it("keeps the length a whole number of at least one character", () => {
+		expect(titleWrapPatch({}, "facetTitle", 12.7).titleWraps).toEqual({ facetTitle: 12 })
+		expect(titleWrapPatch({}, "facetTitle", 0).titleWraps).toEqual({ facetTitle: 1 })
+		expect(titleWrapPatch({}, "facetTitle", -4).titleWraps).toEqual({ facetTitle: 1 })
+		expect(titleWrapPatch({}, "facetTitle", NaN).titleWraps).toEqual({})
 	})
 })
 
