@@ -1,0 +1,38 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["ES2022"],
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"types": ["node"],
+		"strict": true,
+		"skipLibCheck": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"noEmit": true
+	},
+	"files": [
+		"src/contexts/chartBuilder/lib/applySettings.ts",
+		"src/contexts/chartBuilder/lib/chartSpec.ts",
+		"src/contexts/chartBuilder/lib/datasetDedupe.ts",
+		"src/contexts/chartBuilder/lib/datasetFromRows.ts",
+		"src/contexts/chartBuilder/lib/datasetLimits.ts",
+		"src/contexts/chartBuilder/lib/datasetMeta.ts",
+		"src/contexts/chartBuilder/lib/didYouMean.ts",
+		"src/contexts/chartBuilder/lib/foldFlowNodeTitles.ts",
+		"src/contexts/chartBuilder/lib/parseCsv.ts",
+		"src/contexts/chartBuilder/lib/savedKeyStructure.ts",
+		"src/contexts/chartBuilder/lib/settingEffects.ts",
+		"src/contexts/chartBuilder/lib/stockFolders.ts",
+		"src/contexts/chartBuilder/lib/storage/contentVersionHeader.ts",
+		"src/contexts/chartBuilder/lib/storage/datasetTriplet.ts",
+		"src/contexts/chartBuilder/lib/storage/migrations.ts",
+		"src/contexts/chartBuilder/lib/systemThemes.ts",
+		"src/contexts/chartBuilder/lib/types.ts",
+		"src/contexts/chartBuilder/lib/visualDefaults.ts",
+		"src/contexts/library/lib/folderOrder.ts",
+		"src/contexts/library/lib/folderSubtree.ts",
+		"src/contexts/library/lib/libraryKind.ts",
+		"src/lib/json.ts"
+	]
+}
