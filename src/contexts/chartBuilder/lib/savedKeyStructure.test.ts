@@ -172,6 +172,22 @@ describe("structureVisualKeys", () => {
 		})
 	})
 
+	it("a panel named like an inherited property never writes onto every object", () => {
+		// As a saved or imported chart would carry it: JSON.parse makes
+		// "__proto__" an ordinary own key.
+		const facet = JSON.parse(
+			'{"panelAxisOverrides":{"__proto__|polluted":{"yMin":1},"constructor|polluted":{"yMin":2},"a|__proto__":{"yMin":3}}}'
+		) as Record<string, unknown>
+		const out = structureFacetConfigKeys(facet, true) as {
+			gridPanelAxisOverrides: Record<string, unknown>
+		}
+		expect(({} as Record<string, unknown>).polluted).toBeUndefined()
+		expect((Object as unknown as Record<string, unknown>).polluted).toBeUndefined()
+		// "constructor" is a real, if odd, facet value: kept as an own entry.
+		expect(Object.hasOwn(out.gridPanelAxisOverrides, "constructor")).toBe(true)
+		expect(out.gridPanelAxisOverrides.constructor).toEqual({ polluted: { yMin: 2 } })
+	})
+
 	it("tolerates sparse, partial and non-object input", () => {
 		expect(structureVisualKeys(null)).toBeNull()
 		expect(structureVisualKeys("x")).toBe("x")

@@ -131,8 +131,13 @@ export const structureFacetConfigKeys = <T>(
 		const bounds = flat[key]
 		delete flat[key]
 		moved = true
-		const byCol = (nested[ref.row] ??= {})
-		if (!(ref.col in byCol)) byCol[ref.col] = bounds
+		// A facet value comes from the data, so it can be any text, including
+		// a name every object inherits ("__proto__", "constructor"). Read and
+		// written as OWN keys only, or `nested["__proto__"]` is the prototype
+		// all objects share and the write lands on every object in the page.
+		if (ref.row === "__proto__" || ref.col === "__proto__") continue
+		const byCol = Object.hasOwn(nested, ref.row) ? nested[ref.row] : (nested[ref.row] = {})
+		if (!Object.hasOwn(byCol, ref.col)) byCol[ref.col] = bounds
 	}
 	if (!moved) return facet
 	return {

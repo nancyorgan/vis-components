@@ -170,6 +170,8 @@ export const applySettings = (
 			if (!entry) {
 				const names = childrenOf(at).filter((n) => n !== "*")
 				bad(where, `unknown setting "${key}"${didYouMean(key, names)}`)
+			} else if (key === "__proto__") {
+				bad(where, `"__proto__" can't be a key`)
 			} else if (!named && unsafeKey(key)) {
 				bad(where, `a key can't contain "|" or a control character`)
 			} else next[key] = merge(next[key], v, entry, child, where, isObj(fallback) ? fallback[key] : undefined)
