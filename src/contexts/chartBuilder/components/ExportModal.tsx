@@ -600,6 +600,11 @@ const FigureBlock = ({
 							width={width}
 							height={imageHeight}
 							title="Export preview"
+							// A picture of the chart, not a control: out of the Tab
+							// order. Keys pressed inside a frame never reach this
+							// page, so as the dialog's last stop it let Tab leave
+							// the focus trap (Modal skips a tabindex -1 frame).
+							tabIndex={-1}
 							className="block bg-white shadow-sm dark:bg-stone-900"
 							style={{
 								transform: `scale(${previewScale})`,

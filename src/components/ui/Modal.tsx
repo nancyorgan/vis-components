@@ -11,7 +11,7 @@ import { Button } from "./Button"
 // it when the modal closes.
 
 const FOCUSABLE =
-	'a[href], area[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), iframe, [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
+	'a[href], area[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), iframe:not([tabindex="-1"]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
 
 const focusablesIn = (root: HTMLElement): HTMLElement[] =>
 	[...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(

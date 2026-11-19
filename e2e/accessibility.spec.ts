@@ -289,7 +289,7 @@ test.describe("modal dialog", () => {
 
 		// Walk to the last focusable control, then one more Tab must wrap.
 		const focusables = dialog.locator(
-			'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
+			'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), iframe:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])'
 		)
 		const visibleCount = await focusables.evaluateAll(
 			(els) => els.filter((el) => el.getClientRects().length > 0).length
