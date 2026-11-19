@@ -85,17 +85,26 @@ export const groupRowsByShareGroup = (
  *  `group`-mode channels and stacked on the measure axis by the `stack`-mode
  *  channels, so the bound is the max over (category × group-mode-leaf) of the
  *  stacked total within that leaf (or the max single row when no channel
- *  stacks). Mirrors BarPlot's `computeBarMeasureMax` on raw rows. */
+ *  stacks). Mirrors BarPlot's `computeBarMeasureMax` on raw rows.
+ *
+ *  `sliceFields` (the field of EVERY mapped stack channel, whatever its
+ *  mode) makes that mirror exact: a bar slice adds up all of its rows, so
+ *  rows are first summed per slice (category + those fields) and the leaf
+ *  walk then runs over slices, as BarPlot's runs over its aggregated
+ *  stacks. Without it each row is taken as a slice of its own, which
+ *  under-bounds an un-stacked bar that adds up several rows (the tallest
+ *  single row, not the bar's total). Every caller passes it. */
 export const computePanelMeasureMax = (
 	rows: ReadonlyArray<Record<string, unknown>>,
 	categoryField: string | null,
 	measureField: string | null,
 	modes: StackModeEntry[],
-	groupModeFields: string[]
+	groupModeFields: string[],
+	sliceFields?: readonly string[]
 ): number =>
 	Math.max(
 		1,
-		panelMeasureBound(rows, categoryField, measureField, modes, groupModeFields, 1)
+		panelMeasureBound(rows, categoryField, measureField, modes, groupModeFields, 1, sliceFields)
 	)
 
 /** Per-panel measure-axis MIN, the mirror of `computePanelMeasureMax` — the
@@ -109,12 +118,51 @@ export const computePanelMeasureMin = (
 	categoryField: string | null,
 	measureField: string | null,
 	modes: StackModeEntry[],
-	groupModeFields: string[]
+	groupModeFields: string[],
+	sliceFields?: readonly string[]
 ): number =>
 	Math.min(
 		0,
-		panelMeasureBound(rows, categoryField, measureField, modes, groupModeFields, -1)
+		panelMeasureBound(rows, categoryField, measureField, modes, groupModeFields, -1, sliceFields)
 	)
+
+/** The field of every mapped stack channel: what splits a category's rows
+ *  into the slices a bar draws (see `computePanelMeasureMax`). */
+export const stackSliceFields = (
+	modes: readonly StackModeEntry[],
+	encodings: Partial<Record<string, { field: string | null } | undefined>>
+): string[] => {
+	const out: string[] = []
+	for (const m of modes) {
+		const field = encodings[m.channel]?.field
+		if (field && !out.includes(field)) out.push(field)
+	}
+	return out
+}
+
+/** `rows` summed into one row per bar slice (category + `sliceFields`),
+ *  first-seen order. A row with no finite measure adds nothing. */
+const sumPerSlice = (
+	rows: ReadonlyArray<Record<string, unknown>>,
+	categoryField: string,
+	measureField: string,
+	sliceFields: readonly string[]
+): Array<Record<string, unknown>> => {
+	const SEP = "\u001F"
+	const bySlice = new Map<string, Record<string, unknown>>()
+	for (const r of rows) {
+		const cv = r[categoryField]
+		if (cv == null) continue
+		const raw = r[measureField]
+		const n = typeof raw === "number" ? raw : Number(raw)
+		if (!Number.isFinite(n)) continue
+		const key = String(cv) + SEP + sliceFields.map((f) => String(r[f] ?? "")).join(SEP)
+		const slice = bySlice.get(key)
+		if (slice) slice[measureField] = (slice[measureField] as number) + n
+		else bySlice.set(key, { ...r, [measureField]: n })
+	}
+	return [...bySlice.values()]
+}
 
 /** Shared row walk behind the two bounds above. `sign` picks the direction:
  *  +1 accumulates only POSITIVE measures, -1 only negatives. Diverging bars
@@ -127,9 +175,11 @@ const panelMeasureBound = (
 	measureField: string | null,
 	modes: StackModeEntry[],
 	groupModeFields: string[],
-	sign: 1 | -1
+	sign: 1 | -1,
+	sliceFields?: readonly string[]
 ): number => {
 	if (!rows.length || !categoryField || !measureField) return 0
+	if (sliceFields) rows = sumPerSlice(rows, categoryField, measureField, sliceFields)
 	const hasStack = modes.some((m) => m.mode === "stack")
 	// Unit separator (U+001F) prevents leaf-key collisions across value
 	// boundaries — consistent with BarPlot's leafKey and the aggregator.

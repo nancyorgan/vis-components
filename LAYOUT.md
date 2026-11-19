@@ -537,6 +537,14 @@ The measure axis of bars / areas uses the renderer's extent rules: the
 per-category STACK total under Stack mode (`computePanelMeasureMax`), a
 negative floor only for `supportsNegativeMeasure` modes, and the per-bin
 row count (or density share) for a histogram, which has no field at all.
+A bar slice adds up ALL of its rows, so the row-based bound first sums
+rows per slice (category + the field of every mapped stack channel,
+`stackSliceFields`) and only then walks the leaves, exactly as
+BarPlot's own bound walks its aggregated stacks. Until November 2026 it
+took each row as a slice of its own, so an un-stacked bar that adds up
+several rows was bounded by its tallest ROW: the solver sampled tick
+labels narrower than the ones drawn, and a shared facet axis could stop
+short of the bars.
 
 The tick-label "Adjust position" nudge moves ONLY the tick labels (the
 spine, tick marks, title, and gridlines stay put), so the labels' rendered

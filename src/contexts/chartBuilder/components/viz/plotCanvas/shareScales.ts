@@ -17,6 +17,7 @@ import type { Encodings, FieldType } from "../../../lib/types"
 import {
 	computePanelMeasureMax,
 	computePanelMeasureMin,
+	stackSliceFields,
 	panelGroupKeys,
 } from "./panelGrouping"
 
@@ -146,6 +147,7 @@ if (isBarOrArea) {
 					measureField,
 					modes,
 					groupModeFields,
+					stackSliceFields(modes, encodings),
 				)
 				const overlayMax = overlayField
 					? overlayMeasureExtent(panelRows, overlayField)?.max
@@ -261,6 +263,7 @@ export const computeGroupMeasureMin = ({
 			measureField,
 			modes,
 			groupModeFields,
+			stackSliceFields(modes, encodings),
 		)
 		const overlayMin = overlayField
 			? overlayMeasureExtent(panelRows, overlayField)?.min

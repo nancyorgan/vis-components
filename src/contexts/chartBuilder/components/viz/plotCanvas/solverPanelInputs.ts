@@ -46,6 +46,7 @@ import {
 import {
 	computePanelMeasureMax,
 	computePanelMeasureMin,
+	stackSliceFields,
 	groupRowsByShareGroup,
 	panelGroupKeys,
 } from "./panelGrouping"
@@ -115,6 +116,7 @@ export const buildSolverPanelInputs = ({
 		.filter((m) => m.mode === "group")
 		.map((m) => encodings[m.channel]?.field)
 		.filter((f): f is string => !!f)
+	const sliceFields = stackSliceFields(stackModes, encodings)
 	// Stand-in for d3's default tick formatter: trim trailing zeros /
 	// unnecessary precision. The rendered axis formats ticks (e.g. d3 picks
 	// "150" for an axis whose data goes to 148.50000000001), so we mirror
@@ -225,6 +227,7 @@ export const buildSolverPanelInputs = ({
 						measureField,
 						stackModes,
 						groupModeFields,
+						sliceFields,
 					)
 				: 0,
 			max: computePanelMeasureMax(
@@ -233,6 +236,7 @@ export const buildSolverPanelInputs = ({
 				measureField,
 				stackModes,
 				groupModeFields,
+				sliceFields,
 			),
 		}
 		// Combo: the marks layer rides the same axis, so the ticks the solver
