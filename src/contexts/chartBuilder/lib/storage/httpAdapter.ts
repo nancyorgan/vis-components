@@ -19,8 +19,7 @@
  *  still holds and this session then edits it, the PUT resurrects it.
  *
  *  All requests are same-origin relative — the server that served the page
- *  is the API. The configured base URL is for outward-facing links only
- *  (see lib/appOrigin.ts), never for reaching the API.
+ *  is the API; the configured base URL is never used for reaching it.
  *
  *  CONTENT MIGRATIONS. The localStorage path gets these for free: every key
  *  holds a `{_v,data}` envelope and `loadVersioned` walks it forward. A

@@ -68,7 +68,7 @@ optional variable.
 
 | Variable | Meaning |
 |---|---|
-| `VIS_BASE_URL` | Absolute origin the app is reached at (behind any proxies). Used for share links; never derived from incoming requests. |
+| `VIS_BASE_URL` | Absolute origin the app is reached at (behind any proxies). Reported to the client at boot (`/api/config`); never derived from incoming requests. |
 | `VIS_DB_DIR` | Directory for the SQLite database. Initialized when empty; malformed state fails startup. |
 | `VIS_DATA_DIR` | Directory for dataset files (one gzipped JSON file per dataset). |
 | `VIS_PORT` | Port to listen on. Plain HTTP — put TLS termination in front. |

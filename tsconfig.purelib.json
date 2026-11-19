@@ -23,6 +23,7 @@
 		"src/contexts/chartBuilder/lib/parseCsv.ts",
 		"src/contexts/chartBuilder/lib/savedKeyStructure.ts",
 		"src/contexts/chartBuilder/lib/settingEffects.ts",
+		"src/contexts/chartBuilder/lib/settingKeys.ts",
 		"src/contexts/chartBuilder/lib/stockFolders.ts",
 		"src/contexts/chartBuilder/lib/storage/contentVersionHeader.ts",
 		"src/contexts/chartBuilder/lib/storage/datasetTriplet.ts",

@@ -14,7 +14,6 @@ import { setStorageAdapter } from "./contexts/chartBuilder/lib/storage/registry"
 import { setStockFolders } from "./contexts/chartBuilder/lib/stockFolders"
 import { setSignOutUrl } from "./lib/signOutUrl"
 import { setCurrentUser } from "./lib/currentUser"
-import { setAppOrigin } from "./lib/appOrigin"
 import { probeServerMode } from "./lib/serverMode"
 import publicSeed from "./seed/examples.json"
 
@@ -84,7 +83,6 @@ const bootstrapStorage = async (): Promise<void> => {
 	setStockFolders((publicSeed as unknown as SeedBundle).folders ?? [])
 	const serverConfig = await probeServerMode()
 	if (serverConfig) {
-		setAppOrigin(serverConfig.baseUrl)
 		if (serverConfig.signOutUrl) setSignOutUrl(serverConfig.signOutUrl)
 		if (serverConfig.user) setCurrentUser(serverConfig.user)
 		setStorageAdapter(createHttpStorageAdapter())
