@@ -76,17 +76,24 @@ export default defineConfig({
 		exclude: ["**/node_modules/**", "e2e/**"],
 		coverage: {
 			provider: "v8",
-			include: ["src/**"],
+			// Source files only: vitest 4 reads every included file that no test
+			// loaded to count it as uncovered, and fails to parse anything else
+			// under src/ (JSON seeds, a stray .DS_Store).
+			include: ["src/**/*.{ts,tsx}"],
 			exclude: ["src/**/*.test.{ts,tsx}", "src/**/*.d.ts"],
 			reporter: ["text-summary", "html"],
-			// Ratcheting floors: set just under the measured baseline at the
-			// time coverage was introduced (2026-07-09; re-ratcheted 2026-10-07). CI fails if coverage
-			// drops below these; raise them as coverage improves, never lower.
+			// Ratcheting floors: set just under the measured baseline. CI fails
+			// if coverage drops below these; raise them as coverage improves,
+			// never lower. Re-measured 2026-11-19 with vitest 4, whose v8
+			// provider counts from the source's syntax tree instead of byte
+			// ranges: the same tests read 83 / 77 / 75 / 85 where vitest 3 read
+			// 72 / 81 / 66 / 72, so the branches floor moved down with the ruler,
+			// not with the tests (earlier baselines: 2026-07-09, 2026-10-07).
 			thresholds: {
-				lines: 72,
-				functions: 66,
-				branches: 81,
-				statements: 72,
+				lines: 85,
+				functions: 75,
+				branches: 77,
+				statements: 83,
 			},
 		},
 	},
