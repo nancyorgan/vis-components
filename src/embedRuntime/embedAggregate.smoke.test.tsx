@@ -130,6 +130,35 @@ describe("an embed published as totals", () => {
 	}
 })
 
+describe("a labelled bar chart published as totals", () => {
+	// The bundled labelled bars print a grouping and the bar total. These
+	// print the MEASURE on each segment: alone, and beside the grouping.
+	const labelled = library.visuals.find(
+		(v) => v.encodings.length?.field === "Number" && v.dataLabelsEncodings?.value?.multiField
+	)
+	const variants: Array<[string, NonNullable<Visual["dataLabelsEncodings"]>["value"]]> = [
+		["the measure", { field: "Number", multiField: false, fields: [] }],
+		["a grouping and the measure", { field: null, multiField: true, fields: ["Rating", "Number"] }],
+	]
+	for (const [what, value] of variants) {
+		it(`draws labels of ${what} exactly as from its rows`, async () => {
+			if (!labelled?.dataLabelsEncodings) throw new Error("the labelled bar example is gone")
+			const visual: Visual = {
+				...labelled,
+				dataLabelsEncodings: { ...labelled.dataLabelsEncodings, value },
+			}
+			const { pruned, collapsed } = published(visual)
+			expect(collapsed.aggregation).toMatchObject({ aggregated: true, measure: "Number" })
+			const fromRows = await draw(pruned.visual, pruned.dataset)
+			const fromTotals = await draw(pruned.visual, collapsed.dataset)
+			// The labels are on the page: the tripled rows' totals, as text.
+			expect(fromRows.html).toMatch(/<text[^>]*data-label|data-labels/i)
+			expect(fromTotals.html).toBe(fromRows.html)
+			expect(fromTotals.hovers).toEqual(fromRows.hovers)
+		}, 30_000)
+	}
+})
+
 // ── Made-up charts: the families and cell kinds the bundled examples lack ──
 
 /** Three sales per region and quarter, by different reps: every mark adds
