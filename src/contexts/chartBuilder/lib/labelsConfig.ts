@@ -925,13 +925,16 @@ export type TooltipConfig = {
 	 * present in the hovered row. */
 	visibleFields: string[]
 	/** Optional CSS rules applied to a wrapping `<div class="vc-tooltip">`.
-	 * Fully user-controlled — no sanitization, no fallback. Only applied
-	 * while `useCustomHtml` is true (the sidebar hides the box otherwise). */
+	 * Stored as typed; `sanitizeTooltipCss` (`tooltipSanitize.ts`) decides
+	 * at render time whether it is applied (it can't leave the tooltip's
+	 * rule or fetch anything). Only applied while `useCustomHtml` is true
+	 * (the sidebar hides the box otherwise). */
 	customCss: string
 	/** Optional HTML template for tooltip content. When `useCustomHtml` is
 	 * true, this template replaces the default field-list layout —
 	 * `{{fieldName}}` placeholders are substituted with the hovered row's
-	 * values (HTML-escaped to prevent injection). When false, the content
+	 * values (HTML-escaped), and the result is reduced to formatting tags
+	 * by `sanitizeTooltipHtml` before it is rendered. When false, the content
 	 * is retained but inert; the tooltip uses the field-list layout
 	 * filtered by `visibleFields`. */
 	customHtml: string

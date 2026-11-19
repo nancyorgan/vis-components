@@ -9,6 +9,7 @@ import {
 	type TooltipConfig,
 } from "../../lib/labelsConfig"
 import { applyTooltipFormats } from "../../lib/tooltipFormats"
+import { sanitizeTooltipCss, sanitizeTooltipHtml } from "../../lib/tooltipSanitize"
 import { currentTooltipConfigAtom } from "../../store/atoms"
 import { tooltipFieldFormatsAtom } from "../../store/renderConfigs"
 import { useCurrentTheme } from "../../store/useCurrentTheme"
@@ -178,22 +179,31 @@ export const HoverTooltip = ({ state }: { state: TooltipState }) => {
 	// hidden keeps styling the tooltip. This keeps the default
 	// checkbox-driven tooltip in charge until power users opt out.
 	const customHtmlActive = !!cfg.useCustomHtml && cfg.customHtml.trim() !== ""
-	const customCssActive = !!cfg.useCustomHtml && cfg.customCss.trim() !== ""
+	// Both boxes are written by one person and rendered for everyone who
+	// opens the chart or its published embed, so neither goes to the page
+	// as typed (`lib/tooltipSanitize.ts`). The template is cleaned AFTER
+	// its values are filled in: a value lands inside the author's markup
+	// (`style="color: {{Color}}"`), where escaping alone doesn't cover it.
+	const customCss = cfg.useCustomHtml ? sanitizeTooltipCss(cfg.customCss.trim()) : null
+	const customCssActive = customCss !== null && customCss !== ""
 	const customHtml = customHtmlActive ? cfg.customHtml.trim() : ""
-	const interpolated = customHtml ? renderTemplate(customHtml, fields) : ""
+	const interpolated = customHtml
+		? sanitizeTooltipHtml(renderTemplate(customHtml, fields))
+		: ""
 
 	const tooltip = (
 		<>
 			{customCssActive && (
-				<style>{`.vc-tooltip { ${cfg.customCss} }`}</style>
+				<style>{`.vc-tooltip { ${customCss} }`}</style>
 			)}
 			<div
 				className="vc-tooltip pointer-events-none px-2.5 py-1.5 text-sm"
 				style={style}
 			>
 				{customHtml ? (
-					// User-supplied template; data values are HTML-escaped via
-					// `renderTemplate` before interpolation, so this is safe.
+					// The author's template with its values filled in, reduced
+					// to formatting by `sanitizeTooltipHtml` above. Never pass
+					// this prop a string that hasn't been through it.
 					<div dangerouslySetInnerHTML={{ __html: interpolated }} />
 				) : (
 					// Rows WRAP: the name keeps its line, the value breaks across

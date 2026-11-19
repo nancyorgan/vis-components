@@ -5082,6 +5082,25 @@ visible (boxes with existing content are left alone); a "reset" link
 below each box — shown only when its content differs from that seed —
 restores it.
 
+**The template is formatting only.** A template is written by one
+person and rendered for everyone who opens the chart, imports its
+file, or views its published embed, so it is cleaned every time a
+tooltip is drawn (`lib/tooltipSanitize.ts`), after the values are
+filled in. Kept: text formatting (`b`, `strong`, `em`, `span`, `div`,
+`p`, headings, `br`, `hr`, `code`, …), lists, tables, and `img` whose
+source is pasted-in data (`data:image/…`); the attributes `class`,
+`style`, `title`, table spans and picture sizes. Removed: scripts and
+event handlers, links (the words stay), forms and inputs, frames,
+embedded SVG / MathML, `<style>` blocks, pictures loaded from an
+address, and any `style` attribute that uses `url()`, an @-rule or a
+backslash escape. A line under the box says so. The Custom CSS box
+styles the tooltip and may nest rules for what is inside it
+(`.vc-tooltip-name { … }`); it is applied only when it can't reach
+outside the tooltip or fetch anything — braces must match, and
+@-rules, `url()`, `&` and backslashes are refused. CSS that fails is
+not applied at all, and a line under the box says so. Both boxes are
+stored exactly as typed; the cleaning happens at render.
+
 **Text wraps.** A long value breaks across as many lines as it needs
 inside the box; nothing is cut to "…". The variable name keeps its
 line, the value wraps beside it.

@@ -11,6 +11,7 @@ import {
 	tooltipBoxPatch,
 } from "../../lib/labelsConfig"
 import { tooltipConfigFromTheme } from "../../lib/themeConfig"
+import { sanitizeTooltipCss } from "../../lib/tooltipSanitize"
 import {
 	buildDefaultTooltipCss,
 	buildDefaultTooltipHtml,
@@ -410,6 +411,11 @@ export const TooltipPanel = () => {
 							rows={6}
 							className="font-mono"
 						/>
+						<p className="vc-help">
+							Formatting only: text, lists, tables and pasted-in pictures.
+							Scripts, links and anything loaded from another site are
+							left out.
+						</p>
 						<div className="flex items-start justify-between gap-2">
 							{merged.customHtml !== "" && merged.customHtml !== defaultHtml && (
 								<ResetLink
@@ -429,6 +435,13 @@ export const TooltipPanel = () => {
 							rows={6}
 							className="font-mono"
 						/>
+						{sanitizeTooltipCss(merged.customCss.trim()) === null && (
+							<p className="vc-help" role="status">
+								This CSS isn&rsquo;t applied. It can style the tooltip and
+								what&rsquo;s inside it, with no @-rules, no url(), no
+								&amp; or backslashes, and matching braces.
+							</p>
+						)}
 						<div className="flex items-start justify-between gap-2">
 							{merged.customCss !== "" && merged.customCss !== defaultCss && (
 								<ResetLink
