@@ -4,6 +4,9 @@
  *   - per-item PUT/DELETE; PUT is a full-item replace; DELETE of a missing
  *     id is a 204 no-op
  *   - collection GET returns everything (bodies included for datasets)
+ *   - an embed instance's `publishedUrls` are stated by the server on every
+ *     PUT (`withServerPublishedUrls`), so a stored link always names this
+ *     deployment's publish host and the instance's own publish id
  *   - visuals are the one collection with a single-item read and
  *     conditional saves. GET /api/visuals/:id answers the stored visual
  *     (never its thumbnail) with a strong ETag: the sha256 of the stored
@@ -71,6 +74,7 @@ import {
 	publishEmbedVector,
 	readEmbedTemplate,
 	unpublishEmbedFiles,
+	withServerPublishedUrls,
 	type EmbedPart,
 } from "./embedFiles.js"
 import { prepareEmbedTemplate } from "./embedRuntimeFiles.js"
@@ -363,6 +367,14 @@ const handleApi = async (
 		const body = (await readBody(req, JSON_BODY_CAP_BYTES)).toString("utf-8")
 		const parsed = assertItemJson(body, id)
 		if (collection === "visuals") return putVisual(req, res, db, identify, id, body, parsed)
+		if (collection === "embed-instances") {
+			// The published links are stated here, never kept as the client
+			// sent them (see `withServerPublishedUrls`).
+			const stated = withServerPublishedUrls(parsed, config.publishBaseUrl)
+			if (typeof stated === "string") throw new HttpError(400, stated)
+			upsertBody(db, collection, id, stated === parsed ? body : JSON.stringify(stated))
+			return sendEmpty(res, 204)
+		}
 		upsertBody(db, collection, id, body)
 		return sendEmpty(res, 204)
 	}

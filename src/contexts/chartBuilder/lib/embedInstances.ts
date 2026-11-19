@@ -123,3 +123,47 @@ export const removeInstancesForVisual = (
 	}
 	return next
 }
+
+/** The file each published link names, by its key in `publishedUrls`
+ *  (the server's closed set, `server/src/embedFiles.ts`). */
+const PUBLISHED_URL_FILES = {
+	full: "index.html",
+	chart: "chart.html",
+	legend: "legend.html",
+	image: "image.png",
+	vector: "image.svg",
+} as const
+
+type PublishedUrls = NonNullable<EmbedInstance["publishedUrls"]>
+
+/** An instance's published links, keeping only the ones that are what a
+ *  publish makes: an http(s) address ending in
+ *  `/embeds/<this instance's publish id>/<that link's file>`.
+ *
+ *  The links are shown, opened and pasted into other sites as an iframe
+ *  snippet, and the stored record is one every signed-in person can write.
+ *  The server states them on every save; this is the same rule on the
+ *  reading side, for a record stored before it did. Anything else (another
+ *  path, a `javascript:` address, another embed's id) is dropped, and the
+ *  tab shows that link as not published. */
+export const trustedPublishedUrls = (instance: EmbedInstance): PublishedUrls => {
+	const { publishId, publishedUrls } = instance
+	const out: PublishedUrls = {}
+	if (publishId === undefined || publishedUrls === undefined) return out
+	for (const key of Object.keys(PUBLISHED_URL_FILES) as Array<keyof typeof PUBLISHED_URL_FILES>) {
+		const url = publishedUrls[key]
+		if (typeof url !== "string") continue
+		let parsed: URL
+		try {
+			parsed = new URL(url)
+		} catch {
+			continue
+		}
+		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue
+		if (parsed.search !== "" || parsed.hash !== "" || parsed.username !== "") continue
+		if (!parsed.pathname.endsWith(`/embeds/${publishId}/${PUBLISHED_URL_FILES[key]}`)) continue
+		if (parsed.href !== url) continue
+		out[key] = url
+	}
+	return out
+}

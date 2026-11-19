@@ -115,6 +115,51 @@ export const embedVectorPath = (publishId: string): string => {
 	return `embeds/${publishId}/${VECTOR_FILE}`
 }
 
+/** The file each link on a stored embed instance (`publishedUrls`) names.
+ *  The same closed set as the folder itself. */
+const PUBLISHED_URL_FILES: Readonly<Record<string, string>> = {
+	...PART_FILES,
+	image: IMAGE_FILE,
+	vector: VECTOR_FILE,
+}
+
+/** A stored embed instance with its published links stated by THIS server.
+ *
+ *  The editor shows those links, and hands them out as the iframe snippet a
+ *  person pastes into another site. They are saved by the client, and every
+ *  signed-in person can write every instance, so a saved link is never kept
+ *  as sent: a link can only be `<publishBaseUrl>/embeds/<publishId>/<file>`,
+ *  and that is what is stored, whatever the body said. A link is derived
+ *  from the instance's own publish id, so nobody can point a chart's
+ *  snippet at another address.
+ *
+ *  Returns the instance to store (the same object when it carries no
+ *  links), or a string saying why the body is refused: a publish id that
+ *  isn't one, links without a publish id, or a link under a name outside
+ *  the closed set. */
+export const withServerPublishedUrls = (
+	instance: Record<string, unknown>,
+	publishBaseUrl: string
+): Record<string, unknown> | string => {
+	const { publishId, publishedUrls } = instance
+	if (publishId !== undefined && (typeof publishId !== "string" || !isPublishId(publishId))) {
+		return "publishId must be a lowercase UUID"
+	}
+	if (publishedUrls === undefined) return instance
+	if (typeof publishedUrls !== "object" || publishedUrls === null || Array.isArray(publishedUrls)) {
+		return "publishedUrls must be an object"
+	}
+	if (publishId === undefined) return "publishedUrls needs a publishId"
+	const stated: Record<string, string> = {}
+	for (const [key, value] of Object.entries(publishedUrls)) {
+		const file = Object.hasOwn(PUBLISHED_URL_FILES, key) ? PUBLISHED_URL_FILES[key] : undefined
+		if (file === undefined) return `publishedUrls has an unknown link: ${key}`
+		if (typeof value !== "string") return `publishedUrls.${key} must be a string`
+		stated[key] = `${publishBaseUrl}/embeds/${publishId}/${file}`
+	}
+	return { ...instance, publishedUrls: stated }
+}
+
 /** Compose one part's finished page: the wrapper JSON replaces the template
  *  marker. `payloadJson` is the client's payload, already serialized — it is
  *  wrapped, not parsed, so a large dataset never round-trips through

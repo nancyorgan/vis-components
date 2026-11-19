@@ -2,7 +2,11 @@ import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { sanitizeVisualFilename } from "../lib/downloadVisuals"
 import { embedColumns, type EmbedColumns } from "../lib/embedColumns"
-import { publishedInstancesOf, upsertEmbedInstance } from "../lib/embedInstances"
+import {
+	publishedInstancesOf,
+	trustedPublishedUrls,
+	upsertEmbedInstance,
+} from "../lib/embedInstances"
 import {
 	DEFAULT_HEIGHT,
 	DEFAULT_PIXEL_RATIO,
@@ -712,6 +716,13 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 		instance?.publishId !== undefined && instance.publishedUrls !== undefined
 			? instance
 			: null
+	// The links this tab shows, opens and hands out as a snippet: only the
+	// ones that are what a publish makes (`trustedPublishedUrls`), never the
+	// stored record as it stands.
+	const publishedUrls = useMemo(
+		() => (published ? trustedPublishedUrls(published) : undefined),
+		[published]
+	)
 
 	// The iframe snippets' dimensions: the figure's, for the combined page;
 	// the split chart / legend iframes measure the on-screen plot area and
@@ -731,7 +742,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 	// Snippets come from the PUBLISHED urls — there is no URL to offer until
 	// a publish has succeeded (0016 rule 4).
 	const { snippets, embedUrl } = useMemo(() => {
-		const urls = published?.publishedUrls
+		const urls = publishedUrls
 		if (!urls) {
 			return {
 				snippets: [] as Array<{
@@ -742,8 +753,15 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 				embedUrl: null as string | null,
 			}
 		}
+		// The address is checked above; escaped all the same, as the title is.
+		const attr = (text: string) =>
+			text
+				.replaceAll("&", "&amp;")
+				.replaceAll('"', "&quot;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;")
 		const iframe = (src: string, size: { width: number; height: number }) =>
-			`<iframe src="${src}" title="${embedTitleAttr}" width="${size.width}" height="${size.height}" frameborder="0" loading="lazy"></iframe>`
+			`<iframe src="${attr(src)}" title="${embedTitleAttr}" width="${size.width}" height="${size.height}" frameborder="0" loading="lazy"></iframe>`
 		if (urls.full) {
 			return {
 				snippets: [
@@ -772,7 +790,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 			})
 		}
 		return { snippets: out, embedUrl: urls.chart ?? urls.legend ?? null }
-	}, [published?.publishedUrls, embedSizes, embedTitleAttr])
+	}, [publishedUrls, embedSizes, embedTitleAttr])
 
 	// Reset the editable drafts only when the underlying publish changes.
 	// Keyed on a stable signature rather than the `snippets` reference so an
@@ -1066,8 +1084,8 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 
 						{linkFor === "slides" ? (
 							<LinkedPictureRow
-								imageUrl={published.publishedUrls?.image}
-								vectorUrl={published.publishedUrls?.vector}
+								imageUrl={publishedUrls?.image}
+								vectorUrl={publishedUrls?.vector}
 								failures={pictureFailures[visualId]}
 							/>
 						) : (

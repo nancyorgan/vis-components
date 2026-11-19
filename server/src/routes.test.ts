@@ -117,6 +117,50 @@ describe("JSON collections over HTTP", () => {
 		expect(record).toEqual({ "ei-1": instance })
 	})
 
+	it("states an embed instance's published links itself, whatever the body says", async () => {
+		const publishId = "3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b"
+		const put = (body: unknown) =>
+			fetch(`${base}/api/embed-instances/ei-links`, {
+				method: "PUT",
+				body: JSON.stringify(body),
+			})
+		// A swapped link, a script link and an attribute break-out all come
+		// back as this deployment's own address for that publish id.
+		const res = await put({
+			id: "ei-links",
+			visualId: "v1",
+			publishId,
+			publishedUrls: {
+				full: "https://evil.example/embeds/x/index.html",
+				image: "javascript:alert(1)",
+				vector: 'https://embeds.example.com/x" onload="alert(1)',
+			},
+		})
+		expect(res.status).toBe(204)
+		const record = (await (await fetch(`${base}/api/embed-instances`)).json()) as Record<
+			string,
+			{ publishedUrls?: Record<string, string> }
+		>
+		const root = `https://embeds.example.com/embeds/${publishId}`
+		expect(record["ei-links"]?.publishedUrls).toEqual({
+			full: `${root}/index.html`,
+			image: `${root}/image.png`,
+			vector: `${root}/image.svg`,
+		})
+
+		// What can't be a published instance is refused outright.
+		const bad = [
+			{ id: "ei-links", publishId: "../../etc", publishedUrls: {} },
+			{ id: "ei-links", publishedUrls: { full: "https://embeds.example.com/a" } },
+			{ id: "ei-links", publishId, publishedUrls: { other: "https://embeds.example.com/a" } },
+			{ id: "ei-links", publishId, publishedUrls: { full: 7 } },
+			{ id: "ei-links", publishId, publishedUrls: "https://evil.example" },
+			{ id: "ei-links", publishId, publishedUrls: JSON.parse('{"__proto__":"x"}') as unknown },
+		]
+		for (const body of bad) expect((await put(body)).status).toBe(400)
+		await fetch(`${base}/api/embed-instances/ei-links`, { method: "DELETE" })
+	})
+
 	it("DELETE removes an item and is a no-op on a missing id", async () => {
 		await fetch(`${base}/api/folders/f1`, {
 			method: "PUT",

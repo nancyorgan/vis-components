@@ -5,6 +5,7 @@ import {
 	publishedInstancesOf,
 	recordEmbedPublish,
 	removeInstancesForVisual,
+	trustedPublishedUrls,
 	upsertEmbedInstance,
 } from "./embedInstances"
 import type { EmbedInstance } from "./types"
@@ -207,5 +208,53 @@ describe("publishedInstancesOf", () => {
 		const copied = mkInstance({ id: "ei-c", versionId: "ver-2" })
 		const all = { "ei-p": published, "ei-o": other, "ei-c": copied }
 		expect(publishedInstancesOf(all, "v1").map((i) => i.id)).toEqual(["ei-p"])
+	})
+})
+
+describe("trustedPublishedUrls", () => {
+	const publishId = "3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b"
+	const root = `https://embeds.example.com/embeds/${publishId}`
+	const instance = (publishedUrls: Record<string, unknown>) =>
+		({
+			id: "ei-1",
+			visualId: "v1",
+			versionId: null,
+			createdAt: 1,
+			lastExportedAt: 1,
+			publishId,
+			publishedUrls,
+		}) as unknown as Parameters<typeof trustedPublishedUrls>[0]
+
+	it("keeps the links a publish makes", () => {
+		const urls = {
+			full: `${root}/index.html`,
+			chart: `${root}/chart.html`,
+			legend: `${root}/legend.html`,
+			image: `${root}/image.png`,
+			vector: `${root}/image.svg`,
+		}
+		expect(trustedPublishedUrls(instance(urls))).toEqual(urls)
+		// A publish host served under a path, or over http on a dev machine.
+		const local = { full: `http://localhost:8098/pub/embeds/${publishId}/index.html` }
+		expect(trustedPublishedUrls(instance(local))).toEqual(local)
+	})
+
+	it("drops a link that is anything else", () => {
+		const other = "11111111-2222-4333-8444-555555555555"
+		expect(
+			trustedPublishedUrls(
+				instance({
+					full: "javascript:alert(1)",
+					chart: `https://embeds.example.com/embeds/${other}/chart.html`,
+					legend: `${root}/index.html`,
+					image: `${root}/image.png" onload="alert(1)`,
+					vector: `${root}/image.svg?next=https://evil.example`,
+				})
+			)
+		).toEqual({})
+		expect(trustedPublishedUrls(instance({ full: 7, image: "not a url" }))).toEqual({})
+		expect(
+			trustedPublishedUrls({ ...instance({ full: `${root}/index.html` }), publishId: undefined })
+		).toEqual({})
 	})
 })
