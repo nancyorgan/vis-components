@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { sanitizeVisualFilename } from "../lib/downloadVisuals"
+import { embedAggregationFor, type EmbedAggregation } from "../lib/embedAggregate"
 import { embedColumns, type EmbedColumns } from "../lib/embedColumns"
 import {
 	publishedInstancesOf,
@@ -645,6 +646,19 @@ const publicColumnsLine = (columns: EmbedColumns): string => {
 	return `Published columns: ${kept}. Not published: ${columns.dropped.join(", ")}.`
 }
 
+/** Whether a publish carries the chart's totals or its rows, in words
+ *  (lib/embedAggregate.ts). Null when there is nothing to say: the chart
+ *  type draws from rows. */
+const publicRowsLine = (aggregation: EmbedAggregation): string | null => {
+	if (aggregation.aggregated) {
+		const before = aggregation.rowsBefore.toLocaleString("en-US")
+		const after = aggregation.rowsAfter.toLocaleString("en-US")
+		return `Published as totals, not rows: ${aggregation.measure} is added up for each mark, so ${after} rows are published in place of ${before}. A column that only the hover shows keeps one value per mark.`
+	}
+	if (aggregation.reason === null) return null
+	return `The rows are published as they are, not as totals: ${aggregation.reason}.`
+}
+
 const LINK_FOR_SEGMENTS: ReadonlyArray<{ key: LinkFor; label: string }> = [
 	{ key: "slides", label: "Slides & documents" },
 	{ key: "web", label: "Web page" },
@@ -659,6 +673,10 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 	const publicColumns = useMemo(
 		() =>
 			savedVisual && rawView ? embedColumns(savedVisual, rawView) : null,
+		[savedVisual, rawView]
+	)
+	const publicRows = useMemo(
+		() => (savedVisual && rawView ? publicRowsLine(embedAggregationFor(savedVisual, rawView)) : null),
 		[savedVisual, rawView]
 	)
 	const instances = useAtomValue(embedInstancesAtom)
@@ -980,6 +998,11 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 			{publicColumns && (
 				<p className="text-sm vc-muted" data-public-columns>
 					{publicColumnsLine(publicColumns)}
+				</p>
+			)}
+			{publicRows && (
+				<p className="text-sm vc-muted" data-public-rows>
+					{publicRows}
 				</p>
 			)}
 		</>

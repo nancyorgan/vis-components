@@ -6756,7 +6756,32 @@ Publish button the tab says which: "Published columns: … Not
 published: …", or that every column is published and why. A tree or
 flow diagram left on Auto keeps the child / target column it finds.
 Embeds published earlier keep the columns they went out with until
-republished. A published page holds the chart's own data and
+republished. Of the data's ROWS, a chart that ADDS UP a measure — bars
+that sum a quantitative Length, pies, areas — publishes its totals, not
+the rows behind them (`lib/embedAggregate.ts`): one row per mark (per
+bar segment, wedge, or area point in each panel), with the measure
+already added up, which the embed draws exactly as the editor draws
+the rows. A column on a channel, or named by any setting other than
+the tooltip, is a key: rows merge only where every key agrees. A
+column that only the hover shows keeps the value from the first row
+behind the mark, which is the value the hover prints; unchecking it
+under Tooltip takes it out altogether. A measure cell that isn't a
+clean number (blank, text) is never folded into a total. Everything
+else publishes its rows as before, and the tab says why when a sum
+chart does: a bar chart that COUNTS rows and a histogram, a bar + line
+combo (the line reads rows), a setting that reads the measure row by
+row (a `{Sales} > 5` rule, a color that varies by the measure), a
+label that adds up a second column, a measure that is also a
+grouping, and an area chart whose hover lists the measure (a layer's
+hover prints its first row's value, which would turn into a total;
+unchecking the measure under Tooltip lets it publish totals). Chart
+types that draw from rows (scatter, lines, box / violin, tiles, maps,
+trees, flows) are untouched. Under the columns line the tab says
+"Published as totals, not rows: … N rows are published in place of
+M", or "The rows are published as they are, not as totals: (reason)".
+One stated difference from the editor: the data table's note counts
+"the underlying data" as the rows the page holds, so a totals publish
+reports the collapsed count. A published page holds the chart's own data and
 settings; the charting app itself is shared — files under `runtime/`
 on the publish host, named by a hash of their contents, never changed
 or deleted once written — so a browser downloads it once for all the

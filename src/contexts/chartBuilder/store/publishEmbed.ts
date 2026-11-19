@@ -25,6 +25,7 @@ import {
 	unpublishEmbedRequest,
 	type EmbedPublishUrls,
 } from "../lib/embedPublish"
+import { aggregateEmbedRecords } from "../lib/embedAggregate"
 import { pruneEmbedRecords } from "../lib/embedColumns"
 import {
 	DEFAULT_HEIGHT,
@@ -179,9 +180,17 @@ export const usePublishEmbed = () =>
 				// Only the columns the chart shows are published
 				// (lib/embedColumns.ts), and only the public fields of each record
 				// leave here (the public boundary: server/src/publicEmbed.ts).
-				const published = dataset
+				const pruned = dataset
 					? pruneEmbedRecords(visual, dataset)
 					: { visual, dataset }
+				// A chart that adds up a measure is published as its totals, one
+				// row per mark, not as the rows behind them (lib/embedAggregate.ts).
+				const published = pruned.dataset
+					? {
+							visual: pruned.visual,
+							dataset: aggregateEmbedRecords(pruned.visual, pruned.dataset).dataset,
+						}
+					: pruned
 				const htmlUrls = await publishEmbedRequest(
 					publishId,
 					parts,
