@@ -16,6 +16,11 @@ const REFUSED: readonly RegExp[] = [
 	/<!DOCTYPE/i, // entity expansion
 	/<!ENTITY/i,
 	/<script/i,
+	// A prefixed element (`<x:script xmlns:x="…svg">`) is the same element
+	// under another spelling, and runs. The export pipeline writes no
+	// prefixed element at all (only prefixed ATTRIBUTES, `xlink:href`), so
+	// every one is refused rather than listing the dangerous names.
+	/<\/?[^\s<>/!?"'=:]+:/,
 	/<foreignObject/i,
 	/<iframe/i,
 	/<embed/i,
@@ -41,6 +46,16 @@ const REFUSED: readonly RegExp[] = [
 const HREF_ATTR = /\b(?:xlink:href|href|src)\s*=\s*(["'])\s*([^"']*)\1/gi
 const CSS_URL = /url\(\s*(["']?)\s*([^"')]*)\1\s*\)/gi
 
+/** The namespaces an export SVG declares. Any other (XHTML above all: an
+ *  `<h:form>` or a `<div xmlns="…xhtml">` puts a working HTML page inside
+ *  the picture) is refused, however it is bound. */
+const NAMESPACE_DECL = /\bxmlns(?::[^\s=]+)?\s*=\s*(["'])([^"']*)\1/gi
+const ALLOWED_NAMESPACES: ReadonlySet<string> = new Set([
+	"http://www.w3.org/2000/svg",
+	"http://www.w3.org/1999/xlink",
+	"http://www.w3.org/XML/1998/namespace",
+])
+
 const isLocalReference = (value: string): boolean => {
 	const v = value.trim()
 	return v === "" || v.startsWith("#") || /^data:/i.test(v)
@@ -65,6 +80,9 @@ export const isSafeSvg = (data: Buffer): boolean => {
 	if (!prologue.test(head)) return false
 	for (const pattern of REFUSED) {
 		if (pattern.test(text)) return false
+	}
+	for (const match of text.matchAll(NAMESPACE_DECL)) {
+		if (!ALLOWED_NAMESPACES.has(match[2] ?? "")) return false
 	}
 	for (const match of text.matchAll(HREF_ATTR)) {
 		if (!isLocalReference(match[2] ?? "")) return false

@@ -40,6 +40,20 @@ describe("isSafeSvg", () => {
 		expect(isSafeSvg(svg(`<animate attributeName="x"/>`))).toBe(false)
 	})
 
+	it("refuses a script or an HTML page under a namespace prefix", () => {
+		const svgNs = "http://www.w3.org/2000/svg"
+		const xhtml = "http://www.w3.org/1999/xhtml"
+		// A prefixed element is the same element: both of these run.
+		expect(isSafeSvg(svg(`<x:script xmlns:x="${svgNs}">alert(1)</x:script>`))).toBe(false)
+		expect(isSafeSvg(svg(`<h:script xmlns:h="${xhtml}">alert(1)</h:script>`))).toBe(false)
+		expect(isSafeSvg(svg(`<x:rect/>`, `xmlns:x="${svgNs}"`))).toBe(false)
+		// No script, but a working HTML form inside the picture.
+		expect(isSafeSvg(svg(`<h:form xmlns:h="${xhtml}" action="#"><h:input/></h:form>`))).toBe(false)
+		expect(isSafeSvg(svg(`<div xmlns="${xhtml}"><form action="#"><input/></form></div>`))).toBe(false)
+		// A namespace spelled with a character reference is not on the list.
+		expect(isSafeSvg(svg(`<g xmlns:h="&#104;ttp://www.w3.org/1999/xhtml"/>`))).toBe(false)
+	})
+
 	it("refuses anything that fetches or declares entities", () => {
 		expect(isSafeSvg(svg(`<image href="https://evil.example/x.png"/>`))).toBe(false)
 		expect(isSafeSvg(svg(`<use xlink:href="other.svg#a"/>`))).toBe(false)
