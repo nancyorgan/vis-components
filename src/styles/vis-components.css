@@ -295,7 +295,7 @@
 	 *                timestamps. NOT row labels or option text
 	 *                (was text-stone-600 / dark:text-stone-400)
 	 *   .vc-text     primary body text — values, names, menu items, every
-	 *                sidebar ROW LABEL (LABEL_COL / LABEL_COL_NESTED,
+	 *                sidebar ROW LABEL (LABEL_COL,
 	 *                stacked control labels, radio-group legends) and the
 	 *                text beside a checkbox or radio button. A disabled
 	 *                control dims its label with opacity, not .vc-muted

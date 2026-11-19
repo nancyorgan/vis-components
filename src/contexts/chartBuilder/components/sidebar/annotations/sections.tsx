@@ -3,7 +3,7 @@ import { useAtomValue } from "jotai"
 import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleSubsection"
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
-import { LABEL_COL, LABEL_COL_NESTED } from "../../../../../components/ui/LabeledField"
+import { LABEL_COL } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
@@ -740,10 +740,10 @@ export const TextStyleSection = ({
 				onChange={(on) => onChange({ textWrap: on || undefined })}
 			/>
 			{style.textWrap === true && (
-				<div className="ml-6 flex items-center gap-2 text-sm">
+				<div className="flex items-center gap-2 text-sm">
 					<NumberInput
 						label="Characters"
-						labelClassName={LABEL_COL_NESTED}
+						labelClassName={LABEL_COL}
 						value={style.textWrapChars ?? DEFAULT_ANNOTATION_WRAP_CHARS}
 						min={1}
 						step={1}

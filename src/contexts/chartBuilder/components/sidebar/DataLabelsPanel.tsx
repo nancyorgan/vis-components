@@ -90,7 +90,6 @@ import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubs
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
-	LABEL_COL_NESTED,
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { PLAIN_ROWS } from "../../../../components/ui/rowGroup"
@@ -1332,13 +1331,13 @@ export const DataLabelsPanel = () => {
 						/>
 						{merged.leaderLines === true && (
 							<>
-								<div className="ml-6 flex flex-col gap-2 text-sm">
+								<div className="flex flex-col gap-2 text-sm">
 									{/* Reset links restore the THEME's Maps-section stroke
 									 *  (the same baseline new charts seed from). */}
 									<div className="flex flex-wrap items-center gap-2">
 										<ColorInput
 											label="Line color"
-											labelClassName={LABEL_COL_NESTED}
+											labelClassName={LABEL_COL}
 											value={
 												merged.leaderLineColor ??
 												themeDefaults.leaderLineColor ??
@@ -1362,7 +1361,7 @@ export const DataLabelsPanel = () => {
 									<div className="flex items-center gap-2">
 										<NumberInput
 											label="Thickness"
-											labelClassName={LABEL_COL_NESTED}
+											labelClassName={LABEL_COL}
 											value={merged.leaderLineWidth ?? 1}
 											min={0}
 											step={0.5}
@@ -1548,10 +1547,10 @@ export const DataLabelsPanel = () => {
 									onChange={(wrapText) => patchLayout({ wrapText })}
 								/>
 								{wrap && (
-									<div className="ml-6 flex items-center gap-2 text-sm">
+									<div className="flex items-center gap-2 text-sm">
 										<NumberInput
 											label="Characters"
-											labelClassName={LABEL_COL_NESTED}
+											labelClassName={LABEL_COL}
 											value={ownLayout.wrapMaxChars ?? merged.wrapMaxChars ?? DEFAULT_WRAP_CHARS}
 											min={1}
 											step={1}
@@ -1734,10 +1733,10 @@ export const DataLabelsPanel = () => {
 					onChange={(wrapText) => updateCfg({ wrapText })}
 				/>
 				{merged.wrapText === true && (
-					<div className="ml-6 flex items-center gap-2 text-sm">
+					<div className="flex items-center gap-2 text-sm">
 						<NumberInput
 							label="Characters"
-							labelClassName={LABEL_COL_NESTED}
+							labelClassName={LABEL_COL}
 							value={merged.wrapMaxChars ?? DEFAULT_WRAP_CHARS}
 							min={1}
 							step={1}
@@ -1927,11 +1926,11 @@ export const DataLabelsPanel = () => {
 											<span className="text-sm vc-text">
 												{POPULATION_LABEL[pop]}
 											</span>
-											<div className="ml-6 flex flex-col gap-2 text-sm">
+											<div className="flex flex-col gap-2 text-sm">
 												<div className="flex items-center gap-2">
 													<NumberInput
 														label="X"
-														labelClassName={LABEL_COL_NESTED}
+														labelClassName={LABEL_COL}
 														value={xValue}
 														step={1}
 														onChange={(xOffset) => patch({ xOffset })}
@@ -1943,7 +1942,7 @@ export const DataLabelsPanel = () => {
 												<div className="flex items-center gap-2">
 													<NumberInput
 														label="Y"
-														labelClassName={LABEL_COL_NESTED}
+														labelClassName={LABEL_COL}
 														value={-yValue}
 														step={1}
 														onChange={(n) => patch({ yOffset: -n })}
@@ -1998,7 +1997,6 @@ export const DataLabelsPanel = () => {
 								onChange={(positionRules) => updateCfg({ positionRules })}
 								baseXOffset={merged.xOffset}
 								baseYOffset={merged.yOffset}
-								nested={splitEndpoints}
 							/>
 						)}
 					</div>

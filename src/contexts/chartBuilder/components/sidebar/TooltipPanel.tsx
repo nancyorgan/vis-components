@@ -27,7 +27,7 @@ import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { CollapsibleSubsection } from "../../../../components/ui/CollapsibleSubsection"
 import { Checkbox } from "../../../../components/ui/Checkbox"
 import { ColorInput } from "../../../../components/ui/ColorInput"
-import { LABEL_COL, LABEL_COL_NESTED } from "../../../../components/ui/LabeledField"
+import { LABEL_COL } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
 import { rowGroup } from "../../../../components/ui/rowGroup"
@@ -463,10 +463,10 @@ export const TooltipPanel = () => {
 								onChange={(on) => update({ hoverRecolor: on })}
 							/>
 							{hoverRecolor && (
-								<div className="ml-6 flex items-center gap-2">
+								<div className="flex items-center gap-2">
 									<ColorInput
 										label="Recolor color"
-										labelClassName={LABEL_COL_NESTED}
+										labelClassName={LABEL_COL}
 										value={hoverHighlightColor}
 										onChange={(c) => update({ hoverHighlightColor: c })}
 									/>
@@ -484,11 +484,11 @@ export const TooltipPanel = () => {
 								onChange={(on) => update({ hoverOutline: on })}
 							/>
 							{hoverOutline && (
-								<div className="ml-6 flex flex-col gap-2">
+								<div className="flex flex-col gap-2">
 									<div className="flex items-center gap-2">
 										<ColorInput
 											label="Outline color"
-											labelClassName={LABEL_COL_NESTED}
+											labelClassName={LABEL_COL}
 											value={hoverOutlineColor}
 											onChange={(c) => update({ hoverOutlineColor: c })}
 										/>
@@ -502,7 +502,7 @@ export const TooltipPanel = () => {
 									<div className="flex items-center gap-2">
 										<NumberInput
 											label="Outline thickness"
-											labelClassName={LABEL_COL_NESTED}
+											labelClassName={LABEL_COL}
 											value={hoverOutlineWidth}
 											min={0}
 											step={0.5}
@@ -527,10 +527,10 @@ export const TooltipPanel = () => {
 								onChange={(on) => update({ hoverFade: on })}
 							/>
 							{hoverFade && (
-								<div className="ml-6 flex items-center gap-2">
+								<div className="flex items-center gap-2">
 									<NumberInput
 										label="Fade amount"
-										labelClassName={LABEL_COL_NESTED}
+										labelClassName={LABEL_COL}
 										value={hoverFadePercent}
 										min={0}
 										max={100}

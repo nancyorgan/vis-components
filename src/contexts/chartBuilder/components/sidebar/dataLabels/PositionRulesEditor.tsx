@@ -2,7 +2,6 @@ import type { LabelPositionRule } from "../../../lib/channelConfig"
 
 import {
 	LABEL_COL,
-	LABEL_COL_NESTED,
 } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import {
@@ -37,7 +36,6 @@ export const PositionRulesEditor = ({
 	baseYOffset,
 	ruleLabel,
 	help,
-	nested = false,
 }: {
 	rules: LabelPositionRule[]
 	onChange: (rules: LabelPositionRule[]) => void
@@ -52,10 +50,6 @@ export const PositionRulesEditor = ({
 	/** Extra help prose below the grammar note — which value these rules
 	 *  compare against. */
 	help?: React.ReactNode
-	/** Indent each rule's X / Y under its "Rule N" line — the layout the
-	 *  split First / Last label X / Y pairs above use — so the columns line
-	 *  up with them. */
-	nested?: boolean
 }) => {
 	const ruleName = (i: number) =>
 		ruleLabel ? `${ruleLabel} position rule ${i + 1}` : `position rule ${i + 1}`
@@ -95,14 +89,10 @@ export const PositionRulesEditor = ({
 							×
 						</button>
 					</div>
-					<div
-						className={
-							nested ? "ml-6 flex flex-col gap-2 text-sm" : "flex flex-col gap-2"
-						}
-					>
+					<div className="flex flex-col gap-2">
 						<NumberInput
 							label="X"
-							labelClassName={nested ? LABEL_COL_NESTED : LABEL_COL}
+							labelClassName={LABEL_COL}
 							value={rule.xOffset}
 							step={1}
 							onChange={(xOffset) => setRule(i, { xOffset })}
@@ -111,7 +101,7 @@ export const PositionRulesEditor = ({
 						/>
 						<NumberInput
 							label="Y"
-							labelClassName={nested ? LABEL_COL_NESTED : LABEL_COL}
+							labelClassName={LABEL_COL}
 							value={-rule.yOffset}
 							step={1}
 							onChange={(n) => setRule(i, { yOffset: -n })}

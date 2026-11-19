@@ -98,9 +98,7 @@ import { SidebarJumpLink } from "../../../../components/ui/SidebarJumpLink"
 import { ColorInput } from "../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
-	LABEL_COL_NESTED,
 	LabelSpacer,
-	LabelSpacerNested,
 } from "../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../components/ui/ResetLink"
@@ -134,8 +132,8 @@ const LegendBreaksRows = ({
 	onChange,
 	countLabel,
 	floorCount = 2,
-	labelClassName = LABEL_COL_NESTED,
-	spacer = <LabelSpacerNested />,
+	labelClassName = LABEL_COL,
+	spacer = <LabelSpacer />,
 }: {
 	values: unknown[]
 	fieldType: "quantitative" | "temporal" | "ordinal"
@@ -276,18 +274,15 @@ const QuantLegendChannelControls = ({
 				)}
 			</span>
 			{/* The shared format control (preset dropdown over the custom box)
-			 *  sits on the panel's main label column, so its select lines up
-			 *  with the nested Breaks rows below (both start at 104px). */}
+			 *  sits on the panel's main label column, like the Breaks rows
+			 *  below. */}
 			<TickFormatControl
 				value={cfg.format}
 				changed={cfg.format !== ""}
 				onChange={(format) => onChange({ ...cfg, format })}
 			/>
-			{/* Rows subordinate to the section label indent by ml-6; the narrower
-			 * LABEL_COL_NESTED keeps their controls on the shared 104px column
-			 * (24px indent + 72px label + 8px gap). */}
 			{showBreaks && (
-				<div className="ml-6 flex flex-col gap-2">
+				<div className="flex flex-col gap-2">
 					<LegendBreaksRows
 						values={values}
 						fieldType={fieldType}

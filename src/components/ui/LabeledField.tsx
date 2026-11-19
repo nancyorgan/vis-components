@@ -7,26 +7,17 @@ import { combine as c } from "../../lib/cls"
  *  and the Checkbox / RadioGroup option text — row labels are never
  *  `.vc-muted`, which is for hints, units, counts and timestamps). One shared
  *  constant (rather than per-file copies) so the column width and shade
- *  can't drift between panels. */
+ *  can't drift between panels. It is the ONLY label column: a row that
+ *  depends on a checkbox or sits under a group title stays flush left in it
+ *  (no `ml-6` indent, no narrower "nested" column) — the checkbox or title
+ *  above already says what the row belongs to. */
 export const LABEL_COL = "w-24 vc-text"
-
-/** Label column for rows nested inside an `ml-6` sub-block (controls
- *  subordinate to a toggle/group header): 1.5rem narrower than LABEL_COL so
- *  indent + label + gap still lands the control on the shared column. Same
- *  `.vc-text` row-label color. */
-export const LABEL_COL_NESTED = "w-18 vc-text"
 
 /** Empty stand-in for the label column: indents a secondary control (one
  *  with no label of its own) so it aligns under the value column of
  *  LABEL_COL rows. */
 export const LabelSpacer = ({ className }: { className?: string }) => (
 	<span className={c("w-24 shrink-0", className)} aria-hidden />
-)
-
-/** LabelSpacer's counterpart for rows inside an `ml-6` sub-block — matches
- *  LABEL_COL_NESTED's width so the spaced control lands on the shared column. */
-export const LabelSpacerNested = () => (
-	<span className="w-18 shrink-0" aria-hidden />
 )
 
 /** A labeled row of swatch chips (the pattern, dash and map no-data

@@ -3,7 +3,6 @@ import { CollapsibleSubsection } from "../../../../../components/ui/CollapsibleS
 import { ColorInput } from "../../../../../components/ui/ColorInput"
 import {
 	LABEL_COL,
-	LABEL_COL_NESTED,
 } from "../../../../../components/ui/LabeledField"
 import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { Segmented } from "../../../../../components/ui/Segmented"
@@ -268,9 +267,9 @@ export const LineSegmentEditor = ({
 							onChange={(arrowhead) => onChange({ arrowhead })}
 						/>
 						{ends.arrowhead && (
-							<div className="ml-6 flex flex-col gap-2">
+							<div className="flex flex-col gap-2">
 								<div className="flex items-start gap-2 text-sm">
-									<span className={`${LABEL_COL_NESTED} shrink-0 pt-1.5`}>
+									<span className={`${LABEL_COL} shrink-0 pt-1.5`}>
 										Style
 									</span>
 									<ArrowheadStylePicker
@@ -283,7 +282,7 @@ export const LineSegmentEditor = ({
 								<div className="flex items-center gap-2">
 									<NumberInput
 										label="Scale"
-										labelClassName={LABEL_COL_NESTED}
+										labelClassName={LABEL_COL}
 										value={ends.arrowheadScale}
 										step={0.25}
 										min={0.1}
