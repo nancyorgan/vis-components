@@ -20,6 +20,7 @@ const CANONICAL_WEIGHTS = [
 
 /** One @font-face the css2 stylesheet declared: a single subset (latin,
  * cyrillic, …) of one style at one weight (or a variable-weight range). */
+import { isFontFileUrl } from "./storedUrls"
 import { extent } from "d3-array"
 
 export type GoogleFontFace = {
@@ -222,8 +223,15 @@ export const lookupGoogleFont = async (
 	return { family, weights, hasItalic: italicWeights.length > 0, faces }
 }
 
-/** Fetch one face's woff2 binary. */
+/** Fetch one face's woff2 binary. The address comes from the shared fonts
+ *  collection (or an imported file), so it is fetched only when it is a
+ *  file on Google's font host (`isFontFileUrl`): every address the lookup
+ *  above stores is one, and nothing else is ever requested on a viewer's
+ *  behalf. */
 export const fetchFontBinary = async (url: string): Promise<ArrayBuffer> => {
+	if (!isFontFileUrl(url)) {
+		throw new Error("Font file skipped: its address isn't on fonts.gstatic.com")
+	}
 	const res = await fetch(url)
 	if (!res.ok) {
 		throw new Error(`Font file download failed (HTTP ${res.status}): ${url}`)

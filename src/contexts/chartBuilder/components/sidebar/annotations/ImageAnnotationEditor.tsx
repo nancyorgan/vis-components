@@ -1,3 +1,4 @@
+import { isInlineImage } from "../../../../../lib/storedUrls"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Button } from "../../../../../components/ui/Button"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
@@ -104,7 +105,9 @@ export const ImageAnnotationEditor = ({
 	const [error, setError] = useState<string | null>(null)
 	const [busy, setBusy] = useState(false)
 	const defaults = DEFAULT_IMAGE_ANNOTATION_STYLE
-	const hasImage = anno.href.length > 0
+	// A picture is only ever held as data; any other stored value is treated
+	// as no picture (`lib/storedUrls.ts`), and choosing one replaces it.
+	const hasImage = isInlineImage(anno.href)
 	// An image annotation saved before `naturalWidth` existed has nothing for
 	// "% of image" to be a percent of. Measure the stored picture once and
 	// write the field, so the annotation heals the first time it's opened.

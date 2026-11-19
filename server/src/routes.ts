@@ -462,6 +462,11 @@ const putVisual = (
 	body: string,
 	parsed: Record<string, unknown>
 ): void => {
+	// A preview is a picture held as data, never an address: every browser
+	// that opens the library would otherwise fetch whatever was stored.
+	if (typeof parsed.thumbnail === "string" && !/^data:image\/[a-z0-9.+-]+[;,]/i.test(parsed.thumbnail)) {
+		throw new HttpError(400, "A visual's thumbnail must be an inline picture (data:image/…)")
+	}
 	const stored = getBody(db, "visuals", id)
 	const ifMatch = req.headers["if-match"]
 	if (ifMatch !== undefined && !ifMatchAllows(ifMatch, stored)) {

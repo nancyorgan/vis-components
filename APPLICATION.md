@@ -5927,6 +5927,17 @@ has no transparency is re-encoded as JPEG; an SVG is kept as-is (it
 stays crisp at any export size) and never rasterized. A fresh
 "+ Image" has no picture yet and draws nothing until one is chosen.
 
+**Stored addresses are checked where they are used.** A picture is
+only ever held as data (`data:image/…`): an image annotation, a custom
+image glyph and a library thumbnail draw nothing when their stored
+value is anything else, and the server refuses a visual whose inline
+thumbnail is not one. A font face's file is fetched only from
+`https://fonts.gstatic.com/`. Every upload already stores these forms,
+so this changes nothing for a picture or font added through the app;
+it stops a saved or imported record from making each viewer's browser
+(or a published embed) call an address someone else chose
+(`src/lib/storedUrls.ts`).
+
 Like a text annotation an image is a POINT: x / y are one anchor with
 the same Percent / Values / Pixels toggle, and an **Anchor** picker
 (Left / Center / Right × Top / Middle / Bottom) chooses which point of

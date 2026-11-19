@@ -1,3 +1,4 @@
+import { isInlineImage } from "../../../lib/storedUrls"
 import { useMemo, useState } from "react"
 import { useAtomValue } from "jotai"
 
@@ -226,7 +227,7 @@ const TemplateCard = ({
 						: undefined
 				}
 			>
-				{template.thumbnail ? (
+				{isInlineImage(template.thumbnail) ? (
 					<img
 						src={template.thumbnail}
 						alt=""

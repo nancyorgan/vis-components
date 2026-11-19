@@ -117,6 +117,20 @@ describe("JSON collections over HTTP", () => {
 		expect(record).toEqual({ "ei-1": instance })
 	})
 
+	it("stores a visual's inline thumbnail only when it is a picture held as data", async () => {
+		const put = (thumbnail: unknown) =>
+			fetch(`${base}/api/visuals/v-thumb`, {
+				method: "PUT",
+				body: JSON.stringify({ id: "v-thumb", name: "T", thumbnail }),
+			})
+		expect((await put("https://evil.example/pixel.png")).status).toBe(400)
+		expect((await put("/api/datasets")).status).toBe(400)
+		expect((await put("data:text/html,<script>1</script>")).status).toBe(400)
+		expect((await put("data:image/png;base64,iVBORw0KGgo=")).status).toBe(204)
+		expect((await put(null)).status).toBe(204)
+		await fetch(`${base}/api/visuals/v-thumb`, { method: "DELETE" })
+	})
+
 	it("states an embed instance's published links itself, whatever the body says", async () => {
 		const publishId = "3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b"
 		const put = (body: unknown) =>

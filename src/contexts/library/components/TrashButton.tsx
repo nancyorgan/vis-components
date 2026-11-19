@@ -1,3 +1,4 @@
+import { isInlineImage } from "../../../lib/storedUrls"
 import { useState } from "react"
 import { useAtomValue } from "jotai"
 import {
@@ -95,7 +96,7 @@ export const TrashButton = () => {
 							{trashed.map((v) => (
 								<li key={v.id} className="flex items-center gap-3 py-2">
 									<div className="flex h-12 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
-										{v.thumbnail ? (
+										{isInlineImage(v.thumbnail) ? (
 											<img
 												src={v.thumbnail}
 												alt=""

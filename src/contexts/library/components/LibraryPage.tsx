@@ -1,3 +1,4 @@
+import { isInlineImage } from "../../../lib/storedUrls"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { useAtom, useAtomValue } from "jotai"
@@ -675,7 +676,7 @@ export const LibraryPage = () => {
 													: undefined
 											}
 										>
-											{d.visual.thumbnail ? (
+											{isInlineImage(d.visual.thumbnail) ? (
 												<img
 													src={d.visual.thumbnail}
 													alt={d.visual.name}

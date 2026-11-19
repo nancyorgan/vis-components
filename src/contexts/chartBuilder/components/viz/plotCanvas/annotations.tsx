@@ -1,3 +1,4 @@
+import { inlineImage } from "../../../../../lib/storedUrls"
 import { useId } from "react"
 import type {
 	CircleAnnotation,
@@ -152,8 +153,10 @@ const ImageAnnotationMark = ({
 			data-annotation-image={anno.id}
 			data-annotation-coord={anno.coordSystem}
 			clipPath={clipPath}
-			href={anno.href}
-			xlinkHref={anno.href}
+			// Only a picture held as data is drawn (`lib/storedUrls.ts`): a
+			// stored address would have every viewer's browser fetch it.
+			href={inlineImage(anno.href)}
+			xlinkHref={inlineImage(anno.href)}
 			x={left}
 			y={top}
 			width={width}

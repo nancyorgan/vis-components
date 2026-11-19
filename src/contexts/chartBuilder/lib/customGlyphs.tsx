@@ -1,3 +1,4 @@
+import { isInlineImage } from "../../../lib/storedUrls"
 import type { MouseEventHandler } from "react"
 import type { CustomGlyph } from "./channelConfig"
 import { SHAPE_PALETTE, symbolExtent, symbolPath } from "./scales"
@@ -177,6 +178,8 @@ export const GlyphMark = ({
 	onMouseEnter?: MouseEventHandler<SVGElement>
 }) => {
 	if (glyph.kind === "image") {
+		// Only a picture held as data is drawn (`lib/storedUrls.ts`).
+		if (!isInlineImage(glyph.href)) return null
 		const w = glyph.aspect >= 1 ? 2 * r : 2 * r * glyph.aspect
 		const h = glyph.aspect >= 1 ? (2 * r) / glyph.aspect : 2 * r
 		return (
