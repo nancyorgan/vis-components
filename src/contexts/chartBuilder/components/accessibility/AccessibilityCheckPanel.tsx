@@ -40,6 +40,7 @@ import {
 	useAccessibilityState,
 	type AccessibilityState,
 } from "./useAccessibilityState"
+import { IconButton } from "../../../../components/ui/IconButton"
 
 /* The editor's "Accessibility check" (APPLICATION.md, "Accessibility
  * preview and check"): a floating card over the chart viewport listing what
@@ -184,14 +185,13 @@ export const AccessibilityCheckCard = ({
 					Re-check
 				</Button>
 				{onClose && (
-					<button
-						type="button"
+					<IconButton
 						onClick={onClose}
 						aria-label="Close accessibility check"
-						className="rounded px-1 text-lg leading-none hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
+						className="px-1 text-lg leading-none"
 					>
 						×
-					</button>
+					</IconButton>
 				)}
 				</div>
 			</div>

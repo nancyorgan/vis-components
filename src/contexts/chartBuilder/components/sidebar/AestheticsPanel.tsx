@@ -35,6 +35,7 @@ import {
 import { useCurrentTheme } from "../../store/useCurrentTheme"
 import { useCurrentDatasetView } from "../../store/useCurrentDatasetView"
 import { Select } from "../../../../components/ui/Select"
+import { Radio } from "../../../../components/ui/RadioGroup"
 
 
 const SIDE_LABEL: Record<CanvasSide, string> = {
@@ -123,36 +124,23 @@ export const AestheticsPanel = () => {
 		<>
 			<CollapsibleSubsection title="Chart background" changed={backgroundChanged}>
 				<div className="flex flex-col gap-2">
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={current === null}
-							onChange={() => setBg(null)}
-						/>
-						<span className="vc-text">
-							Transparent (host page shows through)
-						</span>
-					</label>
+					<Radio
+						label="Transparent (host page shows through)"
+						checked={current === null}
+						onChange={() => setBg(null)}
+					/>
 					{themeDefault !== null && (
-						<label className="flex items-center gap-2 text-sm">
-							<input
-								type="radio"
-								checked={current === themeDefault}
-								onChange={() => setBg(themeDefault)}
-							/>
-							<span className="vc-text">
-								Theme default ({themeDefault})
-							</span>
-						</label>
-					)}
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={current !== null && current !== themeDefault}
-							onChange={() => setBg(current ?? "#ffffff")}
+						<Radio
+							label={<>Theme default ({themeDefault})</>}
+							checked={current === themeDefault}
+							onChange={() => setBg(themeDefault)}
 						/>
-						<span className="vc-text">Custom</span>
-					</label>
+					)}
+					<Radio
+						label="Custom"
+						checked={current !== null && current !== themeDefault}
+						onChange={() => setBg(current ?? "#ffffff")}
+					/>
 					{current !== null && current !== themeDefault && (
 						<ColorInput
 							label="Color"

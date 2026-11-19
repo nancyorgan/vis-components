@@ -56,6 +56,7 @@ import {
 } from "../../store/useMaterializeVersion"
 import { Select } from "../../../../components/ui/Select"
 import type { InputProps } from "../../../../components/ui/Input"
+import { IconButton } from "../../../../components/ui/IconButton"
 
 const newDerivedVariableId = () =>
 	`dvr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -913,16 +914,16 @@ const DerivedVariableEditor = ({
 										aria-label={`Rule ${i + 1} output`}
 										className="w-32 flex-shrink-0"
 									/>
-									<button
-										type="button"
+									<IconButton
+										quiet
 										aria-label={`Remove rule ${i + 1}`}
 										onClick={() =>
 											setRules((prev) => prev.filter((_, j) => j !== i))
 										}
-										className="w-4 flex-shrink-0 hover:text-stone-900 dark:hover:text-stone-200 vc-muted"
+										className="w-4 flex-shrink-0"
 									>
 										×
-									</button>
+									</IconButton>
 								</div>
 								{ruleErrors[i] && (
 									<p className="text-xs text-amber-700 dark:text-amber-400">
@@ -1036,7 +1037,7 @@ const DerivedVariableEditor = ({
 							onChange={(e) => setDatasetName(e.target.value)}
 						/>
 						{collides && (
-							<div className="rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+							<div className="vc-notice-warning">
 								A data set named &ldquo;{datasetName.trim()}&rdquo; already
 								exists. This will be saved as a separate data set with the same
 								name.
@@ -1053,7 +1054,7 @@ const DerivedVariableEditor = ({
 				{submitError && (
 					<p
 						role="alert"
-						className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
+						className="vc-notice-error"
 					>
 						{submitError}
 					</p>

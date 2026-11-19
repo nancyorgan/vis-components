@@ -10,6 +10,7 @@ import {
 	RuleConditionInput,
 	RuleVariableHelp,
 } from "./RuleConditionInput"
+import { IconButton } from "../../../../components/ui/IconButton"
 
 /** The one conditional color-rule editor, shared by every color target that
  *  takes rules: the Color menu's Fill (`fillColorRules`), Outline
@@ -104,14 +105,13 @@ export const ColorRulesEditor = ({
 						paletteKind={paletteKind}
 						pickerLabel={`Pick palette color for ${ruleName(i)}`}
 					/>
-					<button
-						type="button"
+					<IconButton
 						onClick={() => removeRule(i)}
-						className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
+						className="px-1"
 						aria-label={`Remove ${ruleName(i)}`}
 					>
 						×
-					</button>
+					</IconButton>
 				</div>
 			))}
 			<button

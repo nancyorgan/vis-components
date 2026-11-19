@@ -38,6 +38,7 @@ import { UNFILED_FOLDER_ID, folderAncestors } from "../lib/folderSubtree"
 import { kindPredicate, type LibraryKind } from "../lib/libraryKind"
 import { isTemplate } from "../../chartBuilder/lib/visualTrash"
 import { OpenVisualLink, TemplateChip } from "./OpenVisualLink"
+import { IconButton } from "../../../components/ui/IconButton"
 
 const newFolderId = () =>
 	`fl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -315,14 +316,14 @@ const VisualTreeItem = ({
 					{/* Same pencil and reveal rule as the folder row's buttons:
 					 *  on hover, always on touch, and for a keyboard user who
 					 *  tabs onto it. */}
-					<button
-						type="button"
+					<IconButton
+						quiet
 						onClick={(e) => {
 							e.stopPropagation()
 							setEditName(visual.name)
 							setEditing(true)
 						}}
-						className="flex-shrink-0 rounded p-1 opacity-0 group-hover/visualrow:opacity-100 hover:text-stone-900 kbd:group-has-focus-visible/visualrow:opacity-100 pointer-coarse:opacity-100 dark:hover:text-white vc-muted"
+						className="flex-shrink-0 p-1 opacity-0 group-hover/visualrow:opacity-100 kbd:group-has-focus-visible/visualrow:opacity-100 pointer-coarse:opacity-100"
 						title="Rename"
 						aria-label={`Rename ${visual.name}`}
 					>
@@ -332,7 +333,7 @@ const VisualTreeItem = ({
 								fill="currentColor"
 							/>
 						</svg>
-					</button>
+					</IconButton>
 				</>
 			)}
 		</div>
@@ -407,10 +408,10 @@ const FolderRowMenu = ({
 			onClick={(e) => e.stopPropagation()}
 			onDoubleClick={(e) => e.stopPropagation()}
 		>
-			<button
-				type="button"
+			<IconButton
+				quiet
 				onClick={() => (open ? close() : onOpenChange(true))}
-				className="rounded p-1 hover:text-stone-900 dark:hover:text-white vc-muted"
+				className="p-1"
 				title="More actions"
 				aria-label={`Actions for ${folder.name}`}
 				aria-haspopup="menu"
@@ -421,7 +422,7 @@ const FolderRowMenu = ({
 					<circle cx="6" cy="6" r="1.1" fill="currentColor" />
 					<circle cx="10" cy="6" r="1.1" fill="currentColor" />
 				</svg>
-			</button>
+			</IconButton>
 			{open && (
 				<div
 					role="menu"
@@ -722,13 +723,13 @@ const FolderTreeItem = ({
 						menuOpen ? "opacity-100" : "opacity-0"
 					}`}
 				>
-					<button
-						type="button"
+					<IconButton
+						quiet
 						onClick={(e) => {
 							e.stopPropagation()
 							onCreateChild(folder.id)
 						}}
-						className="rounded p-1 hover:text-stone-900 dark:hover:text-white vc-muted"
+						className="p-1"
 						title="New subfolder"
 						aria-label={`New subfolder in ${folder.name}`}
 					>
@@ -740,7 +741,7 @@ const FolderTreeItem = ({
 								strokeLinecap="round"
 							/>
 						</svg>
-					</button>
+					</IconButton>
 					{!hasExpandable && (
 						<button
 							type="button"
@@ -1157,10 +1158,9 @@ export const FolderTree = ({
 				 *  inside the read-only stock shelf, which takes no
 				 *  subfolders. */}
 				{!(enteredFolder && isStockFolder(enteredFolder)) && (
-					<button
-						type="button"
+					<IconButton
 						onClick={() => createFolder(enteredFolder?.id ?? null)}
-						className="-m-0.5 rounded p-1.5 hover:bg-stone-100 hover:text-stone-900 pointer-coarse:p-2 dark:hover:bg-stone-800 dark:hover:text-white vc-muted"
+						className="-m-0.5 p-1.5 pointer-coarse:p-2"
 						title="New folder"
 						data-tip="new-folder"
 						aria-label={
@@ -1177,7 +1177,7 @@ export const FolderTree = ({
 								strokeLinecap="round"
 							/>
 						</svg>
-					</button>
+					</IconButton>
 				)}
 			</div>
 			{/* Clicking the panel's own whitespace — below/between the rows,

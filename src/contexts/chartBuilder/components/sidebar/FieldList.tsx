@@ -32,6 +32,7 @@ import { Disclosure } from "@headlessui/react"
 import { Checkbox } from "../../../../components/ui/Checkbox"
 import { RowChevron } from "../../../../components/ui/Chevron"
 import { SelectInput } from "../../../../components/ui/SelectInput"
+import { IconButton } from "../../../../components/ui/IconButton"
 
 const TYPE_OPTIONS: ReadonlyArray<{ value: FieldType; label: FieldType }> = [
 	{ value: "quantitative", label: "quantitative" },
@@ -853,24 +854,22 @@ const LevelReorderPanel = ({
 							<span className="min-w-0 flex-1 truncate" data-level-name={value}>
 								{value}
 							</span>
-							<button
-								type="button"
+							<IconButton
 								onClick={() => move(i, -1)}
 								disabled={i === 0}
 								aria-label={`Move ${value} up`}
-								className="flex h-5 w-5 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:hover:bg-stone-700 vc-muted"
+								className="flex h-5 w-5 items-center justify-center pointer-coarse:h-8 pointer-coarse:w-8"
 							>
 								↑
-							</button>
-							<button
-								type="button"
+							</IconButton>
+							<IconButton
 								onClick={() => move(i, 1)}
 								disabled={i === ordered.length - 1}
 								aria-label={`Move ${value} down`}
-								className="flex h-5 w-5 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:h-8 pointer-coarse:w-8 dark:hover:bg-stone-700 vc-muted"
+								className="flex h-5 w-5 items-center justify-center pointer-coarse:h-8 pointer-coarse:w-8"
 							>
 								↓
-							</button>
+							</IconButton>
 						</li>
 					))}
 				</ul>

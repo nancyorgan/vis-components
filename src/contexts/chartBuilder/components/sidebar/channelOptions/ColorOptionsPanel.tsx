@@ -85,6 +85,7 @@ import { NumberInput } from "../../../../../components/ui/NumberInput"
 import { ResetLink } from "../../../../../components/ui/ResetLink"
 import { SelectInput } from "../../../../../components/ui/SelectInput"
 import { Select } from "../../../../../components/ui/Select"
+import { IconButton } from "../../../../../components/ui/IconButton"
 
 /** Sequential (single-progression) d3 presets — render with Low + High
  * swatches in the panel; edits transition to `customLinear`. */
@@ -1643,14 +1644,13 @@ const CustomStopsList = ({
 						// can still drag the color toward white/black if they
 						// want a near-invisible anchor.
 						i !== 0 && i !== stops.length - 1 ? (
-							<button
-								type="button"
+							<IconButton
 								onClick={() => removeAt(i)}
-								className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
+								className="px-1"
 								aria-label={`Remove step ${i + 1}`}
 							>
 								×
-							</button>
+							</IconButton>
 						) : undefined
 					}
 				/>

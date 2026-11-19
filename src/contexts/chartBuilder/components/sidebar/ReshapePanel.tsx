@@ -42,6 +42,7 @@ import {
 import { saveModeFor, suggestedCopyName } from "../../store/commitDatasetVersion"
 import { currentRawDatasetViewAtom } from "../../store/useCurrentDatasetView"
 import { useApplyReshape, type ReshapeDraft } from "../../store/useMaterializeVersion"
+import { IconButton } from "../../../../components/ui/IconButton"
 
 /** Reshape options under Data, shown by the data tray's "Reshape" button.
  * A Direction toggle picks the form: **Wide → long** (the default — a melt:
@@ -275,7 +276,7 @@ const ApplyFooter = ({
 						/>
 					</label>
 					{collides && (
-						<p className="rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+						<p className="vc-notice-warning text-xs">
 							A data set named &ldquo;{name.trim()}&rdquo; already exists.
 							This will be saved as a separate data set with the same name.
 						</p>
@@ -289,7 +290,7 @@ const ApplyFooter = ({
 			{error && (
 				<p
 					role="alert"
-					className="rounded-sm bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-900/20 dark:text-red-300"
+					className="vc-notice-error text-xs"
 				>
 					{error}
 				</p>
@@ -476,14 +477,13 @@ const MeltForm = ({ raw }: { raw: DatasetView }) => {
 						<div className="flex items-center justify-between gap-2">
 							<span className="vc-group-header">Combine{suffix}</span>
 							{index > 0 && (
-								<button
-									type="button"
+								<IconButton
 									onClick={() => removeGroup(index)}
-									className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
+									className="px-1"
 									aria-label={`Remove group ${index + 1}`}
 								>
 									×
-								</button>
+								</IconButton>
 							)}
 						</div>
 						<p className="vc-help">
@@ -750,14 +750,13 @@ const PivotForm = ({ raw }: { raw: DatasetView }) => {
 						<div className="flex items-center justify-between gap-2">
 							<span className="vc-group-header">Split out{suffix}</span>
 							{index > 0 && (
-								<button
-									type="button"
+								<IconButton
 									onClick={() => removeGroup(index)}
-									className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
+									className="px-1"
 									aria-label={`Remove group ${index + 1}`}
 								>
 									×
-								</button>
+								</IconButton>
 							)}
 						</div>
 						<p className="vc-help">

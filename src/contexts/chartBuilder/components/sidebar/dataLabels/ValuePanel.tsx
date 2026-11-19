@@ -7,6 +7,7 @@ import {
 import { TickFormatControl } from "../channelOptions/AxisOptionsPanel"
 import { Checkbox } from "../../../../../components/ui/Checkbox"
 import { Input } from "../../../../../components/ui/Input"
+import { IconButton } from "../../../../../components/ui/IconButton"
 
 // ---------------------------------------------------------------------------
 // Value panel — multi-field mode only ("Multiple variables…"): pick which
@@ -115,14 +116,13 @@ export const ValuePanel = ({
 								}
 								className="flex-1"
 							/>
-							<button
-								type="button"
+							<IconButton
 								onClick={() => writeLabels(labels.filter((x) => x.id !== l.id))}
-								className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
+								className="px-1"
 								aria-label={`Remove label ${composedLabelTitle(l, fields, i)}`}
 							>
 								×
-							</button>
+							</IconButton>
 						</div>
 					))}
 					<button

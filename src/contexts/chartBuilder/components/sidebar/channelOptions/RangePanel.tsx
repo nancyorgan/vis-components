@@ -51,6 +51,7 @@ import { usePureDensityCurve } from "../../../store/usePureDensityCurve"
 import { useVaryByFieldFilter } from "../../../store/useVaryByFieldFilter"
 import { SizeThicknessSections } from "./SizeThicknessSections"
 import { StackModeRow } from "./StackModeRow"
+import { Radio } from "../../../../../components/ui/RadioGroup"
 
 // Generic min/max numeric-range panel, used for Area (pixel radius) plus
 // Saturation and Brightness (HSL component range in [0, 1]).
@@ -319,17 +320,14 @@ const ScaleByRow = () => {
 					["diameter", "Diameter — exaggerates differences"],
 				] as const
 			).map(([value, label]) => (
-				<label key={value} className="flex items-center gap-2 text-sm">
-					<input
-						type="radio"
-						name="area-size-by"
-						value={value}
-						checked={sizeBy === value}
-						onChange={() => setSizeBy(value)}
-						className="h-3 w-3"
-					/>
-					<span className="vc-text">{label}</span>
-				</label>
+				<Radio
+					key={value}
+					label={label}
+					name="area-size-by"
+					value={value}
+					checked={sizeBy === value}
+					onChange={() => setSizeBy(value)}
+				/>
 			))}
 		</div>
 	)

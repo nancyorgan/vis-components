@@ -25,6 +25,7 @@ import {
 	THEME_LABEL_CLASS,
 } from "./controls"
 import type { ThemeSectionProps } from "./types"
+import { Radio } from "../../../../components/ui/RadioGroup"
 
 const SIDE_LABEL: Record<LegendSide, string> = {
 	top: "Top",
@@ -75,31 +76,21 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 					<span className="text-sm vc-text">
 						Legend background
 					</span>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={theme.legendBackgroundColor === null}
-							onChange={() => set("legendBackgroundColor", null)}
-						/>
-						<span className="vc-text">
-							Transparent
-						</span>
-					</label>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={theme.legendBackgroundColor !== null}
-							onChange={() =>
-								set(
-									"legendBackgroundColor",
-									theme.legendBackgroundColor ?? "#ffffff"
-								)
-							}
-						/>
-						<span className="vc-text">
-							Custom color
-						</span>
-					</label>
+					<Radio
+						label="Transparent"
+						checked={theme.legendBackgroundColor === null}
+						onChange={() => set("legendBackgroundColor", null)}
+					/>
+					<Radio
+						label="Custom color"
+						checked={theme.legendBackgroundColor !== null}
+						onChange={() =>
+							set(
+								"legendBackgroundColor",
+								theme.legendBackgroundColor ?? "#ffffff"
+							)
+						}
+					/>
 					{theme.legendBackgroundColor !== null && (
 						<ColorInput
 							label="Color"
@@ -220,29 +211,21 @@ export const LegendSection = ({ theme, set, isReadOnly }: ThemeSectionProps) => 
 				/>
 				<div className="flex flex-col gap-1.5">
 					<span className="text-sm vc-text">Outline color</span>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={theme.legendSwatchOutlineColor === null}
-							onChange={() => set("legendSwatchOutlineColor", null)}
-						/>
-						<span className="vc-text">
-							Automatic (follows the marks&apos; outline)
-						</span>
-					</label>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={theme.legendSwatchOutlineColor !== null}
-							onChange={() =>
-								set(
-									"legendSwatchOutlineColor",
-									theme.legendSwatchOutlineColor ?? "#cccccc"
-								)
-							}
-						/>
-						<span className="vc-text">Custom color</span>
-					</label>
+					<Radio
+						label="Automatic (follows the marks&apos; outline)"
+						checked={theme.legendSwatchOutlineColor === null}
+						onChange={() => set("legendSwatchOutlineColor", null)}
+					/>
+					<Radio
+						label="Custom color"
+						checked={theme.legendSwatchOutlineColor !== null}
+						onChange={() =>
+							set(
+								"legendSwatchOutlineColor",
+								theme.legendSwatchOutlineColor ?? "#cccccc"
+							)
+						}
+					/>
 					{theme.legendSwatchOutlineColor !== null && (
 						<ColorInput
 							label="Color"

@@ -6,7 +6,7 @@
  * Tailwind v4 syntax:
  *   @theme    → design tokens that become utilities (text-<name>, bg-<name>, …)
  *   @layer base       → element-level defaults (html, body, focus rings)
- *   @layer components → reusable multi-class styles (.vc-card, .vc-pill)
+ *   @layer components → reusable multi-class styles (.vc-option-panel, .vc-divider-group)
  *   @layer utilities  → one-off utilities Tailwind doesn't cover
  * -------------------------------------------------------------------------- */
 
@@ -249,6 +249,74 @@
 	}
 	.dark .vc-help {
 		color: var(--color-stone-400);
+	}
+
+	/* Inline notices in dialogs and panels: something failed (.vc-notice-error)
+	 * or needs a second look before going on (.vc-notice-warning). Each owns
+	 * its colors, radius, padding (px-2 py-1) and text size (text-sm); a call
+	 * site adds only layout, or a utility to change the padding or size
+	 * (`px-3 py-2`, `text-xs`). Not for the full-width page banners. */
+	.vc-notice-error,
+	.vc-notice-warning {
+		border-radius: var(--radius-sm);
+		padding: 0.25rem 0.5rem;
+		font-size: 0.875rem; /* matches text-sm */
+		line-height: 1.25rem;
+	}
+	.vc-notice-error {
+		background-color: var(--color-red-50);
+		color: var(--color-red-800);
+	}
+	.dark .vc-notice-error {
+		background-color: color-mix(in oklab, var(--color-red-900) 20%, transparent);
+		color: var(--color-red-300);
+	}
+	.vc-notice-warning {
+		border: 1px solid var(--color-amber-300);
+		background-color: var(--color-amber-50);
+		color: var(--color-amber-900);
+	}
+	.dark .vc-notice-warning {
+		border-color: var(--color-amber-700);
+		background-color: color-mix(in oklab, var(--color-amber-900) 20%, transparent);
+		color: var(--color-amber-200);
+	}
+
+	/* A button that shows only an icon or glyph (remove ×, move ▲▼, collapse).
+	 * Use the `IconButton` primitive (components/ui/IconButton), which
+	 * applies these; the class owns color, hover, radius and the disabled
+	 * look, the call site only its size and padding. The quiet variant
+	 * darkens on hover without a background, for icons inside a row that
+	 * already highlights. */
+	.vc-icon-button,
+	.vc-icon-button-quiet {
+		border-radius: 0.25rem;
+		color: var(--color-stone-600);
+	}
+	.dark .vc-icon-button,
+	.dark .vc-icon-button-quiet {
+		color: var(--color-stone-400);
+	}
+	.vc-icon-button:disabled,
+	.vc-icon-button-quiet:disabled {
+		cursor: not-allowed;
+		opacity: 0.3;
+	}
+	@media (hover: hover) {
+		.vc-icon-button:hover:not(:disabled) {
+			background-color: var(--color-stone-200);
+			color: var(--color-stone-800);
+		}
+		.dark .vc-icon-button:hover:not(:disabled) {
+			background-color: var(--color-stone-700);
+			color: #ffffff;
+		}
+		.vc-icon-button-quiet:hover:not(:disabled) {
+			color: var(--color-stone-900);
+		}
+		.dark .vc-icon-button-quiet:hover:not(:disabled) {
+			color: #ffffff;
+		}
 	}
 
 	/* A data-table cell the user changed by hand (the tray's Edit dialog):

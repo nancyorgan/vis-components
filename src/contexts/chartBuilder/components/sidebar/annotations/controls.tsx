@@ -9,6 +9,7 @@ import {
 	LabeledField,
 } from "../../../../../components/ui/LabeledField"
 import { cleanNumber, temporalCoordMs, type AxisInfo } from "./axisInfo"
+import { IconButton } from "../../../../../components/ui/IconButton"
 
 /** Which annotation an editor card belongs to — drives the kind glyph in its
  *  header row. */
@@ -100,15 +101,15 @@ export const AnnotationCard = ({
 }) => (
 	<div className="vc-option-panel">
 		<div className="flex items-center gap-2">
-			<button
-				type="button"
+			<IconButton
+				quiet
 				onClick={onToggle}
 				aria-expanded={open}
 				aria-label={open ? "Collapse annotation" : "Expand annotation"}
-				className="flex h-6 w-4 flex-shrink-0 items-center justify-center hover:text-stone-900 dark:hover:text-white vc-muted"
+				className="flex h-6 w-4 flex-shrink-0 items-center justify-center"
 			>
 				<SectionChevron open={open} />
-			</button>
+			</IconButton>
 			{/* Same purple as the CollapsibleSubsection headers inside the card. */}
 			<span className="text-vc-section-header flex flex-shrink-0 items-center">
 				<AnnotationKindGlyph kind={kind} />
@@ -189,12 +190,12 @@ const AnnotationNameEditor = ({
 			>
 				{shown}
 			</span>
-			<button
-				type="button"
+			<IconButton
+				quiet
 				onClick={startEditing}
 				aria-label={`Rename ${shown}`}
 				title="Rename"
-				className="-m-[7px] flex-shrink-0 p-[7px] hover:text-stone-900 dark:hover:text-white vc-muted"
+				className="-m-[7px] flex-shrink-0 p-[7px]"
 			>
 				<svg viewBox="0 0 16 16" width={11} height={11} aria-hidden>
 					<path
@@ -202,7 +203,7 @@ const AnnotationNameEditor = ({
 						fill="currentColor"
 					/>
 				</svg>
-			</button>
+			</IconButton>
 		</span>
 	)
 }

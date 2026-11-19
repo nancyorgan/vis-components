@@ -9,6 +9,7 @@ import {
 	RuleConditionInput,
 	RuleVariableHelp,
 } from "../RuleConditionInput"
+import { IconButton } from "../../../../../components/ui/IconButton"
 
 /** Conditional position rules under "Adjust position" — the positional
  *  sibling of the text-color rules. Each rule pairs a comparison condition
@@ -80,14 +81,13 @@ export const PositionRulesEditor = ({
 							placeholder="< 0"
 							ariaLabel={`Condition for ${ruleName(i)}`}
 						/>
-						<button
-							type="button"
+						<IconButton
 							onClick={() => removeRule(i)}
-							className="rounded px-1 hover:bg-stone-200 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-white vc-muted"
+							className="px-1"
 							aria-label={`Remove ${ruleName(i)}`}
 						>
 							×
-						</button>
+						</IconButton>
 					</div>
 					<div className="flex flex-col gap-2">
 						<NumberInput

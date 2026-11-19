@@ -105,8 +105,8 @@ export const FolderPickerModal = ({
 								role="alert"
 								className={
 									blocked
-										? "rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
-										: "rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+										? "vc-notice-error"
+										: "vc-notice-warning"
 								}
 							>
 								{nameField.collision?.message}
@@ -154,7 +154,7 @@ export const FolderPickerModal = ({
 				{error !== null && (
 					<div
 						role="alert"
-						className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
+						className="vc-notice-error"
 					>
 						{error}
 					</div>

@@ -62,6 +62,7 @@ import { NumberInput } from "../../../components/ui/NumberInput"
 import { Segmented } from "../../../components/ui/Segmented"
 import { Select } from "../../../components/ui/Select"
 import { Textarea } from "../../../components/ui/Input"
+import { Radio } from "../../../components/ui/RadioGroup"
 
 type Props = {
 	open: boolean
@@ -545,23 +546,19 @@ const FigureBlock = ({
 					</Select>
 				</label>
 				{/* Bottom padding centers the checkboxes against the input row. */}
-				<label className="flex items-center gap-2 pb-1.5 text-sm">
-					<input
-						type="checkbox"
-						checked={aspectLocked}
-						onChange={(e) => onAspectLockedChange(e.target.checked)}
-					/>
-					<span className="vc-heading font-medium">Lock aspect ratio</span>
-				</label>
+				<Checkbox
+					className="pb-1.5"
+					label={<span className="vc-heading font-medium">Lock aspect ratio</span>}
+					checked={aspectLocked}
+					onChange={onAspectLockedChange}
+				/>
 				{hasDataTable && (
-					<label className="flex items-center gap-2 pb-1.5 text-sm">
-						<input
-							type="checkbox"
-							checked={includeTable}
-							onChange={(e) => onIncludeTableChange(e.target.checked)}
-						/>
-						<span className="vc-heading font-medium">Include data table</span>
-					</label>
+					<Checkbox
+						className="pb-1.5"
+						label={<span className="vc-heading font-medium">Include data table</span>}
+						checked={includeTable}
+						onChange={onIncludeTableChange}
+					/>
 				)}
 				{trailing}
 			</div>
@@ -919,7 +916,7 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 		return (
 			<div className="flex flex-col gap-4">
 				<div
-					className={`rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200 ${FILL_WIDTH}`}
+					className={`vc-notice-warning px-3 py-2 ${FILL_WIDTH}`}
 				>
 					Publishing embeds requires the self-host server — this session is
 					running browser-local, so there is nowhere public to publish to.
@@ -1039,33 +1036,29 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 							<span className="vc-muted pt-0.5">Data</span>
 							<fieldset className="flex flex-col gap-2">
 								<legend className="sr-only">Data</legend>
-								{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-								<label className="flex items-center gap-2">
-									<input
-										type="radio"
-										checked={mode === "live"}
-										onChange={() => setMode("live")}
-									/>
-									<span>
+								<Radio
+									checked={mode === "live"}
+									onChange={() => setMode("live")}
+									label={
+										<>
 										<span className="vc-heading font-medium">Latest at publish</span>
 										<span className="vc-muted"> — each republish takes the newest data</span>
-									</span>
-								</label>
-								{/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- native label wraps the radio; its text sits below the rule's depth-2 scan */}
-								<label className="flex items-center gap-2">
-									<input
-										type="radio"
-										checked={mode === "pinned"}
-										onChange={() => setMode("pinned")}
-										disabled={!view}
-									/>
-									<span>
+										</>
+									}
+								/>
+								<Radio
+									checked={mode === "pinned"}
+									onChange={() => setMode("pinned")}
+									disabled={!view}
+									label={
+										<>
 										<span className="vc-heading font-medium">
 											Pin to current version{view ? ` (${versionLabel})` : ""}
 										</span>
 										<span className="vc-muted"> — republishing keeps this data</span>
-									</span>
-								</label>
+										</>
+									}
+								/>
 							</fieldset>
 							{/* Per VISUAL (every published pin, whichever pin this tab
 							    shows) and per user on this browser: each of this user's
@@ -1123,17 +1116,16 @@ const PublishTab = ({ visualId, figure }: { visualId: string; figure: FigureProp
 									.map(renderSnippet)}
 								{/* Iframe-only, so it lives here; it shapes what the NEXT
 								    publish writes (one page, or chart + legend pages). */}
-								<label className="flex items-center gap-2 text-sm">
-									<input
-										type="checkbox"
-										checked={splitLegend}
-										onChange={(e) => setSplitLegend(e.target.checked)}
-									/>
-									<span>
+								<Checkbox
+									label={
+										<>
 										Legend as a separate iframe{" "}
 										<span className="vc-muted">(takes effect on republish)</span>
-									</span>
-								</label>
+										</>
+									}
+									checked={splitLegend}
+									onChange={setSplitLegend}
+								/>
 								{snippets
 									.filter((s) => s.key === "legend")
 									.map(renderSnippet)}
@@ -1278,7 +1270,7 @@ const DownloadTab = ({
 
 			{error && (
 				<div
-					className={`rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300 ${FILL_WIDTH}`}
+					className={`vc-notice-error ${FILL_WIDTH}`}
 				>
 					{error}
 				</div>

@@ -32,6 +32,7 @@ import {
 import { Button } from "../../../../components/ui/Button"
 import { Input } from "../../../../components/ui/Input"
 import { Modal } from "../../../../components/ui/Modal"
+import { Radio } from "../../../../components/ui/RadioGroup"
 
 type Mode = "addVersion" | "newVisualization"
 
@@ -115,7 +116,7 @@ export const DataUpload = () => {
 			{error && (
 				<div
 					role="alert"
-					className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
+					className="vc-notice-error"
 				>
 					{error}
 				</div>
@@ -404,114 +405,112 @@ const UploadPromptModal = () => {
 						field{pending.fields.length === 1 ? "" : "s"}
 					</div>
 
-					<label className="flex items-start gap-2 text-sm">
-						<input
-							type="radio"
-							className="mt-1"
-							checked={mode === "addVersion"}
-							onChange={() => setMode("addVersion")}
-						/>
-						<div className="flex-1">
-							<div className="font-medium text-stone-900 dark:text-stone-100">
-								Add as a new data version for this visualization
-							</div>
-							<div className="text-sm vc-muted">
-								Appends a new version to{" "}
-								<span className="font-medium">
-									{currentDatasetMeta?.name ?? "the bound data set"}
-								</span>
-								. Live iframes refresh; pinned iframes stay on their version.
-							</div>
-							{mode === "addVersion" && diff && !compatible && (
-								<div className="mt-2 rounded-sm border border-amber-300 bg-amber-50 px-2 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-									Cannot add as a new version: {describeDiff(diff)}.
-									<br />
-									New versions must keep the same columns and types as the
-									original (new columns may be added). To drop or retype
-									columns, choose <strong>Start a new visualization</strong>{" "}
-									instead.
+					<Radio
+						align="start"
+						checked={mode === "addVersion"}
+						onChange={() => setMode("addVersion")}
+						label={
+							<>
+								<div className="font-medium text-stone-900 dark:text-stone-100">
+									Add as a new data version for this visualization
 								</div>
-							)}
-							{mode === "addVersion" &&
-								diff &&
-								compatible &&
-								diff.added.length > 0 && (
-									<div className="mt-2 rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-2 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
-										{describeAddedColumns(diff)} Earlier versions won&rsquo;t
-										have data for{" "}
-										{diff.added.length === 1 ? "this column" : "these columns"}.
+								<div className="text-sm vc-muted">
+									Appends a new version to{" "}
+									<span className="font-medium">
+										{currentDatasetMeta?.name ?? "the bound data set"}
+									</span>
+									. Live iframes refresh; pinned iframes stay on their version.
+								</div>
+								{mode === "addVersion" && diff && !compatible && (
+									<div className="mt-2 vc-notice-warning py-2">
+										Cannot add as a new version: {describeDiff(diff)}.
+										<br />
+										New versions must keep the same columns and types as the
+										original (new columns may be added). To drop or retype
+										columns, choose <strong>Start a new visualization</strong>{" "}
+										instead.
 									</div>
 								)}
-							{mode === "addVersion" && compatible && willReapply.length > 0 && (
-								<div className="mt-2 rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-2 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
-									Will re-apply: {willReapply.join(", ")}.
-								</div>
-							)}
-							{mode === "addVersion" && compatible && cantReapply.length > 0 && (
-								<div className="mt-2 rounded-sm border border-amber-300 bg-amber-50 px-2 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-									Can&rsquo;t re-apply: {cantReapply.join("; ")}. Make{" "}
-									{cantReapply.length === 1 ? "it" : "them"} again on the new
-									version if you still need{" "}
-									{cantReapply.length === 1 ? "it" : "them"}.
-								</div>
-							)}
-						</div>
-					</label>
+								{mode === "addVersion" &&
+									diff &&
+									compatible &&
+									diff.added.length > 0 && (
+										<div className="mt-2 rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-2 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+											{describeAddedColumns(diff)} Earlier versions won&rsquo;t
+											have data for{" "}
+											{diff.added.length === 1 ? "this column" : "these columns"}.
+										</div>
+									)}
+								{mode === "addVersion" && compatible && willReapply.length > 0 && (
+									<div className="mt-2 rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-2 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+										Will re-apply: {willReapply.join(", ")}.
+									</div>
+								)}
+								{mode === "addVersion" && compatible && cantReapply.length > 0 && (
+									<div className="mt-2 vc-notice-warning py-2">
+										Can&rsquo;t re-apply: {cantReapply.join("; ")}. Make{" "}
+										{cantReapply.length === 1 ? "it" : "them"} again on the new
+										version if you still need{" "}
+										{cantReapply.length === 1 ? "it" : "them"}.
+									</div>
+								)}
+							</>
+						}
+					/>
 
-					<label className="flex items-start gap-2 text-sm">
-						<input
-							type="radio"
-							className="mt-1"
-							checked={mode === "newVisualization"}
-							onChange={() => setMode("newVisualization")}
-						/>
-						<div className="flex-1">
-							<div className="font-medium text-stone-900 dark:text-stone-100">
-								Start a new visualization
-							</div>
-							<div className="text-sm vc-muted">
-								Saves{" "}
-								<span className="font-medium">
-									&ldquo;{currentVisualName}&rdquo;
-								</span>{" "}
-								to your library and opens a fresh editor with this data set.
-							</div>
-							{mode === "newVisualization" && (
-								<div className="mt-2 flex flex-col gap-1">
-									<label
-										htmlFor="data-upload-new-name"
-										className="text-sm vc-text"
-									>
-										Data set name
-									</label>
-									<Input
-										id="data-upload-new-name"
-										value={newName}
-										onChange={(e) => setNewName(e.target.value)}
-										// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the name field the user just chose to fill in this dialog
-										autoFocus
-									/>
-									{newNameCollides && (
-										<div className="rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-											A data set named &ldquo;{newName.trim()}&rdquo; already
-											exists. This upload will be saved as a separate data set
-											with the same name.
-										</div>
-									)}
-									{reusableDatasetId !== null && (
-										<div className="rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-1 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
-											This upload matches the existing data set &ldquo;
-											{newName.trim()}&rdquo; exactly — it will be reused, not
-											duplicated.
-										</div>
-									)}
+					<Radio
+						align="start"
+						checked={mode === "newVisualization"}
+						onChange={() => setMode("newVisualization")}
+						label={
+							<>
+								<div className="font-medium text-stone-900 dark:text-stone-100">
+									Start a new visualization
 								</div>
-							)}
-						</div>
-					</label>
+								<div className="text-sm vc-muted">
+									Saves{" "}
+									<span className="font-medium">
+										&ldquo;{currentVisualName}&rdquo;
+									</span>{" "}
+									to your library and opens a fresh editor with this data set.
+								</div>
+								{mode === "newVisualization" && (
+									<div className="mt-2 flex flex-col gap-1">
+										<label
+											htmlFor="data-upload-new-name"
+											className="text-sm vc-text"
+										>
+											Data set name
+										</label>
+										<Input
+											id="data-upload-new-name"
+											value={newName}
+											onChange={(e) => setNewName(e.target.value)}
+											// eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus for the name field the user just chose to fill in this dialog
+											autoFocus
+										/>
+										{newNameCollides && (
+											<div className="vc-notice-warning">
+												A data set named &ldquo;{newName.trim()}&rdquo; already
+												exists. This upload will be saved as a separate data set
+												with the same name.
+											</div>
+										)}
+										{reusableDatasetId !== null && (
+											<div className="rounded-sm border border-emerald-300 bg-emerald-50 px-2 py-1 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+												This upload matches the existing data set &ldquo;
+												{newName.trim()}&rdquo; exactly — it will be reused, not
+												duplicated.
+											</div>
+										)}
+									</div>
+								)}
+							</>
+						}
+					/>
 
 					{confirmError && (
-						<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+						<div className="vc-notice-error">
 							{confirmError}
 						</div>
 					)}

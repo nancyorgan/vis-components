@@ -12,6 +12,7 @@ import {
 	SectionGroup,
 } from "./controls"
 import type { ThemeSectionProps } from "./types"
+import { Radio } from "../../../../components/ui/RadioGroup"
 
 /** One Auto / Custom color: the tooltip's outline and background follow
  *  the light / dark UI unless the theme names a color. The radio pair is
@@ -31,22 +32,16 @@ const AutoColorRow = ({
 }) => (
 	<div className="flex flex-col gap-1.5">
 		<span className="text-sm vc-muted">{label}</span>
-		<label className="flex items-center gap-2 text-sm">
-			<input
-				type="radio"
-				checked={value === null}
-				onChange={() => onChange(null)}
-			/>
-			<span className="vc-text">{autoLabel}</span>
-		</label>
-		<label className="flex items-center gap-2 text-sm">
-			<input
-				type="radio"
-				checked={value !== null}
-				onChange={() => onChange(value ?? seed)}
-			/>
-			<span className="vc-text">Custom color</span>
-		</label>
+		<Radio
+			label={autoLabel}
+			checked={value === null}
+			onChange={() => onChange(null)}
+		/>
+		<Radio
+			label="Custom color"
+			checked={value !== null}
+			onChange={() => onChange(value ?? seed)}
+		/>
 		{value !== null && (
 			<ColorInput label="Color" value={value} onChange={onChange} />
 		)}

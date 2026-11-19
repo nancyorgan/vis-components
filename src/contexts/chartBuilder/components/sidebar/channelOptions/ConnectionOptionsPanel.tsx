@@ -76,6 +76,7 @@ import {
 import { Select } from "../../../../../components/ui/Select"
 import { SidebarJumpText, channelJump } from "../../../../../components/ui/SidebarJumpLink"
 import { sizeJumpId } from "./SizeThicknessSections"
+import { Radio } from "../../../../../components/ui/RadioGroup"
 
 /** Sidebar panel for the Connection encoding (the line that joins points
  *  sharing a connection-encoding value).
@@ -312,19 +313,14 @@ export const ConnectionOptionsPanel = () => {
 									["sankey", "Sankey"],
 								] as const
 							).map(([value, label]) => (
-								<label key={value} className="flex items-center gap-2 text-sm">
-									<input
-										type="radio"
-										name="hierarchy-layout"
-										value={value}
-										checked={(cfg.hierarchyLayout ?? "pack") === value}
-										onChange={() => updateCfg({ hierarchyLayout: value })}
-										className="h-3 w-3"
-									/>
-									<span className="vc-text">
-										{label}
-									</span>
-								</label>
+								<Radio
+									key={value}
+									label={label}
+									name="hierarchy-layout"
+									value={value}
+									checked={(cfg.hierarchyLayout ?? "pack") === value}
+									onChange={() => updateCfg({ hierarchyLayout: value })}
+								/>
 							))}
 						</div>
 						{isPackedMode && connectionFieldName && (
@@ -707,19 +703,13 @@ export const ConnectionOptionsPanel = () => {
 							] as const
 						).map(([value, label]) => (
 							<div key={value} className="flex flex-col gap-1.5">
-								<label className="flex items-center gap-2 text-sm">
-									<input
-										type="radio"
-										name="connection-axis-stem"
-										value={value}
-										checked={axisStem === value}
-										onChange={() => updateCfg(axisStemPatch(cfg, value))}
-										className="h-3 w-3"
-									/>
-									<span className="vc-text">
-										{label}
-									</span>
-								</label>
+								<Radio
+									label={label}
+									name="connection-axis-stem"
+									value={value}
+									checked={axisStem === value}
+									onChange={() => updateCfg(axisStemPatch(cfg, value))}
+								/>
 								{value === "custom-x" && axisStem === "custom-x" && (
 									<div className="flex items-center gap-2 pl-5">
 										<NumberInput
@@ -813,19 +803,13 @@ export const ConnectionOptionsPanel = () => {
 							// the N box stays with "Every Nth" and the Points box with
 							// "Custom" rather than both trailing the list.
 							<Fragment key={value}>
-								<label className="flex items-center gap-2 text-sm">
-									<input
-										type="radio"
-										name="connection-point-sampling"
-										value={value}
-										checked={cfg.pointSampling === value}
-										onChange={() => updateCfg({ pointSampling: value })}
-										className="h-3 w-3"
-									/>
-									<span className="vc-text">
-										{label}
-									</span>
-								</label>
+								<Radio
+									label={label}
+									name="connection-point-sampling"
+									value={value}
+									checked={cfg.pointSampling === value}
+									onChange={() => updateCfg({ pointSampling: value })}
+								/>
 								{value === "every-n" && cfg.pointSampling === "every-n" && (
 									<div className="flex items-center gap-2">
 										<NumberInput

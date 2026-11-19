@@ -26,6 +26,7 @@ import { DisclosureChevron } from "../../../components/ui/Chevron"
 import { EditorActions } from "./EditorActions"
 import { UpdateTemplateButton } from "./UpdateTemplateButton"
 import { VersionBadge } from "./VersionBadge"
+import { IconButton } from "../../../components/ui/IconButton"
 
 /** "9:25 AM" for a save today, "Oct 14" for an earlier one this year,
  *  "Oct 14, 2025" before that. */
@@ -208,15 +209,14 @@ export const SaveBar = () => {
 		) : null
 
 	const collapseButton = (
-		<button
-			type="button"
+		<IconButton
 			onClick={() => setBarOpen(false)}
 			aria-expanded
 			aria-label="Collapse title and actions"
-			className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded hover:bg-stone-100 dark:hover:bg-stone-800 vc-muted"
+			className="flex h-8 w-8 flex-shrink-0 items-center justify-center"
 		>
 			<DisclosureChevron open />
-		</button>
+		</IconButton>
 	)
 
 	if (narrow) {

@@ -22,6 +22,7 @@ import { ManagedThemeGate } from "../../chartBuilder/components/ManagedThemeGate
 
 import { AddThemeButton } from "./AddThemeButton"
 import { LockIcon } from "./LockIcon"
+import { IconButton } from "../../../components/ui/IconButton"
 
 /** What the user was trying to do when the administrator gate stopped
  *  them. Kept as data rather than a stashed callback so the dialog's
@@ -258,8 +259,7 @@ export const ThemesSubNav = ({
 									 *  pointers, and for a keyboard user once focus is in
 									 *  the row; same administrator gate as the drop. */}
 									{!t.isSystem && (
-										<button
-											type="button"
+										<IconButton
 											aria-label={
 												managed
 													? `Move ${t.name} to Custom Themes`
@@ -268,10 +268,10 @@ export const ThemesSubNav = ({
 											onClick={() =>
 												moveByTap(t.id, managed ? "custom" : "managed")
 											}
-											className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded kbd:group-has-focus-visible/themerow:flex hover:bg-stone-200 pointer-coarse:flex dark:hover:bg-stone-700 vc-muted"
+											className="hidden h-7 w-7 flex-shrink-0 items-center justify-center kbd:group-has-focus-visible/themerow:flex pointer-coarse:flex"
 										>
 											<span aria-hidden="true">{managed ? "↓" : "↑"}</span>
-										</button>
+										</IconButton>
 									)}
 								</div>
 							)

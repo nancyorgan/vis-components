@@ -11,6 +11,77 @@ export type RadioGroupOption<V extends string> = {
 	disabled?: boolean
 }
 
+/** ONE radio button with its label to the right — the radio sibling of
+ *  `Checkbox`. Every radio renders through this or `RadioGroup` (never a
+ *  raw `<input type="radio">`), so all radio rows look identical. Use
+ *  `RadioGroup` when the options are a plain list; use `Radio` when an
+ *  option is conditional or carries its own controls underneath. Give the
+ *  radios of one choice the same `name`. `align="start"` sits the button
+ *  on the first line of a label that wraps or stacks. */
+export const Radio = ({
+	id,
+	label,
+	checked,
+	onChange,
+	disabled,
+	name,
+	value,
+	align = "center",
+	className,
+}: {
+	id?: string
+	label: ReactNode
+	checked: boolean
+	/** Fires when this radio becomes the selected one. */
+	onChange: () => void
+	disabled?: boolean
+	name?: string
+	value?: string
+	align?: "center" | "start"
+	className?: string
+}) => {
+	const generatedId = useId()
+	const inputId = id ?? generatedId
+	const input = (
+		<input
+			id={inputId}
+			type="radio"
+			name={name}
+			value={value}
+			checked={checked}
+			onChange={() => onChange()}
+			disabled={disabled}
+			className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+		/>
+	)
+	return (
+		<div
+			className={c(
+				"flex gap-2 text-sm",
+				align === "start" ? "items-start" : "items-center",
+				className
+			)}
+		>
+			{align === "start" ? (
+				// text-sm line height, so the button centers on line one.
+				<span className="flex h-5 items-center">{input}</span>
+			) : (
+				input
+			)}
+			<label
+				htmlFor={inputId}
+				className={c(
+					"cursor-pointer vc-text",
+					align === "start" && "min-w-0 flex-1",
+					disabled && "cursor-not-allowed opacity-60"
+				)}
+			>
+				{label}
+			</label>
+		</div>
+	)
+}
+
 /** Labeled radio group bound to a controlled value. Generic over the
  *  option-value union so callers get exhaustive type checks on both the
  *  options array AND the `onChange` callback's `next` arg.

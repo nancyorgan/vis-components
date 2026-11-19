@@ -7,6 +7,7 @@ import {
 	SectionGroup,
 } from "./controls"
 import type { ThemeSectionProps } from "./types"
+import { Radio } from "../../../../components/ui/RadioGroup"
 
 /** The panel border a new chart gets: a closed rectangle around every plot
  *  panel, independent of the axis spines. */
@@ -50,31 +51,21 @@ export const GlobalAestheticsSection = (props: ThemeSectionProps) => {
 					<span className="text-sm vc-muted">
 						Chart background
 					</span>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={theme.chartBackgroundColor === null}
-							onChange={() => set("chartBackgroundColor", null)}
-						/>
-						<span className="vc-text">
-							Transparent (host page shows through)
-						</span>
-					</label>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="radio"
-							checked={theme.chartBackgroundColor !== null}
-							onChange={() =>
-								set(
-									"chartBackgroundColor",
-									theme.chartBackgroundColor ?? "#ffffff"
-								)
-							}
-						/>
-						<span className="vc-text">
-							Custom color
-						</span>
-					</label>
+					<Radio
+						label="Transparent (host page shows through)"
+						checked={theme.chartBackgroundColor === null}
+						onChange={() => set("chartBackgroundColor", null)}
+					/>
+					<Radio
+						label="Custom color"
+						checked={theme.chartBackgroundColor !== null}
+						onChange={() =>
+							set(
+								"chartBackgroundColor",
+								theme.chartBackgroundColor ?? "#ffffff"
+							)
+						}
+					/>
 					{theme.chartBackgroundColor !== null && (
 						<ColorInput
 							label="Color"

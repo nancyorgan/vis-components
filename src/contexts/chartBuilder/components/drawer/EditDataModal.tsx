@@ -160,7 +160,7 @@ const EditDataBody = ({
 				role="status"
 				className={
 					preview.kind === "error"
-						? "rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
+						? "vc-notice-error"
 						: "text-sm vc-muted"
 				}
 			>
@@ -182,14 +182,14 @@ const EditDataBody = ({
 					}}
 				/>
 				{collides && (
-					<div className="rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+					<div className="vc-notice-warning">
 						A data set named &ldquo;{name.trim()}&rdquo; already exists. This will
 						be saved as a separate data set with the same name.
 					</div>
 				)}
 			</div>
 			{submitError && (
-				<div className="rounded-sm bg-red-50 px-2 py-1 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+				<div className="vc-notice-error">
 					{submitError}
 				</div>
 			)}

@@ -44,6 +44,7 @@ import { ThemePreview } from "./ThemePreview"
 import { ThemeSamplerPreview } from "./ThemeSamplerPreview"
 import { ThemeTooltipTablePreview } from "./ThemeTooltipTablePreview"
 import { Input } from "../../../components/ui/Input"
+import { Checkbox } from "../../../components/ui/Checkbox"
 
 /** What the Save-as dialog offers for a single-theme export. */
 const THEME_FILE_TYPE: SaveFileType = {
@@ -533,17 +534,13 @@ export const ThemesPage = ({
 				 *  default is what every new visualization on this server starts
 				 *  from, so it isn't one person's custom theme to assign. */}
 				{isManaged && (
-					<label className="mb-6 flex items-center gap-2 rounded border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-900/50">
-						<input
-							type="checkbox"
-							checked={isDefault}
-							disabled={isReadOnly && !isSystem}
-							onChange={(e) => requestSetDefault(e.target.checked)}
-						/>
-						<span className="vc-text">
-							Make this the default theme for all new visualizations?
-						</span>
-					</label>
+					<Checkbox
+						className="mb-6 rounded border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-700 dark:bg-stone-900/50"
+						label="Make this the default theme for all new visualizations?"
+						checked={isDefault}
+						disabled={isReadOnly && !isSystem}
+						onChange={requestSetDefault}
+					/>
 				)}
 				{/* A custom theme can't claim the slot, but it can still HOLD one
 				 *  it was given before that rule existed. Say so rather than

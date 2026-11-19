@@ -13,9 +13,9 @@ import type { ThemeSectionProps } from "./types"
 import { Button } from "../../../../components/ui/Button"
 import { Input } from "../../../../components/ui/Input"
 import { Select } from "../../../../components/ui/Select"
+import { IconButton } from "../../../../components/ui/IconButton"
 
-const paletteMoveButton =
-	"flex h-8 w-8 items-center justify-center rounded hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-stone-700 vc-muted"
+const paletteMoveButton = "flex h-8 w-8 items-center justify-center"
 
 type PaletteCardProps = {
 	palette: SavedCategoricalPalette
@@ -135,24 +135,22 @@ const PaletteCard = ({
 				// The drag's non-drag path: on touch, and for a keyboard user
 				// once focus is anywhere in the card.
 				<span className="hidden items-center pointer-coarse:flex kbd:group-has-focus-visible/palette:flex">
-					<button
-						type="button"
+					<IconButton
 						onClick={onMoveUp ?? undefined}
 						disabled={onMoveUp === null}
 						aria-label={`Move ${paletteLabel} up`}
 						className={paletteMoveButton}
 					>
 						<span aria-hidden="true">↑</span>
-					</button>
-					<button
-						type="button"
+					</IconButton>
+					<IconButton
 						onClick={onMoveDown ?? undefined}
 						disabled={onMoveDown === null}
 						aria-label={`Move ${paletteLabel} down`}
 						className={paletteMoveButton}
 					>
 						<span aria-hidden="true">↓</span>
-					</button>
+					</IconButton>
 				</span>
 			)}
 			<button
@@ -263,26 +261,24 @@ const PaletteCard = ({
 					 *  keyboard user's focus is on this swatch. */}
 					{!isReadOnly && palette.colors.length > 1 && (
 						<span className="hidden gap-0.5 kbd:group-has-focus-visible/swatch:flex">
-							<button
-								type="button"
+							<IconButton
 								data-swatch-move={`${i}:-1`}
 								onClick={() => moveSwatch(i, -1)}
 								disabled={i === 0}
 								aria-label={`Move ${swatchNoun} ${i + 1} left`}
-								className="rounded px-1 text-xs hover:bg-stone-200 disabled:opacity-30 dark:hover:bg-stone-700 vc-muted"
+								className="px-1 text-xs"
 							>
 								<span aria-hidden="true">←</span>
-							</button>
-							<button
-								type="button"
+							</IconButton>
+							<IconButton
 								data-swatch-move={`${i}:1`}
 								onClick={() => moveSwatch(i, 1)}
 								disabled={i === lastIndex}
 								aria-label={`Move ${swatchNoun} ${i + 1} right`}
-								className="rounded px-1 text-xs hover:bg-stone-200 disabled:opacity-30 dark:hover:bg-stone-700 vc-muted"
+								className="px-1 text-xs"
 							>
 								<span aria-hidden="true">→</span>
-							</button>
+							</IconButton>
 						</span>
 					)}
 				</div>
