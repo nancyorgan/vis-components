@@ -12,11 +12,7 @@
 
 import { useSyncExternalStore } from "react"
 
-export {
-	CONTENT_VERSION_HEADER,
-	contentVersionHeader,
-	guardedCollection,
-} from "./contentVersionHeader"
+export { contentVersionHeader } from "./contentVersionHeader"
 
 /** Thrown by a write the server refused as behind its content schema, and
  *  by every write attempted after that (no point asking again). */

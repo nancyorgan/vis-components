@@ -155,10 +155,6 @@ export const convertRadiusUnit = (
 		: cleanNumber(value / extentPx)
 }
 
-// The naming helpers moved to lib so the settings path names a new
-// annotation the way "+ Add" does; re-exported for the editors here.
-export { nameSuggestion, nextAnnotationName } from "../../../lib/annotationAdd"
-
 /** The rendered plot rect's size, from `currentRenderedPanelInnerDimsAtom`.
  *  Null before the first layout pass — pixel conversions then leave the
  *  stored number alone rather than guess an extent. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { nameSuggestion, nextAnnotationName } from "./axisInfo"
+import { nameSuggestion, nextAnnotationName } from "../../../lib/annotationAdd"
 
 describe("annotation default names", () => {
 	it("fallback names are 1-based", () => {

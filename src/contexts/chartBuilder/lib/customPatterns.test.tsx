@@ -7,15 +7,17 @@ import {
 	CUSTOM_PATTERN_SVG_MAX_CHARS,
 	CustomPatternsContext,
 	customPatternPath,
-	insertCustomPattern,
 	isCustomPattern,
 	pixelsToInk,
-	removeCustomPattern,
-	removeCustomPatternFromMap,
 	resolveCustomPattern,
 	type CustomPattern,
 } from "./customPatterns"
-import { deletedCustomPatternSlots } from "./customPatternSlots"
+import {
+	deletedCustomPatternSlots,
+	insertCustomPattern,
+	removeCustomPattern,
+	removeCustomPatternFromMap,
+} from "./customPatternSlots"
 import { DEFAULT_MAP_CONFIG } from "./mapConfig"
 import { PatternTile, patternTileSide } from "./patternDefs"
 

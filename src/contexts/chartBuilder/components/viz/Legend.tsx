@@ -65,15 +65,6 @@ import { liftLegendBox, measureLegendTitleGrowth } from "./legend/titleGrowth"
 import { measureMaxLabelWidth } from "./plotCanvas/measureText"
 import { useFontsVersion } from "./plotCanvas/useFontsVersion"
 
-// Legend.tsx stays the import entry point for the legend: the per-channel
-// renderers and swatch primitives live under `./legend/`, and the pure
-// section planning in `lib/legendSections`. Re-exported here so external
-// consumers (ChartCanvas, EmbedPage, smoke tests) keep one import path.
-export { AreaLegend } from "./legend/AreaLegend"
-export { CombinedGroupLegend } from "./legend/CombinedGroupLegend"
-export { PatternLegend } from "./legend/PatternLegend"
-export { ShapeLegend } from "./legend/ShapeLegend"
-
 /** Pixel offsets the chart wrapper must reserve on each side to make room
  *  for an inside-positioned legend that the user's coords pushed past the
  *  plot rectangle. ChartCanvas owns the computation; Legend just receives

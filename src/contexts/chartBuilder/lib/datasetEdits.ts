@@ -196,13 +196,6 @@ export type EditedCells = {
 	removedRowCount: number
 }
 
-export const NO_EDITS: EditedCells = {
-	cells: new Map(),
-	changedCellCount: 0,
-	addedRowCount: 0,
-	removedRowCount: 0,
-}
-
 /** Gaps between anchors up to this size on BOTH sides are paired by cell
  *  similarity (quadratic in the gap); larger ones pair positionally. */
 const SIMILARITY_GAP_LIMIT = 48

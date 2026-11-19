@@ -14,11 +14,7 @@ export type PackedDerivedSource = "rootGroup" | "depth"
 // The hierarchy / flow / structure family predicates moved to
 // `chartModes/families.ts` alongside the bar / area / pie ones; re-exported
 // here so the existing import sites keep working.
-export {
-	isFlowModeId,
-	isHierarchyModeId,
-	isStructureModeId,
-} from "./chartModes/families"
+export { isFlowModeId, isHierarchyModeId } from "./chartModes/families"
 
 /** Reserved `<select>` option values for the packed-circles derived
  * choices. Prefixed so they can't collide with a dataset column name —

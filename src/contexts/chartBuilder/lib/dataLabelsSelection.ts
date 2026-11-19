@@ -34,13 +34,7 @@ import type { DataLabelsEncodings } from "./types"
 
 // The in-memory piece key and its accessors live in `lib/labelPieces.ts`;
 // re-exported so the sidebar and renderer keep one import for label keys.
-export {
-	labelEntries,
-	labelEntry,
-	parsePieceKey,
-	pieceKey,
-	withLabelEntry,
-} from "./labelPieces"
+export { labelEntry, pieceKey } from "./labelPieces"
 
 export type LabelPopulation = "all" | "first" | "last"
 

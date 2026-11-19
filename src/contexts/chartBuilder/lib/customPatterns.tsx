@@ -257,14 +257,3 @@ export const fileToCustomPattern = async (file: File): Promise<CustomPattern> =>
 	ctx.putImageData(pixels, 0, 0)
 	return { mask: canvas.toDataURL("image/png") }
 }
-
-// ----- Config edits ---------------------------------------------------------
-
-// The slot edits are pure, so they live in `customPatternSlots.ts` (the
-// settings patch and programs outside the editor apply them too); re-exported here for
-// the sidebar and tests.
-export {
-	insertCustomPattern,
-	removeCustomPattern,
-	removeCustomPatternFromMap,
-} from "./customPatternSlots"

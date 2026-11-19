@@ -75,12 +75,6 @@ export const effectiveGroupValueName = (
 	index: number
 ): string => group.valueName.trim() || defaultGroupValueName(index)
 
-/** The first group's effective names. */
-export const effectiveVariableName = (config: ReshapeConfig): string =>
-	effectiveGroupVariableName(config, 0)
-export const effectiveValueName = (config: ReshapeConfig): string =>
-	effectiveGroupValueName(config, 0)
-
 /** The names the melt mints — every group's pair, in group order. */
 export const mintedNames = (config: ReshapeConfig): string[] =>
 	reshapeGroups(config).flatMap((g, i) => [

@@ -1464,15 +1464,6 @@ export const withFacetTitleColorDefaults = <
 				facetTitleColors: { ...defaults, ...labels.facetTitleColors },
 			}
 
-/** Resolve the stored offset for a title slot, defaulting to zeros. */
-export const titleOffsetOf = (
-	labels: LabelsConfig,
-	key: LabelFontKey
-): { x: number; y: number; distance: number } => {
-	const o = labels.titleOffsets?.[key]
-	return { x: o?.x ?? 0, y: o?.y ?? 0, distance: o?.distance ?? 0 }
-}
-
 /** The chart-title prefix that actually renders: the stored text when the
  * "Add prefix" box is checked and the text isn't blank, else `null`. Gates
  * at lookup time so unchecking hides the prefix without discarding it. */

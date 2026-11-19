@@ -4,8 +4,8 @@ import { datasetContentHash } from "../datasetDedupe"
 import { clearExampleOverlay, installExampleOverlay } from "../exampleOverlay"
 import { createHttpStorageAdapter } from "./httpAdapter"
 import { CONTENT_MIGRATIONS } from "./migrations"
+import { CONTENT_VERSION_HEADER } from "./contentVersionHeader"
 import {
-	CONTENT_VERSION_HEADER,
 	contentVersionHeader,
 	isStaleBuild,
 	resetStaleBuildForTests,

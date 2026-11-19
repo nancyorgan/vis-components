@@ -9,15 +9,6 @@ import {
 import { parseValue } from "./scales"
 import type { FieldType } from "./types"
 
-/** A "rendered" break entry: the underlying numeric (used for scale
- * positioning) plus the formatted label string the legend should show.
- * Temporal channels still use a numeric breakpoint here — Date-typed
- * values get the timestamp; the formatter handles the display side. */
-export type LegendBreak = {
-	value: number
-	label: string
-}
-
 /** Resolve the effective per-channel config — fills in defaults for any
  * missing fields. Centralized so legend renderers and scale builders agree
  * on the same merged shape. */

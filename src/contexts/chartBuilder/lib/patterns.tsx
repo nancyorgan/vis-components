@@ -37,8 +37,6 @@ export const DEFAULT_PATTERN_INK = "#0f172a"
  * null for these categories; consumers must handle null by skipping the
  * `<pattern>` ref and rendering the underlying color directly. */
 export const PATTERN_NONE = "none" as const
-export type PatternNone = typeof PATTERN_NONE
-
 /** The tile a pattern is drawn into, as `PatternTile` computes it from the
  * category's Scale pick. */
 export type PatternTileGeometry = {

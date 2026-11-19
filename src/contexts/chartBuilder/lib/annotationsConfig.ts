@@ -335,9 +335,6 @@ export type ImageSizeUnit = "px" | "in" | "cm" | "percent"
 export type ImageAnchorH = "left" | "center" | "right"
 export type ImageAnchorV = "top" | "middle" | "bottom"
 
-/** The image annotation's sizing, anchoring and opacity. */
-export type ImageAnnotationStyle = typeof DEFAULT_IMAGE_ANNOTATION_STYLE
-
 /** Longest side (px) an imported annotation image is downscaled to, and the
  *  cap on the stored data URL's length. The picture travels INSIDE the
  *  visual's JSON (there is no side-table for it, unlike thumbnails), and in

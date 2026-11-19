@@ -59,9 +59,6 @@ const ISO_SPEC: Record<TimeGranularity, string> = {
 	ms: "%Y-%m-%d %H:%M:%S.%L",
 }
 
-export const autoTimeSpecFor = (g: TimeGranularity): string => AUTO_SPEC[g]
-export const isoTimeSpecFor = (g: TimeGranularity): string => ISO_SPEC[g]
-
 /** The Auto formatter for a date axis drawing exactly these ticks. */
 export const uniformTimeFormat = (dates: readonly Date[]): ((d: Date) => string) =>
 	timeFormat(AUTO_SPEC[timeGranularityOf(dates)])

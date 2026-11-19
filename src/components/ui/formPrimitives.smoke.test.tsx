@@ -6,9 +6,9 @@ import { ColorInput, LABEL_AND_HEX_SPAN } from "./ColorInput"
 import { Textarea } from "./Input"
 import { LABEL_COL } from "./LabeledField"
 import { NumberInput } from "./NumberInput"
+import { Checkbox } from "./Checkbox"
 import { RadioGroup } from "./RadioGroup"
 import { SelectInput } from "./SelectInput"
-import { Toggle } from "./Toggle"
 
 /** All four labeled primitives share three contract behaviors worth pinning
  *  centrally: (a) the `<label>` resolves to its control via `htmlFor`, (b)
@@ -53,9 +53,9 @@ describe("form primitives — label / id association", () => {
 		expect(label!.getAttribute("for")).toBe(select!.getAttribute("id"))
 	})
 
-	it("Toggle links its label to the checkbox", () => {
+	it("Checkbox links its label to the checkbox", () => {
 		const { container } = render(
-			<Toggle label="Show grid" checked={true} onChange={() => {}} />
+			<Checkbox label="Show grid" checked={true} onChange={() => {}} />
 		)
 		const label = container.querySelector("label")
 		const checkbox = container.querySelector('input[type="checkbox"]')
@@ -709,13 +709,13 @@ describe("RadioGroup", () => {
 	})
 })
 
-describe("Toggle", () => {
+describe("Checkbox change and disabled states", () => {
 	afterEach(cleanup)
 
 	it("fires onChange(true) when an unchecked toggle is clicked", () => {
 		let captured: boolean | null = null
 		const { container } = render(
-			<Toggle
+			<Checkbox
 				label="Show"
 				checked={false}
 				onChange={(v) => {
@@ -730,7 +730,7 @@ describe("Toggle", () => {
 	it("fires onChange(false) when a checked toggle is clicked", () => {
 		let captured: boolean | null = null
 		const { container } = render(
-			<Toggle
+			<Checkbox
 				label="Show"
 				checked={true}
 				onChange={(v) => {
@@ -745,7 +745,7 @@ describe("Toggle", () => {
 	it("clicking the LABEL toggles the checkbox (via htmlFor association)", () => {
 		let captured: boolean | null = null
 		const { container } = render(
-			<Toggle
+			<Checkbox
 				label="Show"
 				checked={false}
 				onChange={(v) => {

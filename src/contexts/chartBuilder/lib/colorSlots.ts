@@ -17,13 +17,8 @@ import type { Encodings, Theme } from "./types"
 // are re-exported here, where the renderers and panels have always read them.
 export {
 	FOLLOW_LABEL,
-	areaPointsOn,
 	densityCurveFillOn,
 	densityCurveOn,
-	overlayOn,
-	regressionCiOn,
-	regressionOn,
-	rugOn,
 } from "./partTargets"
 
 /** One color target: the Color menu's view of a row of `PART_TARGETS`

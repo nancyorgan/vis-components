@@ -49,13 +49,11 @@ import {
 	themeAtom,
 } from "../../store/atoms"
 
-import {
-	AreaLegend,
-	CombinedGroupLegend,
-	Legend,
-	PatternLegend,
-	ShapeLegend,
-} from "./Legend"
+import { AreaLegend } from "./legend/AreaLegend"
+import { CombinedGroupLegend } from "./legend/CombinedGroupLegend"
+import { PatternLegend } from "./legend/PatternLegend"
+import { ShapeLegend } from "./legend/ShapeLegend"
+import { Legend } from "./Legend"
 
 /** Smoke tests for the legend-rendering branches that bit me when I claimed
  *  features were "done" but the wrong code path was firing.

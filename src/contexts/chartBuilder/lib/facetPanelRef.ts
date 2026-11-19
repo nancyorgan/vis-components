@@ -42,11 +42,6 @@ export const facetScopeIncludes = (
 	panelKey: string
 ): boolean => refs.some((ref) => facetPanelRefMatches(ref, panelKey))
 
-/** Whether a reference is the pair form. */
-export const isFacetPanelPair = (
-	ref: FacetPanelRef
-): ref is { row: string; col: string } => typeof ref !== "string"
-
 /** Two references to the same panel. */
 export const sameFacetPanelRef = (a: FacetPanelRef, b: FacetPanelRef): boolean =>
 	facetPanelKeyOf(a) === facetPanelKeyOf(b)

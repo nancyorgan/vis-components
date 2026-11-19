@@ -381,11 +381,6 @@ export const polygonPatternView = (
 	configs: Partial<Pick<ChannelConfigs, "pattern" | "defaultPatternInk">>
 ): FillTargetPatternView => fillTargetPatternView(configs, POLYGON_PATTERN_KEYS)
 
-/** The VIOLIN / BOX FILL view (`PatternConfig.violinOverrides` et al.). */
-export const violinPatternView = (
-	configs: Partial<Pick<ChannelConfigs, "pattern" | "defaultPatternInk">>
-): FillTargetPatternView => fillTargetPatternView(configs, VIOLIN_PATTERN_KEYS)
-
 /** Resolve the `<pattern>` def (or null) for a fill target's body with the
  *  re-pointed configs. Semantics mirror point fills in line-chart context:
  *  with a pattern variable mapped, a category renders NO pattern until the
