@@ -151,7 +151,7 @@ describe("downloadDatasetCsv", () => {
 			],
 		})
 		expect(written).toHaveLength(1)
-		await expect(written[0]!.text()).resolves.toBe(CSV)
+		await expect(written[0]!.text()).resolves.toBe("\uFEFF" + CSV)
 		expect(writable.close).toHaveBeenCalled()
 		// Nothing also went out the anchor-download door.
 		expect(click).not.toHaveBeenCalled()
@@ -189,7 +189,7 @@ describe("downloadDatasetCsv", () => {
 
 		expect(downloads).toEqual(["q3-sales.csv"])
 		expect(blobs).toHaveLength(1)
-		await expect(blobs[0]!.text()).resolves.toBe(CSV)
+		await expect(blobs[0]!.text()).resolves.toBe("\uFEFF" + CSV)
 	})
 
 	it("offers an imported version under its own file name", async () => {

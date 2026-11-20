@@ -4,6 +4,7 @@
  *  same index the popover's list reads. */
 
 import { unparse as papaUnparse } from "papaparse"
+import { CSV_BOM } from "./csvBom"
 import type { DatasetMeta } from "./types"
 import { DATASET_FILE_TYPE, DATASET_SAVE_KEY } from "./downloadDataset"
 import { sanitizeVisualFilename } from "./downloadVisuals"
@@ -94,7 +95,7 @@ export const downloadVersionLog = async (
 		rememberAs: DATASET_SAVE_KEY,
 	})
 	if (target === null) return false
-	const blob = new Blob([versionLogToCsv(dataset)], {
+	const blob = new Blob([CSV_BOM, versionLogToCsv(dataset)], {
 		type: "text/csv;charset=utf-8",
 	})
 	await writeSaveTarget(target, blob, filename)

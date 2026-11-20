@@ -624,4 +624,218 @@ describe("Edit data in the tray", () => {
 			expect(menuItems()).toEqual(["Delete 2 values"])
 		})
 	})
+
+	describe("column filters", () => {
+		const filterButton = (name: string) =>
+			screen.getByRole("button", { name: `Filter ${name}` }) as HTMLButtonElement
+		const popover = (name: string) =>
+			screen.getByRole("dialog", { name: `Filter ${name}` })
+
+		it("deselects a category: the row leaves the table and the save adds a filtered version", async () => {
+			const store = mount(imported())
+			const dialog = openDialog()
+			const button = filterButton("city")
+			// The hover label, on the app's slow reveal (no instant flag).
+			expect(button.getAttribute("title")).toBe("Filter")
+			expect(button.hasAttribute("data-vc-title-instant")).toBe(false)
+			expect(button.hasAttribute("data-filtered")).toBe(false)
+
+			fireEvent.click(button)
+			const boxes = within(popover("city")).getAllByRole("checkbox") as HTMLInputElement[]
+			// Every category listed, all selected.
+			expect(boxes.map((b) => b.checked)).toEqual([true, true, true])
+			fireEvent.click(within(popover("city")).getByLabelText(/Quito/))
+			expect(gridRows()).toEqual([
+				["Lima", "10"],
+				["Bogotá", "30"],
+			])
+			expect(button.getAttribute("data-filtered")).toBe("true")
+			expect(button.className).toContain("text-vc-brand-text")
+			await waitFor(() =>
+				expect(dialog.textContent).toContain("1 filter removes 1 row")
+			)
+
+			// A click outside closes the popover; the filter stays.
+			fireEvent.mouseDown(document.body)
+			expect(screen.queryByRole("dialog", { name: "Filter city" })).toBeNull()
+			expect(gridRows()).toHaveLength(2)
+
+			const save = screen.getByText("Save as new data set").closest("button")!
+			await waitFor(() => expect(save.disabled).toBe(false))
+			fireEvent.click(save)
+			await waitFor(() => expect(store.get(currentDatasetIdAtom)).not.toBe(ID))
+			const forked = store.get(loadedDatasetsAtom)[store.get(currentDatasetIdAtom)!]!
+			expect(forked.versions.map((v) => v.filename)).toEqual([
+				"sales.csv",
+				"Filtered data",
+			])
+			expect(forked.versions[1]!.rows).toEqual([ROWS[0], ROWS[2]])
+			expect(forked.versions[1]!.transform).toEqual({
+				filter: [{ field: "city", filter: { kind: "values", excluded: ["Quito"] } }],
+			})
+			// The imported data set is untouched.
+			expect(store.get(loadedDatasetsAtom)[ID]).toEqual(imported())
+		})
+
+		it("sets conditions on a number column, joined by AND or OR, and clears them", async () => {
+			mount(imported())
+			openDialog()
+			fireEvent.click(filterButton("sales"))
+			const pop = popover("sales")
+			// One condition to start.
+			expect(within(pop).getAllByLabelText("Comparison")).toHaveLength(1)
+			expect(within(pop).queryByRole("radiogroup")).toBeNull()
+			const value = within(pop).getByLabelText("Value") as HTMLInputElement
+			fireEvent.change(value, { target: { value: "15" } })
+			// Typing alone doesn't filter; Enter does.
+			expect(gridRows()).toHaveLength(3)
+			fireEvent.keyDown(value, { key: "Enter" })
+			expect(gridRows()).toEqual([
+				["Quito", "20"],
+				["Bogotá", "30"],
+			])
+
+			fireEvent.click(within(pop).getByText("+ Add condition"))
+			expect(within(pop).getAllByLabelText("Comparison")).toHaveLength(2)
+			const second = within(pop).getAllByLabelText("Value")[1] as HTMLInputElement
+			fireEvent.change(second, { target: { value: "25" } })
+			fireEvent.blur(second)
+			// greater than 15 AND less than 25
+			expect(gridRows()).toEqual([["Quito", "20"]])
+			fireEvent.click(within(pop).getByRole("radio", { name: "OR" }))
+			expect(gridRows()).toHaveLength(3)
+
+			// Apply closes the popover and keeps the filter, with a value
+			// still being typed.
+			fireEvent.click(within(pop).getByRole("radio", { name: "AND" }))
+			fireEvent.change(second, { target: { value: "35" } })
+			fireEvent.click(within(pop).getByText("apply"))
+			expect(screen.queryByRole("dialog", { name: "Filter sales" })).toBeNull()
+			expect(gridRows()).toEqual([
+				["Quito", "20"],
+				["Bogotá", "30"],
+			])
+			expect(filterButton("sales").getAttribute("data-filtered")).toBe("true")
+
+			// Emptying the values takes the filter off.
+			fireEvent.click(filterButton("sales"))
+			for (const box of within(popover("sales")).getAllByLabelText("Value"))
+				fireEvent.change(box, { target: { value: "" } })
+			fireEvent.click(within(popover("sales")).getByText("apply"))
+			expect(gridRows()).toHaveLength(3)
+			expect(filterButton("sales").hasAttribute("data-filtered")).toBe(false)
+		})
+
+		it("applies a typed value when the popover closes, and undoes a filter", () => {
+			mount(imported())
+			openDialog()
+			fireEvent.click(filterButton("sales"))
+			fireEvent.change(within(popover("sales")).getByLabelText("Value"), {
+				target: { value: "25" },
+			})
+			fireEvent.keyDown(popover("sales"), { key: "Escape" })
+			expect(screen.queryByRole("dialog", { name: "Filter sales" })).toBeNull()
+			expect(gridRows()).toEqual([["Bogotá", "30"]])
+			fireEvent.click(screen.getByText("Undo"))
+			expect(gridRows()).toHaveLength(3)
+		})
+
+		const filtered = (): Dataset =>
+			buildDatasetFixture({
+				id: ID,
+				name: "sales (edited)",
+				fields: FIELDS,
+				versions: [
+					{ id: "v1", filename: "sales.csv", rows: ROWS, createdAt: 0 },
+					{
+						id: "v2",
+						filename: "Filtered data",
+						rows: [ROWS[0]!, ROWS[2]!],
+						createdAt: 1,
+						editedFrom: "v1",
+						transform: {
+							filter: [
+								{ field: "city", filter: { kind: "values", excluded: ["Quito"] } },
+							],
+						},
+					},
+				],
+			})
+
+		it("reopens a filtered version with its filter set, and unfiltering restores the full data", async () => {
+			const store = mount(filtered())
+			const dialog = openDialog()
+			await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy())
+			// The filtered rows, the filter lit, nothing to save yet.
+			expect(gridRows()).toEqual([
+				["Lima", "10"],
+				["Bogotá", "30"],
+			])
+			expect(filterButton("city").getAttribute("data-filtered")).toBe("true")
+			expect(dialog.textContent).toContain("No changes yet.")
+			const save = screen.getByText("Save new version").closest("button")!
+			expect(save.disabled).toBe(true)
+
+			// The removed category is still listed, unchecked.
+			fireEvent.click(filterButton("city"))
+			const quito = within(popover("city")).getByLabelText(/Quito/) as HTMLInputElement
+			expect(quito.checked).toBe(false)
+			fireEvent.click(quito)
+			fireEvent.click(within(popover("city")).getByText("apply"))
+			expect(gridRows()).toEqual([
+				["Lima", "10"],
+				["Quito", "20"],
+				["Bogotá", "30"],
+			])
+			expect(filterButton("city").hasAttribute("data-filtered")).toBe(false)
+			await waitFor(() =>
+				expect(dialog.textContent).toContain("Filters removed · all 3 rows restored")
+			)
+			await waitFor(() => expect(save.disabled).toBe(false))
+			fireEvent.click(save)
+			await waitFor(() =>
+				expect(store.get(loadedDatasetsAtom)[ID]!.versions).toHaveLength(3)
+			)
+			const restored = store.get(loadedDatasetsAtom)[ID]!.versions[2]!
+			expect(restored).toMatchObject({
+				filename: "Unfiltered data",
+				editedFrom: "v1",
+				transform: { filter: [] },
+				rows: ROWS,
+			})
+			expect(store.get(loadedDatasetsAtom)[ID]!.latestVersionId).toBe(restored.id)
+		})
+
+		it("saves a changed filter, and edits beside it, from the unfiltered rows", async () => {
+			const store = mount(filtered())
+			openDialog()
+			await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy())
+			// Swap which city is out, and edit a kept cell.
+			fireEvent.click(filterButton("city"))
+			fireEvent.click(within(popover("city")).getByLabelText(/Quito/))
+			fireEvent.click(within(popover("city")).getByLabelText(/Lima/))
+			fireEvent.click(within(popover("city")).getByText("apply"))
+			typeInto(0, 1, "25")
+			const save = screen.getByText("Save new version").closest("button")!
+			await waitFor(() => expect(save.disabled).toBe(false))
+			fireEvent.click(save)
+			await waitFor(() =>
+				expect(store.get(loadedDatasetsAtom)[ID]!.versions).toHaveLength(4)
+			)
+			const [, , edited, refiltered] = store.get(loadedDatasetsAtom)[ID]!.versions
+			expect(edited).toMatchObject({
+				filename: "Edited data",
+				editedFrom: "v1",
+				rows: [ROWS[0], { city: "Quito", sales: "25" }, ROWS[2]],
+			})
+			expect(refiltered).toMatchObject({
+				filename: "Filtered data",
+				editedFrom: edited!.id,
+				rows: [{ city: "Quito", sales: "25" }, ROWS[2]],
+				transform: {
+					filter: [{ field: "city", filter: { kind: "values", excluded: ["Lima"] } }],
+				},
+			})
+		})
+	})
 })

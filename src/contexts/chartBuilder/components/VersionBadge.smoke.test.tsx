@@ -189,8 +189,10 @@ describe("VersionBadge export list of changes", () => {
 		expect(anchor.download).toBe("sales-reshaped-versions.csv")
 		const text = await blobs[0]?.text()
 		const lines = text?.split("\n") ?? []
+		// Led by the UTF-8 byte-order mark, so Excel reads the quotes and
+		// symbols in the Change column instead of garbling them.
 		expect(lines[0]).toBe(
-			"Data set,Version,Date,Type,Change,Made from,File,Note,Rows,Columns,Latest"
+			"﻿Data set,Version,Date,Type,Change,Made from,File,Note,Rows,Columns,Latest"
 		)
 		expect(lines).toHaveLength(4)
 		expect(lines[3]).toContain("v3")

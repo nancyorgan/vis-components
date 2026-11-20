@@ -12,6 +12,8 @@ import {
 	addRow,
 	applySort,
 	clearRect,
+	columnFilter,
+	columnValues,
 	columnWidths,
 	deleteColumns,
 	deleteRows,
@@ -24,10 +26,13 @@ import {
 	pasteBlock,
 	rectToTsv,
 	setCell,
+	setColumnFilter,
 	type CellRange,
 	type CellRef,
 	type Grid,
 } from "../../lib/editGrid"
+import type { ColumnFilter } from "../../lib/columnFilter"
+import { ColumnFilterPopover, FILTER_POPOVER_WIDTH } from "./ColumnFilterPopover"
 
 /** The Edit dialog's table of cells. Spreadsheet manners, deliberately the
  *  plain ones: click a cell to select it, drag (or Shift+click, or
@@ -39,7 +44,10 @@ import {
  *  values from a cell, whole rows from a row number, whole columns from a
  *  column name; ⌘Z / ⇧⌘Z undo and redo. A column's sort control reorders
  *  what is SHOWN only (`lib/editGrid.ts`), ascending then descending in
- *  turn, and leaves the view where it is. Column names are not edited
+ *  turn, and leaves the view where it is. A column's filter icon opens its
+ *  filter (`ColumnFilterPopover`) and is colored while the column has one;
+ *  filtered-out rows leave the table but not the data being edited — the
+ *  dialog saves the filters as a version of their own. Column names are not edited
  *  here — a variable is renamed in the Fields panel — so a new column
  *  keeps its "Column N" name until then. Rows render through a window
  *  (`ROW_HEIGHT` each) so a large data set opens instantly.
@@ -57,6 +65,21 @@ const ADD_WIDTH = 32
 /** Room for the delete menu so it never opens off the right edge. */
 const MENU_WIDTH = 176
 const OVERSCAN = 12
+
+const FilterGlyph = ({ filled }: { filled: boolean }) => (
+	<svg
+		viewBox="0 0 16 16"
+		width="12"
+		height="12"
+		aria-hidden="true"
+		fill={filled ? "currentColor" : "none"}
+		stroke="currentColor"
+		strokeWidth="1.5"
+		strokeLinejoin="round"
+	>
+		<path d="M2 3h12L9.5 8.5V13l-3-1.5v-3L2 3z" />
+	</svg>
+)
 
 /** A plain undo stack over whole grids. Every change the grid commits is one
  *  undo step (one cell, one paste, one sort). */
@@ -164,6 +187,14 @@ export const EditDataGrid = ({
 		y: number
 		items: MenuItem[]
 	} | null>(null)
+	// The column filter popover: which column (by key, so it survives the
+	// columns changing around it) and where on screen.
+	const [filterMenu, setFilterMenu] = useState<{
+		key: number
+		x: number
+		y: number
+	} | null>(null)
+	const scrollLeft = useRef(0)
 	const proxy = useRef<HTMLTextAreaElement>(null)
 	const scroller = useRef<HTMLDivElement>(null)
 	const [scrollTop, setScrollTop] = useState(0)
@@ -515,6 +546,45 @@ export const EditDataGrid = ({
 		focusProxy()
 	}
 
+	// --- Column filters ------------------------------------------------------
+	const filterCol = filterMenu
+		? grid.columns.findIndex((column) => column.key === filterMenu.key)
+		: -1
+	const filterColumn = grid.columns[filterCol]
+	const filterKind = filterColumn?.type
+	// The categories a values filter lists; a conditions filter needs none.
+	const filterValues = useMemo(
+		() =>
+			filterCol >= 0 && (filterKind === "categorical" || filterKind === "ordinal")
+				? columnValues(grid, filterCol)
+				: [],
+		[grid, filterCol, filterKind]
+	)
+	const onFilterButton = (key: number) => (e: React.MouseEvent<HTMLButtonElement>) => {
+		commitEdit()
+		setMenu(null)
+		if (filterMenu?.key === key) {
+			setFilterMenu(null)
+			return
+		}
+		const box = e.currentTarget.getBoundingClientRect()
+		setFilterMenu({
+			key,
+			x: Math.max(8, Math.min(box.left, window.innerWidth - FILTER_POPOVER_WIDTH - 8)),
+			y: box.bottom + 4,
+		})
+	}
+	/** By column key: the popover applies once more as it closes, by which
+	 *  time the columns may have moved. */
+	const applyFilter = useCallback(
+		(key: number, filter: ColumnFilter | null) =>
+			commit((g) => {
+				const col = g.columns.findIndex((column) => column.key === key)
+				return col < 0 ? g : setColumnFilter(g, col, filter)
+			}),
+		[commit]
+	)
+
 	const selectedRows = rect ? rect.bottom - rect.top + 1 : 0
 	const selectedCols = rect ? rect.right - rect.left + 1 : 0
 	const selectedValues = selectedRows * selectedCols
@@ -637,6 +707,13 @@ export const EditDataGrid = ({
 					onScroll={(e) => {
 						setScrollTop(e.currentTarget.scrollTop)
 						setMenu(null)
+						// The filter popover hangs off a column header: only a
+						// sideways scroll moves it away. (Filtering shortens the
+						// table, which can scroll it vertically by itself.)
+						if (e.currentTarget.scrollLeft !== scrollLeft.current) {
+							scrollLeft.current = e.currentTarget.scrollLeft
+							setFilterMenu(null)
+						}
 					}}
 					// Scroll anchoring would chase the spacer rows as the window
 					// moves and re-scroll the box in a loop; the window math owns
@@ -668,6 +745,8 @@ export const EditDataGrid = ({
 								/>
 								{grid.columns.map((column, col) => {
 									const sorted = grid.sort?.col === col ? grid.sort.dir : null
+									const filtered = columnFilter(grid, col) !== null
+									const filterOpen = filterMenu?.key === column.key
 									const whole = rect !== null && col >= rect.left && col <= rect.right
 									return (
 										<th
@@ -697,6 +776,25 @@ export const EditDataGrid = ({
 										>
 											<div className="flex items-center gap-1">
 												<span className="min-w-0 flex-1 truncate">{column.name}</span>
+												<button
+													type="button"
+													// The app's hover label, on its usual slow reveal.
+													title="Filter"
+													aria-label={`Filter ${column.name}`}
+													aria-haspopup="dialog"
+													aria-expanded={filterOpen}
+													data-grid-filter-toggle
+													{...(filtered ? { "data-filtered": "true" } : {})}
+													onClick={onFilterButton(column.key)}
+													className={c(
+														"flex-shrink-0 rounded-sm p-0.5 leading-none transition-colors",
+														filtered || filterOpen
+															? "text-vc-brand-text dark:text-vc-electric-indigo-300"
+															: "text-stone-400 hover:text-stone-700 dark:text-stone-500 dark:hover:text-stone-200"
+													)}
+												>
+													<FilterGlyph filled={filtered} />
+												</button>
 												<button
 													type="button"
 													aria-label={`Sort by ${column.name}`}
@@ -874,6 +972,23 @@ export const EditDataGrid = ({
 						</tbody>
 					</table>
 				</div>
+				{filterMenu && filterColumn && (
+					<ColumnFilterPopover
+						key={filterMenu.key}
+						name={filterColumn.name}
+						type={filterColumn.type}
+						format={filterColumn.format}
+						filter={columnFilter(grid, filterCol)}
+						values={filterValues}
+						x={filterMenu.x}
+						y={filterMenu.y}
+						onApply={(filter) => applyFilter(filterMenu.key, filter)}
+						onClose={() => {
+							setFilterMenu(null)
+							focusProxy()
+						}}
+					/>
+				)}
 				{menu && rect && (
 					<div
 						role="menu"

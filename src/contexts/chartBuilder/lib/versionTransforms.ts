@@ -8,13 +8,14 @@
  *  records:
  *
  *  - {@link describeVersionOrigin}: the version list's "· reshaped" /
- *    "· added “Trend”" / "· edited by hand" tag.
+ *    "· added “Trend”" / "· filtered: “Region” without South" / "· edited by hand" tag.
  *  - {@link derivedVariablesOfVersion}: which of a version's columns a
  *    derived variable made, and with what definition — so the tray's ƒ
  *    marker can reopen it, and the editor can recompute it.
  *  - {@link renameFieldInTransform}: a field rename reaches the stored
  *    definitions too, so a renamed column keeps its ƒ. */
 
+import { describeFieldFilter, renameFieldInFilters } from "./columnFilter"
 import type { DerivedVariable } from "./derivedVariables"
 import {
 	renameDerivedVariableTokens,
@@ -55,6 +56,12 @@ export const describeVersionOrigin = (
 	if (t.added?.length) parts.push(`added ${quotedNames(t.added)}`)
 	if (t.recomputed?.length) parts.push(`recomputed ${quotedNames(t.recomputed)}`)
 	if (t.removed?.length) parts.push(`removed ${t.removed.map(quoted).join(", ")}`)
+	if (t.filter)
+		parts.push(
+			t.filter.length > 0
+				? `filtered: ${t.filter.map(describeFieldFilter).join("; ")}`
+				: "filters removed"
+		)
 	if (t.skipped?.length)
 		parts.push(`couldn't re-apply ${t.skipped.map(quoted).join(", ")}`)
 	return parts.length > 0 ? parts.join(" · ") : "edited by hand"
@@ -157,7 +164,9 @@ export const renameFieldInTransform = (
 		}
 	}
 	const pivot = t.pivot && renamePivotFields(t.pivot, oldName, newName)
+	const filter = t.filter && renameFieldInFilters(t.filter, oldName, newName)
 	if (
+		filter === t.filter &&
 		added === t.added &&
 		recomputed === t.recomputed &&
 		removed === t.removed &&
@@ -173,6 +182,7 @@ export const renameFieldInTransform = (
 		...(added !== undefined ? { added } : {}),
 		...(recomputed !== undefined ? { recomputed } : {}),
 		...(removed !== undefined ? { removed } : {}),
+		...(filter !== undefined ? { filter } : {}),
 		...(skipped !== undefined ? { skipped } : {}),
 	}
 }

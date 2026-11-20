@@ -3,6 +3,7 @@
 // `types.ts` and `channels.ts` form an import cycle. Re-exported here because
 // this module is the barrel everything else imports them from.
 import type { EncodingChannel, FieldType } from "./channelNames"
+import type { FieldFilter } from "./columnFilter"
 import type { LegendSwatchShape } from "./labelsConfig"
 export type { EncodingChannel, FieldType }
 import type { AppUser } from "../../../lib/currentUser"
@@ -81,6 +82,13 @@ export type VersionTransform = {
 	added?: DerivedVariable[]
 	recomputed?: DerivedVariable[]
 	removed?: string[]
+	/** Column filters (`lib/columnFilter.ts`) — the Edit dialog's header
+	 * filters, saved as a version of their own: its rows are the source
+	 * version's that every filter keeps. Optional and additive (no storage
+	 * version bump); a version that records this records nothing else. An
+	 * EMPTY list is the version made by taking a filtered version's filters
+	 * off again: the full rows of the version it was filtered from. */
+	filter?: FieldFilter[]
 	/** Names of the derived variables (or the reshape, as
 	 * `REPLAY_RESHAPE_LABEL`) a fresh import could NOT re-apply when this
 	 * chain was replayed onto it (`lib/versionReplay.ts`) — the inputs were

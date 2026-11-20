@@ -10,7 +10,15 @@
  *  sorted around it. Sorting is DISPLAY order only — `order` maps each
  *  shown position to a row in `rows` — so the saved rows keep the order
  *  they were imported in, and the data table's hand-edit outlines don't
- *  light up every cell because the user sorted to find one. */
+ *  light up every cell because the user sorted to find one.
+ *
+ *  A column can carry a FILTER (`lib/columnFilter.ts`). Filters decide
+ *  which rows are shown — `order` holds only the rows every filter keeps,
+ *  `allOrder` every row — and are re-run after each change, so a row
+ *  edited out of a filter leaves the table there and then. The rows stay
+ *  in `rows`: the dialog saves the hand edits over ALL of them, then the
+ *  filters as a version of their own. A row with every cell blank is always
+ *  shown (it is never saved), so a row just added can be typed into. */
 
 import { max } from "d3-array"
 import { parse as papaParse, unparse as papaUnparse } from "papaparse"
@@ -19,6 +27,14 @@ import {
 	detectColumnFormat,
 	type ColumnFormat,
 } from "./cellFormat"
+import {
+	compileFilter,
+	isFilterActive,
+	normalizeFilter,
+	sameFilter,
+	type ColumnFilter,
+	type FieldFilter,
+} from "./columnFilter"
 import { compareByType } from "./drawOrder"
 import type { DatasetView, FieldType } from "./types"
 
@@ -42,8 +58,14 @@ export type GridRow = {
 export type Grid = {
 	columns: GridColumn[]
 	rows: GridRow[]
-	/** Display order: shown position → index into `rows`. */
+	/** Display order: shown position → index into `rows`. Only the rows the
+	 *  filters keep; the same array as `allOrder` when nothing is filtered. */
 	order: number[]
+	/** Every row in display order, filtered out or not. */
+	allOrder: number[]
+	/** The columns' filters, by column `key`. Only filters that can take a
+	 *  row out are stored (`normalizeFilter`). */
+	filters: Readonly<Record<number, ColumnFilter>>
 	/** The sort `order` reflects, for the header arrows; null = row order. */
 	sort: SortState
 	nextKey: number
@@ -71,10 +93,13 @@ export const gridFromView = (view: DatasetView): Grid => {
 		key: i,
 		cells: view.fields.map((f) => row[f.name] ?? ""),
 	}))
+	const order = rows.map((_, i) => i)
 	return {
 		columns,
 		rows,
-		order: rows.map((_, i) => i),
+		order,
+		allOrder: order,
+		filters: {},
 		sort: null,
 		nextKey: Math.max(columns.length, rows.length),
 	}
@@ -106,7 +131,103 @@ export const gridIssue = (grid: Grid): string | null => {
 	}
 	if (grid.rows.every((r) => r.cells.every((c) => c === "")))
 		return "Enter at least one data row."
+	if (grid.order.every((i) => isBlankRow(grid.rows[i])))
+		return "The filters remove every row. Loosen a filter to keep some data."
 	return null
+}
+
+const isBlankRow = (row: GridRow | undefined): boolean =>
+	!row || row.cells.every((c) => c === "")
+
+/** Re-run the filters: `order` becomes the rows of `allOrder` every
+ *  filter keeps. Every operation that changes cells, rows or filters ends
+ *  here. Same grid when the shown rows don't change. */
+const refilter = (grid: Grid): Grid => {
+	const tests = grid.columns.flatMap((column, col) => {
+		const filter = grid.filters[column.key]
+		return filter ? [{ col, test: compileFilter(filter) }] : []
+	})
+	if (tests.length === 0)
+		return grid.order === grid.allOrder ? grid : { ...grid, order: grid.allOrder }
+	const order = grid.allOrder.filter((i) => {
+		const row = grid.rows[i]
+		if (!row) return false
+		return isBlankRow(row) || tests.every((t) => t.test(row.cells[t.col] ?? ""))
+	})
+	if (
+		order.length === grid.order.length &&
+		order.every((i, pos) => i === grid.order[pos])
+	)
+		return grid
+	return { ...grid, order }
+}
+
+/** Set a column's filter, or clear it (null, or a filter that can't take a
+ *  row out). */
+export const setColumnFilter = (
+	grid: Grid,
+	col: number,
+	filter: ColumnFilter | null
+): Grid => {
+	const column = grid.columns[col]
+	if (!column) return grid
+	const next = filter ? normalizeFilter(filter) : null
+	if (sameFilter(grid.filters[column.key], next)) return grid
+	const filters = { ...grid.filters }
+	if (next) filters[column.key] = next
+	else delete filters[column.key]
+	return refilter({ ...grid, filters })
+}
+
+/** The grid with filters set by column NAME — a filtered version reopened
+ *  over the rows it was filtered from. A filter whose column is gone is
+ *  left out. */
+export const withFieldFilters = (grid: Grid, filters: readonly FieldFilter[]): Grid =>
+	filters.reduce((g, f) => {
+		const col = g.columns.findIndex((column) => column.name === f.field)
+		return col < 0 ? g : setColumnFilter(g, col, f.filter)
+	}, grid)
+
+export const columnFilter = (grid: Grid, col: number): ColumnFilter | null =>
+	grid.filters[grid.columns[col]?.key ?? -1] ?? null
+
+/** The filters by column NAME, in column order — what a save records. */
+export const gridFieldFilters = (grid: Grid): FieldFilter[] =>
+	grid.columns.flatMap((column) => {
+		const filter = grid.filters[column.key]
+		return filter && isFilterActive(filter) ? [{ field: column.name, filter }] : []
+	})
+
+/** How many data rows the filters take out (blank rows aren't data). */
+export const filteredOutCount = (grid: Grid): number => {
+	if (grid.order === grid.allOrder) return 0
+	return grid.allOrder.length - grid.order.length
+}
+
+/** A column's distinct values over EVERY row (filtered out or not), in the
+ *  column's sort order, each with how many rows hold it — the categories
+ *  the filter lists. Blank rows aren't counted. */
+export const columnValues = (
+	grid: Grid,
+	col: number
+): Array<{ value: string; count: number }> => {
+	const column = grid.columns[col]
+	if (!column) return []
+	const counts = new Map<string, number>()
+	for (const row of grid.rows) {
+		if (isBlankRow(row)) continue
+		const value = row.cells[col] ?? ""
+		counts.set(value, (counts.get(value) ?? 0) + 1)
+	}
+	return [...counts]
+		.map(([value, count]) => ({ value, count }))
+		.sort(
+			(a, b) =>
+				// Blank last, whatever the type.
+				Number(a.value === "") - Number(b.value === "") ||
+				compareByType(a.value, b.value, column.type) ||
+				a.value.localeCompare(b.value)
+		)
 }
 
 export const normalizeRange = (range: CellRange): Rect => ({
@@ -142,10 +263,12 @@ export const setCell = (grid: Grid, pos: number, col: number, typed: string): Gr
 	if (rowIndex === undefined || !column) return grid
 	const value = conformToFormat(typed, column.format)
 	if (grid.rows[rowIndex]?.cells[col] === value) return grid
-	return withRow(grid, rowIndex, (r) => ({
-		...r,
-		cells: r.cells.map((c, i) => (i === col ? value : c)),
-	}))
+	return refilter(
+		withRow(grid, rowIndex, (r) => ({
+			...r,
+			cells: r.cells.map((c, i) => (i === col ? value : c)),
+		}))
+	)
 }
 
 /** Blank every cell in the rectangle. */
@@ -165,7 +288,7 @@ export const clearRect = (grid: Grid, rect: Rect): Grid => {
 		changed = true
 		return { ...r, cells }
 	})
-	return changed ? { ...grid, rows } : grid
+	return changed ? refilter({ ...grid, rows }) : grid
 }
 
 export const renameColumn = (grid: Grid, col: number, name: string): Grid => {
@@ -177,16 +300,21 @@ export const renameColumn = (grid: Grid, col: number, name: string): Grid => {
 	}
 }
 
-/** Append a blank row; it shows last whatever the sort. */
-export const addRow = (grid: Grid): Grid => ({
-	...grid,
-	rows: [
-		...grid.rows,
-		{ key: grid.nextKey, cells: grid.columns.map(() => "") },
-	],
-	order: [...grid.order, grid.rows.length],
-	nextKey: grid.nextKey + 1,
-})
+/** Append a blank row; it shows last whatever the sort or the filters. */
+export const addRow = (grid: Grid): Grid => {
+	const allOrder = [...grid.allOrder, grid.rows.length]
+	return {
+		...grid,
+		rows: [
+			...grid.rows,
+			{ key: grid.nextKey, cells: grid.columns.map(() => "") },
+		],
+		order:
+			grid.order === grid.allOrder ? allOrder : [...grid.order, grid.rows.length],
+		allOrder,
+		nextKey: grid.nextKey + 1,
+	}
+}
 
 /** A column name no existing column has: "Column 3", "Column 4", … */
 export const freshColumnName = (grid: Grid): string => {
@@ -224,13 +352,17 @@ export const deleteRows = (grid: Grid, top: number, bottom: number): Grid => {
 		newIndex.set(i, rows.length)
 		rows.push(r)
 	})
+	const reindex = (order: number[]) =>
+		order.flatMap((i) => {
+			const next = newIndex.get(i)
+			return next === undefined ? [] : [next]
+		})
+	const allOrder = reindex(grid.allOrder)
 	return {
 		...grid,
 		rows,
-		order: grid.order.flatMap((i) => {
-			const next = newIndex.get(i)
-			return next === undefined ? [] : [next]
-		}),
+		order: grid.order === grid.allOrder ? allOrder : reindex(grid.order),
+		allOrder,
 	}
 }
 
@@ -245,12 +377,18 @@ export const deleteColumns = (grid: Grid, left: number, right: number): Grid => 
 			: grid.sort.col > right
 				? { ...grid.sort, col: grid.sort.col - removed }
 				: grid.sort
-	return {
+	// A deleted column takes its filter with it: the rows it hid come back.
+	const filters = { ...grid.filters }
+	grid.columns.forEach((column, i) => {
+		if (!keep(i)) delete filters[column.key]
+	})
+	return refilter({
 		...grid,
 		columns: grid.columns.filter((_, i) => keep(i)),
 		rows: grid.rows.map((r) => ({ ...r, cells: r.cells.filter((_, i) => keep(i)) })),
+		filters,
 		sort,
-	}
+	})
 }
 
 /** Sort the shown order by a column (ties keep their row order). */
@@ -266,7 +404,9 @@ export const applySort = (grid: Grid, sort: NonNullable<SortState>): Grid => {
 				column.type
 			) || a - b
 	)
-	return { ...grid, order: sort.dir === "desc" ? indices.reverse() : indices, sort }
+	const allOrder = sort.dir === "desc" ? indices.reverse() : indices
+	// `order` is rebuilt from the new `allOrder` by the filters.
+	return refilter({ ...grid, order: allOrder, allOrder, sort })
 }
 
 /** The next sort state a click on this column's sort control produces:
@@ -353,7 +493,7 @@ export const pasteBlock = (
 		return { ...r, cells: r.cells.map((c, col) => byCol.get(col) ?? c) }
 	})
 	return {
-		grid: { ...next, rows },
+		grid: refilter({ ...next, rows }),
 		rect: { top: rect.top, bottom, left: rect.left, right },
 	}
 }
@@ -384,9 +524,9 @@ export const columnWidths = (
 	{ min = 88, max = 320, sample = 300 } = {}
 ): number[] =>
 	grid.columns.map((c, col) => {
-		// The header holds the name plus its sort glyph, so it needs more
-		// room than a cell of the same length.
-		let longest = c.name.length + 3
+		// The header holds the name plus its filter and sort glyphs, so it
+		// needs more room than a cell of the same length.
+		let longest = c.name.length + 6
 		for (let i = 0; i < Math.min(sample, grid.rows.length); i++) {
 			const len = grid.rows[i]?.cells[col]?.length ?? 0
 			if (len > longest) longest = len

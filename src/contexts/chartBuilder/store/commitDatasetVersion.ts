@@ -88,11 +88,19 @@ export const commitDatasetVersion = async (
 	get: Getter,
 	set: Setter,
 	change: VersionChange,
-	rawName: string
+	rawName: string,
+	/** The data set and version changed, when it isn't the one the editor
+	 *  shows — the library's Data tab edits a data set without opening it.
+	 *  The editor is then left as it is: a fork doesn't rebind it, and an
+	 *  append reaches its atoms only when it happens to hold this data set. */
+	target?: { datasetId: string; versionId: string }
 ): Promise<CommitResult> => {
-	const datasetId = get(currentDatasetIdAtom)
-	const view = get(currentRawDatasetViewAtom)
-	if (!datasetId || !view) return { ok: false, error: "No data set is loaded." }
+	const editorView = get(currentRawDatasetViewAtom)
+	const datasetId = target?.datasetId ?? get(currentDatasetIdAtom)
+	const versionId = target?.versionId ?? editorView?.versionId
+	if (!datasetId || !versionId)
+		return { ok: false, error: "No data set is loaded." }
+	const inEditor = get(currentDatasetIdAtom) === datasetId
 	const name = rawName.trim()
 	if (name === "") return { ok: false, error: "Enter a data set name." }
 
@@ -108,7 +116,7 @@ export const commitDatasetVersion = async (
 			error:
 				"Couldn't load the data set to change it. Check your connection and try again.",
 		}
-	const source = body.versions.find((v) => v.id === view.versionId)
+	const source = body.versions.find((v) => v.id === versionId)
 	if (!source) return { ok: false, error: "The version shown no longer exists." }
 
 	const mode = saveModeFor(body)
@@ -155,9 +163,11 @@ export const commitDatasetVersion = async (
 		}
 		dataset.contentHash = datasetContentHash(dataset)
 		void set(loadedDatasetsAtom, (prev) => ({ ...prev, [id]: dataset }))
-		set(currentDatasetIdAtom, id)
-		set(previewVersionIdAtom, null)
-		applyRenamesToEditor(get, set, sourceFields, renames)
+		if (!target) {
+			set(currentDatasetIdAtom, id)
+			set(previewVersionIdAtom, null)
+			applyRenamesToEditor(get, set, sourceFields, renames)
+		}
 		return { ok: true, mode, datasetId: id }
 	}
 
@@ -181,8 +191,10 @@ export const commitDatasetVersion = async (
 			error:
 				"Couldn't load the data set to update it. Check your connection and try again.",
 		}
-	set(previewVersionIdAtom, null)
-	applyRenamesToEditor(get, set, sourceFields, renames)
+	if (inEditor) {
+		set(previewVersionIdAtom, null)
+		applyRenamesToEditor(get, set, sourceFields, renames)
+	}
 	if (renames.length > 0) {
 		// Sibling visuals bound to this working copy follow the rename, as
 		// after a Fields-panel rename.

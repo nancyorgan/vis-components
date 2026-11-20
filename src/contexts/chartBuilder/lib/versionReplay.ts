@@ -23,6 +23,7 @@
  *  The store side — appending the versions — is
  *  `store/appendImportVersion.ts`. */
 
+import { filterRows, isFilterActive, type FieldFilter } from "./columnFilter"
 import { diffFields, isCompatible, type ColumnDiff } from "./datasetCompat"
 import type { DatasetLike } from "./datasetMeta"
 import { splitDerivedVariablesAroundReshape } from "./derivedReshapeStages"
@@ -65,7 +66,12 @@ export const REPLAY_PIVOT_LABEL = "reshape (long → wide)"
 /** Whether a listed name is one of the reshape labels (shown bare) rather
  *  than a derived variable's name (shown quoted). */
 const isReshapeLabel = (name: string): boolean =>
-	name === REPLAY_RESHAPE_LABEL || name === REPLAY_PIVOT_LABEL
+	name === REPLAY_RESHAPE_LABEL ||
+	name === REPLAY_PIVOT_LABEL ||
+	name.startsWith(REPLAY_FILTER_PREFIX)
+/** How a column's filter is named in those lists: "filter on “Region”". */
+const REPLAY_FILTER_PREFIX = "filter on "
+const filterLabel = (field: string): string => `${REPLAY_FILTER_PREFIX}“${field}”`
 
 /** The versions from `versionId` back to the import its chain descends
  *  from, nearest first. A dangling or cyclic `editedFrom` (a deleted base)
@@ -95,8 +101,8 @@ export const importRootId = (
 ): string | null => chainOf(versions, versionId).at(-1)?.id ?? null
 
 /** The functional steps between a version's import root and the version,
- *  oldest first: the versions a reshape or a derived variable made (they
- *  record a `transform`). Hand-edited versions are not steps — a hand edit
+ *  oldest first: the versions a reshape, a derived variable or a filter made
+ *  (they record a `transform`). Hand-edited versions are not steps — a hand edit
  *  is a patch on cells, not a function of the data. */
 export const functionalSteps = (
 	versions: ReadonlyArray<VersionLike>,
@@ -177,6 +183,31 @@ export const runReplayStep = (
 	const removed = (transform.removed ?? []).filter(has)
 	for (const name of removed) current = dropColumn(current, name)
 	if (removed.length > 0) applied.removed = removed
+
+	// A filter keeps the rows it kept before — over the columns the fresh
+	// data still has; one whose column is gone is left out and reported.
+	const filters: FieldFilter[] = []
+	for (const f of transform.filter ?? []) {
+		if (!isFilterActive(f.filter)) continue
+		if (has(f.field)) filters.push(f)
+		else
+			skipped.push({
+				name: filterLabel(f.field),
+				reason: `needs ${quoted(f.field)}`,
+			})
+	}
+	if (filters.length > 0) {
+		current = { fields: current.fields, rows: filterRows(current.rows, filters) }
+		applied.filter = filters
+	}
+	// A version a filter made records nothing else: done, without a bake
+	// (which would rewrite cells the filter never touched).
+	if (transform.filter)
+		return {
+			table: current,
+			applied: filters.length > 0 || removed.length > 0 ? applied : null,
+			skipped,
+		}
 
 	// A recomputed column leaves first and comes back where it was; one
 	// the fresh chain never got (its add was skipped) is simply added.
@@ -372,6 +403,7 @@ export const describeReplayApplied = (plan: ReplayPlan): string[] =>
 			...(applied.added ?? []).map((v) => quoted(v.name)),
 			...(applied.recomputed ?? []).map((v) => quoted(v.name)),
 			...(applied.removed ?? []).map((n) => `removed ${quoted(n)}`),
+			...(applied.filter ?? []).map((f) => filterLabel(f.field)),
 		]
 	})
 

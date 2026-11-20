@@ -22,6 +22,7 @@
  *  Save-as dialog where it has one (./saveFile.ts), so the user can rename
  *  the file and pick the folder; elsewhere it is a plain download. */
 
+import { CSV_BOM } from "./csvBom"
 import { unparse as papaUnparse } from "papaparse"
 import type { DatasetView } from "./types"
 import { sanitizeVisualFilename } from "./downloadVisuals"
@@ -98,7 +99,7 @@ export const downloadDatasetCsv = async (
 		rememberAs: DATASET_SAVE_KEY,
 	})
 	if (target === null) return false
-	const blob = new Blob([datasetViewToCsv(view)], {
+	const blob = new Blob([CSV_BOM, datasetViewToCsv(view)], {
 		type: "text/csv;charset=utf-8",
 	})
 	await writeSaveTarget(target, blob, filename)

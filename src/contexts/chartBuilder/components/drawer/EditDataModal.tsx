@@ -1,5 +1,14 @@
-import { useDeferredValue, useMemo, useState } from "react"
+import {
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useState,
+	type ReactNode,
+} from "react"
 import { useAtomValue } from "jotai"
+import { useAtomCallback } from "jotai/utils"
+import { sameFieldFilters, type FieldFilter } from "../../lib/columnFilter"
 import {
 	alignEditedRows,
 	planEditedFields,
@@ -9,14 +18,22 @@ import {
 	type FieldPlan,
 } from "../../lib/datasetEdits"
 import {
+	filteredOutCount,
+	gridFieldFilters,
 	gridFromView,
 	gridIssue,
 	gridToCsv,
+	withFieldFilters,
 	type Grid,
 } from "../../lib/editGrid"
+import { resolveDatasetView } from "../../lib/resolveDatasetVersion"
 import { nameCollides } from "../../lib/nameUniqueness"
 import type { DatasetView } from "../../lib/types"
-import { currentDatasetIdAtom, datasetIndexAtom } from "../../store/atoms"
+import {
+	currentDatasetIdAtom,
+	datasetIndexAtom,
+	getDatasetBody,
+} from "../../store/atoms"
 import { parsePastedData } from "../../store/useCreateNewDataset"
 import { currentRawDatasetViewAtom } from "../../store/useCurrentDatasetView"
 import { suggestedCopyName } from "../../store/commitDatasetVersion"
@@ -41,7 +58,8 @@ type Props = {
  *  first change to imported data creates a NEW data set (the imported one is
  *  never touched — other visuals may share it); an edit of a data set that
  *  is already a working copy — edited, reshaped, or given a derived
- *  variable — adds a version to it. The grid serializes to the same CSV
+ *  variable — adds a version to it. Column filters are saved as one more
+ *  version on top, holding the rows they keep. The grid serializes to the same CSV
  *  text the dialog's text box used to hold, so the save path
  *  (`store/useEditDataset.ts`) is unchanged. */
 export const EditDataModal = ({ open, onClose }: Props) => (
@@ -70,16 +88,117 @@ const EditDataForm = ({ onClose }: { onClose: () => void }) => {
 	return <EditDataBody view={view} seedGrid={seedGrid} onClose={onClose} />
 }
 
-const EditDataBody = ({
-	view,
-	seedGrid,
-	onClose,
-}: {
+/** The grid, its change summary, the name box and the save. The editor's
+ *  dialog edits the version the visualization shows; the library's Data tab
+ *  passes `detached` and edits `view` without the editor (the save then
+ *  leaves the open visualization alone). `intro` replaces the explanatory
+ *  line above the grid.
+ *
+ *  A version that column filters made opens over the rows it was filtered
+ *  FROM, with those filters set — so a filter can be loosened or taken off
+ *  and the rows it removed come back. */
+export const EditDataBody = (props: BodyProps) => {
+	const source = useFilterSource(props.view)
+	if (source.status === "loading")
+		return <div className="text-sm vc-muted">Loading the data…</div>
+	if (source.status === "ready")
+		return (
+			<EditDataInner
+				{...props}
+				view={source.view}
+				seedGrid={source.grid}
+				initialFilters={source.filters}
+				reopened
+			/>
+		)
+	return <EditDataInner {...props} initialFilters={NO_FILTERS} reopened={false} />
+}
+
+type BodyProps = {
 	view: DatasetView
 	seedGrid: Grid
 	onClose: () => void
+	detached?: boolean
+	intro?: ReactNode
+	closeLabel?: string
+}
+
+const NO_FILTERS: FieldFilter[] = []
+
+type FilterSource =
+	| { status: "none" }
+	| { status: "loading" }
+	| { status: "ready"; view: DatasetView; grid: Grid; filters: FieldFilter[] }
+
+/** When `view` is a version column filters made: the version it was
+ *  filtered from (loaded — its rows may not be in memory) as a grid with
+ *  those filters set. "none" for any other version, or when the source
+ *  version no longer exists — the filtered rows are then edited as they
+ *  are. Decided once, as the dialog opens. */
+const useFilterSource = (view: DatasetView): FilterSource => {
+	const datasetIndex = useAtomValue(datasetIndexAtom)
+	const [plan] = useState(() => {
+		const version = datasetIndex[view.id]?.versions.find(
+			(v) => v.id === view.versionId
+		)
+		const filters = version?.transform?.filter
+		return version?.editedFrom && filters && filters.length > 0
+			? { sourceId: version.editedFrom, filters }
+			: null
+	})
+	const loadVersion = useAtomCallback(
+		useCallback(async (get, _set, datasetId: string, versionId: string) => {
+			const body = await getDatasetBody(get, datasetId).catch(() => null)
+			const found = resolveDatasetView(body ?? undefined, versionId)
+			return found?.versionId === versionId ? found : undefined
+		}, [])
+	)
+	const [state, setState] = useState<FilterSource>(
+		plan ? { status: "loading" } : { status: "none" }
+	)
+	useEffect(() => {
+		if (!plan) return
+		let live = true
+		void loadVersion(view.id, plan.sourceId).then((source) => {
+			if (!live) return
+			setState(
+				source
+					? {
+							status: "ready",
+							view: source,
+							grid: withFieldFilters(gridFromView(source), plan.filters),
+							filters: plan.filters,
+						}
+					: { status: "none" }
+			)
+		})
+		return () => {
+			live = false
+		}
+		// Once, for the version the dialog opened on.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [])
+	return state
+}
+
+const EditDataInner = ({
+	view,
+	seedGrid,
+	onClose,
+	detached = false,
+	intro,
+	closeLabel = "Cancel",
+	initialFilters,
+	reopened,
+}: BodyProps & {
+	/** The filters the grid opened with (a filtered version reopened). */
+	initialFilters: FieldFilter[]
+	/** `view` is the version a filtered one was made from, not the one
+	 *  shown: the save is made from it. */
+	reopened: boolean
 }) => {
-	const datasetId = useAtomValue(currentDatasetIdAtom)
+	const editorDatasetId = useAtomValue(currentDatasetIdAtom)
+	const datasetId = detached ? view.id : editorDatasetId
 	const datasetIndex = useAtomValue(datasetIndexAtom)
 	const meta = datasetId ? datasetIndex[datasetId] : undefined
 	const mode = meta ? editSaveMode(meta) : "fork"
@@ -92,6 +211,10 @@ const EditDataBody = ({
 		() => (issue ? null : gridToCsv(history.grid)),
 		[history.grid, issue]
 	)
+	// The columns' filters, saved as a version of their own.
+	const filters = useMemo(() => gridFieldFilters(history.grid), [history.grid])
+	const filteredOut = useMemo(() => filteredOutCount(history.grid), [history.grid])
+	const filtersChanged = !sameFieldFilters(filters, initialFilters)
 	const [name, setName] = useState(() =>
 		mode === "fork" ? suggestedCopyName(view.name, "edited") : view.name
 	)
@@ -122,7 +245,8 @@ const EditDataBody = ({
 	const canSave =
 		!busy &&
 		text !== null &&
-		preview.kind === "changed" &&
+		(preview.kind === "changed" ||
+			(preview.kind === "unchanged" && filtersChanged)) &&
 		name.trim() !== "" &&
 		// The deferred summary lags the text; don't save a stale read.
 		deferredText === text
@@ -131,7 +255,13 @@ const EditDataBody = ({
 		if (!canSave || text === null) return
 		setBusy(true)
 		setSubmitError(null)
-		const result = await saveEditedData(text, name)
+		const edited = preview.kind === "changed"
+		const result = await saveEditedData(
+			text,
+			name,
+			detached || reopened ? view : undefined,
+			{ filters, edited, unfilter: !edited && filters.length === 0 && filtersChanged }
+		)
 		setBusy(false)
 		if (!result.ok) {
 			setSubmitError(result.error)
@@ -142,11 +272,14 @@ const EditDataBody = ({
 
 	return (
 		<div className="flex flex-col gap-3">
-			<div className="text-sm vc-muted">
-				Editing data here creates a new data set version. Edited cells will be
-				highlighted in the table so that you can track what changed. Edit
-				column names under Fields in the main menu.
-			</div>
+			{intro ?? (
+				<div className="text-sm vc-muted">
+					Editing data here creates a new data set version. Edited cells will
+					be highlighted in the table so that you can track what changed. Use
+					a column&rsquo;s filter icon to remove rows. Edit column names under
+					Fields in the main menu.
+				</div>
+			)}
 			<EditDataGrid
 				grid={history.grid}
 				seed={seedGrid}
@@ -165,8 +298,17 @@ const EditDataBody = ({
 				}
 			>
 				{preview.kind === "error" && preview.error}
-				{preview.kind === "unchanged" && "No changes yet."}
-				{preview.kind === "changed" && describeEdits(preview)}
+				{preview.kind === "unchanged" &&
+					(!filtersChanged
+						? "No changes yet."
+						: filters.length > 0
+							? describeFilters(filters.length, filteredOut)
+							: `Filters removed · all ${plural(seedGrid.rows.length, "row")} restored`)}
+				{preview.kind === "changed" &&
+					describeEdits(preview) +
+						(filters.length > 0
+							? ` · ${describeFilters(filters.length, filteredOut)}`
+							: "")}
 			</div>
 			<div className="flex flex-col gap-1">
 				<label htmlFor="edit-data-name" className="text-sm vc-muted">
@@ -195,7 +337,7 @@ const EditDataBody = ({
 			)}
 			<div className="flex justify-end gap-2">
 				<Button compact onClick={onClose}>
-					Cancel
+					{closeLabel}
 				</Button>
 				<Button compact onClick={() => void onSave()} disabled={!canSave}>
 					{mode === "fork" ? "Save as new data set" : "Save new version"}
@@ -253,6 +395,9 @@ const previewEdits = (
 }
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`
+
+const describeFilters = (filters: number, rowsOut: number): string =>
+	`${plural(filters, "filter")} ${filters === 1 ? "removes" : "remove"} ${plural(rowsOut, "row")}`
 
 const describeEdits = (p: Extract<EditPreview, { kind: "changed" }>): string => {
 	const parts = [plural(p.rows, "row"), plural(p.columns, "column")]

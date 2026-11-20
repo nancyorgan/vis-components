@@ -164,7 +164,7 @@ describe("DataUpload download link", () => {
 		const text = await clickDownload(capture)
 		// The dollar cells go out as imported, and the visual's "doubled"
 		// derived column stays behind.
-		expect(text).toBe('region,revenue\nEast,"$1,200"\nWest,$800')
+		expect(text).toBe('\uFEFFregion,revenue\nEast,"$1,200"\nWest,$800')
 		// The object URL is revoked after a short deferral (saveFile.ts).
 		await waitFor(
 			() => expect(capture.revokeObjectURL).toHaveBeenCalledWith("blob:test"),
@@ -180,7 +180,7 @@ describe("DataUpload download link", () => {
 				?.textContent
 		).toMatch(/v2 of 2/)
 		const text = await clickDownload(capture)
-		expect(text).toBe('region,revenue\nEast,"$1,250"\nWest,$800')
+		expect(text).toBe('\uFEFFregion,revenue\nEast,"$1,250"\nWest,$800')
 	})
 
 	it("names an imported version after its own file", async () => {

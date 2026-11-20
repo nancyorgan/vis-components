@@ -11,6 +11,7 @@ import {
 } from "react"
 import { atom, useAtom, useAtomValue } from "jotai"
 
+import { CSV_BOM } from "../../lib/csvBom"
 import { buildDataTable, dataTableToCsv, type DataTableModel } from "../../lib/dataTable"
 import {
 	defaultDataTableTitle,
@@ -82,7 +83,7 @@ export const tableStyle = (look: ResolvedDataTableStyle): CSSProperties =>
 	}) as CSSProperties
 
 const downloadCsv = (model: DataTableModel, name: string): void => {
-	const blob = new Blob([dataTableToCsv(model)], {
+	const blob = new Blob([CSV_BOM, dataTableToCsv(model)], {
 		type: "text/csv;charset=utf-8",
 	})
 	const url = URL.createObjectURL(blob)

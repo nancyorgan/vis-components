@@ -202,3 +202,65 @@ describe("runReplayStep — long → wide pivot", () => {
 		])
 	})
 })
+
+describe("runReplayStep — filter", () => {
+	const base = { id: "ds", name: "sales", versionId: "v" }
+	const fields = [
+		{ name: "city", inferredType: "categorical" as const },
+		{ name: "sales", inferredType: "quantitative" as const },
+	]
+	const rows = [
+		{ city: "Lima", sales: "$1,200" },
+		{ city: "Quito", sales: "$900" },
+		{ city: "Cusco", sales: "$2,000" },
+	]
+	const filter = [
+		{ field: "city", filter: { kind: "values" as const, excluded: ["Quito"] } },
+		{
+			field: "sales",
+			filter: {
+				kind: "conditions" as const,
+				as: "number" as const,
+				join: "and" as const,
+				conditions: [{ op: "lt" as const, value: "1500" }],
+			},
+		},
+	]
+
+	it("re-runs the filters over fresh rows, leaving the cells as imported", () => {
+		const result = runReplayStep(base, { fields, rows }, { filter }, {})
+		expect(result.table.rows).toEqual([{ city: "Lima", sales: "$1,200" }])
+		expect(result.table.fields).toEqual(fields)
+		expect(result.applied).toEqual({ filter })
+		expect(result.skipped).toEqual([])
+	})
+
+	it("leaves out a filter whose column the fresh data lacks, naming it", () => {
+		const result = runReplayStep(
+			base,
+			{ fields: [fields[0]!], rows: rows.map((r) => ({ city: r.city })) },
+			{ filter },
+			{}
+		)
+		expect(result.table.rows.map((r) => r.city)).toEqual(["Lima", "Cusco"])
+		expect(result.applied).toEqual({ filter: [filter[0]] })
+		expect(result.skipped).toEqual([
+			{ name: "filter on “sales”", reason: "needs “sales”" },
+		])
+	})
+})
+
+describe("runReplayStep — filters removed", () => {
+	it("is not a step: the fresh rows pass through and no version is made", () => {
+		const rows = [{ city: "Lima" }, { city: "Quito" }]
+		const result = runReplayStep(
+			{ id: "ds", name: "sales", versionId: "v" },
+			{ fields: [{ name: "city", inferredType: "categorical" }], rows },
+			{ filter: [] },
+			{}
+		)
+		expect(result.table.rows).toBe(rows)
+		expect(result.applied).toBeNull()
+		expect(result.skipped).toEqual([])
+	})
+})

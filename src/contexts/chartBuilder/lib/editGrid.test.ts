@@ -4,10 +4,14 @@ import {
 	addRow,
 	applySort,
 	clearRect,
+	columnFilter,
+	columnValues,
 	columnWidths,
 	deleteColumns,
 	deleteRows,
+	filteredOutCount,
 	freshColumnName,
+	gridFieldFilters,
 	gridFromView,
 	gridIssue,
 	gridToCsv,
@@ -19,6 +23,7 @@ import {
 	rectToTsv,
 	renameColumn,
 	setCell,
+	setColumnFilter,
 	type Grid,
 } from "./editGrid"
 import type { DatasetView } from "./types"
@@ -188,10 +193,11 @@ describe("editGrid", () => {
 
 	it("sizes columns from the longest text, clamped", () => {
 		const grid = gridFromView(view())
-		const [city, sales] = columnWidths(grid, { min: 50, max: 100 })
-		// "city" + the sort glyph's allowance beats "Bogotá"; "sales" likewise.
-		expect(city).toBe(("city".length + 3) * 7.5 + 28)
-		expect(sales).toBe(("sales".length + 3) * 7.5 + 28)
+		const [city, sales] = columnWidths(grid, { min: 50, max: 200 })
+		// "city" + the filter and sort glyphs' allowance beats "Bogotá";
+		// "sales" likewise.
+		expect(city).toBe(("city".length + 6) * 7.5 + 28)
+		expect(sales).toBe(("sales".length + 6) * 7.5 + 28)
 		expect(columnWidths(renameColumn(grid, 0, "x".repeat(200)), { max: 100 })[0]).toBe(100)
 	})
 })
@@ -204,5 +210,97 @@ describe("pasteBlock — large blocks", () => {
 		const at = { top: 0, bottom: 0, left: 0, right: 0 }
 		const { rect } = pasteBlock(gridFromView({ ...view(), rows }), at, block)
 		expect(rect).toEqual({ top: 0, bottom: 199_999, left: 0, right: 1 })
+	})
+})
+
+describe("editGrid filters", () => {
+	const noQuito = { kind: "values", excluded: ["Quito"] } as const
+	const over8 = {
+		kind: "conditions",
+		as: "number",
+		join: "and",
+		conditions: [{ op: "gt", value: "8" }],
+	} as const
+
+	it("shows only the rows every filter keeps, and keeps them all in the CSV", () => {
+		const seed = gridFromView(view())
+		let grid = setColumnFilter(seed, 0, { ...noQuito, excluded: ["Quito"] })
+		expect(shown(grid)).toEqual(["Lima,10", "Bogotá,5"])
+		expect(filteredOutCount(grid)).toBe(1)
+		grid = setColumnFilter(grid, 1, { ...over8, conditions: [...over8.conditions] })
+		expect(shown(grid)).toEqual(["Lima,10"])
+		expect(filteredOutCount(grid)).toBe(2)
+		// The hand edits are saved over every row; the filters separately.
+		expect(gridToCsv(grid)).toBe(gridToCsv(seed))
+		expect(gridFieldFilters(grid)).toEqual([
+			{ field: "city", filter: { kind: "values", excluded: ["Quito"] } },
+			{ field: "sales", filter: over8 },
+		])
+		expect(columnFilter(grid, 0)).toEqual({ kind: "values", excluded: ["Quito"] })
+	})
+
+	it("clears a filter with null or one that removes nothing, and is a no-op when unchanged", () => {
+		const seed = gridFromView(view())
+		const grid = setColumnFilter(seed, 0, { kind: "values", excluded: ["Quito"] })
+		expect(setColumnFilter(grid, 0, { kind: "values", excluded: ["Quito"] })).toBe(grid)
+		expect(setColumnFilter(seed, 0, { kind: "values", excluded: [] })).toBe(seed)
+		const cleared = setColumnFilter(grid, 0, null)
+		expect(shown(cleared)).toEqual(shown(seed))
+		expect(columnFilter(cleared, 0)).toBeNull()
+		expect(filteredOutCount(cleared)).toBe(0)
+	})
+
+	it("lists a column's categories with counts over every row, blank last", () => {
+		let grid = gridFromView(view())
+		grid = setCell(grid, 2, 0, "Lima")
+		grid = addRow(grid)
+		grid = setCell(grid, 3, 1, "7")
+		grid = setColumnFilter(grid, 0, { kind: "values", excluded: ["Quito"] })
+		expect(columnValues(grid, 0)).toEqual([
+			{ value: "Lima", count: 2 },
+			{ value: "Quito", count: 1 },
+			{ value: "", count: 1 },
+		])
+	})
+
+	it("re-runs the filters after an edit, a sort and a delete", () => {
+		let grid = setColumnFilter(gridFromView(view()), 1, {
+			...over8,
+			conditions: [...over8.conditions],
+		})
+		expect(shown(grid)).toEqual(["Lima,10", "Quito,20"])
+		// An edit that fails the filter takes the row out of the table…
+		grid = setCell(grid, 0, 1, "3")
+		expect(shown(grid)).toEqual(["Quito,20"])
+		// …and it is still data.
+		expect(gridToCsv(grid)).toBe("city,sales\nLima,3\nQuito,20\nBogotá,5")
+		grid = applySort(grid, { col: 0, dir: "asc" })
+		expect(shown(grid)).toEqual(["Quito,20"])
+		grid = deleteRows(grid, 0, 0)
+		expect(shown(grid)).toEqual([])
+		expect(grid.rows.map((r) => r.cells.join(","))).toEqual(["Lima,3", "Bogotá,5"])
+		expect(gridIssue(grid)).toContain("filters remove every row")
+		// Clearing the filter brings the hidden rows back in sort order.
+		expect(shown(setColumnFilter(grid, 1, null))).toEqual(["Bogotá,5", "Lima,3"])
+	})
+
+	it("always shows a blank row, so a new row can be typed into", () => {
+		let grid = setColumnFilter(gridFromView(view()), 0, {
+			kind: "values",
+			excluded: ["Quito", "Bogotá"],
+		})
+		grid = addRow(grid)
+		expect(shown(grid)).toEqual(["Lima,10", ","])
+		expect(filteredOutCount(grid)).toBe(2)
+	})
+
+	it("drops a deleted column's filter", () => {
+		let grid = setColumnFilter(gridFromView(view()), 0, {
+			kind: "values",
+			excluded: ["Quito"],
+		})
+		grid = deleteColumns(grid, 0, 0)
+		expect(shown(grid)).toEqual(["10", "20", "5"])
+		expect(gridFieldFilters(grid)).toEqual([])
 	})
 })

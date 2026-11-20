@@ -181,3 +181,52 @@ describe("long → wide pivot transforms", () => {
 		expect(renameFieldInTransform(t, "nothing", "x")).toBe(t)
 	})
 })
+
+describe("filter versions", () => {
+	const filter = [
+		{ field: "city", filter: { kind: "values" as const, excluded: ["Quito"] } },
+	]
+	it("says what each filter removed or kept in the version list", () => {
+		expect(describeVersionOrigin({ editedFrom: "v1", transform: { filter } })).toBe(
+			"filtered: “city” without Quito"
+		)
+		const many = Array.from({ length: 10 }, (_, i) => (i === 0 ? "" : `c${i}`))
+		expect(
+			describeVersionOrigin({
+				editedFrom: "v1",
+				transform: {
+					filter: [
+						{ field: "city", filter: { kind: "values", excluded: many } },
+						{
+							field: "sales",
+							filter: {
+								kind: "conditions",
+								as: "number",
+								join: "or",
+								conditions: [
+									{ op: "lt", value: "$1,000" },
+									{ op: "gte", value: "$5,000" },
+								],
+							},
+						},
+					],
+				},
+			})
+		).toBe(
+			"filtered: “city” without (blank), c1, c2, c3, c4, c5, c6, c7 and 2 more; “sales” < $1,000 OR ≥ $5,000"
+		)
+	})
+	it("follows a field rename", () => {
+		const t = { filter }
+		expect(renameFieldInTransform(t, "sales", "revenue")).toBe(t)
+		expect(renameFieldInTransform(t, "city", "town").filter?.[0]?.field).toBe("town")
+	})
+})
+
+describe("unfiltered versions", () => {
+	it("says the filters were removed", () => {
+		expect(describeVersionOrigin({ editedFrom: "v1", transform: { filter: [] } })).toBe(
+			"filters removed"
+		)
+	})
+})

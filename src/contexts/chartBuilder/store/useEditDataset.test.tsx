@@ -365,3 +365,68 @@ describe("append", () => {
 		})
 	})
 })
+
+describe("filters", () => {
+	const noQuito = [
+		{ field: "city", filter: { kind: "values" as const, excluded: ["Quito"] } },
+	]
+	const SHOWN = "city,sales\nLima,11\nQuito,21"
+
+	it("saves filters alone as one filtered version of a forked copy", async () => {
+		const { save, store } = setup(twoVersions())
+		const result = await save(SHOWN, "sales (edited)", undefined, {
+			filters: noQuito,
+			edited: false,
+		})
+		expect(result).toMatchObject({ ok: true })
+		const forked = store.get(loadedDatasetsAtom)[forkedId(store)]!
+		expect(forked.versions).toHaveLength(2)
+		const [base, filtered] = forked.versions
+		expect(base!.rows).toEqual(ROWS_V2)
+		expect(filtered).toMatchObject({
+			filename: "Filtered data",
+			editedFrom: base!.id,
+			transform: { filter: noQuito },
+			rows: [{ city: "Lima", sales: "11" }],
+		})
+		expect(forked.latestVersionId).toBe(filtered!.id)
+		expect(store.get(currentDatasetViewAtom)?.rows).toHaveLength(1)
+	})
+
+	it("saves hand edits over every row, then the filters as a version on top", async () => {
+		const { save, store } = setup(twoVersions())
+		const result = await save(
+			"city,sales\nLima,99\nQuito,21",
+			"sales (edited)",
+			undefined,
+			{ filters: noQuito, edited: true }
+		)
+		expect(result).toMatchObject({ ok: true })
+		const forked = store.get(loadedDatasetsAtom)[forkedId(store)]!
+		expect(forked.versions).toHaveLength(3)
+		const [base, edited, filtered] = forked.versions
+		expect(edited).toMatchObject({
+			filename: "Edited data",
+			editedFrom: base!.id,
+			rows: [
+				{ city: "Lima", sales: "99" },
+				{ city: "Quito", sales: "21" },
+			],
+		})
+		expect(edited!.transform).toBeUndefined()
+		expect(filtered).toMatchObject({
+			filename: "Filtered data",
+			editedFrom: edited!.id,
+			rows: [{ city: "Lima", sales: "99" }],
+		})
+		expect(forked.latestVersionId).toBe(filtered!.id)
+	})
+
+	it("refuses a save with neither edits nor filters", async () => {
+		const { save } = setup(twoVersions())
+		expect(await save(SHOWN, "x", undefined, { edited: false })).toEqual({
+			ok: false,
+			error: "Nothing has changed.",
+		})
+	})
+})
