@@ -20,6 +20,10 @@ import {
 } from "../hooks/useDatasetActions"
 import { trashDatasets } from "../lib/dataTrash"
 import { DataTrashButton } from "./DataTrashButton"
+import {
+	UploadDatasetButton,
+	type UploadNotice,
+} from "./UploadDatasetButton"
 import { useDatasetSizes } from "../hooks/useDatasetSizes"
 import { DATASETS_DRAG_TYPE, encodeDatasetsDrag } from "../lib/dataDnd"
 import {
@@ -229,10 +233,23 @@ export const DataLibrary = () => {
 	// Only a data set no visualization draws from can go to the trash.
 	const trashableIds = [...selectedIds].filter((id) => !useCounts.has(id))
 	const inUseSelected = selectedCount - trashableIds.length
+	const trashHint =
+		inUseSelected === 0
+			? undefined
+			: trashableIds.length === 0
+				? "Used by a visualization, so it can't go to the trash."
+				: `${inUseSelected} of these ${inUseSelected === 1 ? "is" : "are"} used by a visualization and will stay.`
+	const moveHint =
+		ownFolders.length === 0
+			? "Make a folder with the + in the left menu first."
+			: undefined
 	const onTrash = () => {
 		void setDataFolders((prev) => trashDatasets(prev, trashableIds))
 		setSelectedIds(new Set())
 	}
+
+	// What the last upload did, said under the header until dismissed.
+	const [uploadNotices, setUploadNotices] = useState<UploadNotice[]>([])
 
 	const title =
 		selectedFolderId === null
@@ -289,6 +306,18 @@ export const DataLibrary = () => {
 				<div className="mx-auto max-w-6xl px-4 py-6 pl-10 sm:px-6 sm:py-10 sm:pl-10">
 					<div className="mb-6 flex flex-wrap items-center gap-3">
 						<h1 className="mr-auto text-xl vc-heading">{title}</h1>
+						<UploadDatasetButton
+							folders={ownFolders}
+							// Starts on the folder being looked at, when it is one of
+							// the user's.
+							initialFolderId={
+								ownFolders.some((f) => f.id === selectedFolderId)
+									? selectedFolderId
+									: null
+							}
+							listed={datasets}
+							onNotices={setUploadNotices}
+						/>
 						<Input
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
@@ -298,6 +327,27 @@ export const DataLibrary = () => {
 						/>
 						<KindToggle kind="data" onChange={setKind} />
 					</div>
+					{uploadNotices.length > 0 && (
+						<div className="mb-4 flex items-start gap-3" role="status">
+							<div className="flex flex-1 flex-col gap-1">
+								{uploadNotices.map((n) => (
+									<p
+										key={n.text}
+										className={
+											n.kind === "error"
+												? "vc-notice-error"
+												: n.kind === "warning"
+													? "vc-notice-warning"
+													: "text-sm vc-text"
+										}
+									>
+										{n.text}
+									</p>
+								))}
+							</div>
+							<ResetLink label="Dismiss" onClick={() => setUploadNotices([])} />
+						</div>
+					)}
 					{selectedCount > 0 && (
 						<div className="mb-4 flex flex-wrap items-center gap-2 rounded-card border border-brand-200 bg-brand-50 px-3 py-2 dark:border-brand-800 dark:bg-brand-900/20">
 							<span className="text-sm font-medium text-brand-900 dark:text-brand-200">
@@ -309,34 +359,22 @@ export const DataLibrary = () => {
 										{actionError}
 									</span>
 								)}
-								{ownFolders.length === 0 && (
-									<span className="text-sm vc-muted">
-										Make a folder with the + in the left menu to move these into.
-									</span>
-								)}
-								{inUseSelected > 0 && (
-									<span className="text-sm vc-muted">
-										{trashableIds.length === 0
-											? "Used by a visualization, so can't go to the trash."
-											: `${inUseSelected} used by a visualization can't go to the trash.`}
-									</span>
-								)}
-								{stockSelected > 0 && ownFolders.length > 0 && (
-									<span className="text-sm vc-muted">
-										{movableIds.length === 0
-											? "Stock data sets stay in Stock Data Sets."
-											: `${stockSelected} stock data set${
-													stockSelected === 1 ? " stays" : "s stay"
-												} in Stock Data Sets.`}
-									</span>
-								)}
-								<Button
-									compact
-									disabled={ownFolders.length === 0 || movableIds.length === 0}
-									onClick={() => setMoveOpen(true)}
-								>
-									Move…
-								</Button>
+								{/* A reason an action is off, or covers only part of the
+								 *  selection, rides on its button — the hover text, and
+								 *  a count in the label — so the bar stays one row of
+								 *  buttons. The span carries the hover text because a
+								 *  disabled button shows none in some browsers. */}
+								<span title={moveHint}>
+									<Button
+										compact
+										disabled={ownFolders.length === 0 || movableIds.length === 0}
+										onClick={() => setMoveOpen(true)}
+									>
+										{movableIds.length > 0 && stockSelected > 0
+											? `Move ${movableIds.length}…`
+											: "Move…"}
+									</Button>
+								</span>
 								<Button
 									compact
 									onClick={() =>
@@ -354,14 +392,18 @@ export const DataLibrary = () => {
 								>
 									{downloading ? "Downloading…" : "Download"}
 								</Button>
-								<Button
-									compact
-									danger
-									disabled={trashableIds.length === 0}
-									onClick={onTrash}
-								>
-									Move to trash
-								</Button>
+								<span title={trashHint}>
+									<Button
+										compact
+										danger
+										disabled={trashableIds.length === 0}
+										onClick={onTrash}
+									>
+										{trashableIds.length > 0 && inUseSelected > 0
+											? `Move ${trashableIds.length} to trash`
+											: "Move to trash"}
+									</Button>
+								</span>
 								<ResetLink label="Clear" onClick={() => setSelectedIds(new Set())} />
 							</div>
 						</div>

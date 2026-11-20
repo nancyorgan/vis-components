@@ -933,7 +933,7 @@ finding a visual that happens to use it.
   (`library/lib/stockDataFolder.ts`, `useDataFoldersView`), and like the
   visuals' stock shelf it is the app's: no rename, delete, subfolder or
   drop. A stock data set STAYS on the shelf — a bulk move or a drag skips
-  it (the bulk bar says how many stay), and the preview offers no folder
+  it (Move then counts the rest: "Move 2…"), and the preview offers no folder
   picker for it — so sorting one's own data never empties the shelf. A
   copy made from a stock data set is the user's and starts out unfiled.
 - **Versions in the rail.** A data set with more than one version lists
@@ -950,12 +950,23 @@ finding a visual that happens to use it.
   takes stock data sets too, and the copy is the user's own, which is how
   a stock data set gets into a folder. Download saves each data set's
   latest version as CSV (one: the Save-as dialog; several: one file each).
+- **Upload data set.** The button before the search box takes one or
+  more CSV files and asks which of the user's data folders they go in
+  (starting on the one being looked at; with no folders they go straight
+  to "not in a folder"). The files become data sets with no visualization
+  involved and the editor's draft untouched
+  (`useUploadDatasetToLibrary`): the editor upload's size gate, parse,
+  type inference and same-file check, with a line under the header per
+  file saying where it went, any size or performance warning, or why it
+  wasn't stored.
 - **The Data trash.** Move to trash is offered only for a data set no
   visualization uses (the visuals' Trash counts, and so does the data set
-  bound in the editor); in a mixed selection the rest go and the bar says
-  how many stay. A trashed data set leaves the list and the rail and
+  bound in the editor); in a mixed selection the rest go and the button
+  counts them ("Move 2 to trash", the reason on hover — the bar itself
+  carries no notes). A trashed data set leaves the list and the rail and
   waits in the Data tab's own trash can (`DataTrashButton`), which
-  restores it (to no folder) or deletes it for good — the only place a
+  restores it to the folder it was in (`Folder.trashedFrom`; no folder
+  when that one is gone) and says where it went, or deletes it for good — the only place a
   data set's rows are removed. The trash is a reserved data folder
   (`library/lib/dataTrash.ts`) that nothing shows, so trashing rewrites
   no rows either. The preview's button is the same Move to trash.

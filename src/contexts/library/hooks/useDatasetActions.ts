@@ -1,6 +1,21 @@
 import { useCallback } from "react"
 import { useAtomCallback } from "jotai/utils"
-import { withFreshContentHash } from "../../chartBuilder/lib/datasetDedupe"
+import {
+	datasetsEqual,
+	findDuplicateByHash,
+	withFreshContentHash,
+} from "../../chartBuilder/lib/datasetDedupe"
+import {
+	inferFields,
+	newDatasetRecord,
+} from "../../chartBuilder/lib/datasetFromRows"
+import {
+	datasetPerformanceWarning,
+	datasetRejectMessage,
+	datasetSizeIssue,
+	datasetWarnMessage,
+} from "../../chartBuilder/lib/datasetLimits"
+import { parseCsvFile } from "../../chartBuilder/lib/parseCsv"
 import {
 	datasetCsvFilename,
 	datasetViewToCsv,
@@ -9,7 +24,7 @@ import {
 import { CSV_BOM } from "../../chartBuilder/lib/csvBom"
 import { resolveDatasetView } from "../../chartBuilder/lib/resolveDatasetVersion"
 import { downloadBlob } from "../../chartBuilder/lib/saveFile"
-import type { Dataset } from "../../chartBuilder/lib/types"
+import type { Dataset, DatasetMeta } from "../../chartBuilder/lib/types"
 import {
 	dataFoldersAtom,
 	getDatasetBody,
@@ -118,4 +133,86 @@ export const useDownloadDatasets = () =>
 				)
 			}
 		}, [])
+	)
+
+export type LibraryUploadResult =
+	| { ok: true; datasetId: string; name: string; warning?: string }
+	/** The same file under the same name is already in the library. */
+	| { ok: false; duplicateOf: string; name: string }
+	| { ok: false; error: string; name: string }
+
+/** Upload a CSV straight into the library, into `folderId` (null = no
+ *  folder) — the Data tab's upload, with no visualization involved: the
+ *  editor's draft and its bound data set are left alone. The same size gate,
+ *  parse and type inference as the editor's upload
+ *  (`store/useCreateNewDataset.ts`), and the same dedupe: a file whose name
+ *  and contents match a listed data set is not stored twice. `listed` is
+ *  what the Data tab shows — a twin sitting in the trash doesn't count. */
+export const useUploadDatasetToLibrary = () =>
+	useAtomCallback(
+		useCallback(
+			async (
+				get,
+				set,
+				file: File,
+				folderId: string | null,
+				listed: Record<string, DatasetMeta>
+			): Promise<LibraryUploadResult> => {
+				const name = file.name.replace(/\.csv$/i, "")
+				if (datasetSizeIssue(file.size) === "reject")
+					return { ok: false, error: datasetRejectMessage(file.size), name }
+				let candidate: Dataset
+				try {
+					const { fieldNames, rows } = await parseCsvFile(file)
+					if (fieldNames.length === 0 || rows.length === 0)
+						return {
+							ok: false,
+							error: "needs a header row and at least one data row.",
+							name,
+						}
+					candidate = newDatasetRecord(
+						name,
+						file.name,
+						inferFields(fieldNames, rows),
+						rows
+					)
+				} catch (error) {
+					return {
+						ok: false,
+						error: error instanceof Error ? error.message : "couldn't be read as CSV.",
+						name,
+					}
+				}
+				const hashMatch = findDuplicateByHash(listed, candidate)
+				if (hashMatch) {
+					const body = await getDatasetBody(get, hashMatch).catch(() => null)
+					// Unreadable counts as a match: storing a probable copy is what
+					// dedupe exists to prevent (as in the editor's upload).
+					if (!body || datasetsEqual(body, candidate))
+						return { ok: false, duplicateOf: hashMatch, name }
+				}
+				void set(loadedDatasetsAtom, (prev) => ({
+					...prev,
+					[candidate.id]: candidate,
+				}))
+				if (folderId !== null) {
+					void set(dataFoldersAtom, (prev) =>
+						moveDatasetsToFolder(prev, [candidate.id], folderId)
+					)
+				}
+				const warnings = [
+					datasetSizeIssue(file.size) === "warn"
+						? datasetWarnMessage(file.size)
+						: null,
+					datasetPerformanceWarning(candidate.fields, candidate.versions[0].rows),
+				].filter((w): w is string => w !== null)
+				return {
+					ok: true,
+					datasetId: candidate.id,
+					name,
+					...(warnings.length > 0 ? { warning: warnings.join(" ") } : {}),
+				}
+			},
+			[]
+		)
 	)

@@ -588,6 +588,10 @@ export type Folder = {
 	 * data set, so filing a data set never rewrites its (possibly huge)
 	 * body. A data set is in at most one folder. */
 	datasetIds?: string[]
+	/** On the Data tab's trash folder only (`library/lib/dataTrash.ts`):
+	 * trashed data set id → the folder it was in, so Restore can put it
+	 * back. No entry = it was in no folder. */
+	trashedFrom?: Record<string, string>
 }
 
 /** A lightweight record of an embed code the user has copied. The landing

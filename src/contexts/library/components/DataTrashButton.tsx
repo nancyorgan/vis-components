@@ -10,7 +10,12 @@ import {
 } from "../../chartBuilder/store/atoms"
 import { useDatasetUseCounts } from "../hooks/useDataFoldersView"
 import { latestVersionOf } from "../lib/dataLineage"
-import { trashedDatasetIds, untrashDatasets } from "../lib/dataTrash"
+import {
+	restoreDatasets,
+	trashedDatasetIds,
+	untrashDatasets,
+} from "../lib/dataTrash"
+import { folderAncestors } from "../lib/folderSubtree"
 import { TrashIcon } from "./DeleteVisualButton"
 
 const plural = (n: number, word: string) =>
@@ -18,8 +23,8 @@ const plural = (n: number, word: string) =>
 
 /** The Data tab's Trash: the same floating can the visuals' listing has
  *  (`TrashButton`), holding data sets instead. "Move to trash" puts a data
- *  set here (`lib/dataTrash.ts`); the panel restores it — to no folder — or
- *  deletes it for good, which is the only place a data set's rows are
+ *  set here (`lib/dataTrash.ts`); the panel restores it — to the folder it
+ *  was in, and says where it went — or deletes it for good, which is the only place a data set's rows are
  *  removed. A trashed data set that has come into use since (only an old
  *  tab could do it) is restored rather than deleted. */
 export const DataTrashButton = () => {
@@ -29,6 +34,8 @@ export const DataTrashButton = () => {
 	const useCounts = useDatasetUseCounts(useAtomValue(currentDatasetIdAtom))
 	const [open, setOpen] = useState(false)
 	const [confirmEmpty, setConfirmEmpty] = useState(false)
+	// Where the last restore put its data set, said in the panel.
+	const [restoredNote, setRestoredNote] = useState<string | null>(null)
 
 	// Ids whose data set is gone (deleted from another tab) just drop out.
 	const trashed = trashedDatasetIds(folders)
@@ -39,9 +46,22 @@ export const DataTrashButton = () => {
 	const close = () => {
 		setOpen(false)
 		setConfirmEmpty(false)
+		setRestoredNote(null)
 	}
-	const restore = (ids: string[]) =>
-		void setFolders((prev) => untrashDatasets(prev, ids))
+	const restore = (id: string, name: string) => {
+		const result = restoreDatasets(folders, [id])
+		void setFolders(result.folders)
+		const home = result.restoredTo.get(id) ?? null
+		setRestoredNote(
+			home
+				? `Restored “${name}” to ${folderAncestors(result.folders, home.id)
+						.map((f) => f.name)
+						.join(" / ")}.`
+				: result.folderGone.includes(id)
+					? `Restored “${name}” to Not in a folder. The folder it was in has been deleted.`
+					: `Restored “${name}” to Not in a folder.`
+		)
+	}
 	const purge = (ids: string[]) => {
 		void setFolders((prev) => untrashDatasets(prev, ids))
 		deleteDatasets(ids.filter((id) => !useCounts.has(id)))
@@ -77,6 +97,11 @@ export const DataTrashButton = () => {
 				widthClass="max-w-lg"
 			>
 				<div className="flex flex-col gap-4">
+					{restoredNote !== null && (
+						<p role="status" className="text-sm vc-text">
+							{restoredNote}
+						</p>
+					)}
 					{count === 0 ? (
 						<p className="text-sm vc-muted">
 							Nothing in the trash. Data sets you move to the trash wait here
@@ -98,7 +123,7 @@ export const DataTrashButton = () => {
 												{plural(meta.versions.length, "version")}
 											</div>
 										</div>
-										<Button compact onClick={() => restore([meta.id])}>
+										<Button compact onClick={() => restore(meta.id, meta.name)}>
 											Restore
 										</Button>
 										<button

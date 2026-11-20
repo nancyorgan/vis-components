@@ -405,10 +405,8 @@ describe("LibraryPage data tab", () => {
 			</TestProvider>
 		)
 		fireEvent.click(screen.getByLabelText("Select all listed data sets"))
-		expect(
-			screen.getByText("1 stock data set stays in Stock Data Sets.")
-		).toBeTruthy()
-		fireEvent.click(screen.getByRole("button", { name: "Move…" }))
+		// The button counts what it will move; nothing else is said.
+		fireEvent.click(screen.getByRole("button", { name: "Move 1…" }))
 		const dialog = screen.getByRole("dialog")
 		expect(dialog.textContent).toContain("Move 1 data set")
 		fireEvent.click(within(dialog).getByRole("button", { name: "Mine" }))
@@ -432,18 +430,15 @@ describe("LibraryPage data tab", () => {
 				.disabled
 		).toBe(true)
 		fireEvent.click(within(table).getByLabelText("Select sales"))
-		expect(
-			screen.getByText("1 used by a visualization can't go to the trash.")
-		).toBeTruthy()
-		fireEvent.click(screen.getByRole("button", { name: "Move to trash" }))
+		fireEvent.click(screen.getByRole("button", { name: "Move 1 to trash" }))
 		expect(within(table).queryByText("sales")).toBeNull()
 		expect(within(table).getByText("sales (edited)")).toBeTruthy()
 		// Still stored — the trash holds it.
 		expect(store!.get(loadedDatasetsAtom)["ds-import"]).toBeTruthy()
 		fireEvent.click(screen.getByRole("button", { name: /Open trash, 1 data set/ }))
-		fireEvent.click(
-			within(screen.getByRole("dialog")).getByRole("button", { name: "Restore" })
-		)
+		const trash = screen.getByRole("dialog")
+		fireEvent.click(within(trash).getByRole("button", { name: "Restore" }))
+		expect(trash.textContent).toContain("Restored “sales” to Not in a folder.")
 		expect(within(screen.getByTestId("data-table")).getByText("sales")).toBeTruthy()
 	})
 
@@ -465,6 +460,39 @@ describe("LibraryPage data tab", () => {
 		expect(made.id).not.toBe("ds-import")
 		expect(made.versions[0].id).not.toBe("v1")
 		expect(made.versions[0].rows).toEqual(imported.versions[0].rows)
+	})
+
+	it("uploads a CSV into the folder picked, and says where it went", async () => {
+		mountData({ kind: "data" }, [])
+		const file = new File(["region,units\nNorth,4\nSouth,6\n"], "units.csv", {
+			type: "text/csv",
+		})
+		fireEvent.change(screen.getByLabelText("CSV files to upload"), {
+			target: { files: [file] },
+		})
+		const dialog = await screen.findByRole("dialog")
+		expect(dialog.textContent).toContain("Upload units.csv")
+		fireEvent.click(within(dialog).getByRole("button", { name: "Sales data" }))
+		fireEvent.click(within(dialog).getByRole("button", { name: "Upload" }))
+		expect(
+			await screen.findByText("Uploaded “units” to Sales data.")
+		).toBeTruthy()
+		const row = within(screen.getByTestId("data-table"))
+			.getByText("units")
+			.closest("tr")!
+		expect(row.textContent).toContain("Sales data")
+		expect(row.textContent).toContain("2 × 2")
+		// The same file again is not stored twice.
+		fireEvent.change(screen.getByLabelText("CSV files to upload"), {
+			target: { files: [file] },
+		})
+		fireEvent.click(
+			within(await screen.findByRole("dialog")).getByRole("button", {
+				name: "Upload",
+			})
+		)
+		expect(await screen.findByText(/already in the library/)).toBeTruthy()
+		expect(store!.get(dataFoldersAtom)[0].datasetIds).toHaveLength(1)
 	})
 
 	it("checked data sets move into a folder together", () => {
