@@ -51,7 +51,7 @@ export const Header = () => {
 		select: (st) => st.location.pathname.startsWith("/settings"),
 	})
 	return (
-		<header className="sticky top-0 z-30 flex h-(--vc-header-h) items-center justify-between bg-white px-4 shadow-md shadow-stone-200/60 dark:bg-stone-900 dark:shadow-stone-950/40">
+		<header className="sticky top-0 z-30 flex h-(--vc-header-h) items-center justify-between border-b border-stone-200 bg-white px-4 dark:border-stone-700 dark:bg-stone-900">
 			<div className="flex items-center gap-6">
 				<Link
 					to="/"
@@ -94,7 +94,6 @@ export const Header = () => {
 			</div>
 			<div className="flex items-center gap-3">
 				<EditorPresence />
-				{!inSettings && <NewVisualizationButton />}
 				<EditorOnlyBlackAndWhiteToggle />
 				<InfoTipsToggle />
 				<Link
@@ -118,6 +117,17 @@ export const Header = () => {
 					</svg>
 				</Link>
 				<SignOutButton />
+				{/* The page's one filled-purple action sits last, set off from
+				 *  the quiet icon buttons by a hairline. */}
+				{!inSettings && (
+					<>
+						<span
+							aria-hidden="true"
+							className="hidden h-6 w-px bg-stone-200 sm:block dark:bg-stone-700"
+						/>
+						<NewVisualizationButton />
+					</>
+				)}
 			</div>
 		</header>
 	)
@@ -170,6 +180,19 @@ const SignOutButton = () => {
  *  one line. */
 const NewVisualizationLabel = () => (
 	<>
+		<svg
+			viewBox="0 0 14 14"
+			width={12}
+			height={12}
+			aria-hidden="true"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={2}
+			strokeLinecap="round"
+			className="mr-1.5 inline-block align-[-1px]"
+		>
+			<path d="M7 2v10M2 7h10" />
+		</svg>
 		New<span className="hidden sm:inline"> visualization</span>
 	</>
 )

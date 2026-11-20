@@ -401,9 +401,20 @@ export const DataFolderTree = ({
 	return (
 		<div className="flex h-full w-full flex-col bg-white dark:bg-stone-900">
 			<div className="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-stone-700">
-				<span className="text-sm font-medium tracking-wider uppercase vc-muted">
-					Folders
-				</span>
+				<svg
+					viewBox="0 0 16 16"
+					width={16}
+					height={16}
+					role="img"
+					aria-label="Folders"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth={1.4}
+					strokeLinejoin="round"
+					className="vc-muted"
+				>
+					<path d="M1.75 4.25a1 1 0 0 1 1-1h3l1.5 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H2.75a1 1 0 0 1-1-1z" />
+				</svg>
 				<IconButton
 					onClick={() => createFolder(newFolderParent)}
 					className="-m-0.5 p-1.5 pointer-coarse:p-2"

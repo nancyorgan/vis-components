@@ -18,9 +18,8 @@ import {
 import { useTrashVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 import { Button } from "../../../components/ui/Button"
-import { Input } from "../../../components/ui/Input"
+import { SearchInput } from "../../../components/ui/SearchInput"
 import { ResetLink } from "../../../components/ui/ResetLink"
-import { Segmented } from "../../../components/ui/Segmented"
 import { Select } from "../../../components/ui/Select"
 import {
 	parseSort,
@@ -403,11 +402,11 @@ const VisualsLibrary = () => {
 				 *  (the divider when open, the page edge when collapsed), so the
 				 *  title keeps clear of it. */}
 				<div className="mx-auto max-w-6xl px-4 py-6 pl-10 sm:px-6 sm:py-10 sm:pl-10">
-					<div className="mb-6 flex flex-wrap items-center gap-3">
+					<div className="mb-3 flex flex-wrap items-center gap-3">
 						<h1 className="mr-auto text-xl vc-heading">
 							{selectedFolderName}
 						</h1>
-						<Input
+						<SearchInput
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Search visualizations…"
@@ -428,10 +427,14 @@ const VisualsLibrary = () => {
 								</option>
 							))}
 						</Select>
+					</div>
+					{/* The tabs' underline lies over this row's hairline. */}
+					<div className="mb-6 flex flex-wrap items-end gap-3 border-b border-stone-200 dark:border-stone-700">
 						<KindToggle kind={kind} onChange={setKind} />
 						{(missingPreviewCount > 0 || backfillProgress !== null) && (
 							<Button
 								compact
+								className="mb-1.5"
 								disabled={backfillProgress !== null}
 								onClick={onRegeneratePreviews}
 							>
@@ -546,10 +549,10 @@ const VisualsLibrary = () => {
 										// start from those and carry the browser's own
 										// uri-list payload instead of the card's.
 										draggable={false}
-										className={`block overflow-hidden rounded-card border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-stone-800 ${
+										className={`block overflow-hidden rounded-card border bg-white transition-colors dark:bg-stone-800 ${
 											isSelected
 												? "border-brand-500 ring-2 ring-brand-400 dark:border-brand-400 dark:ring-brand-500"
-												: "border-stone-200 dark:border-stone-700"
+												: "border-stone-200 hover:border-stone-400 dark:border-stone-700 dark:hover:border-stone-500"
 										}`}
 									>
 										<div
@@ -690,6 +693,14 @@ const VisualsLibrary = () => {
 	)
 }
 
+const VIEW_OPTIONS = [
+	{ key: "grid", label: "Grid view" },
+	{ key: "table", label: "Table view" },
+] as const
+
+/** Grid | Table, as two icon buttons on a gray track. The chosen one is a
+ *  white chip with the brand color; purple fill stays with the page's one
+ *  primary action. */
 const ViewToggle = ({
 	view,
 	onChange,
@@ -697,17 +708,52 @@ const ViewToggle = ({
 	view: "grid" | "table"
 	onChange: (next: "grid" | "table") => void
 }) => (
-	// The one segmented "choose one of a few" control, shared with the editor
-	// sidebar (Stack / Group / Overlay, Line cap …) so the two views are
-	// styled from a single place.
-	<Segmented
-		ariaLabel="Library view"
-		tipAnchor="library-view"
-		value={view}
-		segments={[
-			{ key: "grid", label: "Grid" },
-			{ key: "table", label: "Table" },
-		]}
-		onChange={onChange}
-	/>
+	<div
+		role="radiogroup"
+		aria-label="Library view"
+		data-tip="library-view"
+		className="mb-1.5 flex gap-0.5 rounded-control bg-stone-100 p-0.5 dark:bg-stone-800"
+	>
+		{VIEW_OPTIONS.map((o) => {
+			const active = view === o.key
+			return (
+				<button
+					key={o.key}
+					type="button"
+					role="radio"
+					aria-checked={active}
+					aria-label={o.label}
+					title={o.label}
+					onClick={() => onChange(o.key)}
+					className={`flex h-6 w-7 items-center justify-center rounded transition-colors vc-focus-ring pointer-coarse:h-9 pointer-coarse:w-10 ${
+						active
+							? "bg-white text-vc-brand-text shadow-sm dark:bg-stone-600 dark:text-brand-200"
+							: "hover:text-stone-900 dark:hover:text-white vc-muted"
+					}`}
+				>
+					<svg
+						viewBox="0 0 16 16"
+						width={15}
+						height={15}
+						aria-hidden="true"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth={1.5}
+						strokeLinecap="round"
+					>
+						{o.key === "grid" ? (
+							<>
+								<rect x={2} y={2} width={5} height={5} rx={1} />
+								<rect x={9} y={2} width={5} height={5} rx={1} />
+								<rect x={2} y={9} width={5} height={5} rx={1} />
+								<rect x={9} y={9} width={5} height={5} rx={1} />
+							</>
+						) : (
+							<path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+						)}
+					</svg>
+				</button>
+			)
+		})}
+	</div>
 )

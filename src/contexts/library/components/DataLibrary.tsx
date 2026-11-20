@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useAtomValue, useSetAtom } from "jotai"
 import { Button } from "../../../components/ui/Button"
-import { Input } from "../../../components/ui/Input"
+import { SearchInput } from "../../../components/ui/SearchInput"
 import { ResetLink } from "../../../components/ui/ResetLink"
 import {
 	currentDatasetIdAtom,
@@ -304,7 +304,7 @@ export const DataLibrary = () => {
 				)}
 			>
 				<div className="mx-auto max-w-6xl px-4 py-6 pl-10 sm:px-6 sm:py-10 sm:pl-10">
-					<div className="mb-6 flex flex-wrap items-center gap-3">
+					<div className="mb-3 flex flex-wrap items-center gap-3">
 						<h1 className="mr-auto text-xl vc-heading">{title}</h1>
 						<UploadDatasetButton
 							folders={ownFolders}
@@ -318,13 +318,15 @@ export const DataLibrary = () => {
 							listed={datasets}
 							onNotices={setUploadNotices}
 						/>
-						<Input
+						<SearchInput
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Search data sets…"
 							aria-label="Search data sets"
 							className="w-full sm:w-64"
 						/>
+					</div>
+					<div className="mb-6 flex flex-wrap items-end gap-3 border-b border-stone-200 dark:border-stone-700">
 						<KindToggle kind="data" onChange={setKind} />
 					</div>
 					{uploadNotices.length > 0 && (

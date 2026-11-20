@@ -1,4 +1,4 @@
-import { Segmented } from "../../../components/ui/Segmented"
+import { UnderlineTabs } from "../../../components/ui/UnderlineTabs"
 import type { LibraryKind } from "../lib/libraryKind"
 
 /** Visuals | Templates | Data. "visuals" is the clean URL (no ?kind=). */
@@ -9,7 +9,9 @@ export const KindToggle = ({
 	kind: LibraryKind | undefined
 	onChange: (next: LibraryKind | undefined) => void
 }) => (
-	<Segmented
+	<UnderlineTabs
+		// Pushes whatever shares the row (Grid / Table) to the right edge.
+		className="mr-auto"
 		ariaLabel="Show visualizations, templates, or data sets"
 		tipAnchor="library-kind"
 		value={kind ?? "visuals"}
