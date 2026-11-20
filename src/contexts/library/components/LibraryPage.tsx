@@ -1,13 +1,11 @@
 import { isInlineImage } from "../../../lib/storedUrls"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { useAtom, useAtomValue } from "jotai"
 import {
 	datasetIndexAtom,
 	embedInstancesAtom,
 	foldersAtom,
-	libraryRailCollapsedAtom,
-	librarySidebarWidthAtom,
 	liveVisualsAtom,
 	visualsAtom,
 } from "../../chartBuilder/store/atoms"
@@ -20,8 +18,6 @@ import {
 import { useTrashVisuals } from "../../chartBuilder/store/useDeleteVisuals"
 
 import { Button } from "../../../components/ui/Button"
-import { RailTab } from "../../../components/ui/RailTab"
-import { useNarrowLayout } from "../../../lib/useMediaQuery"
 import { Input } from "../../../components/ui/Input"
 import { ResetLink } from "../../../components/ui/ResetLink"
 import { Segmented } from "../../../components/ui/Segmented"
@@ -51,6 +47,9 @@ import { UNFILED_FOLDER_ID } from "../lib/folderSubtree"
 import type { LibraryKind } from "../lib/libraryKind"
 import { FolderPickerModal } from "./FolderPickerModal"
 import { FolderTree } from "./FolderTree"
+import { DataLibrary } from "./DataLibrary"
+import { KindToggle } from "./KindToggle"
+import { LibraryRailLayout } from "./LibraryRailLayout"
 import { MoveToFolderButton } from "./MoveToFolderButton"
 import { OpenVisualLink, TemplateChip } from "./OpenVisualLink"
 import {
@@ -59,9 +58,6 @@ import {
 } from "./RegeneratePreviewButton"
 import { TrashButton } from "./TrashButton"
 import { VisualsTable } from "./VisualsTable"
-
-const MIN_SIDEBAR_WIDTH = 208
-const MAX_SIDEBAR_WIDTH = 480
 
 const formatTimestamp = (ts: number): string => {
 	const d = new Date(ts)
@@ -72,7 +68,14 @@ const formatTimestamp = (ts: number): string => {
 	})
 }
 
+/** The library: visuals and templates in a grid or a table, or — on the
+ *  Data tab — the data sets themselves (`DataLibrary`). */
 export const LibraryPage = () => {
+	const search = useSearch({ from: "/" })
+	return search.kind === "data" ? <DataLibrary /> : <VisualsLibrary />
+}
+
+const VisualsLibrary = () => {
 	// Listed: live visuals only; trashed ones live behind the TrashButton.
 	// Writes go through the FULL collection so a move / duplicate / preview
 	// fill never drops a trashed visual.
@@ -84,53 +87,6 @@ export const LibraryPage = () => {
 	const trashVisuals = useTrashVisuals()
 	const search = useSearch({ from: "/" })
 	const navigate = useNavigate({ from: "/" })
-
-	// Resizable folder sidebar — same pointer-capture pattern as the
-	// editor's sidebar (EditorLayout), persisted independently of it.
-	const [sidebarWidth, setSidebarWidth] = useAtom(
-		librarySidebarWidthAtom
-	)
-	// Fully collapsed rail: neither the tree nor its resize handle render,
-	// and the grid takes the whole width. The dragged width is kept so
-	// re-opening restores it.
-	const [railCollapsed, setRailCollapsed] = useAtom(libraryRailCollapsedAtom)
-	// NARROW (phones, tablets in portrait): the rail is an overlay sheet over
-	// the gallery instead of a column beside it — a 200px rail would leave
-	// the grid ~180px. Transient and closed on every visit, like the editor's
-	// sheet; picking a folder closes it, since the grid it filters is
-	// underneath.
-	const narrow = useNarrowLayout()
-	const [railSheetOpen, setRailSheetOpen] = useState(false)
-	const resizingRef = useRef(false)
-	const resizeStartXRef = useRef(0)
-	const resizeStartWidthRef = useRef(0)
-
-	const onSidebarResizeStart = useCallback(
-		(e: React.PointerEvent) => {
-			resizingRef.current = true
-			resizeStartXRef.current = e.clientX
-			resizeStartWidthRef.current = sidebarWidth
-			;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-
-			const onMove = (ev: PointerEvent) => {
-				if (!resizingRef.current) return
-				const delta = ev.clientX - resizeStartXRef.current
-				const next = Math.min(
-					MAX_SIDEBAR_WIDTH,
-					Math.max(MIN_SIDEBAR_WIDTH, resizeStartWidthRef.current + delta)
-				)
-				setSidebarWidth(next)
-			}
-			const onUp = () => {
-				resizingRef.current = false
-				window.removeEventListener("pointermove", onMove)
-				window.removeEventListener("pointerup", onUp)
-			}
-			window.addEventListener("pointermove", onMove)
-			window.addEventListener("pointerup", onUp)
-		},
-		[sidebarWidth, setSidebarWidth]
-	)
 
 	// Selection lives at the Visual-id level (not row-key level). In the
 	// table, multiple instance rows can share a visual; they highlight
@@ -201,7 +157,8 @@ export const LibraryPage = () => {
 	}, [selectedFolderId])
 	const view = search.view ?? "grid"
 	const query = search.q ?? ""
-	const kind = search.kind
+	// The Data tab renders `DataLibrary` instead of this component.
+	const kind = search.kind === "data" ? undefined : search.kind
 	const { field: sortField, dir: sortDir } = parseSort(search.sort)
 
 	const setSelectedFolderId = (id: string | null) => {
@@ -216,7 +173,13 @@ export const LibraryPage = () => {
 		})
 	}
 	const setKind = (next: LibraryKind | undefined) => {
-		navigate({ search: (prev) => ({ ...prev, kind: next }) })
+		navigate({
+			search: (prev) =>
+				next === "data"
+					? // The Data tab has folders and sort columns of its own.
+						{ ...prev, kind: next, folder: undefined, sort: undefined }
+					: { ...prev, kind: next },
+		})
 	}
 	const setQuery = (next: string) => {
 		navigate({ search: (prev) => ({ ...prev, q: next || undefined }) })
@@ -423,95 +386,19 @@ export const LibraryPage = () => {
 					"Visualizations")
 
 	return (
-		<div className="flex">
-			{/* Folder rail stays put beneath the sticky header while the page
-			 *  (grid + footer) scrolls as one document. */}
-			{narrow ? (
-				<>
-					{/* Zero-width sticky stand-in so the tab hangs off the page's
-					 *  left edge at the same height it has on the open rail. */}
-					<div className="vc-sticky-rail relative w-0 flex-shrink-0">
-						{!railSheetOpen && (
-							<RailTab
-								collapsed
-								label="folders"
-								onClick={() => setRailSheetOpen(true)}
-							/>
-						)}
-					</div>
-					{railSheetOpen && (
-						<>
-							{/* Scrim below the header: tapping the gallery closes. */}
-							<button
-								type="button"
-								aria-label="Close folders"
-								onClick={() => setRailSheetOpen(false)}
-								className="fixed inset-x-0 top-(--vc-header-h) bottom-0 z-20 bg-stone-900/30"
-							/>
-							<div className="fixed top-(--vc-header-h) bottom-0 left-0 z-30 w-[calc(100%-1.5rem)] border-r border-stone-200 shadow-xl sm:w-[360px] dark:border-stone-700">
-								<FolderTree
-									selectedFolderId={selectedFolderId}
-							kind={kind}
-									onSelect={(id) => {
-										setSelectedFolderId(id)
-										setRailSheetOpen(false)
-									}}
-								/>
-								<RailTab
-									collapsed={false}
-									label="folders"
-									onClick={() => setRailSheetOpen(false)}
-								/>
-							</div>
-						</>
-					)}
-				</>
-			) : railCollapsed ? (
-				// Zero-width sticky stand-in so the tab hangs off the page's
-				// left edge at the same height it had on the open rail.
-				<div className="vc-sticky-rail relative w-0 flex-shrink-0">
-					<RailTab
-						collapsed
-						label="folders"
-						onClick={() => setRailCollapsed(false)}
+		<>
+			<LibraryRailLayout
+				rail={(onPicked) => (
+					<FolderTree
+						selectedFolderId={selectedFolderId}
+						kind={kind}
+						onSelect={(id) => {
+							setSelectedFolderId(id)
+							onPicked()
+						}}
 					/>
-				</div>
-			) : (
-				<>
-					<div
-						className="vc-sticky-rail flex-shrink-0"
-						style={{ width: sidebarWidth }}
-					>
-						<FolderTree
-							selectedFolderId={selectedFolderId}
-							kind={kind}
-							onSelect={setSelectedFolderId}
-						/>
-					</div>
-					{/* Resize handle; the pull tab hangs off its border line. */}
-					{/* The handle holds the rail's pull-tab BUTTON, so the separator
-					 *  role sits on a transparent overlay inside it rather than on the
-					 *  handle itself (a separator may not contain a control). */}
-					<div
-						onPointerDown={onSidebarResizeStart}
-						className="group relative flex w-1.5 flex-shrink-0 cursor-ew-resize touch-none items-center justify-center border-r border-stone-200 bg-stone-50 hover:bg-stone-200 pointer-coarse:w-3 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-700"
-					>
-						<div
-							role="separator"
-							aria-orientation="vertical"
-							aria-label="Resize folders panel"
-							className="absolute inset-0"
-						/>
-						<div className="h-8 w-0.5 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-stone-500" />
-						<RailTab
-							collapsed={false}
-							label="folders"
-							onClick={() => setRailCollapsed(true)}
-						/>
-					</div>
-				</>
-			)}
-			<div className="min-w-0 flex-1">
+				)}
+			>
 				{/* The rail's pull tab always hangs over this pane's left edge
 				 *  (the divider when open, the page edge when collapsed), so the
 				 *  title keeps clear of it. */}
@@ -781,7 +668,7 @@ export const LibraryPage = () => {
 						</ul>
 					)}
 				</div>
-			</div>
+			</LibraryRailLayout>
 			<FolderPickerModal
 				open={bulkMoveOpen}
 				title={`Move ${selectedCount} visualization${selectedCount === 1 ? "" : "s"}`}
@@ -799,30 +686,9 @@ export const LibraryPage = () => {
 			/>
 			{/* Floating trash can, bottom-right: what Delete moves visuals into. */}
 			<TrashButton />
-		</div>
+		</>
 	)
 }
-
-const KindToggle = ({
-	kind,
-	onChange,
-}: {
-	kind: LibraryKind | undefined
-	onChange: (next: LibraryKind | undefined) => void
-}) => (
-	// Visuals | Templates | All. "visuals" is the clean URL (no ?kind=).
-	<Segmented
-		ariaLabel="Show visualizations, templates, or both"
-		tipAnchor="library-kind"
-		value={kind ?? "visuals"}
-		segments={[
-			{ key: "visuals", label: "Visuals" },
-			{ key: "templates", label: "Templates" },
-			{ key: "all", label: "All" },
-		]}
-		onChange={(next) => onChange(next === "visuals" ? undefined : next)}
-	/>
-)
 
 const ViewToggle = ({
 	view,

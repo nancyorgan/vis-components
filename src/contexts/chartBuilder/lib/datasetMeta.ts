@@ -43,12 +43,28 @@ export type DatasetLike = {
 	createdAt: number
 }
 
-/** Strip the rows out of one version, keeping a count in their place. */
+/** About how many bytes a table takes as a CSV file: every cell's text plus
+ *  one separator per cell, and a header line. Counts characters, not encoded
+ *  bytes, and ignores quoting — it is what the Data tab's Size column shows,
+ *  not a number anything is checked against. */
+export const approxCsvBytes = (
+	rows: ReadonlyArray<Record<string, string>>
+): number => {
+	let bytes = 0
+	for (const key in rows[0]) bytes += key.length + 1
+	for (const row of rows) {
+		for (const key in row) bytes += String(row[key] ?? "").length + 1
+	}
+	return bytes
+}
+
+/** Strip the rows out of one version, keeping a count and a size in their
+ *  place. */
 const versionMetaFrom = (
 	version: Dataset["versions"][number]
 ): DatasetVersionMeta => {
 	const { rows, ...rest } = version
-	return { ...rest, rowCount: rows.length }
+	return { ...rest, rowCount: rows.length, byteSize: approxCsvBytes(rows) }
 }
 
 /** Memoized derivations per body object. Sound because the atoms treat
@@ -134,8 +150,10 @@ export const datasetFromParts = (
 	rowsByVersion: Record<string, Array<Record<string, string>>>
 ): Dataset => ({
 	...meta,
-	versions: meta.versions.map(({ rowCount: _rowCount, ...version }) => ({
-		...version,
-		rows: rowsByVersion[version.id] ?? [],
-	})),
+	versions: meta.versions.map(
+		({ rowCount: _rowCount, byteSize: _byteSize, ...version }) => ({
+			...version,
+			rows: rowsByVersion[version.id] ?? [],
+		})
+	),
 })

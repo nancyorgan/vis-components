@@ -836,8 +836,9 @@ export const FolderTree = ({
 }: {
 	selectedFolderId: string | null
 	onSelect: (id: string | null) => void
-	/** Visuals | Templates | All filter (the library's `?kind=`): the tree
-	 *  lists the same rows the gallery does. Absent = ordinary visuals. */
+	/** Visuals or Templates (the library's `?kind=`): the tree lists the
+	 *  same rows the gallery does. Absent = ordinary visuals. The Data tab
+	 *  has a tree of its own (`DataFolderTree`). */
 	kind?: LibraryKind
 }) => {
 	const [folders, setFolders] = useAtom(foldersAtom)

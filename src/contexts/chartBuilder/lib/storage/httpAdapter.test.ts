@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { stringifyJsonDangerous } from "../../../../lib/json"
 import { datasetContentHash } from "../datasetDedupe"
+import { approxCsvBytes } from "../datasetMeta"
 import { clearExampleOverlay, installExampleOverlay } from "../exampleOverlay"
 import { createHttpStorageAdapter } from "./httpAdapter"
 import { CONTENT_MIGRATIONS } from "./migrations"
@@ -229,7 +230,13 @@ describe("datasets", () => {
 			name: "Legacy",
 			fields: [],
 			versions: [
-				{ id: "dv-1", filename: "a.csv", createdAt: 0, rowCount: 1 },
+				{
+					id: "dv-1",
+					filename: "a.csv",
+					createdAt: 0,
+					rowCount: 1,
+					byteSize: approxCsvBytes(body.versions[0].rows),
+				},
 			],
 			contentHash: datasetContentHash(body as never),
 		})

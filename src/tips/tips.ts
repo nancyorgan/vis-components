@@ -303,7 +303,7 @@ export const TIP_MOMENTS: TipMoment[] = [
 			{
 				id: "library-kind",
 				anchor: "library-kind",
-				body: "Templates you save live here too. Switch to see them, or see both at once.",
+				body: "Templates you save live here too, and Data lists every data set you can start a visualization from.",
 				placement: "bottom",
 			},
 		],

@@ -746,13 +746,6 @@ describe("FolderTree kind filter", () => {
 		)
 	})
 
-	it("lists both under All", () => {
-		seed()
-		renderKind("all")
-		expect(queryVisualRow("Chart")).not.toBeNull()
-		expect(queryVisualRow("Starter")).not.toBeNull()
-	})
-
 	it("a move while filtered keeps the rows the filter hides", () => {
 		seed()
 		const { container } = renderKind("templates")

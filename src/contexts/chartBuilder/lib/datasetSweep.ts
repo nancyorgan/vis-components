@@ -1,12 +1,9 @@
-/** Orphaned-dataset cleanup.
+/** Orphaned-dataset cleanup — HISTORICAL. Data sets now have a home of
+ *  their own, the library's Data tab, and a data set no visual uses is kept
+ *  there until it is deleted by hand; deleting a visual no longer takes its
+ *  data set with it. What remains here cleared the backlog from before that:
  *
- *  Datasets have no UI of their own — the data drawer shows only the current
- *  dataset, embeds resolve their dataset through their visual (and cascade-
- *  delete with it), so a dataset referenced by no visual and not open in the
- *  editor is unreachable from every surface. Two consumers:
- *
- *  - {@link sweepOrphanDatasets}: the pure core, run whenever visuals are
- *    deleted so a dataset's last reference takes the dataset with it.
+ *  - {@link sweepOrphanDatasets}: the pure core.
  *  - {@link runDatasetStoreCleanup}: a marker-guarded one-shot (main.tsx)
  *    that clears the backlog accumulated before cascade-on-delete existed,
  *    and re-runs the duplicate collapse the localStorage→IndexedDB move
@@ -42,7 +39,9 @@ import {
 import type { Dataset } from "./types"
 
 /** Bump to make {@link runDatasetStoreCleanup} run once more in browsers
- *  that already completed an earlier version.
+ *  that already completed an earlier version. BEFORE BUMPING: take the
+ *  orphan sweep out of the one-shot — since the Data tab, a data set with
+ *  no visual is something the user is keeping, not a leftover.
  *  v2: prune orphaned fields left behind by deleted additive versions.
  *  v3: refresh stale content hashes — before lazy loading shipped, appending
  *  or deleting a version never updated the creation-time hash, and a stale

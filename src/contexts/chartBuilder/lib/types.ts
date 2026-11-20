@@ -156,6 +156,13 @@ export type Dataset = {
 	 *  Optional/derivable: absent on legacy data, backfilled by the dedup
 	 *  coordinator and set on every new/append write. */
 	contentHash?: string
+	/** The data set (and the version of it) this one was copied from when a
+	 * change — a hand edit, a reshape, a derived variable — forked it off
+	 * imported data (`store/commitDatasetVersion.ts`). The library's Data tab
+	 * draws its lineage from this (`library/lib/dataLineage.ts`). Optional
+	 * and additive: no storage version bump; a copy made before it was
+	 * recorded is matched to its source by its first version instead. */
+	derivedFrom?: { datasetId: string; versionId: string }
 }
 
 /** One version's descriptor with the rows removed. `rowCount` keeps the
@@ -163,6 +170,10 @@ export type Dataset = {
  * answerable without them. */
 export type DatasetVersionMeta = Omit<DatasetVersion, "rows"> & {
 	rowCount: number
+	/** About how big the version's rows are as a CSV file, in bytes
+	 * (`approxCsvBytes`). Absent on metadata stored before it was derived;
+	 * the Data tab then measures the rows itself. */
+	byteSize?: number
 }
 
 /** A Dataset with every row stripped out — kilobytes for a whole library,
@@ -567,6 +578,16 @@ export type Folder = {
 	 * absent field reads as "unordered", exactly like every folder saved
 	 * before manual ordering existed. */
 	sortIndex?: number
+	/** "data" = a folder of the library's Data tab: it holds data sets
+	 * (`datasetIds`), not visuals, and has a tree of its own. Absent = an
+	 * ordinary folder of visuals. The two kinds share this one store and
+	 * never mix: `foldersAtom` reads only the visuals' folders,
+	 * `dataFoldersAtom` only these. */
+	kind?: "data"
+	/** A data folder's members. Membership lives on the folder, not on the
+	 * data set, so filing a data set never rewrites its (possibly huge)
+	 * body. A data set is in at most one folder. */
+	datasetIds?: string[]
 }
 
 /** A lightweight record of an embed code the user has copied. The landing

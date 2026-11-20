@@ -224,7 +224,7 @@ to the new data set and every draft atom is left alone, so the
 visualization simply continues on the edited data — encodings and
 field overrides included — and the version badge reads `v2 of 2 ·
 latest`. The imported data set is untouched; other visuals keep it,
-and the orphan sweep (§2.4) collects it if none does. A change to a
+and it stays in the Data tab (§2.4a) as the copy's source. A change to a
 data set that is ALREADY a **working copy** — one holding any version
 made from another, hand-edited, reshaped or derived (`isWorkingCopy`,
 `lib/datasetEdits.ts`) — **appends** a version to it (`editedFrom` the
@@ -868,16 +868,11 @@ represented by its former names too (its rows still carry the old
 keys), and pruning is skipped entirely when any counted version has
 zero rows rather than risk dropping a live field.
 
-Datasets have no library UI of their own, so unreferenced ones are
-swept rather than managed: `sweepOrphanDatasets` (`lib/datasetSweep.ts`)
-runs whenever visuals are purged from the Trash (moving a visual TO the
-Trash sweeps nothing — it still owns its data set), dropping every
-dataset no remaining visual references and no protected id names (the editor's current
-dataset is protected — an upload not yet saved as a visual is live
-work). Seed datasets from the ephemeral example overlay (§14) are safe
-from it: the sweep judges them against the seed visuals that reference
-them, and a swept store is written back through the same strip every
-save uses. Alongside it, `runDatasetStoreCleanup` is a
+Data sets are managed in the library's **Data tab** (§2.4a), so a data
+set no visual uses is KEPT: emptying the Trash removes the visuals and
+their embeds and leaves their data sets (`usePurgeVisuals`), and a data
+set goes only when it is deleted from the Data tab. `sweepOrphanDatasets`
+(`lib/datasetSweep.ts`) survives only inside the one-shot below. `runDatasetStoreCleanup` is a
 **marker-guarded one-shot** run from `main.tsx` — after a persisted
 seed, before the ephemeral overlay, which it must never see: it
 collapses
@@ -887,6 +882,83 @@ accumulated before cascade-on-delete existed, and prunes historical
 orphan fields. It runs once per browser per `CLEANUP_VERSION` (bump
 the constant to re-run) and must never throw — a failure logs, skips
 the marker so it retries next launch, and first paint proceeds.
+
+### 2.4a The Data tab (data library)
+The library's toggle is **Visuals | Templates | Data** (`?kind=`, absent =
+Visuals; the old "All" is gone and `?kind=all` lands on Visuals). Data
+swaps the page body for `DataLibrary` (`library/components/`): the data
+sets themselves, so a visualization can be started from one without
+finding a visual that happens to use it.
+
+- **The list.** A table only, one line per data set: Name (with "Made
+  from …" under a data set made from another), Created, Last edited (its
+  newest version), Folder, Rows × columns and Size, each of the latest
+  version. Every column sorts (`?sort=`, last edited first by default) and
+  the search box filters by name. Size is the rows as CSV, approximately
+  (`approxCsvBytes`, `lib/datasetMeta.ts`): derived with the rest of the
+  metadata (`DatasetVersionMeta.byteSize`), and for data stored before
+  that measured once from the latest version's rows and remembered on the
+  device (`useDatasetSizes`).
+- **The preview.** Clicking a data set opens it as a spreadsheet
+  (`DataPreviewModal`): the Edit-data grid (§2.1) on that data set, so it
+  scrolls, sorts and filters, and a changed cell saves exactly as it does
+  in the editor — the first change to imported data makes a new data set,
+  a change to a working copy adds a version (`commitDatasetVersion` with a
+  `target`; the editor's open visualization is left alone). Above the
+  grid: the version shown (a picker when there are several), what the data
+  set was made from, how many visualizations use it, its folder, Download
+  CSV, **New visualization** (`/editor/new?datasetId=`) and Move to
+  trash (see the Data trash, below).
+- **Lineage.** A copy forked off imported data records its source
+  (`Dataset.derivedFrom`); a copy made before that was recorded is matched
+  by its first version, which is a copy of the source's (same file name,
+  upload time and row count). `library/lib/dataLineage.ts` owns this.
+- **Data folders.** The rail (`DataFolderTree`) replaces the visuals'
+  folder tree while Data is selected. It holds folders the user names,
+  nests and deletes (a deleted folder's contents move up a level), and
+  under each the data sets filed there, drawn as lineage: a data set made
+  from another sits under it when both are in the same folder. Unfiled
+  data sets list beneath. Clicking a folder filters the list; clicking a
+  data set opens its preview; dragging a data set (from the list or the
+  rail) onto a folder files it. A new copy is filed beside its source.
+  Data folders live in the folders store with `kind: "data"` and keep
+  their members in `datasetIds` — on the folder, so filing a data set
+  never rewrites its rows — and are read through `dataFoldersAtom`;
+  `foldersAtom` sees only the visuals' folders.
+- **Stock Data Sets.** The data sets the stock examples are drawn from
+  get a shelf of their own, last in the rail, so they don't sit among the
+  user's unfiled data. A data set is on it when a visual in the Stock
+  Examples folder uses it (Trash included) or when the shipped examples
+  brought it. The shelf is worked out on every read and never stored
+  (`library/lib/stockDataFolder.ts`, `useDataFoldersView`), and like the
+  visuals' stock shelf it is the app's: no rename, delete, subfolder or
+  drop. A stock data set STAYS on the shelf — a bulk move or a drag skips
+  it (the bulk bar says how many stay), and the preview offers no folder
+  picker for it — so sorting one's own data never empties the shelf. A
+  copy made from a stock data set is the user's and starts out unfiled.
+- **Versions in the rail.** A data set with more than one version lists
+  them under it, oldest first ("v1 · sales.csv", "v2 · edited by hand" —
+  the origin from `describeVersionOrigin`, else the file name), ahead of
+  the data sets made from it. Clicking a version opens the preview on
+  that version.
+- **Checked rows.** The list has checkboxes (select-all, shift-click
+  range) and the visuals' bulk bar: **Move…**, **Duplicate…**,
+  **Download** and **Move to trash**; a checked row dragged onto a folder
+  carries the selection. Duplicate copies the whole data set, history and
+  all, under a new id and new version ids, named "… (copy)", into the
+  folder picked (`duplicateDataset`, `hooks/useDatasetActions.ts`) — it
+  takes stock data sets too, and the copy is the user's own, which is how
+  a stock data set gets into a folder. Download saves each data set's
+  latest version as CSV (one: the Save-as dialog; several: one file each).
+- **The Data trash.** Move to trash is offered only for a data set no
+  visualization uses (the visuals' Trash counts, and so does the data set
+  bound in the editor); in a mixed selection the rest go and the bar says
+  how many stay. A trashed data set leaves the list and the rail and
+  waits in the Data tab's own trash can (`DataTrashButton`), which
+  restores it (to no folder) or deletes it for good — the only place a
+  data set's rows are removed. The trash is a reserved data folder
+  (`library/lib/dataTrash.ts`) that nothing shows, so trashing rewrites
+  no rows either. The preview's button is the same Move to trash.
 
 ---
 
@@ -907,8 +979,8 @@ template it was started from. Both fields are optional, so no
 `VISUALS_VERSION` bump: a build that does not know them carries them
 through untouched. Templates sit in the normal library folders, so
 folders, drag-and-drop, Trash, duplicate, bulk Download and bundle
-import/export all apply unchanged. The library's Visuals | Templates |
-All filter decides which show; cards, table rows and tree rows carry a
+import/export all apply unchanged. The library's Visuals | Templates
+toggle decides which show (its third option, Data, is §2.4a); cards, table rows and tree rows carry a
 "Template" chip, and clicking a template starts a NEW visual from it
 (`/editor/new?templateId=`) — it never opens in the editor as a chart,
 the editor refuses to load one the way it refuses a trashed visual, a

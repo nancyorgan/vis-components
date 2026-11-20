@@ -1,5 +1,6 @@
 import { useId, useState } from "react"
 import { useAtomValue } from "jotai"
+import type { Folder } from "../../chartBuilder/lib/types"
 import { foldersAtom } from "../../chartBuilder/store/atoms"
 import { folderTreeOrder } from "../lib/folderOrder"
 
@@ -36,6 +37,11 @@ type Props = {
 	secondaryAction?: { label: string; onClick: () => void | Promise<void> }
 	/** A failure from the caller's last confirm, shown above the buttons. */
 	error?: string | null
+	/** The folders to pick among, when they aren't the visuals' — the Data
+	 *  tab passes its data folders. */
+	folders?: readonly Folder[]
+	/** What the "no folder" choice is called. */
+	rootLabel?: string
 }
 
 /** Destination-folder picker shared by Move, Duplicate and the header's
@@ -50,8 +56,11 @@ export const FolderPickerModal = ({
 	onConfirm,
 	secondaryAction,
 	error = null,
+	folders: foldersProp,
+	rootLabel = "Root (no folder)",
 }: Props) => {
-	const folders = useAtomValue(foldersAtom)
+	const visualFolders = useAtomValue(foldersAtom)
+	const folders = foldersProp ?? visualFolders
 	const [target, setTarget] = useState<string | null>(initialTarget)
 	const [name, setName] = useState(nameField?.initial ?? "")
 	const nameId = useId()
@@ -131,7 +140,7 @@ export const FolderPickerModal = ({
 								: "vc-text"
 						}`}
 					>
-						Root (no folder)
+						{rootLabel}
 					</button>
 					{sorted.map(({ folder: f, depth }) => (
 						<button

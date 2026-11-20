@@ -14,9 +14,11 @@ const TEMPLATE = { template: { sourceFields: [], formatMemory: {} } }
 const VISUAL = {}
 
 describe("parseLibraryKind", () => {
-	it("accepts templates and all, nothing else", () => {
+	it("accepts templates and data, nothing else", () => {
 		expect(parseLibraryKind("templates")).toBe("templates")
-		expect(parseLibraryKind("all")).toBe("all")
+		expect(parseLibraryKind("data")).toBe("data")
+		// The old third option (visuals and templates together) is gone.
+		expect(parseLibraryKind("all")).toBeUndefined()
 		expect(parseLibraryKind("visuals")).toBeUndefined()
 		expect(parseLibraryKind("")).toBeUndefined()
 		expect(parseLibraryKind(undefined)).toBeUndefined()
@@ -35,19 +37,17 @@ describe("kindPredicate", () => {
 		expect(p(VISUAL)).toBe(false)
 		expect(p(TEMPLATE)).toBe(true)
 	})
-	it("all shows both", () => {
-		const p = kindPredicate("all")
-		expect(p(VISUAL)).toBe(true)
-		expect(p(TEMPLATE)).toBe(true)
-	})
 })
 
 describe("library route ?kind=", () => {
 	it("keeps a valid kind and drops anything else", async () => {
 		const { validateSearch } = await import("../routes")
 		expect(validateSearch({ kind: "templates" })).toEqual({ kind: "templates" })
+		expect(validateSearch({ kind: "data", sort: "size:desc" })).toEqual({
+			kind: "data",
+			sort: "size:desc",
+		})
 		expect(validateSearch({ kind: "all", view: "table" })).toEqual({
-			kind: "all",
 			view: "table",
 		})
 		expect(validateSearch({ kind: "visuals" })).toEqual({})

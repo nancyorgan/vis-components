@@ -11,7 +11,9 @@ import { parseLibraryKind, type LibraryKind } from "./lib/libraryKind"
 // view    — "grid" | "table"; absent = "grid"
 // q       — search query string; absent = ""
 // sort    — `<field>:<asc|desc>`; absent = "updatedAt:desc"
-// kind    — "templates" | "all"; absent = ordinary visuals only (no templates)
+// kind    — "templates" | "data"; absent = ordinary visuals only. "data" is
+//           the Data tab: `folder` then names a DATA folder and `sort` one
+//           of its columns; `dataset` and `view` don't apply.
 export type LibrarySearch = {
 	folder?: string
 	dataset?: string

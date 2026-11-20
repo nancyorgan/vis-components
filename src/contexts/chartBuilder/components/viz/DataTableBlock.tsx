@@ -176,7 +176,7 @@ const DataTable = ({
 				className="vc-data-table-scroll"
 				role="region"
 				aria-label={titleText}
-				// eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region must be focusable (WCAG 2.1.1)
+				 
 				tabIndex={hidden ? undefined : 0}
 			>
 				<table

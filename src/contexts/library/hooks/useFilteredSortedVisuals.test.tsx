@@ -60,8 +60,4 @@ describe("kind filter", () => {
 		expect(gridIds("templates")).toEqual(["tpl"])
 		expect(tableIds("templates")).toEqual(["tpl"])
 	})
-	it("all lists both", () => {
-		expect(gridIds("all")).toEqual(["chart", "tpl"])
-		expect(tableIds("all")).toEqual(["chart", "tpl"])
-	})
 })

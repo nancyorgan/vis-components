@@ -204,6 +204,7 @@ const KEY_SIDEBAR_WIDTH = "vis-components:sidebarWidth"
 const KEY_LIBRARY_SIDEBAR_WIDTH = "vis-components:librarySidebarWidth"
 const KEY_LIBRARY_COLLAPSED_FOLDERS = "vis-components:libraryCollapsedFolders"
 const KEY_LIBRARY_RAIL_COLLAPSED = "vis-components:libraryRailCollapsed"
+const KEY_DATASET_SIZES = "vis-components:datasetSizes"
 const KEY_EDITOR_SIDEBAR_HIDDEN = "vis-components:editorSidebarHidden"
 const KEY_LIBRARY_SELECTED_FOLDER = "vis-components:librarySelectedFolderId"
 const KEY_SIDEBAR_COLLAPSED = "vis-components:sidebarCollapsed"
@@ -1116,6 +1117,14 @@ export const saveLibraryCollapsedFolders = (v: ReadonlySet<string>): void =>
 export const watchLibraryCollapsedFolders = watchOtherTabs(
 	KEY_LIBRARY_COLLAPSED_FOLDERS
 )
+
+/** Measured sizes (bytes, as CSV) of data set versions whose stored metadata
+ * carries none, keyed by version id — the Data tab's Size column. A cache:
+ * device-local, safe to lose, re-measured from the rows when absent. */
+export const loadDatasetSizes = (): Record<string, number> =>
+	safeGet<Record<string, number>>(KEY_DATASET_SIZES, {})
+export const saveDatasetSizes = (v: Record<string, number>): void =>
+	safeSet(KEY_DATASET_SIZES, v)
 
 /** Whether the library's folder rail is collapsed fully away (the grid then
  * takes the whole width). Device-local UI state; the rail's width survives

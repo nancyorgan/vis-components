@@ -30,7 +30,7 @@ const plural = (n: number, word: string) =>
  * (badge = how many visuals it holds) that opens the Trash panel. Deleting
  * a visual anywhere in the library moves it here; the panel restores it or
  * purges it for good — purge is the only place the old delete cascade
- * (unpublish embeds, sweep orphaned data sets) still runs. */
+ * (unpublish embeds) still runs. Data sets stay, in the Data tab. */
 export const TrashButton = () => {
 	const trashed = useAtomValue(trashedVisualsAtom)
 	const datasets = useAtomValue(datasetIndexAtom)
@@ -142,7 +142,7 @@ export const TrashButton = () => {
 												publishedCount === 1 ? "has" : "have"
 											} published embeds — their public embed URLs will stop working.`
 										: ""}{" "}
-									Data sets no other visualization uses will be removed too.
+									Their data sets stay in the library&rsquo;s Data tab.
 								</p>
 								<div className="flex justify-end gap-2">
 									<Button compact onClick={() => setConfirmEmpty(false)}>

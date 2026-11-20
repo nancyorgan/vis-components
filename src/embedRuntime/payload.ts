@@ -53,7 +53,7 @@ type PrivateVisualKey =
 	| "deletedAt"
 	| "template"
 	| "templateId"
-type PrivateDatasetKey = "name" | "createdAt" | "contentHash"
+type PrivateDatasetKey = "name" | "createdAt" | "contentHash" | "derivedFrom"
 type PrivateVersionKey = "filename" | "createdAt" | "note" | "editedFrom" | "transform"
 
 /** `true` only when `Public` and `Private` together name exactly the keys

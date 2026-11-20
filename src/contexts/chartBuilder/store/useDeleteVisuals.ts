@@ -2,13 +2,9 @@ import { useAtomCallback } from "jotai/utils"
 import { useCallback } from "react"
 import { removeInstancesForVisual } from "../lib/embedInstances"
 import { unpublishEmbedRequest } from "../lib/embedPublish"
-import { sweepOrphanDatasets } from "../lib/datasetSweep"
 import { restoreVisuals, trashVisuals } from "../lib/visualTrash"
 
 import {
-	currentDatasetIdAtom,
-	datasetIndexAtom,
-	deleteDatasetsAtom,
 	embedInstancesAtom,
 	foldersAtom,
 	republishOnSaveVisualsAtom,
@@ -41,14 +37,10 @@ export const useRestoreVisuals = () =>
 
 /** Delete visuals for good, with full cascade: their published embed files
  * go first (public URLs must not outlive the visual they render), their
- * embed instances go (the landing page must not refer to missing ids), and
- * any dataset left referenced by no remaining visual goes with them —
- * datasets have no UI of their own, so a dataset's last visual is its last
- * reachable reference. "Remaining" includes visuals still in the Trash:
- * they hold their data sets until they are purged themselves. The editor's
- * current dataset is exempt (an upload not yet saved as a visual is live
- * work in progress). Reached only from the Trash panel (Delete forever /
- * Empty trash). */
+ * embed instances go (the landing page must not refer to missing ids). The
+ * data set STAYS: it lives in the library's Data tab, where another
+ * visualization can be started from it and where it is deleted by hand.
+ * Reached only from the Trash panel (Delete forever / Empty trash). */
 export const usePurgeVisuals = () =>
 	useAtomCallback(
 		useCallback((get, set, visualIds: Iterable<string>) => {
@@ -74,18 +66,5 @@ export const usePurgeVisuals = () =>
 			set(republishOnSaveVisualsAtom, (prev) =>
 				[...ids].reduce((acc, id) => withRepublishOnSave(acc, id, false), prev)
 			)
-			// Swept over the INDEX, not the loaded bodies: the index is the
-			// authoritative list of what exists, and orphan-ness is a question
-			// about references, which needs no rows. Sweeping the loaded map
-			// would only ever consider the handful of datasets this session
-			// happened to open.
-			const swept = sweepOrphanDatasets({
-				datasets: get(datasetIndexAtom),
-				visuals: remaining,
-				protectedIds: [get(currentDatasetIdAtom)],
-			})
-			if (swept.removedIds.length > 0) {
-				set(deleteDatasetsAtom, swept.removedIds)
-			}
 		}, [])
 	)

@@ -14,6 +14,7 @@ import {
 
 import {
 	currentDatasetIdAtom,
+	dataFoldersAtom,
 	getDatasetBody,
 	loadedDatasetsAtom,
 	mutateDatasetBodyAtom,
@@ -73,8 +74,8 @@ export const saveModeFor = (
  *  altered the shape — and whose v2 is the change, marked `editedFrom` v1.
  *  The editor rebinds to it; every draft atom is left alone, so the
  *  visualization simply continues on the changed data. The imported data
- *  set is untouched — other visuals keep it, and the orphan sweep takes it
- *  if none does.
+ *  set is untouched — other visuals keep it, and the copy records it as
+ *  its source (`derivedFrom`), which is the lineage the Data tab draws.
  *
  *  Append (the data set is already a working copy): the change joins it as
  *  a new version marked `editedFrom` the version shown; the versions before
@@ -160,9 +161,21 @@ export const commitDatasetVersion = async (
 			latestVersionId: version.id,
 			createdAt: now,
 			contentHash: "",
+			derivedFrom: { datasetId, versionId: source.id },
 		}
 		dataset.contentHash = datasetContentHash(dataset)
 		void set(loadedDatasetsAtom, (prev) => ({ ...prev, [id]: dataset }))
+		// The copy is filed beside its source, so the Data tab shows it
+		// under the data set it was made from.
+		if (get(dataFoldersAtom).some((f) => f.datasetIds?.includes(datasetId))) {
+			void set(dataFoldersAtom, (prev) =>
+				prev.map((f) =>
+					f.datasetIds?.includes(datasetId)
+						? { ...f, datasetIds: [...f.datasetIds, id] }
+						: f
+				)
+			)
+		}
 		if (!target) {
 			set(currentDatasetIdAtom, id)
 			set(previewVersionIdAtom, null)

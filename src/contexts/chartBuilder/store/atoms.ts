@@ -389,11 +389,36 @@ export const trashedVisualsAtom = atom((get) =>
 		.sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))
 )
 
-export const foldersAtom = contentAtom<Folder[]>(
+/** Every stored folder, of both kinds. Nothing outside this file reads it:
+ * the library's two trees each see their own kind through the views below. */
+const allFoldersAtom = contentAtom<Folder[]>(
 	loadFolders,
 	(adapter) => adapter.loadFolders(),
 	(adapter, folders) => adapter.saveFolders(folders)
 )
+
+/** One kind's folders as a list of its own: reads filter the shared store,
+ * writes replace that kind's folders and leave the other kind's alone. The
+ * write hands back the store's save promise, like any content atom. */
+const foldersOfKind = (mine: (folder: Folder) => boolean) =>
+	atom(
+		(get) => get(allFoldersAtom).filter(mine),
+		(get, set, update: Folder[] | ((prev: Folder[]) => Folder[])) => {
+			const all = get(allFoldersAtom)
+			const next = resolveUpdate(update, all.filter(mine))
+			return set(allFoldersAtom, [
+				...next,
+				...all.filter((f) => !mine(f) && !next.some((n) => n.id === f.id)),
+			])
+		}
+	)
+
+/** The folders visuals and templates are filed in. */
+export const foldersAtom = foldersOfKind((f) => f.kind !== "data")
+
+/** The folders of the library's Data tab: named by the user, holding data
+ * sets (`Folder.datasetIds`). A separate tree from the visuals' folders. */
+export const dataFoldersAtom = foldersOfKind((f) => f.kind === "data")
 
 /** Datasets are split in two, because a library's row data can run to
  * hundreds of megabytes and almost nothing needs it.

@@ -16,6 +16,7 @@ import { TestProvider, type TestStore } from "../../../testSupport/TestProvider"
 
 import {
 	currentDatasetIdAtom,
+	dataFoldersAtom,
 	currentDerivedVariablesAtom,
 	currentEncodingsAtom,
 	currentFieldOverridesAtom,
@@ -118,6 +119,64 @@ const forkedId = (store: TestStore) => {
 		throw new Error("expected the editor to move to a forked data set")
 	return id
 }
+
+describe("an edit made from the library's Data tab", () => {
+	const target = (dataset: Dataset, versionId: string) => {
+		const version = dataset.versions.find((v) => v.id === versionId)!
+		return {
+			id: dataset.id,
+			name: dataset.name,
+			filename: version.filename,
+			fields: dataset.fields,
+			rows: version.rows,
+			createdAt: dataset.createdAt,
+			versionId,
+			versionIndex: 1,
+			totalVersions: dataset.versions.length,
+			isLatest: versionId === dataset.latestVersionId,
+			versionCreatedAt: version.createdAt,
+		}
+	}
+
+	it("forks a copy that names its source, files it beside it, and leaves the editor alone", async () => {
+		const other = buildDataset({
+			id: "ds-in-editor",
+			name: "other",
+			fields: FIELDS,
+			versions: [{ id: "o1", filename: "o.csv", rows: ROWS_V1, createdAt: 5 }],
+		})
+		const source = twoVersions()
+		const { save, store } = setup(other, (s) => {
+			s.set(loadedDatasetsAtom, { [other.id]: other, [source.id]: source })
+			s.set(dataFoldersAtom, [
+				{
+					id: "fl-data",
+					name: "Sales",
+					parentId: null,
+					createdAt: 1,
+					kind: "data",
+					datasetIds: [ID],
+				},
+			])
+		})
+		const result = await save(
+			"city,sales\nLima,99\nQuito,20",
+			"sales (edited)",
+			target(source, "v1")
+		)
+		if (!result.ok) throw new Error(result.error)
+		expect(result.mode).toBe("fork")
+		// The editor still holds what it held.
+		expect(store.get(currentDatasetIdAtom)).toBe(other.id)
+		const copy = store.get(loadedDatasetsAtom)[result.datasetId]
+		expect(copy.derivedFrom).toEqual({ datasetId: ID, versionId: "v1" })
+		expect(copy.versions.at(-1)?.rows[0]).toEqual({ city: "Lima", sales: "99" })
+		expect(store.get(dataFoldersAtom)[0].datasetIds).toEqual([
+			ID,
+			result.datasetId,
+		])
+	})
+})
 
 describe("save mode", () => {
 	it("forks imported data and appends to a hand-edited copy", () => {
